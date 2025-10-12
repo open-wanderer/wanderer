@@ -271,10 +271,41 @@
         },
     });
 
-    async function setDifficulty(createdTrail: Trail) {
+    async function setDifficulty(trail: Trail) {
+        if (!trail.distance) return;
+
         let settings: Settings = page.data.settings;
+        let trailCategory = trail.category;
+
+        if (!trailCategory) {
+            const catBiking = $categories.find(c => c.id == "7u4d6b446po42f0");
+            const catHiking = $categories.find(c => c.id == "28u13dp5p7ry2n7");
+
+            if (routingOptions && routingOptions.autoRouting) {
+                if (routingOptions.modeOfTransport == "bicycle") {
+                    trailCategory = catBiking?.name;
+                } else if (routingOptions.modeOfTransport == "pedestrian") {
+                    trailCategory = catHiking?.name;
+                }
+            }
+
+            if (!trailCategory && trail.expand?.gpx?.features) {
+                let speed = trail.distance / (trail.expand.gpx.features.moveDuration / 3600.0);
+                
+                if (speed < 10) {
+                    trailCategory = catHiking?.name;
+                } else if (speed < 40) {
+                    trailCategory = catBiking?.name;
+                }
+                
+                if (!trailCategory) {
+                    return;
+                }
+            }
+        }
+
         if (settings && settings.skills) {
-            let skills = settings.skills.find((skill) => skill.category == createdTrail.category);
+            let skills = settings.skills.find((skill) => skill.category == trailCategory);
             if (skills && skills.algorithm && skills.speed) {
                 
                 let algorithms = await algorithms_index();
@@ -298,7 +329,7 @@
                     }
 
                     if (thresholds.length > 0) {
-                        createdTrail.difficulty = getTrailDifficulty(createdTrail, thresholds);
+                        trail.difficulty = getTrailDifficulty(trail, thresholds);
                     }
                 }
             }
@@ -360,7 +391,8 @@
 
         try {
             const prevId = $formData.id;
-            const parseResult = await gpx2trail(gpxData, selectedFile.name);
+            const parseResult = await gpx2trail(gpxData, selectedFile.name);            
+            await setDifficulty(parseResult.trail);
             setFields(parseResult.trail);
             $formData.id = prevId ?? cryptoRandomString({ length: 15 });
             $formData.expand!.gpx_data = gpxData;

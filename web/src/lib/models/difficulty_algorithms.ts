@@ -18,13 +18,13 @@ class DifficultyAlgorithm {
 
 class Threshold {
     speed: "relaxed" | "moderate" | "medium" | "fast" | "expert";
-    type: "distance" | "elevation";
+    type: "distance" | "duration" | "elevation";
     difficulty: "easy" | "moderate" | "difficult";
     limit: number;
 
     constructor(
         speed: "relaxed" | "moderate" | "medium" | "fast" | "expert",
-        type: "distance" | "elevation",
+        type: "distance" | "duration" | "elevation",
         difficulty: "easy" | "moderate" | "difficult",
         limit: number,
     ) {

@@ -46,7 +46,7 @@
 
     const speedItems: SelectItem[] = [
         { text: $_("relaxed"), value: "relaxed" },
-        { text: $_("moderate"), value: "moderate" },
+        { text: $_("moderate2"), value: "moderate" },
         { text: $_("medium"), value: "medium" },
         { text: $_("fast"), value: "fast" },
         { text: $_("expert"), value: "expert" },
