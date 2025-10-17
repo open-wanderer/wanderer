@@ -280,6 +280,15 @@
         else hoveredTrail = undefined;
     }
 
+    async function handleTrailsMergeDone(resetSelection: boolean = false) {
+        if (resetSelection) {
+            selection?.clear();
+            hoveredTrail = undefined;
+        }
+        await tick();
+        onupdate?.(filter, selection);
+    }
+
     async function handleTrailsEditDone(resetSelection: boolean = false) {
         if (resetSelection) {
             selection?.clear();
@@ -319,6 +328,7 @@
                     mode={"multi-select"}
                     onDelete={() => handleTrailsEditDone(true)}
                     onShare={() => handleTrailsEditDone(false)}
+                    onMerge={() => handleTrailsMergeDone(true)}
                 />
             </div>
         {/if}

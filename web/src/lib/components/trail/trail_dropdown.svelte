@@ -8,7 +8,7 @@
         lists_remove_trail,
     } from "$lib/stores/list_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { trails_delete } from "$lib/stores/trail_store";
+    import { trails_delete, trails_show, fetchGPX, trails_update } from "$lib/stores/trail_store";
     import { currentUser } from "$lib/stores/user_store";
     import { getFileURL, saveAs } from "$lib/util/file_util";
     import { trail2gpx } from "$lib/util/gpx_util";
@@ -23,6 +23,18 @@
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
     import type { Snippet } from "svelte";
     import { page } from "$app/state";
+	import { SummitLog } from "$lib/models/summit_log";
+    import { summit_logs_create } from "$lib/stores/summit_log_store";
+    import type { Comment as TrailComment } from "$lib/models/comment";
+    import { comments_create, comments_index } from "$lib/stores/comment_store";
+    import TrailMergeModal from "./trail_merge_modal.svelte";
+    import type { MergeSettings } from "./trail_merge_modal.svelte";
+    import { processMergeQueue, mergeStore, type Merge } from "$lib/stores/trail_merge_store.svelte";
+    import MergeDialog from "$lib/components/trail/trail_merge_dialog.svelte";
+  import { tags_create } from "$lib/stores/tag_store";
+  import { Tag } from "$lib/models/tag";
+  import { trail_like_create } from "$lib/stores/trail_like_store";
+  import { TrailLike } from "$lib/models/trail_like";
 
     interface Props {
         trails?: Set<Trail> | undefined;
@@ -30,14 +42,16 @@
         toggle?: Snippet<[any]>;
         onDelete?: () => void;
         onShare?: () => void;
+        onMerge?: () => void;
     }
 
-    let { trails, mode, toggle, onDelete, onShare }: Props = $props();
+    let { trails, mode, toggle, onDelete, onShare, onMerge }: Props = $props();
 
     let confirmModal: ConfirmModal;
     let listSelectModal: ListSelectModal;
     let trailExportModal: TrailExportModal;
     let trailShareModal: TrailShareModal;
+    let trailMergeModal: TrailMergeModal;
 
     let lists: List[] = $state([]);
 
@@ -45,6 +59,18 @@
         return (
             hasTrail() &&
             !isMultiselectMode() &&
+            Boolean($currentUser) &&
+            (trail()!.expand?.author?.id === $currentUser?.actor ||
+                trail()!.expand?.trail_share_via_trail?.some(
+                    (s) => s.permission == "edit",
+                ))!
+        );
+    }
+
+    function allowMerge(): boolean {
+        return (
+            hasTrail() &&
+            isMultiselectMode() &&
             Boolean($currentUser) &&
             (trail()!.expand?.author?.id === $currentUser?.actor ||
                 trail()!.expand?.trail_share_via_trail?.some(
@@ -102,6 +128,9 @@
                 : []),
             ...(allowDelete()
                 ? [{ text: $_("delete"), value: "delete", icon: "trash" }]
+                : []),
+            ...(allowMerge()
+                ? [{ text: $_("link"), value: "merge", icon: "link" }]
                 : []),
         ];
     }
@@ -218,6 +247,229 @@
             }
         } else if (item.value == "delete") {
             confirmModal.openModal();
+        } else if (item.value == "merge") {
+            trailMergeModal.openModal();
+        }
+    }
+
+    async function mergeTrails(settings: MergeSettings) {  
+        if (!trails || trails.size < 2) return;
+
+        let trailTarget: Trail | undefined  = undefined;
+        for (const mTrail of trails) {
+            if (mTrail.expand?.summit_logs_via_trail && mTrail.expand?.summit_logs_via_trail.length > 0) {
+                trailTarget = mTrail;
+                break;
+            }
+        }
+
+        if (!trailTarget) {
+            trailTarget = [...trails][0];
+        }
+
+        if (!trailTarget.expand) {
+            return;
+        }
+
+        for (const t of trails) {
+            if (t.id === trailTarget.id) continue;
+
+            const u: Merge = {
+                trailTarget: trailTarget,
+                trailSource: t,
+                progress: 0,
+                status: "enqueued",
+                settings: settings,
+                function: trails_merge
+            };
+            mergeStore.enqueuedMerges.push(u);
+        }
+
+        await processMergeQueue();
+    }
+
+    async function trails_merge(trailTarget: Trail, trailSource: Trail, settings: MergeSettings, onProgress?: (progress: number) => void) {
+        
+        let summit: SummitLog = new SummitLog(trailSource.date!, {
+            id: undefined,
+            text: trailSource.description,
+            distance: trailSource.distance,
+            elevation_loss: trailSource.elevation_loss,
+            elevation_gain: trailSource.elevation_gain,
+            duration: trailSource.duration,
+            photos: []
+        });
+
+        summit.author = trailSource.expand?.author?.id!;
+        summit.trail = trailTarget.id;
+
+        let fileData = await trail2gpx(trailSource, $currentUser);
+        const blob = new Blob([fileData], {
+                    type: "application/json",
+                });
+
+        summit._gpx = new File([blob], trailSource.gpx ?? "summit.gpx");
+
+        const mTrailWithDetails = await trails_show(trailSource.id!, undefined, undefined, false);
+
+        // part 1
+        onProgress?.(1/6)
+
+        if (settings.photos) {
+            for (const photo of mTrailWithDetails.photos) {
+                const photoURL = getFileURL(mTrailWithDetails, photo);
+                const photoBlob = await fetch(photoURL).then(
+                    (response) => response.blob(),
+                );
+                const photoData = new File([photoBlob], photo);
+                
+                if (!summit._photos) summit._photos = [];
+                summit._photos.push(photoData);
+            }
+        }
+
+        await summit_logs_create(summit);
+
+        // part 2
+        onProgress?.(2/6)
+
+        const origTrail = await trails_show(trailTarget.id!, undefined, undefined, false);
+        const updatedTrail = await trails_show(trailTarget.id!, undefined, undefined, false);
+        let trailUpdated = false;
+
+        if (settings.tags && mTrailWithDetails.expand?.tags && mTrailWithDetails.expand?.tags.length > 0)  {
+
+            if (updatedTrail.expand?.tags) {
+                updatedTrail.expand.tags = [...updatedTrail.expand.tags, ...mTrailWithDetails.expand.tags];
+            } else if (updatedTrail.expand) {
+                updatedTrail.expand.tags = mTrailWithDetails.expand.tags;
+            } else {
+                updatedTrail.expand = { tags: mTrailWithDetails.expand.tags };
+            }
+
+            trailUpdated = true;
+        }
+
+        if (settings.likes && mTrailWithDetails.expand?.trail_like_via_trail && mTrailWithDetails.expand?.trail_like_via_trail.length > 0) {
+            
+            for (const trailLike of mTrailWithDetails.expand.trail_like_via_trail) {
+                let newTrailLike = new TrailLike(trailLike.actor, trailTarget.id!);
+                await trail_like_create(newTrailLike);
+            }
+
+            updatedTrail.like_count += mTrailWithDetails.like_count;
+            trailUpdated = true;
+        }
+
+        if (trailUpdated) {
+            await trails_update(origTrail, updatedTrail);
+        }
+
+        // part 3
+        onProgress?.(3/6)
+
+        if (settings.summitLog) {
+            if (mTrailWithDetails.expand?.summit_logs_via_trail) {
+
+                for (const sourceSummit of mTrailWithDetails.expand?.summit_logs_via_trail) {
+                    
+                    if (sourceSummit.date == mTrailWithDetails.date) continue;
+
+                    let summit2: SummitLog = new SummitLog(sourceSummit.date!, {
+                        id: undefined,
+                        text: sourceSummit.text,
+                        distance: sourceSummit.distance,
+                        elevation_loss: sourceSummit.elevation_loss,
+                        elevation_gain: sourceSummit.elevation_gain,
+                        duration: sourceSummit.duration,
+                        photos: []
+                    });
+
+                    if (!sourceSummit.expand?.gpx_data) {
+                        const gpxData: string = await fetchGPX(sourceSummit as any, fetch);
+                        summit2.expand = {
+                            ...(summit2.expand ?? {}),
+                            gpx_data: gpxData,
+                        };
+                    } else {
+                        summit2.expand = {
+                                ...(summit2.expand ?? {}),
+                                gpx_data: sourceSummit.expand.gpx_data,
+                        }
+                    }
+
+                    if (summit2.expand.gpx_data) {
+                        var gpxBlob = new Blob([summit2.expand.gpx_data], {
+                            type: 'text/plain'
+                        });
+                        const gpxFile = new File([gpxBlob], sourceSummit.gpx ?? "summit_log.gpx");
+                        summit2._gpx = gpxFile;
+                    }
+
+                    for (const photo2 of sourceSummit.photos) {
+                        const photoURL2 = getFileURL(sourceSummit, photo2);
+                        const photoBlob2 = await fetch(photoURL2).then(
+                            (response) => response.blob(),
+                        );
+                        const photoData2 = new File([photoBlob2], photo2);
+                        
+                        if (!summit2._photos) summit2._photos = [];
+                        summit2._photos.push(photoData2);
+                    }
+
+                    summit2.author = sourceSummit.author;
+                    summit2.trail = trailTarget.id;
+
+                    await summit_logs_create(summit2);
+                }
+            }
+        }
+
+        // part 5
+        onProgress?.(4/6)
+
+        if (settings.comments) {
+            let commentsFetchResponse = await fetchComments(mTrailWithDetails);
+            if (commentsFetchResponse && mTrailWithDetails.expand?.comments_via_trail) {
+                for (const comment of mTrailWithDetails.expand.comments_via_trail) {
+                    let newComment: TrailComment = { 
+                        text: comment.text, 
+                        author: comment.author,  
+                        trail: trailTarget.id!,
+                        created: comment.created,
+                        updated: comment.updated,
+                        iri: comment.iri,
+                        expand: comment.expand
+                    };
+
+                    await comments_create(newComment);
+                }
+            }
+        }
+
+        // part 6
+        onProgress?.(5/6)
+
+        if (settings.delete) {
+            await trails_delete(trailSource);
+            onMerge?.();
+        }
+
+        // part 7
+        onProgress?.(1)
+    }
+
+
+    async function fetchComments(cTrail: Trail) : Promise<boolean> {
+        const trailId = cTrail.iri ? cTrail.iri : cTrail.id!;
+        try {
+            let trailComments = await comments_index(trailId);
+            if (cTrail.expand && trailComments && trailComments.length > 0) {
+                cTrail.expand.comments_via_trail = trailComments;
+            }
+            return true;
+        } catch (e) {
+            return false;
         }
     }
 
@@ -451,3 +703,9 @@
     onsave={handleShareUpdate}
     bind:this={trailShareModal}
 ></TrailShareModal>
+<TrailMergeModal
+    bind:this={trailMergeModal}
+    onmerge={(settings) => mergeTrails(settings)}
+></TrailMergeModal>
+
+<MergeDialog/>
