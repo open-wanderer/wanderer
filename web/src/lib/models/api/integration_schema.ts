@@ -18,16 +18,27 @@ const KomootSchema = z.object({
     active: z.boolean(),
 })
 
+const HammerheadSchema = z.object({
+    email: z.string().email(),
+    password: z.string(),
+    userid: z.string(),
+    completed: z.boolean(),
+    planned: z.boolean(),
+    active: z.boolean(),
+})
+
 const IntegrationCreateSchema = z.object({
     user: z.string().length(15),
     strava: StravaSchema.optional(),
-    komoot: KomootSchema.optional()
+    komoot: KomootSchema.optional(),
+    history: HammerheadSchema.optional(),
 
 }) satisfies ZodType<Integration>
 
 const IntegrationUpdateSchema = z.object({
     strava: StravaSchema.optional().nullable(),
-    komoot: KomootSchema.optional().nullable()
+    komoot: KomootSchema.optional().nullable(),
+    hammerhead: HammerheadSchema.optional().nullable(),
 }) satisfies ZodType<Partial<Integration>>
 
-    export { StravaSchema, IntegrationCreateSchema, IntegrationUpdateSchema, KomootSchema };
+    export { StravaSchema, IntegrationCreateSchema, IntegrationUpdateSchema, KomootSchema, HammerheadSchema };

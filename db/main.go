@@ -23,6 +23,7 @@ import (
 
 	"pocketbase/commands"
 	"pocketbase/federation"
+	"pocketbase/integrations/hammerhead"
 	"pocketbase/integrations/komoot"
 	"pocketbase/integrations/strava"
 
@@ -812,8 +813,9 @@ func updateIntegrationHandler() func(e *core.RecordEvent) error {
 }
 func censorIntegrationSecrets(r *core.Record) error {
 	secrets := map[string][]string{
-		"strava": {"clientSecret", "refreshToken", "accessToken", "expiresAt"},
-		"komoot": {"password"},
+		"strava":     {"clientSecret", "refreshToken", "accessToken", "expiresAt"},
+		"komoot":     {"password"},
+		"hammerhead": {"password"},
 	}
 	for key, secretKeys := range secrets {
 		if integrationString := r.GetString(key); integrationString != "" {
@@ -845,8 +847,9 @@ func encryptIntegrationSecrets(app core.App, r *core.Record) error {
 	}
 
 	secrets := map[string][]string{
-		"strava": {"clientSecret", "refreshToken", "accessToken", "expiresAt"},
-		"komoot": {"password"},
+		"strava":     {"clientSecret", "refreshToken", "accessToken", "expiresAt"},
+		"komoot":     {"password"},
+		"hammerhead": {"password"},
 	}
 
 	original, _ := app.FindRecordById("integrations", r.Id)
@@ -1095,6 +1098,49 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 		return e.JSON(http.StatusOK, nil)
 	})
 
+	se.Router.GET("/integration/hammerhead/login", func(e *core.RequestEvent) error {
+		encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
+		if len(encryptionKey) == 0 {
+			return apis.NewBadRequestError("POCKETBASE_ENCRYPTION_KEY not set", nil)
+		}
+
+		userId := ""
+		if e.Auth != nil {
+			userId = e.Auth.Id
+		}
+
+		integrations, err := e.App.FindAllRecords("integrations", dbx.NewExp("user = {:id}", dbx.Params{"id": userId}))
+		if err != nil {
+			return err
+		}
+		if len(integrations) == 0 {
+			return apis.NewBadRequestError("user has no integration", nil)
+		}
+		integration := integrations[0]
+		hammerheadString := integration.GetString("hammerhead")
+		if len(hammerheadString) == 0 {
+			return apis.NewBadRequestError("hammerhead integration missing", nil)
+		}
+		var hammerheadIntegration hammerhead.HammerheadIntegration
+		err = json.Unmarshal([]byte(hammerheadString), &hammerheadIntegration)
+		if err != nil {
+			return err
+		}
+		decryptedPassword, err := security.Decrypt(hammerheadIntegration.Password, encryptionKey)
+		if err != nil {
+			return err
+		}
+
+		k := &hammerhead.HammerheadApi{}
+
+		err = k.Login(hammerheadIntegration.Email, string(decryptedPassword), hammerheadIntegration.UserID)
+		if err != nil {
+			return apis.NewUnauthorizedError("invalid credentials", nil)
+		}
+
+		return e.JSON(http.StatusOK, nil)
+	})
+
 	se.Router.GET("/integration/komoot/login", func(e *core.RequestEvent) error {
 		encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
 		if len(encryptionKey) == 0 {
@@ -1267,6 +1313,12 @@ func registerCronJobs(app core.App) {
 		err = komoot.SyncKomoot(app)
 		if err != nil {
 			warning := fmt.Sprintf("Error syncing with komoot: %v", err)
+			fmt.Println(warning)
+			app.Logger().Error(warning)
+		}
+		err = hammerhead.SyncHammerhead(app)
+		if err != nil {
+			warning := fmt.Sprintf("Error syncing with hammerhead: %v", err)
 			fmt.Println(warning)
 			app.Logger().Error(warning)
 		}

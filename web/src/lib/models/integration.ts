@@ -21,12 +21,21 @@ export interface KomootIntegration extends BaseIntegration {
     planned: boolean
 }
 
+export interface HammerheadIntegration extends BaseIntegration {
+    email: string,
+    password: string,
+    userid: string,
+    completed: boolean,
+    planned: boolean
+}
+
 
 export class Integration {
     id?: string;
     user: string;
     strava?: StravaIntegration | null;
-    komoot?: KomootIntegration | null
+    komoot?: KomootIntegration | null;
+    hammerhead?: HammerheadIntegration | null;
 
     constructor(user: string, strava?: StravaIntegration, komoot?: KomootIntegration) {
         this.user = user;
