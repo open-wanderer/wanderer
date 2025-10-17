@@ -31,7 +31,7 @@ const IntegrationCreateSchema = z.object({
     user: z.string().length(15),
     strava: StravaSchema.optional(),
     komoot: KomootSchema.optional(),
-    history: HammerheadSchema.optional(),
+    hammerhead: HammerheadSchema.optional(),
 
 }) satisfies ZodType<Integration>
 
