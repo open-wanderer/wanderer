@@ -130,6 +130,8 @@ interface ValhallaAnchor {
     id: string,
     lat: number,
     lon: number,
+    locationName?: string,
+    distance?: number,
     marker?: M.Marker
 }
 

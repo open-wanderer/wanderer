@@ -67,7 +67,7 @@ function extractLineStrings(
     return { lineStrings, times };
 }
 
-function geoJsonObjectToPositionsAndTimes(geoJson: GeoJsonObject): { positions: Position[], times: Date[] } {
+export function geoJsonObjectToPositionsAndTimes(geoJson: GeoJsonObject): { positions: Position[], times: Date[] } {
     const { lineStrings, times } = extractLineStrings(geoJson);
     const positionsGroups: Position[][] = [];
 

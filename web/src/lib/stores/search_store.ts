@@ -127,7 +127,17 @@ export async function searchLocations(q: string, limit?: number): Promise<Hits<L
     }))
 }
 
-export async function searchLocationReverse(lat: number, lon: number) {
+export enum LocationDetails {
+    NONE = 0,
+    COUNTRY = 1 << 0,
+    STATE = 1 << 1,
+    CITY = 1 << 2,
+    STREET = 1 << 4,
+    NUMBER = 1 << 5,
+    ALL = COUNTRY | STATE | CITY | STREET | NUMBER,
+}
+
+export async function searchLocationReverse(lat: number, lon: number, details: LocationDetails = LocationDetails.COUNTRY | LocationDetails.STATE | LocationDetails.CITY): Promise<string> {
     const nominatimURL = env.PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org"
     const r = await fetch(`${nominatimURL}/reverse?lat=${lat}&lon=${lon}&format=geojson&addressdetails=1`, {
         method: "GET",
@@ -142,29 +152,43 @@ export async function searchLocationReverse(lat: number, lon: number) {
     const response: NominatimResponse = await r.json();
 
     if (response.features?.at(0)?.properties.address) {
-        return getLocationDescription(response.features[0].properties.address)
+        return getLocationDescription(response.features[0].properties.address, details)
     }
     return ""
 }
 
-function getLocationDescription(address: Address) {
+function getLocationDescription(address: Address, details: LocationDetails = LocationDetails.COUNTRY | LocationDetails.STATE | LocationDetails.CITY) {
     let description = ""
 
-    if (address.country) {
-        description += address.country;
+    if ((details & LocationDetails.COUNTRY) == LocationDetails.COUNTRY && address.country) {
+        description = address.country;
     }
-    if (address.state) {
+
+    if ((details & LocationDetails.STATE) == LocationDetails.STATE && address.state) {
         description = `${address.state}, ` + description
     }
+
+    if ((details & LocationDetails.CITY) == LocationDetails.CITY) {
     if (address.city) {
         description = `${address.city}, ` + description
     } else if (address.town) {
         description = `${address.town}, ` + description
     } else if (address.hamlet) {
         description = `${address.hamlet}, ` + description
-    } else if (address.village) {
+        } 
+        if (address.village) {
         description = `${address.village}, ` + description
     }
+    }
+
+    if ((details & LocationDetails.STREET) == LocationDetails.STREET && address.road) {
+        description = `${address.road}, ` + description
+
+        if ((details & LocationDetails.NUMBER) == LocationDetails.NUMBER && address.amenity) {
+            description = `${address.amenity} ` + description
+        }
+    }
+
     return description;
 }
 

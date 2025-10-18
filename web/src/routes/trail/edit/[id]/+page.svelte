@@ -74,9 +74,10 @@
     } from "$lib/components/base/search.svelte";
     import RouteEditor from "$lib/components/trail/route_editor.svelte";
     import { TagCreateSchema } from "$lib/models/api/tag_schema.js";
-    import { convertDMSToDD } from "$lib/models/gpx/utils.js";
+    import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
     import { Tag } from "$lib/models/tag.js";
     import {
+        LocationDetails,
         searchLocationReverse,
         searchLocations,
     } from "$lib/stores/search_store.js";
@@ -101,6 +102,10 @@
     import { z } from "zod";
     import Track from "$lib/models/gpx/track.js";
     import TrackSegment from "$lib/models/gpx/track-segment.js";
+    import TrailAnchorCard from "$lib/components/trail/trail_anchor_card.svelte";
+    import { haversineCumulatedDistanceWgs84, smoothElevations } from "$lib/vendor/maplibre-elevation-profile/tools.js";
+    import { geoJsonObjectToPositionsAndTimes } from "$lib/vendor/maplibre-elevation-profile/elevationprofile.js";
+    import type { Position } from "geojson";
 
     let { data } = $props();
 
@@ -286,7 +291,7 @@
                 }
 
                 setRoute(gpx);
-                initRouteAnchors(gpx);
+                await initRouteAnchors(gpx);
 
                 updateTrailOnMap();
             }
@@ -363,7 +368,7 @@
                 parseResult.gpx.rte = undefined;
             }
             setRoute(parseResult.gpx);
-            initRouteAnchors(parseResult.gpx);
+            await initRouteAnchors(parseResult.gpx);
 
             updateTrailOnMap();
         } catch (e) {
@@ -390,7 +395,7 @@
         $formData.expand!.waypoints_via_trail = [];
     }
 
-    function initRouteAnchors(gpx: GPX, addToMap: boolean = false) {
+    async function initRouteAnchors(gpx: GPX, addToMap: boolean = false) {
         const segments = gpx.trk?.at(0)?.trkseg ?? [];
 
         for (let i = 0; i < segments.length; i++) {
@@ -398,7 +403,7 @@
             const points = segment.trkpt ?? [];
 
             if (points.length > 0) {
-                addAnchor(
+                await addAnchor(
                     points[0].$.lat!,
                     points[0].$.lon!,
                     valhallaStore.anchors.length,
@@ -406,7 +411,7 @@
                 );
             }
             if (i == segments.length - 1) {
-                addAnchor(
+                await addAnchor(
                     points[points.length - 1].$.lat!,
                     points[points.length - 1].$.lon!,
                     valhallaStore.anchors.length,
@@ -414,6 +419,19 @@
                 );
             }
         }
+    }
+
+    let routePositions: Position[] = [];
+    function initRoutePositions() {
+        if (routePositions.length > 0) {
+            return;
+        }
+
+        let trackJson = valhallaStore.route.toGeoJSON();       
+        routePositions = geoJsonObjectToPositionsAndTimes(trackJson).positions;
+    }
+    function resetRoutePositions() {
+        routePositions = [];
     }
 
     function openMarkerPopup(waypoint: Waypoint) {
@@ -612,7 +630,7 @@
         } else {
             const anchorCount = valhallaStore.anchors.length;
             if (anchorCount == 0) {
-                addAnchor(
+                await addAnchor(
                     e.lngLat.lat,
                     e.lngLat.lng,
                     valhallaStore.anchors.length,
@@ -626,7 +644,7 @@
     async function addAnchorAndRecalculate(lat: number, lon: number) {
         const previousAnchor =
             valhallaStore.anchors[valhallaStore.anchors.length - 1];
-        const anchor = addAnchor(lat, lon, valhallaStore.anchors.length);
+        const anchor = await addAnchor(lat, lon, valhallaStore.anchors.length);
         const markerText = startAnchorLoading(anchor);
         try {
             const routeWaypoints = await calculateRouteBetween(
@@ -636,6 +654,11 @@
                 lon,
                 routingOptions,
             );
+
+            // 'snap' anchor to route endpoint
+            valhallaStore.anchors[valhallaStore.anchors.length - 1].lat = routeWaypoints[routeWaypoints.length - 1].$.lat ?? anchor.lat;
+            valhallaStore.anchors[valhallaStore.anchors.length - 1].lon = routeWaypoints[routeWaypoints.length - 1].$.lon ?? anchor.lon;
+
             insertIntoRoute(routeWaypoints);
             updateTrailWithRouteData();
             normalizeRouteTime();
@@ -651,7 +674,43 @@
         }
     }
 
-    function addAnchor(
+    function getDistanceFromPreviousAnchor(index: number) {
+        if (index == 0 || index >= valhallaStore.anchors.length) {
+            return 0;
+        }
+
+        initRoutePositions();
+        console.log("Calculating distance from previous anchor, route positions:", routePositions.length);
+
+        const a1 = valhallaStore.anchors[index - 1];
+        const a2 = valhallaStore.anchors[index];
+
+        const positions  = Object.assign([], routePositions);
+
+        const posIndexPrev = routePositions.findIndex((p) => p[0] == a1.lon && p[1] == a1.lat);
+        const posIndex = routePositions.findIndex((p) => p[0] == a2.lon && p[1] == a2.lat);
+
+        if (posIndex >= 0 && posIndex + 1 < positions.length) {
+            positions.splice(posIndex + 1, positions.length - posIndex - 1);
+
+            if (posIndexPrev >= 0 && posIndexPrev < positions.length) {
+                positions.splice(0, posIndexPrev + 1);
+            }
+        } else if (posIndex + 1 == positions.length) {
+            if (posIndexPrev >= 0 && posIndexPrev < positions.length) {
+                positions.splice(0, posIndexPrev + 1);
+            }
+        } else {
+            return 0;
+        }
+
+        let elevatedPositions = smoothElevations(positions, Math.ceil(positions.length / 100));
+        let cumulatedDistance = haversineCumulatedDistanceWgs84(elevatedPositions);
+
+        return cumulatedDistance.length > 0 ? cumulatedDistance[cumulatedDistance.length - 1] : 0;
+    }
+
+    async function addAnchor(
         lat: number,
         lon: number,
         index: number,
@@ -662,6 +721,9 @@
             lat: lat,
             lon: lon,
         };
+
+        anchor.locationName = await searchLocationReverse(anchor.lat, anchor.lon, LocationDetails.ALL);
+        
         const marker = createAnchorMarker(
             lat,
             lon,
@@ -707,6 +769,8 @@
         anchor.marker = marker;
         valhallaStore.anchors.splice(index, 0, anchor);
 
+        anchor.distance = getDistanceFromPreviousAnchor(index);
+
         return anchor;
     }
 
@@ -733,12 +797,18 @@
             "spinner-small",
         );
         markerIcon.textContent = index;
+        
+        resetRoutePositions();
+        const i = valhallaStore.anchors.findIndex((a) => a.id == anchor.id);
+        const distance = getDistanceFromPreviousAnchor(i);
+        valhallaStore.anchors[i].distance = distance;
     }
 
     async function removeAnchor(anchorIndex: number) {
         if (!drawingActive) {
             return;
         }
+        resetRoutePositions();
         valhallaStore.anchors[anchorIndex]?.marker?.remove();
         valhallaStore.anchors.splice(anchorIndex, 1);
         for (let i = anchorIndex; i < valhallaStore.anchors.length; i++) {
@@ -830,7 +900,7 @@
         if (draggingMarker) {
             return;
         }
-        const anchor = addAnchor(
+        const anchor = await addAnchor(
             data.event.lngLat.lat,
             data.event.lngLat.lng,
             data.segment + 1,
@@ -894,7 +964,7 @@
         segment: number;
         event: M.MapMouseEvent;
     }) {
-        addAnchor(
+        await addAnchor(
             data.event.lngLat.lat,
             data.event.lngLat.lng,
             data.segment + 1,
@@ -997,14 +1067,14 @@
         updateTotals(croppedGPX);
     }
 
-    function confirmCrop() {
+    async function confirmCrop() {
         if (!croppedGPX) {
             return;
         }
         setRoute(croppedGPX, true);
         updateTrailWithRouteData();
         clearAnchors();
-        initRouteAnchors(croppedGPX, true);
+        await initRouteAnchors(croppedGPX, true);
     }
 
     function getCoordinateAtDistance(
@@ -1151,17 +1221,17 @@
         }
     }
 
-    function undoRouteEdit() {
+    async function undoRouteEdit() {
         undo();
         clearAnchors();
-        initRouteAnchors(valhallaStore.route, true);
+        await initRouteAnchors(valhallaStore.route, true);
         updateTrailWithRouteData();
     }
 
-    function redoRouteEdit() {
+    async function redoRouteEdit() {
         redo();
         clearAnchors();
-        initRouteAnchors(valhallaStore.route, true);
+        await initRouteAnchors(valhallaStore.route, true);
         updateTrailWithRouteData();
     }
 </script>
@@ -1188,6 +1258,7 @@
         ></Search>
         <hr class="border-input-border" />
         <h3 class="text-xl font-semibold">{$_("pick-a-trail")}</h3>
+        {#if !drawingActive}
         <Button
             primary={true}
             type="button"
@@ -1197,12 +1268,15 @@
                 ? $_("upload-new-file")
                 : $_("upload-file")}</Button
         >
+        {/if}
         {#if env.PUBLIC_VALHALLA_URL}
+            {#if !drawingActive}
             <div class="flex gap-4 items-center w-full">
                 <hr class="basis-full border-input-border" />
                 <span class="text-gray-500 uppercase">{$_("or")}</span>
                 <hr class="basis-full border-input-border" />
             </div>
+            {/if}
             <button
                 class="btn-primary"
                 type="button"
@@ -1222,6 +1296,13 @@
                       ? $_("stop-drawing")
                       : $_("draw-a-route")}</button
             >
+            {#if drawingActive}
+                {#each valhallaStore.anchors as anchor}                    
+                    <TrailAnchorCard
+                        {anchor}
+                    ></TrailAnchorCard>
+                {/each}        
+            {/if}    
         {/if}
         <input
             type="file"
