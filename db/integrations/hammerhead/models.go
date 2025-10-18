@@ -78,6 +78,7 @@ type HammerheadIntegration struct {
 	Password  string `json:"password"`
 	Planned   bool   `json:"planned"`
 	Completed bool   `json:"completed"`
+	After     string `json:"after,omitempty"`
 }
 
 type LoginResponse struct {

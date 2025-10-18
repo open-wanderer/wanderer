@@ -64,7 +64,7 @@ func SyncHammerhead(app core.App) error {
 
 		err = h.Login(hammerheadIntegration.Email, string(decryptedPassword), hammerheadIntegration.UserID)
 		if err != nil {
-			warning := fmt.Sprintf("hammerhead login failed: %v\n", err)
+			warning := fmt.Sprintf("Hammerhead login failed: %v\n", err)
 			fmt.Print(warning)
 			app.Logger().Warn(warning)
 			continue
@@ -72,16 +72,29 @@ func SyncHammerhead(app core.App) error {
 
 		page := 0
 		totalPages := 0
+		stopped := false
+
+		var after int64 = 0
+		if hammerheadIntegration.After != "" {
+			t, err := time.Parse("2006-01-02", hammerheadIntegration.After)
+			if err != nil {
+				return err
+			}
+			t = t.UTC()
+
+			after = t.Unix()
+		}
 
 		if hammerheadIntegration.Planned {
 			page = 0
 			totalPages = 0
+			stopped = false
 
-			for page <= totalPages {
+			for page <= totalPages && !stopped {
 				curTotalPages := totalPages
 				tours, curTotalPages, err := h.fetchTours(page)
 				if err != nil {
-					warning := fmt.Sprintf("error fetching tours from hammerhead: %v\n", err)
+					warning := fmt.Sprintf("error fetching tours from Hammerhead: %v\n", err)
 					fmt.Print(warning)
 					app.Logger().Warn(warning)
 					break
@@ -91,9 +104,9 @@ func SyncHammerhead(app core.App) error {
 					totalPages = curTotalPages
 				}
 
-				err = syncTrailWithTours(app, h, actorId, tours)
+				err, stopped = syncTrailWithTours(app, h, actorId, tours, after)
 				if err != nil {
-					warning := fmt.Sprintf("error syncing hammerhead tours with trails: %v\n", err)
+					warning := fmt.Sprintf("error syncing Hammerhead tours with trails: %v\n", err)
 					fmt.Print(warning)
 					app.Logger().Warn(warning)
 					break
@@ -106,12 +119,13 @@ func SyncHammerhead(app core.App) error {
 		if hammerheadIntegration.Completed {
 			page = 0
 			totalPages = 0
+			stopped = false
 
-			for page <= totalPages {
+			for page <= totalPages && !stopped {
 				curTotalPages := totalPages
 				tours, curTotalPages, err := h.fetchActivities(page)
 				if err != nil {
-					warning := fmt.Sprintf("error fetching tours from hammerhead: %v\n", err)
+					warning := fmt.Sprintf("error fetching tours from Hammerhead: %v\n", err)
 					fmt.Print(warning)
 					app.Logger().Warn(warning)
 					break
@@ -121,9 +135,9 @@ func SyncHammerhead(app core.App) error {
 					totalPages = curTotalPages
 				}
 
-				err = syncTrailWithActivities(app, h, actorId, tours)
+				err, stopped = syncTrailWithActivities(app, h, actorId, tours, after)
 				if err != nil {
-					warning := fmt.Sprintf("error syncing hammerhead tours with trails: %v\n", err)
+					warning := fmt.Sprintf("error syncing Hammerhead tours with trails: %v\n", err)
 					fmt.Print(warning)
 					app.Logger().Warn(warning)
 					break
@@ -178,7 +192,7 @@ func getToken(uri string, auth *BasicAuthToken) ([]byte, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("error retrieving auth token from hammerhead (%d): %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("error retrieving auth token from Hammerhead (%d): %s", resp.StatusCode, string(body))
 	}
 
 	return io.ReadAll(resp.Body)
@@ -203,7 +217,7 @@ func sendRequest(url string, auth *BasicAuthToken) ([]byte, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("error sending request to hammerhead (%d): %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("error sending request to Hammerhead (%d): %s", resp.StatusCode, string(body))
 	}
 
 	return io.ReadAll(resp.Body)
@@ -285,12 +299,14 @@ func (h *HammerheadApi) fetchDetailedTour(tour HammerheadTourResponse) (*Hammerh
 	return data, nil
 }
 
-func syncTrailWithTours(app core.App, k *HammerheadApi, actor string, tours []HammerheadTourResponse) error {
+func syncTrailWithTours(app core.App, k *HammerheadApi, actor string, tours []HammerheadTourResponse, after int64) (error, bool) {
 	for _, tour := range tours {
+
 		trails, err := app.FindRecordsByFilter("trails", "external_id = {:id}", "", 1, 0, dbx.Params{"id": tour.ID})
 		if err != nil {
-			return err
+			return err, true
 		}
+
 		if len(trails) != 0 {
 			continue
 		}
@@ -300,27 +316,35 @@ func syncTrailWithTours(app core.App, k *HammerheadApi, actor string, tours []Ha
 			app.Logger().Warn(fmt.Sprintf("Unable to fetch details for tour '%s': %v", tour.Name, err))
 			continue
 		}
+
+		if detailedTour.CreatedAt.Unix() < after {
+			return nil, true
+		}
+
 		gpx, err := generateTourGPX(detailedTour)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to generate GPX for tour '%s': %v", tour.Name, err))
 			continue
 		}
+
 		_, err = createTrailFromTour(app, detailedTour, gpx, actor)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for tour '%s': %v", tour.Name, err))
 			continue
 		}
-
 	}
-	return nil
+
+	return nil, false
 }
 
-func syncTrailWithActivities(app core.App, k *HammerheadApi, actor string, tours []HammerheadActivityResponse) error {
+func syncTrailWithActivities(app core.App, k *HammerheadApi, actor string, tours []HammerheadActivityResponse, after int64) (error, bool) {
 	for _, tour := range tours {
+
 		trails, err := app.FindRecordsByFilter("trails", "external_id = {:id}", "", 1, 0, dbx.Params{"id": tour.ID})
 		if err != nil {
-			return err
+			return err, true
 		}
+
 		if len(trails) != 0 {
 			continue
 		}
@@ -330,19 +354,25 @@ func syncTrailWithActivities(app core.App, k *HammerheadApi, actor string, tours
 			app.Logger().Warn(fmt.Sprintf("Unable to fetch details for tour '%s': %v", tour.Name, err))
 			continue
 		}
+
+		if detailedTour.ActivityData.CreatedAt.Unix() < after {
+			return nil, true
+		}
+
 		gpx, err := generateActivityGPX(detailedTour)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to generate GPX for tour '%s': %v", tour.Name, err))
 			continue
 		}
+
 		_, err = createTrailFromActivity(app, detailedTour, gpx, actor)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for tour '%s': %v", tour.Name, err))
 			continue
 		}
-
 	}
-	return nil
+
+	return nil, false
 }
 
 func createTrailFromActivity(app core.App, detailedTour *HammerheadActivity, gpx *filesystem.File, actor string) (string, error) {
@@ -521,7 +551,7 @@ func generateActivityGPX(detailedTour *HammerheadActivity) (*filesystem.File, er
 
 	gpxData := &gpx.GPX{
 		Version: "1.1",
-		Creator: "hammerhead GPX Exporter",
+		Creator: "Hammerhead GPX Exporter",
 		Tracks: []gpx.GPXTrack{
 			{
 				Name: detailedTour.ActivityData.Name,
@@ -618,7 +648,7 @@ func generateTourGPX(detailedTour *HammerheadTour) (*filesystem.File, error) {
 
 	gpxData := &gpx.GPX{
 		Version: "1.1",
-		Creator: "hammerhead GPX Exporter",
+		Creator: "Hammerhead GPX Exporter",
 		Tracks: []gpx.GPXTrack{
 			{
 				Name: detailedTour.Name,

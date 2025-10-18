@@ -26,7 +26,8 @@ export interface HammerheadIntegration extends BaseIntegration {
     password: string,
     userid: string,
     completed: boolean,
-    planned: boolean
+    planned: boolean,
+    after?: string
 }
 
 
@@ -37,9 +38,10 @@ export class Integration {
     komoot?: KomootIntegration | null;
     hammerhead?: HammerheadIntegration | null;
 
-    constructor(user: string, strava?: StravaIntegration, komoot?: KomootIntegration) {
+    constructor(user: string, strava?: StravaIntegration, komoot?: KomootIntegration, hammerhead?: HammerheadIntegration) {
         this.user = user;
         this.strava = strava;
         this.komoot = komoot;
+        this.hammerhead = hammerhead;
     }
 }

@@ -25,6 +25,7 @@ const HammerheadSchema = z.object({
     completed: z.boolean(),
     planned: z.boolean(),
     active: z.boolean(),
+    after: z.string().date().optional(),
 })
 
 const IntegrationCreateSchema = z.object({

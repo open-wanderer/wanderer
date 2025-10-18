@@ -117,7 +117,7 @@
             }
 
             show_toast({
-                text: "strava " + $_("integration-disabled"),
+                text: "Strava " + $_("integration-disabled"),
                 icon: "check",
                 type: "success",
             });
@@ -206,7 +206,7 @@
 
         show_toast({
             text:
-                "hammerhead " + $_(`integration-${value ? "enabled" : "disabled"}`),
+                "Hammerhead " + $_(`integration-${value ? "enabled" : "disabled"}`),
             icon: "check",
             type: "success",
         });
@@ -223,7 +223,7 @@
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     <IntegrationCard
         img="https://upload.wikimedia.org/wikipedia/commons/c/cb/Strava_Logo.svg"
-        title="strava"
+        title="Strava"
         description={$_("integration-description-strava")}
         disabled={!integration?.strava}
         active={stravaToggleValue}
@@ -241,7 +241,7 @@
     ></IntegrationCard>
     <IntegrationCard
         img={hammerheadLogo}
-        title="hammerhead"
+        title="Hammerhead"
         description={$_("integration-description-hammerhead")}
         disabled={!integration?.hammerhead}
         bind:active={hammerheadToggleValue}

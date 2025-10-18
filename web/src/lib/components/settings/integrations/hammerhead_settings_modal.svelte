@@ -1,4 +1,5 @@
 <script lang="ts">
+    import Datepicker from "$lib/components/base/datepicker.svelte";
     import Modal from "$lib/components/base/modal.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import Toggle from "$lib/components/base/toggle.svelte";
@@ -28,7 +29,7 @@
     const {
         form,
         errors,
-        data: d,
+        data: formData,
     } = createForm({
         initialValues: {
             email: integration?.hammerhead?.email ?? "",
@@ -37,6 +38,7 @@
             completed: integration?.hammerhead?.completed ?? true,
             planned: integration?.hammerhead?.planned ?? true,
             active: integration?.hammerhead?.active ?? false,
+            after: integration?.hammerhead?.after,
         },
         extend: validator({
             schema: HammerheadSchema,
@@ -47,12 +49,16 @@
             modal.closeModal();
         },
     });
+
+    function clearAfterDate() {
+        ($formData as any).after = undefined;
+    }
 </script>
 
 <Modal
     id="hammerhead-settings-modal"
     size="md:max-w-lg"
-    title={"hammerhead " + $_("settings")}
+    title={"Hammerhead " + $_("settings")}
     bind:this={modal}
 >
     {#snippet content()}
@@ -83,6 +89,25 @@
                     name="completed"
                     label={$_("completed-tours", { values: { n: 2 } })}
                 ></Toggle>
+            </div>
+            <p
+                class="text-xs text-gray-500 max-w-lg pt-4 pb-1 border-t border-input-border"
+            >
+                {$_("hammerhead-integration-after-date-hint")}
+            </p>
+            <div class="flex items-end relative gap-x-2">
+                <Datepicker
+                    error={$errors.after}
+                    label={$_("ignore-trails-before-date")}
+                    bind:value={$formData.after}
+                ></Datepicker>
+                <button
+                    class="btn-icon mb-[10px]"
+                    type="button"
+                    onclick={clearAfterDate}
+                    aria-label="Clear 'after' date"
+                    ><i class="fa fa-close"></i></button
+                >
             </div>
         </form>
     {/snippet}
