@@ -103,7 +103,6 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
     import Track from "$lib/models/gpx/track.js";
     import TrackSegment from "$lib/models/gpx/track-segment.js";
     import TrailAnchorList from "$lib/components/trail/trail_anchor_list.svelte";
-    import { smoothElevations } from "$lib/vendor/maplibre-elevation-profile/tools.js";
     import { geoJsonObjectToPositionsAndTimes } from "$lib/vendor/maplibre-elevation-profile/elevationprofile.js";
     import type { Position } from "geojson";
     import GpxMetricsComputation from "$lib/models/gpx/gpx-metrics-computation.js";
@@ -130,9 +129,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
     let listSelectModal: ListSelectModal;
 
     let loading = $state(false);
-    let recalculatingRoute = $state(false);
-    // show spinner on the draw/edit button while toggling into/out of drawing
-    let drawingButtonLoading = $state(false);
+    let loadEditing = $state(false);
 
     let editingBasicInfo: boolean = $state(false);
 
@@ -640,18 +637,10 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
             return;
         }
         drawingActive = true;
-        // entering drawing: anchors will be re-added; mark not ready yet
-        anchorsShown = false;
-        updateMapReady();
-        if (!valhallaStore.route.trk?.at(0)?.trkseg?.at(0)?.trkpt?.length) {
-        }
+        
         for (const anchor of valhallaStore.anchors) {
             anchor.marker?.addTo(map);
         }
-        // give the DOM a tick, then mark anchors as shown
-        await tick();
-        anchorsShown = true;
-        updateMapReady();
     }
 
     async function stopDrawing() {
@@ -659,9 +648,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         for (const anchor of valhallaStore.anchors) {
             anchor.marker?.remove();
         }
-        // leaving drawing mode: no anchors on map
-        anchorsShown = false;
-        updateMapReady();
+
         toggleCropMarkers(false);
         clearUndoRedoStack();
 
@@ -711,11 +698,14 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                 );
             } else {
                 addAnchorAndRecalculate(e.lngLat.lat, e.lngLat.lng);
-            }
+            };
         }
     }
 
     async function addAnchorAndRecalculate(lat: number, lon: number) {
+
+        loadEditing = true;
+
         const previousAnchor =
             valhallaStore.anchors[valhallaStore.anchors.length - 1];
         const anchor = addAnchor(lat, lon, valhallaStore.anchors.length);
@@ -759,6 +749,8 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         } finally {
             stopAnchorLoading(anchor, markerText);
         }
+
+        loadEditing = false;
     }
 
     function findClosestRouteIndex(lat?: number, lon?: number) {
@@ -1077,6 +1069,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         if (draggingMarker) {
             return;
         }
+
         const anchor = addAnchor(
             data.event.lngLat.lat,
             data.event.lngLat.lng,
@@ -1314,44 +1307,6 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         const t: Trail = JSON.parse(JSON.stringify($formData));
         t.expand!.gpx = valhallaStore.route;
         mapTrail = [t];
-
-        // give the child component a tick to render and (likely) kick off any fit-to-bounds
-        await tick();
-
-        // make sure anchors are shown on the actual map
-        ensureAnchorsShown();
-
-        // if we have a map, listen for the end of the pan/zoom that fits the trail
-        if (map) {
-            mapZoomedToTrail = false;
-            // listen once for the moveend event
-            const onMove = () => {
-                mapZoomedToTrail = true;
-                updateMapReady();
-            };
-            map.once("moveend", onMove);
-
-            // fallback in case the map doesn't emit moveend (short timeout)
-            const fallback = setTimeout(() => {
-                mapZoomedToTrail = true;
-                updateMapReady();
-            }, 1200);
-
-            // clear fallback once we got moveend
-            const clearOnce = () => {
-                clearTimeout(fallback);
-                // remove the listener just in case
-                try {
-                    map?.off("moveend", onMove);
-                } catch (e) {
-                    /* ignore */
-                }
-            };
-            map.once("moveend", () => clearOnce());
-        } else {
-            mapZoomedToTrail = true;
-            updateMapReady();
-        }
     }
 
     function handleSearchClick(item: SearchItem) {
@@ -1460,36 +1415,6 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         updateTrailWithRouteData();
     }
 
-    
-    // new state to track map readiness
-    let anchorsShown = $state(false);
-    let mapZoomedToTrail = $state(false);
-    let mapReady = $state(false);
-
-    function updateMapReady() {
-        // In non-drawing mode we don't require anchors to be visible.
-        mapReady = (drawingActive ? anchorsShown : true) && mapZoomedToTrail;
-    }
-
-    function ensureAnchorsShown() {
-        if (!map) {
-            return;
-        }
-        if (valhallaStore.anchors.length === 0) {
-            anchorsShown = true;
-            updateMapReady();
-            return;
-        }
-        for (const anchor of valhallaStore.anchors) {
-            if (anchor.marker) {
-                // add marker to map (safe to call repeatedly)
-                anchor.marker.addTo(map);
-            }
-        }
-        anchorsShown = true;
-        updateMapReady();
-    }
-
     async function recalculateTrailFromAnchors() {
         // If there are fewer than 2 anchors, clear route / update map
         if (valhallaStore.anchors.length < 2) {
@@ -1498,7 +1423,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
             return;
         }
 
-        recalculatingRoute = true;
+        loadEditing = true;
         try {
             // reset existing route so we can build a new one
             clearRoute();
@@ -1552,7 +1477,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                 type: "error",
             });
         } finally {
-            recalculatingRoute = false;
+            loadEditing = false;
         }
 
         refreshAnchorMetrics();
@@ -1638,11 +1563,11 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
 				},
 			);
 
-		if (map) marker.addTo(map);
-		anchor.marker = marker;
-	}
+            if (map) marker.addTo(map);
+            anchor.marker = marker;
+        }
 
-	syncAnchorListData();
+        syncAnchorListData();
 
         // Rebuild the route based on the new anchor order
         void recalculateTrailFromAnchors();
@@ -1694,29 +1619,22 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                 primary
                 type="button"
                 onclick={async () => {
-                    drawingButtonLoading = true;
+                    loadEditing = true;
+
                     // allow the spinner to paint before heavy work
-                    await tick();
-                    await new Promise((r) => requestAnimationFrame(() => r(null)));
                     await new Promise((r) => setTimeout(r, 0));
+
                     try {
                         if (drawingActive) {
                             await stopDrawing();
                         } else {
                             await startDrawing();
-                            // ensure the spinner is visible at least briefly when starting
-                            const minMs = 400;
-                            const start = Date.now();
-                            // wait for readiness OR a small minimum time; cap overall wait
-                            while ((!mapReady || Date.now() - start < minMs) && Date.now() - start < 2000) {
-                                await new Promise((r) => setTimeout(r, 50));
-                            }
                         }
                     } finally {
-                        drawingButtonLoading = false;
+                        loadEditing = false;
                     }
                 }}                
-                loading={recalculatingRoute || drawingButtonLoading || !mapReady}
+                loading={loadEditing}
             >
                 {$formData.expand?.gpx_data
                     ? drawingActive
@@ -1727,7 +1645,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                       : $_("draw-a-route")}</Button
             >
             {#if drawingActive}
-                <div class={recalculatingRoute ? "relative pointer-events-none opacity-50" : "relative"}>
+                <div class={loadEditing ? "relative pointer-events-none opacity-50" : "relative"}>
                     <TrailAnchorList itemsData={listData} onDrop={onDrop}></TrailAnchorList>
                 </div>
             {/if}    

@@ -88,10 +88,9 @@
 <style>
     .trail-anchor-card {
         object-fit: cover;
-        transition: 0.25s ease;
+        transition: transform 0.25s ease;
         /* keep hover scale centered so it expands evenly */
         transform-origin: center center;
-        will-change: transform;
     }
 
     .trail-anchor-card:hover {
