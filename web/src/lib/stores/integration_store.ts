@@ -47,6 +47,21 @@ export async function integrations_create(integration: Integration) {
     return model;
 }
 
+export async function uploadGpx(integrationName: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    let r = await fetch(`/api/v1/integration/${integrationName}/upload`, {
+        method: 'POST',
+        body: formData,
+    })
+
+    if (!r.ok) {
+        const response = await r.json();
+        throw new APIError(r.status, response.message, response.detail)
+    }
+}
+
 export async function integrations_update(integration: Integration, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     let r = await f('/api/v1/integration/' + integration.id, {
         method: 'POST',

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 
 	"math"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
@@ -198,7 +200,83 @@ func getToken(uri string, auth *BasicAuthToken) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func sendRequest(url string, auth *BasicAuthToken) ([]byte, error) {
+func (h *HammerheadApi) UploadActivities(e *core.RequestEvent) error {
+	files, err := e.FindUploadedFiles("file")
+	if err != nil {
+		if errors.Is(err, http.ErrMissingFile) {
+			return apis.NewBadRequestError("file field is required", err)
+		}
+		return apis.NewBadRequestError("invalid multipart payload", err)
+	}
+
+	if len(files) == 0 {
+		return apis.NewBadRequestError("file field is required", nil)
+	}
+
+	fileToUpload := files[0]
+	reader, err := fileToUpload.Reader.Open()
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	part, err := writer.CreateFormFile("file", fileToUpload.OriginalName)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(part, reader); err != nil {
+		return err
+	}
+
+	contentType := writer.FormDataContentType()
+
+	if err := writer.Close(); err != nil {
+		return err
+	}
+
+	currentURI := fmt.Sprintf("https://dashboard.hammerhead.io/v1/users/%s/routes/import/file", h.UserID)
+
+	if _, err := sendPostRequest(currentURI, &buf, contentType, h.buildHeader()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func sendPostRequest(url string, body io.Reader, contentType string, auth *BasicAuthToken) ([]byte, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+
+	if auth != nil {
+		auth.Apply(req)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("error sending request to Hammerhead (%d): %s", resp.StatusCode, string(body))
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
+func sendGetRequest(url string, auth *BasicAuthToken) ([]byte, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -244,7 +322,7 @@ func (h *HammerheadApi) fetchActivities(page int) ([]HammerheadActivityResponse,
 
 	currentUri := fmt.Sprintf("https://dashboard.hammerhead.io/v1/users/%s/activities?perPage=50&page=%d&search=&orderBy=NEWEST&ascending=true", h.UserID, page)
 
-	body, err := sendRequest(currentUri, h.buildHeader())
+	body, err := sendGetRequest(currentUri, h.buildHeader())
 	if err != nil {
 		return nil, 0, err
 	}
@@ -260,7 +338,7 @@ func (h *HammerheadApi) fetchActivities(page int) ([]HammerheadActivityResponse,
 func (h *HammerheadApi) fetchTours(page int) ([]HammerheadTourResponse, int, error) {
 
 	currentUri := fmt.Sprintf("https://dashboard.hammerhead.io/v1/users/%s/routes?perPage=50&page=%d&search=&orderBy=NEWEST&ascending=true&exclude=archive", h.UserID, page)
-	body, err := sendRequest(currentUri, h.buildHeader())
+	body, err := sendGetRequest(currentUri, h.buildHeader())
 	if err != nil {
 		return nil, 0, err
 	}
@@ -276,7 +354,7 @@ func (h *HammerheadApi) fetchTours(page int) ([]HammerheadTourResponse, int, err
 func (h *HammerheadApi) fetchDetailedActivity(tour HammerheadActivityResponse) (*HammerheadActivity, error) {
 
 	url := fmt.Sprintf("https://dashboard.hammerhead.io/v1/users/%s/activities/%s/details", h.UserID, tour.ID)
-	body, err := sendRequest(url, h.buildHeader())
+	body, err := sendGetRequest(url, h.buildHeader())
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +367,7 @@ func (h *HammerheadApi) fetchDetailedActivity(tour HammerheadActivityResponse) (
 func (h *HammerheadApi) fetchDetailedTour(tour HammerheadTourResponse) (*HammerheadTour, error) {
 
 	url := fmt.Sprintf("https://dashboard.hammerhead.io/v1/users/%s/routes/%s", h.UserID, tour.ID)
-	body, err := sendRequest(url, h.buildHeader())
+	body, err := sendGetRequest(url, h.buildHeader())
 	if err != nil {
 		return nil, err
 	}
