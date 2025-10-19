@@ -22,6 +22,7 @@
     "postcss": "^8.4.33",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
+    "svelte-dnd-action": "^0.9.65",
     "tailwindcss": "^4.0.0",
     "tslib": "^2.4.1",
     "typescript": "^5.5.0",

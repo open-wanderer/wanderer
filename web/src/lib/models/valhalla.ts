@@ -76,6 +76,7 @@ export interface ValhallaAutoCostingOptions extends ValhallaCostingOptions {
 
 export interface RoutingOptions {
     autoRouting: boolean
+    snapToPath: boolean
     modeOfTransport: "pedestrian" | "bicycle" | "auto"
     pedestrianOptions?: ValhallaPedestrianCostingOptions
     bicycleOptions?: ValhallaBicycleCostingOptions
@@ -132,6 +133,8 @@ interface ValhallaAnchor {
     lon: number,
     locationName?: string,
     distance?: number,
+    elevation_gain?: number,
+    elevation_loss?: number,
     marker?: M.Marker
 }
 

@@ -130,6 +130,7 @@
   "empty-feed-explanation": "Activities by you or people you follow will appear here",
   "empty-lists": "{username} has no public lists",
   "enable-auto-routing": "Enable auto-routing",
+  "enable-snap-to-path": "Enable snap to path",
   "english": "English",
   "entry": "Entry",
   "error-creating-user": "Error creating user",

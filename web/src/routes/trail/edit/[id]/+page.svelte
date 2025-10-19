@@ -116,7 +116,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
     function syncAnchorListData() {
         listData = (valhallaStore.anchors ?? []).map((a) => ({ ...a }));
     }
-    $effect(() => {
+    onMount(() => {
         syncAnchorListData();
     });
 
@@ -286,6 +286,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
 
     onMount(async () => {
         clearAnchors();
+        syncAnchorListData();
         clearRoute();
         clearUndoRedoStack();
 
@@ -307,6 +308,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
 
                 setRoute(gpx);
                 await initRouteAnchors(gpx);
+                refreshAnchorMetrics();
 
                 updateTrailOnMap();
             }
@@ -328,6 +330,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
 
         clearWaypoints();
         clearAnchors();
+        syncAnchorListData();
         clearUndoRedoStack();
         clearRoute();
         mapTrail = [];
@@ -384,6 +387,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
             }
             setRoute(parseResult.gpx);
             await initRouteAnchors(parseResult.gpx);
+            refreshAnchorMetrics();
 
             updateTrailOnMap();
         } catch (e) {
@@ -681,6 +685,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
     }
 
     async function handleMapClick(e: M.MapMouseEvent) {
+        console.log("map click", e);
         if (!drawingActive) {
             if (
                 (
@@ -705,7 +710,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                     valhallaStore.anchors.length,
                 );
             } else {
-                await addAnchorAndRecalculate(e.lngLat.lat, e.lngLat.lng);
+                addAnchorAndRecalculate(e.lngLat.lat, e.lngLat.lng);
             }
         }
     }
@@ -821,7 +826,19 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         anchor.elevation_loss = Math.max(0, loss);
     }
 
-    function updateAnchorLocationName(anchor: ValhallaAnchor) {
+    function refreshAnchorMetrics() {
+        resetRoutePositions();
+        for (let i = 1; i < valhallaStore.anchors.length; i++) {
+            getDistanceAndElevationGainLossFromPreviousAnchor(
+                valhallaStore.anchors[i],
+                i,
+            );
+        }
+        syncAnchorListData();
+        ensureAnchorLocationNames();
+    }
+
+    async function updateAnchorLocationName(anchor: ValhallaAnchor) {
         (async () => {
             try {
                 const locationName = await searchLocationReverse(
@@ -845,6 +862,14 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                 console.error("Failed to resolve anchor location", error);
             }
         })();
+    }
+
+    function ensureAnchorLocationNames() {
+        for (const anchor of valhallaStore.anchors) {
+            if (!anchor.locationName) {
+                updateAnchorLocationName(anchor);
+            }
+        }
     }
 
     function addAnchor(
@@ -898,30 +923,23 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                 draggingMarker = false;
             },
         );
+        
         if (addtoMap && map) {
             marker.addTo(map);
-            if (typeof map.triggerRepaint === "function") {
-                map.triggerRepaint();
-            }
         }
+        
         anchor.marker = marker;
         valhallaStore.anchors.splice(index, 0, anchor);
 
         const schedulePostAddUpdates = () => {
             const currentIndex = valhallaStore.anchors.indexOf(anchor);
             if (currentIndex > 0) {
-                getDistanceAndElevationGainLossFromPreviousAnchor(
-                    anchor,
-                    currentIndex,
-                );
+                getDistanceAndElevationGainLossFromPreviousAnchor(anchor, currentIndex);
             }
             syncAnchorListData();
         };
-        if (typeof requestAnimationFrame === "function") {
-            requestAnimationFrame(schedulePostAddUpdates);
-        } else {
-            setTimeout(schedulePostAddUpdates, 0);
-        }
+
+        setTimeout(schedulePostAddUpdates, 0);
         updateAnchorLocationName(anchor);
 
         return anchor;
@@ -939,7 +957,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         return savedMarkerNumber;
     }
 
-    function stopAnchorLoading(anchor: ValhallaAnchor, index: string | null) {
+    async function stopAnchorLoading(anchor: ValhallaAnchor, index: string | null) {
         const markerIcon = anchor.marker?.getElement();
         if (!markerIcon || !index) {
             return;
@@ -953,7 +971,9 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         
         resetRoutePositions();
         const i = valhallaStore.anchors.findIndex((a) => a.id == anchor.id);
-        getDistanceAndElevationGainLossFromPreviousAnchor(valhallaStore.anchors[i], i);
+        if (i >= 0) {
+            getDistanceAndElevationGainLossFromPreviousAnchor(valhallaStore.anchors[i], i);
+        }
         syncAnchorListData();
     }
 
@@ -978,6 +998,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                     $_("route-point") + " #" + newIndex;
             }
         }
+        syncAnchorListData();
         if (anchorIndex == 0) {
             deleteFromRoute(anchorIndex);
             if ($formData.expand?.gpx_data) {
@@ -990,9 +1011,12 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
             deleteFromRoute(anchorIndex - 1);
             await recalculateRoute(anchorIndex);
         }
+
+        syncAnchorListData();
     }
 
     async function recalculateRoute(anchorIndex: number) {
+        return;
         const markerText = startAnchorLoading(
             valhallaStore.anchors[anchorIndex],
         );
@@ -1117,7 +1141,11 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         segment: number;
         event: M.MapMouseEvent;
     }) {
-        addAnchor(data.event.lngLat.lat, data.event.lngLat.lng, data.segment + 1);
+        addAnchor(
+            data.event.lngLat.lat,
+            data.event.lngLat.lng,
+            data.segment + 1,
+        );
 
         splitSegment(data.segment, data.event.lngLat);
         updateFollowingAnchors(data.segment);
@@ -1128,12 +1156,16 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         reverseRoute();
 
         updateTrailWithRouteData();
+        syncAnchorListData();
+        refreshAnchorMetrics();
     }
 
     function resetTrail() {
         resetRoute();
 
         updateTrailWithRouteData();
+        syncAnchorListData();
+        refreshAnchorMetrics();
     }
 
     async function recalculateElevationData() {
@@ -1223,7 +1255,9 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         setRoute(croppedGPX, true);
         updateTrailWithRouteData();
         clearAnchors();
+        syncAnchorListData();
         await initRouteAnchors(croppedGPX, true);
+        refreshAnchorMetrics();
     }
 
     function getCoordinateAtDistance(
@@ -1411,14 +1445,18 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
     async function undoRouteEdit() {
         undo();
         clearAnchors();
+        syncAnchorListData();
         await initRouteAnchors(valhallaStore.route, true);
+        refreshAnchorMetrics();
         updateTrailWithRouteData();
     }
 
     async function redoRouteEdit() {
         redo();
         clearAnchors();
+        syncAnchorListData();
         await initRouteAnchors(valhallaStore.route, true);
+        refreshAnchorMetrics();
         updateTrailWithRouteData();
     }
 
@@ -1516,6 +1554,8 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         } finally {
             recalculatingRoute = false;
         }
+
+        refreshAnchorMetrics();
     }
 
     function updateAnchorIndices() {
@@ -1598,9 +1638,11 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
 				},
 			);
 
-			if (map) marker.addTo(map);
-			anchor.marker = marker;
-		}
+		if (map) marker.addTo(map);
+		anchor.marker = marker;
+	}
+
+	syncAnchorListData();
 
         // Rebuild the route based on the new anchor order
         void recalculateTrailFromAnchors();
