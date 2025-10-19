@@ -672,7 +672,6 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
     }
 
     async function handleMapClick(e: M.MapMouseEvent) {
-        console.log("map click", e);
         if (!drawingActive) {
             if (
                 (
