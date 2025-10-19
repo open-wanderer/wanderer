@@ -74,7 +74,7 @@
     } from "$lib/components/base/search.svelte";
     import RouteEditor from "$lib/components/trail/route_editor.svelte";
     import { TagCreateSchema } from "$lib/models/api/tag_schema.js";
-    import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
+import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
     import { Tag } from "$lib/models/tag.js";
     import {
         LocationDetails,
@@ -95,19 +95,30 @@
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
-    import { onMount, tick, untrack } from "svelte";
+    import { onMount, tick } from "svelte";
     import { _ } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
-    import { fly, slide } from "svelte/transition";
+    import { fly } from "svelte/transition";
     import { z } from "zod";
     import Track from "$lib/models/gpx/track.js";
     import TrackSegment from "$lib/models/gpx/track-segment.js";
-    import TrailAnchorCard from "$lib/components/trail/trail_anchor_card.svelte";
-    import { haversineCumulatedDistanceWgs84, smoothElevations } from "$lib/vendor/maplibre-elevation-profile/tools.js";
+    import TrailAnchorList from "$lib/components/trail/trail_anchor_list.svelte";
+    import { smoothElevations } from "$lib/vendor/maplibre-elevation-profile/tools.js";
     import { geoJsonObjectToPositionsAndTimes } from "$lib/vendor/maplibre-elevation-profile/elevationprofile.js";
     import type { Position } from "geojson";
+    import GpxMetricsComputation from "$lib/models/gpx/gpx-metrics-computation.js";
 
     let { data } = $props();
+
+    
+    // reactive snapshot used by TrailAnchorList — keep as a fresh array so the child sees updates
+    let listData: any[] = $state([]);
+    function syncAnchorListData() {
+        listData = (valhallaStore.anchors ?? []).map((a) => ({ ...a }));
+    }
+    $effect(() => {
+        syncAnchorListData();
+    });
 
     let map: M.Map | undefined = $state();
     let mapPopup: M.Popup | undefined;
@@ -119,6 +130,9 @@
     let listSelectModal: ListSelectModal;
 
     let loading = $state(false);
+    let recalculatingRoute = $state(false);
+    // show spinner on the draw/edit button while toggling into/out of drawing
+    let drawingButtonLoading = $state(false);
 
     let editingBasicInfo: boolean = $state(false);
 
@@ -158,6 +172,7 @@
 
     let routingOptions: RoutingOptions = $state({
         autoRouting: true,
+        snapToPath: true,
         modeOfTransport: "pedestrian",
     });
 
@@ -403,7 +418,7 @@
             const points = segment.trkpt ?? [];
 
             if (points.length > 0) {
-                await addAnchor(
+                addAnchor(
                     points[0].$.lat!,
                     points[0].$.lon!,
                     valhallaStore.anchors.length,
@@ -411,7 +426,7 @@
                 );
             }
             if (i == segments.length - 1) {
-                await addAnchor(
+                addAnchor(
                     points[points.length - 1].$.lat!,
                     points[points.length - 1].$.lon!,
                     valhallaStore.anchors.length,
@@ -422,6 +437,19 @@
     }
 
     let routePositions: Position[] = [];
+    // caches for cumulative metrics aligned to flattened GPX points
+    let flatPoints: any[] = [];
+    let cumGain: number[] = [];
+    let cumLoss: number[] = [];
+    // running cumulative distance for each flattened point (mirrors smoothing metrics)
+    let cumDistance: number[] = [];
+    let pointIndexByCoord: Map<string, number> = new Map();
+
+    function coordKey(lat?: number, lon?: number) {
+        // normalize to reduce floating noise; anchors use exact route points after snap
+        return `${(lon ?? 0).toFixed(6)}|${(lat ?? 0).toFixed(6)}`;
+    }
+
     function initRoutePositions() {
         if (routePositions.length > 0) {
             return;
@@ -430,8 +458,39 @@
         let trackJson = valhallaStore.route.toGeoJSON();       
         routePositions = geoJsonObjectToPositionsAndTimes(trackJson).positions;
     }
+    function initCumulativeMetrics() {
+        if (flatPoints.length > 0 && cumGain.length === flatPoints.length) {
+            return;
+        }
+        flatPoints = valhallaStore.route.flatten();
+        cumGain = new Array(flatPoints.length).fill(0);
+        cumLoss = new Array(flatPoints.length).fill(0);
+        cumDistance = new Array(flatPoints.length).fill(0);
+        pointIndexByCoord = new Map();
+
+        const metrics = new GpxMetricsComputation(5, 5);
+        if (flatPoints.length > 0) {
+            // seed index map for all points
+            for (let i = 0; i < flatPoints.length; i++) {
+                const pt = flatPoints[i];
+                pointIndexByCoord.set(coordKey(pt.$.lat, pt.$.lon), i);
+            }
+            // run the same algorithm as GPX.getTotals across the entire flattened series
+            for (let i = 1; i < flatPoints.length; i++) {
+                metrics.addAndFilter(flatPoints[i]);
+                cumGain[i] = metrics.totalElevationGainSmoothed;
+                cumLoss[i] = metrics.totalElevationLossSmoothed;
+                cumDistance[i] = metrics.totalDistance;
+            }
+        }
+    }
     function resetRoutePositions() {
         routePositions = [];
+        flatPoints = [];
+        cumGain = [];
+        cumLoss = [];
+        cumDistance = [];
+        pointIndexByCoord = new Map();
     }
 
     function openMarkerPopup(waypoint: Waypoint) {
@@ -572,16 +631,23 @@
         }
     }
 
-    function startDrawing() {
+    async function startDrawing() {
         if (!map) {
             return;
         }
         drawingActive = true;
+        // entering drawing: anchors will be re-added; mark not ready yet
+        anchorsShown = false;
+        updateMapReady();
         if (!valhallaStore.route.trk?.at(0)?.trkseg?.at(0)?.trkpt?.length) {
         }
         for (const anchor of valhallaStore.anchors) {
             anchor.marker?.addTo(map);
         }
+        // give the DOM a tick, then mark anchors as shown
+        await tick();
+        anchorsShown = true;
+        updateMapReady();
     }
 
     async function stopDrawing() {
@@ -589,6 +655,9 @@
         for (const anchor of valhallaStore.anchors) {
             anchor.marker?.remove();
         }
+        // leaving drawing mode: no anchors on map
+        anchorsShown = false;
+        updateMapReady();
         toggleCropMarkers(false);
         clearUndoRedoStack();
 
@@ -630,7 +699,7 @@
         } else {
             const anchorCount = valhallaStore.anchors.length;
             if (anchorCount == 0) {
-                await addAnchor(
+                addAnchor(
                     e.lngLat.lat,
                     e.lngLat.lng,
                     valhallaStore.anchors.length,
@@ -644,7 +713,7 @@
     async function addAnchorAndRecalculate(lat: number, lon: number) {
         const previousAnchor =
             valhallaStore.anchors[valhallaStore.anchors.length - 1];
-        const anchor = await addAnchor(lat, lon, valhallaStore.anchors.length);
+        const anchor = addAnchor(lat, lon, valhallaStore.anchors.length);
         const markerText = startAnchorLoading(anchor);
         try {
             const routeWaypoints = await calculateRouteBetween(
@@ -656,8 +725,21 @@
             );
 
             // 'snap' anchor to route endpoint
-            valhallaStore.anchors[valhallaStore.anchors.length - 1].lat = routeWaypoints[routeWaypoints.length - 1].$.lat ?? anchor.lat;
-            valhallaStore.anchors[valhallaStore.anchors.length - 1].lon = routeWaypoints[routeWaypoints.length - 1].$.lon ?? anchor.lon;
+            if (routingOptions.snapToPath && routeWaypoints.length > 0) {
+                const snappedPoint = routeWaypoints.at(-1);
+                const snappedLat = snappedPoint?.$?.lat;
+                const snappedLon = snappedPoint?.$?.lon;
+                if (
+                    typeof snappedLat === "number" &&
+                    typeof snappedLon === "number"
+                ) {
+                    const snappedAnchor =
+                        valhallaStore.anchors[valhallaStore.anchors.length - 1];
+                    snappedAnchor.lat = snappedLat;
+                    snappedAnchor.lon = snappedLon;
+                    snappedAnchor.marker?.setLngLat([snappedLon, snappedLat]);
+                }
+            }
 
             insertIntoRoute(routeWaypoints);
             updateTrailWithRouteData();
@@ -674,43 +756,98 @@
         }
     }
 
-    function getDistanceFromPreviousAnchor(index: number) {
+    function findClosestRouteIndex(lat?: number, lon?: number) {
+        if (lat == null || lon == null) return -1;
+        initRoutePositions();
+        initCumulativeMetrics();
+        if (flatPoints.length === 0) return -1;
+
+        let nearest = -1;
+        let nearestDist = Number.POSITIVE_INFINITY;
+        for (let i = 0; i < flatPoints.length; i++) {
+            const pt = flatPoints[i];
+            const ptLat = pt.$?.lat ?? pt.lat;
+            const ptLon = pt.$?.lon ?? pt.lon;
+            if (ptLat == null || ptLon == null) {
+                continue;
+            }
+            const dist = haversineDistance(lat, lon, ptLat, ptLon);
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearest = i;
+                // early exit for perfect match (within ~1mm)
+                if (nearestDist < 1e-3) {
+                    break;
+                }
+            }
+        }
+        return nearest;
+    }
+
+    function getDistanceAndElevationGainLossFromPreviousAnchor(anchor: ValhallaAnchor, index: number) {
         if (index == 0 || index >= valhallaStore.anchors.length) {
-            return 0;
+            return;
         }
 
+        // ensure caches are ready
         initRoutePositions();
-        console.log("Calculating distance from previous anchor, route positions:", routePositions.length);
+        initCumulativeMetrics();
 
         const a1 = valhallaStore.anchors[index - 1];
         const a2 = valhallaStore.anchors[index];
 
-        const positions  = Object.assign([], routePositions);
-
-        const posIndexPrev = routePositions.findIndex((p) => p[0] == a1.lon && p[1] == a1.lat);
-        const posIndex = routePositions.findIndex((p) => p[0] == a2.lon && p[1] == a2.lat);
-
-        if (posIndex >= 0 && posIndex + 1 < positions.length) {
-            positions.splice(posIndex + 1, positions.length - posIndex - 1);
-
-            if (posIndexPrev >= 0 && posIndexPrev < positions.length) {
-                positions.splice(0, posIndexPrev + 1);
-            }
-        } else if (posIndex + 1 == positions.length) {
-            if (posIndexPrev >= 0 && posIndexPrev < positions.length) {
-                positions.splice(0, posIndexPrev + 1);
-            }
-        } else {
-            return 0;
+        // find indices in flattened points (anchors are snapped to route endpoints)
+        let idxPrev = pointIndexByCoord.get(coordKey(a1.lat, a1.lon)) ?? -1;
+        let idx = pointIndexByCoord.get(coordKey(a2.lat, a2.lon)) ?? -1;
+        if (idxPrev < 0) {
+            idxPrev = findClosestRouteIndex(a1.lat, a1.lon);
+        }
+        if (idx < 0) {
+            idx = findClosestRouteIndex(a2.lat, a2.lon);
+        }
+        if (idxPrev < 0 || idx < 0 || idx <= idxPrev) {
+            return;
         }
 
-        let elevatedPositions = smoothElevations(positions, Math.ceil(positions.length / 100));
-        let cumulatedDistance = haversineCumulatedDistanceWgs84(elevatedPositions);
+        // distances from GPX metrics (same as totals)
+        const distance = (cumDistance[idx] ?? 0) - (cumDistance[idxPrev] ?? 0);
 
-        return cumulatedDistance.length > 0 ? cumulatedDistance[cumulatedDistance.length - 1] : 0;
+        // elevation gain/loss aligned to totals' smoothing and thresholds
+        const gain = (cumGain[idx] ?? 0) - (cumGain[idxPrev] ?? 0);
+        const loss = (cumLoss[idx] ?? 0) - (cumLoss[idxPrev] ?? 0);
+
+        anchor.distance = Math.max(0, distance);
+        anchor.elevation_gain = Math.max(0, gain);
+        anchor.elevation_loss = Math.max(0, loss);
     }
 
-    async function addAnchor(
+    function updateAnchorLocationName(anchor: ValhallaAnchor) {
+        (async () => {
+            try {
+                const locationName = await searchLocationReverse(
+                    anchor.lat,
+                    anchor.lon,
+                    LocationDetails.ALL,
+                );
+                if (!locationName) {
+                    return;
+                }
+
+                const current = valhallaStore.anchors.find(
+                    (a) => a.id === anchor.id,
+                );
+                if (!current) {
+                    return;
+                }
+                current.locationName = locationName;
+                syncAnchorListData();
+            } catch (error) {
+                console.error("Failed to resolve anchor location", error);
+            }
+        })();
+    }
+
+    function addAnchor(
         lat: number,
         lon: number,
         index: number,
@@ -722,8 +859,6 @@
             lon: lon,
         };
 
-        anchor.locationName = await searchLocationReverse(anchor.lat, anchor.lon, LocationDetails.ALL);
-        
         const marker = createAnchorMarker(
             lat,
             lon,
@@ -765,11 +900,29 @@
         );
         if (addtoMap && map) {
             marker.addTo(map);
+            if (typeof map.triggerRepaint === "function") {
+                map.triggerRepaint();
+            }
         }
         anchor.marker = marker;
         valhallaStore.anchors.splice(index, 0, anchor);
 
-        anchor.distance = getDistanceFromPreviousAnchor(index);
+        const schedulePostAddUpdates = () => {
+            const currentIndex = valhallaStore.anchors.indexOf(anchor);
+            if (currentIndex > 0) {
+                getDistanceAndElevationGainLossFromPreviousAnchor(
+                    anchor,
+                    currentIndex,
+                );
+            }
+            syncAnchorListData();
+        };
+        if (typeof requestAnimationFrame === "function") {
+            requestAnimationFrame(schedulePostAddUpdates);
+        } else {
+            setTimeout(schedulePostAddUpdates, 0);
+        }
+        updateAnchorLocationName(anchor);
 
         return anchor;
     }
@@ -800,8 +953,8 @@
         
         resetRoutePositions();
         const i = valhallaStore.anchors.findIndex((a) => a.id == anchor.id);
-        const distance = getDistanceFromPreviousAnchor(i);
-        valhallaStore.anchors[i].distance = distance;
+        getDistanceAndElevationGainLossFromPreviousAnchor(valhallaStore.anchors[i], i);
+        syncAnchorListData();
     }
 
     async function removeAnchor(anchorIndex: number) {
@@ -900,7 +1053,7 @@
         if (draggingMarker) {
             return;
         }
-        const anchor = await addAnchor(
+        const anchor = addAnchor(
             data.event.lngLat.lat,
             data.event.lngLat.lng,
             data.segment + 1,
@@ -964,11 +1117,7 @@
         segment: number;
         event: M.MapMouseEvent;
     }) {
-        await addAnchor(
-            data.event.lngLat.lat,
-            data.event.lngLat.lng,
-            data.segment + 1,
-        );
+        addAnchor(data.event.lngLat.lat, data.event.lngLat.lng, data.segment + 1);
 
         splitSegment(data.segment, data.event.lngLat);
         updateFollowingAnchors(data.segment);
@@ -1127,10 +1276,48 @@
         });
     }
 
-    function updateTrailOnMap() {
+    async function updateTrailOnMap() {
         const t: Trail = JSON.parse(JSON.stringify($formData));
         t.expand!.gpx = valhallaStore.route;
         mapTrail = [t];
+
+        // give the child component a tick to render and (likely) kick off any fit-to-bounds
+        await tick();
+
+        // make sure anchors are shown on the actual map
+        ensureAnchorsShown();
+
+        // if we have a map, listen for the end of the pan/zoom that fits the trail
+        if (map) {
+            mapZoomedToTrail = false;
+            // listen once for the moveend event
+            const onMove = () => {
+                mapZoomedToTrail = true;
+                updateMapReady();
+            };
+            map.once("moveend", onMove);
+
+            // fallback in case the map doesn't emit moveend (short timeout)
+            const fallback = setTimeout(() => {
+                mapZoomedToTrail = true;
+                updateMapReady();
+            }, 1200);
+
+            // clear fallback once we got moveend
+            const clearOnce = () => {
+                clearTimeout(fallback);
+                // remove the listener just in case
+                try {
+                    map?.off("moveend", onMove);
+                } catch (e) {
+                    /* ignore */
+                }
+            };
+            map.once("moveend", () => clearOnce());
+        } else {
+            mapZoomedToTrail = true;
+            updateMapReady();
+        }
     }
 
     function handleSearchClick(item: SearchItem) {
@@ -1234,6 +1421,190 @@
         await initRouteAnchors(valhallaStore.route, true);
         updateTrailWithRouteData();
     }
+
+    
+    // new state to track map readiness
+    let anchorsShown = $state(false);
+    let mapZoomedToTrail = $state(false);
+    let mapReady = $state(false);
+
+    function updateMapReady() {
+        // In non-drawing mode we don't require anchors to be visible.
+        mapReady = (drawingActive ? anchorsShown : true) && mapZoomedToTrail;
+    }
+
+    function ensureAnchorsShown() {
+        if (!map) {
+            return;
+        }
+        if (valhallaStore.anchors.length === 0) {
+            anchorsShown = true;
+            updateMapReady();
+            return;
+        }
+        for (const anchor of valhallaStore.anchors) {
+            if (anchor.marker) {
+                // add marker to map (safe to call repeatedly)
+                anchor.marker.addTo(map);
+            }
+        }
+        anchorsShown = true;
+        updateMapReady();
+    }
+
+    async function recalculateTrailFromAnchors() {
+        // If there are fewer than 2 anchors, clear route / update map
+        if (valhallaStore.anchors.length < 2) {
+            clearRoute();
+            updateTrailWithRouteData();
+            return;
+        }
+
+        recalculatingRoute = true;
+        try {
+            // reset existing route so we can build a new one
+            clearRoute();
+
+            for (let i = 0; i < valhallaStore.anchors.length - 1; i++) {
+                const a = valhallaStore.anchors[i];
+                const b = valhallaStore.anchors[i + 1];
+
+                // calculate route segment between consecutive anchors
+                const segment = await calculateRouteBetween(
+                    a.lat,
+                    a.lon,
+                    b.lat,
+                    b.lon,
+                    routingOptions,
+                );
+
+                if (i === 0) {
+                    // initialize route with first segment
+                    // calculateRouteBetween returns an array of waypoints (trkpt) — wrap into a GPX object
+                    const gpxSegment = new GPX({
+                        trk: [
+                            new Track({
+                                trkseg: [
+                                    new TrackSegment({
+                                        trkpt: segment,
+                                    }),
+                                ],
+                            }),
+                        ],
+                    });
+                    setRoute(gpxSegment);
+                } else {
+                    // append following segments
+                    insertIntoRoute(segment);
+                }
+            }
+
+            // update anchor distances (uses current route positions)
+            for (let i = 0; i < valhallaStore.anchors.length; i++) {
+                getDistanceAndElevationGainLossFromPreviousAnchor(valhallaStore.anchors[i], i);
+            }
+
+            normalizeRouteTime();
+            updateTrailWithRouteData();
+        } catch (e) {
+            console.error(e);
+            show_toast({
+                text: "Error recalculating route",
+                icon: "close",
+                type: "error",
+            });
+        } finally {
+            recalculatingRoute = false;
+        }
+    }
+
+    function updateAnchorIndices() {
+        for (let i = 0; i < valhallaStore.anchors.length; i++) {
+            const anchor = valhallaStore.anchors[i];
+            const markerIcon = anchor.marker?.getElement();
+            // don't overwrite a spinner state - keep loading indicator if present
+            if (markerIcon && !markerIcon.classList.contains("spinner")) {
+                markerIcon.textContent = (i + 1).toString();
+            }
+            // update popup header if present
+            const popup = anchor.marker?.getPopup();
+            if (popup && popup._content) {
+                const h5 = popup._content.getElementsByTagName("h5")[0];
+                if (h5) {
+                    h5.textContent = $_("route-point") + " #" + (i + 1);
+                }
+            }
+        }
+    }
+
+	function onDrop(newItems: any) {
+        
+		// remove any existing markers from the map first
+		for (const a of valhallaStore.anchors ?? []) {
+			try {
+				a.marker?.remove();
+			} catch (e) {
+				/* ignore */
+			}
+		}
+
+		valhallaStore.anchors = newItems;
+
+        // update marker labels / popups to reflect new order immediately
+        updateAnchorIndices();
+
+		// assign new anchor list (shallow copy of items to avoid unexpected refs)
+		valhallaStore.anchors = (newItems ?? []).map((a: any) => ({ ...a }));
+
+		// recreate and attach markers for the new anchor order so they are wired correctly
+		for (let i = 0; i < valhallaStore.anchors.length; i++) {
+			const anchor = valhallaStore.anchors[i];
+
+			// remove any previous marker just in case
+			anchor.marker?.remove();
+
+			const marker = createAnchorMarker(
+				anchor.lat,
+				anchor.lon,
+				i + 1,
+				() => {
+					// delete handler
+					removeAnchor(
+						valhallaStore.anchors.findIndex((x) => x.id == anchor.id),
+					);
+				},
+				() => {
+					// recalc / snap handler
+					const thisAnchor = valhallaStore.anchors.find(
+						(a) => a.id == anchor.id,
+					);
+					addAnchorAndRecalculate(
+						thisAnchor?.lat ?? anchor.lat,
+						thisAnchor?.lon ?? anchor.lon,
+					);
+				},
+				() => {
+					draggingMarker = true;
+				},
+				async () => {
+					if (!drawingActive) return;
+					const idx = valhallaStore.anchors.findIndex((x) => x.id == anchor.id);
+					const thisAnchor = valhallaStore.anchors[idx];
+					const position = marker.getLngLat();
+					thisAnchor.lat = position.lat;
+					thisAnchor.lon = position.lng;
+					await recalculateRoute(idx);
+					draggingMarker = false;
+				},
+			);
+
+			if (map) marker.addTo(map);
+			anchor.marker = marker;
+		}
+
+        // Rebuild the route based on the new anchor order
+        void recalculateTrailFromAnchors();
+	}
 </script>
 
 <svelte:head>
@@ -1277,16 +1648,33 @@
                 <hr class="basis-full border-input-border" />
             </div>
             {/if}
-            <button
-                class="btn-primary"
+            <Button
+                primary
                 type="button"
                 onclick={async () => {
-                    if (drawingActive) {
-                        await stopDrawing();
-                    } else {
-                        startDrawing();
+                    drawingButtonLoading = true;
+                    // allow the spinner to paint before heavy work
+                    await tick();
+                    await new Promise((r) => requestAnimationFrame(() => r(null)));
+                    await new Promise((r) => setTimeout(r, 0));
+                    try {
+                        if (drawingActive) {
+                            await stopDrawing();
+                        } else {
+                            await startDrawing();
+                            // ensure the spinner is visible at least briefly when starting
+                            const minMs = 400;
+                            const start = Date.now();
+                            // wait for readiness OR a small minimum time; cap overall wait
+                            while ((!mapReady || Date.now() - start < minMs) && Date.now() - start < 2000) {
+                                await new Promise((r) => setTimeout(r, 50));
+                            }
+                        }
+                    } finally {
+                        drawingButtonLoading = false;
                     }
-                }}
+                }}                
+                loading={recalculatingRoute || drawingButtonLoading || !mapReady}
             >
                 {$formData.expand?.gpx_data
                     ? drawingActive
@@ -1294,14 +1682,12 @@
                         : $_("edit-route")
                     : drawingActive
                       ? $_("stop-drawing")
-                      : $_("draw-a-route")}</button
+                      : $_("draw-a-route")}</Button
             >
             {#if drawingActive}
-                {#each valhallaStore.anchors as anchor}                    
-                    <TrailAnchorCard
-                        {anchor}
-                    ></TrailAnchorCard>
-                {/each}        
+                <div class={recalculatingRoute ? "relative pointer-events-none opacity-50" : "relative"}>
+                    <TrailAnchorList itemsData={listData} onDrop={onDrop}></TrailAnchorList>
+                </div>
             {/if}    
         {/if}
         <input
