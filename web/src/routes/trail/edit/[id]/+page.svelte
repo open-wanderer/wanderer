@@ -902,6 +902,9 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                 if (!drawingActive) {
                     return;
                 }
+
+                loadEditing = false;
+
                 const anchorIndex = valhallaStore.anchors.findIndex(
                     (a) => a.id == anchor.id,
                 );
@@ -913,6 +916,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                 await recalculateRoute(anchorIndex);
 
                 draggingMarker = false;
+                loadEditing = false;
             },
         );
         
@@ -973,6 +977,9 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         if (!drawingActive) {
             return;
         }
+
+        loadEditing = true;
+
         resetRoutePositions();
         valhallaStore.anchors[anchorIndex]?.marker?.remove();
         valhallaStore.anchors.splice(anchorIndex, 1);
@@ -1005,10 +1012,11 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         }
 
         syncAnchorListData();
+
+        loadEditing = false;
     }
 
     async function recalculateRoute(anchorIndex: number) {
-        return;
         const markerText = startAnchorLoading(
             valhallaStore.anchors[anchorIndex],
         );
@@ -1423,7 +1431,6 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
             return;
         }
 
-        loadEditing = true;
         try {
             // reset existing route so we can build a new one
             clearRoute();
@@ -1476,8 +1483,6 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                 icon: "close",
                 type: "error",
             });
-        } finally {
-            loadEditing = false;
         }
 
         refreshAnchorMetrics();
@@ -1502,8 +1507,12 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         }
     }
 
-	function onDrop(newItems: any) {
+	async function handleAnchorDrop(newItems: ValhallaAnchor[]) {
         
+        loadEditing = true;
+        await tick();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
 		// remove any existing markers from the map first
 		for (const a of valhallaStore.anchors ?? []) {
 			try {
@@ -1570,7 +1579,9 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
         syncAnchorListData();
 
         // Rebuild the route based on the new anchor order
-        void recalculateTrailFromAnchors();
+        await recalculateTrailFromAnchors();
+
+        loadEditing = false;
 	}
 </script>
 
@@ -1646,7 +1657,7 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
             >
             {#if drawingActive}
                 <div class={loadEditing ? "relative pointer-events-none opacity-50" : "relative"}>
-                    <TrailAnchorList itemsData={listData} onDrop={onDrop}></TrailAnchorList>
+                    <TrailAnchorList itemsData={listData} onDrop={handleAnchorDrop}></TrailAnchorList>
                 </div>
             {/if}    
         {/if}
