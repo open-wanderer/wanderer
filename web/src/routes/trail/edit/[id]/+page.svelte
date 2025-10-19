@@ -1605,8 +1605,8 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
             items={searchDropdownItems}
         ></Search>
         <hr class="border-input-border" />
-        <h3 class="text-xl font-semibold">{$_("pick-a-trail")}</h3>
         {#if !drawingActive}
+        <h3 class="text-xl font-semibold">{$_("pick-a-trail")}</h3>
         <Button
             primary={true}
             type="button"
