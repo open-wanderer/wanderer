@@ -393,7 +393,9 @@
     </div>
     <div id="trail-map">
         <MapWithElevationMaplibre
-            trails={getMapTrails()}
+            trails={selectedTrail
+                ? [selectedTrail]
+                : (selectedList?.expand?.trails ?? [])}
             waypoints={selectedTrailWaypoints}
             bind:map
             bind:this={mapWithElevation}
