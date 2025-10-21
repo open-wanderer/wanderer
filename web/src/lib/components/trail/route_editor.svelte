@@ -167,10 +167,6 @@
                 bind:value={options.autoRouting}
                 label={$_("enable-auto-routing")}
             ></Toggle>
-            <Toggle
-                bind:value={options.snapToPath}
-                label={$_("enable-snap-to-path")}
-            ></Toggle>
             <Select
                 items={modesOfTransport}
                 bind:value={options.modeOfTransport}

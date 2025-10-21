@@ -718,8 +718,8 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                 routingOptions,
             );
 
-            // 'snap' anchor to route endpoint
-            if (routingOptions.snapToPath && routeWaypoints.length > 0) {
+            // 'snap' anchor to route endpoint, if autrouting is enabled
+            if (routingOptions.autoRouting && routeWaypoints.length > 0) {
                 const snappedPoint = routeWaypoints.at(-1);
                 const snappedLat = snappedPoint?.$?.lat;
                 const snappedLon = snappedPoint?.$?.lon;
@@ -932,10 +932,10 @@ import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
                 getDistanceAndElevationGainLossFromPreviousAnchor(anchor, currentIndex);
             }
             syncAnchorListData();
+            updateAnchorLocationName(anchor);
         };
 
         setTimeout(schedulePostAddUpdates, 0);
-        updateAnchorLocationName(anchor);
 
         return anchor;
     }

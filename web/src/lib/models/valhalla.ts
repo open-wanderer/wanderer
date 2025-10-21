@@ -76,7 +76,6 @@ export interface ValhallaAutoCostingOptions extends ValhallaCostingOptions {
 
 export interface RoutingOptions {
     autoRouting: boolean
-    snapToPath: boolean
     modeOfTransport: "pedestrian" | "bicycle" | "auto"
     pedestrianOptions?: ValhallaPedestrianCostingOptions
     bicycleOptions?: ValhallaBicycleCostingOptions
