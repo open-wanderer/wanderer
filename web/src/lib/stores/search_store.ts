@@ -15,7 +15,7 @@ const REVERSE_LOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const nominatimURL = env.PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org";
 const nominatimUserAgent = "wanderer/" + version;
-const nominatimNeedsRateLimiting = nominatimURL.includes(nominatimURL);
+const nominatimNeedsRateLimiting = nominatimURL.includes("nominatim.openstreetmap.org");
 
 export type LocationSearchResult = {
     name: string;
