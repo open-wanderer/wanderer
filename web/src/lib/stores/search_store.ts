@@ -6,6 +6,17 @@ import type { Hits, MultiSearchParams, MultiSearchResponse, MultiSearchResult, S
 import type { ListResult } from "pocketbase";
 import { version } from "$app/environment";
 
+const NOMINATIM_RATE_LIMIT_MS = 1000;
+const NOMINATIM_MAX_RETRIES = 2;
+let lastNominatimCall = 0;
+
+const LOCATION_SEARCH_CACHE_TTL_MS = 5 * 60 * 1000;
+const REVERSE_LOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const nominatimURL = env.PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org";
+const nominatimUserAgent = "wanderer/" + version;
+const nominatimNeedsRateLimiting = nominatimURL.includes(nominatimURL);
+
 export type LocationSearchResult = {
     name: string;
     description: string;
@@ -14,6 +25,21 @@ export type LocationSearchResult = {
     category: string;
     type: string;
 }
+
+type LocationSearchCacheEntry = {
+    data: Hits<LocationSearchResult>;
+    expires: number;
+};
+
+type ReverseLocationCacheEntry = {
+    data: NominatimResponse["features"];
+    expires: number;
+};
+
+const locationSearchCache = new Map<string, LocationSearchCacheEntry>();
+const reverseLocationCache = new Map<string, ReverseLocationCacheEntry>();
+const locationSearchPending = new Map<string, Promise<Hits<LocationSearchResult>>>();
+const reverseLocationPending = new Map<string, Promise<NominatimResponse["features"]>>();
 
 export type ListSearchResult = {
     id: string;
@@ -105,26 +131,49 @@ export async function searchTrails(q: string, options: SearchParams): Promise<Hi
 }
 
 export async function searchLocations(q: string, limit?: number): Promise<Hits<LocationSearchResult>> {
-    const nominatimURL = env.PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org"
-    const r = await fetch(`${nominatimURL}/search?q=${q}&format=geojson&addressdetails=1${limit ? '&limit=' + limit : ''}`, {
-        method: "GET",
-        headers: new Headers({
-            "User-Agent": "wanderer/" + version
-        })
-    });
-    if (!r.ok) {
-        const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
+    const cacheKey = `${q}::${limit ?? "default"}`;
+    const now = Date.now();
+
+    const cached = locationSearchCache.get(cacheKey);
+    if (cached && cached.expires > now) {
+        return cached.data;
     }
-    const response: NominatimResponse = await r.json();
-    return response.features.map(f => ({
-        category: f.properties.category,
-        type: f.properties.type == "administrative" ? f.properties.addresstype : f.properties.type,
-        description: getLocationDescription(f.properties.address),
-        name: f.properties.name.length ? f.properties.name : f.properties.display_name,
-        lat: f.geometry.coordinates[1],
-        lon: f.geometry.coordinates[0],
-    }))
+
+    const inPending = locationSearchPending.get(cacheKey);
+    if (inPending) {
+        return inPending;
+    }
+
+    const requestPromise = (async () => {
+        const r = await fetchNominatim(`${nominatimURL}/search?q=${q}&format=geojson&addressdetails=1${limit ? '&limit=' + limit : ''}`);
+        if (!r.ok) {
+            const response = await r.json();
+            throw new APIError(r.status, response.message, response.detail)
+        }
+        const response: NominatimResponse = await r.json();
+        const results: Hits<LocationSearchResult> = response.features.map(f => ({
+            category: f.properties.category,
+            type: f.properties.type == "administrative" ? f.properties.addresstype : f.properties.type,
+            description: getLocationDescription(f.properties.address),
+            name: f.properties.name.length ? f.properties.name : f.properties.display_name,
+            lat: f.geometry.coordinates[1],
+            lon: f.geometry.coordinates[0],
+        }));
+
+        locationSearchCache.set(cacheKey, {
+            data: results,
+            expires: Date.now() + LOCATION_SEARCH_CACHE_TTL_MS,
+        });
+
+        return results;
+    })();
+
+    locationSearchPending.set(cacheKey, requestPromise);
+    try {
+        return await requestPromise;
+    } finally {
+        locationSearchPending.delete(cacheKey);
+    }
 }
 
 export enum LocationDetails {
@@ -137,24 +186,90 @@ export enum LocationDetails {
     ALL = COUNTRY | STATE | CITY | STREET | NUMBER,
 }
 
-export async function searchLocationReverse(lat: number, lon: number, details: LocationDetails = LocationDetails.COUNTRY | LocationDetails.STATE | LocationDetails.CITY): Promise<string> {
-    const nominatimURL = env.PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org"
-    const r = await fetch(`${nominatimURL}/reverse?lat=${lat}&lon=${lon}&format=geojson&addressdetails=1`, {
-        method: "GET",
-        headers: new Headers({
-            "User-Agent": "wanderer/" + version
-        })
-    });
-    if (!r.ok) {
-        const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
+const waitTimer = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+async function nominatimRateLimiter() {
+    if (!nominatimNeedsRateLimiting) {
+        return;
     }
-    const response: NominatimResponse = await r.json();
 
-    if (response.features?.at(0)?.properties.address) {
-        return getLocationDescription(response.features[0].properties.address, details)
+    const elapsedTime_MS = Date.now() - lastNominatimCall;
+    const waitTime = NOMINATIM_RATE_LIMIT_MS - elapsedTime_MS;
+    if (waitTime > 0) {
+        await waitTimer(waitTime);
     }
-    return ""
+    
+    lastNominatimCall = Date.now();
+}
+
+async function fetchNominatim(url: string): Promise<Response> {
+    let attempt = 0;
+
+    while (true) {
+        await nominatimRateLimiter();
+
+        try {
+            return await fetch(url, {
+                method: "GET",
+                headers: new Headers({
+                    "User-Agent": nominatimUserAgent
+                })
+            });
+        } catch (error) {
+            if (attempt < NOMINATIM_MAX_RETRIES) {
+                attempt++;
+                continue;
+            }
+            throw error;
+        }
+    }
+}
+
+export async function searchLocationReverse(lat: number, lon: number, details: LocationDetails = LocationDetails.COUNTRY | LocationDetails.STATE | LocationDetails.CITY): Promise<string> {
+    const cacheKey = `${lat}:${lon}`;
+    const now = Date.now();
+
+    const cached = reverseLocationCache.get(cacheKey);
+    if (cached && cached.expires > now) {
+        return doGetLocationDescription(cached.data, details);
+    }
+
+    const inPending = reverseLocationPending.get(cacheKey);
+    if (inPending) {
+        const features = await inPending;
+        return doGetLocationDescription(features, details);
+    }
+
+    const requestPromise = (async () => {
+        const r = await fetchNominatim(`${nominatimURL}/reverse?lat=${lat}&lon=${lon}&format=geojson&addressdetails=1`);
+        if (!r.ok) {
+            const response = await r.json();
+            throw new APIError(r.status, response.message, response.detail)
+        }
+        const response: NominatimResponse = await r.json();
+
+        const features = response.features ?? [];
+
+        reverseLocationCache.set(cacheKey, {
+            data: features,
+            expires: Date.now() + REVERSE_LOCATION_CACHE_TTL_MS,
+        });
+
+        return features;
+    })();
+
+    reverseLocationPending.set(cacheKey, requestPromise);
+
+    try {
+        const features = await requestPromise;
+        return doGetLocationDescription(features, details);
+    } finally {
+        reverseLocationPending.delete(cacheKey);
+    }
+}
+
+function doGetLocationDescription(features: Feature[] | undefined, details: LocationDetails = LocationDetails.COUNTRY | LocationDetails.STATE | LocationDetails.CITY): string {
+    const address = features?.at(0)?.properties.address;
+    return address ? getLocationDescription(address, details) : "";
 }
 
 function getLocationDescription(address: Address, details: LocationDetails = LocationDetails.COUNTRY | LocationDetails.STATE | LocationDetails.CITY) {
