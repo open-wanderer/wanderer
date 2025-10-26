@@ -609,7 +609,7 @@ func generateActivityGPX(detailedTour *HammerheadActivity) (*filesystem.File, er
 
 			elevation := float64(0)
 			if i < len(detailedTour.RecordData.Elevation) {
-				elevation = detailedTour.RecordData.Elevation[i]
+				elevation = detailedTour.RecordData.Elevation[i] / 1000.0
 			}
 
 			points = append(points, gpx.GPXPoint{
@@ -668,7 +668,7 @@ func generateTourGPX(detailedTour *HammerheadTour) (*filesystem.File, error) {
 	// try to get elevation polyline (adjust field path if your struct differs)
 	elevations := []float64{}
 	// precision 100 is common for Valhalla elevation encodings; change if needed
-	if decoded, err := decodeElevations(detailedTour.Elevation.Polyline, 100); err == nil {
+	if decoded, err := decodeElevations(detailedTour.Elevation.Polyline, 100000); err == nil {
 		elevations = decoded
 	}
 
