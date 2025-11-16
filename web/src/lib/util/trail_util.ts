@@ -1,5 +1,5 @@
 import { Trail } from "$lib/models/trail";
-import type { Threshold } from "$lib/models/difficulty_algorithms";
+import type { Threshold } from "$lib/models/category";
 
 const diffDifficult = "difficult";
 const diffModerate = "moderate";

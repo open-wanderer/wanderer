@@ -94,17 +94,16 @@
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
-    import { onMount, tick, untrack } from "svelte";
+    import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
-    import { fly, slide } from "svelte/transition";
+    import { fly } from "svelte/transition";
     import { z } from "zod";
     import Track from "$lib/models/gpx/track.js";
     import TrackSegment from "$lib/models/gpx/track-segment.js";
     import { getTrailDifficulty } from "$lib/util/trail_util";
     import { Settings } from "$lib/models/settings";
-    import { Threshold, type DifficultyAlgorithm } from "$lib/models/difficulty_algorithms.js";
-    import { algorithms_index } from "$lib/stores/difficulty_algorithms_store.js";
+    import { Threshold, type Category } from "$lib/models/category.js";
 
 
     let { data } = $props();
@@ -275,17 +274,17 @@
         if (!trail.distance) return;
 
         let settings: Settings = page.data.settings;
-        let trailCategory = trail.category;
+        let trailCategory: Category | undefined = undefined;
 
-        if (!trailCategory) {
+        if (!trail.category) {
             const catBiking = $categories.find(c => c.id == "7u4d6b446po42f0");
             const catHiking = $categories.find(c => c.id == "28u13dp5p7ry2n7");
 
             if (routingOptions && routingOptions.autoRouting) {
                 if (routingOptions.modeOfTransport == "bicycle") {
-                    trailCategory = catBiking?.name;
+                    trailCategory = catBiking;
                 } else if (routingOptions.modeOfTransport == "pedestrian") {
-                    trailCategory = catHiking?.name;
+                    trailCategory = catHiking;
                 }
             }
 
@@ -293,44 +292,32 @@
                 let speed = trail.distance / (trail.expand.gpx.features.moveDuration / 3600.0);
                 
                 if (speed < 10) {
-                    trailCategory = catHiking?.name;
+                    trailCategory = catHiking;
                 } else if (speed < 40) {
-                    trailCategory = catBiking?.name;
+                    trailCategory = catBiking;
                 }
                 
                 if (!trailCategory) {
                     return;
                 }
             }
+        } else {
+            trailCategory = $categories.find(c => c.name == trail.category)
         }
 
         if (settings && settings.skills) {
-            let skills = settings.skills.find((skill) => skill.category == trailCategory);
-            if (skills && skills.algorithm && skills.speed) {
+            let skills = settings.skills.find((skill) => skill.category == trailCategory?.id);
+            if (skills && skills.speed && trailCategory?.thresholds && trailCategory.thresholds.length > 0) {
                 
-                let algorithms = await algorithms_index();
-                let skillAgorithm: DifficultyAlgorithm[] = new Array();
-                for (let alg of algorithms) {
-                    if (alg.id == skills.algorithm) {
-                        skillAgorithm.push(alg);
+                let thresholds: Threshold[] = new Array();
+                for (let thresh of trailCategory.thresholds) {
+                    if (thresh.speed == skills.speed) {
+                        thresholds.push(thresh);
                     }
                 }
 
-                if (skillAgorithm.length > 0) {
-                    let thresholds: Threshold[] = new Array();
-                    for (let alg of skillAgorithm) {
-                        if (alg.thresholds) {
-                            for (let thresh of alg.thresholds) {
-                                if (thresh.speed == skills.speed) {
-                                    thresholds.push(thresh);
-                                }
-                            }
-                        }
-                    }
-
-                    if (thresholds.length > 0) {
-                        trail.difficulty = getTrailDifficulty(trail, thresholds);
-                    }
+                if (thresholds.length > 0) {
+                    trail.difficulty = getTrailDifficulty(trail, thresholds);
                 }
             }
         }
