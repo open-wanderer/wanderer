@@ -10,6 +10,11 @@ type KomootIntegration struct {
 	Completed bool   `json:"completed"`
 }
 
+type CategoryIntegration struct {
+	IntegrationType    string   `json:"integrationType"`
+	ProviderCategories []string `json:"providerCategories"`
+}
+
 type LoginResponse struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`

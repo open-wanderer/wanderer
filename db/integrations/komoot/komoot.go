@@ -184,7 +184,90 @@ func (k *KomootApi) fetchDetailedTour(tour KomootTour) (*DetailedKomootTour, err
 	return data, nil
 }
 
+func loadIntegrationCategoryMappings(app core.App, integrationType string) (map[string]string, error) {
+	categories := []*core.Record{}
+	if err := app.RecordQuery("categories").All(&categories); err != nil {
+		return nil, err
+	}
+
+	mappings := map[string]string{}
+
+	for _, category := range categories {
+		parsed, err := parseCategoryIntegrations(category)
+		if err != nil {
+			app.Logger().Warn(fmt.Sprintf("unable to parse category integrations for '%s': %v", category.GetString("name"), err))
+			continue
+		}
+
+		for _, entry := range parsed {
+			if !strings.EqualFold(entry.IntegrationType, integrationType) {
+				continue
+			}
+
+			for _, providerCategory := range entry.ProviderCategories {
+				key := strings.ToLower(strings.TrimSpace(providerCategory))
+				if key == "" {
+					continue
+				}
+
+				if existing, exists := mappings[key]; exists && existing != category.Id {
+					app.Logger().Warn(fmt.Sprintf("provider category '%s' already mapped to category '%s', skipping duplicate in '%s'", providerCategory, existing, category.GetString("name")))
+					continue
+				}
+
+				mappings[key] = category.Id
+			}
+		}
+	}
+
+	return mappings, nil
+}
+
+func parseCategoryIntegrations(category *core.Record) ([]CategoryIntegration, error) {
+	raw := category.Get("integrations")
+	if raw == nil {
+		return nil, nil
+	}
+
+	var data []byte
+
+	switch v := raw.(type) {
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" || trimmed == "null" {
+			return nil, nil
+		}
+		data = []byte(trimmed)
+	case []byte:
+		if len(v) == 0 {
+			return nil, nil
+		}
+		data = v
+	default:
+		marshaled, err := json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+		if len(marshaled) == 0 || string(marshaled) == "null" {
+			return nil, nil
+		}
+		data = marshaled
+	}
+
+	var integrations []CategoryIntegration
+	if err := json.Unmarshal(data, &integrations); err != nil {
+		return nil, err
+	}
+
+	return integrations, nil
+}
+
 func syncTrailWithTours(app core.App, k *KomootApi, i KomootIntegration, user string, actor string, tours []KomootTour) (bool, error) {
+	categoryMappings, err := loadIntegrationCategoryMappings(app, "komoot")
+	if err != nil {
+		return false, err
+	}
+
 	hasNewTours := false
 	for _, tour := range tours {
 		trails, err := app.FindRecordsByFilter("trails", "external_id = {:id}", "", 1, 0, dbx.Params{"id": strconv.Itoa(int(tour.ID))})
@@ -205,7 +288,7 @@ func syncTrailWithTours(app core.App, k *KomootApi, i KomootIntegration, user st
 			app.Logger().Warn(fmt.Sprintf("Unable to generate GPX for tour '%s': %v", tour.Name, err))
 			continue
 		}
-		trailid, err := createTrailFromTour(app, k, detailedTour, gpx, actor)
+		trailid, err := createTrailFromTour(app, k, detailedTour, gpx, actor, categoryMappings)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for tour '%s': %v", tour.Name, err))
 			continue
@@ -220,7 +303,7 @@ func syncTrailWithTours(app core.App, k *KomootApi, i KomootIntegration, user st
 	return hasNewTours, nil
 }
 
-func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomootTour, gpx *filesystem.File, actor string) (string, error) {
+func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomootTour, gpx *filesystem.File, actor string, categoryMappings map[string]string) (string, error) {
 	trailid := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
 
 	collection, err := app.FindCollectionByNameOrId("trails")
@@ -230,21 +313,32 @@ func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomoo
 
 	record := core.NewRecord(collection)
 
-	categoryMap := map[string]string{
-		"hike":           "Hiking",
-		"touringbicycle": "Biking",
-		"mtb":            "Biking",
-		"racebike":       "Biking",
-		"jogging":        "Walking",
-		"mtb_easy":       "Workout",
-		"mtb_advanced":   "Walking",
-		"mountaineering": "Hiking",
+	categoryId := ""
+
+	if categoryMappings != nil {
+		if mappedId, ok := categoryMappings[strings.ToLower(detailedTour.Sport)]; ok {
+			categoryId = mappedId
+		}
 	}
 
-	category, _ := app.FindFirstRecordByData("categories", "name", categoryMap[detailedTour.Sport])
-	categoryId := ""
-	if category != nil {
-		categoryId = category.Id
+	if categoryId == "" {
+		fallbackCategoryMap := map[string]string{
+			"hike":           "Hiking",
+			"touringbicycle": "Biking",
+			"mtb":            "Biking",
+			"racebike":       "Biking",
+			"jogging":        "Walking",
+			"mtb_easy":       "Workout",
+			"mtb_advanced":   "Walking",
+			"mountaineering": "Hiking",
+		}
+
+		if categoryName, ok := fallbackCategoryMap[strings.ToLower(detailedTour.Sport)]; ok {
+			category, _ := app.FindFirstRecordByData("categories", "name", categoryName)
+			if category != nil {
+				categoryId = category.Id
+			}
+		}
 	}
 
 	var photos []*filesystem.File
