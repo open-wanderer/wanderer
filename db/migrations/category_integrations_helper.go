@@ -3,10 +3,10 @@ package migrations
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/pocketbase/pocketbase/core"
-	m "github.com/pocketbase/pocketbase/migrations"
 )
 
 type categoryIntegration struct {
@@ -14,55 +14,8 @@ type categoryIntegration struct {
 	ProviderCategories []string `json:"providerCategories"`
 }
 
-func init() {
-	m.Register(func(app core.App) error {
-		return updateCategoryIntegrations(app, true)
-	}, func(app core.App) error {
-		return updateCategoryIntegrations(app, false)
-	})
-}
-
-func updateCategoryIntegrations(app core.App, apply bool) error {
-	komootMappings := map[string][]string{
-		"Hiking": {
-			"hike",
-			"mountaineering",
-		},
-		"Biking": {
-			"racebike",
-			"e_racebike",
-			"touringbicycle",
-			"e_touringbicycle",
-			"mtb",
-			"e_mtb",
-			"mtb_easy",
-			"e_mtb_easy",
-			"mtb_advanced",
-			"e_mtb_advanced",
-			"downhillbike",
-			"unicycle",
-			"citybike",
-		},
-		"Walking": {
-			"jogging",
-			"nordicwalking",
-			"skaten",
-			"other",
-		},
-		"Climbing": {
-			"climbing",
-		},
-		"Skiing": {
-			"nordic",
-			"skialpin",
-			"skitour",
-			"sled",
-			"snowboard",
-			"snowshoe",
-		},
-	}
-
-	for categoryName, providerCategories := range komootMappings {
+func applyCategoryIntegrationMappings(app core.App, integrationType string, mappings map[string][]string, apply bool) error {
+	for categoryName, providerCategories := range mappings {
 		record, err := app.FindFirstRecordByData("categories", "name", categoryName)
 		if err != nil {
 			return fmt.Errorf("unable to find category '%s': %w", categoryName, err)
@@ -76,7 +29,7 @@ func updateCategoryIntegrations(app core.App, apply bool) error {
 		if apply {
 			found := false
 			for idx := range integrations {
-				if strings.EqualFold(integrations[idx].IntegrationType, "komoot") {
+				if strings.EqualFold(integrations[idx].IntegrationType, integrationType) {
 					integrations[idx].ProviderCategories = providerCategories
 					found = true
 					break
@@ -84,14 +37,14 @@ func updateCategoryIntegrations(app core.App, apply bool) error {
 			}
 			if !found {
 				integrations = append(integrations, categoryIntegration{
-					IntegrationType:    "komoot",
+					IntegrationType:    integrationType,
 					ProviderCategories: providerCategories,
 				})
 			}
 		} else {
 			filtered := integrations[:0]
 			for _, entry := range integrations {
-				if strings.EqualFold(entry.IntegrationType, "komoot") {
+				if strings.EqualFold(entry.IntegrationType, integrationType) {
 					continue
 				}
 				filtered = append(filtered, entry)
@@ -122,10 +75,11 @@ func parseRecordIntegrations(record *core.Record) ([]categoryIntegration, error)
 	var data []byte
 	switch v := raw.(type) {
 	case string:
-		if strings.TrimSpace(v) == "" || strings.TrimSpace(v) == "null" {
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" || trimmed == "null" {
 			return []categoryIntegration{}, nil
 		}
-		data = []byte(v)
+		data = []byte(trimmed)
 	case []byte:
 		if len(v) == 0 {
 			return []categoryIntegration{}, nil
@@ -136,6 +90,9 @@ func parseRecordIntegrations(record *core.Record) ([]categoryIntegration, error)
 		if err != nil {
 			return nil, err
 		}
+		if len(marshaled) == 0 || string(marshaled) == "null" {
+			return []categoryIntegration{}, nil
+		}
 		data = marshaled
 	}
 
@@ -143,5 +100,19 @@ func parseRecordIntegrations(record *core.Record) ([]categoryIntegration, error)
 	if err := json.Unmarshal(data, &integrations); err != nil {
 		return nil, err
 	}
+
 	return integrations, nil
+}
+
+func buildCategoryMappingsFromMap(source map[string]string) map[string][]string {
+	result := map[string][]string{}
+	for provider, category := range source {
+		result[category] = append(result[category], provider)
+	}
+
+	for _, providers := range result {
+		sort.Strings(providers)
+	}
+
+	return result
 }

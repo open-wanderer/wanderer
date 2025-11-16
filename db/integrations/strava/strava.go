@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pocketbase/dbx"
@@ -17,10 +18,51 @@ import (
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/tkrajina/gpxgo/gpx"
 	"github.com/twpayne/go-polyline"
+	"pocketbase/integrations/shared"
 )
 
 type StravaApi struct {
 	AceessToken string
+}
+
+var DefaultStravaCategoryMap = map[string]string{
+	"AlpineSki":       "Skiing",
+	"BackcountrySki":  "Skiing",
+	"Canoeing":        "Canoeing",
+	"Crossfit":        "Other",
+	"EBikeRide":       "Biking",
+	"Elliptical":      "Other",
+	"Golf":            "Other",
+	"Handcycle":       "Biking",
+	"Hike":            "Hiking",
+	"IceSkate":        "Skiing",
+	"InlineSkate":     "Hiking",
+	"Kayaking":        "Canoeing",
+	"Kitesurf":        "Canoeing",
+	"NordicSki":       "Skiing",
+	"Ride":            "Biking",
+	"RockClimbing":    "Climbing",
+	"RollerSki":       "Skiing",
+	"Rowing":          "Canoeing",
+	"Run":             "Walking",
+	"Sail":            "Other",
+	"Skateboard":      "Other",
+	"Snowboard":       "Skiing",
+	"Snowshoe":        "Hiking",
+	"Soccer":          "Other",
+	"StairStepper":    "Other",
+	"StandUpPaddling": "Canoeing",
+	"Surfing":         "Canoeing",
+	"Swim":            "Other",
+	"Velomobile":      "Biking",
+	"VirtualRide":     "Biking",
+	"VirtualRun":      "Walking",
+	"Walk":            "Walking",
+	"WeightTraining":  "Other",
+	"Wheelchair":      "Biking",
+	"Windsurf":        "Canoeing",
+	"Workout":         "Other",
+	"Yoga":            "Other",
 }
 
 func SyncStrava(app core.App) error {
@@ -249,6 +291,11 @@ func fetchStravaActivities(accessToken string, page int, after int64) ([]StravaA
 }
 
 func syncTrailsWithRoutes(app core.App, accessToken string, user string, actor string, routes []StravaRoute) error {
+	categoryMappings, err := shared.LoadIntegrationCategoryMappings(app, "strava")
+	if err != nil {
+		return err
+	}
+
 	for _, route := range routes {
 		trails, err := app.FindRecordsByFilter("trails", "external_id = {:id}", "", 1, 0, dbx.Params{"id": route.IDStr})
 		if err != nil {
@@ -262,7 +309,7 @@ func syncTrailsWithRoutes(app core.App, accessToken string, user string, actor s
 			app.Logger().Warn(fmt.Sprintf("Unable to fetch GPX for route '%s': %v", route.Name, err))
 			continue
 		}
-		trailid, err := createTrailFromRoute(app, route, gpx, actor)
+		trailid, err := createTrailFromRoute(app, route, gpx, actor, categoryMappings)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for route '%s': %v", route.Name, err))
 			continue
@@ -315,7 +362,7 @@ func fetchRouteGPX(route StravaRoute, accessToken string) (*filesystem.File, err
 	return gpxFile, nil
 }
 
-func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File, actor string) (string, error) {
+func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File, actor string, categoryMappings map[string]string) (string, error) {
 	trailid := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
 
 	collection, err := app.FindCollectionByNameOrId("trails")
@@ -337,15 +384,22 @@ func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File,
 		lat, lon = 0, 0
 	}
 
-	bikeCategory, _ := app.FindFirstRecordByData("categories", "name", "Biking")
-	hikeCategory, _ := app.FindFirstRecordByData("categories", "name", "Walking")
+	categoryId := ""
+	if categoryMappings != nil {
+		if mappedId, ok := categoryMappings[strings.ToLower(stravaRouteTypeName(route.Type))]; ok {
+			categoryId = mappedId
+		}
+	}
 
-	category := ""
+	if categoryId == "" {
+		bikeCategory, _ := app.FindFirstRecordByData("categories", "name", "Biking")
+		hikeCategory, _ := app.FindFirstRecordByData("categories", "name", "Walking")
 
-	if route.Type == 1 && bikeCategory != nil {
-		category = bikeCategory.Id
-	} else if route.Type == 2 && hikeCategory != nil {
-		category = hikeCategory.Id
+		if route.Type == 1 && bikeCategory != nil {
+			categoryId = bikeCategory.Id
+		} else if route.Type == 2 && hikeCategory != nil {
+			categoryId = hikeCategory.Id
+		}
 	}
 
 	record.Load(map[string]any{
@@ -362,7 +416,7 @@ func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File,
 		"lat":               lat,
 		"lon":               lon,
 		"difficulty":        "easy",
-		"category":          category,
+		"category":          categoryId,
 		"author":            actor,
 	})
 
@@ -375,6 +429,17 @@ func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File,
 	}
 
 	return trailid, err
+}
+
+func stravaRouteTypeName(routeType int) string {
+	switch routeType {
+	case 1:
+		return "Ride"
+	case 2:
+		return "Run"
+	default:
+		return ""
+	}
 }
 
 func createWaypointsFromRoute(app core.App, route StravaRoute, user string, trailid string) error {
@@ -405,6 +470,11 @@ func createWaypointsFromRoute(app core.App, route StravaRoute, user string, trai
 }
 
 func syncTrailsWithActivities(app core.App, accessToken string, actor string, activities []StravaActivity) error {
+	categoryMappings, err := shared.LoadIntegrationCategoryMappings(app, "strava")
+	if err != nil {
+		return err
+	}
+
 	for _, activity := range activities {
 		trails, err := app.FindRecordsByFilter("trails", "external_id = {:id}", "", 1, 0, dbx.Params{"id": strconv.Itoa(int(activity.ID))})
 		if err != nil {
@@ -423,7 +493,7 @@ func syncTrailsWithActivities(app core.App, accessToken string, actor string, ac
 			app.Logger().Warn(fmt.Sprintf("Unable to fetch GPX for activity '%s': %v", activity.Name, err))
 			continue
 		}
-		err = createTrailFromActivity(app, detailedActivity, gpx, actor)
+		err = createTrailFromActivity(app, detailedActivity, gpx, actor, categoryMappings)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail from activity '%s': %v", activity.Name, err))
 			continue
@@ -460,7 +530,7 @@ func fetchDetailedActivity(activity StravaActivity, accessToken string) (*Detail
 	return &detailedActivity, nil
 }
 
-func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx *filesystem.File, user string) error {
+func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx *filesystem.File, user string, categoryMappings map[string]string) error {
 	if len(activity.StartLatlng) < 2 {
 		return nil
 	}
@@ -480,50 +550,20 @@ func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx
 
 	record := core.NewRecord(collection)
 
-	activityMap := map[string]string{
-		"AlpineSki":       "Skiing",
-		"BackcountrySki":  "Skiing",
-		"Canoeing":        "Canoeing",
-		"Crossfit":        "Workout",
-		"EBikeRide":       "Biking",
-		"Elliptical":      "Workout",
-		"Golf":            "Walking",
-		"Handcycle":       "Biking",
-		"Hike":            "Hiking",
-		"IceSkate":        "Skiing",
-		"InlineSkate":     "Biking",
-		"Kayaking":        "Canoeing",
-		"Kitesurf":        "Canoeing",
-		"NordicSki":       "Skiing",
-		"Ride":            "Biking",
-		"RockClimbing":    "Climbing",
-		"RollerSki":       "Skiing",
-		"Rowing":          "Canoeing",
-		"Run":             "Walking",
-		"Sail":            "Canoeing",
-		"Skateboard":      "Walking",
-		"Snowboard":       "Skiing",
-		"Snowshoe":        "Hiking",
-		"Soccer":          "Workout",
-		"StairStepper":    "Workout",
-		"StandUpPaddling": "Canoeing",
-		"Surfing":         "Canoeing",
-		"Swim":            "Workout",
-		"Velomobile":      "Biking",
-		"VirtualRide":     "Biking",
-		"VirtualRun":      "Walking",
-		"Walk":            "Walking",
-		"WeightTraining":  "Workout",
-		"Wheelchair":      "Walking",
-		"Windsurf":        "Canoeing",
-		"Workout":         "Workout",
-		"Yoga":            "Workout",
+	categoryId := ""
+	if categoryMappings != nil {
+		if mappedId, ok := categoryMappings[strings.ToLower(activity.Type)]; ok {
+			categoryId = mappedId
+		}
 	}
 
-	category, _ := app.FindFirstRecordByData("categories", "name", activityMap[activity.Type])
-	categoryId := ""
-	if category != nil {
-		categoryId = category.Id
+	if categoryId == "" {
+		if categoryName, ok := DefaultStravaCategoryMap[activity.Type]; ok {
+			category, _ := app.FindFirstRecordByData("categories", "name", categoryName)
+			if category != nil {
+				categoryId = category.Id
+			}
+		}
 	}
 
 	record.Load(map[string]any{

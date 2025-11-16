@@ -17,6 +17,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/tkrajina/gpxgo/gpx"
+	"pocketbase/integrations/shared"
 )
 
 func SyncKomoot(app core.App) error {
@@ -184,86 +185,8 @@ func (k *KomootApi) fetchDetailedTour(tour KomootTour) (*DetailedKomootTour, err
 	return data, nil
 }
 
-func loadIntegrationCategoryMappings(app core.App, integrationType string) (map[string]string, error) {
-	categories := []*core.Record{}
-	if err := app.RecordQuery("categories").All(&categories); err != nil {
-		return nil, err
-	}
-
-	mappings := map[string]string{}
-
-	for _, category := range categories {
-		parsed, err := parseCategoryIntegrations(category)
-		if err != nil {
-			app.Logger().Warn(fmt.Sprintf("unable to parse category integrations for '%s': %v", category.GetString("name"), err))
-			continue
-		}
-
-		for _, entry := range parsed {
-			if !strings.EqualFold(entry.IntegrationType, integrationType) {
-				continue
-			}
-
-			for _, providerCategory := range entry.ProviderCategories {
-				key := strings.ToLower(strings.TrimSpace(providerCategory))
-				if key == "" {
-					continue
-				}
-
-				if existing, exists := mappings[key]; exists && existing != category.Id {
-					app.Logger().Warn(fmt.Sprintf("provider category '%s' already mapped to category '%s', skipping duplicate in '%s'", providerCategory, existing, category.GetString("name")))
-					continue
-				}
-
-				mappings[key] = category.Id
-			}
-		}
-	}
-
-	return mappings, nil
-}
-
-func parseCategoryIntegrations(category *core.Record) ([]CategoryIntegration, error) {
-	raw := category.Get("integrations")
-	if raw == nil {
-		return nil, nil
-	}
-
-	var data []byte
-
-	switch v := raw.(type) {
-	case string:
-		trimmed := strings.TrimSpace(v)
-		if trimmed == "" || trimmed == "null" {
-			return nil, nil
-		}
-		data = []byte(trimmed)
-	case []byte:
-		if len(v) == 0 {
-			return nil, nil
-		}
-		data = v
-	default:
-		marshaled, err := json.Marshal(v)
-		if err != nil {
-			return nil, err
-		}
-		if len(marshaled) == 0 || string(marshaled) == "null" {
-			return nil, nil
-		}
-		data = marshaled
-	}
-
-	var integrations []CategoryIntegration
-	if err := json.Unmarshal(data, &integrations); err != nil {
-		return nil, err
-	}
-
-	return integrations, nil
-}
-
 func syncTrailWithTours(app core.App, k *KomootApi, i KomootIntegration, user string, actor string, tours []KomootTour) (bool, error) {
-	categoryMappings, err := loadIntegrationCategoryMappings(app, "komoot")
+	categoryMappings, err := shared.LoadIntegrationCategoryMappings(app, "komoot")
 	if err != nil {
 		return false, err
 	}

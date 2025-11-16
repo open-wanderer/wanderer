@@ -1289,7 +1289,7 @@ func bootstrapCategories(app core.App) error {
 	if len(records) == 0 {
 		collection, _ := app.FindCollectionByNameOrId("categories")
 
-		categories := []string{"Hiking", "Walking", "Climbing", "Skiing", "Canoeing", "Biking"}
+		categories := []string{"Hiking", "Walking", "Climbing", "Skiing", "Canoeing", "Biking", "Other"}
 		for _, element := range categories {
 			record := core.NewRecord(collection)
 			record.Set("name", element)
