@@ -94,10 +94,10 @@
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
-    import { onMount, tick, untrack } from "svelte";
+    import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
-    import { fly, slide } from "svelte/transition";
+    import { fly } from "svelte/transition";
     import { z } from "zod";
     import Track from "$lib/models/gpx/track.js";
     import TrackSegment from "$lib/models/gpx/track-segment.js";
@@ -1134,8 +1134,8 @@
                     continue;
                 }
 
-                if (cat.wp_merge_radius && cat.wp_merge_radius > 0) {
-                    mergeRadius = cat.wp_merge_radius;
+                if (cat.settings?.wp_merge_radius && cat.settings.wp_merge_radius > 0) {
+                    mergeRadius = cat.settings.wp_merge_radius;
                 }
 
                 break;

@@ -13,17 +13,15 @@ func init() {
 		}
 
 		// add field
-		if err := collection.Fields.AddMarshaledJSONAt(23, []byte(`{
+		if err := collection.Fields.AddMarshaledJSONAt(6, []byte(`{
 			"hidden": false,
-			"id": "number957275141",
-			"max": null,
-			"min": 0,
-			"name": "wp_merge_radius",
-			"onlyInt": true,
+			"id": "json3846545605",
+			"maxSize": 0,
+			"name": "settings",
 			"presentable": false,
 			"required": false,
 			"system": false,
-			"type": "number"
+			"type": "json"
 		}`)); err != nil {
 			return err
 		}
@@ -36,7 +34,7 @@ func init() {
 		}
 
 		// remove field
-		collection.Fields.RemoveById("number957275141")
+		collection.Fields.RemoveById("json3846545605")
 
 		return app.Save(collection)
 	})
