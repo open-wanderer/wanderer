@@ -12,12 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"pocketbase/integrations/shared"
+
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/tkrajina/gpxgo/gpx"
-	"pocketbase/integrations/shared"
 )
 
 func SyncKomoot(app core.App) error {
@@ -245,22 +246,9 @@ func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomoo
 	}
 
 	if categoryId == "" {
-		fallbackCategoryMap := map[string]string{
-			"hike":           "Hiking",
-			"touringbicycle": "Biking",
-			"mtb":            "Biking",
-			"racebike":       "Biking",
-			"jogging":        "Walking",
-			"mtb_easy":       "Workout",
-			"mtb_advanced":   "Walking",
-			"mountaineering": "Hiking",
-		}
-
-		if categoryName, ok := fallbackCategoryMap[strings.ToLower(detailedTour.Sport)]; ok {
-			category, _ := app.FindFirstRecordByData("categories", "name", categoryName)
-			if category != nil {
-				categoryId = category.Id
-			}
+		category, _ := app.FindFirstRecordByData("categories", "name", "Other")
+		if category != nil {
+			categoryId = category.Id
 		}
 	}
 

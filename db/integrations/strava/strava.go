@@ -12,57 +12,18 @@ import (
 	"strings"
 	"time"
 
+	"pocketbase/integrations/shared"
+
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/tkrajina/gpxgo/gpx"
 	"github.com/twpayne/go-polyline"
-	"pocketbase/integrations/shared"
 )
 
 type StravaApi struct {
 	AceessToken string
-}
-
-var DefaultStravaCategoryMap = map[string]string{
-	"AlpineSki":       "Skiing",
-	"BackcountrySki":  "Skiing",
-	"Canoeing":        "Canoeing",
-	"Crossfit":        "Other",
-	"EBikeRide":       "Biking",
-	"Elliptical":      "Other",
-	"Golf":            "Other",
-	"Handcycle":       "Biking",
-	"Hike":            "Hiking",
-	"IceSkate":        "Skiing",
-	"InlineSkate":     "Hiking",
-	"Kayaking":        "Canoeing",
-	"Kitesurf":        "Canoeing",
-	"NordicSki":       "Skiing",
-	"Ride":            "Biking",
-	"RockClimbing":    "Climbing",
-	"RollerSki":       "Skiing",
-	"Rowing":          "Canoeing",
-	"Run":             "Walking",
-	"Sail":            "Other",
-	"Skateboard":      "Other",
-	"Snowboard":       "Skiing",
-	"Snowshoe":        "Hiking",
-	"Soccer":          "Other",
-	"StairStepper":    "Other",
-	"StandUpPaddling": "Canoeing",
-	"Surfing":         "Canoeing",
-	"Swim":            "Other",
-	"Velomobile":      "Biking",
-	"VirtualRide":     "Biking",
-	"VirtualRun":      "Walking",
-	"Walk":            "Walking",
-	"WeightTraining":  "Other",
-	"Wheelchair":      "Biking",
-	"Windsurf":        "Canoeing",
-	"Workout":         "Other",
-	"Yoga":            "Other",
 }
 
 func SyncStrava(app core.App) error {
@@ -558,11 +519,9 @@ func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx
 	}
 
 	if categoryId == "" {
-		if categoryName, ok := DefaultStravaCategoryMap[activity.Type]; ok {
-			category, _ := app.FindFirstRecordByData("categories", "name", categoryName)
-			if category != nil {
-				categoryId = category.Id
-			}
+		category, _ := app.FindFirstRecordByData("categories", "name", "Other")
+		if category != nil {
+			categoryId = category.Id
 		}
 	}
 
