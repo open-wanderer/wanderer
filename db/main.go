@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -69,6 +70,10 @@ func main() {
 	app := pocketbase.New()
 	client := initializeMeiliSearch()
 
+	if err := ensureMeilisearchIndexes(client); err != nil {
+		log.Fatal(err)
+	}
+
 	verifySettings(app)
 
 	registerMigrations(app)
@@ -86,6 +91,45 @@ func initializeMeiliSearch() meilisearch.ServiceManager {
 		os.Getenv("MEILI_URL"),
 		meilisearch.WithAPIKey(os.Getenv("MEILI_MASTER_KEY")),
 	)
+}
+
+func ensureMeilisearchIndexes(client meilisearch.ServiceManager) error {
+	trailsSortable := []string{"created", "date", "difficulty", "distance", "elevation_gain", "elevation_loss", "name", "duration", "author", "like_count"}
+	trailsFilterable := []string{"_geo", "author", "category", "completed", "date", "difficulty", "distance", "elevation_gain", "elevation_loss", "public", "shares", "tags", "likes"}
+	if err := ensureMeilisearchIndex(client, "trails", trailsSortable, trailsFilterable); err != nil {
+		return err
+	}
+
+	listsSortable := []string{"created", "name"}
+	listsFilterable := []string{"author", "public", "shares"}
+	return ensureMeilisearchIndex(client, "lists", listsSortable, listsFilterable)
+}
+
+func ensureMeilisearchIndex(client meilisearch.ServiceManager, uid string, sortable, filterable []string) error {
+	_, err := client.CreateIndex(&meilisearch.IndexConfig{
+		Uid:        uid,
+		PrimaryKey: "id",
+	})
+	if err != nil {
+		var meiliErr *meilisearch.Error
+		if !errors.As(err, &meiliErr) || meiliErr == nil || meiliErr.MeilisearchApiError.Code != "index_already_exists" {
+			return fmt.Errorf("unable to create %s index: %w", uid, err)
+		}
+	}
+
+	if len(sortable) > 0 {
+		if _, err := client.Index(uid).UpdateSortableAttributes(&sortable); err != nil {
+			return fmt.Errorf("unable to configure sortable attributes for %s: %w", uid, err)
+		}
+	}
+
+	if len(filterable) > 0 {
+		if _, err := client.Index(uid).UpdateFilterableAttributes(&filterable); err != nil {
+			return fmt.Errorf("unable to configure filterable attributes for %s: %w", uid, err)
+		}
+	}
+
+	return nil
 }
 
 func registerMigrations(app *pocketbase.PocketBase) {
@@ -1276,6 +1320,7 @@ func registerCronJobs(app core.App) {
 func bootstrapData(app core.App, client meilisearch.ServiceManager) error {
 	bootstrapCategories(app)
 	go bootstrapMeilisearchDocuments(app, client)
+	go bootstrapMeilisearchTokens(app, client)
 	return nil
 }
 
@@ -1357,6 +1402,59 @@ func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManag
 		if err := util.IndexLists(app, lists, client); err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to index list page %d: %v", page, err))
 			continue
+		}
+
+		page++
+	}
+
+	return nil
+}
+
+func bootstrapMeilisearchTokens(app core.App, client meilisearch.ServiceManager) error {
+	const pageSize int64 = 100
+	var page int64
+
+	for {
+		users := []*core.Record{}
+		err := app.RecordQuery("users").
+			Limit(pageSize).
+			Offset(page * pageSize).
+			All(&users)
+		if err != nil {
+			return err
+		}
+		if len(users) == 0 {
+			break
+		}
+
+		for _, user := range users {
+			actor, err := app.FindFirstRecordByData("activitypub_actors", "user", user.Id)
+			if err != nil {
+				app.Logger().Warn(fmt.Sprintf("unable to load actor for user %s: %v", user.Id, err))
+				continue
+			}
+
+			filter := fmt.Sprintf("public = true OR author = %s OR shares = %s", actor.Id, user.Id)
+			searchRules := map[string]interface{}{
+				"lists": map[string]string{
+					"filter": filter,
+				},
+				"trails": map[string]string{
+					"filter": filter,
+				},
+			}
+
+			token, err := util.GenerateMeilisearchToken(searchRules, client)
+			if err != nil {
+				app.Logger().Warn(fmt.Sprintf("unable to generate meilisearch token for user %s: %v", user.Id, err))
+				continue
+			}
+
+			user.Set("token", token)
+			if err := app.Save(user); err != nil {
+				app.Logger().Warn(fmt.Sprintf("unable to persist meilisearch token for user %s: %v", user.Id, err))
+				continue
+			}
 		}
 
 		page++

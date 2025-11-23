@@ -1,9 +1,9 @@
-FROM getmeili/meilisearch:v1.11.3
+ARG MEILI_TARGET_VERSION=v1.26.0
+FROM getmeili/meilisearch:${MEILI_TARGET_VERSION}
 
-COPY ./entrypoint.sh /entrypoint.sh
+ARG MEILI_TARGET_VERSION
+ENV MEILI_TARGET_VERSION=${MEILI_TARGET_VERSION}
 
-RUN chmod +x /entrypoint.sh
+COPY --chmod=755 ./entrypoint.sh /entrypoint.sh
 
-CMD [ "/entrypoint.sh" ]
-
-
+ENTRYPOINT ["/entrypoint.sh"]

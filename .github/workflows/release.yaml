@@ -77,6 +77,7 @@ jobs:
       - name: Build Docker Images
         env:
           VERSION: ${{ needs.versioning.outputs.version }}
+          MEILI_TARGET_VERSION: ${{ vars.MEILI_TARGET_VERSION != '' && vars.MEILI_TARGET_VERSION || 'v1.26.0' }}
         run: |
           # Build db image
           cd db
@@ -84,6 +85,13 @@ jobs:
           env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o pocketbase_amd64
           cd ..
           docker buildx build db/ --no-cache -t flomp/wanderer-db:$VERSION -t flomp/wanderer-db:latest --platform=linux/amd64,linux/arm64 --push
+
+          # Build search image
+          docker buildx build search/ --no-cache \
+            --build-arg MEILI_TARGET_VERSION=$MEILI_TARGET_VERSION \
+            -t flomp/wanderer-search:$VERSION \
+            -t flomp/wanderer-search:latest \
+            --platform=linux/amd64,linux/arm64 --push
 
           # Build web image
           export PUBLIC_VALHALLA_URL=https://valhalla1.openstreetmap.de
