@@ -1,6 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
+    import { env } from "$env/dynamic/public";
     import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
     import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
     import Search, {
@@ -34,10 +35,24 @@
 
     let feed = $state(data.feed);
 
+    const envHomeFeedLimit = Number(env.PUBLIC_HOME_TRAIL_LIMIT ?? "");
+    const homeFeedLimit =
+        Number.isFinite(envHomeFeedLimit) && envHomeFeedLimit > 0
+            ? envHomeFeedLimit
+            : undefined;
+
     let pagination = $derived({
         page: feed.page,
         totalPages: feed.totalItems,
     });
+
+    let limitedFeedItems = $derived(
+        homeFeedLimit ? feed.items.slice(0, homeFeedLimit) : feed.items,
+    );
+
+    let canLoadMoreFeed = $derived(
+        !homeFeedLimit || feed.items.length < homeFeedLimit,
+    );
 
     let loading: boolean = false;
 
@@ -132,6 +147,7 @@
             window.innerHeight + window.scrollY >=
                 0.8 * document.body.offsetHeight &&
             pagination.page !== pagination.totalPages &&
+            canLoadMoreFeed &&
             !loading
         ) {
             loading = true;
@@ -141,6 +157,9 @@
     }
 
     async function loadNextPage() {
+        if (!canLoadMoreFeed) {
+            return;
+        }
         pagination.page += 1;
         feed = await feed_index(pagination.page);
     }
@@ -180,7 +199,7 @@
             {#if feed.items.length === 0}
                 <EmptyStateFeed></EmptyStateFeed>
             {/if}
-            {#each feed.items as f}
+            {#each limitedFeedItems as f}
                 {#if f.expand?.item}
                     <FeedCard feedItem={f}></FeedCard>
                 {/if}
