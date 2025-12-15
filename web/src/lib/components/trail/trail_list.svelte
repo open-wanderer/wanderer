@@ -10,6 +10,7 @@
     import SkeletonCard from "../base/skeleton_card.svelte";
     import SkeletonListItem from "../base/skeleton_list_item.svelte";
     import { onMount, tick } from "svelte";
+    import type { Snippet } from "svelte";
     import TrailDropdown from "$lib/components/trail/trail_dropdown.svelte";
 
     interface Props {
@@ -23,6 +24,8 @@
             selection: Set<Trail> | undefined,
         ) => void;
         onpagination?: (page: number, items: number) => void;
+        ondisplaychange?: (display: string) => void;
+        trailWidthToggleSnippet?: Snippet;
     }
 
     let {
@@ -37,6 +40,8 @@
         fullWidthCards = false,
         onupdate,
         onpagination,
+        ondisplaychange,
+        trailWidthToggleSnippet: trailWidthToggleSnippet,
     }: Props = $props();
 
     const displayOptions: SelectItem[] = [
@@ -63,6 +68,10 @@
 
     let selection: Set<Trail> | undefined = $state();
     let hoveredTrail: Trail | undefined = $state();
+
+    function notifyDisplayChange() {
+        ondisplaychange?.(selectedDisplayOption);
+    }
 
     const sortOptions: SelectItem[] = [
         { text: $_("name"), value: "name" },
@@ -133,6 +142,7 @@
             }
         }
         onupdate?.(filter, selection);
+        notifyDisplayChange();
     });
 
     function setDisplayOption() {
@@ -172,6 +182,7 @@
         if (itemsChanged) {
             localStorage.setItem("paginationItems", pagination.items.toString());
         }
+        notifyDisplayChange();
     }
 
     function setSort() {
@@ -427,7 +438,12 @@
             {/if}
         {/if}
     </div>
-    <div class="flex items-end flex-wrap lg:flex-nowrap gap-x-6 gap-y-2 mx-4">
+    <div class="flex items-start flex-wrap lg:flex-nowrap gap-x-6 gap-y-2 mx-4">
+        {#if trailWidthToggleSnippet}
+            <div class="flex order-first md:order-none w-full md:w-auto md:mr-auto">
+                {@render trailWidthToggleSnippet?.()}
+            </div>
+        {/if}
         <div class="basis-full order-1 md:order-none">
             <Pagination
                 page={pagination.page}
