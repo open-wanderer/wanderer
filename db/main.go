@@ -106,14 +106,17 @@ func ensureMeilisearchIndexes(client meilisearch.ServiceManager) error {
 }
 
 func ensureMeilisearchIndex(client meilisearch.ServiceManager, uid string, sortable, filterable []string) error {
-	_, err := client.CreateIndex(&meilisearch.IndexConfig{
+	if _, err := client.GetIndex(uid); err != nil {
+		var meiliErr *meilisearch.Error
+		if errors.As(err, &meiliErr) && meiliErr != nil && meiliErr.MeilisearchApiError.Code == "index_not_found" {
+			if _, err := client.CreateIndex(&meilisearch.IndexConfig{
 		Uid:        uid,
 		PrimaryKey: "id",
-	})
-	if err != nil {
-		var meiliErr *meilisearch.Error
-		if !errors.As(err, &meiliErr) || meiliErr == nil || meiliErr.MeilisearchApiError.Code != "index_already_exists" {
+			}); err != nil {
 			return fmt.Errorf("unable to create %s index: %w", uid, err)
+		}
+		} else {
+			return fmt.Errorf("unable to fetch %s index: %w", uid, err)
 		}
 	}
 
@@ -124,7 +127,11 @@ func ensureMeilisearchIndex(client meilisearch.ServiceManager, uid string, sorta
 	}
 
 	if len(filterable) > 0 {
-		if _, err := client.Index(uid).UpdateFilterableAttributes(&filterable); err != nil {
+		filterableAny := make([]interface{}, len(filterable))
+		for i, v := range filterable {
+			filterableAny[i] = v
+		}
+		if _, err := client.Index(uid).UpdateFilterableAttributes(&filterableAny); err != nil {
 			return fmt.Errorf("unable to configure filterable attributes for %s: %w", uid, err)
 		}
 	}
