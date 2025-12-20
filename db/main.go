@@ -127,11 +127,7 @@ func ensureMeilisearchIndex(client meilisearch.ServiceManager, uid string, sorta
 	}
 
 	if len(filterable) > 0 {
-		filterableAny := make([]interface{}, len(filterable))
-		for i, v := range filterable {
-			filterableAny[i] = v
-		}
-		if _, err := client.Index(uid).UpdateFilterableAttributes(&filterableAny); err != nil {
+		if _, err := client.Index(uid).UpdateFilterableAttributes(&filterable); err != nil {
 			return fmt.Errorf("unable to configure filterable attributes for %s: %w", uid, err)
 		}
 	}
