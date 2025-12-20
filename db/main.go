@@ -110,11 +110,11 @@ func ensureMeilisearchIndex(client meilisearch.ServiceManager, uid string, sorta
 		var meiliErr *meilisearch.Error
 		if errors.As(err, &meiliErr) && meiliErr != nil && meiliErr.MeilisearchApiError.Code == "index_not_found" {
 			if _, err := client.CreateIndex(&meilisearch.IndexConfig{
-		Uid:        uid,
-		PrimaryKey: "id",
+				Uid:        uid,
+				PrimaryKey: "id",
 			}); err != nil {
-			return fmt.Errorf("unable to create %s index: %w", uid, err)
-		}
+				return fmt.Errorf("unable to create %s index: %w", uid, err)
+			}
 		} else {
 			return fmt.Errorf("unable to fetch %s index: %w", uid, err)
 		}
