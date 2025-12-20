@@ -68,6 +68,7 @@
             trail: Trail,
         ) => void;
         oninit?: (map: M.Map) => void;
+        autoGeolocateOnDrawing?: boolean;
     }
 
     let {
@@ -98,6 +99,7 @@
         onclick,
         onUnclusteredClick,
         oninit,
+        autoGeolocateOnDrawing = true,
     }: Props = $props();
 
     let mapContainer: HTMLDivElement;
@@ -591,8 +593,10 @@
         if (trails[activeTrail]) {
             removeStartEndMarkers(trails[activeTrail].id);
         }
-        
-        geolocate();
+
+        if (autoGeolocateOnDrawing) {
+            geolocate();
+        }
     }
 
     function stopDrawing() {
