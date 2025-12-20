@@ -1,18 +1,9 @@
 ---
-title: Installation
-description: Detailed installation instructions for Docker and bare-metal
+title: Manual Docker Setup
+description: Detailed installation instructions for Docker
 ---
-import { version } from '../../../../package.json';
 
-<span class="-tracking-[0.075em]">wanderer</span> is composed of three key components:
-
-1. A frontend built with [SvelteKit](https://github.com/sveltejs/kit)  
-2. A backend, which is a custom fork of [PocketBase](https://github.com/pocketbase/pocketbase)  
-3. An index service, powered by [Meilisearch](https://github.com/meilisearch/meilisearch)
-
-You can install these components either via Docker (recommended) or from source.
-
----
+You can install <span class="-tracking-[0.075em]">wanderer</span> components either via Docker ([Quick Setup](./quick) or [Manual Setup](./docker)) or [from source](./installation-from-source).
 
 ## Prerequisites
 
@@ -29,9 +20,7 @@ Do not share this key with anyone!
 
 Once you have set the encryption key, you can proceed to install <span class="-tracking-[0.075em]">wanderer</span>.
 
-## Installation via Docker
-
-This is the easiest and most convenient way to install <span class="-tracking-[0.075em]">wanderer</span>.
+## Start
 
 After cloning the repository, you will find a [`docker-compose.yml`](https://github.com/Flomp/wanderer/blob/main/docker-compose.yml) file in the root directory. This file sets up all necessary components. Start everything by running:
 
@@ -39,7 +28,7 @@ After cloning the repository, you will find a [`docker-compose.yml`](https://git
 docker compose up -d
 ```
 
-### Configuration Notes
+## Configuration Notes
 
 If you're not hosting <span class="-tracking-[0.075em]">wanderer</span> at `http://localhost:3000`, update the `ORIGIN` environment variable accordingly:
 
@@ -49,7 +38,7 @@ ORIGIN=http(s)://<your_domain>:<your_port>
 
 If this is not set correctly, you may encounter CORS-related issues.
 
-### Docker Compose Overview
+## Docker Compose Overview
 
 Here's a minimal `docker-compose.yml` example with explanations:
 
@@ -122,6 +111,7 @@ services:
       UPLOAD_FOLDER: /app/uploads
       UPLOAD_USER:
       UPLOAD_PASSWORD:
+      PUBLIC_OVERPASS_API_URL: https://overpass-api.de
       PUBLIC_VALHALLA_URL: https://valhalla1.openstreetmap.de
       PUBLIC_NOMINATIM_URL: https://nominatim.openstreetmap.org
     volumes:
@@ -144,7 +134,7 @@ networks:
     driver: bridge
 ```
 
-### Networking
+## Networking
 
 All services must be part of the same Docker network. This is handled by the default `wanderer` network in the configuration above.
 
@@ -152,7 +142,7 @@ Make sure to set the `ORIGIN` environment variable to the full public URL (inclu
 
 > Cross-site POST form submissions are forbidden
 
-### Volumes
+## Volumes
 
 By default, two volumes are mounted:
 
@@ -161,7 +151,7 @@ By default, two volumes are mounted:
 
 These can be changed to bind mounts or other volume strategies if needed.
 
-### Environment
+## Environment
 
 The default Docker configuration defines all necessary environment variables. You can extend or override them as needed. For advanced options, refer to the [environment configuration documentation](/run/environment-configuration).
 
@@ -169,7 +159,7 @@ The default Docker configuration defines all necessary environment variables. Yo
 Ensure you replace the default `MEILI_MASTER_KEY` with a strong, unique value in production environments. Also, remember to set the `POCKETBASE_ENCRYPTION_KEY` to the key you generated [before](#prerequisites).
 :::
 
-### Updating
+## Updating
 
 To update your instance to the latest version:
 
@@ -179,110 +169,6 @@ docker compose up -d
 ```
 
 Always consult the [changelog](/changelog) before updating, in case of breaking changes.
-
-## Installation from Source
-
-While not as convenient as Docker, you can also install <span class="-tracking-[0.075em]">wanderer</span> from source.
-
-### Prerequisites
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/Flomp/wanderer.git --branch v{version} --single-branch
-```
-2. Install dependencies:
-   - **Go** ≥ 1.23.0
-   - **Node.js** ≥ 18.17.0
-   - **npm** ≥ 8.15.0
-
-### meilisearch
-
-<span class="-tracking-[0.075em]">wanderer</span> uses a standard Meilisearch binary. Download and install it according to your platform:
-
-https://www.meilisearch.com/docs/learn/getting_started/installation
-
-Place the binary in `wanderer/search`. If you choose a different location, update your scripts accordingly.
-
-### PocketBase
-
-<span class="-tracking-[0.075em]">wanderer</span> uses a customized fork of PocketBase. You must build it before launching:
-
-```bash
-cd wanderer/db
-go mod tidy && go build
-```
-
-This will generate a `pocketbase` binary in the `wanderer/db` folder.
-
-### Web
-
-Build the frontend using:
-
-```bash
-cd wanderer/web
-npm ci --omit=dev
-npm run build
-```
-
-You should see a `build/` directory in `wanderer/web`.
-
-If `vitest` is not installed, add it manually:
-
-```bash
-npm i -s vitest
-```
-
-### Launch
-
-You can launch all three services using a shell script that sets environment variables and ensures proper startup order:
-
-```bash
-trap "kill 0" EXIT
-
-# Required configuration
-export ORIGIN=http://localhost:3000
-export MEILI_URL=http://127.0.0.1:7700
-export MEILI_MASTER_KEY=YOU_SHOULD_DEFINITELY_CHANGE_ME
-export PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
-export PUBLIC_VALHALLA_URL=https://valhalla1.openstreetmap.de
-export POCKETBASE_ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY_HERE
-
-# Optional configuration
-# export MEILI_NO_ANALYTICS=true
-# export BODY_SIZE_LIMIT=Infinity
-# export PUBLIC_DISABLE_SIGNUP=false
-# export UPLOAD_FOLDER=/app/uploads
-# export UPLOAD_USER=
-# export UPLOAD_PASSWORD=
-
-cd search && ./meilisearch --master-key $MEILI_MASTER_KEY &
-cd db && ./pocketbase serve &
-cd web && node build &
-
-wait
-```
-
-:::caution
-Make sure you replace `MEILI_MASTER_KEY` with a secure value before going to production. Also, remember to set the `POCKETBASE_ENCRYPTION_KEY` to the key you generated [before](#prerequisites).
-:::
-
-### Updating
-
-To update to the latest version stop the running application and run:
-
-```bash
-git pull origin main
-
-cd wanderer/db
-go mod tidy && go build
-
-cd wanderer/web
-npm ci --omit=dev
-npm run build
-```
-
-Then re-run the launch script. Always review the [changelog](/changelog) for breaking changes.
 
 ## Verify the Installation
 

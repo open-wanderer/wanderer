@@ -24,6 +24,7 @@
     --color-input-border: rgba(var(--input-border));
     --color-input-border-focus: rgba(var(--input-border-focus));
     --color-input-ring: rgba(var(--input-ring));
+    --color-toggle-active: rgba(var(--toggle-active));
     --color-menu-background: rgba(var(--menu-background));
     --color-menu-item-background-hover: rgba(var(--menu-item-background-hover));
     --color-menu-item-background-focus: rgba(var(--menu-item-background-focus));
