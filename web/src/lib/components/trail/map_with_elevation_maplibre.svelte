@@ -20,6 +20,7 @@
     import { ClusterLayer } from "$lib/vendor/maplibre-layer-manager/cluster-layer";
     import { baseMapStyles } from "$lib/vendor/maplibre-layer-manager/layers";
     import { LayerManager } from "$lib/vendor/maplibre-layer-manager/maplibre-layer-manager";
+    import type { OverpassPopupActionFactory } from "$lib/vendor/maplibre-layer-manager/overpass-layer";
     import { PreviewLayer } from "$lib/vendor/maplibre-layer-manager/preview-layer";
     import { TerrainLayer } from "$lib/vendor/maplibre-layer-manager/terrain-layer";
     import { TrailLayer } from "$lib/vendor/maplibre-layer-manager/trail-layer";
@@ -69,6 +70,8 @@
             trail: Trail,
         ) => void;
         oninit?: (map: M.Map) => void;
+        autoGeolocateOnDrawing?: boolean;
+        buildPoiAnchorAction?: OverpassPopupActionFactory;
     }
 
     let {
@@ -99,6 +102,8 @@
         onclick,
         onUnclusteredClick,
         oninit,
+        autoGeolocateOnDrawing = true,
+        buildPoiAnchorAction = undefined,
     }: Props = $props();
 
     let mapContainer: HTMLDivElement;
@@ -114,6 +119,14 @@
     let hoveringTrail: boolean = false;
 
     let mapLoaded: boolean = false;
+    let shouldDisplayElevationProfile: boolean = true;
+    
+    // Guard async callbacks from running during map teardown (e.g. style switching, WebGL context loss).
+    let isTearingDown = false;
+
+    // Pending GeoJSON update for the active route line (used to avoid "one segment behind" rendering).
+    let pendingRouteSetData: { layerId: string; geojson: GeoJSON.FeatureCollection } | null = null;
+
 
     const trailColors = [
         "#3549bb", // blue
@@ -130,7 +143,10 @@
 
     let clusterPopup: M.Popup | null = null;
 
-    let [data, clusterData, previewData] = $derived(getData(trails));
+    let trailGeojson: Record<string, FeatureCollection | undefined> = $state({});
+    const pendingGeojsonLoads = new Set<string>();
+
+    let [data, clusterData, previewData] = $derived(getData(trails, trailGeojson));
     $effect(() => {
         if (data && map && mapLoaded) {
             untrack(() => initMap(map?.loaded() ?? false));
@@ -182,8 +198,83 @@
         });
     });
 
+    $effect(() => {
+        let loadedTrails = new Set<string>();
+        let nextGeojson = trailGeojson;
+        let newData = false;
+
+        trails.forEach((trail, index) => {
+            const key = getTrailKey(trail, index);
+            loadedTrails.add(key);
+
+            // If we're given a live GPX object (route editor), refresh its GeoJSON
+            // but ONLY commit if it actually changed. Otherwise we can trigger an
+            // infinite reactive loop by assigning new objects every tick.
+            if (trail.expand?.gpx) {
+                const next = trail.expand.gpx.toGeoJSON();
+                const prev = nextGeojson[key];
+
+                // Cheap structural check: same feature count + same bbox => treat as unchanged.
+                // (Avoid expensive deep equality checks in a hot reactive path.)
+                const prevFeatures = prev?.features?.length ?? 0;
+                const nextFeatures = (next as any)?.features?.length ?? 0;
+                const prevBbox = (prev as any)?.bbox;
+                const nextBbox = (next as any)?.bbox;
+
+                const same =
+                    prevFeatures === nextFeatures &&
+                    JSON.stringify(prevBbox ?? null) ===
+                        JSON.stringify(nextBbox ?? null);
+
+                if (!same) {
+                    nextGeojson = {
+                        ...nextGeojson,
+                        [key]: next,
+                    };
+                    newData = true;
+                }
+                return;
+            }
+
+            if (nextGeojson[key]) {
+                return;
+            }
+
+            if (trail.expand?.gpx_data) {
+                try {
+                    nextGeojson = {
+                        ...nextGeojson,
+                        [key]: GPX.parse(trail.expand.gpx_data).toGeoJSON(),
+                    };
+                    newData = true;
+                } catch (error) {
+                    console.error("Failed to parse GPX data", error);
+                }
+                return;
+            }
+
+            if (trail.gpx && !pendingGeojsonLoads.has(key)) {
+                loadTrailGeojson(trail, key);
+            }
+        });
+
+        Object.keys(nextGeojson).forEach((key) => {
+            if (!loadedTrails.has(key)) {
+                pendingGeojsonLoads.delete(key);
+                const { [key]: _, ...rest } = nextGeojson;
+                nextGeojson = rest;
+                newData = true;
+            }
+        });
+
+        if (newData) {
+            trailGeojson = nextGeojson;
+        }
+    });
+
     function getData(
         trails: Trail[],
+        geojsonByTrail: Record<string, FeatureCollection | undefined>,
     ): [FeatureCollection[], FeatureCollection, FeatureCollection] {
         let clusterData: FeatureCollection = {
             type: "FeatureCollection",
@@ -193,14 +284,12 @@
             type: "FeatureCollection",
             features: [],
         };
-        let r: FeatureCollection[] = [];
+        const r: FeatureCollection[] = trails.map((trail, index) => {
+            const key = getTrailKey(trail, index);
+            return geojsonByTrail[key] ?? { type: "FeatureCollection", features: [], };
+        });
 
         trails.forEach((t, i) => {
-            if (t.expand?.gpx) {
-                r.push(t.expand.gpx.toGeoJSON());
-            } else if (t.expand?.gpx_data) {
-                r.push(GPX.parse(t.expand.gpx_data).toGeoJSON());
-            }
             if (clusterTrails) {
                 if (t.lat !== null && t.lon !== null) {
                     clusterData.features.push({
@@ -248,7 +337,11 @@
 
         refreshElevationProfile();
         if (showElevation && data.length && activeTrail !== null) {
-            epc?.showProfile();
+            if (shouldDisplayElevationProfile) {
+                epc?.showProfile();
+            } else {
+                epc?.hideProfile();
+            }
         } else {
             epc?.hideProfile();
         }
@@ -256,6 +349,30 @@
         trails.forEach((t, i) => {
             const layerId = t.id!;
             addTrailLayer(t, layerId, i, data[i]);
+
+            // Route editor: schedule an explicit GeoJSONSource.setData on idle.
+            // This avoids a race where the last segment is present in `data[i]` but doesn't render
+            // until the next edit triggers another style/source update.
+            if (drawing && map && !isTearingDown) {
+                const geojson = data[i] as GeoJSON.FeatureCollection | null | undefined;
+                if (geojson) {
+                    pendingRouteSetData = { layerId, geojson };
+
+                    map.once("idle", () => {
+                        if (isTearingDown || !map || !pendingRouteSetData) {
+                            return;
+                        }
+
+                        const { layerId, geojson } = pendingRouteSetData;
+                        pendingRouteSetData = null;
+
+                        const source = map.getSource(layerId) as any;
+                        if (source && typeof source.setData === "function") {
+                            source.setData(geojson as any);
+                        }
+                    });
+                }
+            }
         });
         if (clusterTrails) {
             addClusterLayer(clusterData);
@@ -556,7 +673,11 @@
         try {
             refreshElevationProfile();
             if (showElevation) {
-                epc?.showProfile();
+                if (shouldDisplayElevationProfile) {
+                    epc?.showProfile();
+                } else {
+                    epc?.hideProfile();
+                }
             }
             showWaypoints();
             addCaretLayer(data[activeTrail]);
@@ -591,6 +712,10 @@
         map.getCanvas().style.cursor = "crosshair";
         if (trails[activeTrail]) {
             removeStartEndMarkers(trails[activeTrail].id);
+        }
+
+        if (autoGeolocateOnDrawing) {
+            geolocate();
         }
     }
 
@@ -731,6 +856,8 @@
         }
     }
 
+    let geolocateControl : M.GeolocateControl;
+
     onMount(async () => {
         const initialState = {
             lng: 0,
@@ -761,7 +888,9 @@
         };
         map = new M.Map(finalMapOptions);
 
-        layerManager = new LayerManager(map);
+        layerManager = new LayerManager(map, {
+            overpassActionFactory: buildPoiAnchorAction,
+        });
 
         elevationMarker = new FontawesomeMarker(
             {
@@ -800,8 +929,7 @@
             "top-left",
         );
 
-        map.addControl(
-            new M.GeolocateControl({
+        geolocateControl = new M.GeolocateControl({
                 positionOptions: {
                     enableHighAccuracy: true,
                 },
@@ -809,7 +937,8 @@
                     animate: fitBounds == "animate",
                 },
                 trackUserLocation: true,
-            }));
+            });
+        map.addControl(geolocateControl);
 
         if (showStyleSwitcher) {
             map.addControl(switcherControl);
@@ -841,6 +970,9 @@
                             data.position as M.LngLatLike,
                         );
                     }
+                },
+                onToggle: (visible) => {
+                    shouldDisplayElevationProfile = visible;
                 },
             });
             toggleEpcTheme();
@@ -901,8 +1033,28 @@
         showWaypoints();
     });
 
+    function geolocate() {
+        if (!page.data.settings?.behavior) return;
+
+        if (page.data.settings.behavior.allowAutoGeolocate === true) {
+            if (geolocateControl._watchState === 'OFF') {
+                geolocateControl.options.trackUserLocation = true;
+                geolocateControl.trigger();
+            }
+        }
+    }
+
     onDestroy(() => {
-        map?.remove();
+        isTearingDown = true;
+        pendingRouteSetData = null;
+
+        try {
+            map?.remove();
+        } catch (e) {
+            // ignore
+        } finally {
+            map = null;
+        }
     });
 
     function handleKeydown(e: KeyboardEvent) {
@@ -956,6 +1108,29 @@
             hash |= 0;
         }
         return Math.abs(hash) % max;
+    }
+
+    function getTrailKey(trail: Trail, index: number) {
+        return trail.id ?? `trail-${index}`;
+    }
+
+    async function loadTrailGeojson(trail: Trail, key: string) {
+        pendingGeojsonLoads.add(key);
+        try {
+            const gpx = await fetchGPX(trail);
+            if (!gpx) {
+                return;
+            }
+            const geojson = GPX.parse(gpx).toGeoJSON();
+            trailGeojson = {
+                ...trailGeojson,
+                [key]: geojson,
+            };
+        } catch (error) {
+            console.error("Failed to load GPX data", error);
+        } finally {
+            pendingGeojsonLoads.delete(key);
+        }
     }
 </script>
 

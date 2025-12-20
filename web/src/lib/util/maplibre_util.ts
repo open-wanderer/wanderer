@@ -260,31 +260,43 @@ export function createPopupFromTrail(trail: Trail) {
     return popup;
 }
 
-export function createOverpassPopup(feature: GeoJSON.Feature, coordinates: GeoJSON.Position) {
+export type OverpassPopupAction = {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+    helperText?: string;
+    icon?: string;
+};
+
+export function createOverpassPopup(
+    feature: GeoJSON.Feature,
+    coordinates: GeoJSON.Position,
+    action?: OverpassPopupAction,
+) {
     const tags: Record<string, string> = JSON.parse(feature.properties?.tags);
     const name = tags.name ?? get(_)(feature.properties?.query) ?? "?"
 
     const popupContainer = document.createElement("div");
-    popupContainer.className = "p-4"
+    popupContainer.className = "p-4 relative"
 
     const popupHeading = document.createElement("h1");
-    popupHeading.classList = "font-medium text-lg"
+    popupHeading.className = "font-medium text-lg pl-12"
     popupHeading.textContent = name;
 
     const coordinateSubtitle = document.createElement("p")
-    coordinateSubtitle.classList = "text-gray-500"
+    coordinateSubtitle.className = "text-gray-500 pl-12"
     coordinateSubtitle.textContent = `${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`
 
     popupContainer.appendChild(popupHeading)
     popupContainer.appendChild(coordinateSubtitle)
 
     const tagsGrid = document.createElement("div")
-    tagsGrid.classList = "grid grid-cols-2 gap-x-4 mt-4"
+    tagsGrid.className = "grid grid-cols-2 gap-x-4 mt-4"
 
     Object.entries(tags).forEach((([k, v]) => {
         if (k == "name") return;
         const kSpan = document.createElement("span")
-        kSpan.classList = "font-mono"
+        kSpan.className = "font-mono"
         kSpan.textContent = k;
         const vSpan = document.createElement("span")
         vSpan.textContent = v;
@@ -294,6 +306,43 @@ export function createOverpassPopup(feature: GeoJSON.Feature, coordinates: GeoJS
     }));
 
     popupContainer.appendChild(tagsGrid)
+
+    if (action) {
+        const actionButton = document.createElement("button");
+        actionButton.type = "button";
+        actionButton.className =
+            "btn-primary rounded-full w-10 h-10 flex items-center justify-center absolute top-4 left-4 !p-0";
+        actionButton.disabled = action.disabled ?? false;
+        actionButton.setAttribute("aria-label", action.label);
+        if (actionButton.disabled) {
+            actionButton.classList.add("btn-disabled");
+        }
+
+        const iconElement = document.createElement("i");
+        iconElement.className = (action.icon ?? "fa fa-location-dot") + " text-base";
+        iconElement.setAttribute("aria-hidden", "true");
+        actionButton.appendChild(iconElement);
+
+        const srLabel = document.createElement("span");
+        srLabel.className = "sr-only";
+        srLabel.textContent = action.label;
+        actionButton.appendChild(srLabel);
+
+        actionButton.addEventListener("click", () => {
+            if (!actionButton.disabled) {
+                action.onClick();
+            }
+        });
+
+        popupContainer.appendChild(actionButton);
+
+        if (action.helperText) {
+            const helper = document.createElement("p");
+            helper.className = "text-xs text-gray-500 mt-2 pl-12";
+            helper.textContent = action.helperText;
+            popupContainer.appendChild(helper);
+        }
+    }
 
     return popupContainer;
 }

@@ -52,6 +52,12 @@ export type ElevationProfileControlOptions = ElevationProfileOptions & {
      * Default: automatically created inside the map container
      */
     container?: string | HTMLDivElement;
+    /**
+     * Callback triggered whenever the control button (or `.toggleProfile()`) toggles
+     * the profile visibility. Useful for keeping external UI in sync with the
+     * current visibility preference.
+     */
+    onToggle?: (visible: boolean) => void;
 };
 
 export class ElevationProfileControl implements IControl {
@@ -177,6 +183,8 @@ export class ElevationProfileControl implements IControl {
         } else {
             this.showProfile();
         }
+
+        this.settings.onToggle?.(this.isProfileShown);
     }
 
     showProfile() {
