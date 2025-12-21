@@ -106,6 +106,7 @@ export interface Location {
 export interface Leg {
     summary: Summary
     shape: string
+    heights?: number[]
 }
 
 export interface Summary {

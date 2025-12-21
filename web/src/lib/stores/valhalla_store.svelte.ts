@@ -43,6 +43,20 @@ function pushToUndoStack(delta: Changeset, reverseDelta: Changeset) {
     valhallaStore.redoStack = []
 }
 
+async function fetchHeightProfile(shape: string): Promise<number[]> {
+    const response = await fetch("/api/v1/valhalla/height", {
+        method: "POST",
+        body: JSON.stringify({ encoded_polyline: shape })
+    });
+
+    const body = await response.json();
+    if (!response.ok) {
+        throw new APIError(response.status, body.message, body.detail);
+    }
+
+    const heightResponse: ValhallaHeightResponse = body;
+    return heightResponse.height;
+}
 
 export function setRoute(newRoute: GPX, undoable: boolean = false) {
     const delta = diff(valhallaStore.route, newRoute);
@@ -58,6 +72,7 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
 
     let shape;
     let duration: number;
+    let heightProfile: number[] | undefined;
     if (options.autoRouting) {
         let costingBody;
         switch (options.modeOfTransport) {
@@ -75,6 +90,7 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
         const requestBody = {
             "directions_type": "none",
             "locations": [{ "lat": startLat, "lon": startLon }, { "lat": endLat, "lon": endLon }],
+            "include_elevation_profile": true,
             ...costingBody
         }
 
@@ -88,23 +104,37 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
         const routeResponse: ValhallaRouteResponse = await r.json();
         shape = routeResponse.trip.legs[0].shape
         duration = routeResponse.trip.summary.time
+        const legHeights = routeResponse.trip.legs[0]?.heights;
+        if (Array.isArray(legHeights) && legHeights.length) {
+            heightProfile = legHeights;
+        }
     } else {
         shape = encodePolyline([[startLat, startLon], [endLat, endLon]])
         duration = 0;
     }
 
-    const r2 = await fetch("/api/v1/valhalla/height", { method: "POST", body: JSON.stringify({ encoded_polyline: shape }) })
-
-    if (!r2.ok) {
-        const response = await r2.json();
-        throw new APIError(r2.status, response.message, response.detail)
+    if (!heightProfile) {
+        heightProfile = await fetchHeightProfile(shape);
     }
 
-    const heightResponse: ValhallaHeightResponse = await r2.json()
     const points = decodePolyline(shape);
     const startTime = new Date().getTime();
 
-    const waypoints = points.map((p, i) => new Waypoint({ $: { lat: p[1], lon: p[0] }, ele: heightResponse.height[i], time: new Date(startTime + (((duration * 1000) / points.length) * i)) }))
+    if (heightProfile.length !== points.length) {
+        // One more attempt to realign data before falling back to undefined elevations.
+        const fallbackProfile = await fetchHeightProfile(shape);
+        if (fallbackProfile.length === points.length) {
+            heightProfile = fallbackProfile;
+        }
+    }
+
+    const resolvedHeights = heightProfile.length === points.length ? heightProfile : [];
+
+    const waypoints = points.map((p, i) => new Waypoint({
+        $: { lat: p[1], lon: p[0] },
+        ele: resolvedHeights[i],
+        time: new Date(startTime + (((duration * 1000) / points.length) * i))
+    }))
 
     return waypoints
 }

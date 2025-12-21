@@ -200,7 +200,7 @@
         }
 
         measurePromise = (async () => {
-            await tick();
+            //await tick();
             const hasItemsAfterTick = Array.isArray(itemsData) && itemsData.length > 0;
             if (hasItemsAfterTick) {
                 const currentFirstId = itemsData[0]?.[idPropertyName] ?? null;
@@ -252,7 +252,7 @@
         window.removeEventListener("resize", handleWindowResize);
     });
 
-    $: (itemsData?.length, itemsData?.[0]?.[idPropertyName], scheduleMeasure());
+    //$: (itemsData?.length, itemsData?.[0]?.[idPropertyName], scheduleMeasure());
 </script>
 
 <section

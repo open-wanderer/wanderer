@@ -132,9 +132,6 @@
     function syncAnchorListData() {
         listData = (valhallaStore.anchors ?? []).map((a) => ({ ...a }));
     }
-    onMount(() => {
-        syncAnchorListData();
-    });
 
     onDestroy(() => {
         if (anchorLocationSyncHandle) {
@@ -327,7 +324,6 @@
 
     onMount(async () => {
         clearAnchors();
-        syncAnchorListData();
         clearRoute();
         clearUndoRedoStack();
 
@@ -355,6 +351,8 @@
                 updateTrailOnMap();
             }
         }
+
+        syncAnchorListData();
     });
 
     function openFileBrowser() {
@@ -372,7 +370,6 @@
 
         clearWaypoints();
         clearAnchors();
-        syncAnchorListData();
         clearUndoRedoStack();
         clearRoute();
         mapTrail = [];
@@ -447,6 +444,8 @@
         if (r) {
             setFields("location", r);
         }
+
+        syncAnchorListData();
     }
 
     function clearWaypoints() {
@@ -882,7 +881,6 @@
                 i,
             );
         }
-        syncAnchorListData();
         ensureAnchorLocationNames();
     }
 
@@ -1046,7 +1044,6 @@
                     currentIndex,
                 );
             }
-            syncAnchorListData();
             updateAnchorLocationName(anchor);
         };
 
@@ -1084,7 +1081,6 @@
         if (i >= 0) {
             getDistanceAndElevationGainLossFromPreviousAnchor(valhallaStore.anchors[i], i);
         }
-        syncAnchorListData();
     }
 
     async function removeAnchor(anchorIndex: number) {
@@ -1098,7 +1094,7 @@
         valhallaStore.anchors[anchorIndex]?.marker?.remove();
         removeAnchorAtIndex(anchorIndex);
         refreshAnchorLabels(anchorIndex);
-        syncAnchorListData();
+        
         if (anchorIndex == 0) {
             deleteFromRoute(anchorIndex);
             if ($formData.expand?.gpx_data) {
@@ -1215,7 +1211,7 @@
         anchor.marker?.remove();
         removeAnchorAtIndex(index);
         refreshAnchorLabels(index);
-        syncAnchorListData();
+        scheduleAnchorLocationSync();//syncAnchorListData();
     }
 
     async function handleSegmentClick(data: {
@@ -1237,16 +1233,16 @@
         reverseRoute();
 
         updateTrailWithRouteData();
-        syncAnchorListData();
         refreshAnchorMetrics();
+        syncAnchorListData();
     }
 
     function resetTrail() {
         resetRoute();
 
         updateTrailWithRouteData();
-        syncAnchorListData();
         refreshAnchorMetrics();
+        syncAnchorListData();
     }
 
     async function recalculateElevationData() {
@@ -1336,9 +1332,9 @@
         setRoute(croppedGPX, true);
         updateTrailWithRouteData();
         clearAnchors();
-        syncAnchorListData();
         await initRouteAnchors(croppedGPX, true);
         refreshAnchorMetrics();
+        syncAnchorListData();
     }
 
     function getCoordinateAtDistance(
@@ -1744,18 +1740,18 @@
     async function undoRouteEdit() {
         undo();
         clearAnchors();
-        syncAnchorListData();
         await initRouteAnchors(valhallaStore.route, true);
         refreshAnchorMetrics();
+        scheduleAnchorLocationSync();
         updateTrailWithRouteData();
     }
 
     async function redoRouteEdit() {
         redo();
         clearAnchors();
-        syncAnchorListData();
         await initRouteAnchors(valhallaStore.route, true);
         refreshAnchorMetrics();
+        scheduleAnchorLocationSync();
         updateTrailWithRouteData();
     }
 
@@ -1841,60 +1837,45 @@
         prevAnchors: ValhallaAnchor[],
         nextAnchors: ValhallaAnchor[],
     ) {
-        // Minimal reroute for a reorder:
-        // Only segments adjacent to moved anchors can change.
-        // We compute which indices changed by comparing anchor IDs.
-        const prevIds = prevAnchors.map((a) => a.id);
-        const nextIds = nextAnchors.map((a) => a.id);
-
-        // If lengths differ, fallback to full rebuild.
-        if (prevIds.length !== nextIds.length) {
+        // Keep counts in sync – otherwise rebuild from scratch.
+        if (prevAnchors.length !== nextAnchors.length) {
             await rebuildRouteFromAnchors();
             return;
         }
 
-        // Identify indices where the anchor ID differs.
-        const changed: number[] = [];
-        for (let i = 0; i < nextIds.length; i++) {
-            if (prevIds[i] !== nextIds[i]) changed.push(i);
-        }
-
-        // No change
-        if (changed.length === 0) {
+        if (nextAnchors.length < 2) {
+            clearRoute();
+            updateTrailWithRouteData();
+            refreshAnchorMetrics();
             return;
         }
 
-        // If too many changes, full rebuild is simpler/safer.
-        // (Drag-and-drop can move multiple anchors; this threshold avoids complexity.)
-        if (changed.length > 3) {
-            await rebuildRouteFromAnchors();
+        // Find the earliest index whose anchor changed position.
+        let minChangedIndex = -1;
+        for (let i = 0; i < nextAnchors.length; i++) {
+            if (prevAnchors[i]?.id !== nextAnchors[i]?.id) {
+                minChangedIndex = i;
+                break;
+            }
+        }
+
+        // Nothing to do if anchor order remained the same.
+        if (minChangedIndex === -1) {
             return;
         }
 
-        // A moved anchor at index k affects segments (k-1) and k (between anchors).
-        const segIndexes = new Set<number>();
-        for (const k of changed) {
-            segIndexes.add(k - 1);
-            segIndexes.add(k);
-        }
+        // Segments connect anchor i -> i+1, so include the segment before the first changed anchor.
+        const startSegment = Math.max(0, minChangedIndex - 1);
+        const lastSegment = nextAnchors.length - 2;
 
-        // Filter to valid segment indices [0 .. anchors-2]
-        const maxSeg = nextAnchors.length - 2;
-        const segsToUpdate = Array.from(segIndexes)
-            .filter((s) => s >= 0 && s <= maxSeg)
-            .sort((a, b) => a - b);
-
-        // If we can't patch in-place (route not initialized), rebuild.
-        const existingSegCount =
-            valhallaStore.route.trk?.at(0)?.trkseg?.length ?? 0;
-        if (existingSegCount !== maxSeg + 1) {
+        const segmentCount = valhallaStore.route.trk?.at(0)?.trkseg?.length ?? 0;
+        if (segmentCount !== lastSegment + 1) {
             await rebuildRouteFromAnchors();
             return;
         }
 
         try {
-            // Recompute only affected segments and patch them into the existing GPX route.
-            for (const s of segsToUpdate) {
+            for (let s = startSegment; s <= lastSegment; s++) {
                 const a = nextAnchors[s];
                 const b = nextAnchors[s + 1];
 
@@ -1909,8 +1890,7 @@
                 await editRoute(s, segment);
             }
 
-            // Update anchor distances/elevation gain/loss after patching.
-            for (let i = 0; i < nextAnchors.length; i++) {
+            for (let i = Math.max(1, minChangedIndex); i < nextAnchors.length; i++) {
                 getDistanceAndElevationGainLossFromPreviousAnchor(
                     nextAnchors[i],
                     i,
@@ -1927,7 +1907,6 @@
                 type: "error",
             });
 
-            // Fallback to full rebuild to recover.
             await rebuildRouteFromAnchors();
         }
 
@@ -1956,7 +1935,7 @@
 	async function handleAnchorDrop(newItems: ValhallaAnchor[]) {
         
         loadEditing = true;
-        await tick();
+        //await tick();
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         const prevAnchors = [...(valhallaStore.anchors ?? [])];
@@ -2031,8 +2010,8 @@
             anchor.marker = marker;
         }
 
-        syncAnchorListData();
-
+        scheduleAnchorLocationSync();
+        
         const nextAnchors = [...(valhallaStore.anchors ?? [])];
         const nextSignature = buildAnchorSignature(nextAnchors, routingOptions);
 
