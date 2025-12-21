@@ -98,7 +98,7 @@
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
-    import { onMount, tick, untrack } from "svelte";
+    import { onDestroy, onMount, tick, untrack } from "svelte";
     import { _ } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
     import { fly } from "svelte/transition";
@@ -135,6 +135,25 @@
     onMount(() => {
         syncAnchorListData();
     });
+
+    onDestroy(() => {
+        if (anchorLocationSyncHandle) {
+            clearTimeout(anchorLocationSyncHandle);
+            anchorLocationSyncHandle = null;
+        }
+    });
+
+    let anchorLocationSyncHandle: ReturnType<typeof setTimeout> | null = null;
+    function scheduleAnchorLocationSync() {
+        if (anchorLocationSyncHandle) {
+            return;
+        }
+
+        anchorLocationSyncHandle = setTimeout(() => {
+            anchorLocationSyncHandle = null;
+            syncAnchorListData();
+        }, 0);
+    }
 
     let map: M.Map | undefined = $state();
     let mapPopup: M.Popup | undefined;
@@ -883,9 +902,11 @@
                     ...current,
                     locationName,
                 }));
+
                 if (updated) {
-                    syncAnchorListData();
+                    scheduleAnchorLocationSync();
                 }
+
             } catch (error) {
                 console.error("Failed to resolve anchor location", error);
             }

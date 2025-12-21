@@ -29,79 +29,230 @@
     let cardHeight = 0;
     let gapPx = 0;
 
+    let cachedSizing = null;
+    let needsFreshMeasurement = true;
+    let observedFirstItem = null;
+    let lastMeasuredFirstAnchorId = null;
+    let lastSectionWidth = null;
+
     let ro;
+    
+    let measurePromise = null;
+    let pendingForce = false;
+
     function parsePx(v) {
         if (!v) return 0;
         const n = Number(String(v).replace('px',''));
         return isNaN(n) ? 0 : n;
     }
-    function measureAndApplyHeights() {
+
+    function clearSectionSizing() {
+        cachedSizing = null;
+        needsFreshMeasurement = true;
+        lastMeasuredFirstAnchorId = null;
+
         if (!sectionEl) return;
 
-        // If list is empty, clear inline sizing to let CSS class take over
-        if (!itemsData || itemsData.length === 0) {
-            sectionEl.style.minHeight = '';
-            sectionEl.style.maxHeight = '';
-            sectionEl.style.overflowY = '';
+        sectionEl.style.minHeight = "";
+        sectionEl.style.maxHeight = "";
+        sectionEl.style.overflowY = "";
+    }
+
+    function applySizingFromCache() {
+        if (!cachedSizing || !sectionEl) return;
+
+        sectionEl.style.minHeight = `${cachedSizing.minHeight}px`;
+        sectionEl.style.maxHeight = `${cachedSizing.maxHeight}px`;
+        sectionEl.style.overflowY = "auto";
+    }
+
+    function setObservedFirstItem(node) {
+        if (!ro || observedFirstItem === node) return;
+
+        if (observedFirstItem) {
+            try {
+                ro.unobserve(observedFirstItem);
+            } catch {
+                // ignore
+            }
+        }
+
+        observedFirstItem = node || null;
+        if (observedFirstItem) {
+            ro.observe(observedFirstItem);
+        }
+    }
+
+    function handleSectionResize(entry) {
+        if (!sectionEl || entry.target !== sectionEl) return;
+
+        const width = entry?.contentRect?.width;
+        if (typeof width !== "number") return;
+
+        const rounded = Math.round(width);
+        if (lastSectionWidth === null) {
+            lastSectionWidth = rounded;
             return;
         }
 
-        // read gap from computed style
-        const cs = getComputedStyle(sectionEl);
-        gapPx = parsePx(cs.rowGap || cs.gap);
+        if (Math.abs(rounded - lastSectionWidth) >= 1) {
+            lastSectionWidth = rounded;
+            needsFreshMeasurement = true;
+            scheduleMeasure({ force: true });
+        }
+    }
 
-        // find the first item wrapper div (direct child) and measure
+    function handleFirstItemResize(entry) {
+        if (!observedFirstItem || entry.target !== observedFirstItem) return;
+
+        const height = entry?.contentRect?.height;
+        if (typeof height !== "number") {
+            needsFreshMeasurement = true;
+            scheduleMeasure({ force: true });
+            return;
+        }
+
+        const roundedHeight = Math.round(height);
+        if (cardHeight <= 0 || Math.abs(roundedHeight - Math.round(cardHeight)) >= 1) {
+            needsFreshMeasurement = true;
+            scheduleMeasure({ force: true });
+        }
+    }
+
+    function computeSizing() {
+        if (!sectionEl) return null;
+
+        const cs = getComputedStyle(sectionEl);
+        let computedGap = parsePx(cs.rowGap || cs.gap) || 0;
         const firstChild = sectionEl.firstElementChild;
         firstItemEl = firstChild || null;
-        const h = firstItemEl ? firstItemEl.getBoundingClientRect().height : 0;
-        cardHeight = h;
-
-        // Fallback: if CSS gap couldn't be parsed (e.g., returns 'normal' or an
-        // unrecognized unit), measure the visual gap between first and second rows.
-        if ((!gapPx || isNaN(gapPx)) && sectionEl.children.length >= 2 && firstItemEl) {
+        const height = firstItemEl ? firstItemEl.getBoundingClientRect().height : 0;
+        cardHeight = height;
+        if ((!computedGap || isNaN(computedGap)) && sectionEl.children.length >= 2 && firstItemEl) {
             const secondEl = sectionEl.children[1];
             const r1 = firstItemEl.getBoundingClientRect();
             const r2 = secondEl.getBoundingClientRect();
             const measuredGap = Math.max(0, Math.round(r2.top - r1.bottom));
-            // Only use the measured gap if it's a sensible value (< card height*2)
             if (measuredGap >= 0 && measuredGap < Math.max(8, cardHeight * 2)) {
-                gapPx = measuredGap;
+                computedGap = measuredGap;
             }
         }
 
-        if (cardHeight > 0) {
-            const minRows = 2;
-            const maxRows = 6;
-            const gapsForMin = Math.max(0, minRows - 1);
-            const gapsForMax = Math.max(0, maxRows - 1);
-            const verticalPadding = parsePx(cs.paddingTop) + parsePx(cs.paddingBottom);
-            const minH = cardHeight * minRows + gapPx * gapsForMin + verticalPadding;
-            const maxH = cardHeight * maxRows + gapPx * gapsForMax + verticalPadding;
-            sectionEl.style.minHeight = `${Math.round(minH)}px`;
-            sectionEl.style.maxHeight = `${Math.round(maxH)}px`;
-            sectionEl.style.overflowY = 'auto';
-        }
+        if (cardHeight <= 0) return null;
+
+        const minRows = 2;
+        const maxRows = 6;
+        const verticalPadding = parsePx(cs.paddingTop) + parsePx(cs.paddingBottom);
+        const minHeight = cardHeight * minRows + computedGap * Math.max(0, minRows - 1) + verticalPadding;
+        const maxHeight = cardHeight * maxRows + computedGap * Math.max(0, maxRows - 1) + verticalPadding;
+
+        return {
+            minHeight: Math.round(minHeight),
+            maxHeight: Math.round(maxHeight),
+            gapPx: computedGap,
+            cardHeight,
+            firstItemNode: firstItemEl,
+            firstAnchorId: itemsData?.[0]?.[idPropertyName] ?? null,
+        };
     }
 
-    async function scheduleMeasure() {
-        await tick();
-        measureAndApplyHeights();
+    function measureAndApplyHeights({ force = false } = {}) {
+        if (!sectionEl) return;
+
+        if (!itemsData || itemsData.length === 0) {
+            clearSectionSizing();
+            setObservedFirstItem(null);
+            return;
+        }
+
+        if (force || needsFreshMeasurement || !cachedSizing) {
+            const sizing = computeSizing();
+            if (!sizing) return;
+
+            cachedSizing = sizing;
+            gapPx = sizing.gapPx;
+            cardHeight = sizing.cardHeight;
+            needsFreshMeasurement = false;
+            lastMeasuredFirstAnchorId = sizing.firstAnchorId;
+            setObservedFirstItem(sizing.firstItemNode);
+        }
+
+        applySizingFromCache();
+    }
+
+    async function scheduleMeasure({ force = false } = {}) {
+        const hasItemsBeforeTick = Array.isArray(itemsData) && itemsData.length > 0;
+
+        if (hasItemsBeforeTick) {
+            const currentFirstId = itemsData[0]?.[idPropertyName] ?? null;
+            if (currentFirstId !== lastMeasuredFirstAnchorId) {
+                needsFreshMeasurement = true;
+            }
+        }
+
+        if (!force && hasItemsBeforeTick && !needsFreshMeasurement && !measurePromise) {
+            return;
+        }
+
+        pendingForce = pendingForce || force;
+        if (measurePromise) {
+            return measurePromise;
+        }
+
+        measurePromise = (async () => {
+            await tick();
+            const hasItemsAfterTick = Array.isArray(itemsData) && itemsData.length > 0;
+            if (hasItemsAfterTick) {
+                const currentFirstId = itemsData[0]?.[idPropertyName] ?? null;
+                if (currentFirstId !== lastMeasuredFirstAnchorId) {
+                    needsFreshMeasurement = true;
+                }
+            }
+            measureAndApplyHeights({ force: pendingForce });
+            pendingForce = false;
+        })().finally(() => {
+            measurePromise = null;
+        });
+
+        return measurePromise;
+    }
+
+    function handleWindowResize() {
+        needsFreshMeasurement = true;
+        scheduleMeasure({ force: true });
     }
 
     onMount(() => {
-        // observe size changes of the container and first item
-        ro = new ResizeObserver(() => measureAndApplyHeights());
+        ro = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                if (sectionEl && entry.target === sectionEl) {
+                    handleSectionResize(entry);
+                } else {
+                    handleFirstItemResize(entry);
+                }
+            }
+        });
+
         if (sectionEl) ro.observe(sectionEl);
-        scheduleMeasure();
-        window.addEventListener('resize', measureAndApplyHeights);
-    });
-    onDestroy(() => {
-        try { ro && ro.disconnect(); } catch {}
-        window.removeEventListener('resize', measureAndApplyHeights);
+        if (firstItemEl) setObservedFirstItem(firstItemEl);
+        
+        scheduleMeasure({ force: true });
+        window.addEventListener("resize", handleWindowResize);
     });
 
-    // Recompute when list length changes (DOM changes after tick)
-    $: (itemsData?.length, scheduleMeasure());
+    onDestroy(() => {
+        try {
+            ro && ro.disconnect();
+        } catch {
+            // ignore
+        }
+        
+        observedFirstItem = null;
+        lastSectionWidth = null;
+        window.removeEventListener("resize", handleWindowResize);
+    });
+
+    $: (itemsData?.length, itemsData?.[0]?.[idPropertyName], scheduleMeasure());
 </script>
 
 <section
