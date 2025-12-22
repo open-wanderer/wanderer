@@ -1,0 +1,116 @@
+---
+title: Installation from Source
+description: For advanced users who want to build or customize wanderer.
+---
+
+You can install <span class="-tracking-[0.075em]">wanderer</span> components either via Docker ([Quick Setup](./quick) or [Manual Setup](./docker)) or [from source](./installation-from-source).
+
+## Prerequisites
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/Flomp/wanderer.git --branch v{version} --single-branch
+```
+2. Install dependencies:
+    - **Go** ≥ 1.23.0
+    - **Node.js** ≥ 18.17.0
+    - **npm** ≥ 8.15.0
+
+## meilisearch
+
+<span class="-tracking-[0.075em]">wanderer</span> uses a standard Meilisearch binary. Download and install it according to your platform:
+
+https://www.meilisearch.com/docs/learn/getting_started/installation
+
+Place the binary in `wanderer/search`. If you choose a different location, update your scripts accordingly.
+
+## PocketBase
+
+<span class="-tracking-[0.075em]">wanderer</span> uses a customized fork of PocketBase. You must build it before launching:
+
+```bash
+cd wanderer/db
+go mod tidy && go build
+```
+
+This will generate a `pocketbase` binary in the `wanderer/db` folder.
+
+## Web
+
+Build the frontend using:
+
+```bash
+cd wanderer/web
+npm ci --omit=dev
+npm run build
+```
+
+You should see a `build/` directory in `wanderer/web`.
+
+If `vitest` is not installed, add it manually:
+
+```bash
+npm i -s vitest
+```
+
+## Launch
+
+You can launch all three services using a shell script that sets environment variables and ensures proper startup order:
+
+```bash
+trap "kill 0" EXIT
+
+# Required configuration
+export ORIGIN=http://localhost:3000
+export MEILI_URL=http://127.0.0.1:7700
+export MEILI_MASTER_KEY=YOU_SHOULD_DEFINITELY_CHANGE_ME
+export PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
+export PUBLIC_VALHALLA_URL=https://valhalla1.openstreetmap.de
+export POCKETBASE_ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY_HERE
+
+# Optional configuration
+# export MEILI_NO_ANALYTICS=true
+# export BODY_SIZE_LIMIT=Infinity
+# export PUBLIC_DISABLE_SIGNUP=false
+# export UPLOAD_FOLDER=/app/uploads
+# export UPLOAD_USER=
+# export UPLOAD_PASSWORD=
+
+cd search && ./meilisearch --master-key $MEILI_MASTER_KEY &
+cd db && ./pocketbase serve &
+cd web && node build &
+
+wait
+```
+
+:::caution
+Make sure you replace `MEILI_MASTER_KEY` with a secure value before going to production. Also, remember to set the `POCKETBASE_ENCRYPTION_KEY` to the key you generated [before](#prerequisites).
+:::
+
+## Updating
+
+To update to the latest version stop the running application and run:
+
+```bash
+git pull origin main
+
+cd wanderer/db
+go mod tidy && go build
+
+cd wanderer/web
+npm ci --omit=dev
+npm run build
+```
+
+Then re-run the launch script. Always review the [changelog](/changelog) for breaking changes.
+
+## Verify the Installation
+
+Regardless of the installation method, once everything is running you should be able to access <span class="-tracking-[0.075em]">wanderer</span> at:
+
+```
+http://localhost:3000
+```
+
+If you see the UI and no errors in the logs, you're all set!

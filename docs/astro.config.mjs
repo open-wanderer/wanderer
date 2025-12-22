@@ -84,7 +84,11 @@ export default defineConfig({
         items: [
           {
             label: 'Installation',
-            link: '/run/installation/'
+            items: [
+                { label: 'Quickstart', link: '/run/installation/quick' },
+                { label: 'Manual Docker Setup', link: '/run/installation/docker' },
+                { label: 'Install from Source', link: '/run/installation/from-source' },
+            ]
           },
           {
             label: 'Environment configuration',

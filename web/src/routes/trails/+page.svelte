@@ -3,22 +3,24 @@
     import { page } from "$app/state";
     import TrailFilterPanel from "$lib/components/trail/trail_filter_panel.svelte";
     import TrailList from "$lib/components/trail/trail_list.svelte";
-    import type { Trail, TrailFilter } from "$lib/models/trail";
+    import type { Trail, TrailFilter, TrailSearchResult } from "$lib/models/trail";
     import { trails_search_filter } from "$lib/stores/trail_store";
     import type { Snapshot } from "@sveltejs/kit";
     import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
+    import { APIError } from "$lib/util/api_util";
 
     let filterExpanded: boolean = $state(true);
 
     let loading: boolean = $state(true);
 
     let filter: TrailFilter = $state(page.data.filter);
-    const pagination: { page: number; totalPages: number } = $state({
+    const pagination: { page: number; totalPages: number, items: number } = $state({
         page: page.url.searchParams.has("page")
             ? parseInt(page.url.searchParams.get("page")!)
             : 1,
         totalPages: 1,
+        items: 25,
     });
     let trails: Trail[] = $state([]);
 
@@ -55,19 +57,61 @@
 
     async function handleFilterUpdate() {
         loading = true;
-        const response = await trails_search_filter(filter, 1);
-        trails = response.items;
-        pagination.page = response.page;
-        pagination.totalPages = response.totalPages;
+
+        await paginate(1, pagination.items);
+
         loading = false;
     }
 
-    async function paginate(newPage: number) {
+    async function paginate(newPage: number, items: number) {
         pagination.page = newPage;
-        const response = await trails_search_filter(filter, newPage);
-        trails = response.items;
+
+        try {
+            await doPaginate(newPage, items);
+        } catch (err: any) {
+            let apiError : APIError = err;
+            if (apiError.status == 413) { // content too large
+                
+                let newItems = 10;
+                    
+                if (items == 12 || items == 24 || items == 48 || items == 96) { // cards view
+                    if (items > 96) {
+                        newItems = 96;
+                    } else if (items > 48) {
+                        newItems = 48;
+                    } else if (items > 24) {
+                        newItems = 24;
+                    } else {
+                        newItems = 12;
+                    }
+                } else {
+                    if (items > 100) {
+                        newItems = 100;
+                    } else if (items > 50) {
+                        newItems = 50;
+                    } else if (items > 25) {
+                        newItems = 25;
+                    } else {
+                        newItems = 10;
+                    }
+                }
+                    
+                await doPaginate(newPage, newItems);
+            }
+        }
+        
         page.url.searchParams.set("page", newPage.toString());
         goto(`?${page.url.searchParams.toString()}`);
+    }
+
+    async function doPaginate(newPage: number, items: number) {
+        const response = await trails_search_filter(filter, newPage, items);
+        if (items) {
+            pagination.items = items;
+        }
+        trails = response.items;
+        pagination.page = response.page;
+        pagination.totalPages = response.totalPages;
     }
 </script>
 

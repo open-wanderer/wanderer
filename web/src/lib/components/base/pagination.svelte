@@ -4,16 +4,17 @@
     interface Props {
         page: number;
         totalPages: number;
-        onpagination?: (page: number) => void;
+        perPage: number;
+        onpagination?: (page: number, perPage: number) => void;
     }
 
-    let { page, totalPages, onpagination }: Props = $props();
+    let { page, totalPages, perPage, onpagination }: Props = $props();
 
     const maxPagesToRender = 6;
 
     function update(clickedPage: number) {
         if (page !== clickedPage) {
-            onpagination?.(clickedPage);
+            onpagination?.(clickedPage, perPage);
         }
     }
 
