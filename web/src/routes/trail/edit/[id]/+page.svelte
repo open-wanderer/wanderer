@@ -2121,11 +2121,6 @@
                         {/if}
                     </button>
                     <div class="flex-1">
-                        <p
-                            class="text-xs font-semibold uppercase tracking-wide text-gray-500"
-                        >
-                            {$_("selected-place")}
-                        </p>
                         <p class="font-semibold">
                             {selectedSearchLocation.text}
                         </p>
