@@ -127,10 +127,35 @@
         }
     };
 
-    // reactive snapshot used by TrailAnchorList – keep as a fresh array so the child sees updates
+    // reactive snapshot used by TrailAnchorList - keep as a fresh array so the child sees updates
     let listData: any[] = $state([]);
+    let lastAnchorListSignature: string | null = null;
+    let anchorListVersion = $state(0);
+    function buildAnchorListSignature(anchors: ValhallaAnchor[]): string {
+        return anchors
+            .map(
+                (anchor) =>
+                    [
+                        anchor.id ?? "",
+                        anchor.lat?.toFixed(6) ?? "",
+                        anchor.lon?.toFixed(6) ?? "",
+                        anchor.locationName ?? "",
+                        anchor.distance ?? "",
+                        anchor.elevation_gain ?? "",
+                        anchor.elevation_loss ?? "",
+                    ].join("|"),
+            )
+            .join(";");
+    }
     function syncAnchorListData() {
-        listData = (valhallaStore.anchors ?? []).map((a) => ({ ...a }));
+        const anchors = valhallaStore.anchors ?? [];
+        const signature = buildAnchorListSignature(anchors);
+        if (signature === lastAnchorListSignature) {
+            return;
+        }
+        lastAnchorListSignature = signature;
+        listData = anchors.map((a) => ({ ...a }));
+        anchorListVersion += 1;
     }
 
     onDestroy(() => {
@@ -787,6 +812,16 @@
 
             updateTrailWithRouteData();
             normalizeRouteTime();
+
+            const lastIndex = valhallaStore.anchors.length - 1;
+            if (lastIndex > 0) {
+                getDistanceAndElevationGainLossFromPreviousAnchor(
+                    valhallaStore.anchors[lastIndex],
+                    lastIndex,
+                );
+                scheduleAnchorLocationSync();
+            }
+            
             success = true;
         } catch (e) {
             console.error(e);
@@ -1029,6 +1064,7 @@
         
         anchor.marker = marker;
         insertAnchorAtIndex(index, anchor);
+        syncAnchorListData();
 
         const schedulePostAddUpdates = () => {
             const currentIndex = valhallaStore.anchors.findIndex(
@@ -1043,6 +1079,7 @@
                     insertedAnchor,
                     currentIndex,
                 );
+                scheduleAnchorLocationSync();
             }
             updateAnchorLocationName(anchor);
         };
@@ -1908,9 +1945,10 @@
             });
 
             await rebuildRouteFromAnchors();
-        }
-
+            throw e;
+        } finally {
         refreshAnchorMetrics();
+    }
     }
 
     function updateAnchorIndices() {
@@ -1932,37 +1970,9 @@
         }
     }
 
-	async function handleAnchorDrop(newItems: ValhallaAnchor[]) {
-        
-        loadEditing = true;
-        //await tick();
-        await new Promise((resolve) => setTimeout(resolve, 0));
-
-        const prevAnchors = [...(valhallaStore.anchors ?? [])];
-        const prevSignature = buildAnchorSignature(prevAnchors, routingOptions);
-
-		// remove any existing markers from the map first
-		for (const a of valhallaStore.anchors ?? []) {
-			try {
-				a.marker?.remove();
-			} catch (e) {
-				/* ignore */
-			}
-		}
-
-		valhallaStore.anchors = newItems;
-
-        // update marker labels / popups to reflect new order immediately
-        updateAnchorIndices();
-
-		// assign new anchor list (shallow copy of items to avoid unexpected refs)
-		valhallaStore.anchors = (newItems ?? []).map((a: any) => ({ ...a }));
-
-        // recreate and attach markers for the new anchor order so they are wired correctly
-        for (let i = 0; i < valhallaStore.anchors.length; i++) {
-            const anchor = valhallaStore.anchors[i];
-
-            // remove any previous marker just in case
+    function rebuildAnchorMarkers(anchorList: ValhallaAnchor[]) {
+        for (let i = 0; i < anchorList.length; i++) {
+            const anchor = anchorList[i];
             anchor.marker?.remove();
 
             const marker = createAnchorMarker(
@@ -1970,7 +1980,6 @@
                 anchor.lon,
                 i + 1,
                 () => {
-                    // delete handler
                     removeAnchor(
                         valhallaStore.anchors.findIndex(
                             (x) => x.id == anchor.id,
@@ -1978,7 +1987,6 @@
                     );
                 },
                 () => {
-                    // recalc / snap handler
                     const thisAnchor = valhallaStore.anchors.find(
                         (a) => a.id == anchor.id,
                     );
@@ -2009,28 +2017,67 @@
             if (map) marker.addTo(map);
             anchor.marker = marker;
         }
+    }
+
+	async function handleAnchorDrop(newItems: ValhallaAnchor[]) {
+        loadEditing = true;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        const prevAnchors = [...(valhallaStore.anchors ?? [])];
+        const prevSignature = buildAnchorSignature(prevAnchors, routingOptions);
+
+        // Removing and recreating markers can throw when the route fails;
+        // if that happens we need to restore the previous state for the UI.
+        const restorePreviousAnchors = () => {
+            valhallaStore.anchors = prevAnchors.map((a) => ({ ...a }));
+            rebuildAnchorMarkers(valhallaStore.anchors);
+            updateAnchorIndices();
+            refreshAnchorMetrics();
+            updateTrailOnMap();
+            updateTrailWithRouteData();
+            scheduleAnchorLocationSync();
+        };
+
+        try {
+            // remove any existing markers from the map first
+            for (const a of valhallaStore.anchors ?? []) {
+                try {
+                    a.marker?.remove();
+                } catch {
+                    /* ignore */
+                }
+            }
+
+            valhallaStore.anchors = newItems;
+            updateAnchorIndices();
+            valhallaStore.anchors = (newItems ?? []).map((a: any) => ({ ...a }));
+            rebuildAnchorMarkers(valhallaStore.anchors);
 
         scheduleAnchorLocationSync();
-        
+
         const nextAnchors = [...(valhallaStore.anchors ?? [])];
         const nextSignature = buildAnchorSignature(nextAnchors, routingOptions);
 
-        // Force a map/form refresh after reorder regardless of whether we reroute.
-        // This avoids stale map rendering / stale saved GPX when the reorder results
-        // in a no-op reroute path (e.g. moved to end) but the underlying order changed.
         overwriteGPX = true;
 
-        // If only the order changed, reroute only affected adjacent segments.
-        // Otherwise (anchor moved/edited/options changed), fallback to full rebuild.
         if (prevSignature !== nextSignature) {
             await rerouteAffectedSegmentsAfterReorder(prevAnchors, nextAnchors);
         }
 
-        // Always refresh map + totals after reordering anchors.
-        // (Even if rerouteAffectedSegmentsAfterReorder() early-returns.)
         updateTrailWithRouteData();
-
+            refreshAnchorMetrics();
+            scheduleAnchorLocationSync();
+        } catch (error) {
+            console.error("Failed to reorder anchors", error);
+            show_toast({
+                text: "Error recalculating affected segments",
+                icon: "close",
+                type: "error",
+            });
+            restorePreviousAnchors();
+        } finally {
         loadEditing = false;
+    }
     }
 </script>
 
@@ -2156,7 +2203,7 @@
             >
             {#if drawingActive}
                 <div class={loadEditing ? "relative pointer-events-none opacity-50" : "relative"}>
-                    <TrailAnchorList itemsData={listData} onDrop={handleAnchorDrop}></TrailAnchorList>
+                    <TrailAnchorList itemsData={listData} version={anchorListVersion} onDrop={handleAnchorDrop}></TrailAnchorList>
                 </div>
             {/if}    
         {/if}

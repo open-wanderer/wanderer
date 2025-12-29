@@ -10,6 +10,7 @@
     interface Props {
         anchor: ValhallaAnchor;
         index: number;
+        isFirst?: boolean;
         isLast?: boolean;
         onmouseenter?: MouseEventHandler<HTMLDivElement>;
         onmouseleave?: MouseEventHandler<HTMLDivElement>;
@@ -19,6 +20,7 @@
     let {
         anchor,
         index,
+        isFirst = false,
         isLast = false,
         onmouseenter,
         onmouseleave,
@@ -42,7 +44,7 @@
         <div>
             <div class="flex gap-x-4">
                 <h5 class="text-overflow-ellipsis overflow-hidden whitespace-nowrap">
-                    {#if index == 0}
+                    {#if isFirst}
                         <i class="fa fa-bullseye mr-3"></i>
                     {:else if isLast}
                         <i class="fa fa-flag-checkered mr-3"></i>

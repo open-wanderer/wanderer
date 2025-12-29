@@ -1,46 +1,130 @@
-<script>
+<script lang="ts">
     import {dndzone} from 'svelte-dnd-action';
     import {flip} from 'svelte/animate';
     import TrailAnchorCard from './trail_anchor_card.svelte';
-    import { onMount, onDestroy, tick } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
+    import type { ValhallaAnchor } from "$lib/models/valhalla";
     
-    export let itemsData;
-    export let onDrop;
-    export let idPropertyName = "id";
+    export let itemsData: ValhallaAnchor[] = [];
+    export let onDrop: (items: ValhallaAnchor[]) => void;
+    export let idPropertyName: keyof ValhallaAnchor = "id";
     export let flipDurationMs = 300;
-    
-    function handleConsider(e) {
-        itemsData = e.detail.items;
-    }
-    function handleFinalize(e) {
-        itemsData = e.detail.items;
-        onDrop(e.detail.items);
+    export let version = 0;
+
+    let renderedItems: ValhallaAnchor[] = [];
+    let renderedSignature: string | null = null;
+    let previousPropSignature: string | null = null;
+    let awaitingPropSync = false;
+    let isDragging = false;
+    let lastSyncedVersion = -1;
+
+    const buildSignature = (items: ValhallaAnchor[]): string =>
+        Array.isArray(items)
+            ? items
+                  .map((item) =>
+                      item && idPropertyName in item
+                          ? String(item[idPropertyName] ?? "")
+                          : "",
+                  )
+                  .join("|")
+            : "";
+
+    const cloneItems = (items: ValhallaAnchor[]) =>
+        Array.isArray(items) ? items.slice() : [];
+
+    const getAnchorId = (anchor?: ValhallaAnchor) =>
+        String(anchor?.[idPropertyName] ?? "");
+
+    function setRenderedItems(
+        nextItems: ValhallaAnchor[],
+        { clone = false, skipMeasure = false }: { clone?: boolean; skipMeasure?: boolean } = {},
+    ) {
+        const resolved = Array.isArray(nextItems)
+            ? clone
+                ? cloneItems(nextItems)
+                : nextItems
+            : [];
+        renderedItems = resolved;
+        renderedSignature = buildSignature(renderedItems);
+        if (!skipMeasure) {
+            scheduleMeasure({ force: true });
+        }
     }
 
-    function handleAnchorDelete(detail) {
+    $: if (version !== lastSyncedVersion) {
+        lastSyncedVersion = version;
+        syncRenderedItemsFromProps(true);
+    }
+    function syncRenderedItemsFromProps(force = false) {
+        const incomingItems = itemsData ?? [];
+        const incomingSignature = buildSignature(incomingItems);
+
+        if (!force && isDragging) {
+            previousPropSignature = incomingSignature;
+            return;
+        }
+
+        if (!force && awaitingPropSync) {
+            if (incomingSignature === previousPropSignature) {
+                return;
+            }
+            awaitingPropSync = false;
+        }
+
+        if (!force && incomingSignature === renderedSignature) {
+            previousPropSignature = incomingSignature;
+            return;
+        }
+
+        previousPropSignature = incomingSignature;
+        setRenderedItems(incomingItems, { clone: true });
+    }
+
+    function handleConsider(e: CustomEvent<{ items: ValhallaAnchor[] }>) {
+        isDragging = true;
+        setRenderedItems(e.detail.items, { skipMeasure: true });
+    }
+    function handleFinalize(e: CustomEvent<{ items: ValhallaAnchor[] }>) {
+        isDragging = false;
+        awaitingPropSync = true;
+        const nextItems = e.detail.items;
+        setRenderedItems(nextItems);
+        onDrop(nextItems);
+    }
+
+    function handleAnchorDelete(detail: { index: number; anchor: ValhallaAnchor }) {
         const { index } = detail;
-        itemsData.splice(index, 1);
-        itemsData = itemsData; // trigger reactivity
-        onDrop(itemsData);
+        const nextItems = renderedItems.slice();
+        nextItems.splice(index, 1);
+        awaitingPropSync = true;
+        setRenderedItems(nextItems);
+        onDrop(nextItems);
     }
 
-    let sectionEl;
-    let firstItemEl;
+    let sectionEl: HTMLElement | null = null;
+    let firstItemEl: HTMLElement | null = null;
     let cardHeight = 0;
     let gapPx = 0;
 
-    let cachedSizing = null;
+    let cachedSizing: {
+        minHeight: number;
+        maxHeight: number;
+        gapPx: number;
+        cardHeight: number;
+        firstItemNode: HTMLElement | null;
+        firstAnchorId: string | null;
+    } | null = null;
     let needsFreshMeasurement = true;
-    let observedFirstItem = null;
-    let lastMeasuredFirstAnchorId = null;
-    let lastSectionWidth = null;
+    let observedFirstItem: Element | null = null;
+    let lastMeasuredFirstAnchorId: string | null = null;
+    let lastSectionWidth: number | null = null;
 
-    let ro;
+    let ro: ResizeObserver | null = null;
     
-    let measurePromise = null;
+    let measurePromise: Promise<void> | null = null;
     let pendingForce = false;
 
-    function parsePx(v) {
+    function parsePx(v: string | number | null | undefined) {
         if (!v) return 0;
         const n = Number(String(v).replace('px',''));
         return isNaN(n) ? 0 : n;
@@ -66,7 +150,7 @@
         sectionEl.style.overflowY = "auto";
     }
 
-    function setObservedFirstItem(node) {
+    function setObservedFirstItem(node: Element | null) {
         if (!ro || observedFirstItem === node) return;
 
         if (observedFirstItem) {
@@ -83,7 +167,7 @@
         }
     }
 
-    function handleSectionResize(entry) {
+    function handleSectionResize(entry: ResizeObserverEntry) {
         if (!sectionEl || entry.target !== sectionEl) return;
 
         const width = entry?.contentRect?.width;
@@ -102,7 +186,7 @@
         }
     }
 
-    function handleFirstItemResize(entry) {
+    function handleFirstItemResize(entry: ResizeObserverEntry) {
         if (!observedFirstItem || entry.target !== observedFirstItem) return;
 
         const height = entry?.contentRect?.height;
@@ -124,12 +208,12 @@
 
         const cs = getComputedStyle(sectionEl);
         let computedGap = parsePx(cs.rowGap || cs.gap) || 0;
-        const firstChild = sectionEl.firstElementChild;
+        const firstChild = sectionEl.firstElementChild as HTMLElement | null;
         firstItemEl = firstChild || null;
         const height = firstItemEl ? firstItemEl.getBoundingClientRect().height : 0;
         cardHeight = height;
         if ((!computedGap || isNaN(computedGap)) && sectionEl.children.length >= 2 && firstItemEl) {
-            const secondEl = sectionEl.children[1];
+            const secondEl = sectionEl.children[1] as HTMLElement;
             const r1 = firstItemEl.getBoundingClientRect();
             const r2 = secondEl.getBoundingClientRect();
             const measuredGap = Math.max(0, Math.round(r2.top - r1.bottom));
@@ -152,14 +236,14 @@
             gapPx: computedGap,
             cardHeight,
             firstItemNode: firstItemEl,
-            firstAnchorId: itemsData?.[0]?.[idPropertyName] ?? null,
+            firstAnchorId: getAnchorId(renderedItems?.[0]) || null,
         };
     }
 
     function measureAndApplyHeights({ force = false } = {}) {
         if (!sectionEl) return;
 
-        if (!itemsData || itemsData.length === 0) {
+        if (!renderedItems || renderedItems.length === 0) {
             clearSectionSizing();
             setObservedFirstItem(null);
             return;
@@ -181,10 +265,10 @@
     }
 
     async function scheduleMeasure({ force = false } = {}) {
-        const hasItemsBeforeTick = Array.isArray(itemsData) && itemsData.length > 0;
+        const hasItemsBeforeTick = Array.isArray(renderedItems) && renderedItems.length > 0;
 
         if (hasItemsBeforeTick) {
-            const currentFirstId = itemsData[0]?.[idPropertyName] ?? null;
+            const currentFirstId = getAnchorId(renderedItems[0]) || null;
             if (currentFirstId !== lastMeasuredFirstAnchorId) {
                 needsFreshMeasurement = true;
             }
@@ -201,9 +285,9 @@
 
         measurePromise = (async () => {
             //await tick();
-            const hasItemsAfterTick = Array.isArray(itemsData) && itemsData.length > 0;
+            const hasItemsAfterTick = Array.isArray(renderedItems) && renderedItems.length > 0;
             if (hasItemsAfterTick) {
-                const currentFirstId = itemsData[0]?.[idPropertyName] ?? null;
+                const currentFirstId = getAnchorId(renderedItems[0]) || null;
                 if (currentFirstId !== lastMeasuredFirstAnchorId) {
                     needsFreshMeasurement = true;
                 }
@@ -256,15 +340,15 @@
 </script>
 
 <section
-	use:dndzone={{ items: itemsData, flipDurationMs }}
+	use:dndzone={{ items: renderedItems, flipDurationMs }}
     on:consider={handleConsider} 
     on:finalize={handleFinalize}
-    class:empty={!itemsData || itemsData.length === 0}
+    class:empty={!renderedItems || renderedItems.length === 0}
     bind:this={sectionEl}
 >
-    {#each itemsData as item, i (item[idPropertyName])}
+    {#each renderedItems as item, i (getAnchorId(item) || i)}
         <div animate:flip={{duration: flipDurationMs}}>
-            <TrailAnchorCard anchor={item} index={i} isFirst={i == 0} isLast={i == itemsData.length - 1} onDelete={handleAnchorDelete}></TrailAnchorCard>
+            <TrailAnchorCard anchor={item} index={i} isFirst={i == 0} isLast={i == renderedItems.length - 1} onDelete={handleAnchorDelete}></TrailAnchorCard>
         </div>
     {/each}
 </section>
