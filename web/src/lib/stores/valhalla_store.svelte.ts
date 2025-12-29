@@ -72,7 +72,7 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
 
     let shape;
     let duration: number;
-    let heightProfile: number[] | undefined;
+    
     if (options.autoRouting) {
         let costingBody;
         switch (options.modeOfTransport) {
@@ -90,7 +90,6 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
         const requestBody = {
             "directions_type": "none",
             "locations": [{ "lat": startLat, "lon": startLon }, { "lat": endLat, "lon": endLon }],
-            "include_elevation_profile": true,
             ...costingBody
         }
 
@@ -102,31 +101,17 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
         }
 
         const routeResponse: ValhallaRouteResponse = await r.json();
-        shape = routeResponse.trip.legs[0].shape
-        duration = routeResponse.trip.summary.time
-        const legHeights = routeResponse.trip.legs[0]?.heights;
-        if (Array.isArray(legHeights) && legHeights.length) {
-            heightProfile = legHeights;
-        }
+        shape = routeResponse.trip.legs[0].shape;
+        duration = routeResponse.trip.summary.time;
     } else {
         shape = encodePolyline([[startLat, startLon], [endLat, endLon]])
         duration = 0;
     }
 
-    if (!heightProfile) {
-        heightProfile = await fetchHeightProfile(shape);
-    }
+    const heightProfile = await fetchHeightProfile(shape);
 
     const points = decodePolyline(shape);
     const startTime = new Date().getTime();
-
-    if (heightProfile.length !== points.length) {
-        // One more attempt to realign data before falling back to undefined elevations.
-        const fallbackProfile = await fetchHeightProfile(shape);
-        if (fallbackProfile.length === points.length) {
-            heightProfile = fallbackProfile;
-        }
-    }
 
     const resolvedHeights = heightProfile.length === points.length ? heightProfile : [];
 
