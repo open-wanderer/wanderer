@@ -1,21 +1,38 @@
-import { env } from '$env/dynamic/public';
+import { env as privateEnv } from '$env/dynamic/private';
 import { error, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
 
+type RouteRequestBody = Record<string, unknown> & {
+    include_elevation_profile?: boolean;
+};
+
+async function fetchRoute(event: RequestEvent, body: Record<string, unknown>) {
+    const response = await event.fetch(getValhallaBaseUrl() + '/route', {
+        method: "POST",
+        body: JSON.stringify(body)
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+        throw error(response.status as NumericRange<400, 500>, payload);
+    }
+    return payload;
+}
 
 export async function POST(event: RequestEvent) {
-    const data = await event.request.json()
-    if (!env.PUBLIC_VALHALLA_URL) {
-        return json({ message: "PUBLIC_VALHALLA_URL not set" }, { status: 400 })
+    const data: RouteRequestBody = await event.request.json();
+    if (!getValhallaBaseUrl()) {
+        return json({ message: "VALHALLA_URL not set" }, { status: 400 })
     }
-    try {
-        const r = await event.fetch(env.PUBLIC_VALHALLA_URL + '/route', { method: "POST", body: JSON.stringify(data) });
-        const response = await r.json();
-        if (!r.ok) {
-            return json({ message: response }, { status: r.status })
 
-        }
-        return json(response);
+    try {
+        const route = await fetchRoute(event, data);
+        return json(route);
     } catch (e: any) {
-        return json({ message: e }, { status: 500 })
+        const status = typeof e?.status === "number" ? e.status : 500;
+        const message = e?.body ?? e?.message ?? e;
+        return json({ message }, { status })
     }
+}
+
+function getValhallaBaseUrl(): string {
+    return privateEnv.PRIVATE_VALHALLA_URL ?? "";
 }

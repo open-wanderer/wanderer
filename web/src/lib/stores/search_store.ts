@@ -1,10 +1,8 @@
-import { env } from "$env/dynamic/public";
 import type { Actor } from "$lib/models/activitypub/actor";
 import { defaultTrailSearchAttributes, type TrailSearchResult } from "$lib/models/trail";
 import { APIError } from "$lib/util/api_util";
 import type { Hits, MultiSearchParams, MultiSearchResponse, MultiSearchResult, SearchParams, SearchResponse } from "meilisearch";
 import type { ListResult } from "pocketbase";
-import { version } from "$app/environment";
 
 export type LocationSearchResult = {
     name: string;
@@ -105,13 +103,16 @@ export async function searchTrails(q: string, options: SearchParams): Promise<Hi
 }
 
 export async function searchLocations(q: string, limit?: number): Promise<Hits<LocationSearchResult>> {
-    const nominatimURL = env.PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org"
-    const r = await fetch(`${nominatimURL}/search?q=${q}&format=geojson&addressdetails=1${limit ? '&limit=' + limit : ''}`, {
-        method: "GET",
-        headers: new Headers({
-            "User-Agent": "wanderer/" + version
-        })
-    });
+    if (!q.trim()) {
+        return [];
+    }
+
+    const params = new URLSearchParams({
+            q,
+            format: "geojson",
+            addressdetails: "1",
+        });
+    const r = await fetchNominatim("search", params);
     if (!r.ok) {
         const response = await r.json();
         throw new APIError(r.status, response.message, response.detail)
@@ -127,14 +128,32 @@ export async function searchLocations(q: string, limit?: number): Promise<Hits<L
     }))
 }
 
+async function fetchNominatim(path: string, params: URLSearchParams): Promise<Response> {
+    let attempt = 0;
+
+    while (true) {
+        try {
+            const query = params.toString();
+            const url = query.length ? `/api/v1/nominatim/${path}?${query}` : `/api/v1/nominatim/${path}`;
+            return await fetch(url);
+        } catch (error) {
+            if (attempt < NOMINATIM_MAX_RETRIES) {
+                attempt++;
+                continue;
+            }
+            throw error;
+        }
+    }
+}
+
 export async function searchLocationReverse(lat: number, lon: number) {
-    const nominatimURL = env.PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org"
-    const r = await fetch(`${nominatimURL}/reverse?lat=${lat}&lon=${lon}&format=geojson&addressdetails=1`, {
-        method: "GET",
-        headers: new Headers({
-            "User-Agent": "wanderer/" + version
-        })
-    });
+    const params = new URLSearchParams({
+            lat: String(lat),
+            lon: String(lon),
+            format: "geojson",
+            addressdetails: "1",
+        });
+    const r = await fetchNominatim("reverse", params);
     if (!r.ok) {
         const response = await r.json();
         throw new APIError(r.status, response.message, response.detail)

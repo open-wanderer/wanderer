@@ -104,6 +104,8 @@
 
     let { data } = $props();
 
+    const valhallaEnabled = env.PUBLIC_VALHALLA_ENABLED === "true";
+
     let map: M.Map | undefined = $state();
     let mapPopup: M.Popup | undefined;
     let mapTrail: Trail[] = $state([]);
@@ -1197,7 +1199,7 @@
                 ? $_("upload-new-file")
                 : $_("upload-file")}</Button
         >
-        {#if env.PUBLIC_VALHALLA_URL}
+        {#if valhallaEnabled}
             <div class="flex gap-4 items-center w-full">
                 <hr class="basis-full border-input-border" />
                 <span class="text-gray-500 uppercase">{$_("or")}</span>
