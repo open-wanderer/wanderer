@@ -45,10 +45,6 @@
         initialValues: $summitLog,
         extend: validator({ schema: ClientSummitLogCreateSchema }),
         onSubmit: async (form) => {
-            if (!form.expand?.gpx_data) {
-                form.gpx = "";
-            }
-
             if (
                 !form._photos?.length &&
                 !form.photos?.length &&
@@ -87,6 +83,11 @@
             $data.elevation_gain = undefined;
             $data.elevation_loss = undefined;
             $data.distance = undefined;
+            $data.gpx = "";
+            if ($data.expand) {
+                $data.expand.gpx_data = undefined;
+            }
+            $data._gpx = null;
             return;
         }
         const gpxObject = GPX.parse(trailData);
