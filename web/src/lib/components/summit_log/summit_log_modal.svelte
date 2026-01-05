@@ -4,6 +4,7 @@
     import { SummitLogCreateSchema } from "$lib/models/api/summit_log_schema";
     import GPX from "$lib/models/gpx/gpx";
     import { summitLog } from "$lib/stores/summit_log_store";
+    import { fetchGPX } from "$lib/stores/trail_store";
     import { cloneDeep } from "$lib/util/deep_util";
     import { validator } from "@felte/validator-zod";
     import { createForm } from "felte";
@@ -65,8 +66,6 @@
         },
     });
 
-    let trailData = $derived($data.expand?.gpx_data);
-
     $effect(() => {
         setFields(cloneDeep($summitLog));
     });
@@ -75,6 +74,31 @@
         if ($summitLog._gpx) {
             $data._gpx = $summitLog._gpx;
         }
+    });
+
+    let gpxLoading = $state(false);
+
+    async function ensureGpxDataLoaded() {
+        if (gpxLoading || !$data.id || !$data.gpx || $data.expand?.gpx_data) {
+            return;
+        }
+        gpxLoading = true;
+        try {
+            const gpxData = await fetchGPX($data as any, fetch);
+            if (!gpxData) {
+                return;
+            }
+            if (!$data.expand) {
+                $data.expand = {};
+            }
+            $data.expand.gpx_data = gpxData;
+        } finally {
+            gpxLoading = false;
+        }
+    }
+
+    $effect(() => {
+        void ensureGpxDataLoaded();
     });
 
     async function handleTrailSelection(trailData: string | null) {
@@ -142,7 +166,8 @@
                 {#if $data.expand}
                     <TrailPicker
                         bind:trailFile={$data._gpx}
-                        {trailData}
+                        bind:trailData={$data.expand.gpx_data}
+                        hasTrail={Boolean($data.gpx)}
                         label={$_("trail", { values: { n: 1 } })}
                         onchange={(trail) => handleTrailSelection(trail)}
                     ></TrailPicker>
