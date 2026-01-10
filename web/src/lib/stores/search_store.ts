@@ -102,7 +102,7 @@ export async function searchTrails(q: string, options: SearchParams): Promise<Hi
     return response.hits
 }
 
-export async function searchLocations(q: string, limit?: number): Promise<Hits<LocationSearchResult>> {
+export async function searchLocations(q: string, limit?: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<Hits<LocationSearchResult>> {
     if (!q.trim()) {
         return [];
     }
@@ -112,7 +112,7 @@ export async function searchLocations(q: string, limit?: number): Promise<Hits<L
             format: "geojson",
             addressdetails: "1",
         });
-    const r = await fetchNominatim("search", params);
+    const r = await fetchNominatim("search", params, f);
     if (!r.ok) {
         const response = await r.json();
         throw new APIError(r.status, response.message, response.detail)
@@ -128,14 +128,14 @@ export async function searchLocations(q: string, limit?: number): Promise<Hits<L
     }))
 }
 
-async function fetchNominatim(path: string, params: URLSearchParams): Promise<Response> {
+async function fetchNominatim(path: string, params: URLSearchParams, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<Response> {
     let attempt = 0;
 
     while (true) {
         try {
             const query = params.toString();
             const url = query.length ? `/api/v1/nominatim/${path}?${query}` : `/api/v1/nominatim/${path}`;
-            return await fetch(url);
+            return await f(url);
         } catch (error) {
             if (attempt < NOMINATIM_MAX_RETRIES) {
                 attempt++;
@@ -146,14 +146,14 @@ async function fetchNominatim(path: string, params: URLSearchParams): Promise<Re
     }
 }
 
-export async function searchLocationReverse(lat: number, lon: number) {
+export async function searchLocationReverse(lat: number, lon: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const params = new URLSearchParams({
             lat: String(lat),
             lon: String(lon),
             format: "geojson",
             addressdetails: "1",
         });
-    const r = await fetchNominatim("reverse", params);
+    const r = await fetchNominatim("reverse", params, f);
     if (!r.ok) {
         const response = await r.json();
         throw new APIError(r.status, response.message, response.detail)
