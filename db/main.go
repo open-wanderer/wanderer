@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	pub "github.com/go-ap/activitypub"
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
@@ -25,12 +27,8 @@ import (
 	"pocketbase/federation"
 	"pocketbase/integrations/komoot"
 	"pocketbase/integrations/strava"
-
 	_ "pocketbase/migrations"
 	"pocketbase/util"
-
-	pub "github.com/go-ap/activitypub"
-	"github.com/microcosm-cc/bluemonday"
 )
 
 const (
@@ -65,7 +63,6 @@ func verifySettings(app core.App) {
 }
 
 func main() {
-
 	app := pocketbase.New()
 	client := initializeMeiliSearch()
 
@@ -331,7 +328,6 @@ func deleteTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 
 func createSummitLogHandler(client meilisearch.ServiceManager) func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
-
 		err := e.Next()
 		if err != nil {
 			return err
@@ -362,7 +358,6 @@ func createSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 
 func updateSummitLogHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
-
 		err := e.Next()
 		if err != nil {
 			return err
@@ -407,7 +402,6 @@ func deleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 
 func createCommentHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
-
 		if err := e.Next(); err != nil {
 			return err
 		}
@@ -437,13 +431,11 @@ func updateCommentHandler() func(e *core.RecordRequestEvent) error {
 			return err
 		}
 		return e.Next()
-
 	}
 }
 
 func deleteCommentHandler(client meilisearch.ServiceManager) func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
-
 		err := federation.CreateCommentDeleteActivity(e.App, client, e.Record)
 		if err != nil {
 			return err
@@ -558,7 +550,6 @@ func createTrailLikeHandler(client meilisearch.ServiceManager) func(e *core.Reco
 
 func deleteTrailLikeHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
-
 		record := e.Record
 
 		trailId := record.GetString("trail")
@@ -721,7 +712,6 @@ func createListShareHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			actorIds[i] = r.GetString("actor")
 		}
 		err = util.UpdateListShares(listId, actorIds, client)
-
 		if err != nil {
 			return err
 		}
@@ -818,6 +808,7 @@ func updateIntegrationHandler() func(e *core.RecordEvent) error {
 		return e.Next()
 	}
 }
+
 func censorIntegrationSecrets(r *core.Record) error {
 	secrets := map[string][]string{
 		"strava": {"clientSecret", "refreshToken", "accessToken", "expiresAt"},
@@ -904,7 +895,6 @@ func encryptIntegrationSecrets(app core.App, r *core.Record) error {
 
 func changeUserEmailHandler() func(e *core.RecordRequestEmailChangeRequestEvent) error {
 	return func(e *core.RecordRequestEmailChangeRequestEvent) error {
-
 		e.Record.Set("email", e.NewEmail)
 		if err := e.App.Save(e.Record); err != nil {
 			return err
@@ -915,7 +905,6 @@ func changeUserEmailHandler() func(e *core.RecordRequestEmailChangeRequestEvent)
 
 func listFeedHandler() func(e *core.RecordsListRequestEvent) error {
 	return func(e *core.RecordsListRequestEvent) error {
-
 		for _, r := range e.Records {
 			var item *core.Record
 			var err error
@@ -971,7 +960,6 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 
 		return se.Next()
 	}
-
 }
 
 func onBootstrapHandler() func(se *core.BootstrapEvent) error {

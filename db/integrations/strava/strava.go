@@ -135,7 +135,6 @@ func SyncStrava(app core.App) error {
 					break
 				}
 				err = syncTrailsWithActivities(app, r.AccessToken, actorId, activities)
-
 				if err != nil {
 					warning := fmt.Sprintf("error syncing strava activities with trails: %v", err)
 					fmt.Print(warning)
@@ -179,11 +178,7 @@ func GetStravaToken(request any) (token *RefreshTokenResponse, err error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get token: received status %d", resp.StatusCode)
@@ -211,11 +206,7 @@ func fetchStravaRoutes(accessToken string, page int) (routes []StravaRoute, err 
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch routes: received status %d", resp.StatusCode)
@@ -241,11 +232,7 @@ func fetchStravaActivities(accessToken string, page int, after int64) (activitie
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch activities: received status %d", resp.StatusCode)
@@ -459,11 +446,7 @@ func fetchDetailedActivity(activity StravaActivity, accessToken string) (detaile
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch activity: received status %d", resp.StatusCode)
@@ -586,11 +569,7 @@ func fetchActivityPhoto(activity *DetailedStravaActivity) (photo *filesystem.Fil
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch photo: received status %d", resp.StatusCode)
@@ -625,11 +604,7 @@ func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch activity: %s", resp.Status)
@@ -654,7 +629,8 @@ func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (
 
 		points = append(points, gpx.GPXPoint{
 			Point:     gpx.Point{Latitude: lat, Longitude: lon, Elevation: *gpx.NewNullableFloat64(alt)},
-			Timestamp: time.Unix(t, 0)})
+			Timestamp: time.Unix(t, 0),
+		})
 	}
 
 	gpxData := &gpx.GPX{

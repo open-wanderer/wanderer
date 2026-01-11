@@ -1,10 +1,10 @@
 package migrations
 
 import (
-	"pocketbase/util"
-
 	"github.com/pocketbase/pocketbase/core"
 	m "github.com/pocketbase/pocketbase/migrations"
+
+	"pocketbase/util"
 )
 
 func init() {

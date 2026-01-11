@@ -13,12 +13,10 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	pub "github.com/go-ap/activitypub"
-
-	"sync"
-
 	"github.com/go-ap/jsonld"
 	"github.com/go-fed/httpsig"
 	"github.com/pocketbase/pocketbase/core"
@@ -163,7 +161,6 @@ func ProcessActivity(e *core.RequestEvent) error {
 			}
 		} else {
 			return err
-
 		}
 	}
 

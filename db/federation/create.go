@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"pocketbase/util"
-
 	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"golang.org/x/net/html"
+
+	"pocketbase/util"
 )
 
 func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, typ pub.ActivityVocabularyType) error {
@@ -198,11 +198,9 @@ func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Recor
 	}
 
 	return PostActivity(app, commentAuthor, activity, recipients)
-
 }
 
 func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.Record, typ pub.ActivityVocabularyType) error {
-
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
@@ -463,7 +461,6 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 }
 
 func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *core.Record, activity pub.Activity) error {
-
 	var err error
 	if strings.Contains(activity.Object.GetID().String(), "/api/v1/trail") {
 		err = processCreateOrUpdateTrailActivity(activity, app, actor, recipient)
@@ -480,7 +477,6 @@ func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *
 	}
 
 	return nil
-
 }
 
 func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
@@ -520,7 +516,6 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 }
 
 func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, actor *core.Record) error {
-
 	commentObject, err := pub.ToObject(activity.Object)
 	if err != nil {
 		return err
@@ -538,7 +533,6 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 
 	var trail *core.Record
 	trail, err = app.FindFirstRecordByFilter("trails", "iri={:iri} || id={:id}", dbx.Params{"id": trailId, "iri": commentObject.InReplyTo.GetID().String()})
-
 	// if the trail is not present on this instance fetch it
 	if err != nil {
 		if err == sql.ErrNoRows {

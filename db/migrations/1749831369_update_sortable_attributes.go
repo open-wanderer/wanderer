@@ -12,7 +12,6 @@ func init() {
 	client := meilisearch.New(os.Getenv("MEILI_URL"), meilisearch.WithAPIKey(os.Getenv("MEILI_MASTER_KEY")))
 
 	m.Register(func(app core.App) error {
-
 		_, err := client.Index("trails").UpdateSortableAttributes(&[]string{
 			"created", "date", "difficulty", "distance", "elevation_gain", "elevation_loss", "name", "duration", "author", "like_count",
 		})

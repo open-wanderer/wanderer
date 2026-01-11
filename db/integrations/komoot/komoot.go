@@ -135,11 +135,7 @@ func sendRequest(url string, auth *BasicAuthToken) (respBody []byte, err error) 
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, readErr := io.ReadAll(resp.Body)
@@ -170,6 +166,7 @@ func (k *KomootApi) Login(email, password string) error {
 
 	return nil
 }
+
 func (k *KomootApi) fetchTours(page int) ([]KomootTour, error) {
 	currentUri := fmt.Sprintf("https://api.komoot.de/v007/users/%s/tours/?page=%d&sort_field=date&sort_direction=desc&limit=30", k.UserID, page)
 
@@ -413,14 +410,13 @@ func fetchRoutePhotos(k *KomootApi, tour *DetailedKomootTour) ([]*filesystem.Fil
 		}
 		photos[i] = photo
 
-		//TODO: komoot photos can have location data. Maybe we should create a waypoint for those photos?
+		// TODO: komoot photos can have location data. Maybe we should create a waypoint for those photos?
 	}
 
 	return photos, nil
 }
 
 func fetchWaypointPhotos(wp Item) ([]*filesystem.File, error) {
-
 	photos := make([]*filesystem.File, len(wp.Embedded.Reference.Embedded.Images.Embedded.Items))
 
 	for i, img := range wp.Embedded.Reference.Embedded.Images.Embedded.Items {
@@ -458,7 +454,8 @@ func generateTourGPX(detailedTour *DetailedKomootTour) (*filesystem.File, error)
 
 		points = append(points, gpx.GPXPoint{
 			Point:     gpx.Point{Latitude: item.Lat, Longitude: item.Lng, Elevation: *gpx.NewNullableFloat64(item.Alt)},
-			Timestamp: time.Unix(t, 0)})
+			Timestamp: time.Unix(t, 0),
+		})
 	}
 
 	gpxData := &gpx.GPX{

@@ -183,7 +183,6 @@ func getPolyline(app core.App, r *core.Record) (polylineStr string, err error) {
 }
 
 func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
-
 	totalElevationGain := 0.0
 	totalElevationLoss := 0.0
 	totalDistance := 0.0
@@ -285,11 +284,7 @@ func documentFromRemoteRecord(r *core.Record, index string) (document map[string
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch remote record: received status %d", resp.StatusCode)

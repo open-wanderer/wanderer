@@ -27,7 +27,6 @@ func InsertIntoFeed(app core.App, actorId string, authorId string, itemId string
 }
 
 func DeleteFromFeed(app core.App, itemId string) error {
-
 	record, err := app.FindFirstRecordByData("feed", "item", itemId)
 	if err != nil {
 		return err

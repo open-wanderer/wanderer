@@ -3,7 +3,6 @@ package federation
 import (
 	"fmt"
 	"os"
-	"pocketbase/util"
 	"strings"
 	"time"
 
@@ -12,10 +11,11 @@ import (
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
+
+	"pocketbase/util"
 )
 
 func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
-
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
@@ -77,7 +77,6 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 }
 
 func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager, r *core.Record) error {
-
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
@@ -139,7 +138,6 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 }
 
 func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
-
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
@@ -220,7 +218,6 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 }
 
 func CreateListDeleteActivity(app core.App, r *core.Record) error {
-
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
@@ -313,7 +310,6 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 }
 
 func processDeleteTrailActivity(app core.App, activity pub.Activity) error {
-
 	object := activity.Object.GetID().String()
 	trail, err := app.FindFirstRecordByData("trails", "iri", object)
 	if err != nil {
@@ -363,7 +359,6 @@ func processDeleteSummitLogActivity(app core.App, actor *core.Record, activity p
 }
 
 func processDeleteListActivity(app core.App, actor *core.Record, activity pub.Activity) error {
-
 	object := activity.Object.GetID().String()
 	list, err := app.FindFirstRecordByData("lists", "iri", object)
 	if err != nil {

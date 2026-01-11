@@ -6,15 +6,15 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"pocketbase/util"
 	"strings"
 	"time"
 
+	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
 
-	pub "github.com/go-ap/activitypub"
+	"pocketbase/util"
 )
 
 type AnnounceType string
@@ -118,7 +118,6 @@ func ProcessAnnounceActivity(app core.App, actor *core.Record, activity pub.Acti
 		if err := processTrailAnnounceActivity(app, actor, activity); err != nil {
 			return err
 		}
-
 	} else if strings.Contains(object, "/api/v1/list") {
 		if err := processListAnnounceActivity(app, actor, activity); err != nil {
 			return err
@@ -127,11 +126,9 @@ func ProcessAnnounceActivity(app core.App, actor *core.Record, activity pub.Acti
 		return fmt.Errorf("unknown announce type")
 	}
 	return nil
-
 }
 
 func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub.Activity) error {
-
 	objectActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", activity.To[0].GetID().String())
 	if err != nil {
 		return err
@@ -214,7 +211,6 @@ func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub
 }
 
 func processListAnnounceActivity(app core.App, actor *core.Record, activity pub.Activity) error {
-
 	objectActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", activity.To[0].GetID().String())
 	if err != nil {
 		return err
@@ -276,5 +272,4 @@ func processListAnnounceActivity(app core.App, actor *core.Record, activity pub.
 	}
 
 	return nil
-
 }

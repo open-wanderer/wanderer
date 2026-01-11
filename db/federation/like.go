@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"pocketbase/util"
 	"time"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
+
+	"pocketbase/util"
 )
 
 // create outgoing follow activity
@@ -114,5 +115,4 @@ func ProcessLikeActivity(app core.App, actor *core.Record, activity pub.Activity
 		Author: actor.Id,
 	}
 	return util.SendNotification(app, notification, trailAuthor)
-
 }

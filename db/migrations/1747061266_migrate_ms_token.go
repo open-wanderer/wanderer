@@ -2,18 +2,18 @@ package migrations
 
 import (
 	"os"
-	"pocketbase/util"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/pocketbase/core"
 	m "github.com/pocketbase/pocketbase/migrations"
+
+	"pocketbase/util"
 )
 
 func init() {
 	client := meilisearch.New(os.Getenv("MEILI_URL"), meilisearch.WithAPIKey(os.Getenv("MEILI_MASTER_KEY")))
 
 	m.Register(func(app core.App) error {
-
 		users, err := app.FindAllRecords("users")
 		if err != nil {
 			return err

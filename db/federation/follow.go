@@ -3,13 +3,14 @@ package federation
 import (
 	"fmt"
 	"os"
-	"pocketbase/util"
 	"time"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
+
+	"pocketbase/util"
 )
 
 // create outgoing follow activity
@@ -130,11 +131,9 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 		Author: actor.Id,
 	}
 	return util.SendNotification(app, notification, object)
-
 }
 
 func ProcessAcceptActivity(app core.App, actor *core.Record, activity pub.Activity) error {
-
 	followActivity := activity.Object.(*pub.Activity)
 
 	follower, err := app.FindFirstRecordByData("activitypub_actors", "iri", followActivity.Actor)

@@ -5,10 +5,11 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"os"
-	"pocketbase/util"
 	"testing"
 
 	"github.com/pocketbase/pocketbase/tools/security"
+
+	"pocketbase/util"
 )
 
 func TestLooksLikeEncrypted(t *testing.T) {

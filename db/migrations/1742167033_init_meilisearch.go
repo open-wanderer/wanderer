@@ -23,7 +23,6 @@ func init() {
 		_, err = client.Index("trails").UpdateSortableAttributes(&[]string{
 			"created", "date", "difficulty", "distance", "elevation_gain", "elevation_loss", "name", "duration", "author",
 		})
-
 		if err != nil {
 			return err
 		}
@@ -31,7 +30,6 @@ func init() {
 		_, err = client.Index("trails").UpdateFilterableAttributes(&[]string{
 			"_geo", "author", "category", "completed", "date", "difficulty", "distance", "elevation_gain", "elevation_loss", "public", "shares", "tags",
 		})
-
 		if err != nil {
 			return err
 		}

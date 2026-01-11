@@ -61,7 +61,6 @@ func GenerateHTML(appUrl string, recipientName string, authorName string, notifi
 	html, err := registry.LoadFiles(
 		"templates/mail/notification.html",
 	).Render(content)
-
 	if err != nil {
 		return "", err
 	}

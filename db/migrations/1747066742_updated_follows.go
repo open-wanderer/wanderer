@@ -19,7 +19,6 @@ func init() {
 		collection.Fields.RemoveById("wxwomfd5")
 
 		return app.Save(collection)
-
 	}, func(app core.App) error {
 		return nil
 	})

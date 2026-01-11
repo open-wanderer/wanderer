@@ -13,7 +13,6 @@ import (
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/go-fed/httpsig"
-
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
@@ -28,7 +27,6 @@ type WebfingerResponse struct {
 }
 
 func SplitHandle(handle string) (string, string) {
-
 	cleaned := strings.TrimPrefix(handle, "@")
 	cleaned = strings.TrimSpace(cleaned)
 
@@ -104,11 +102,7 @@ func iriFromHandle(domain string, username string) (iri string, err error) {
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("webfinger request failed: status %d", resp.StatusCode)
 	}
@@ -289,11 +283,7 @@ func fetchRemoteActor(actor *core.Record, iri string, includeFollows bool) (pubA
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("actor fetch failed: %v", err)
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return nil, nil, nil, fmt.Errorf("actor fetch failed: status %v", resp.StatusCode)
 	}
@@ -372,11 +362,7 @@ func FetchCollection(actor *core.Record, url string) (collection *pub.OrderedCol
 	if err != nil {
 		return nil, fmt.Errorf("collection fetch failed for %s: %v", url, err)
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, fmt.Errorf("profile is private")

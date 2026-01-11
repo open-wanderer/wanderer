@@ -127,11 +127,7 @@ func fetchOutboxPage(app core.App, actor *core.Record, pageURL string) (err erro
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -514,7 +510,6 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 
 		if avatarURL != "" {
 			avatar, err := filesystem.NewFileFromURL(context.Background(), avatarURL)
-
 			if err != nil {
 				return nil, err
 			}
@@ -622,11 +617,7 @@ func TrailObjectFromIRI(iri string) (object *pub.Object, err error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

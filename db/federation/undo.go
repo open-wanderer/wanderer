@@ -133,7 +133,6 @@ func CreateUnlikeActivity(app core.App, like *core.Record) error {
 }
 
 func ProcessUndoActivity(app core.App, actor *core.Record, activity pub.Activity) error {
-
 	if activity.Object.GetType() == pub.FollowType {
 		return processUnfollowActivity(app, actor, activity)
 	} else if activity.Object.GetType() == pub.LikeType {
