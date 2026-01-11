@@ -7,8 +7,6 @@ services:
       MEILI_URL: http://search:7700
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?}
       MEILI_NO_ANALYTICS: "true"
-    expose:
-      - "7700"
     volumes:
       - meili_data:/meili_data
     restart: unless-stopped
@@ -27,9 +25,7 @@ services:
       MEILI_URL: http://search:7700
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?}
       POCKETBASE_ENCRYPTION_KEY: ${POCKETBASE_ENCRYPTION_KEY:?}
-      ORIGIN: ${ORIGIN:?http://localhost:3000}
-    expose:
-      - "8090"
+      ORIGIN: ${ORIGIN:?}
     restart: unless-stopped
     volumes:
       - pb_data:/pb_data
@@ -49,7 +45,7 @@ services:
     environment:
       MEILI_URL: http://search:7700
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?}
-      ORIGIN: ${ORIGIN:?http://localhost:3000}
+      ORIGIN: ${ORIGIN:?}
       BODY_SIZE_LIMIT: Infinity
       PUBLIC_POCKETBASE_URL: http://db:8090
       PUBLIC_DISABLE_SIGNUP: "false"
