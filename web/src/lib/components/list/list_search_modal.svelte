@@ -50,7 +50,7 @@
         onchange?.(list);
 
         removeTrailsFromList(list);
-        
+
         listsVersion += 1;
         updateLists(query);
     }
@@ -139,7 +139,7 @@
             .filter((list) => {
                 const name = list.name?.toLowerCase() ?? "";
                 return (
-                    name.startsWith(normalizedQuery) &&
+                    name.includes(normalizedQuery) &&
                     !listContainsAllTrails(list)
                 );
             })
@@ -171,6 +171,7 @@
         <div class="space-y-4 min-h-40">
             <Search
                 onupdate={(q) => updateLists(q)}
+                timeBetweenUpdates={0}
                 onclick={(item) => handleSelect(item.value)}
                 placeholder={$_("search-list")}
                 items={searchItems}
