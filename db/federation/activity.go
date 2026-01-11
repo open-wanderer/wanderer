@@ -113,7 +113,11 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 					app.Logger().Error(fmt.Sprintf("Error sending to inbox %s: %s", inbox, err))
 					return
 				}
-				defer resp.Body.Close()
+				defer func() {
+					if closeErr := resp.Body.Close(); closeErr != nil {
+						app.Logger().Warn(fmt.Sprintf("Closing inbox response failed: %s", closeErr))
+					}
+				}()
 
 				if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 					respBody, _ := io.ReadAll(resp.Body)
@@ -139,7 +143,9 @@ func ProcessActivity(e *core.RequestEvent) error {
 		return err
 	}
 	var activity pub.Activity
-	activity.UnmarshalJSON(body)
+	if err := activity.UnmarshalJSON(body); err != nil {
+		return err
+	}
 
 	inbox := fmt.Sprintf("%s%s", origin, e.Request.Header.Get("X-Forwarded-Path"))
 

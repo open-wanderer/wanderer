@@ -33,7 +33,8 @@ func CreateAnnounceActivity(app core.App, record *core.Record, typ AnnounceType)
 	var subject *core.Record
 	var object pub.Item
 	var err error
-	if typ == TrailAnnounceType {
+	switch typ {
+	case TrailAnnounceType:
 		subject, err = app.FindRecordById("trails", record.GetString("trail"))
 		if err != nil {
 			return err
@@ -42,7 +43,7 @@ func CreateAnnounceActivity(app core.App, record *core.Record, typ AnnounceType)
 		if err != nil {
 			return err
 		}
-	} else if typ == ListAnnounceType {
+	case ListAnnounceType:
 		subject, err = app.FindRecordById("lists", record.GetString("list"))
 		if err != nil {
 			return err
@@ -51,8 +52,7 @@ func CreateAnnounceActivity(app core.App, record *core.Record, typ AnnounceType)
 		if err != nil {
 			return err
 		}
-
-	} else {
+	default:
 		return fmt.Errorf("unknown announce type")
 	}
 
@@ -115,10 +115,14 @@ func ProcessAnnounceActivity(app core.App, actor *core.Record, activity pub.Acti
 	object := activity.Object.GetID().String()
 
 	if strings.Contains(object, "/api/v1/trail") {
-		processTrailAnnounceActivity(app, actor, activity)
+		if err := processTrailAnnounceActivity(app, actor, activity); err != nil {
+			return err
+		}
 
 	} else if strings.Contains(object, "/api/v1/list") {
-		processListAnnounceActivity(app, actor, activity)
+		if err := processListAnnounceActivity(app, actor, activity); err != nil {
+			return err
+		}
 	} else {
 		return fmt.Errorf("unknown announce type")
 	}

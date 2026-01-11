@@ -19,7 +19,10 @@ func init() {
 			"location",
 			"tags",
 		}
-		client.Index("trails").UpdateSearchableAttributes(&searchableAttributes)
+		_, err := client.Index("trails").UpdateSearchableAttributes(&searchableAttributes)
+		if err != nil {
+			return err
+		}
 
 		return nil
 	}, func(app core.App) error {

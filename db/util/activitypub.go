@@ -114,7 +114,7 @@ func SyncOutbox(app core.App, actor *core.Record) error {
 	return fetchOutboxPage(app, actor, actor.GetString("outbox")+"?page=1")
 }
 
-func fetchOutboxPage(app core.App, actor *core.Record, pageURL string) error {
+func fetchOutboxPage(app core.App, actor *core.Record, pageURL string) (err error) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest(http.MethodGet, pageURL, nil)
@@ -127,7 +127,11 @@ func fetchOutboxPage(app core.App, actor *core.Record, pageURL string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -379,7 +383,9 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 
 	if mentions != nil {
 		for _, m := range *mentions {
-			tags.Append(m)
+			if err := tags.Append(m); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -388,7 +394,9 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 		hashtag.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "tag"))
 		hashtag.Content = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, v.GetString("name")))
 
-		tags.Append(hashtag)
+		if err := tags.Append(hashtag); err != nil {
+			return nil, err
+		}
 	}
 
 	photos := trail.GetStringSlice("photos")
@@ -409,11 +417,13 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 		}
 	}
 	if gpx != "" {
-		attachments.Append(pub.Document{
+		if err := attachments.Append(pub.Document{
 			Type:      pub.DocumentType,
 			MediaType: "application/xml+gpx",
 			URL:       pub.IRI(gpx),
-		})
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	activityURL := fmt.Sprintf("%s/trail/view/@%s/%s", origin, trailAuthor.GetString("preferred_username"), trail.Id)
@@ -598,7 +608,7 @@ func ObjectFromComment(app core.App, comment *core.Record, mentions *pub.ItemCol
 	return commentObject, nil
 }
 
-func TrailObjectFromIRI(iri string) (*pub.Object, error) {
+func TrailObjectFromIRI(iri string) (object *pub.Object, err error) {
 	fetchURL := strings.Replace(iri, "api/v1/trail", "api/v1/activitypub/trail", 1)
 
 	client := &http.Client{}
@@ -612,18 +622,22 @@ func TrailObjectFromIRI(iri string) (*pub.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	var object pub.Object
-	err = json.Unmarshal(body, &object)
+	var parsedObject pub.Object
+	err = json.Unmarshal(body, &parsedObject)
 	if err != nil {
 		return nil, err
 	}
 
-	return &object, nil
+	return &parsedObject, nil
 }

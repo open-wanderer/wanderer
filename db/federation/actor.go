@@ -96,15 +96,22 @@ func GetActorByIRI(app core.App, actor *core.Record, iri string, includeFollows 
 	return assembleActor(actor, dbActor, app, includeFollows)
 }
 
-func iriFromHandle(domain string, username string) (string, error) {
+func iriFromHandle(domain string, username string) (iri string, err error) {
 	client := &http.Client{}
 
 	webfingerURL := fmt.Sprintf("https://%s/.well-known/webfinger?resource=acct:%s@%s", domain, username, domain)
 	resp, err := client.Get(webfingerURL)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("webfinger request failed: %v", err)
+	if err != nil {
+		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("webfinger request failed: status %d", resp.StatusCode)
+	}
 
 	var wf WebfingerResponse
 	if err := json.NewDecoder(resp.Body).Decode(&wf); err != nil {
@@ -155,7 +162,9 @@ func assembleActor(actor *core.Record, dbActor *core.Record, app core.App, inclu
 
 		privacy := settings.GetString("privacy")
 		result := make(map[string]interface{})
-		json.Unmarshal([]byte(privacy), &result)
+		if err := json.Unmarshal([]byte(privacy), &result); err != nil {
+			return nil, err
+		}
 
 		private = result["account"] == "private"
 
@@ -227,7 +236,7 @@ func assembleActor(actor *core.Record, dbActor *core.Record, app core.App, inclu
 }
 
 // Fetches an AP actor and optionally followers/following collections
-func fetchRemoteActor(actor *core.Record, iri string, includeFollows bool) (*pub.Actor, *pub.OrderedCollection, *pub.OrderedCollection, error) {
+func fetchRemoteActor(actor *core.Record, iri string, includeFollows bool) (pubActor *pub.Actor, followers *pub.OrderedCollection, following *pub.OrderedCollection, err error) {
 	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
 	if len(encryptionKey) == 0 {
 		return nil, nil, nil, fmt.Errorf("POCKETBASE_ENCRYPTION_KEY not set")
@@ -279,35 +288,39 @@ func fetchRemoteActor(actor *core.Record, iri string, includeFollows bool) (*pub
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("actor fetch failed: %v", err)
-	} else if resp.StatusCode != http.StatusOK {
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+	if resp.StatusCode != http.StatusOK {
 		return nil, nil, nil, fmt.Errorf("actor fetch failed: status %v", resp.StatusCode)
 	}
 
-	defer resp.Body.Close()
-
-	var pubActor pub.Actor
-	if err := json.NewDecoder(resp.Body).Decode(&pubActor); err != nil {
+	var decodedActor pub.Actor
+	if err := json.NewDecoder(resp.Body).Decode(&decodedActor); err != nil {
 		return nil, nil, nil, err
 	}
 
-	var followers, following pub.OrderedCollection
+	var decodedFollowers, decodedFollowing pub.OrderedCollection
 
 	if includeFollows {
 		// Fetch followers
-		if data, err := FetchCollection(actor, pubActor.Followers.GetID().String()); err == nil {
-			followers = *data
+		if data, err := FetchCollection(actor, decodedActor.Followers.GetID().String()); err == nil {
+			decodedFollowers = *data
 		}
 
 		// Fetch following
-		if data, err := FetchCollection(actor, pubActor.Following.GetID().String()); err == nil {
-			following = *data
+		if data, err := FetchCollection(actor, decodedActor.Following.GetID().String()); err == nil {
+			decodedFollowing = *data
 		}
 	}
 
-	return &pubActor, &followers, &following, nil
+	return &decodedActor, &decodedFollowers, &decodedFollowing, nil
 }
 
-func FetchCollection(actor *core.Record, url string) (*pub.OrderedCollection, error) {
+func FetchCollection(actor *core.Record, url string) (collection *pub.OrderedCollection, err error) {
 	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
 	if len(encryptionKey) == 0 {
 		return nil, fmt.Errorf("POCKETBASE_ENCRYPTION_KEY not set")
@@ -359,18 +372,22 @@ func FetchCollection(actor *core.Record, url string) (*pub.OrderedCollection, er
 	if err != nil {
 		return nil, fmt.Errorf("collection fetch failed for %s: %v", url, err)
 	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, fmt.Errorf("profile is private")
 		}
 		return nil, fmt.Errorf("collection fetch %s returned: %v", url, resp.StatusCode)
 	}
-	defer resp.Body.Close()
 
-	var collection pub.OrderedCollection
-	if err := json.NewDecoder(resp.Body).Decode(&collection); err != nil {
+	var decodedCollection pub.OrderedCollection
+	if err := json.NewDecoder(resp.Body).Decode(&decodedCollection); err != nil {
 		return nil, err
 	}
 
-	return &collection, nil
+	return &decodedCollection, nil
 }

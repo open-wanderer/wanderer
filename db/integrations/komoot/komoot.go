@@ -46,7 +46,12 @@ func SyncKomoot(app core.App) error {
 			Planned:   true,
 			Completed: true,
 		}
-		json.Unmarshal([]byte(komootString), &komootIntegration)
+		if err := json.Unmarshal([]byte(komootString), &komootIntegration); err != nil {
+			warning := fmt.Sprintf("unable to parse komoot integration data: %v\n", err)
+			fmt.Print(warning)
+			app.Logger().Warn(warning)
+			continue
+		}
 
 		if !komootIntegration.Active || komootIntegration.Email == "" || komootIntegration.Password == "" {
 			continue
@@ -115,7 +120,7 @@ func (k *KomootApi) buildHeader() *BasicAuthToken {
 	return nil
 }
 
-func sendRequest(url string, auth *BasicAuthToken) ([]byte, error) {
+func sendRequest(url string, auth *BasicAuthToken) (respBody []byte, err error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -130,10 +135,17 @@ func sendRequest(url string, auth *BasicAuthToken) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, readErr
+		}
 		return nil, fmt.Errorf("error sending request to komoot (%d): %s", resp.StatusCode, string(body))
 	}
 
@@ -149,7 +161,9 @@ func (k *KomootApi) Login(email, password string) error {
 	}
 
 	var data LoginResponse
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return err
+	}
 
 	k.UserID = data.Username
 	k.Token = data.Password
@@ -165,7 +179,9 @@ func (k *KomootApi) fetchTours(page int) ([]KomootTour, error) {
 	}
 
 	var data KomootToursResponse
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, err
+	}
 
 	tours := data.Embedded.Tours
 
@@ -180,7 +196,9 @@ func (k *KomootApi) fetchDetailedTour(tour KomootTour) (*DetailedKomootTour, err
 	}
 
 	var data *DetailedKomootTour
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, err
+	}
 	return data, nil
 }
 

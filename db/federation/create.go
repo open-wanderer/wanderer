@@ -59,10 +59,14 @@ func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, t
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
 		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, handles[i]))
-		tags.Append(mention)
+		if err := tags.Append(mention); err != nil {
+			return err
+		}
 
 		mentions = append(mentions, inbox)
-		cc.Append(pub.IRI(inbox))
+		if err := cc.Append(pub.IRI(inbox)); err != nil {
+			return err
+		}
 	}
 
 	trailObject, err := util.ObjectFromTrail(app, trail, &tags)
@@ -144,7 +148,9 @@ func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Recor
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
 		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, handles[i]))
-		tags.Append(mention)
+		if err := tags.Append(mention); err != nil {
+			return err
+		}
 
 		recipients = append(recipients, m.GetString("inbox"))
 	}
@@ -152,7 +158,9 @@ func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Recor
 
 	cc := pub.ItemCollection{}
 	for _, r := range recipients {
-		cc.Append(pub.IRI(r))
+		if err := cc.Append(pub.IRI(r)); err != nil {
+			return err
+		}
 	}
 
 	author := commentAuthor.GetString("iri")
@@ -242,7 +250,9 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 
 	// someone else created the summit log on the trail -> inform the trail's author
 	if summitLogAuthor.Id != summitLogTrailAuthor.Id {
-		to.Append(pub.IRI(summitLogTrailAuthor.GetString("iri")))
+		if err := to.Append(pub.IRI(summitLogTrailAuthor.GetString("iri"))); err != nil {
+			return err
+		}
 	}
 
 	mentionedActors, handles, err := ActorsFromMentions(app, actor, summitLog.GetString("text"))
@@ -258,10 +268,14 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
 		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, handles[i]))
-		mentionTags.Append(mention)
+		if err := mentionTags.Append(mention); err != nil {
+			return err
+		}
 
 		mentions = append(mentions, inbox)
-		cc.Append(pub.IRI(inbox))
+		if err := cc.Append(pub.IRI(inbox)); err != nil {
+			return err
+		}
 	}
 
 	photos := summitLog.GetStringSlice("photos")
@@ -282,11 +296,13 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 		}
 	}
 	if gpx != "" {
-		attachments.Append(pub.Document{
+		if err := attachments.Append(pub.Document{
 			Type:      pub.DocumentType,
 			MediaType: "application/xml+gpx",
 			URL:       pub.IRI(gpx),
-		})
+		}); err != nil {
+			return err
+		}
 	}
 
 	tags := pub.ItemCollection{
@@ -313,7 +329,9 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 	}
 
 	for _, m := range mentionTags {
-		tags.Append(m)
+		if err := tags.Append(m); err != nil {
+			return err
+		}
 	}
 
 	logObject := pub.ObjectNew(pub.NoteType)

@@ -160,7 +160,7 @@ func SyncStrava(app core.App) error {
 	return nil
 }
 
-func GetStravaToken(request any) (*RefreshTokenResponse, error) {
+func GetStravaToken(request any) (token *RefreshTokenResponse, err error) {
 	const stravaTokenURL = "https://www.strava.com/oauth/token"
 
 	requestBody, err := json.Marshal(request)
@@ -179,7 +179,11 @@ func GetStravaToken(request any) (*RefreshTokenResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get token: received status %d", resp.StatusCode)
@@ -193,7 +197,7 @@ func GetStravaToken(request any) (*RefreshTokenResponse, error) {
 	return &tokenResponse, nil
 }
 
-func fetchStravaRoutes(accessToken string, page int) ([]StravaRoute, error) {
+func fetchStravaRoutes(accessToken string, page int) (routes []StravaRoute, err error) {
 	stravaRoutesURL := fmt.Sprintf("https://www.strava.com/api/v3/athlete/routes?page=%d", page)
 
 	req, err := http.NewRequest("GET", stravaRoutesURL, nil)
@@ -207,13 +211,16 @@ func fetchStravaRoutes(accessToken string, page int) ([]StravaRoute, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch routes: received status %d", resp.StatusCode)
 	}
 
-	var routes []StravaRoute
 	if err := json.NewDecoder(resp.Body).Decode(&routes); err != nil {
 		return nil, err
 	}
@@ -221,7 +228,7 @@ func fetchStravaRoutes(accessToken string, page int) ([]StravaRoute, error) {
 	return routes, nil
 }
 
-func fetchStravaActivities(accessToken string, page int, after int64) ([]StravaActivity, error) {
+func fetchStravaActivities(accessToken string, page int, after int64) (activities []StravaActivity, err error) {
 	stravaRoutesURL := fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?page=%d&after=%d", page, after)
 	req, err := http.NewRequest("GET", stravaRoutesURL, nil)
 	if err != nil {
@@ -234,13 +241,16 @@ func fetchStravaActivities(accessToken string, page int, after int64) ([]StravaA
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch activities: received status %d", resp.StatusCode)
 	}
 
-	var activities []StravaActivity
 	if err := json.NewDecoder(resp.Body).Decode(&activities); err != nil {
 		return nil, err
 	}
@@ -277,7 +287,7 @@ func syncTrailsWithRoutes(app core.App, accessToken string, user string, actor s
 	return nil
 }
 
-func fetchRouteGPX(route StravaRoute, accessToken string) (*filesystem.File, error) {
+func fetchRouteGPX(route StravaRoute, accessToken string) (gpxFile *filesystem.File, err error) {
 	url := fmt.Sprintf("https://www.strava.com/api/v3/routes/%s/export_gpx", route.IDStr)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -292,8 +302,11 @@ func fetchRouteGPX(route StravaRoute, accessToken string) (*filesystem.File, err
 		return nil, err
 	}
 	defer func() {
-		if resp.Body != nil {
-			resp.Body.Close()
+		if resp == nil || resp.Body == nil {
+			return
+		}
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
 		}
 	}()
 
@@ -307,7 +320,7 @@ func fetchRouteGPX(route StravaRoute, accessToken string) (*filesystem.File, err
 		return nil, err
 	}
 
-	gpxFile, err := filesystem.NewFileFromBytes(buf.Bytes(), route.Name+".gpx")
+	gpxFile, err = filesystem.NewFileFromBytes(buf.Bytes(), route.Name+".gpx")
 	if err != nil {
 		return nil, err
 	}
@@ -433,7 +446,7 @@ func syncTrailsWithActivities(app core.App, accessToken string, actor string, ac
 	return nil
 }
 
-func fetchDetailedActivity(activity StravaActivity, accessToken string) (*DetailedStravaActivity, error) {
+func fetchDetailedActivity(activity StravaActivity, accessToken string) (detailed *DetailedStravaActivity, err error) {
 	url := fmt.Sprintf("https://www.strava.com/api/v3/activities/%d", activity.ID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -446,7 +459,11 @@ func fetchDetailedActivity(activity StravaActivity, accessToken string) (*Detail
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch activity: received status %d", resp.StatusCode)
@@ -558,7 +575,7 @@ func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx
 	return nil
 }
 
-func fetchActivityPhoto(activity *DetailedStravaActivity) (*filesystem.File, error) {
+func fetchActivityPhoto(activity *DetailedStravaActivity) (photo *filesystem.File, err error) {
 	req, err := http.NewRequest("GET", activity.Photos.Primary.Urls.Num600, nil)
 	if err != nil {
 		return nil, err
@@ -569,7 +586,11 @@ func fetchActivityPhoto(activity *DetailedStravaActivity) (*filesystem.File, err
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch photo: received status %d", resp.StatusCode)
@@ -581,7 +602,7 @@ func fetchActivityPhoto(activity *DetailedStravaActivity) (*filesystem.File, err
 		return nil, err
 	}
 
-	photo, err := filesystem.NewFileFromBytes(buf.Bytes(), "photo")
+	photo, err = filesystem.NewFileFromBytes(buf.Bytes(), "photo")
 	if err != nil {
 		return nil, err
 	}
@@ -589,7 +610,7 @@ func fetchActivityPhoto(activity *DetailedStravaActivity) (*filesystem.File, err
 	return photo, nil
 }
 
-func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (*filesystem.File, error) {
+func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (gpxFile *filesystem.File, err error) {
 	url := fmt.Sprintf("https://www.strava.com/api/v3/activities/%d/streams?keys=latlng,time,altitude&key_by_type=true", activity.ID)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -604,7 +625,11 @@ func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch activity: %s", resp.Status)
@@ -651,7 +676,7 @@ func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (
 		return nil, err
 	}
 
-	gpxFile, err := filesystem.NewFileFromBytes(gpxAsXML, activity.Name+".gpx")
+	gpxFile, err = filesystem.NewFileFromBytes(gpxAsXML, activity.Name+".gpx")
 	if err != nil {
 		return nil, err
 	}

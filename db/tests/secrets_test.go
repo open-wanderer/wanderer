@@ -70,7 +70,9 @@ func TestLooksLikeEncrypted(t *testing.T) {
 func TestCanDecryptSecret(t *testing.T) {
 	// Sub-test: When POCKETBASE_ENCRYPTION_KEY is not set.
 	t.Run("NoEncryptionKey", func(t *testing.T) {
-		os.Unsetenv("POCKETBASE_ENCRYPTION_KEY")
+		if err := os.Unsetenv("POCKETBASE_ENCRYPTION_KEY"); err != nil {
+			t.Fatalf("Failed to unset encryption key: %v", err)
+		}
 		if util.CanDecryptSecret("anyciphertext") {
 			t.Errorf("Expected false when POCKETBASE_ENCRYPTION_KEY is not set")
 		}
@@ -78,10 +80,14 @@ func TestCanDecryptSecret(t *testing.T) {
 
 	// Set a valid 32-byte key (for AES-256).
 	encryptionKey := "0123456789abcdef0123456789abcdef" // exactly 32 bytes
-	os.Setenv("POCKETBASE_ENCRYPTION_KEY", encryptionKey)
+	if err := os.Setenv("POCKETBASE_ENCRYPTION_KEY", encryptionKey); err != nil {
+		t.Fatalf("Failed to set encryption key: %v", err)
+	}
 	// Cleanup environment variable after the test.
 	t.Cleanup(func() {
-		os.Unsetenv("POCKETBASE_ENCRYPTION_KEY")
+		if err := os.Unsetenv("POCKETBASE_ENCRYPTION_KEY"); err != nil {
+			t.Fatalf("Failed to unset encryption key: %v", err)
+		}
 	})
 
 	// Sub-test: Valid ciphertext should return true.

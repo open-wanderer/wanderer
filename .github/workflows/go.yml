@@ -30,9 +30,15 @@ jobs:
           fi
           git diff --exit-code
         working-directory: db
+
       - name: go vet
         run: go vet ./...
         working-directory: db
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with: { version: v2.4.0 }
+
       - name: go test
         run: go test ./...
         working-directory: db

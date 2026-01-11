@@ -134,7 +134,7 @@ func difficultyToNumber(difficulty string) int32 {
 	return 0
 }
 
-func getPolyline(app core.App, r *core.Record) (string, error) {
+func getPolyline(app core.App, r *core.Record) (polylineStr string, err error) {
 	gpxPath := r.GetString("gpx")
 	if len(gpxPath) == 0 {
 		return "", nil
@@ -144,13 +144,21 @@ func getPolyline(app core.App, r *core.Record) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer fsys.Close()
+	defer func() {
+		if closeErr := fsys.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	gpxFile, err := fsys.GetReader(avatarKey)
 	if err != nil {
 		return "", err
 	}
-	defer gpxFile.Close()
+	defer func() {
+		if closeErr := gpxFile.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	content := new(bytes.Buffer)
 	_, err = io.Copy(content, gpxFile)
@@ -247,7 +255,7 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	return document, nil
 }
 
-func documentFromRemoteRecord(r *core.Record, index string) (map[string]interface{}, error) {
+func documentFromRemoteRecord(r *core.Record, index string) (document map[string]interface{}, err error) {
 	client := &http.Client{}
 
 	if r.GetString("iri") == "" {
@@ -277,7 +285,11 @@ func documentFromRemoteRecord(r *core.Record, index string) (map[string]interfac
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch remote record: received status %d", resp.StatusCode)
@@ -288,7 +300,9 @@ func documentFromRemoteRecord(r *core.Record, index string) (map[string]interfac
 		return nil, err
 	}
 	var searchResponse meilisearch.SearchResponse
-	json.Unmarshal(respBytes, &searchResponse)
+	if err := json.Unmarshal(respBytes, &searchResponse); err != nil {
+		return nil, err
+	}
 
 	if len(searchResponse.Hits) == 0 {
 		return nil, fmt.Errorf("no documents in result set")

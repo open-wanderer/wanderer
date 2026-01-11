@@ -408,7 +408,9 @@ func deleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 func createCommentHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
 
-		e.Next()
+		if err := e.Next(); err != nil {
+			return err
+		}
 
 		userActor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
 		if err != nil {
@@ -747,8 +749,12 @@ func deleteListShareHandler(client meilisearch.ServiceManager) func(e *core.Reco
 
 func createFollowHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
-		e.Next()
-		federation.CreateFollowActivity(e.App, e.Record)
+		if err := e.Next(); err != nil {
+			return err
+		}
+		if err := federation.CreateFollowActivity(e.App, e.Record); err != nil {
+			return err
+		}
 
 		return nil
 	}
@@ -756,7 +762,9 @@ func createFollowHandler() func(e *core.RecordRequestEvent) error {
 
 func deleteFollowHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
-		federation.CreateUnfollowActivity(e.App, e.Record)
+		if err := federation.CreateUnfollowActivity(e.App, e.Record); err != nil {
+			return err
+		}
 
 		return e.Next()
 	}
@@ -957,7 +965,9 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
 		registerCronJobs(se.App)
-		bootstrapData(se.App, client)
+		if err := bootstrapData(se.App, client); err != nil {
+			return err
+		}
 
 		return se.Next()
 	}
@@ -1274,8 +1284,16 @@ func registerCronJobs(app core.App) {
 }
 
 func bootstrapData(app core.App, client meilisearch.ServiceManager) error {
-	bootstrapCategories(app)
-	go bootstrapMeilisearchDocuments(app, client)
+	if err := bootstrapCategories(app); err != nil {
+		return err
+	}
+	go func() {
+		if err := bootstrapMeilisearchDocuments(app, client); err != nil {
+			warning := fmt.Sprintf("Error bootstrapping meilisearch documents: %v", err)
+			fmt.Println(warning)
+			app.Logger().Error(warning)
+		}
+	}()
 	return nil
 }
 
