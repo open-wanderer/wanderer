@@ -144,21 +144,13 @@ func getPolyline(app core.App, r *core.Record) (polylineStr string, err error) {
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if closeErr := fsys.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer fsys.Close()
 
 	gpxFile, err := fsys.GetReader(avatarKey)
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if closeErr := gpxFile.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-	}()
+	defer gpxFile.Close()
 
 	content := new(bytes.Buffer)
 	_, err = io.Copy(content, gpxFile)
