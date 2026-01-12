@@ -112,7 +112,7 @@ export async function searchLocations(q: string, limit?: number, f: (url: Reques
             format: "geojson",
             addressdetails: "1",
         });
-    const r = await fetchNominatim("search", params, f);
+    const r = await fetchGeocoding("search", params, f);
     if (!r.ok) {
         const response = await r.json();
         throw new APIError(r.status, response.message, response.detail)
@@ -128,13 +128,13 @@ export async function searchLocations(q: string, limit?: number, f: (url: Reques
     }))
 }
 
-async function fetchNominatim(path: string, params: URLSearchParams, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<Response> {
+async function fetchGeocoding(path: string, params: URLSearchParams, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<Response> {
     let attempt = 0;
 
     while (true) {
         try {
             const query = params.toString();
-            const url = query.length ? `/api/v1/nominatim/${path}?${query}` : `/api/v1/nominatim/${path}`;
+            const url = query.length ? `/api/v1/geocoding/${path}?${query}` : `/api/v1/geocoding/${path}`;
             return await f(url);
         } catch (error) {
             if (attempt < NOMINATIM_MAX_RETRIES) {
@@ -153,7 +153,7 @@ export async function searchLocationReverse(lat: number, lon: number, f: (url: R
             format: "geojson",
             addressdetails: "1",
         });
-    const r = await fetchNominatim("reverse", params, f);
+    const r = await fetchGeocoding("reverse", params, f);
     if (!r.ok) {
         const response = await r.json();
         throw new APIError(r.status, response.message, response.detail)
