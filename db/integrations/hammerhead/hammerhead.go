@@ -399,6 +399,11 @@ func syncTrailWithTours(app core.App, k *HammerheadApi, actor string, tours []Ha
 			return nil, true
 		}
 
+		if detailedTour.Distance <= 0 {
+			app.Logger().Warn(fmt.Sprintf("Skipping Hammerhead tour '%s' with zero distance", tour.Name))
+			continue
+		}
+
 		gpx, err := generateTourGPX(detailedTour)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to generate GPX for tour '%s': %v", tour.Name, err))
@@ -437,6 +442,12 @@ func syncTrailWithActivities(app core.App, k *HammerheadApi, actor string, tours
 			return nil, true
 		}
 
+		distance, ok := activityDistance(detailedTour)
+		if !ok || distance <= 0 {
+			app.Logger().Warn(fmt.Sprintf("Skipping Hammerhead activity '%s' with zero distance", tour.Name))
+			continue
+		}
+
 		gpx, err := generateActivityGPX(detailedTour)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to generate GPX for tour '%s': %v", tour.Name, err))
@@ -451,6 +462,15 @@ func syncTrailWithActivities(app core.App, k *HammerheadApi, actor string, tours
 	}
 
 	return nil, false
+}
+
+func activityDistance(detailedTour *HammerheadActivity) (float64, bool) {
+	idDistance := slices.IndexFunc(detailedTour.ActivityData.ActivityInfo, func(c HammerheadInfo) bool { return c.Key == "TYPE_DISTANCE_ID" })
+	if idDistance < 0 {
+		return 0, false
+	}
+
+	return detailedTour.ActivityData.ActivityInfo[idDistance].Value.Value, true
 }
 
 func createTrailFromActivity(app core.App, detailedTour *HammerheadActivity, gpx *filesystem.File, actor string) (string, error) {
