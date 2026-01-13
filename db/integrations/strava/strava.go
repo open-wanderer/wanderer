@@ -134,7 +134,7 @@ func SyncStrava(app core.App) error {
 					app.Logger().Warn(warning)
 					break
 				}
-				err = syncTrailsWithActivities(app, r.AccessToken, actorId, activities)
+				err = syncTrailsWithActivities(app, r.AccessToken, userId, actorId, activities)
 
 				if err != nil {
 					warning := fmt.Sprintf("error syncing strava activities with trails: %v", err)
@@ -262,7 +262,7 @@ func syncTrailsWithRoutes(app core.App, accessToken string, user string, actor s
 			app.Logger().Warn(fmt.Sprintf("Unable to fetch GPX for route '%s': %v", route.Name, err))
 			continue
 		}
-		trailid, err := createTrailFromRoute(app, route, gpx, actor)
+		trailid, err := createTrailFromRoute(app, route, gpx, user, actor)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for route '%s': %v", route.Name, err))
 			continue
@@ -315,7 +315,7 @@ func fetchRouteGPX(route StravaRoute, accessToken string) (*filesystem.File, err
 	return gpxFile, nil
 }
 
-func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File, actor string) (string, error) {
+func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File, user string, actor string) (string, error) {
 	trailid := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
 
 	collection, err := app.FindCollectionByNameOrId("trails")
@@ -348,11 +348,21 @@ func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File,
 		category = hikeCategory.Id
 	}
 
+	privacySettings := struct {
+		Trails string `json:"trails"`
+	}{}
+
+	settings, _ := app.FindFirstRecordByData("settings", "user", user)
+	err = settings.UnmarshalJSONField("privacy", &privacySettings)
+	if err != nil {
+		return "", err
+	}
+
 	record.Load(map[string]any{
 		"id":                trailid,
 		"name":              route.Name,
 		"description":       route.Description,
-		"public":            !route.Private,
+		"public":            privacySettings.Trails == "public",
 		"distance":          route.Distance,
 		"elevation_gain":    route.ElevationGain,
 		"duration":          route.EstimatedMovingTime,
@@ -404,7 +414,7 @@ func createWaypointsFromRoute(app core.App, route StravaRoute, user string, trai
 	return nil
 }
 
-func syncTrailsWithActivities(app core.App, accessToken string, actor string, activities []StravaActivity) error {
+func syncTrailsWithActivities(app core.App, accessToken string, user string, actor string, activities []StravaActivity) error {
 	for _, activity := range activities {
 		trails, err := app.FindRecordsByFilter("trails", "external_id = {:id}", "", 1, 0, dbx.Params{"id": strconv.Itoa(int(activity.ID))})
 		if err != nil {
@@ -423,7 +433,7 @@ func syncTrailsWithActivities(app core.App, accessToken string, actor string, ac
 			app.Logger().Warn(fmt.Sprintf("Unable to fetch GPX for activity '%s': %v", activity.Name, err))
 			continue
 		}
-		err = createTrailFromActivity(app, detailedActivity, gpx, actor)
+		err = createTrailFromActivity(app, detailedActivity, gpx, user, actor)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail from activity '%s': %v", activity.Name, err))
 			continue
@@ -460,7 +470,7 @@ func fetchDetailedActivity(activity StravaActivity, accessToken string) (*Detail
 	return &detailedActivity, nil
 }
 
-func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx *filesystem.File, user string) error {
+func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx *filesystem.File, user string, actor string) error {
 	if len(activity.StartLatlng) < 2 {
 		return nil
 	}
@@ -526,10 +536,20 @@ func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx
 		categoryId = category.Id
 	}
 
+	privacySettings := struct {
+		Trails string `json:"trails"`
+	}{}
+
+	settings, _ := app.FindFirstRecordByData("settings", "user", user)
+	err = settings.UnmarshalJSONField("privacy", &privacySettings)
+	if err != nil {
+		return err
+	}
+
 	record.Load(map[string]any{
 		"name":              activity.Name,
 		"description":       activity.Description,
-		"public":            !activity.Private,
+		"public":            privacySettings.Trails == "public",
 		"distance":          activity.Distance,
 		"elevation_gain":    activity.TotalElevationGain,
 		"duration":          activity.ElapsedTime,
@@ -540,7 +560,7 @@ func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx
 		"lon":               activity.StartLatlng[1],
 		"difficulty":        "easy",
 		"category":          categoryId,
-		"author":            user,
+		"author":            actor,
 	})
 
 	if photo != nil {

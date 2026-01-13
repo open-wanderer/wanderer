@@ -205,7 +205,7 @@ func syncTrailWithTours(app core.App, k *KomootApi, i KomootIntegration, user st
 			app.Logger().Warn(fmt.Sprintf("Unable to generate GPX for tour '%s': %v", tour.Name, err))
 			continue
 		}
-		trailid, err := createTrailFromTour(app, k, detailedTour, gpx, actor)
+		trailid, err := createTrailFromTour(app, k, detailedTour, gpx, user, actor)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for tour '%s': %v", tour.Name, err))
 			continue
@@ -220,7 +220,7 @@ func syncTrailWithTours(app core.App, k *KomootApi, i KomootIntegration, user st
 	return hasNewTours, nil
 }
 
-func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomootTour, gpx *filesystem.File, actor string) (string, error) {
+func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomootTour, gpx *filesystem.File, user string, actor string) (string, error) {
 	trailid := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
 
 	collection, err := app.FindCollectionByNameOrId("trails")
@@ -266,10 +266,20 @@ func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomoo
 		diffculty = "easy"
 	}
 
+	privacySettings := struct {
+		Trails string `json:"trails"`
+	}{}
+
+	settings, _ := app.FindFirstRecordByData("settings", "user", user)
+	err = settings.UnmarshalJSONField("privacy", &privacySettings)
+	if err != nil {
+		return "", err
+	}
+
 	record.Load(map[string]any{
 		"id":                trailid,
 		"name":              detailedTour.Name,
-		"public":            detailedTour.Status == "public",
+		"public":            privacySettings.Trails == "public",
 		"distance":          detailedTour.Distance,
 		"elevation_gain":    detailedTour.ElevationUp,
 		"elevation_loss":    detailedTour.ElevationDown,
