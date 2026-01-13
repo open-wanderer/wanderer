@@ -2,7 +2,10 @@
     import type { StyleSwitcherControlOptions } from "$lib/vendor/maplibre-style-switcher/style-switcher-control";
     import { _ } from "svelte-i18n";
     import RadioGroup, { type RadioItem } from "../base/radio_group.svelte";
-    import { defaultMapState } from "$lib/vendor/maplibre-layer-manager/layers";
+    import {
+        defaultMapState,
+        type MapState,
+    } from "$lib/vendor/maplibre-layer-manager/layers";
 
     interface Props {
         settings: StyleSwitcherControlOptions;
@@ -10,7 +13,26 @@
 
     let { settings }: Props = $props();
 
-    let mapState = $state(settings.state);
+    function normalizeMapState(state: MapState): MapState {
+        const base = state.base ?? defaultMapState.base;
+        const overlays = { ...defaultMapState.overlays, ...(state.overlays ?? {}) };
+        const pois: MapState["pois"] = {};
+
+        for (const [category, defaults] of Object.entries(defaultMapState.pois)) {
+            const categoryState = state.pois?.[category] ?? {};
+            pois[category] = { ...defaults, ...categoryState };
+        }
+
+        for (const [category, values] of Object.entries(state.pois ?? {})) {
+            if (!pois[category]) {
+                pois[category] = { ...values };
+            }
+        }
+
+        return { base, overlays, pois };
+    }
+
+    let mapState = $state(normalizeMapState(settings.state));
 
     let container: HTMLDivElement;
 
