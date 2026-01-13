@@ -31,9 +31,9 @@ pocket_key=$(openssl rand -hex 16)
 
 # Download docker-compose.yml using curl or wget
 if command -v wget >/dev/null 2>&1; then
-  wget -O docker-compose.yml https://raw.githubusercontent.com/Flomp/wanderer/refs/heads/main/docker-compose.yml
+  wget -O docker-compose.yml https://raw.githubusercontent.com/open-wanderer/wanderer/refs/heads/main/docker-compose.yml
 elif command -v curl >/dev/null 2>&1; then
-  curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/Flomp/wanderer/refs/heads/main/docker-compose.yml
+  curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/open-wanderer/wanderer/refs/heads/main/docker-compose.yml
 else
   echo "Error: neither wget nor curl is installed." >&2
   exit 1
