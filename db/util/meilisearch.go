@@ -42,9 +42,33 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 		category = trailCategory.GetString("name")
 	}
 
-	polyline, err := getPolyline(app, r)
+	polyline, geojson, err := getPolylineAndGeoJSON(app, r)
 	if err != nil {
+		app.Logger().Warn(fmt.Sprintf("failed to parse gpx for trail %s: %v", r.Id, err))
 		polyline = ""
+		geojson = nil
+	}
+
+	if geojson == nil {
+		minLat := r.GetFloat("min_lat")
+		minLon := r.GetFloat("min_lon")
+		maxLat := r.GetFloat("max_lat")
+		maxLon := r.GetFloat("max_lon")
+
+		if minLat != 0 || minLon != 0 || maxLat != 0 || maxLon != 0 {
+			geojson = map[string]interface{}{
+				"type": "Polygon",
+				"coordinates": [][][]float64{
+					{
+						{minLon, minLat},
+						{maxLon, minLat},
+						{maxLon, maxLat},
+						{minLon, maxLat},
+						{minLon, minLat},
+					},
+				},
+			}
+		}
 	}
 
 	domain := ""
@@ -53,6 +77,15 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 	}
 
 	logCount, err := app.CountRecords("summit_logs", dbx.NewExp("trail={:id}", dbx.Params{"id": r.Id}))
+	if err != nil {
+		return nil, err
+	}
+
+	quadNodeIds, err := TrailQuadNodeIDs(app, r.Id)
+	if err != nil {
+		return nil, err
+	}
+	timeBucketIds, err := TrailTimeBucketIDs(app, r.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -81,10 +114,20 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 		"polyline":       polyline,
 		"domain":         domain,
 		"iri":            r.GetString("iri"),
+		"min_lat":        r.GetFloat("min_lat"),
+		"min_lon":        r.GetFloat("min_lon"),
+		"max_lat":        r.GetFloat("max_lat"),
+		"max_lon":        r.GetFloat("max_lon"),
+		"time_bucket_ids": timeBucketIds,
+		"quad_node_ids":   quadNodeIds,
 		"_geo": map[string]float64{
 			"lat": r.GetFloat("lat"),
 			"lng": r.GetFloat("lon"),
 		},
+	}
+
+	if geojson != nil {
+		document["_geojson"] = geojson
 	}
 
 	if includeShares {
@@ -134,36 +177,62 @@ func difficultyToNumber(difficulty string) int32 {
 	return 0
 }
 
+func trailBoundsFromRecord(r *core.Record) (float64, float64, float64, float64, bool) {
+	if r.Get("min_lat") != nil &&
+		r.Get("min_lon") != nil &&
+		r.Get("max_lat") != nil &&
+		r.Get("max_lon") != nil {
+		return r.GetFloat("min_lat"),
+			r.GetFloat("min_lon"),
+			r.GetFloat("max_lat"),
+			r.GetFloat("max_lon"),
+			true
+	}
+
+	if r.Get("lat") != nil && r.Get("lon") != nil {
+		lat := r.GetFloat("lat")
+		lon := r.GetFloat("lon")
+		return lat, lon, lat, lon, true
+	}
+
+	return 0, 0, 0, 0, false
+}
+
 func getPolyline(app core.App, r *core.Record) (string, error) {
+	polylineStr, _, err := getPolylineAndGeoJSON(app, r)
+	return polylineStr, err
+}
+
+func getPolylineAndGeoJSON(app core.App, r *core.Record) (string, map[string]interface{}, error) {
 	gpxPath := r.GetString("gpx")
 	if len(gpxPath) == 0 {
-		return "", nil
+		return "", nil, nil
 	}
 	avatarKey := r.BaseFilesPath() + "/" + gpxPath
 	fsys, err := app.NewFilesystem()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	defer fsys.Close()
 
 	gpxFile, err := fsys.GetReader(avatarKey)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	defer gpxFile.Close()
 
 	content := new(bytes.Buffer)
 	_, err = io.Copy(content, gpxFile)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	gpxData, err := gpx.Parse(content)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	gpxData.SimplifyTracks(50)
-	coordinates := make([][]float64, 4)
+	coordinates := make([][]float64, 0)
 	for _, trk := range gpxData.Tracks {
 		for _, seg := range trk.Segments {
 			for _, pt := range seg.Points {
@@ -171,7 +240,24 @@ func getPolyline(app core.App, r *core.Record) (string, error) {
 			}
 		}
 	}
-	return string(polyline.EncodeCoords(coordinates)), nil
+
+	if len(coordinates) == 0 {
+		return "", nil, nil
+	}
+
+	polylineStr := string(polyline.EncodeCoords(coordinates))
+
+	geojsonCoords := make([][]float64, len(coordinates))
+	for i, coord := range coordinates {
+		geojsonCoords[i] = []float64{coord[1], coord[0]}
+	}
+
+	geojson := map[string]interface{}{
+		"type":        "LineString",
+		"coordinates": geojsonCoords,
+	}
+
+	return polylineStr, geojson, nil
 }
 
 func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
