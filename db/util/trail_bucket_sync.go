@@ -108,12 +108,12 @@ func bucketTablesEmpty(app core.App) (bool, error) {
 }
 
 func clearTrailBucketData(app core.App) error {
-		tables := []string{
-			"trail_quad_nodes",
-			"quad_nodes",
-			"trail_time_bucket_entries",
-			"trail_time_buckets",
-		}
+	tables := []string{
+		"trail_quad_nodes",
+		"quad_nodes",
+		"trail_time_bucket_entries",
+		"trail_time_buckets",
+	}
 
 	for _, table := range tables {
 		if err := ensureBucketCollectionExists(app, table); err != nil {
