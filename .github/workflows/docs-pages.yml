@@ -1,0 +1,65 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - .github/workflows/docs-pages.yml
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+      - name: Build preview docs (main)
+        if: github.event_name == 'push'
+        run: npm run build
+        env:
+          ASTRO_PAGES: 'true'
+          ASTRO_BASE: /${{ github.event.repository.name }}/preview/
+          ASTRO_SITE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+      - name: Deploy preview docs to gh-pages
+        if: github.event_name == 'push'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: docs/dist
+          destination_dir: preview
+          keep_files: true
+      - name: Build release docs
+        if: github.event_name == 'release'
+        run: npm run build
+        env:
+          ASTRO_PAGES: 'true'
+          ASTRO_BASE: /${{ github.event.repository.name }}/
+          ASTRO_SITE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+      - name: Deploy release docs to gh-pages
+        if: github.event_name == 'release'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: docs/dist
+          destination_dir: .
+          keep_files: true

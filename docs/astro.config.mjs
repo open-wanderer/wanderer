@@ -8,6 +8,14 @@ import tailwindcss from "@tailwindcss/vite";
 
 import svelte from '@astrojs/svelte';
 
+const isPages = process.env.ASTRO_PAGES === 'true';
+const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
+const repoOwner = process.env.GITHUB_REPOSITORY_OWNER;
+const defaultPagesBase = repoName ? `/${repoName}/` : '/';
+const pagesBase = process.env.ASTRO_BASE ?? defaultPagesBase;
+const defaultPagesSite = repoOwner && repoName ? `https://${repoOwner}.github.io/${repoName}` : undefined;
+const pagesSite = process.env.ASTRO_SITE ?? defaultPagesSite;
+
 // https://astro.build/config
 export default defineConfig({
   integrations: [starlight({
@@ -136,9 +144,11 @@ export default defineConfig({
       }],
     customCss: ['./src/custom.css', './src/tailwind.css', '@fontsource/ibm-plex-sans/400.css', '@fontsource/ibm-plex-sans/600.css', '@fontsource/ibm-plex-mono/400.css', '@fontsource/ibm-plex-mono/600.css']
   }), svelte()],
-  output: "server",
+  site: isPages ? pagesSite : undefined,
+  base: isPages ? pagesBase : '/',
+  output: isPages ? "static" : "server",
   vite: { plugins: [tailwindcss()] },
-  adapter: node({
+  adapter: isPages ? undefined : node({
     mode: "standalone"
   }),
   redirects: {
