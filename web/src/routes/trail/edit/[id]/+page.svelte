@@ -94,13 +94,17 @@
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
-    import { onMount, tick, untrack } from "svelte";
+    import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
-    import { fly, slide } from "svelte/transition";
+    import { fly } from "svelte/transition";
     import { z } from "zod";
     import Track from "$lib/models/gpx/track.js";
     import TrackSegment from "$lib/models/gpx/track-segment.js";
+    import { getTrailDifficulty } from "$lib/util/trail_util";
+    import { Settings } from "$lib/models/settings";
+    import { Threshold, type Category } from "$lib/models/category.js";
+
 
     let { data } = $props();
 
@@ -223,7 +227,7 @@
                         ?.at(0)
                         ?.trkseg?.at(0)
                         ?.trkpt?.at(0)?.$.lon;
-                }
+                } 
 
                 if (page.params.id === "new" && !savedAtLeastOnce) {
                     const createdTrail = await trails_create(
@@ -231,6 +235,8 @@
                         photoFiles,
                         gpxFile,
                     );
+                    
+                    await setDifficulty(createdTrail);
                     setFields(createdTrail);
                     trail.set(createdTrail);
                 } else {
@@ -263,6 +269,59 @@
             }
         },
     });
+
+    async function setDifficulty(trail: Trail) {
+        if (!trail.distance) return;
+
+        let settings: Settings = page.data.settings;
+        let trailCategory: Category | undefined = undefined;
+
+        if (!trail.category) {
+            const catBiking = $categories.find(c => c.id == "7u4d6b446po42f0");
+            const catHiking = $categories.find(c => c.id == "28u13dp5p7ry2n7");
+
+            if (routingOptions && routingOptions.autoRouting) {
+                if (routingOptions.modeOfTransport == "bicycle") {
+                    trailCategory = catBiking;
+                } else if (routingOptions.modeOfTransport == "pedestrian") {
+                    trailCategory = catHiking;
+                }
+            }
+
+            if (!trailCategory && trail.expand?.gpx?.features) {
+                let speed = trail.distance / (trail.expand.gpx.features.moveDuration / 3600.0);
+                
+                if (speed < 10) {
+                    trailCategory = catHiking;
+                } else if (speed < 40) {
+                    trailCategory = catBiking;
+                }
+                
+                if (!trailCategory) {
+                    return;
+                }
+            }
+        } else {
+            trailCategory = $categories.find(c => c.name == trail.category)
+        }
+
+        if (settings && settings.skills) {
+            let skills = settings.skills.find((skill) => skill.category == trailCategory?.id);
+            if (skills && skills.speed && trailCategory?.thresholds && trailCategory.thresholds.length > 0) {
+                
+                let thresholds: Threshold[] = new Array();
+                for (let thresh of trailCategory.thresholds) {
+                    if (thresh.speed == skills.speed) {
+                        thresholds.push(thresh);
+                    }
+                }
+
+                if (thresholds.length > 0) {
+                    trail.difficulty = getTrailDifficulty(trail, thresholds);
+                }
+            }
+        }
+    }
 
     onMount(async () => {
         clearAnchors();
@@ -319,7 +378,8 @@
 
         try {
             const prevId = $formData.id;
-            const parseResult = await gpx2trail(gpxData, selectedFile.name);
+            const parseResult = await gpx2trail(gpxData, selectedFile.name);            
+            await setDifficulty(parseResult.trail);
             setFields(parseResult.trail);
             $formData.id = prevId ?? cryptoRandomString({ length: 15 });
             $formData.expand!.gpx_data = gpxData;

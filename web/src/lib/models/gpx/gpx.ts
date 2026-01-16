@@ -30,6 +30,7 @@ type GPXFeature = {
   elevationGain?: number;
   elevationLoss?: number;
   duration: number;
+  moveDuration: number;
   hash: string; // MinHash or Geohash for track shape
 };
 
@@ -98,6 +99,7 @@ export default class GPX {
     let totalElevationGain = 0;
     let totalElevationLoss = 0;
     let totalDuration = 0;
+    let moveDuration = 0;
     let totalDistance = 0;
     let totalLat = 0
     let totalLon = 0
@@ -121,6 +123,7 @@ export default class GPX {
           }
         }
 
+        let prevDistance = 0;
         const pointLength = points.length
         for (let i = 1; i < pointLength; i++) {
           const point = points[i];
@@ -133,6 +136,18 @@ export default class GPX {
           maxLat = Math.max(maxLat, point.$.lat ?? -Infinity);
           minLon = Math.min(minLon, point.$.lon ?? Infinity);
           maxLon = Math.max(maxLon, point.$.lon ?? -Infinity);
+
+          let pointDistance = metrics.totalDistance - prevDistance;
+          const startTime = points[i - 1].time;
+          const endTime = points[i].time;
+          if (startTime && endTime) {
+            let pointDuration = endTime.getTime() - startTime.getTime();
+            let speed = pointDistance / (pointDuration / 3600.0);
+            if (speed >= 0.5 && speed <= 1500) {
+              moveDuration += pointDuration;
+            }
+          }
+          prevDistance = metrics.totalDistance;
         }
       }
     }
@@ -152,6 +167,7 @@ export default class GPX {
       elevationGain: totalElevationGain,
       elevationLoss: totalElevationLoss,
       duration: Math.abs(totalDuration),
+      moveDuration: Math.abs(moveDuration),
       hash: this.generateMinHash(allPoints)
     }
   }

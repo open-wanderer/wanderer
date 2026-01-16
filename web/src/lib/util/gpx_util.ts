@@ -12,7 +12,6 @@ import type { Feature, FeatureCollection, GeoJSON, GeoJsonProperties, Position }
 import JSZip from "jszip";
 import type { AuthRecord } from "pocketbase";
 import * as xmldom from 'xmldom';
-import { bbox, splitMultiLineStringToLineStrings } from "./geojson_util";
 import { trails_show } from "$lib/stores/trail_store";
 import { handleFromRecordWithIRI } from "./activitypub_util";
 import { Waypoint } from "$lib/models/waypoint";
@@ -70,7 +69,7 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
     trail.duration = totals.duration / 1000
     trail.elevation_gain = totals.elevationGain;
     trail.elevation_loss = totals.elevationLoss;
-    trail.distance = totals.distance
+    trail.distance = totals.distance;
 
     return { gpx: gpx, trail: trail }
 }

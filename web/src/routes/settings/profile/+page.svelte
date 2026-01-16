@@ -1,15 +1,14 @@
 <script lang="ts">
-    import { page } from "$app/state";
     import Button from "$lib/components/base/button.svelte";
     import Editor from "$lib/components/base/editor.svelte";
     import type { SelectItem } from "$lib/components/base/select.svelte";
     import Select from "$lib/components/base/select.svelte";
-    import Textarea from "$lib/components/base/textarea.svelte";
     import type { Category } from "$lib/models/category.js";
     import { settings_update } from "$lib/stores/settings_store";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
     import { currentUser, users_update } from "$lib/stores/user_store";
     import { getFileURL } from "$lib/util/file_util";
+    import SkillCard from "$lib/components/settings/skill_card.svelte";
     import { _ } from "svelte-i18n";
 
     let { data } = $props();
@@ -17,14 +16,14 @@
     let settings = $state(data.settings)
 
     let selectedCategory = $state(
-        data.settings?.category || data.categories[0].id,
+        data.categories.find((c) => c.id == data.settings.category) || data.categories[0],
     );
 
     let bio = $state(data.settings?.bio ?? "");
 
     const categoryItems: SelectItem[] = data.categories.map((c: Category) => ({
         text: $_(c.name),
-        value: c.id,
+        value: c,//.id,
     }));
 
     function openFileBrowser() {
@@ -68,6 +67,10 @@
             id: settings.id,
             category: value,
         });
+    }
+
+    async function handleSkillUpdate() {
+        await settings_update(settings);
     }
 </script>
 
@@ -128,6 +131,16 @@
                 bind:value={selectedCategory}
                 onchange={handleCategorySelection}
             ></Select>
+        </div>
+        <div>
+            <h4 class="text-xl font-medium mb-2">{$_("skills")}</h4>
+            {#each categoryItems as category}
+                <SkillCard
+                    bind:settings={settings}
+                    category={category.value}
+                    onchange={handleSkillUpdate}
+                />
+            {/each}
         </div>
     </div>
 {/if}

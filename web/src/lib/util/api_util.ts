@@ -23,6 +23,7 @@ export enum Collection {
     activitypub_actors = "activitypub_actors",
     categories = "categories",
     comments = "comments",
+    difficulty_algorithms = "difficulty_algorithms",
     feed = "feed",
     follows = "follows",
     integrations = "integrations",

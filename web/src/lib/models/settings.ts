@@ -28,6 +28,7 @@ class Settings {
   user?: string;
   privacy?: { account: "public" | "private", trails: "public" | "private", lists: "public" | "private" } | null
   notifications?: Record<NotificationType, { web: boolean, email: boolean }> | null
+  skills?: ({ category: string, algorithm: string, speed: string }[]) | null;
 
   constructor(
     unit: "metric" | "imperial",
@@ -39,6 +40,7 @@ class Settings {
       category?: string
       tilesets?: { name: string, url: string }[]
       terrain?: { terrain: string, hillshading: string };
+      skills?: { category: string, algorithm: string, speed: string }[];
     }
   ) {
     this.unit = unit;
@@ -49,6 +51,7 @@ class Settings {
     this.category = params?.category;
     this.tilesets = params?.tilesets ?? [];
     this.terrain = params?.terrain;
+    this.skills = params?.skills ?? [];
   }
 }
 
