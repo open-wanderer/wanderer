@@ -27,5 +27,4 @@ jobs:
 
       - run: npm install
       - run: npm run check
-        continue-on-error: true
       - run: npm run test:unit
