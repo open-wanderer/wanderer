@@ -62,12 +62,11 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
         let costingBody;
         switch (options.modeOfTransport) {
             case "bicycle":
-                costingBody = { "costing": options.modeOfTransport, "costing_options": { [options.modeOfTransport]: options.autoOptions } }
-                break;
-            case "auto":
                 costingBody = { "costing": options.modeOfTransport, "costing_options": { [options.modeOfTransport]: options.bicycleOptions } }
                 break;
-
+            case "auto":
+                costingBody = { "costing": options.modeOfTransport, "costing_options": { [options.modeOfTransport]: options.autoOptions } }
+                break;
             case "pedestrian":
                 costingBody = { "costing": options.modeOfTransport, "costing_options": { [options.modeOfTransport]: options.pedestrianOptions } }
                 break;

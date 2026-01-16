@@ -1,5 +1,8 @@
 <script lang="ts">
     import Modal from "$lib/components/base/modal.svelte";
+    import Select, {
+        type SelectItem,
+    } from "$lib/components/base/select.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import Toggle from "$lib/components/base/toggle.svelte";
     import { KomootSchema } from "$lib/models/api/integration_schema";
@@ -20,6 +23,14 @@
 
     let modal: Modal;
 
+    const privacySelectItems: SelectItem[] = [
+        {
+            text: $_("keep-original"),
+            value: "original",
+        },
+        { text: $_("apply-user-settings"), value: "settings" },
+    ];
+
     export function openModal() {
         errors.set({});
         modal.openModal();
@@ -36,6 +47,7 @@
             completed: integration?.komoot?.completed ?? true,
             planned: integration?.komoot?.planned ?? true,
             active: integration?.komoot?.active ?? false,
+            privacy: integration?.komoot?.privacy ?? "original",
         },
         extend: validator({
             schema: KomootSchema,
@@ -70,13 +82,28 @@
                 error={$errors.password}
             ></TextField>
             <div class="flex flex-wrap gap-x-4">
-                <Toggle name="planned" label={$_("planned-tours", { values: { n: 2 } })}
+                <Toggle
+                    name="planned"
+                    label={$_("planned-tours", { values: { n: 2 } })}
                 ></Toggle>
                 <Toggle
                     name="completed"
                     label={$_("completed-tours", { values: { n: 2 } })}
                 ></Toggle>
             </div>
+
+            <Select
+                label={$_("privacy")}
+                items={privacySelectItems}
+                name="privacy"
+            ></Select>
+            <p class="text-xs text-gray-500 max-w-lg">
+                {#if $d.privacy == "original"}
+                    {$_("integration-privacy-hint-original")}
+                {:else}
+                    {$_("integration-privacy-hint-user")}
+                {/if}
+            </p>
         </form>
     {/snippet}
     {#snippet footer()}
