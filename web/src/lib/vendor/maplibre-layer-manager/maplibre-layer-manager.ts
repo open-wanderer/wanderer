@@ -88,6 +88,9 @@ export class LayerManager {
 
 
     addLayer(id: string, layer: BaseLayer) {
+        if(!layer.spec) {
+            return;
+        }
         if (this.layers[id] && this.map.getLayer(id)) {
             // update sources and return
             for (const [sourceId, s] of Object.entries(layer.spec.sources)) {
@@ -125,9 +128,14 @@ export class LayerManager {
                     this.map.on('mouseleave', id, listener.onLeave);
                 }
 
-                if (listener.onMouseDown && !this.addedListeners.has("click-" + id)) {
-                    this.addedListeners.add("click-" + id)
-                    this.map.on('click', id, listener.onMouseDown);
+                if (listener.onMouseDown && !this.addedListeners.has("mousedown-" + id)) {
+                    this.addedListeners.add("mousedown-" + id)
+                    this.map.on('mousedown', id, listener.onMouseDown);
+                }
+
+                if (listener.onMouseUp && !this.addedListeners.has("mouseup-" + id)) {
+                    this.addedListeners.add("mouseup-" + id)
+                    this.map.on('mouseup', id, listener.onMouseUp);
                 }
 
                 if (listener.onMouseMove && !this.addedListeners.has("mousemove-" + id)) {
@@ -188,7 +196,7 @@ export class LayerManager {
     }
 
     private restoreLayers() {
-        for (const [id, layer] of Object.entries(this.layers)) {           
+        for (const [id, layer] of Object.entries(this.layers)) {
             this.addLayer(id, layer)
         }
     }

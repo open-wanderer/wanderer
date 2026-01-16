@@ -29,6 +29,6 @@ export class TrailLayer implements BaseLayer {
 
         };
 
-        this.listeners = { id: listerners ?? {} }
+        this.listeners = { [id]: listerners ?? {} }
     }
 }

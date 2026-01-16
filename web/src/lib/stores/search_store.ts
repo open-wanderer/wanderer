@@ -4,6 +4,7 @@ import { defaultTrailSearchAttributes, type TrailSearchResult } from "$lib/model
 import { APIError } from "$lib/util/api_util";
 import type { Hits, MultiSearchParams, MultiSearchResponse, MultiSearchResult, SearchParams, SearchResponse } from "meilisearch";
 import type { ListResult } from "pocketbase";
+import { version } from "$app/environment";
 
 export type LocationSearchResult = {
     name: string;
@@ -107,6 +108,9 @@ export async function searchLocations(q: string, limit?: number): Promise<Hits<L
     const nominatimURL = env.PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org"
     const r = await fetch(`${nominatimURL}/search?q=${q}&format=geojson&addressdetails=1${limit ? '&limit=' + limit : ''}`, {
         method: "GET",
+        headers: new Headers({
+            "User-Agent": "wanderer/" + version
+        })
     });
     if (!r.ok) {
         const response = await r.json();
@@ -127,6 +131,9 @@ export async function searchLocationReverse(lat: number, lon: number) {
     const nominatimURL = env.PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org"
     const r = await fetch(`${nominatimURL}/reverse?lat=${lat}&lon=${lon}&format=geojson&addressdetails=1`, {
         method: "GET",
+        headers: new Headers({
+            "User-Agent": "wanderer/" + version
+        })
     });
     if (!r.ok) {
         const response = await r.json();

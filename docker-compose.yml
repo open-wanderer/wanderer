@@ -10,7 +10,7 @@ services:
     image: getmeili/meilisearch:v1.11.3
     environment:
       <<: *cenv
-      MEILI_NO_ANALYTICS: true
+      MEILI_NO_ANALYTICS: "true"
     ports:
       - 7700:7700
     networks:
@@ -41,6 +41,12 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/pb_data:/pb_data
+    healthcheck:
+      test: wget --spider -q http://localhost:8090/health || exit 1
+      interval: 15s
+      retries: 10
+      start_period: 20s
+      timeout: 10s
   web:
     container_name: wanderer-web
     image: flomp/wanderer-web
@@ -48,39 +54,47 @@ services:
       search:
         condition: service_healthy
       db:
-        condition: service_started
+        condition: service_healthy
     environment:
       <<: *cenv
       ORIGIN: http://localhost:3000
       BODY_SIZE_LIMIT: Infinity
       PUBLIC_POCKETBASE_URL: http://db:8090
-      PUBLIC_DISABLE_SIGNUP: false
+      PUBLIC_DISABLE_SIGNUP: "false"
       UPLOAD_FOLDER: /app/uploads
       UPLOAD_USER:
       UPLOAD_PASSWORD:
+      PUBLIC_OVERPASS_API_URL: https://overpass-api.de
       PUBLIC_VALHALLA_URL: https://valhalla1.openstreetmap.de
       PUBLIC_NOMINATIM_URL: https://nominatim.openstreetmap.org
     volumes:
       - ./data/uploads:/app/uploads
+      # - ./data/about.md:/app/build/client/md/about.md
     ports:
       - "3000:3000"
     networks:
       - wanderer
     restart: unless-stopped
-  # valhalla:
-  #   image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
-  #   ports:
-  #     - "8002:8002"
-  #   volumes:
-  #     - ./data/valhalla:/custom_files
-  #   environment:
-  #     - tile_urls=https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf
-  #     - use_tiles_ignore_pbf=True
-  #     - force_rebuild=False
-  #     - force_rebuild_elevation=False
-  #     - build_elevation=True
-  #     - build_admins=True
-  #     - build_time_zones=True
+    healthcheck:
+      test: curl --fail http://localhost:3000/ || exit 1
+      interval: 15s
+      retries: 10
+      start_period: 20s
+      timeout: 10s
+# valhalla:
+#   image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+#   ports:
+#     - "8002:8002"
+#   volumes:
+#     - ./data/valhalla:/custom_files
+#   environment:
+#     - tile_urls=https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf
+#     - use_tiles_ignore_pbf=True
+#     - force_rebuild=False
+#     - force_rebuild_elevation=False
+#     - build_elevation=True
+#     - build_admins=True
+#     - build_time_zones=True
 
 networks:
   wanderer:

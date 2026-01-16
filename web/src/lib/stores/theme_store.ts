@@ -25,6 +25,7 @@ export function toggleTheme() {
     const newTheme = currentTheme === "light" ? "dark" : "light";
     document.documentElement.classList.remove(currentTheme)
     document.documentElement.classList.add(newTheme)
+    document.querySelector("meta[name='color-scheme'" )?.setAttribute("content", newTheme)
     theme.set(newTheme)
     localStorage.setItem("theme", newTheme);
 }

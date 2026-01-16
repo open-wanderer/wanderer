@@ -62,12 +62,11 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
         let costingBody;
         switch (options.modeOfTransport) {
             case "bicycle":
-                costingBody = { "costing": options.modeOfTransport, "costing_options": { [options.modeOfTransport]: options.autoOptions } }
-                break;
-            case "auto":
                 costingBody = { "costing": options.modeOfTransport, "costing_options": { [options.modeOfTransport]: options.bicycleOptions } }
                 break;
-
+            case "auto":
+                costingBody = { "costing": options.modeOfTransport, "costing_options": { [options.modeOfTransport]: options.autoOptions } }
+                break;
             case "pedestrian":
                 costingBody = { "costing": options.modeOfTransport, "costing_options": { [options.modeOfTransport]: options.pedestrianOptions } }
                 break;
@@ -104,7 +103,7 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
     const points = decodePolyline(shape);
     const startTime = new Date().getTime();
 
-    const waypoints = points.map((p, i) => new Waypoint({ $: { lat: p[0], lon: p[1] }, ele: heightResponse.height[i], time: new Date(startTime + (((duration * 1000) / points.length) * i)) }))
+    const waypoints = points.map((p, i) => new Waypoint({ $: { lat: p[1], lon: p[0] }, ele: heightResponse.height[i], time: new Date(startTime + (((duration * 1000) / points.length) * i)) }))
 
     return waypoints
 }

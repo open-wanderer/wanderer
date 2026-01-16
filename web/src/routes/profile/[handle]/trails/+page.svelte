@@ -13,6 +13,7 @@
     let pagination = $state({
         page: data.trails.page,
         totalPages: data.trails.totalPages,
+        items: 12,
     });
 
     let trails = $state(data.trails);
@@ -26,7 +27,7 @@
                 page.params.handle,
                 filter,
                 pagination.page,
-                12,
+                pagination.items,
                 fetch,
             );
         } catch (e) {
@@ -40,14 +41,14 @@
         }
     }
 
-    async function paginate(newPage: number) {
+    async function paginate(newPage: number, items?: number) {
         pagination.page = newPage;
         try {
             trails = await profile_trails_index(
                 page.params.handle,
                 filter,
                 newPage,
-                12,
+                items ?? pagination.items,
                 fetch,
             );
         } catch (e) {

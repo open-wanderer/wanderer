@@ -6,7 +6,6 @@
     import Search, {
         type SearchItem,
     } from "$lib/components/base/search.svelte";
-    import CategoryCard from "$lib/components/category_card.svelte";
     import EmptyStateFeed from "$lib/components/empty_states/empty_state_feed.svelte";
     import FeedCard from "$lib/components/profile/feed_card.svelte";
     import Scene from "$lib/components/scene.svelte";
@@ -15,7 +14,6 @@
         defaultTrailSearchAttributes,
         type TrailSearchResult,
     } from "$lib/models/trail.js";
-    import { categories } from "$lib/stores/category_store";
     import { feed_index } from "$lib/stores/feed_store.js";
     import {
         searchActors,
@@ -26,6 +24,8 @@
     import { theme } from "$lib/stores/theme_store";
     import { getIconForLocation } from "$lib/util/icon_util.js";
     import { Canvas } from "@threlte/core";
+    import { marked } from "marked";
+    import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
 
     let { data } = $props();
@@ -40,6 +40,20 @@
     });
 
     let loading: boolean = false;
+
+    let about: string = $state("");
+
+    onMount(async () => {
+        try {
+            const markdownResponse = await fetch("/md/about.md");
+            if (markdownResponse.ok) {
+                const text = await markdownResponse.text();
+                about = await marked.parse(text);
+            }
+        } catch (e) {
+            console.warn(e);
+        }
+    });
 
     async function search(q: string) {
         if (q.startsWith("@")) {
@@ -143,7 +157,7 @@
     style="min-height: calc(100vh - 112px)"
 >
     <div
-        class="flex flex-col justify-center gap-8 max-w-md mx-8 sm:mx-auto mt-0 lg:sticky"
+        class="flex flex-col justify-center gap-8 px-8 md:px-24 mt-0 lg:sticky"
         style="max-height: calc(100vh - 112px); top: 112px;"
     >
         <h2 class="text-5xl sm:text-6xl md:text-7xl font-bold">
@@ -161,13 +175,7 @@
             items={searchDropdownItems}
         ></Search>
     </div>
-    {#if !page.data.user}
-        <div class="hidden md:block">
-            <Canvas toneMapping={0}>
-                <Scene></Scene>
-            </Canvas>
-        </div>
-    {:else}
+    {#if page.data.user}
         <div class="space-y-2">
             {#if feed.items.length === 0}
                 <EmptyStateFeed></EmptyStateFeed>
@@ -181,13 +189,32 @@
     {/if}
 </section>
 {#if !page.data.user}
-    <section
-        class="max-w-7xl mx-auto mt-8 px-8 xl:px-0 grid grid-cols-1 md:grid-cols-2 items-center gap-x-12"
+    <div
+        class="hidden md:block w-full fixed top-[112px] -z-10"
+        style="min-height: calc(100vh - 112px)"
     >
-        <div
-            id="trails"
-            class="flex flex-wrap justify-items-center gap-8 py-8 order-1 md:order-none"
-        >
+        <Canvas toneMapping={0}>
+            <Scene></Scene>
+        </Canvas>
+    </div>
+    <section class="md:px-8 md:max-w-1/2 mb-24" id="about">
+        <div class="px-8 md:px-24">
+            <h2 class="text-4xl md:text-5xl font-bold mt-1 mb-8">
+                {$_("about")}
+            </h2>
+            <div class="prose dark:prose-invert">
+                {@html about}
+            </div>
+        </div>
+    </section>
+    <section class="md:px-8 md:max-w-1/2 mb-24" id="trails">
+        <div class="px-8 md:px-24 space-y-4">
+            <h2 class="text-4xl md:text-5xl font-bold">
+                {$_("explore-some-trails")}
+            </h2>
+            <h5>
+                {$_("hero_section_1_text")}
+            </h5>
             {#if data.trails.length == 0}
                 <img
                     style="width: min(450px, 100%)"
@@ -200,7 +227,7 @@
             {:else}
                 {#each data.trails as trail}
                     <a
-                        class="w-full md:max-w-72"
+                        class="w-full block"
                         href="/trail/view/@{trail.author}{trail.domain
                             ? '@' + trail.domain
                             : ''}/{trail.id}"
@@ -215,53 +242,16 @@
                 {/each}
             {/if}
         </div>
-        <div class="max-w-md md:mx-auto space-y-8">
-            {#if data.trails.length == 0}
-                <h2 class="text-4xl md:text-5xl font-bold">
-                    {$_("hero_section_1_heading")}
-                </h2>
-                <h5>{$_("hero_section_1_text_alternative")}</h5>
-                <a
-                    class="inline-block btn-primary btn-large"
-                    href="/trail/edit/new"
-                    role="button">{$_("new-trail")}</a
-                >
-            {:else}
-                <h2 class="text-4xl md:text-5xl font-bold">
-                    {$_("explore-some-trails")}
-                </h2>
-                <h5>
-                    {$_("hero_section_1_text")}
-                </h5>
-                <a
-                    class="inline-block btn-primary btn-large"
-                    href="/trails"
-                    role="button">{$_("explore")}</a
-                >
-            {/if}
-        </div>
     </section>
-    <section
-        class="max-w-7xl mx-auto mt-8 px-8 xl:px-0 grid grid-cols-1 md:grid-cols-2 items-center"
-    >
-        <div class="max-w-md md:mx-auto space-y-8">
-            <h2 class="text-4xl md:text-5xl font-bold">{$_("categories")}</h2>
-            <h5>
-                {$_("hero_section_2_text")}
-            </h5>
-        </div>
-        <div
-            id="categories"
-            class="grid grid-cols-1 lg:grid-cols-2 justify-items-center gap-8 py-8"
-        >
-            {#each $categories as category}
-                <a href="/trails?category={category.name}">
-                    <CategoryCard {category}></CategoryCard>
-                </a>
-            {/each}
+    <section id="get-started" class="md:px-8 md:max-w-1/2 mb-24">
+        <div class="px-8 md:px-24 space-y-4 text-center">
+            <h2 class="text-4xl md:text-5xl font-bold">{$_("get-started")}</h2>
+            <p>{$_("ready-to-join")}?</p>
+            <a
+                class="inline-block btn-primary btn-large"
+                href="/login"
+                role="button">Signup or Login</a
+            >
         </div>
     </section>
 {/if}
-
-<style>
-</style>

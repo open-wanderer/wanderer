@@ -36,12 +36,12 @@
                 <a href="https://wanderer.to/#features">{$_("features")}</a>
             </li>
             <li>
-                <a href="https://wanderer.to/run/changelog/"
+                <a href="https://wanderer.to/changelog/"
                     >{$_("changelog")}</a
                 >
             </li>
             <li>
-                <a href="https://github.com/Flomp/wanderer/blob/main/LICENSE"
+                <a href="https://github.com/open-wanderer/wanderer/blob/main/LICENSE"
                     >{$_("license")}</a
                 >
             </li>
@@ -50,12 +50,12 @@
     <div>
         <h5 class="font-semibold">Community</h5>
         <ul class="mt-4 text-sm">
-            <li><a href="https://github.com/Flomp/wanderer">GitHub</a></li>
+            <li><a href="https://github.com/open-wanderer/wanderer">GitHub</a></li>
             <li>
-                <a href="https://github.com/Flomp/wanderer/issues">Issues</a>
+                <a href="https://github.com/open-wanderer/wanderer/issues">Issues</a>
             </li>
             <li>
-                <a href="https://github.com/Flomp/wanderer/pulls"
+                <a href="https://github.com/open-wanderer/wanderer/pulls"
                     >{$_("contribute")}</a
                 >
             </li>

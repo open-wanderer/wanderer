@@ -1,5 +1,4 @@
 <script lang="ts">
-    
     import { theme } from "$lib/stores/theme_store";
     import { T, useTask } from "@threlte/core";
     import { onMount } from "svelte";
@@ -42,9 +41,9 @@
 
 <T.PerspectiveCamera
     makeDefault
-    position={[35.5, 32, 35.5]}
+    position={[35.5, 28, 35.5]}
     oncreate={(c) => {
-        c.lookAt(0, 0, 0);
+        c.lookAt(-17, 0, 12);
     }}
 />
 

@@ -16,34 +16,48 @@ export async function GET(event: RequestEvent) {
     try {
         const resource = event.url.searchParams.get("resource")
 
-        if (!resource || !resource.startsWith("acct:")) {
+        if (!resource) {
             return error(400, "Bad request");
         }
 
+        let iri: string;
+        let profile: string;
+        let handle: string;
         const hostname = new URL(env.ORIGIN).hostname;
-        const [username, domain] = splitUsername(resource.replace("acct:", ""))
+        if (resource.startsWith("acct:")) {
+            const [username, domain] = splitUsername(resource.replace("acct:", ""))
 
-        if (hostname !== domain) {
-            return json({ message: "Not found" }, { status: 404 });
+            if (hostname !== domain) {
+                return json({ message: "Not found" }, { status: 404 });
+            }
+            iri = `${env.ORIGIN}/api/v1/activitypub/user/${username.toLowerCase()}`
+            profile = `${env.ORIGIN}/profile/@${username.toLowerCase()}`
+            handle = resource;
+
+        } else if (new RegExp(`${env.ORIGIN}\/profile\/@.*`, "g").test(resource)) {
+            const username = resource.split('/').pop()!.replace("@", "")
+            iri = `${env.ORIGIN}/api/v1/activitypub/user/${username.toLowerCase()}`
+            profile = `${env.ORIGIN}/profile/@${username.toLowerCase()}`
+            handle = `@${username}@${hostname}`
+        } else {
+            return error(400, "Bad request");
         }
 
-        const id = `${env.ORIGIN}/api/v1/activitypub/user/${username.toLowerCase()}`
-
-        const actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`iri='${id}'`)
+        const actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`iri='${iri}'`)
 
         const r: WebfingerResponse = {
-            subject: resource,
-            aliases: [id],
+            subject: handle,
+            aliases: [handle, profile],
             links: [
                 {
                     rel: 'self',
                     type: 'application/activity+json',
-                    href: id,
+                    href: iri,
                 },
                 {
                     rel: 'http://webfinger.net/rel/profile-page',
                     type: 'text/html',
-                    href: `${env.ORIGIN}/profile/@${username.toLowerCase()}`,
+                    href: profile,
                 },
             ],
         }

@@ -1,0 +1,38 @@
+name: Go
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/**'
+      - 'db/**'
+  pull_request:
+    paths:
+      - '.github/**'
+      - 'db/**'
+
+jobs:
+  db-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      - name: go fmt
+        run: go fmt ./...
+        working-directory: db
+      - name: Ensure formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Go files are not formatted"
+            exit 1
+          fi
+          git diff --exit-code
+        working-directory: db
+      - name: go vet
+        run: go vet ./...
+        working-directory: db
+      - name: go test
+        run: go test ./...
+        working-directory: db

@@ -13,10 +13,12 @@ class Waypoint {
     photos: string[];
     _photos?: File[];
     author: string;
+    trail?: string;
 
     constructor(lat: number, lon: number, params?: {
-        id?: string, name?: string, description?: string, icon?: typeof icons[number], marker?: M.Marker, photos?: string[];
+        id?: string, name?: string, description?: string, icon?: typeof icons[number], marker?: M.Marker, photos?: string[], trail?: string
     }) {
+        this.trail = params?.trail;
         this.id = params?.id;
         this.name = params?.name ?? "";
         this.description = params?.description ?? "";

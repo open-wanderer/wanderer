@@ -1,11 +1,10 @@
 import { trails_show } from "$lib/stores/trail_store";
-import { splitUsername } from "$lib/util/activitypub_util";
 import { APIError } from "$lib/util/api_util";
 import { error, type NumericRange, type ServerLoad } from "@sveltejs/kit";
 
-export const load: ServerLoad = async ({ params, locals, fetch }) => {
+export const load: ServerLoad = async ({ params, url, fetch }) => {
     try {
-        const trail = await trails_show(params.id!, params.handle, true, fetch)
+        const trail = await trails_show(params.id!, params.handle, url.searchParams.get("share") ?? undefined, true, fetch)
         return { trail };
     } catch (e) {
         if (e instanceof APIError) {

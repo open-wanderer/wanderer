@@ -45,6 +45,8 @@ Alternatively, <span class="-tracking-[0.075em]">wanderer</span> supports authen
 
 If your instance offers OAuth logins, the enabled providers appear in <span class="-tracking-[0.075em]">wanderer</span>'s login form. Click the button, authorize <span class="-tracking-[0.075em]">wanderer</span>, and wait for the authentication to finish. You are now logged in and can use <span class="-tracking-[0.075em]">wanderer</span> like any other user.
 
+For instructions on enabling OAuth2 providers for your own instance, see the [OAuth2 setup guide](/run/backend-configuration/oauth2/).
+
 ## Forgot your password?
 <span class="-tracking-[0.075em]">wanderer</span> offers the option to send password reset emails in case a user forgets his password.
 You can click the "Forgot password" link in the login form. After requesting the reset the user will receive an email with a unique link to reset their password.

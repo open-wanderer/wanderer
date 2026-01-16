@@ -3,6 +3,7 @@ import { z } from "zod";
 
 const RecordOptionsSchema = z.object({
     expand: z.string().optional(),
+    query: z.record(z.string()).optional(),
     requestKey: z.string().optional()
 })
 

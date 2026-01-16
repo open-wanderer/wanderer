@@ -61,7 +61,7 @@ export function decodePolyline(str: string, precision: number = 6) {
         lat += latitude_change;
         lng += longitude_change;
 
-        coordinates.push([lat / factor, lng / factor]);
+        coordinates.push([lng / factor, lat / factor]);
     }
 
     return coordinates;

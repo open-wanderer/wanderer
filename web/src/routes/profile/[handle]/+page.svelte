@@ -136,7 +136,7 @@
     <div class="space-y-4">
         <h4 class="text-xl font-semibold">Timeline</h4>
         {#if !feed.items?.length && data.isOwnProfile}
-            <a class="btn-primary inline-block" href="/trails/edit/new"
+            <a class="btn-primary inline-block" href="/trail/edit/new"
                 >+ {$_("new-trail")}</a
             >
         {:else if !feed.items?.length}

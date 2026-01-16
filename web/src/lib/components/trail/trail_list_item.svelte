@@ -61,6 +61,7 @@
 
 <li
     class="flex gap-8 p-4 rounded-xl border border-input-border cursor-pointer hover:bg-secondary-hover transition-colors items-center"
+    class:bg-secondary-hover={selected}
 >
     <div class="shrink-0">
         {#if isVideoURL(thumbnail)}
@@ -81,7 +82,7 @@
     </div>
     <div class="min-w-0 basis-full relative">
         <div class="flex items-center justify-between">
-            <h4 class="font-semibold text-lg">
+            <h4 class="font-semibold text-lg line-clamp-2 wrap-anywhere">
                 {trail.name}
             </h4>
             <div class="flex items-center shrink-0 gap-3">
@@ -150,10 +151,20 @@
                 {/if}
             </div>
         {/if}
-        <div class="flex flex-wrap gap-x-8">
-            {#if trail.location}
-                <h5><i class="fa fa-location-dot mr-3"></i>{trail.location}</h5>
+        <div class="flex flex-wrap gap-x-8 gap-y-1">
+            {#if trail.expand?.category?.name || trail.category}
+                <p>
+                    <i class="fa fa-shapes mr-3"> </i>{$_(trail.expand?.category?.name ?? trail.category ?? "-")}
+                </p>
             {/if}
+            {#if trail.location}
+                <p>
+                    <i class="fa fa-location-dot mr-3"></i>{trail.location}
+                </p>
+            {/if}
+            <p class="whitespace-nowrap">
+                <i class="fa fa-gauge mr-3"></i>{$_(trail.difficulty ?? "?")}
+            </p>
         </div>
 
         <div class="flex flex-wrap mt-1 gap-x-4 gap-y-2 text-sm text-gray-500">

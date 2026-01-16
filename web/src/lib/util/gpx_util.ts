@@ -18,18 +18,21 @@ import { handleFromRecordWithIRI } from "./activitypub_util";
 import { Waypoint } from "$lib/models/waypoint";
 
 
-export function gpx2trail(gpxString: string, fallbackName?: string, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+export async function gpx2trail(gpxString: string, fallbackName?: string, correctElevation: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
 
     const gpx = GPX.parse(gpxString);
 
     if (gpx instanceof Error) {
         throw gpx;
     }
-    // try {
-    //     await gpx.correctElevation(f)
-    // } catch(e) {
-    //     console.warn("Unable to correct elevation: " + e)
-    // }
+    if (correctElevation) {
+        try {
+            await gpx.correctElevation(f)
+        } catch (e) {
+            console.warn("Unable to correct elevation: " + e)
+        }
+    }
+
 
     const trail = new Trail("");
 
@@ -42,7 +45,7 @@ export function gpx2trail(gpxString: string, fallbackName?: string, f: (url: Req
         wp.id = cryptoRandomString({ length: 15 });
         wp.name = wpt.name ?? ""
         wp.description = wpt.desc;
-        trail.expand!.waypoints?.push(wp);
+        trail.expand!.waypoints_via_trail?.push(wp);
     }
 
     const totals = gpx.features
@@ -78,7 +81,7 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
     if (!trail.expand?.gpx_data) {
         // no gpx_data -> empty trail?
         // or just not expanded? -> expand now
-        const response = await trails_show(trail.id!, handleFromRecordWithIRI(trail), true);
+        const response = await trails_show(trail.id!, handleFromRecordWithIRI(trail), undefined, true);
 
         if (!response.expand?.gpx_data) {
             throw Error("Trail has no GPX data")
@@ -105,7 +108,7 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
         gpx.wpt = [];
     }
 
-    for (const wp of gpxTrail.expand!.waypoints ?? []) {
+    for (const wp of gpxTrail.expand!.waypoints_via_trail ?? []) {
         const gpxWpt = gpx.wpt.find((w) => w.$.lat == wp.lat && w.$.lon == wp.lon)
         if (!gpxWpt) {
             gpx.wpt.push(new GPXWaypoint({

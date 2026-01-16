@@ -1,11 +1,11 @@
-<script lang="ts">   
+<script lang="ts">
     import {
         beforeNavigate,
         goto,
         invalidate,
-        invalidateAll
+        invalidateAll,
     } from "$app/navigation";
-    
+
     import { page } from "$app/state";
     import { env } from "$env/dynamic/public";
     import Toast from "$lib/components/base/toast.svelte";
@@ -23,36 +23,27 @@
     import type { LayoutData } from "./$types";
     import PocketBase from "pocketbase";
     import { browser } from "$app/environment";
-    
-    interface Props { data: LayoutData; children?: Snippet }
-    
+
+    interface Props {
+        data: LayoutData;
+        children?: Snippet;
+    }
+
     let { data, children }: Props = $props();
-    
+
     beforeNavigate((n) => {
         if (!$currentUser && isRouteProtected(n.to?.url)) {
             n.cancel();
             goto("/login?r=" + n.to?.url?.pathname);
         }
     });
-    
+
     onMount(() => {
         if (page.data.origin != location.origin) {
             showWarning = true;
         }
-    
-        const pb = new PocketBase(env.PUBLIC_POCKETBASE_URL);
-    
-        if (browser) {
-            pb.authStore.loadFromCookie(document.cookie);
-        }
-    
-        pb.collection("notifications").subscribe("*", async (e) => {
-            if (e.action === "create") {
-                await invalidateAll();
-            }
-        });
     });
-    
+
     let hideDemoHint = $state(false);
     let showWarning = $state(false);
 </script>

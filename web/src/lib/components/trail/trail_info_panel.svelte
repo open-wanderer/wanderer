@@ -353,7 +353,7 @@
                         title={trail.name}
                         class="{mode == 'map'
                             ? 'text-4xl'
-                            : 'text-5xl'} font-bold line-clamp-3 mb-1"
+                            : 'text-5xl'} font-bold line-clamp-3 mb-1 wrap-anywhere"
                         style="line-height: 1.18"
                     >
                         {trail.name}
@@ -398,19 +398,17 @@
                         </h3>
                     </div>
                 </div>
-                {#if ($currentUser && $currentUser.actor == trail.author) || trail.expand?.trail_share_via_trail?.length || trail.public}
-                    <div class="flex flex-col items-center gap-y-2">
+                <div class="flex flex-col items-center gap-y-2">
+                    {#if ($currentUser && $currentUser.actor == trail.author) || trail.expand?.trail_share_via_trail?.length || trail.public}
                         <LikeButton {trail}></LikeButton>
-                        <TrailDropdown
-                            trails={new Set<Trail>([trail])}
-                            onDelete={() =>
-                                history.length
-                                    ? history.back()
-                                    : goto("/trails")}
-                            {mode}
-                        ></TrailDropdown>
-                    </div>
-                {/if}
+                    {/if}
+                    <TrailDropdown
+                        trails={new Set<Trail>([trail])}
+                        onDelete={() =>
+                            history.length ? history.back() : goto("/trails")}
+                        {mode}
+                    ></TrailDropdown>
+                </div>
             </div>
         </section>
         <section
@@ -520,7 +518,7 @@
 
                 <div class="mb-6 mt-12 flex justify-between flex-wrap gap-y-4">
                     <Tabs {tabs} bind:activeTab></Tabs>
-                    {#if activeTab == 0 && mode != "list"}
+                    {#if $currentUser && activeTab == 0 && mode != "list"}
                         <Button
                             secondary
                             type="button"
@@ -660,7 +658,7 @@
                     <MapWithElevationMaplibre
                         trails={[trail]}
                         activeTrail={0}
-                        waypoints={trail.expand?.waypoints}
+                        waypoints={trail.expand?.waypoints_via_trail}
                         showElevation={true}
                         elevationProfileContainer={"epc-container"}
                         showStyleSwitcher={false}

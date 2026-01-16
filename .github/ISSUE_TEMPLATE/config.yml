@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "💡 Feature request"
+    url: https://github.com/open-wanderer/wanderer/discussions/new?category=ideas
+    about: Suggest an idea for this project.
+  - name: "❓ Ask a question"
+    url: https://github.com/open-wanderer/wanderer/discussions/new?category=q-a
+    about: Please ask and answer questions here.

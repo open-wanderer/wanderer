@@ -46,7 +46,7 @@
     const maxBoundingBox: TrailBoundingBox = page.data.boundingBox;
     const settings: Settings = page.data.settings;
 
-    const MIN_ZOOM = 100;
+    const MIN_ZOOM = 10;
 
     let loading: boolean = $state(true);
     let loadingNextPage: boolean = false;
@@ -101,7 +101,7 @@
         const trailItems = r[0].hits.map((t: TrailSearchResult) => ({
             text: t.name,
             description: `Trail ${t.location.length ? ", " + t.location : ""}`,
-            value: `@${t.author}${t.domain ? `@${t.domain}` : ""}/${t.id}`,
+            value: `@${t.author_name}${t.domain ? `@${t.domain}` : ""}/${t.id}`,
             icon: "route",
         }));
         const listItems = r[1].hits.map((t: ListSearchResult) => ({
@@ -421,6 +421,7 @@
             oninit={handleMapInit}
             {trails}
             showElevation={false}
+            showTerrain={true}
             showInfoPopup={true}
             activeTrail={-1}
             fitBounds="off"

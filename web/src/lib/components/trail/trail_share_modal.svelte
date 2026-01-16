@@ -14,6 +14,15 @@
     import Button from "../base/button.svelte";
     import type { SelectItem } from "../base/select.svelte";
     import Select from "../base/select.svelte";
+    import type { RadioItem } from "../base/radio_group.svelte";
+    import RadioGroup from "../base/radio_group.svelte";
+    import { TrailLinkShare } from "$lib/models/trail_link_share";
+    import {
+        linkShares,
+        trail_link_share_create,
+        trail_link_share_delete,
+        trail_link_share_index,
+    } from "$lib/stores/trail_link_share_store";
 
     interface Props {
         trail?: Trail;
@@ -30,8 +39,8 @@
         openShareModalLocal();
     }
     async function openShareModalLocal() {
-        modal.openModal();
         await fetchShares();
+        modal.openModal();
     }
 
     let copyButtonText = $state($_("copy-link"));
@@ -43,8 +52,25 @@
         { text: $_("edit"), value: "edit" },
     ];
 
+    const publicShareItems: RadioItem[] = [
+        {
+            text: $_("limited"),
+            value: "limited",
+            description: $_("public-share-limited"),
+        },
+        {
+            text: $_("everyone-with-the-link"),
+            value: "everyone",
+            description: $_("public-share-everyone"),
+        },
+    ];
+
     function copyURLToClipboard() {
-        navigator.clipboard.writeText(window.location.href);
+        let link = window.location.href;
+        if ($linkShares.length > 0) {
+            link = link + "?share=" + $linkShares[0].token;
+        }
+        navigator.clipboard.writeText(link);
 
         copyButtonText = $_("link-copied");
         setTimeout(() => (copyButtonText = $_("copy-link")), 3000);
@@ -88,7 +114,23 @@
 
         sharesLoading = true;
         await trail_share_index({ trail: trail.id! });
+        await trail_link_share_index(trail.id);
         sharesLoading = false;
+    }
+
+    async function handlePublicAccessChange(e: RadioItem) {
+        if (trail === undefined) {
+            return;
+        }
+        if (e.value === "everyone") {
+            const share = new TrailLinkShare(trail.id!, "view");
+            await trail_link_share_create(share);
+        } else if (e.value === "limited" && $linkShares.length > 0) {
+            const share = $linkShares[0];
+            await trail_link_share_delete(share);
+        }
+
+        await trail_link_share_index(trail.id);
     }
 </script>
 
@@ -159,6 +201,14 @@
                     {/if}
                 {/each}
             {/if}
+
+            <h4 class="font-semibold mt-4 mb-2">{$_("public-access")}</h4>
+            <RadioGroup
+                name="account"
+                items={publicShareItems}
+                selected={$linkShares.length == 0 ? 0 : 1}
+                onchange={handlePublicAccessChange}
+            ></RadioGroup>
         </div>
     {/snippet}
     {#snippet footer()}

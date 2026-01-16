@@ -26,7 +26,7 @@ This will bring up a `meilisearch` instance on `http://127.0.0.1:7700`, a `Pocke
 
 ## PocketBase dashboard
 
-It is highly advisable to create an admin user to access PocketBase's dashboard. To do so, please refer to the [backend configuration](/run/backend-configuration#setup) section of the documentation.
+It is highly advisable to create an admin user to access PocketBase's dashboard. To do so, please refer to the [backend configuration](/run/backend-configuration/#setup) section of the documentation.
 
 ## Building
 

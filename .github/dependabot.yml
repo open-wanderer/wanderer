@@ -1,0 +1,42 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    open-pull-requests-limit: 10
+    directory: "/db"
+    schedule:
+      interval: "monthly"
+    groups:
+      gomod-backward-compatible:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    open-pull-requests-limit: 5
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      github-actions-backward-compatible:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: npm
+    open-pull-requests-limit: 5
+    directory: "/web"
+    schedule:
+      interval: "monthly"
+    groups:
+      npm-backward-compatible:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: npm
+    open-pull-requests-limit: 5
+    directory: "/docs"
+    schedule:
+      interval: "monthly"
+    groups:
+      docker-backward-compatible:
+        update-types:
+          - minor
+          - patch

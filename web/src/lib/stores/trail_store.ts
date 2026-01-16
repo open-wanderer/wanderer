@@ -22,7 +22,7 @@ export const editTrail: Writable<Trail> = writable(new Trail(""));
 export async function trails_index(perPage: number = 21, random: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const r = await f('/api/v1/trail?' + new URLSearchParams({
         "perPage": perPage.toString(),
-        expand: "category,waypoints,summit_logs_via_trail,tags",
+        expand: "category,waypoints_via_trail,summit_logs_via_trail,tags",
         sort: random ? "@random" : "",
     }), {
         method: 'GET',
@@ -56,10 +56,11 @@ export async function trails_recommend(size: number, f: (url: RequestInfo | URL,
 
 }
 
-export async function trails_search_filter(filter: TrailFilter, page: number = 1, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+export async function trails_search_filter(filter: TrailFilter, page: number = 1, perPage: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const user = get(currentUser)
 
     let filterText: string = buildFilterText(user, filter, true);
+
 
     let r = await f("/api/v1/search/trails", {
         method: "POST",
@@ -69,7 +70,7 @@ export async function trails_search_filter(filter: TrailFilter, page: number = 1
                 filter: filterText,
                 attributesToRetrieve: defaultTrailSearchAttributes,
                 sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`],
-                hitsPerPage: 12,
+                hitsPerPage: perPage,
                 page: page
             }
         }),
@@ -133,12 +134,12 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
 
 }
 
-export async function trails_show(id: string, handle?: string, loadGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+export async function trails_show(id: string, handle?: string, share?: string, loadGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
 
     const r = await f(`/api/v1/trail/${id}?` + new URLSearchParams({
-        expand: "category,waypoints,summit_logs_via_trail,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
-        ...(handle ? { handle } : {})
-
+        expand: "category,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
+        ...(handle ? { handle } : {}),
+        ...(share ? { share } : {})
     }), {
         method: 'GET',
     })
@@ -148,7 +149,7 @@ export async function trails_show(id: string, handle?: string, loadGPX?: boolean
         throw new APIError(r.status, response.message, response.detail)
     }
 
-    const response = await r.json()
+    const response: Trail = await r.json()
 
     if (loadGPX) {
         if (!response.expand) {
@@ -171,8 +172,8 @@ export async function trails_show(id: string, handle?: string, loadGPX?: boolean
         }
     }
 
-    response.expand.waypoints = response.expand.waypoints || [];
-    response.expand.summit_logs = response.expand.summit_logs?.sort((a: SummitLog, b: SummitLog) => Date.parse(a.date) - Date.parse(b.date)) || [];
+    response.expand!.waypoints_via_trail = response.expand!.waypoints_via_trail || [];
+    response.expand!.summit_logs_via_trail = response.expand!.summit_logs_via_trail?.sort((a: SummitLog, b: SummitLog) => Date.parse(a.date) - Date.parse(b.date)) || [];
 
     trail.set(response);
 
@@ -185,13 +186,6 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
         throw Error("Unauthenticated")
     }
 
-    for (const waypoint of trail.expand?.waypoints ?? []) {
-        const model = await waypoints_create({
-            ...waypoint,
-            marker: undefined,
-        }, f, user);
-        trail.waypoints.push(model.id!);
-    }
     for (const tag of trail.expand?.tags ?? []) {
         if (!tag.id) {
             const model = await tags_create(tag)
@@ -214,7 +208,7 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
     }
 
     let r = await f(`/api/v1/trail/form?` + new URLSearchParams({
-        expand: "category,waypoints,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
     }), {
         method: 'PUT',
         body: formData,
@@ -232,6 +226,14 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
         await summit_logs_create(summitLog, f);
     }
 
+    for (const wp of trail.expand?.waypoints_via_trail ?? []) {
+        wp.trail = model.id!;
+        await waypoints_create({
+            ...wp,
+            marker: undefined,
+        }, f, user);
+    }
+
     return model;
 
 }
@@ -239,18 +241,18 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
 export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: File[], gpx?: File | Blob | null) {
     newTrail.author = oldTrail.author
 
-    const waypointUpdates = compareObjectArrays<Waypoint>(oldTrail.expand?.waypoints ?? [], newTrail.expand?.waypoints ?? []);
+    const waypointUpdates = compareObjectArrays<Waypoint>(oldTrail.expand?.waypoints_via_trail ?? [], newTrail.expand?.waypoints_via_trail ?? []);
 
     for (const addedWaypoint of waypointUpdates.added) {
+        addedWaypoint.trail = newTrail.id!
         const model = await waypoints_create({
             ...addedWaypoint,
             marker: undefined,
         },);
-        newTrail.waypoints.push(model.id!);
     }
 
     for (const updatedWaypoint of waypointUpdates.updated) {
-        const oldWaypoint = oldTrail.expand?.waypoints?.find(w => w.id == updatedWaypoint.id);
+        const oldWaypoint = oldTrail.expand?.waypoints_via_trail?.find(w => w.id == updatedWaypoint.id);
         const model = await waypoints_update(oldWaypoint!, {
             ...updatedWaypoint,
             marker: undefined,
@@ -313,7 +315,7 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
 
 
     let r = await fetch(`/api/v1/trail/form/${newTrail.id}?` + new URLSearchParams({
-        expand: "category,waypoints,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
     }), {
         method: 'POST',
         body: formData,
@@ -340,17 +342,6 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
 
 
 export async function trails_delete(trail: Trail) {
-    if (trail.expand?.waypoints) {
-        for (const waypoint of trail.expand.waypoints) {
-            await waypoints_delete(waypoint);
-        }
-    }
-    if (trail.expand?.summit_logs_via_trail) {
-        for (const summit_log of trail.expand.summit_logs_via_trail) {
-            await summit_logs_delete(summit_log);
-        }
-    }
-
     const r = await fetch('/api/v1/trail/' + trail.id, {
         method: 'DELETE',
     })
@@ -457,7 +448,7 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
             created: new Date(h.created * 1000).toISOString(),
             date: new Date(h.date * 1000).toISOString(),
             description: h.description,
-            difficulty: h.difficulty,
+            difficulty: h.difficulty == 0 ? "easy" : h.difficulty == 1 ? "moderate" : "difficult",
             distance: h.distance,
             duration: h.duration,
             elevation_gain: h.elevation_gain,
@@ -593,7 +584,8 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
     }
 
     if (filter.category.length > 0) {
-        filterText += ` AND category IN ['${filter.category.join(",")}']`;
+        const categoryValues = filter.category.map(category => `'${category}'`).join(", ");
+        filterText += ` AND category IN [${categoryValues}]`;
     }
 
     if (filter.tags.length > 0) {

@@ -2,6 +2,75 @@
 title: Changelog
 description: What changed in the last patch?
 ---
+## v0.18.3
+### Bug fixes
+- Fixes bug that prevented waypoints from being update or deleted in v0.18.2
+- Return properly formatted error message when accessing a protected API route
+- Fixes logo for OIDC 2 & 3 providers (thanks @wolffshots)
+- Fixes bug that caused dropdown actions from a feed item on the homepage to cause a 404 error
+
+### Maintenance
+- Updates pocketbase to v0.30.0
+
+## v0.18.2
+### Features
+- Adds `dedup` command to pocketbase. This command allows an admin to quickly identify duplicate trails and delete them. Use the `--dry-run` flag to only log duplicate trails without deleting them. To execute the command run `docker exec -it wanderer-db ./pocketbase dedup --dry-run`.
+- Adds option to only sync strava activities after a certain date
+- Singificant performance improvements for instances with larger userbases
+- Greatly improved initial indexing speed when starting wanderer
+### Bug fixes
+- Fixes permission issues for public trails
+- Fixes bug that caused trails to be duplicated multiple times (to clean up see the `dedup` command above)
+- Fixes link to "New Trail" from empty profiles
+- Fixes link when opening a trail from the map searchbar
+- Sorting by difficulty no longer sorts by difficulty alphabetically
+- Fixes strava integration stopping after only one page
+## v0.18.1
+### Bug fixes
+- Fixes permission issues that prevented federation from working properly
+- Trail categories are properly displayed in lists
+- Fixes issue that prevented lists from saving
+
+### Documentation
+- Improves docs for updating on bare-metal installations
+
+### Translation
+- Adds Basque and Russian translations (thanks @aisaivia & @jeffscrum)
+
+## v0.18.0
+
+### Features
+- Adds feed on homepage for logged in users
+- Adds customizable "About" section to the homepage (read [here](https://wanderer.to/run/frontend-configuration/about) to learn more)
+- New Maps: OpenHikingMap, CyclOSM
+- New map overlays: hiking, biking, mountain biking & skiing routes
+- New POI overlays: e.g. grocery stores, campsites, water sources etc.
+- Complete overhaul of the route drawing/editing feature
+- Adds option to crop routes when editing
+- Adds undo/redo to route editing
+- Adds option to manually recalculate elevation data when editing a route
+- Adds automated elevation correction when uploading trails/summit logs directly
+- Directions to a trail head are now provided by OpenStreetMap
+- Non-pulbic trails can now be shared with guests via a public share link
+- Adds route previews on lower zoom levels in the world map
+:::note
+To display the previews for each track on the world map, wanderer computes encoded polylines for each track on startup. Depending on the amount of trails in your instance, it can take several minutes until all trails are fully indexed and searchable.
+:::
+- 3D terrain is now also available in the world map
+- Trail category is now displayed in search results
+
+### Bug fixes
+- Custom categories with spaces are now handled correctly
+- Avoid reuploading all trails when updating a list
+- Fixes build dependencies for building from source (thanks @slothful-vassal)
+- Add headers to nominatim requests to comply with usage policy
+- Reset pagination when updating filters
+
+### Thanks
+
+A big thanks goes to @cugu for doing a lot of GitHub house keeping and submitting various, helpful PRs while I was gone!
+Another big shoutout has to go to @vcoppe and [gpx.studio](https://github.com/gpxstudio/gpx.studio). Their code was a huge help implementing the various map overlays and GPX editing functionality that was added in this patch.
+
 ## v0.17.2
 ### Features
 - Trails in the map view can now be sorted
@@ -48,7 +117,7 @@ This release contains breaking changes. They are marked with a ⚠️.
 :::
 
 ### Configuration
-Check the reopsitory's [`docker-compose.yml`](https://github.com/Flomp/wanderer/blob/main/docker-compose.yml) for a valid configuration.
+Check the reopsitory's [`docker-compose.yml`](https://github.com/open-wanderer/wanderer/blob/main/docker-compose.yml) for a valid configuration.
 
 - ⚠️ The PocketBase environment variable `POCKETBASE_ENCRYPTION_KEY` is now required. It requires a valid 32 character AES key as its value. To generate a key, run `openssl rand -hex 16`.
 - ⚠️ The PocketBase environment variable `ORIGIN`is now required. It must be set to the public IP or hostname (including the port) of your wanderer frontend and must equal the value set for the frontend's `ORIGIN` environment variable.
@@ -299,7 +368,7 @@ This release contains breaking changes. Most migrations will happen automaticall
 :::
 ### Maintenance
 - Updates to meilisearch version 0.11.3. 
-- ⚠️ meilisearch indices are not compatible across minor versions. This means you will need to rename or delete your [`data.ms`](https://github.com/Flomp/wanderer/blob/8635de78b9f1510e2316b08e605b175a2615f4db/docker-compose.yml#L19) folder on your host system to force meilisearch to rebuild the index on the next start (note that this can take a little while). 
+- ⚠️ meilisearch indices are not compatible across minor versions. This means you will need to rename or delete your [`data.ms`](https://github.com/open-wanderer/wanderer/blob/8635de78b9f1510e2316b08e605b175a2615f4db/docker-compose.yml#L19) folder on your host system to force meilisearch to rebuild the index on the next start (note that this can take a little while). 
 
 ### Features
 - Adds password reset email function for users (see [docs](https://wanderer.to/guides/authentication/#forgot-your-password) for more info)
@@ -465,7 +534,7 @@ This version updates the index pattern of the meilisearch index. Please delete o
 ### Features
 - Trails can now be filtered by date
 - Elevation, slope and speed graphs are now also visible when creating a new trail
-- When creating a new trail you now have the option to create a new route from scratch without uploading a GPX file. Press the "Draw a route" button and plan your new route directly in wanderer. We use [valhalla](https://github.com/valhalla/valhalla) and their associated free [hosted service](https://gis-ops.com/global-open-valhalla-server-online/) to calculate the routes. To activate the feature make sure to set the PUBLIC_VALHALLA_URL environment variable on you wanderer-web service. See the current [docker-compose.yml](https://github.com/Flomp/wanderer/blob/main/docker-compose.yml) for a working configuration.
+- When creating a new trail you now have the option to create a new route from scratch without uploading a GPX file. Press the "Draw a route" button and plan your new route directly in wanderer. We use [valhalla](https://github.com/valhalla/valhalla) and their associated free [hosted service](https://gis-ops.com/global-open-valhalla-server-online/) to calculate the routes. To activate the feature make sure to set the PUBLIC_VALHALLA_URL environment variable on you wanderer-web service. See the current [docker-compose.yml](https://github.com/open-wanderer/wanderer/blob/main/docker-compose.yml) for a working configuration.
 
 ### Bug fixes
 - Uploaded trails will now have a date if it can be parsed from the file
@@ -514,9 +583,9 @@ This version updates the index pattern of the meilisearch index. Please delete o
 ### Features
 
 - Trails can now be added to a list while editing or creating a trail. The trail must be saved at least once to add it to a list.
-- wanderer now has an auto-upload folder. GPX files in this folder will be autmatically uploaded and converted to a trail. Read the [docs](https://github.com/Flomp/wanderer/wiki/API#auto-upload-folder) for more information.
+- wanderer now has an auto-upload folder. GPX files in this folder will be autmatically uploaded and converted to a trail. Read the [docs](https://github.com/open-wanderer/wanderer/wiki/API#auto-upload-folder) for more information.
 - addded support for TCX and KML files. Note that this feature is still experimental. Please report any issues you encounter.
-- added OAuth support. Read [here](https://github.com/Flomp/wanderer/wiki/OAuth) how to enable providers.
+- added OAuth support. Read [here](https://github.com/open-wanderer/wanderer/wiki/OAuth) how to enable providers.
   
 ### Bug fixes
 
@@ -549,7 +618,7 @@ This version updates the index pattern of the meilisearch index. Please delete o
 - waypoint markers can now be moved with drag & drop
 - lists can now be displayed as a map showing all trails contained in the list
 - you can now prevent users from signing up by setting the `DISABLE_SIGNUP` environment variable to `true`
-- you can now upload GPX files via the API to create trails. Check the [documentation](https://github.com/Flomp/wanderer/wiki/API#upload-trails) for more info.
+- you can now upload GPX files via the API to create trails. Check the [documentation](https://github.com/open-wanderer/wanderer/wiki/API#upload-trails) for more info.
 - the city index now includes states
 
 > Note: for city states to show up in your search you have to delete your data.ms folder if you already have a previous installation of wanderer. The indices will then be rebuilt on startup.

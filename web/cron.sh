@@ -44,16 +44,19 @@ upload_and_delete() {
         echo "[ERROR] [$(date +"%T")]: Failed to upload file $file." > /proc/1/fd/1
     fi
 }
-echo "[INFO] [$(date +"%T")]: Starting auto-upload" > /proc/1/fd/1
 # Login to obtain cookie
-login "$USERNAME" "$PASSWORD"
+if [ -n "$USERNAME" ] && [ -n "$PASSWORD" ]; then
+    echo "[INFO] [$(date +"%T")]: Starting auto-upload" > /proc/1/fd/1
 
-# Iterate over each file in the folder
-for file in "$UPLOAD_FOLDER"/*; do
-    # Check if file exists and is a regular file
-    if [ -f "$file" ]; then
-        upload_and_delete "$file"
-    fi
-done
+    login "$USERNAME" "$PASSWORD"
+    # Iterate over each file in the folder
+    for file in "$UPLOAD_FOLDER"/*; do
+        # Check if file exists and is a regular file
+        if [ -f "$file" ]; then
+            upload_and_delete "$file"
+        fi
+    done
 
-echo "[INFO] [$(date +"%T")]: Auto-upload completed" > /proc/1/fd/1
+    echo "[INFO] [$(date +"%T")]: Auto-upload completed" > /proc/1/fd/1
+
+fi

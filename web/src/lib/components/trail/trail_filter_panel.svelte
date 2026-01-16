@@ -51,9 +51,9 @@
     ];
 
     const difficultyItems: SelectItem[] = [
-        { text: $_("easy"), value: "easy" },
-        { text: $_("moderate"), value: "moderate" },
-        { text: $_("difficult"), value: "difficult" },
+        { text: $_("easy"), value: 0 },
+        { text: $_("moderate"), value: 1 },
+        { text: $_("difficult"), value: 2 },
     ];
 
     let searchDropdownItems: SearchItem[] = $state([]);

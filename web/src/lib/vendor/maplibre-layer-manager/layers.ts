@@ -47,6 +47,7 @@ export const baseMapStyles: Record<string, string | StyleSpecification> = {
     "OpenFreeMap": "/styles/ofm.json",
     "OpenTopoMap": {
         version: 8,
+        glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
         sources: {
             openTopoMap: {
                 type: 'raster',
@@ -65,8 +66,30 @@ export const baseMapStyles: Record<string, string | StyleSpecification> = {
             },
         ],
     },
+    "OpenHikingMap": {
+        version: 8,
+        glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+        sources: {
+            openHikingMap: {
+                type: 'raster',
+                tiles: ['https://maps.refuges.info/hiking/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                maxzoom: 18,
+                attribution:
+                    '&copy; <a href="https://wiki.openstreetmap.org/wiki/Hiking/mri" target="_blank">sly</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+            },
+        },
+        layers: [
+            {
+                id: 'openHikingMap',
+                type: 'raster',
+                source: 'openHikingMap',
+            },
+        ],
+    },
     "CyclOSM": {
         version: 8,
+        glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
         sources: {
             cyclOSM: {
                 type: 'raster',
@@ -498,7 +521,7 @@ export const defaultMapState: MapState = {
             hut: false,
             viewpoint: false,
         },
-        ammenity: {
+        amenity: {
             water: false,
             barrier: false,
             shelter: false,

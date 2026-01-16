@@ -4,12 +4,14 @@ export enum Language {
   en = "en",
   de = "de",
   es = "es",
+  eu = "eu",
   fr = "fr",
   hu = "hu",
   it = "it",
   nl = "nl",
   pl = "pl",
   pt = "pt",
+  ru = "ru",
   zh = "zh"
 }
 

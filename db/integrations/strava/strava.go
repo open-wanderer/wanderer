@@ -15,7 +15,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
-	"github.com/twpayne/go-gpx"
+	"github.com/tkrajina/gpxgo/gpx"
 	"github.com/twpayne/go-polyline"
 )
 
@@ -89,22 +89,12 @@ func SyncStrava(app core.App) error {
 			stravaIntegration.ExpiresAt = r.ExpiresAt
 		}
 
-		b, err := json.Marshal(stravaIntegration)
-		if err != nil {
-			return err
-		}
-		i.Set("strava", string(b))
-		err = app.Save(i)
-		if err != nil {
-			return err
-		}
-
 		if stravaIntegration.Routes {
 			page := 1
-			hasNewRoutes := true
-			for hasNewRoutes {
-
+			hasMore := true
+			for hasMore {
 				routes, err := fetchStravaRoutes(r.AccessToken, page)
+				hasMore = len(routes) > 0
 				page += 1
 				if err != nil {
 					warning := fmt.Sprintf("error fetching routes from strava: %v\n", err)
@@ -112,7 +102,7 @@ func SyncStrava(app core.App) error {
 					app.Logger().Warn(warning)
 					break
 				}
-				hasNewRoutes, err = syncTrailsWithRoutes(app, r.AccessToken, userId, actorId, routes)
+				err = syncTrailsWithRoutes(app, stravaIntegration, r.AccessToken, userId, actorId, routes)
 				if err != nil {
 					warning := fmt.Sprintf("error syncing strava routes with trails: %v\n", err)
 					fmt.Print(warning)
@@ -123,9 +113,20 @@ func SyncStrava(app core.App) error {
 		}
 		if stravaIntegration.Activities {
 			page := 1
-			hasNewActivities := true
-			for hasNewActivities {
-				activities, err := fetchStravaActivities(r.AccessToken, page)
+			hasMore := true
+			for hasMore {
+				var after int64 = 0
+				if stravaIntegration.After != "" {
+					t, err := time.Parse("2006-01-02", stravaIntegration.After)
+					if err != nil {
+						return err
+					}
+					t = t.UTC()
+
+					after = t.Unix()
+				}
+				activities, err := fetchStravaActivities(r.AccessToken, page, after)
+				hasMore = len(activities) > 0
 				page += 1
 				if err != nil {
 					warning := fmt.Sprintf("error fetching activities from strava: %v", err)
@@ -133,7 +134,8 @@ func SyncStrava(app core.App) error {
 					app.Logger().Warn(warning)
 					break
 				}
-				hasNewActivities, err = syncTrailsWithActivities(app, r.AccessToken, userId, actorId, activities)
+				err = syncTrailsWithActivities(app, stravaIntegration, r.AccessToken, userId, actorId, activities)
+
 				if err != nil {
 					warning := fmt.Sprintf("error syncing strava activities with trails: %v", err)
 					fmt.Print(warning)
@@ -141,6 +143,17 @@ func SyncStrava(app core.App) error {
 					continue
 				}
 			}
+
+		}
+
+		b, err := json.Marshal(stravaIntegration)
+		if err != nil {
+			return err
+		}
+		i.Set("strava", string(b))
+		err = app.Save(i)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -208,8 +221,8 @@ func fetchStravaRoutes(accessToken string, page int) ([]StravaRoute, error) {
 	return routes, nil
 }
 
-func fetchStravaActivities(accessToken string, page int) ([]StravaActivity, error) {
-	stravaRoutesURL := fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?page=%d", page)
+func fetchStravaActivities(accessToken string, page int, after int64) ([]StravaActivity, error) {
+	stravaRoutesURL := fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?page=%d&after=%d", page, after)
 	req, err := http.NewRequest("GET", stravaRoutesURL, nil)
 	if err != nil {
 		return nil, err
@@ -235,36 +248,33 @@ func fetchStravaActivities(accessToken string, page int) ([]StravaActivity, erro
 	return activities, nil
 }
 
-func syncTrailsWithRoutes(app core.App, accessToken string, user string, actor string, routes []StravaRoute) (bool, error) {
-	hasNewRoutes := false
+func syncTrailsWithRoutes(app core.App, i StravaIntegration, accessToken string, user string, actor string, routes []StravaRoute) error {
 	for _, route := range routes {
 		trails, err := app.FindRecordsByFilter("trails", "external_id = {:id}", "", 1, 0, dbx.Params{"id": route.IDStr})
 		if err != nil {
-			return hasNewRoutes, err
+			return err
 		}
 		if len(trails) != 0 {
 			continue
 		}
-		hasNewRoutes = true
 		gpx, err := fetchRouteGPX(route, accessToken)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to fetch GPX for route '%s': %v", route.Name, err))
 			continue
 		}
-		wpIds, err := createWaypointsFromRoute(app, route, user)
-		if err != nil {
-			app.Logger().Warn(fmt.Sprintf("Unable to create waypoints for route '%s': %v", route.Name, err))
-			continue
-		}
-		err = createTrailFromRoute(app, route, gpx, actor, wpIds)
+		trailid, err := createTrailFromRoute(app, route, gpx, user, actor, i.Privacy)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for route '%s': %v", route.Name, err))
 			continue
 		}
-
+		err = createWaypointsFromRoute(app, route, user, trailid)
+		if err != nil {
+			app.Logger().Warn(fmt.Sprintf("Unable to create waypoints for route '%s': %v", route.Name, err))
+			continue
+		}
 	}
 
-	return hasNewRoutes, nil
+	return nil
 }
 
 func fetchRouteGPX(route StravaRoute, accessToken string) (*filesystem.File, error) {
@@ -305,10 +315,12 @@ func fetchRouteGPX(route StravaRoute, accessToken string) (*filesystem.File, err
 	return gpxFile, nil
 }
 
-func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File, actor string, wpIds []string) error {
+func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File, user string, actor string, privacy string) (string, error) {
+	trailid := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
+
 	collection, err := app.FindCollectionByNameOrId("trails")
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	record := core.NewRecord(collection)
@@ -336,10 +348,27 @@ func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File,
 		category = hikeCategory.Id
 	}
 
+	public := !route.Private
+
+	if privacy == "settings" {
+		privacySettings := struct {
+			Trails string `json:"trails"`
+		}{}
+
+		settings, _ := app.FindFirstRecordByData("settings", "user", user)
+		err = settings.UnmarshalJSONField("privacy", &privacySettings)
+		if err != nil {
+			return "", err
+		}
+
+		public = privacySettings.Trails == "public"
+	}
+
 	record.Load(map[string]any{
+		"id":                trailid,
 		"name":              route.Name,
 		"description":       route.Description,
-		"public":            !route.Private,
+		"public":            public,
 		"distance":          route.Distance,
 		"elevation_gain":    route.ElevationGain,
 		"duration":          route.EstimatedMovingTime,
@@ -348,7 +377,6 @@ func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File,
 		"external_id":       route.IDStr,
 		"lat":               lat,
 		"lon":               lon,
-		"waypoints":         wpIds,
 		"difficulty":        "easy",
 		"category":          category,
 		"author":            actor,
@@ -359,19 +387,17 @@ func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File,
 	}
 
 	if err := app.Save(record); err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return trailid, err
 }
 
-func createWaypointsFromRoute(app core.App, route StravaRoute, user string) ([]string, error) {
+func createWaypointsFromRoute(app core.App, route StravaRoute, user string, trailid string) error {
 	collection, err := app.FindCollectionByNameOrId("waypoints")
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	wpIds := make([]string, len(route.Waypoints))
 
 	for i, wp := range route.Waypoints {
 		record := core.NewRecord(collection)
@@ -383,26 +409,26 @@ func createWaypointsFromRoute(app core.App, route StravaRoute, user string) ([]s
 		record.Set("icon", "circle")
 		record.Set("author", user)
 		record.Set("distance_from_start", wp.DistanceIntoRoute)
+		record.Set("trail", trailid)
 
-		app.Save(record)
+		if err := app.Save(record); err != nil {
+			return err
+		}
 
-		wpIds[i] = record.Id
 	}
 
-	return wpIds, nil
+	return nil
 }
 
-func syncTrailsWithActivities(app core.App, accessToken string, user string, actor string, activities []StravaActivity) (bool, error) {
-	hasNewActivites := false
+func syncTrailsWithActivities(app core.App, i StravaIntegration, accessToken string, user string, actor string, activities []StravaActivity) error {
 	for _, activity := range activities {
 		trails, err := app.FindRecordsByFilter("trails", "external_id = {:id}", "", 1, 0, dbx.Params{"id": strconv.Itoa(int(activity.ID))})
 		if err != nil {
-			return hasNewActivites, err
+			return err
 		}
 		if len(trails) != 0 {
 			continue
 		}
-		hasNewActivites = true
 		detailedActivity, err := fetchDetailedActivity(activity, accessToken)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to fetch detailed activity '%s': %v", activity.Name, err))
@@ -413,15 +439,14 @@ func syncTrailsWithActivities(app core.App, accessToken string, user string, act
 			app.Logger().Warn(fmt.Sprintf("Unable to fetch GPX for activity '%s': %v", activity.Name, err))
 			continue
 		}
-		err = createTrailFromActivity(app, detailedActivity, gpx, actor)
+		err = createTrailFromActivity(app, detailedActivity, gpx, user, actor, i.Privacy)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail from activity '%s': %v", activity.Name, err))
 			continue
 		}
-
 	}
 
-	return hasNewActivites, nil
+	return nil
 }
 
 func fetchDetailedActivity(activity StravaActivity, accessToken string) (*DetailedStravaActivity, error) {
@@ -451,7 +476,7 @@ func fetchDetailedActivity(activity StravaActivity, accessToken string) (*Detail
 	return &detailedActivity, nil
 }
 
-func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx *filesystem.File, user string) error {
+func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx *filesystem.File, user string, actor string, privacy string) error {
 	if len(activity.StartLatlng) < 2 {
 		return nil
 	}
@@ -517,10 +542,26 @@ func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx
 		categoryId = category.Id
 	}
 
+	public := !activity.Private
+
+	if privacy == "settings" {
+		privacySettings := struct {
+			Trails string `json:"trails"`
+		}{}
+
+		settings, _ := app.FindFirstRecordByData("settings", "user", user)
+		err = settings.UnmarshalJSONField("privacy", &privacySettings)
+		if err != nil {
+			return err
+		}
+
+		public = privacySettings.Trails == "public"
+	}
+
 	record.Load(map[string]any{
 		"name":              activity.Name,
 		"description":       activity.Description,
-		"public":            !activity.Private,
+		"public":            public,
 		"distance":          activity.Distance,
 		"elevation_gain":    activity.TotalElevationGain,
 		"duration":          activity.ElapsedTime,
@@ -531,7 +572,7 @@ func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx
 		"lon":               activity.StartLatlng[1],
 		"difficulty":        "easy",
 		"category":          categoryId,
-		"author":            user,
+		"author":            actor,
 	})
 
 	if photo != nil {
@@ -610,7 +651,7 @@ func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (
 	timeStream := streamResponse.Time
 	altitudeStream := streamResponse.Altitude
 
-	var points []*gpx.WptType
+	var points []gpx.GPXPoint
 
 	for i, latlng := range latLngStream.Data {
 		lat := latlng[0]
@@ -618,30 +659,31 @@ func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (
 		alt := altitudeStream.Data[i]
 		t := activity.StartDate.Unix() + int64(timeStream.Data[i])
 
-		points = append(points, &gpx.WptType{Lat: lat, Lon: lon, Ele: alt, Time: time.Unix(t, 0)})
+		points = append(points, gpx.GPXPoint{
+			Point:     gpx.Point{Latitude: lat, Longitude: lon, Elevation: *gpx.NewNullableFloat64(alt)},
+			Timestamp: time.Unix(t, 0)})
 	}
 
-	gpx := &gpx.GPX{
+	gpxData := &gpx.GPX{
 		Version: "1.1",
 		Creator: "Strava GPX Exporter",
-		Trk: []*gpx.TrkType{
+		Tracks: []gpx.GPXTrack{
 			{
 				Name: activity.Name,
-				TrkSeg: []*gpx.TrkSegType{
+				Segments: []gpx.GPXTrackSegment{
 					{
-						TrkPt: points,
+						Points: points,
 					},
 				},
 			},
 		},
 	}
-	var buf bytes.Buffer
-	err = gpx.Write(&buf)
+	gpxAsXML, err := gpxData.ToXml(gpx.ToXmlParams{Version: "1.1", Indent: true})
 	if err != nil {
 		return nil, err
 	}
 
-	gpxFile, err := filesystem.NewFileFromBytes(buf.Bytes(), activity.Name+".gpx")
+	gpxFile, err := filesystem.NewFileFromBytes(gpxAsXML, activity.Name+".gpx")
 	if err != nil {
 		return nil, err
 	}

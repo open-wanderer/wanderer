@@ -13,7 +13,6 @@
     import { _ } from "svelte-i18n";
     import type { MouseEventHandler } from "svelte/elements";
     import Chip from "../base/chip.svelte";
-    import { fade, slide } from "svelte/transition";
 
     interface Props {
         trail: Trail;
@@ -67,9 +66,10 @@
 </script>
 
 <div
-    class="trail-card relative rounded-2xl border border-input-border min-w-72 h-[386px] {fullWidth
+    class="trail-card relative rounded-2xl border border-input-border min-w-72 h-[386px] bg-background {fullWidth
         ? ''
         : 'lg:w-72'} cursor-pointer flex flex-col"
+    class:bg-secondary-hover={selected}
     {onmouseenter}
     {onmouseleave}
     role="listitem"
@@ -133,7 +133,10 @@
     {/if}
     {#if $currentUser && trail.like_count > 0}
         <div
-            class="flex absolute items-center justify-center {trailIsShared || trail.public ? 'top-14': 'top-4'} right-4 bg-background w-8 h-8 rounded-full"
+            class="flex absolute items-center justify-center {trailIsShared ||
+            trail.public
+                ? 'top-14'
+                : 'top-4'} right-4 bg-background w-8 h-8 rounded-full"
         >
             <span class="tooltip" data-title={$_("likes")}>
                 <i class="fa fa-heart"></i>
@@ -147,7 +150,7 @@
     {/if}
     <div class="p-4">
         <div>
-            <h4 class="font-semibold text-lg line-clamp-2">{trail.name}</h4>
+            <h4 class="font-semibold text-lg line-clamp-2 wrap-anywhere">{trail.name}</h4>
             {#if trail.date}
                 <p class="text-xs text-gray-500 mb-3">
                     {new Date(trail.date).toLocaleDateString(undefined, {
@@ -194,17 +197,22 @@
                     {/if}
                 </div>
             {/if}
-            <div class="flex gap-x-4">
-                {#if trail.location}
-                    <h5>
-                        <i class="fa fa-location-dot mr-3"></i>{trail.location}
-                    </h5>
+            <div class="flex gap-x-4 gap-y-1 text-base flex-wrap">
+                {#if trail.expand?.category?.name || trail.category}
+                    <p>
+                        <i class="fa fa-shapes mr-3"> </i>{$_(trail.expand?.category?.name ?? trail.category ?? "-")}
+                    </p>
                 {/if}
-                <h5>
+                {#if trail.location}
+                    <p>
+                        <i class="fa fa-location-dot mr-3"></i>{trail.location}
+                    </p>
+                {/if}
+                <p class="whitespace-nowrap">
                     <i class="fa fa-gauge mr-3"></i>{$_(
                         trail.difficulty ?? "?",
                     )}
-                </h5>
+                </p>
             </div>
         </div>
         <div

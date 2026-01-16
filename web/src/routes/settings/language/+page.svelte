@@ -8,21 +8,23 @@
     } from "$lib/components/base/select.svelte";
     import type { Language } from "$lib/models/settings";
     import { settings_update } from "$lib/stores/settings_store";
-    import { _, locale } from "svelte-i18n";
+    import { _ } from "svelte-i18n";
 
     const settings = page.data.settings;
 
     const languages: SelectItem[] = [
-        { text: $_("chinese"), value: "zh" },
-        { text: $_("german"), value: "de" },
         { text: $_("english"), value: "en" },
+        { text: $_("german"), value: "de" },
         { text: $_("spanish"), value: "es" },
+        { text: $_("basque"), value: "eu" },
         { text: $_("french"), value: "fr" },
         { text: $_("hungarian"), value: "hu" },
         { text: $_("italian"), value: "it" },
         { text: $_("dutch"), value: "nl" },
         { text: $_("polish"), value: "pl" },
         { text: $_("portuguese"), value: "pt" },
+        { text: $_("russian"), value: "ru" },
+        { text: $_("chinese"), value: "zh" },
     ];
 
     const units: RadioItem[] = [
@@ -32,9 +34,7 @@
 
     let selectedLanguage = $state(settings?.language ?? "en");
 
-    async function handleLanguageSelection(
-        value: Language,
-    ) {
+    async function handleLanguageSelection(value: Language) {
         await settings_update({
             id: settings!.id,
             language: value,

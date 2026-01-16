@@ -18,7 +18,7 @@ export default defineConfig({
       replacesTitle: true
     },
     social: [
-      { icon: 'github', label: 'GitHub', href: 'https://github.com/flomp/wanderer' },
+      { icon: 'github', label: 'GitHub', href: 'https://github.com/open-wanderer/wanderer' },
     ],
     components: {
       Footer: './src/components/footer.astro'
@@ -84,29 +84,35 @@ export default defineConfig({
         items: [
           {
             label: 'Installation',
-            link: '/run/installation/'
+            items: [
+                { label: 'Quickstart', link: '/run/installation/quick' },
+                { label: 'Manual Docker Setup', link: '/run/installation/docker' },
+                { label: 'Install from Source', link: '/run/installation/from-source' },
+            ]
           },
           {
             label: 'Environment configuration',
             link: '/run/environment-configuration/'
           },
           {
+            label: 'Frontend configuration',
+            items: [
+              { label: 'Edit the "About" section', link: '/run/frontend-configuration/about' },
+            ]
+          },
+          {
             label: 'Backend configuration',
-            link: '/run/backend-configuration/'
-          },
-          {
-            label: 'Custom categories',
-            link: '/run/custom-categories/'
-          },
-          {
-            label: 'Backing up your server',
-            link: '/run/backup-server/'
-          },
-          {
-            label: 'Changelog',
-            link: '/run/changelog/'
-          }]
-      }, {
+            items: [
+              { label: 'Overview', link: '/run/backend-configuration/' },
+              { label: 'SMTP', link: '/run/backend-configuration/smtp/' },
+              { label: 'OAuth2', link: '/run/backend-configuration/oauth2/' },
+              { label: 'Backing up your server', link: '/run/backend-configuration/backup-server/' },
+              { label: 'Custom categories', link: '/run/backend-configuration/custom-categories/' },
+            ]
+          }
+        ]
+      },
+      {
         label: 'Develop wanderer',
         items: [
           {
@@ -123,12 +129,21 @@ export default defineConfig({
           },
         ]
       },
-      ...openAPISidebarGroups,],
+      ...openAPISidebarGroups,
+      {
+        label: 'Changelog',
+        link: '/changelog/',
+      }],
     customCss: ['./src/custom.css', './src/tailwind.css', '@fontsource/ibm-plex-sans/400.css', '@fontsource/ibm-plex-sans/600.css', '@fontsource/ibm-plex-mono/400.css', '@fontsource/ibm-plex-mono/600.css']
   }), svelte()],
   output: "server",
   vite: { plugins: [tailwindcss()] },
   adapter: node({
     mode: "standalone"
-  })
+  }),
+  redirects: {
+    '/run/changelog/': '/changelog/',
+    '/run/backup-server/': '/run/backend-configuration/backup-server/',
+    '/run/custom-categories/': '/run/backend-configuration/custom-categories/',
+  },
 });

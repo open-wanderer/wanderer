@@ -11,11 +11,12 @@ export class ClusterLayer implements BaseLayer {
 
     listeners: Record<string, { onMouseUp?: (e: MapMouseEvent) => void; onMouseDown?: (e: MapMouseEvent) => void; onEnter?: (e: MapMouseEvent) => void; onLeave?: (e: MapMouseEvent) => void; onMouseMove?: (e: MapMouseEvent) => void; }> = {
         "clusters": {
-            onMouseDown: this.zoomOnCluster.bind(this),
+            onMouseUp: this.zoomOnCluster.bind(this),
             onEnter: () => this.map!.getCanvas().style.cursor = "pointer",
             onLeave: () => this.map!.getCanvas().style.cursor = ""
         },
         "unclustered-point": {
+            onMouseUp: this.zoomOnUnclusteredPoint.bind(this),
             onEnter: () => this.map!.getCanvas().style.cursor = "pointer",
             onLeave: () => this.map!.getCanvas().style.cursor = ""
         }
@@ -45,6 +46,7 @@ export class ClusterLayer implements BaseLayer {
                     type: "circle",
                     source: "cluster-trails",
                     filter: ["has", "point_count"],
+                    maxzoom: 10,
                     paint: {
                         "circle-color": "#242734",
                         "circle-radius": [
@@ -71,6 +73,7 @@ export class ClusterLayer implements BaseLayer {
                     type: "symbol",
                     source: "cluster-trails",
                     filter: ["has", "point_count"],
+                    maxzoom: 10,
                     paint: {
                         "text-color": "#fff",
                     },
@@ -84,6 +87,7 @@ export class ClusterLayer implements BaseLayer {
                     id: "unclustered-point",
                     type: "circle",
                     source: "cluster-trails",
+                    maxzoom: 10,
                     filter: ["!", ["has", "point_count"]],
                     paint: {
                         "circle-color": "#242734",
@@ -108,6 +112,17 @@ export class ClusterLayer implements BaseLayer {
         this.map.flyTo({
             center: (features[0].geometry as any).coordinates,
             zoom,
+            maxDuration: 3000
+        });
+    }
+
+    private zoomOnUnclusteredPoint(e: MapMouseEvent) {
+        const coordinates = (e as any).features[0].geometry.coordinates.slice();
+
+        this.map.flyTo({
+            center: coordinates,
+            zoom: 12,
+            maxDuration: 3000
         });
     }
 }

@@ -5,7 +5,7 @@
     import Select from "$lib/components/base/select.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import Toggle from "$lib/components/base/toggle.svelte";
-    import ListSelectModal from "$lib/components/list/list_select_modal.svelte";
+    import ListSearchModal from "$lib/components/list/list_search_modal.svelte";
     import SummitLogCard from "$lib/components/summit_log/summit_log_card.svelte";
     import SummitLogModal from "$lib/components/summit_log/summit_log_modal.svelte";
     import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
@@ -111,7 +111,7 @@
 
     let waypointModal: WaypointModal;
     let summitLogModal: SummitLogModal;
-    let listSelectModal: ListSelectModal;
+    let listSelectModal: ListSearchModal;
 
     let loading = $state(false);
 
@@ -139,7 +139,7 @@
                 summit_logs_via_trail: z
                     .array(SummitLogCreateSchema)
                     .optional(),
-                waypoints: z
+                waypoints_via_trail: z
                     .array(
                         WaypointCreateSchema.extend({
                             marker: z.any().optional(),
@@ -319,7 +319,7 @@
 
         try {
             const prevId = $formData.id;
-            const parseResult = gpx2trail(gpxData, selectedFile.name);
+            const parseResult = await gpx2trail(gpxData, selectedFile.name);
             setFields(parseResult.trail);
             $formData.id = prevId ?? cryptoRandomString({ length: 15 });
             $formData.expand!.gpx_data = gpxData;
@@ -384,11 +384,10 @@
     }
 
     function clearWaypoints() {
-        for (const waypoint of $formData.expand!.waypoints ?? []) {
+        for (const waypoint of $formData.expand!.waypoints_via_trail ?? []) {
             waypoint.marker?.remove();
         }
-        $formData.expand!.waypoints = [];
-        $formData.waypoints = [];
+        $formData.expand!.waypoints_via_trail = [];
     }
 
     function initRouteAnchors(gpx: GPX, addToMap: boolean = false) {
@@ -445,29 +444,28 @@
     }
 
     function deleteWaypoint(index: number) {
-        const wp = $formData.expand!.waypoints?.splice(index, 1);
-        $formData.waypoints.splice(index, 1);
+        const wp = $formData.expand!.waypoints_via_trail?.splice(index, 1);
 
-        if (!$formData.expand!.waypoints?.length) {
-            $formData.expand!.waypoints = [];
+        if (!$formData.expand!.waypoints_via_trail?.length) {
+            $formData.expand!.waypoints_via_trail = [];
         }
-        $formData.expand!.waypoints = $formData.expand!.waypoints;
+        $formData.expand!.waypoints_via_trail = $formData.expand!.waypoints_via_trail;
 
         // updateTrailOnMap();
     }
 
     function saveWaypoint(savedWaypoint: Waypoint) {
         let editedWaypointIndex =
-            $formData.expand!.waypoints?.findIndex(
+            $formData.expand!.waypoints_via_trail?.findIndex(
                 (s) => s.id == savedWaypoint.id,
             ) ?? -1;
 
         if (editedWaypointIndex >= 0) {
-            $formData.expand!.waypoints![editedWaypointIndex] = savedWaypoint;
+            $formData.expand!.waypoints_via_trail![editedWaypointIndex] = savedWaypoint;
         } else {
             savedWaypoint.id = cryptoRandomString({ length: 15 });
-            $formData.expand!.waypoints = [
-                ...($formData.expand!.waypoints ?? []),
+            $formData.expand!.waypoints_via_trail = [
+                ...($formData.expand!.waypoints_via_trail ?? []),
                 savedWaypoint,
             ];
 
@@ -478,15 +476,15 @@
     function moveMarker(marker: M.Marker, wpId?: string) {
         const position = marker.getLngLat();
         const editableWaypointIndex =
-            $formData.expand!.waypoints?.findIndex((w) => w.id == wpId) ?? -1;
+            $formData.expand!.waypoints_via_trail?.findIndex((w) => w.id == wpId) ?? -1;
         const editableWaypoint =
-            $formData.expand!.waypoints![editableWaypointIndex];
+            $formData.expand!.waypoints_via_trail![editableWaypointIndex];
         if (!editableWaypoint) {
             return;
         }
         editableWaypoint.lat = position.lat;
         editableWaypoint.lon = position.lng;
-        $formData.expand!.waypoints = [...($formData.expand!.waypoints ?? [])];
+        $formData.expand!.waypoints_via_trail = [...($formData.expand!.waypoints_via_trail ?? [])];
         // updateTrailOnMap();
     }
 
@@ -811,9 +809,7 @@
             if (previousRouteSegment) {
                 editRoute(anchorIndex - 1, previousRouteSegment);
             }
-            if ($formData.expand?.gpx_data) {
-                updateTrailWithRouteData();
-            }
+            updateTrailWithRouteData();
             normalizeRouteTime();
         } catch (e) {
             console.error(e);
@@ -1044,10 +1040,10 @@
         overwriteGPX = true;
         updateTotals(valhallaStore.route);
 
-        updateTrailOnMap();
         if (!$formData.id) {
             $formData.id = cryptoRandomString({ length: 15 });
         }
+        updateTrailOnMap();
     }
 
     function updateTotals(gpx: GPX) {
@@ -1061,7 +1057,7 @@
         });
     }
 
-    function updateTrailOnMap() {       
+    function updateTrailOnMap() {
         const t: Trail = JSON.parse(JSON.stringify($formData));
         t.expand!.gpx = valhallaStore.route;
         mapTrail = [t];
@@ -1426,7 +1422,7 @@
             {$_("waypoints", { values: { n: 2 } })}
         </h3>
         <ul>
-            {#each $formData.expand?.waypoints ?? [] as waypoint, i}
+            {#each $formData.expand?.waypoints_via_trail ?? [] as waypoint, i}
                 <li
                     onmouseenter={() => openMarkerPopup(waypoint)}
                     onmouseleave={() => openMarkerPopup(waypoint)}
@@ -1558,7 +1554,7 @@
         <div id="trail-map">
             <MapWithElevationMaplibre
                 trails={mapTrail}
-                waypoints={$formData.expand?.waypoints}
+                waypoints={$formData.expand?.waypoints_via_trail}
                 drawing={drawingActive}
                 showTerrain={true}
                 onmarkerdragend={moveMarker}
@@ -1575,11 +1571,11 @@
 <WaypointModal bind:this={waypointModal} onsave={saveWaypoint}></WaypointModal>
 <SummitLogModal bind:this={summitLogModal} onsave={(log) => saveSummitLog(log)}
 ></SummitLogModal>
-<ListSelectModal
+<ListSearchModal
     lists={lists.items}
     bind:this={listSelectModal}
     onchange={(e) => handleListSelection(e)}
-></ListSelectModal>
+></ListSearchModal>
 
 <style>
     #trail-map {

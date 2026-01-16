@@ -6,7 +6,7 @@ import { currentUser } from "$lib/stores/user_store";
 import { error, type Load } from "@sveltejs/kit";
 import { get } from "svelte/store";
 
-export const load: Load = async ({ params, fetch }) => {
+export const load: Load = async ({ params, fetch, url }) => {
     const user = get(currentUser)
    
     if (!params.id) {
@@ -19,7 +19,7 @@ export const load: Load = async ({ params, fetch }) => {
     if (params.id === "new") {
         trail = new Trail("", { category: categories[0] });
     } else {
-        trail = await trails_show(params.id, undefined, true, fetch);
+        trail = await trails_show(params.id, undefined, url.searchParams.get("share") ?? undefined, true, fetch);
     }
 
     return { trail: trail, lists: lists }

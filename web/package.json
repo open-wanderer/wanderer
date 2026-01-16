@@ -1,6 +1,6 @@
 {
   "name": "wanderer",
-  "version": "0.17.2",
+  "version": "0.18.3",
   "private": true,
   "scripts": {
     "dev": "vite dev",
@@ -10,32 +10,30 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "test:integration": "playwright test",
-    "test:unit": "vitest"
+    "test:unit": "vitest --passWithNoTests"
   },
   "devDependencies": {
     "@playwright/test": "^1.42.1",
     "@sveltejs/adapter-auto": "^3.0.0",
     "@sveltejs/kit": "^2.5.27",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
-    "@tailwindcss/typography": "^0.5.15",
-    "@tailwindcss/vite": "^4.0.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20.11.25",
-    "autoprefixer": "^10.4.17",
     "postcss": "^8.4.33",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "tailwindcss": "^4.0.0",
     "tslib": "^2.4.1",
     "typescript": "^5.5.0",
-    "vite": "^5.4.4",
-    "vitest": "^1.2.0"
+    "vite": "^5.4.4"
   },
   "type": "module",
   "dependencies": {
     "@felte/validator-zod": "^1.0.18",
     "@fortawesome/fontawesome-free": "^6.5.1",
     "@sveltejs/adapter-node": "^4.0.1",
+    "@tailwindcss/typography": "^0.5.15",
+    "@tailwindcss/vite": "^4.0.0",
     "@threlte/core": "^8.0.0-next.41",
     "@threlte/extras": "^9.0.0-next.55",
     "@tiptap/core": "^2.14.0",
@@ -53,6 +51,7 @@
     "@types/three": "^0.161.2",
     "@types/xmldom": "^0.1.34",
     "activitypub-types": "^1.1.0",
+    "autoprefixer": "^10.4.17",
     "canvas-confetti": "^1.9.3",
     "canvg": "^4.0.1",
     "chart.js": "^4.4.6",
@@ -67,6 +66,7 @@
     "jspdf": "^2.5.1",
     "jszip": "^3.10.1",
     "maplibre-gl": "^4.7.1",
+    "marked": "^16.2.0",
     "meilisearch": "^0.37.0",
     "ngeohash": "^0.6.3",
     "nouislider": "^15.7.1",
@@ -76,6 +76,7 @@
     "qrcode": "^1.4.4",
     "svelte-i18n": "^4.0.0",
     "three": "^0.161.0",
+    "vitest": "^1.2.0",
     "xmldom": "^0.6.0",
     "zod": "^3.24.1"
   }

@@ -18,7 +18,9 @@ export async function GET(event: RequestEvent) {
             event.url.searchParams.delete("handle")
 
             const safeSearchParams = RecordOptionsSchema.parse(Object.fromEntries(event.url.searchParams));
-
+            if (event.url.searchParams.has("share")) {
+                safeSearchParams.query = { share: event.url.searchParams.get("share")! }
+            }
             let origin = new URL(actor.iri).origin
             let iri = `${origin}/api/v1/trail/${event.params.id}`
 
@@ -82,7 +84,7 @@ export async function GET(event: RequestEvent) {
                         l.expand.author.isLocal = false
                     }
                 })
-                t.expand?.waypoints?.forEach(w => {
+                t.expand?.waypoints_via_trail?.forEach(w => {
 
                     w.photos = w.photos.map(p =>
                         `${origin}/api/v1/files/waypoints/${w.id}/${p}`
@@ -129,7 +131,7 @@ export async function GET(event: RequestEvent) {
         await enrichRecord(event.locals.pb, t);
 
         // sort waypoints by distance
-        t.expand?.waypoints?.sort((a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0))
+        t.expand?.waypoints_via_trail?.sort((a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0))
         return json(t)
     } catch (e: any) {
         return handleError(e)

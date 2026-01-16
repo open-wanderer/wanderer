@@ -20,10 +20,13 @@
 
     let fullDescription = $state(false);
 
-    const timeSince = $derived(formatTimeSince(new Date(feedItem.created ?? "")));
+    const timeSince = $derived(
+        formatTimeSince(new Date(feedItem.created ?? "")),
+    );
 
     const photos = $derived((feedItem.expand.item as Trail).photos);
     const location = $derived((feedItem.expand.item as Trail).location);
+    const category = $derived((feedItem.expand.item as Trail).expand?.category?.name);
 
     const trails = $derived((feedItem.expand.item as List).trails);
 
@@ -69,14 +72,21 @@
             `@${author?.preferred_username}@${author?.domain}/${feedItem.item}`}
     >
         <div class="feed-card-body">
-            <h3 class="text-2xl font-semibold !mt-2">
+            <h3 class="text-2xl font-semibold mb-2">
                 {feedItem.expand.item.name}
             </h3>
-            {#if location}
-                <h5 class="my-1">
-                    <i class="fa fa-location-dot mr-3"></i>{location}
-                </h5>
-            {/if}
+            <div class="flex flex-wrap gap-x-8 gap-y-1">
+                {#if category}
+                    <p>
+                        <i class="fa fa-shapes mr-3"> </i>{$_(category)}
+                    </p>
+                {/if}
+                {#if location}
+                    <p>
+                        <i class="fa fa-location-dot mr-3"></i>{location}
+                    </p>
+                {/if}
+            </div>
             <div
                 class="flex flex-wrap mt-1 gap-x-4 gap-y-2 text-sm text-gray-500 mb-2"
             >

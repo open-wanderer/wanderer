@@ -17,7 +17,7 @@ func init() {
 		// update collection data
 		if err := json.Unmarshal([]byte(`{
 			"indexes": [
-				"CREATE UNIQUE INDEX ` + "`" + `idx_6tD5RqfVk2` + "`" + ` ON ` + "`" + `trails` + "`" + ` (` + "`" + `iri` + "`" + `) WHERE iri IS NOT NULL AND iri != \"\";"
+				"CREATE UNIQUE INDEX `+"`"+`idx_6tD5RqfVk2`+"`"+` ON `+"`"+`trails`+"`"+` (`+"`"+`iri`+"`"+`) WHERE iri IS NOT NULL AND iri != \"\";"
 			]
 		}`), &collection); err != nil {
 			return err
@@ -33,7 +33,7 @@ func init() {
 		// update collection data
 		if err := json.Unmarshal([]byte(`{
 			"indexes": [
-				"CREATE INDEX ` + "`" + `idx_6tD5RqfVk2` + "`" + ` ON ` + "`" + `trails` + "`" + ` (` + "`" + `iri` + "`" + `)"
+				"CREATE INDEX `+"`"+`idx_6tD5RqfVk2`+"`"+` ON `+"`"+`trails`+"`"+` (`+"`"+`iri`+"`"+`)"
 			]
 		}`), &collection); err != nil {
 			return err

@@ -79,7 +79,7 @@ export async function lists_search_filter(filter: ListFilter, page: number = 1, 
 export async function lists_show(id: string, handle?: string, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
 
     const r = await f(`/api/v1/list/${id}?` + new URLSearchParams({
-        expand: "author,trails,trails.author,list_share_via_list.actor",
+        expand: "author,trails,trails.author,trails.category,list_share_via_list.actor",
         ...(handle ? { handle } : {})
     }), {
         method: 'GET',
@@ -133,7 +133,7 @@ export async function lists_create(list: List, avatar?: File) {
 
 export async function lists_update(list: List, avatar?: File) {
 
-    const formData = objectToFormData(list)
+    const formData = objectToFormData(list, [ "expand" ])
 
     if (avatar) {
         formData.append("avatar", avatar);

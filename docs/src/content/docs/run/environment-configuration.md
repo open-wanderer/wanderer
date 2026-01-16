@@ -3,7 +3,7 @@ title: Environment configuration
 description: How to configure <span class="-tracking-[0.075em]">wanderer</span> with environment variables
 ---
 
-Global settings for <span class="-tracking-[0.075em]">wanderer</span> can be adjusted via environment variables. If you depoloyed <span class="-tracking-[0.075em]">wanderer</span> with docker you can change the environment variables directly in the `docker-compose.yaml`. If you deployed <span class="-tracking-[0.075em]">wanderer</span> on bare-metal you can change the environment variables in the launch script.
+Global settings for <span class="-tracking-[0.075em]">wanderer</span> can be adjusted via environment variables. If you deployed <span class="-tracking-[0.075em]">wanderer</span> with docker you can change the environment variables directly in the `docker-compose.yaml`. If you deployed <span class="-tracking-[0.075em]">wanderer</span> on bare-metal you can change the environment variables in the launch script.
 
 ## Common
 These variables are shared between all three services.
@@ -48,3 +48,4 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | UPLOAD_FOLDER           | Folder from which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                                   | /app/uploads                        |
 | UPLOAD_USER             | Username for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
 | UPLOAD_PASSWORD         | Password for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
+| PUBLIC_OVERPASS_API_URL | Overpass API URL used for map points of interest                                 | https://overpass-api.de        |

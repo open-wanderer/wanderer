@@ -10,9 +10,7 @@ import geohash from "ngeohash"
 import { encodePolyline } from '$lib/util/polyline_util';
 import { APIError } from '$lib/util/api_util';
 import type { ValhallaHeightResponse } from '../valhalla';
-import { bbox, splitMultiLineStringToLineStrings } from '$lib/util/geojson_util';
-import { browser } from '$app/environment';
-import xmldom from 'xmldom';
+import { bbox } from '$lib/util/geojson_util';
 
 const defaultAttributes = {
   version: '1.1',

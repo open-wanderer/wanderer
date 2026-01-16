@@ -12,7 +12,7 @@ export const load: Load = async ({ params, fetch, parent }) => {
         q: "",
         category: [],
         tags: [],
-        difficulty: ["easy", "moderate", "difficult"],
+        difficulty: [0, 1, 2],
         author: actor.id,
         public: true,
         shared: true,

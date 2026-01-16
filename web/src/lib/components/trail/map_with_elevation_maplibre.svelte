@@ -12,6 +12,7 @@
         createPopupFromTrail,
         FontawesomeMarker,
     } from "$lib/util/maplibre_util";
+    import { decodePolyline } from "$lib/util/polyline_util";
     import type { ElevationProfileControl } from "$lib/vendor/maplibre-elevation-profile/elevationprofile-control";
     import { FullscreenControl } from "$lib/vendor/maplibre-fullscreen/fullscreen-control";
     import MaplibreGraticule from "$lib/vendor/maplibre-graticule/maplibre-graticule";
@@ -19,6 +20,7 @@
     import { ClusterLayer } from "$lib/vendor/maplibre-layer-manager/cluster-layer";
     import { baseMapStyles } from "$lib/vendor/maplibre-layer-manager/layers";
     import { LayerManager } from "$lib/vendor/maplibre-layer-manager/maplibre-layer-manager";
+    import { PreviewLayer } from "$lib/vendor/maplibre-layer-manager/preview-layer";
     import { TerrainLayer } from "$lib/vendor/maplibre-layer-manager/terrain-layer";
     import { TrailLayer } from "$lib/vendor/maplibre-layer-manager/trail-layer";
     import { StyleSwitcherControl } from "$lib/vendor/maplibre-style-switcher/style-switcher-control";
@@ -114,21 +116,21 @@
     let mapLoaded: boolean = false;
 
     const trailColors = [
-        "#3549BB",
-        "#592E9E",
-        "#47A2CD",
-        "#62D5BC",
-        "#7DDE95",
-        "#759E2E",
-        "#BBA535",
-        "#CD6F47",
-        "#D5627B",
-        "#DE7DC5",
+        "#3549bb", // blue
+        "#ff7f0e", // orange
+        "#2ca02c", // green
+        "#d62728", // red
+        "#9467bd", // purple
+        "#8c564b", // brown
+        "#e377c2", // pink
+        "#373642", // gray
+        "#fae455", // yellow
+        "#17becf", // teal
     ];
 
     let clusterPopup: M.Popup | null = null;
 
-    let [data, clusterData] = $derived(getData(trails));
+    let [data, clusterData, previewData] = $derived(getData(trails));
     $effect(() => {
         if (data && map && mapLoaded) {
             untrack(() => initMap(map?.loaded() ?? false));
@@ -182,35 +184,61 @@
 
     function getData(
         trails: Trail[],
-    ): [FeatureCollection[], FeatureCollection] {
+    ): [FeatureCollection[], FeatureCollection, FeatureCollection] {
         let clusterData: FeatureCollection = {
+            type: "FeatureCollection",
+            features: [],
+        };
+        let previewData: FeatureCollection = {
             type: "FeatureCollection",
             features: [],
         };
         let r: FeatureCollection[] = [];
 
-        for (const t of trails) {
+        trails.forEach((t, i) => {
             if (t.expand?.gpx) {
                 r.push(t.expand.gpx.toGeoJSON());
             } else if (t.expand?.gpx_data) {
                 r.push(GPX.parse(t.expand.gpx_data).toGeoJSON());
             }
-            if (clusterTrails && t.lat !== null && t.lon !== null) {
-                clusterData.features.push({
-                    id: t.id,
-                    type: "Feature",
-                    properties: {
-                        trail: t.id,
-                    },
-                    geometry: {
-                        type: "Point",
-                        coordinates: [t.lon ?? 0, t.lat ?? 0],
-                    },
-                } as Feature);
-            }
-        }
+            if (clusterTrails) {
+                if (t.lat !== null && t.lon !== null) {
+                    clusterData.features.push({
+                        id: t.id,
+                        type: "Feature",
+                        properties: {
+                            trail: t.id,
+                        },
+                        geometry: {
+                            type: "Point",
+                            coordinates: [t.lon ?? 0, t.lat ?? 0],
+                        },
+                    } as Feature);
+                }
 
-        return [r, clusterData];
+                if (t.polyline) {
+                    previewData.features.push({
+                        id: t.id,
+                        type: "Feature",
+                        properties: {
+                            trail: t.id,
+                            color: trailColors[
+                                hashStringToIndex(
+                                    t.id ?? "",
+                                    trailColors.length,
+                                )
+                            ],
+                        },
+                        geometry: {
+                            type: "LineString",
+                            coordinates: decodePolyline(t.polyline, 5),
+                        },
+                    });
+                }
+            }
+        });
+
+        return [r, clusterData, previewData];
     }
 
     function initMap(mapLoaded: boolean) {
@@ -231,6 +259,7 @@
         });
         if (clusterTrails) {
             addClusterLayer(clusterData);
+            addPreviewLayer(previewData);
         }
 
         Object.entries(layerManager.layers).forEach(([id, layer]) => {
@@ -330,11 +359,14 @@
         if (!geojson || !map) {
             return;
         }
-
         const trailLayer = new TrailLayer(
             id,
             geojson,
-            trailColors[index % trailColors.length],
+            trailColors[
+                clusterTrails
+                    ? hashStringToIndex(id ?? "", trailColors.length)
+                    : 0
+            ],
             {
                 onEnter: (e) =>
                     highlightTrail(id, trails[activeTrail ?? -1]?.id == id),
@@ -359,33 +391,27 @@
         if (!geojson || !map || !map.style) {
             return;
         }
-        layerManager.addLayer(
-            "clusters",
-            new ClusterLayer(map, geojson, {
-                "unclustered-point": {
-                    onMouseDown: (e) => {
-                        const trail = trails.find(
-                            (t) =>
-                                t.id == (e as any).features[0].properties.trail,
-                        );
-                        if (!trail || !map) {
-                            return;
-                        }
-                        highlightCluster(trail);
-                    },
-                },
-            }),
-        );
+        layerManager.addLayer("clusters", new ClusterLayer(map, geojson));
     }
 
-    function addClusterHighlightLayer(geojson: FeatureCollection) {
+    function addPreviewLayer(geojson: FeatureCollection) {
         if (!geojson || !map || !map.style) {
             return;
         }
-
         layerManager.addLayer(
-            "cluster-highlight",
-            new TrailLayer("cluster-highlight", geojson, trailColors[0]),
+            "preview",
+            new PreviewLayer(map, geojson, {
+                preview: {
+                    onEnter: (e) => {
+                        const trail = trails.find(t => t.id === (e as any).features[0].properties.trail)
+                        if(!trail) return;
+                        highlightCluster(trail)
+                    },
+                    onLeave: (e) => {
+                        unHighlightCluster()
+                    }
+                },
+            }),
         );
     }
 
@@ -489,10 +515,6 @@
         }
         clusterPopup = createPopupFromTrail(trail);
         clusterPopup.setLngLat([trail.lon!, trail.lat!]).addTo(map);
-
-        const gpx = await fetchGPX(trail);
-
-        addClusterHighlightLayer(GPX.parse(gpx).toGeoJSON());
 
         clusterPopup.on("close", () => {
             unHighlightCluster(false);
@@ -787,8 +809,7 @@
                     animate: fitBounds == "animate",
                 },
                 trackUserLocation: true,
-            }),
-        );
+            }));
 
         if (showStyleSwitcher) {
             map.addControl(switcherControl);
@@ -926,6 +947,15 @@
                 epc?.toggleProfile();
             }
         }
+    }
+
+    function hashStringToIndex(str: string, max: number) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = (hash << 5) - hash + str.charCodeAt(i);
+            hash |= 0;
+        }
+        return Math.abs(hash) % max;
     }
 </script>
 

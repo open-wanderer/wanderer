@@ -76,7 +76,7 @@
         <span class="font-semibold whitespace-nowrap text-base"
             >{$_("layer", { values: { n: 2 } })}</span
         >
-        {#each Object.keys(settings.state.overlays) as overlay}
+        {#each Object.keys(defaultMapState.overlays) as overlay}
             <div class="flex items-center mt-2 mb-4">
                 <input
                     id="{overlay}-layer-checkbox"

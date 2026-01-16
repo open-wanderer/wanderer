@@ -13,6 +13,10 @@
     @apply list-decimal list-inside ml-4
 }
 
+details details .group-label span {
+    font-size: var(--sl-text-sm);
+    font-weight: 400;
+}
 
 .card .icon {
     background-color: transparent !important;
