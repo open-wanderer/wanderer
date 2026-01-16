@@ -21,7 +21,7 @@
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
     import ConfirmModal from "../confirm_modal.svelte";
-    import ListSelectModal from "../list/list_select_modal.svelte";
+    import ListSearchModal from "../list/list_search_modal.svelte";
     import TrailExportModal from "./trail_export_modal.svelte";
     import TrailShareModal from "./trail_share_modal.svelte";
 
@@ -37,7 +37,7 @@
     let { trails, mode, toggle, onDelete, onShare, onUpdate }: Props = $props();
 
     let confirmModal: ConfirmModal;
-    let listSelectModal: ListSelectModal;
+    let listSelectModal: ListSearchModal;
     let trailExportModal: TrailExportModal;
     let trailShareModal: TrailShareModal;
 
@@ -602,12 +602,12 @@
     bind:this={confirmModal}
     onconfirm={deleteTrails}
 ></ConfirmModal>
-<ListSelectModal
+<ListSearchModal
     {lists}
     trails={getTrails()}
     bind:this={listSelectModal}
     onchange={(list) => handleListSelection(list)}
-></ListSelectModal>
+></ListSearchModal>
 <TrailExportModal
     bind:this={trailExportModal}
     onexport={(settings) => exportTrails(settings)}

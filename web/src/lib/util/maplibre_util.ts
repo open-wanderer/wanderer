@@ -268,23 +268,23 @@ export function createOverpassPopup(feature: GeoJSON.Feature, coordinates: GeoJS
     popupContainer.className = "p-4"
 
     const popupHeading = document.createElement("h1");
-    popupHeading.classList = "font-medium text-lg"
+    popupHeading.className = "font-medium text-lg"
     popupHeading.textContent = name;
 
     const coordinateSubtitle = document.createElement("p")
-    coordinateSubtitle.classList = "text-gray-500"
+    coordinateSubtitle.className = "text-gray-500"
     coordinateSubtitle.textContent = `${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`
 
     popupContainer.appendChild(popupHeading)
     popupContainer.appendChild(coordinateSubtitle)
 
     const tagsGrid = document.createElement("div")
-    tagsGrid.classList = "grid grid-cols-2 gap-x-4 mt-4"
+    tagsGrid.className = "grid grid-cols-2 gap-x-4 mt-4"
 
     Object.entries(tags).forEach((([k, v]) => {
         if (k == "name") return;
         const kSpan = document.createElement("span")
-        kSpan.classList = "font-mono"
+        kSpan.className = "font-mono"
         kSpan.textContent = k;
         const vSpan = document.createElement("span")
         vSpan.textContent = v;
