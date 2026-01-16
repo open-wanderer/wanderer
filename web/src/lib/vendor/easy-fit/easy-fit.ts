@@ -77,7 +77,7 @@ class EasyFit {
       }
     }
 
-    var fitObj = {};
+    var fitObj: Record<string, any> = {};
     var sessions = [];
     var laps = [];
     var records = [];
@@ -98,7 +98,7 @@ class EasyFit {
       var _readRecord = readRecord(blob, messageTypes, loopIndex, this.options, startDate),
         nextIndex = _readRecord.nextIndex,
         messageType = _readRecord.messageType,
-        message = _readRecord.message;
+        message = "message" in _readRecord ? _readRecord.message : undefined;
 
       loopIndex = nextIndex;
       switch (messageType) {
