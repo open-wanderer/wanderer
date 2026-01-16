@@ -47,11 +47,12 @@ export enum Collection {
 export async function list<T>(event: RequestEvent, collection: Collection) {
     const searchParams = Object.fromEntries(event.url.searchParams);
     const safeSearchParams = RecordListOptionsSchema.parse(searchParams);
+    const { perPage, page, ...opts } = safeSearchParams;
 
     let r: ListResult<T>;
     if ((safeSearchParams.perPage ?? 0) < 0) {
         const activities: T[] = await event.locals.pb.collection(Collection[collection])
-            .getFullList<T>(safeSearchParams)
+            .getFullList<T>({...opts})
         r = {
             items: activities,
             perPage: -1,
@@ -61,7 +62,7 @@ export async function list<T>(event: RequestEvent, collection: Collection) {
         }
     } else {
         r = await event.locals.pb.collection(Collection[collection])
-            .getList<T>(safeSearchParams.page, safeSearchParams.perPage, { ...safeSearchParams })
+            .getList<T>(page, perPage, opts)
     }
     return r
 }
