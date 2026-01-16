@@ -1,0 +1,74 @@
+version: '3'
+
+services:
+  search:
+    image: getmeili/meilisearch:v1.11.3
+    environment:
+      MEILI_URL: http://search:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?}
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meili_data:/meili_data
+    restart: unless-stopped
+    healthcheck:
+      test: curl --fail http://localhost:7700/health || exit 1
+      interval: 15s
+      retries: 10
+      start_period: 20s
+      timeout: 10s
+  db:
+    image: flomp/wanderer-db
+    depends_on:
+      search:
+        condition: service_healthy
+    environment:
+      MEILI_URL: http://search:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?}
+      POCKETBASE_ENCRYPTION_KEY: ${POCKETBASE_ENCRYPTION_KEY:?}
+      ORIGIN: ${ORIGIN:?}
+    restart: unless-stopped
+    volumes:
+      - pb_data:/pb_data
+    healthcheck:
+      test: wget --spider -q http://localhost:8090/health || exit 1
+      interval: 15s
+      retries: 10
+      start_period: 20s
+      timeout: 10s
+  web:
+    image: flomp/wanderer-web
+    depends_on:
+      search:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    environment:
+      MEILI_URL: http://search:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?}
+      ORIGIN: ${ORIGIN:?}
+      BODY_SIZE_LIMIT: Infinity
+      PUBLIC_POCKETBASE_URL: http://db:8090
+      PUBLIC_DISABLE_SIGNUP: "false"
+      UPLOAD_FOLDER: /app/uploads
+      UPLOAD_USER:
+      UPLOAD_PASSWORD:
+      PUBLIC_OVERPASS_API_URL: https://overpass-api.de
+      PUBLIC_VALHALLA_URL: https://valhalla1.openstreetmap.de
+      PUBLIC_NOMINATIM_URL: https://nominatim.openstreetmap.org
+    volumes:
+      - uploads:/app/uploads
+      # - ./data/about.md:/app/build/client/md/about.md
+    expose:
+      - "3000"
+    restart: unless-stopped
+    healthcheck:
+      test: curl --fail http://localhost:3000/ || exit 1
+      interval: 15s
+      retries: 10
+      start_period: 20s
+      timeout: 10s
+
+volumes:
+  meili_data:
+  pb_data:
+  uploads:

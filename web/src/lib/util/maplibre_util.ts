@@ -280,11 +280,11 @@ export function createOverpassPopup(
     popupContainer.className = "p-4 relative"
 
     const popupHeading = document.createElement("h1");
-    popupHeading.className = "font-medium text-lg pl-12"
+    popupHeading.className = "font-medium text-lg"
     popupHeading.textContent = name;
 
     const coordinateSubtitle = document.createElement("p")
-    coordinateSubtitle.className = "text-gray-500 pl-12"
+    coordinateSubtitle.className = "text-gray-500"
     coordinateSubtitle.textContent = `${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`
 
     popupContainer.appendChild(popupHeading)

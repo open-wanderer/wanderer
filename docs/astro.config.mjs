@@ -18,7 +18,7 @@ export default defineConfig({
       replacesTitle: true
     },
     social: [
-      { icon: 'github', label: 'GitHub', href: 'https://github.com/flomp/wanderer' },
+      { icon: 'github', label: 'GitHub', href: 'https://github.com/open-wanderer/wanderer' },
     ],
     components: {
       Footer: './src/components/footer.astro'

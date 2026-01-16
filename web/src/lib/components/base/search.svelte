@@ -15,6 +15,7 @@
 
     interface Props {
         maxSearchLength?: number;
+        timeBetweenUpdates?: number,
         value?: string;
         items?: SearchItem[];
         placeholder?: string;
@@ -29,6 +30,7 @@
 
     let {
         maxSearchLength = 5,
+        timeBetweenUpdates = 500,
         value = $bindable(""),
         items = $bindable([]),
         placeholder = "Search...",
@@ -57,7 +59,7 @@
         }
         typingTimer = setTimeout(() => {
             update(value);
-        }, 500);
+        }, timeBetweenUpdates);
     }
 
     function update(q: string) {
