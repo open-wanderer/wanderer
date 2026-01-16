@@ -1,6 +1,8 @@
 <script lang="ts">
     import Datepicker from "$lib/components/base/datepicker.svelte";
     import Modal from "$lib/components/base/modal.svelte";
+    import type { SelectItem } from "$lib/components/base/select.svelte";
+    import Select from "$lib/components/base/select.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import Toggle from "$lib/components/base/toggle.svelte";
     import { StravaSchema } from "$lib/models/api/integration_schema";
@@ -21,6 +23,14 @@
 
     let modal: Modal;
 
+    const privacySelectItems: SelectItem[] = [
+        {
+            text: $_("keep-original"),
+            value: "original",
+        },
+        { text: $_("apply-user-settings"), value: "settings" },
+    ];
+
     export function openModal() {
         errors.set({});
         modal.openModal();
@@ -38,6 +48,7 @@
             activities: integration?.strava?.activities ?? true,
             active: integration?.strava?.active ?? false,
             after: integration?.strava?.after,
+            privacy: integration?.komoot?.privacy ?? "original",
         },
         extend: validator({
             schema: StravaSchema,
@@ -85,12 +96,20 @@
                     label={$_("activity", { values: { n: 2 } })}
                 ></Toggle>
             </div>
-            <p
-                class="text-xs text-gray-500 max-w-lg pt-4 pb-1 border-t border-input-border"
-            >
-                {$_("strava-integration-after-date-hint")}
+
+            <Select
+                label={$_("privacy")}
+                items={privacySelectItems}
+                name="privacy"
+            ></Select>
+            <p class="text-xs text-gray-500 max-w-lg">
+                {#if $formData.privacy == "original"}
+                    {$_("integration-privacy-hint-original")}
+                {:else}
+                    {$_("integration-privacy-hint-user")}
+                {/if}
             </p>
-            <div class="flex items-end relative gap-x-2">
+            <div class="flex items-end relative gap-x-2 pt-2 border-t border-input-border">
                 <Datepicker
                     error={$errors.after}
                     label={$_("after")}
@@ -104,6 +123,11 @@
                     ><i class="fa fa-close"></i></button
                 >
             </div>
+            <p
+                class="text-xs text-gray-500 max-w-lg"
+            >
+                {$_("strava-integration-after-date-hint")}
+            </p>
         </form>
     {/snippet}
     {#snippet footer()}
