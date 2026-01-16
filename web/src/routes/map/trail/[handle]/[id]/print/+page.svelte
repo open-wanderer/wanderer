@@ -399,37 +399,30 @@
                 doc.setFont("IBMPlexSans-SemiBold", "bold");
                 doc.text(header, 16, currentHeight);
                 currentHeight += textHeight + 8;
-                doc.setFont("IBMPlexSans-Regular", "normal");
 
                 ($trail.expand.waypoints_via_trail || []).forEach(waypoint => {
                     let description = waypoint.description || "";
                     let name = waypoint.name || "";
 
-                    let content = description;
-                    if (name) {
-                        content = `${name}\n${description}`;
-                    }
-
-                    let textHeight = getTextHeight(content, doc, width - 32)
+                    let textHeight = getTextHeight(`${name ? name + "\n" : ""}${description}`, doc, width - 32 - 8) + (name ? 2 : 0);
                     if (currentHeight + textHeight + 16 > height) {
                         newPage();
                     }
 
                     doc.setFont("fa-solid-900", "normal");
                     doc.text(String.fromCharCode(faUnicode(waypoint.icon || "circle")), 16, currentHeight);
-                    doc.setFont("IBMPlexSans-Regular", "normal");
 
                     if (name) {
                         doc.setFont("IBMPlexSans-SemiBold", "bold");
-                        doc.text(name, 24, currentHeight);
-                        currentHeight += getTextHeight(name, doc, width - 32) + 2;
-                        doc.setFont("IBMPlexSans-Regular", "normal");
+                        doc.text(formatHTMLAsText(name), 24, currentHeight);
+                        currentHeight += getTextHeight(formatHTMLAsText(name), doc, width - 32) + 2;
                     }
 
-                    doc.text(description, 24, currentHeight, {
+                    doc.setFont("IBMPlexSans-Regular", "normal");
+                    doc.text(formatHTMLAsText(description), 24, currentHeight, {
                         maxWidth: width - 32 - 8
                     });
-                    currentHeight += textHeight + 8;
+                    currentHeight += getTextHeight(formatHTMLAsText(description), doc, width - 32 - 8) + 8;
                 });
             }
 

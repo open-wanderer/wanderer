@@ -48,3 +48,4 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | UPLOAD_FOLDER           | Folder from which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                                   | /app/uploads                        |
 | UPLOAD_USER             | Username for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
 | UPLOAD_PASSWORD         | Password for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
+| PUBLIC_OVERPASS_API_URL | Overpass API URL used for map points of interest                                 | https://overpass-api.de        |

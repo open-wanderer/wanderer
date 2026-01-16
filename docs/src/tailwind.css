@@ -24,6 +24,8 @@
     --input-border-focus: 148, 163, 184;
     --input-ring: 148, 163, 184;
 
+    --toggle-active: 75, 85, 99;
+
     --menu-background: 30, 32, 40;
     --menu-item-background-hover: 55, 65, 81;
     --menu-item-background-focus: 75, 85, 99;
@@ -51,6 +53,8 @@
     --input-border: 209, 213, 219;
     --input-border-focus: 36, 39, 52;
     --input-ring: 148, 163, 184;
+
+    --toggle-active: 36, 39, 52;
 
     --menu-background: 255, 255, 255;
     --menu-item-background-hover: 243, 244, 246;

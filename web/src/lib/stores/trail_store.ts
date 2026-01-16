@@ -56,10 +56,11 @@ export async function trails_recommend(size: number, f: (url: RequestInfo | URL,
 
 }
 
-export async function trails_search_filter(filter: TrailFilter, page: number = 1, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+export async function trails_search_filter(filter: TrailFilter, page: number = 1, perPage: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const user = get(currentUser)
 
     let filterText: string = buildFilterText(user, filter, true);
+
 
     let r = await f("/api/v1/search/trails", {
         method: "POST",
@@ -69,7 +70,7 @@ export async function trails_search_filter(filter: TrailFilter, page: number = 1
                 filter: filterText,
                 attributesToRetrieve: defaultTrailSearchAttributes,
                 sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`],
-                hitsPerPage: 12,
+                hitsPerPage: perPage,
                 page: page
             }
         }),
@@ -583,7 +584,8 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
     }
 
     if (filter.category.length > 0) {
-        filterText += ` AND category IN ['${filter.category.join(",")}']`;
+        const categoryValues = filter.category.map(category => `'${category}'`).join(", ");
+        filterText += ` AND category IN [${categoryValues}]`;
     }
 
     if (filter.tags.length > 0) {

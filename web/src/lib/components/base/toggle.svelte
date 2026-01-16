@@ -39,7 +39,7 @@
             onchange={handleToggleChange}
         />
         <div
-            class="w-11 h-6 bg-input-background border border-input-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-input-ring rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"
+            class="w-11 h-6 bg-input-background border border-input-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-input-ring rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-toggle-active"
         ></div>
         {#if label}
             <span class="ms-3 text-sm font-medium">{label}</span>

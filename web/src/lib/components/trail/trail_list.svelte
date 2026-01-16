@@ -15,14 +15,14 @@
     interface Props {
         filter?: TrailFilter | null;
         trails: Trail[];
-        pagination?: { page: number; totalPages: number };
+        pagination?: { page: number; totalPages: number, items: number };
         loading?: boolean;
         fullWidthCards?: boolean;
         onupdate?: (
             filter: TrailFilter | null,
             selection: Set<Trail> | undefined,
         ) => void;
-        onpagination?: (page: number) => void;
+        onpagination?: (page: number, items: number) => void;
     }
 
     let {
@@ -31,6 +31,7 @@
         pagination = {
             page: 1,
             totalPages: 1,
+            items: 25,
         },
         loading = false,
         fullWidthCards = false,
@@ -42,6 +43,20 @@
         { text: $_("card", { values: { n: 2 } }), value: "cards" },
         { text: $_("list", { values: { n: 1 } }), value: "list" },
         { text: $_("table"), value: "table" },
+    ];
+    
+    const perPageOptions: SelectItem[] = [
+        { text: "10", value: 10 },
+        { text: "25", value: 25 },
+        { text: "50", value: 50 },
+        { text: "100", value: 100 },
+    ];
+    
+    const perPageOptionsCards: SelectItem[] = [
+        { text: "12", value: 12 },
+        { text: "24", value: 24 },
+        { text: "48", value: 48 },
+        { text: "96", value: 96 },
     ];
 
     let selectedDisplayOption = $state(displayOptions[0].value);
@@ -65,6 +80,7 @@
         const storedDisplayOption = localStorage.getItem("displayOption");
         const storedSort = localStorage.getItem("sort");
         const storedSortOrder = localStorage.getItem("sort_order");
+        const paginationItems = localStorage.getItem("paginationItems");
 
         if (storedDisplayOption) {
             selectedDisplayOption = storedDisplayOption;
@@ -78,11 +94,84 @@
                 (storedSortOrder as typeof filter.sortOrder | null) ??
                 filter.sortOrder;
         }
+        if (paginationItems) {
+            pagination.items = +paginationItems;
+        
+            let itemsChanged = false;
+            if (selectedDisplayOption == "cards") {
+                if (pagination.items > 50) {
+                    pagination.items = 96;
+                    itemsChanged = true;
+                } else if (pagination.items > 25) {
+                    pagination.items = 48;
+                    itemsChanged = true;
+                } else if (pagination.items > 12) {
+                    pagination.items = 24;
+                    itemsChanged = true;
+                } else {
+                    pagination.items = 12;
+                    itemsChanged = true;
+                }
+            } else {
+                if (pagination.items > 50) {
+                    pagination.items = 100;
+                    itemsChanged = true;
+                } else if (pagination.items > 25) {
+                    pagination.items = 50;
+                    itemsChanged = true;
+                } else if (pagination.items > 12) {
+                    pagination.items = 25;
+                    itemsChanged = true;
+                } else {
+                    pagination.items = 10;
+                    itemsChanged = true;
+                }
+            }
+
+            if (itemsChanged) {
+                localStorage.setItem("paginationItems", pagination.items.toString());
+            }
+        }
         onupdate?.(filter, selection);
     });
 
     function setDisplayOption() {
         localStorage.setItem("displayOption", selectedDisplayOption);
+
+        let itemsChanged = false;
+        if (selectedDisplayOption == "cards") {
+            if (pagination.items > 50) {
+                pagination.items = 96;
+                itemsChanged = true;
+            } else if (pagination.items > 25) {
+                pagination.items = 48;
+                itemsChanged = true;
+            } else if (pagination.items > 12) {
+                pagination.items = 24;
+                itemsChanged = true;
+            } else {
+                pagination.items = 12;
+                itemsChanged = true;
+            }
+        } else {
+            if (pagination.items > 50) {
+                pagination.items = 100;
+                itemsChanged = true;
+            } else if (pagination.items > 25) {
+                pagination.items = 50;
+                itemsChanged = true;
+            } else if (pagination.items > 12) {
+                pagination.items = 25;
+                itemsChanged = true;
+            } else {
+                pagination.items = 10;
+                itemsChanged = true;
+            }
+        }
+
+        if (itemsChanged) {
+            localStorage.setItem("paginationItems", pagination.items.toString());
+        }
     }
 
     function setSort() {
@@ -206,6 +295,11 @@
     function handleMouseLeave(trail: Trail) {
         handleHoverUpdate(trail);
     }
+
+    function setItemsPerPage() {
+        localStorage.setItem("paginationItems", pagination.items.toString());
+        onpagination?.(1, pagination.items);
+    }
 </script>
 
 <div class="min-w-0">
@@ -214,6 +308,7 @@
             <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}
+                perPage={pagination.items}
                 {onpagination}
             ></Pagination>
         </div>
@@ -267,9 +362,10 @@
                     trails={null}
                     selection={new Set<Trail>()}
                     tableHeader={sortOptions}
+                    items={pagination.items}
                 ></TrailTable>
             {:else}
-                {#each { length: 12 } as _, index}
+                {#each { length: pagination.items } as _, index}
                     {#if selectedDisplayOption === "cards"}
                         <div class="flex-1">
                             <SkeletonCard></SkeletonCard>
@@ -293,6 +389,7 @@
                         (option) => option.value !== "elevation_loss",
                     )}
                     {filter}
+                    items={pagination.items}
                     onsort={handleSortUpdate}
                     onTrailSelect={(t) => handleSelectionUpdate(t)}
                 ></TrailTable>
@@ -330,11 +427,23 @@
             {/if}
         {/if}
     </div>
-    <Pagination
-        page={pagination.page}
-        totalPages={pagination.totalPages}
-        {onpagination}
-    ></Pagination>
+    <div class="flex items-end flex-wrap lg:flex-nowrap gap-x-6 gap-y-2 mx-4">
+        <div class="basis-full order-1 md:order-none">
+            <Pagination
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                perPage={pagination.items}
+                {onpagination}
+            ></Pagination>
+        </div>
+        <div class="shrink-0">
+            <Select
+                bind:value={pagination.items}
+                items={selectedDisplayOption == "cards" ? perPageOptionsCards : perPageOptions}
+                onchange={setItemsPerPage}
+            ></Select>
+        </div>
+    </div>
 </div>
 
 <style>
