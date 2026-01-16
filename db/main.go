@@ -1116,6 +1116,12 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 		return e.JSON(http.StatusOK, map[string]string{"token": token})
 	})
 
+	se.Router.GET("/public/config", func(e *core.RequestEvent) error {
+		return e.JSON(http.StatusOK, map[string]any{
+			"enableTrailBuckets": util.BucketsEnabled(),
+		})
+	})
+
 	se.Router.POST("/integration/strava/token", func(e *core.RequestEvent) error {
 		encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
 		if len(encryptionKey) == 0 {

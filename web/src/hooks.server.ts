@@ -48,7 +48,29 @@ function isFormContentType(request: Request) {
   );
 }
 
+type PublicConfig = {
+  enableTrailBuckets: boolean;
+};
+
 let publicMeilisearchKey: string | undefined = undefined;
+let publicConfig: PublicConfig | undefined = undefined;
+
+async function loadPublicConfig(pb: PocketBase, fetch: typeof globalThis.fetch) {
+  if (publicConfig) {
+    return publicConfig;
+  }
+
+  try {
+    const response = await pb.send("/public/config", { method: "GET", fetch });
+    publicConfig = {
+      enableTrailBuckets: response?.enableTrailBuckets === true,
+    };
+  } catch (_) {
+    publicConfig = { enableTrailBuckets: false };
+  }
+
+  return publicConfig;
+}
 
 const auth: Handle = async ({ event, resolve }) => {
   const pb = new PocketBase(envPub.PUBLIC_POCKETBASE_URL)
@@ -83,6 +105,7 @@ const auth: Handle = async ({ event, resolve }) => {
   let meiliApiKey: string = "";
   let settings: Settings | undefined;
   let actor: Actor | undefined;
+  const config = await loadPublicConfig(pb, event.fetch);
   if (pb.authStore.record) {
     meiliApiKey = pb.authStore.record.token
     settings = await pb.collection('settings').getFirstListItem<Settings>(`user="${pb.authStore.record.id}"`, { requestKey: null })
@@ -108,6 +131,7 @@ const auth: Handle = async ({ event, resolve }) => {
     event.locals.user.actor = actor?.id
   }
   event.locals.settings = settings
+  event.locals.publicConfig = config
 
   const lang = settings?.language ?? event.request.headers.get('accept-language')?.split(',')[0]
 

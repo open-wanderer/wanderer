@@ -80,6 +80,7 @@ services:
       <<: *cenv
       POCKETBASE_ENCRYPTION_KEY: <YOUR_ENCRYPTION_KEY_HERE>
       ORIGIN: http://localhost:3000
+      ENABLE_TRAIL_BUCKETS: "false"
     ports:
       - "8090:8090"
     networks:

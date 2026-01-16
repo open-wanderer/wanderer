@@ -66,7 +66,7 @@ async function searchTrailsByBBox(event: RequestEvent, data: SearchPayload) {
     const page = options.page ?? 1;
     const perGroupLimit = Math.min(1000, hitsPerPage * page * 2);
 
-    if (!bucketsEnabled()) {
+    if (!bucketsEnabled(event)) {
         const filter = buildFilter([data.filter, buildTrailBBoxFilter(bbox)]);
         if (data.returnAll) {
             const hits = await fetchAllHits(event, data.q ?? "", filter, options);
@@ -131,7 +131,7 @@ async function searchTrailsByTable(event: RequestEvent, data: SearchPayload) {
     const page = options.page ?? 1;
     const perGroupLimit = Math.min(1000, pageSize * page * 2);
 
-    if (!bucketsEnabled()) {
+    if (!bucketsEnabled(event)) {
         const limit = pageSize;
         const offset = Math.max(page - 1, 0) * limit;
         const response = await event.locals.ms.index("trails").search(data.q ?? "", {
@@ -297,9 +297,8 @@ function buildSearchResponse(hits: any[], page: number, hitsPerPage: number, tot
     };
 }
 
-function bucketsEnabled() {
-    const value = (process.env.ENABLE_TRAIL_BUCKETS ?? "").trim().toLowerCase();
-    return value === "true" || value === "1" || value === "yes";
+function bucketsEnabled(event: RequestEvent) {
+    return event.locals.publicConfig?.enableTrailBuckets === true;
 }
 
 async function fetchAllCounts(event: RequestEvent, collection: string, params: { filter?: string; fields?: string }) {

@@ -33,6 +33,7 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | POCKETBASE_SMTP_PORT          | The port number used to connect to the SMTP server                                                                |                       |
 | POCKETBASE_SMTP_USERNAME      | The username used to authenticate with the SMTP server                                                            |                       |
 | POCKETBASE_SMTP_PASSWORD      | The password used to authenticate with the SMTP server                                                            |                       |
+| ENABLE_TRAIL_BUCKETS          | Enables trail bucket sharding for trail search              | false                 |
 
 ## Frontend
 

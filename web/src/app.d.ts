@@ -11,13 +11,16 @@ declare global {
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
-		interface Locals {
-			pb: PocketBase
-			ms: MeiliSearch
-			user: AuthModel | null,
-			settings: Settings | null
-
+	interface Locals {
+		pb: PocketBase
+		ms: MeiliSearch
+		user: AuthModel | null,
+		settings: Settings | null
+		publicConfig: {
+			enableTrailBuckets: boolean
 		}
+
+	}
 	}
 }
 
