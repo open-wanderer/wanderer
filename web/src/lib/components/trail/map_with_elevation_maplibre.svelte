@@ -809,8 +809,7 @@
                     animate: fitBounds == "animate",
                 },
                 trackUserLocation: true,
-            }),
-        );
+            }));
 
         if (showStyleSwitcher) {
             map.addControl(switcherControl);

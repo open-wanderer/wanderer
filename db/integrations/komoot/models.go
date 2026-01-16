@@ -8,6 +8,7 @@ type KomootIntegration struct {
 	Password  string `json:"password"`
 	Planned   bool   `json:"planned"`
 	Completed bool   `json:"completed"`
+	Privacy   string `json:"privacy"`
 }
 
 type LoginResponse struct {

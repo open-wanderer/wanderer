@@ -25,7 +25,7 @@
     <div class="">
         <p class="font-semibold">{$_("start")}</p>
     </div>
-    {#each trail.expand?.waypoints ?? [] as wp, i}
+    {#each trail.expand?.waypoints_via_trail ?? [] as wp, i}
         <div
             class="bg-background cursor-pointer"
             role="presentation"

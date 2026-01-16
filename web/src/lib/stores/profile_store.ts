@@ -89,7 +89,7 @@ export async function profile_trails_index(handle: string, filter: TrailFilter, 
             options: {
                 attributesToRetrieve: defaultTrailSearchAttributes,
                 sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`],
-                hitsPerPage: 12,
+                hitsPerPage: perPage,
                 page: page
             }
         }),

@@ -28,7 +28,7 @@
     <div class="flex items-center gap-2">
         <input
             {name}
-            class="bg-input-background border border-input-border rounded-md p-3 transition-colors focus:border-input-border-focus focus:outline-none focus:ring-0 w-full"
+            class="bg-input-background border border-input-border rounded-md p-3 transition-colors focus:border-input-border-focus focus:outline-none focus:ring-0 w-full dark:[color-scheme:dark]"
             class:border-red-400={(error?.length ?? 0) > 0}
             class:bg-input-background-error={(error?.length ?? 0) > 0}
             type="date"

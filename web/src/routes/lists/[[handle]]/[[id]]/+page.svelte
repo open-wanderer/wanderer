@@ -71,7 +71,7 @@
     let selectedTrailIndex = $derived(selectedTrail ? 0 : null);
 
     let selectedTrailWaypoints = $derived(
-        (selectedTrail as Trail | null)?.expand?.waypoints,
+        (selectedTrail as Trail | null)?.expand?.waypoints_via_trail,
     );
 
     onMount(() => {

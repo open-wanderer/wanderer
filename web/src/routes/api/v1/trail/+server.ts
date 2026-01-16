@@ -15,7 +15,7 @@ export async function GET(event: RequestEvent) {
                 t.expand = {} as any
             }
 
-            t.expand?.waypoints?.sort((a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0))
+            t.expand?.waypoints_via_trail?.sort((a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0))
         }
         return json(r)
     } catch (e: any) {

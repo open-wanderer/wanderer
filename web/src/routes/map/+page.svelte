@@ -101,7 +101,7 @@
         const trailItems = r[0].hits.map((t: TrailSearchResult) => ({
             text: t.name,
             description: `Trail ${t.location.length ? ", " + t.location : ""}`,
-            value: `@${t.author}${t.domain ? `@${t.domain}` : ""}/${t.id}`,
+            value: `@${t.author_name}${t.domain ? `@${t.domain}` : ""}/${t.id}`,
             icon: "route",
         }));
         const listItems = r[1].hits.map((t: ListSearchResult) => ({

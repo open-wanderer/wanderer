@@ -16,11 +16,12 @@
         trails?: Trail[] | null;
         selection: Set<Trail> | undefined;
         filter?: TrailFilter | null;
+        items: number;
         onsort?: (value: any) => void
         onTrailSelect?: (value: any) => void
     }
 
-    let { tableHeader, trails = null, selection, filter = null, onsort, onTrailSelect: onselect }: Props = $props();
+    let { tableHeader, trails = null, selection, filter = null, items, onsort, onTrailSelect: onselect }: Props = $props();
 
     function getColumnWidth(columnValue: string): string {
         switch (columnValue) {
@@ -224,7 +225,7 @@
                     </tr>
                 {/each}
             {:else}
-                {#each { length: 12 } as _, index}
+                {#each { length: items } as _, index}
                     <tr
                         class="border-t border-input-border cursor-pointer bg-secondary-hover transition-colors animate-pulse"
                     >

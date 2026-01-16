@@ -5,11 +5,17 @@
 	<meta charset="utf-8" />
 	<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="color-scheme" content="light">
 	<script>
 		localStorage.theme === 'dark' ||
 			(!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
 			? document.documentElement.classList.add('dark')
 			: document.documentElement.classList.add('light');
+
+		localStorage.theme === 'dark' ||
+			(!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
+			? document.querySelector("meta[name='color-scheme'" )?.setAttribute("content", 'dark')
+			: document.querySelector("meta[name='color-scheme'" )?.setAttribute("content", 'light')
 	</script>
 	%sveltekit.head%
 </head>
