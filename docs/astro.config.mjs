@@ -18,7 +18,7 @@ export default defineConfig({
       replacesTitle: true
     },
     social: [
-      { icon: 'github', label: 'GitHub', href: 'https://github.com/flomp/wanderer' },
+      { icon: 'github', label: 'GitHub', href: 'https://github.com/open-wanderer/wanderer' },
     ],
     components: {
       Footer: './src/components/footer.astro'
@@ -84,7 +84,11 @@ export default defineConfig({
         items: [
           {
             label: 'Installation',
-            link: '/run/installation/'
+            items: [
+                { label: 'Quickstart', link: '/run/installation/quick' },
+                { label: 'Manual Docker Setup', link: '/run/installation/docker' },
+                { label: 'Install from Source', link: '/run/installation/from-source' },
+            ]
           },
           {
             label: 'Environment configuration',

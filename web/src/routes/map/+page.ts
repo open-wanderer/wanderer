@@ -11,7 +11,7 @@ export const load: ServerLoad = async ({ params, locals, fetch }) => {
         q: "",
         category: [],
         tags: [],
-        difficulty: ["easy", "moderate", "difficult"],
+        difficulty: [0, 1, 2],
         author: "",
         public: true,
         shared: true,

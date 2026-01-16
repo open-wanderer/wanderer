@@ -46,11 +46,38 @@
     },
     {
         "name": "Towiski",
-        "url": "https://wanderer.towiski.de/",
+        "url": "https://wanderer.towiski.de",
         "description": "My Wanderer instance for the paths less traveled. Signups welcome.",
         "image": "/server/imgs/towiski.de.jpg",
         "region": ["Tanzania", "Sri Lanka", "Germany", "Laos"],
         "language": ["English", "German"],
         "category": ["Biking", "Hiking"]
+    },
+    {
+        "name": "Greater Aztlan",
+        "url": "https://aztlan.yakka.space",
+        "description": "Description a small instance in greater Aztlan. know your land, know your self.",
+        "image": "/server/imgs/yakka.space.jpg",
+        "region": ["North America", "California"],
+        "language": ["English"],
+        "category": ["Hiking", "Cycling"]
+    },
+    {
+        "name": "Mapper Trails",
+        "url": "https://trails.mapper.space",
+        "description": "🗺️ Here be dragons 🗺️ A small generalist instance",
+        "image": "/server/imgs/mapper.space.png",
+        "region": ["Europe", "France"],
+        "language": ["French"],
+        "category": ["Hiking", "Cycling", "Canoeing", "Sailing", "Running"]
+    },
+    {
+        "name": "Grons wanderer - Nederlandse wandelroutes",
+        "url": "https://wanderer.grons.nl",
+        "description": "Collecting hikes in all of the Netherlands",
+        "image": "/server/imgs/grons.nl.jpg",
+        "region": ["The Netherlands"],
+        "language": ["Dutch", "English"],
+        "category": ["Hiking"]
     }
 ]

@@ -45,7 +45,7 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
         wp.id = cryptoRandomString({ length: 15 });
         wp.name = wpt.name ?? ""
         wp.description = wpt.desc;
-        trail.expand!.waypoints?.push(wp);
+        trail.expand!.waypoints_via_trail?.push(wp);
     }
 
     const totals = gpx.features
@@ -108,7 +108,7 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
         gpx.wpt = [];
     }
 
-    for (const wp of gpxTrail.expand!.waypoints ?? []) {
+    for (const wp of gpxTrail.expand!.waypoints_via_trail ?? []) {
         const gpxWpt = gpx.wpt.find((w) => w.$.lat == wp.lat && w.$.lon == wp.lon)
         if (!gpxWpt) {
             gpx.wpt.push(new GPXWaypoint({

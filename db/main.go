@@ -21,6 +21,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/spf13/cast"
 
+	"pocketbase/commands"
 	"pocketbase/federation"
 	"pocketbase/integrations/komoot"
 	"pocketbase/integrations/strava"
@@ -72,6 +73,8 @@ func main() {
 
 	registerMigrations(app)
 	setupEventHandlers(app, client)
+
+	setupCommands(app)
 
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
@@ -138,6 +141,10 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnServe().BindFunc(onBeforeServeHandler(client))
 
 	app.OnBootstrap().BindFunc(onBootstrapHandler())
+}
+
+func setupCommands(app *pocketbase.PocketBase) {
+	app.RootCmd.AddCommand(commands.Dedup(app))
 }
 
 func sanitizeHTML() func(e *core.RecordRequestEvent) error {
@@ -233,7 +240,7 @@ func createTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		if err != nil {
 			return err
 		}
-		if err := util.IndexTrail(e.App, record, author, client); err != nil {
+		if err := util.IndexTrails(e.App, []*core.Record{record}, client); err != nil {
 			return err
 		}
 		if !author.GetBool("isLocal") {
@@ -340,12 +347,7 @@ func createSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
-		trailAuthor, err := e.App.FindFirstRecordByData("activitypub_actors", "id", trail.GetString("author"))
-		if err != nil {
-			return err
-		}
-
-		if err := util.IndexTrail(e.App, trail, trailAuthor, client); err != nil {
+		if err := util.IndexTrails(e.App, []*core.Record{trail}, client); err != nil {
 			return err
 		}
 
@@ -391,12 +393,7 @@ func deleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
-		trailAuthor, err := e.App.FindFirstRecordByData("activitypub_actors", "id", trail.GetString("author"))
-		if err != nil {
-			return err
-		}
-
-		if err := util.IndexTrail(e.App, trail, trailAuthor, client); err != nil {
+		if err := util.IndexTrails(e.App, []*core.Record{trail}, client); err != nil {
 			return err
 		}
 
@@ -616,7 +613,7 @@ func createListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 			return err
 		}
 
-		if err := util.IndexList(e.App, record, author, client); err != nil {
+		if err := util.IndexLists(e.App, []*core.Record{record}, client); err != nil {
 			return err
 		}
 
@@ -1308,94 +1305,62 @@ func bootstrapCategories(app core.App) error {
 }
 
 func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) error {
-	query := app.RecordQuery("trails")
-	trails := []*core.Record{}
+	// --- Trails ---
+	const pageSize int64 = 100
+	var page int64 = 0
 
-	if err := query.All(&trails); err != nil {
+	// Clear index before re-indexing
+	if _, err := client.Index("trails").DeleteAllDocuments(); err != nil {
 		return err
 	}
 
-	_, err := client.Index("trails").DeleteAllDocuments()
-	if err != nil {
-		return err
-	}
-	for _, trail := range trails {
-		author, err := app.FindRecordById("activitypub_actors", trail.GetString(("author")))
+	for {
+		trails := []*core.Record{}
+		err := app.RecordQuery("trails").
+			Limit(pageSize).
+			Offset(page * pageSize).
+			All(&trails)
 		if err != nil {
 			return err
 		}
-		if err := util.IndexTrail(app, trail, author, client); err != nil {
-			app.Logger().Warn(fmt.Sprintf("Unable to index trail '%s': %v", trail.GetString("name"), err))
+		if len(trails) == 0 {
+			break
+		}
+
+		if err := util.IndexTrails(app, trails, client); err != nil {
+			app.Logger().Warn(fmt.Sprintf("Unable to index trails page %d: %v", page, err))
 			continue
 		}
 
-		shares, err := app.FindAllRecords("trail_share",
-			dbx.NewExp("trail = {:trailId}", dbx.Params{"trailId": trail.Id}),
-		)
-		if err != nil {
-			return err
-		}
-		actorIds := make([]string, len(shares))
-		for i, r := range shares {
-			actorIds[i] = r.GetString("actor")
-		}
-		err = util.UpdateTrailShares(trail.Id, actorIds, client)
-		if err != nil {
-			app.Logger().Warn(fmt.Sprintf("Unable to update trail shares '%s': %v", trail.GetString("name"), err))
-			continue
-		}
-		likes, err := app.FindAllRecords("trail_like",
-			dbx.NewExp("trail = {:trailId}", dbx.Params{"trailId": trail.Id}),
-		)
-		if err != nil {
-			return err
-		}
-		actorIds = make([]string, len(likes))
-		for i, r := range likes {
-			actorIds[i] = r.GetString("actor")
-		}
-		err = util.UpdateTrailLikes(trail.Id, actorIds, client)
-		if err != nil {
-			app.Logger().Warn(fmt.Sprintf("Unable to update trail likes '%s': %v", trail.GetString("name"), err))
-			continue
-		}
+		page++
 	}
 
-	lists, err := app.FindAllRecords("lists")
-	if err != nil {
-		return err
-	}
-	_, err = client.Index("lists").DeleteAllDocuments()
-	if err != nil {
+	// --- Lists ---
+	if _, err := client.Index("lists").DeleteAllDocuments(); err != nil {
 		return err
 	}
 
-	for _, list := range lists {
-		author, err := app.FindRecordById("activitypub_actors", list.GetString(("author")))
+	page = 0
+	for {
+		lists := []*core.Record{}
+		err := app.RecordQuery("lists").
+			Limit(pageSize).
+			Offset(page * pageSize).
+			All(&lists)
 		if err != nil {
 			return err
 		}
-		if err := util.IndexList(app, list, author, client); err != nil {
-			app.Logger().Warn(fmt.Sprintf("Unable to index list '%s': %v", list.GetString("name"), err))
+		if len(lists) == 0 {
+			break
+		}
+
+		if err := util.IndexLists(app, lists, client); err != nil {
+			app.Logger().Warn(fmt.Sprintf("Unable to index list page %d: %v", page, err))
 			continue
 		}
 
-		shares, err := app.FindAllRecords("list_share",
-			dbx.NewExp("list = {:listId}", dbx.Params{"listId": list.Id}),
-		)
-		if err != nil {
-			return err
-		}
-		actorIds := make([]string, len(shares))
-		for i, r := range shares {
-			actorIds[i] = r.GetString("actor")
-		}
-		err = util.UpdateListShares(list.Id, actorIds, client)
-
-		if err != nil {
-			app.Logger().Warn(fmt.Sprintf("Unable to update list shares '%s': %v", list.GetString("name"), err))
-			continue
-		}
+		page++
 	}
+
 	return nil
 }

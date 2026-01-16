@@ -28,7 +28,6 @@ class Trail {
     updated?: string;
     category?: string;
     tags: string[];
-    waypoints: string[];
     polyline?: string;
     domain?: string;
     iri?: string;
@@ -36,7 +35,7 @@ class Trail {
     expand?: {
         tags?: Tag[]
         category?: Category;
-        waypoints?: Waypoint[]
+        waypoints_via_trail?: Waypoint[]
         summit_logs_via_trail?: SummitLog[]
         author?: Actor
         comments_via_trail?: Comment[]
@@ -90,13 +89,12 @@ class Trail {
         this.lon = params?.lon;
         this.thumbnail = params?.thumbnail ?? 0;
         this.photos = params?.photos ?? [];
-        this.waypoints = [];
         this.tags = []
         this.gpx = params?.gpx;
         this.like_count = 0
         this.expand = {
             category: params?.category,
-            waypoints: params?.waypoints ?? [],
+            waypoints_via_trail: params?.waypoints ?? [],
             summit_logs_via_trail: params?.summit_logs ?? [],
             comments_via_trail: params?.comments ?? [],
             trail_share_via_trail: params?.shares ?? []
@@ -111,7 +109,7 @@ interface TrailFilter {
     q: string,
     category: string[],
     tags: string[],
-    difficulty: ("easy" | "moderate" | "difficult")[]
+    difficulty: (0 | 1 | 2)[]
     author?: string;
     public?: boolean;
     shared?: boolean;
@@ -169,7 +167,7 @@ interface TrailSearchResult {
     elevation_gain: number;
     elevation_loss: number;
     duration: number;
-    difficulty: "easy" | "moderate" | "difficult";
+    difficulty: 0 | 1 | 2;
     category: string;
     completed: boolean;
     date: number;

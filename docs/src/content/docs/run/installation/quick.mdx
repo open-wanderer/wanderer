@@ -1,0 +1,27 @@
+---
+title: Quickstart
+description: The fastest way to try wanderer. Runs everything with Docker in just two commands.
+---
+
+You can install <span class="-tracking-[0.075em]">wanderer</span> components either via Docker ([Quick Setup](./quick) or [Manual Setup](./docker)) or [from source](./installation-from-source).
+
+For a quick setup, you can run the following command in your terminal.
+This will create a `docker-compose.yml` file and start the services.
+
+```bash
+/bin/bash -c "$(curl -fsSL https://wanderer.to/setup.sh)"
+docker compose up -d
+```
+
+After a few seconds, you should be able to access <span class="-tracking-[0.075em]">wanderer</span> at [http://localhost:3000](http://localhost:3000) or your chosen domain.
+
+## Updating
+
+To update your instance to the latest version:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Always consult the [changelog](/changelog) before updating, in case of breaking changes.

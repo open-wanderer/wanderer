@@ -521,7 +521,7 @@ export const defaultMapState: MapState = {
             hut: false,
             viewpoint: false,
         },
-        ammenity: {
+        amenity: {
             water: false,
             barrier: false,
             shelter: false,

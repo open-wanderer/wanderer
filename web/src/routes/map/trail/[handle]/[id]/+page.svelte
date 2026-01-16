@@ -45,7 +45,7 @@
     <div id="trail-details">
         <MapWithElevationMaplibre
             trails={[trail]}
-            waypoints={trail.expand?.waypoints}
+            waypoints={trail.expand?.waypoints_via_trail}
             activeTrail={0}
             bind:markers
             showTerrain={true}

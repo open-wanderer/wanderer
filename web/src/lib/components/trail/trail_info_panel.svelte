@@ -658,7 +658,7 @@
                     <MapWithElevationMaplibre
                         trails={[trail]}
                         activeTrail={0}
-                        waypoints={trail.expand?.waypoints}
+                        waypoints={trail.expand?.waypoints_via_trail}
                         showElevation={true}
                         elevationProfileContainer={"epc-container"}
                         showStyleSwitcher={false}

@@ -11,6 +11,8 @@ export interface StravaIntegration extends BaseIntegration {
     accessToken?: string;
     refreshToken?: string;
     expiresAt?: number;
+    after?: string
+    privacy: "original" | "settings"
 }
 
 export interface KomootIntegration extends BaseIntegration {
@@ -18,6 +20,7 @@ export interface KomootIntegration extends BaseIntegration {
     password: string,
     completed: boolean,
     planned: boolean
+    privacy: "original" | "settings"
 }
 
 
