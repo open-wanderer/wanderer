@@ -10,19 +10,19 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.4",
-    "@astrojs/node": "^9.2.2",
-    "@astrojs/starlight": "^0.34.4",
-    "@astrojs/starlight-tailwind": "^4.0.1",
-    "@astrojs/svelte": "^7.1.0",
-    "@fontsource/ibm-plex-mono": "^5.0.13",
-    "@fontsource/ibm-plex-sans": "^5.0.20",
-    "@tailwindcss/vite": "^4.1.10",
+    "@astrojs/check": "^0.9.5",
+    "@astrojs/node": "^9.5.0",
+    "@astrojs/starlight": "^0.36.2",
+    "@astrojs/starlight-tailwind": "^4.0.2",
+    "@astrojs/svelte": "^7.2.1",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
+    "@tailwindcss/vite": "^4.1.16",
     "astro": "^5.9.3",
-    "sharp": "^0.32.5",
-    "starlight-openapi": "^0.9.0",
-    "svelte": "^5.34.8",
+    "sharp": "^0.34.4",
+    "starlight-openapi": "^0.21.1",
+    "svelte": "^5.43.2",
     "tailwindcss": "^4.1.10",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.3"
   }
 }

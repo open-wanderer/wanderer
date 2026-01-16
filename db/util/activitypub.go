@@ -447,7 +447,18 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 		return nil, err
 	}
 
-	record, err := app.FindFirstRecordByData("lists", "iri", l.ID.String())
+	iri := l.ID.String()
+	var record *core.Record
+	if actor.GetBool(("isLocal")) {
+		listURL, parseErr := url.Parse(iri)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		listId := path.Base(listURL.Path)
+		record, err = app.FindRecordById("lists", listId)
+	} else {
+		record, err = app.FindFirstRecordByData("lists", "iri", iri)
+	}
 	if err != nil {
 		if err == sql.ErrNoRows {
 			collection, err := app.FindCollectionByNameOrId("lists")
@@ -470,7 +481,7 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 	record.Set("name", l.Name.First().Value)
 	record.Set("description", l.Content.First().Value)
 	record.Set("public", true)
-	record.Set("iri", l.ID.String())
+	record.Set("iri", iri)
 	record.Set("author", actor.Id)
 
 	if l.Attachment != nil {

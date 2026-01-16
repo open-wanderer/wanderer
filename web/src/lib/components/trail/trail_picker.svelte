@@ -7,6 +7,7 @@
     interface Props {
         trailFile: File | undefined | null;
         trailData: string | undefined;
+        hasTrail?: boolean;
         label?: string;
         onchange: (data: string | null) => void;
     }
@@ -14,6 +15,7 @@
     let {
         trailFile = $bindable(),
         trailData = $bindable(),
+        hasTrail = false,
         label = "",
         onchange
     }: Props = $props();
@@ -38,8 +40,12 @@
         });
     }
 
+    const hasTrailState = $derived(
+        Boolean(trailFile || trailData || hasTrail),
+    );
+
     function openTrailBrowser() {
-        if (trailData) {
+        if (hasTrailState) {
             trailFile = null;
             trailData = undefined;
 
@@ -151,7 +157,7 @@
             class="h-28 aspect-square rounded-xl !bg-background border border-input-border-focus hover:!bg-secondary-hover group"
             id="trail-picker-map"
         >
-            {#if !trailFile && !trailData}
+            {#if !hasTrailState}
                 <i class="fa fa-plus text-lg"></i>
             {:else}
                 <i
