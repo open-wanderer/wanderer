@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -1039,7 +1041,12 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 			se.App.Logger().Error(fmt.Sprintf("trail bucket sync failed: %v", err))
 			return err
 		}
-		bootstrapData(se.App, client)
+		ctx, cancel := context.WithCancel(context.Background())
+		se.App.OnTerminate().BindFunc(func(e *core.TerminateEvent) error {
+			cancel()
+			return e.Next()
+		})
+		bootstrapData(ctx, se.App, client)
 
 		return se.Next()
 	}
@@ -1359,9 +1366,18 @@ func registerCronJobs(app core.App) {
 	})
 }
 
-func bootstrapData(app core.App, client meilisearch.ServiceManager) error {
+func bootstrapData(ctx context.Context, app core.App, client meilisearch.ServiceManager) error {
 	bootstrapCategories(app)
-	go bootstrapMeilisearchDocuments(app, client)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				app.Logger().Warn(fmt.Sprintf("meilisearch bootstrap aborted: %v", r))
+			}
+		}()
+		if err := bootstrapMeilisearchDocuments(ctx, app, client); err != nil && !errors.Is(err, context.Canceled) {
+			app.Logger().Warn(fmt.Sprintf("meilisearch bootstrap failed: %v", err))
+		}
+	}()
 	return nil
 }
 
@@ -1390,17 +1406,23 @@ func bootstrapCategories(app core.App) error {
 	return nil
 }
 
-func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) error {
+func bootstrapMeilisearchDocuments(ctx context.Context, app core.App, client meilisearch.ServiceManager) error {
 	// --- Trails ---
 	const pageSize int64 = 100
 	var page int64 = 0
 
 	// Clear index before re-indexing
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if _, err := client.Index("trails").DeleteAllDocuments(); err != nil {
 		return err
 	}
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		trails := []*core.Record{}
 		err := app.RecordQuery("trails").
 			Limit(pageSize).
@@ -1422,12 +1444,18 @@ func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManag
 	}
 
 	// --- Lists ---
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if _, err := client.Index("lists").DeleteAllDocuments(); err != nil {
 		return err
 	}
 
 	page = 0
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		lists := []*core.Record{}
 		err := app.RecordQuery("lists").
 			Limit(pageSize).
