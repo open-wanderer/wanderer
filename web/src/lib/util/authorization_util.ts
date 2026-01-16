@@ -15,8 +15,8 @@ const publicRoutes = [
   "/api/v1/category",
   "/api/v1/auth/oauth",
   "/register",
-  "/auth"
-
+  "/auth",
+  "/.well-known"
 ]
 
 export function isRouteProtected(url: URL | undefined) {

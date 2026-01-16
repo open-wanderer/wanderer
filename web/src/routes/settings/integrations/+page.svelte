@@ -101,6 +101,7 @@
                 clientSecret: integration.strava.clientSecret,
                 routes: integration.strava.routes,
                 activities: integration.strava.activities,
+                privacy: integration.strava.privacy,
                 accessToken: undefined,
                 refreshToken: undefined,
                 expiresAt: undefined,
