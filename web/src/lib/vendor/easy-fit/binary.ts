@@ -41,11 +41,13 @@ function formatByType(data: number, type: string | number, scale: number, offset
         case 'uint32':
         case 'uint16':
             return scale ? data / scale + offset : data;
-        default:
-            if (FIT.types[type]) {
-                return FIT.types[type][data];
+        default: {
+            const types = FIT.types as Record<string, Record<string, any>>;
+            if (types[type]) {
+                return types[type][String(data)];
             }
             return data;
+        }
     }
 }
 
@@ -91,7 +93,8 @@ function isInvalidValue(data: number, type: string) {
 }
 
 function convertTo(data: number, unitsList: string, speedUnit: string | number) {
-    var unitObj = FIT.options[unitsList][speedUnit];
+    const options = FIT.options as Record<string, Record<string, { multiplier: number; offset: number }>>;
+    var unitObj = options[unitsList]?.[String(speedUnit)];
     return unitObj ? data * unitObj.multiplier + unitObj.offset : data;
 }
 

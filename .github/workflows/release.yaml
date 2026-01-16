@@ -18,11 +18,11 @@ jobs:
     steps:
       # 1. Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       # 2. Setup node & npm
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -53,12 +53,12 @@ jobs:
     steps:
       # 1. Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.22'
 
@@ -114,7 +114,7 @@ jobs:
     steps:
       # 1. Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
       # 2. Extract release notes from CHANGELOG.md

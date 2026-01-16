@@ -2427,11 +2427,14 @@ function getMessageName(messageNum: keyof typeof FIT.messages) {
   return message ? message.name : '';
 }
 
-function getFieldObject(fieldNum: keyof typeof FIT.messages[keyof typeof FIT.messages], messageNum: keyof typeof FIT.messages) {
+function getFieldObject(fieldNum: keyof typeof FIT.messages[keyof typeof FIT.messages], messageNum: keyof typeof FIT.messages): Record<string, any> {
   var message = FIT.messages[messageNum];
   if (!message) {
-    return '';
+    return {};
   }
   var fieldObj = message[fieldNum];
-  return fieldObj ? fieldObj : {};
+  if (fieldObj && typeof fieldObj === "object") {
+    return fieldObj as Record<string, any>;
+  }
+  return {};
 }

@@ -79,7 +79,7 @@ export async function summit_logs_update(oldSummitLog: SummitLog, newSummitLog: 
 
     newSummitLog.author = user.actor
 
-    const formData = objectToFormData(newSummitLog, ["expand"])
+    const formData = objectToFormData(newSummitLog, ["expand", "gpx", "_gpx"])
 
     for (const photo of newSummitLog._photos ?? []) {
         formData.append("photos", photo)
@@ -93,6 +93,8 @@ export async function summit_logs_update(oldSummitLog: SummitLog, newSummitLog: 
 
     if (newSummitLog._gpx) {
         formData.append("gpx", newSummitLog._gpx);
+    } else if (newSummitLog.gpx === "") {
+        formData.append("gpx", "");
     }
 
     let r = await fetch('/api/v1/summit-log/form/' + newSummitLog.id + '?' + new URLSearchParams({
