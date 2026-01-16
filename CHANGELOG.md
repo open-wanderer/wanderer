@@ -114,7 +114,7 @@ This release contains breaking changes. They are marked with a ⚠️.
 **Please update to version v0.16.5 first before updating to v0.17.0.**
 
 ## Configuration
-Check the reopsitory's [`docker-compose.yml`](https://github.com/Flomp/wanderer/blob/main/docker-compose.yml) for a valid configuration.
+Check the reopsitory's [`docker-compose.yml`](https://github.com/open-wanderer/wanderer/blob/main/docker-compose.yml) for a valid configuration.
 
 - ⚠️ The PocketBase environment variable `POCKETBASE_ENCRYPTION_KEY` is now required. It requires a valid 32 character AES key as its value. To generate a key, run `openssl rand -hex 16`.
 - ⚠️ The PocketBase environment variable `ORIGIN`is now required. It must be set to the public IP or hostname (including the port) of your wanderer frontend and must equal the value set for the frontend's `ORIGIN` environment variable.
@@ -363,7 +363,7 @@ This release contains breaking changes. Most migrations will happen automaticall
 
 ## Maintenance
 - Updates to meilisearch version 0.11.3. 
-- ⚠️ meilisearch indices are not compatible across minor versions. This means you will need to rename or delete your [`data.ms`](https://github.com/Flomp/wanderer/blob/8635de78b9f1510e2316b08e605b175a2615f4db/docker-compose.yml#L19) folder on your host system to force meilisearch to rebuild the index on the next start (note that this can take a little while). 
+- ⚠️ meilisearch indices are not compatible across minor versions. This means you will need to rename or delete your [`data.ms`](https://github.com/open-wanderer/wanderer/blob/8635de78b9f1510e2316b08e605b175a2615f4db/docker-compose.yml#L19) folder on your host system to force meilisearch to rebuild the index on the next start (note that this can take a little while). 
 
 ## Features
 - Adds password reset email function for users (see [docs](https://wanderer.to/guides/authentication/#forgot-your-password) for more info)
@@ -534,7 +534,7 @@ As the number of contributors to this project continues to grow (which I’m ver
 ## Features
 - Trails can now be filtered by date
 - Elevation, slope and speed graphs are now also visible when creating a new trail
-- When creating a new trail you now have the option to create a new route from scratch without uploading a GPX file. Press the "Draw a route" button and plan your new route directly in wanderer. We use [valhalla](https://github.com/valhalla/valhalla) and their associated free [hosted service](https://gis-ops.com/global-open-valhalla-server-online/) to calculate the routes. To activate the feature make sure to set the PUBLIC_VALHALLA_URL environment variable on you wanderer-web service. See the current [docker-compose.yml](https://github.com/Flomp/wanderer/blob/main/docker-compose.yml) for a working configuration.
+- When creating a new trail you now have the option to create a new route from scratch without uploading a GPX file. Press the "Draw a route" button and plan your new route directly in wanderer. We use [valhalla](https://github.com/valhalla/valhalla) and their associated free [hosted service](https://gis-ops.com/global-open-valhalla-server-online/) to calculate the routes. To activate the feature make sure to set the PUBLIC_VALHALLA_URL environment variable on you wanderer-web service. See the current [docker-compose.yml](https://github.com/open-wanderer/wanderer/blob/main/docker-compose.yml) for a working configuration.
 
 ## Bug fixes
 - Uploaded trails will now have a date if it can be parsed from the file
@@ -583,9 +583,9 @@ As the number of contributors to this project continues to grow (which I’m ver
 ## Features
 
 - Trails can now be added to a list while editing or creating a trail. The trail must be saved at least once to add it to a list.
-- wanderer now has an auto-upload folder. GPX files in this folder will be autmatically uploaded and converted to a trail. Read the [docs](https://github.com/Flomp/wanderer/wiki/API#auto-upload-folder) for more information.
+- wanderer now has an auto-upload folder. GPX files in this folder will be autmatically uploaded and converted to a trail. Read the [docs](https://github.com/open-wanderer/wanderer/wiki/API#auto-upload-folder) for more information.
 - addded support for TCX and KML files. Note that this feature is still experimental. Please report any issues you encounter.
-- added OAuth support. Read [here](https://github.com/Flomp/wanderer/wiki/OAuth) how to enable providers.
+- added OAuth support. Read [here](https://github.com/open-wanderer/wanderer/wiki/OAuth) how to enable providers.
   
 ## Bug fixes
 
@@ -618,7 +618,7 @@ As the number of contributors to this project continues to grow (which I’m ver
 - waypoint markers can now be moved with drag & drop
 - lists can now be displayed as a map showing all trails contained in the list
 - you can now prevent users from signing up by setting the `DISABLE_SIGNUP` environment variable to `true`
-- you can now upload GPX files via the API to create trails. Check the [documentation](https://github.com/Flomp/wanderer/wiki/API#upload-trails) for more info.
+- you can now upload GPX files via the API to create trails. Check the [documentation](https://github.com/open-wanderer/wanderer/wiki/API#upload-trails) for more info.
 - the city index now includes states
 
 > Note: for city states to show up in your search you have to delete your data.ms folder if you already have a previous installation of wanderer. The indices will then be rebuilt on startup.

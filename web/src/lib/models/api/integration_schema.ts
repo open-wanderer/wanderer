@@ -8,6 +8,7 @@ const StravaSchema = z.object({
     activities: z.boolean(),
     active: z.boolean(),
     after: z.string().date().optional(),
+    privacy: z.enum(["original", "settings"])
 })
 
 const KomootSchema = z.object({
@@ -16,6 +17,7 @@ const KomootSchema = z.object({
     completed: z.boolean(),
     planned: z.boolean(),
     active: z.boolean(),
+    privacy: z.enum(["original", "settings"])
 })
 
 const IntegrationCreateSchema = z.object({
@@ -30,4 +32,4 @@ const IntegrationUpdateSchema = z.object({
     komoot: KomootSchema.optional().nullable()
 }) satisfies ZodType<Partial<Integration>>
 
-    export { StravaSchema, IntegrationCreateSchema, IntegrationUpdateSchema, KomootSchema };
+export { StravaSchema, IntegrationCreateSchema, IntegrationUpdateSchema, KomootSchema };
