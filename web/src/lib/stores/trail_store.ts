@@ -62,7 +62,7 @@ export async function trails_search_filter(filter: TrailFilter, page: number = 1
     let filterText: string = buildFilterText(user, filter, true);
 
 
-    let r = await f("/api/v1/search/trails", {
+    let r = await f("/api/v1/trail/search", {
         method: "POST",
         body: JSON.stringify({
             mode: "table",
@@ -103,7 +103,7 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
         filterText = buildFilterText(user, filter, false);
     }
 
-    let r = await fetch("/api/v1/search/trails", {
+    let r = await fetch("/api/v1/trail/search", {
         method: "POST",
         body: JSON.stringify({
             mode: "bbox",
