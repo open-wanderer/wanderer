@@ -367,10 +367,19 @@ func logicalSplitNode(app core.App, node *quadNodeRecord) error {
 			return err
 		}
 
-		for _, trail := range chunk {
-			if _, err := insertTrailQuadNode(app, trail.Id, childId); err != nil {
-				return err
-			}
+		// Bulk insert all trails for this chunk
+		entries := make([]struct {
+			TrailId string
+			NodeId  string
+		}, len(chunk))
+		for j, trail := range chunk {
+			entries[j] = struct {
+				TrailId string
+				NodeId  string
+			}{TrailId: trail.Id, NodeId: childId}
+		}
+		if _, err := bulkInsertTrailQuadNodes(app, entries); err != nil {
+			return err
 		}
 	}
 
@@ -714,6 +723,13 @@ func splitTimeBucketIfNeeded(app core.App, bucketId, focusTrailId string) (strin
 		return bucketId, nil
 	}
 
+	// Delete all old entries first - single operation
+	if _, err := app.DB().NewQuery(`DELETE FROM trail_time_bucket_entries WHERE bucket = {:bucket}`).
+		Bind(dbx.Params{"bucket": bucketId}).
+		Execute(); err != nil {
+		return "", err
+	}
+
 	newBucketId := bucketId
 	chunkStarts := []int{0}
 	for i := 0; i < len(trails); {
@@ -748,25 +764,21 @@ func splitTimeBucketIfNeeded(app core.App, bucketId, focusTrailId string) (strin
 			return "", err
 		}
 
-		ids := make([]string, 0, len(chunk))
-		for _, trail := range chunk {
-			ids = append(ids, trail.Id)
+		// Bulk insert entries for this chunk
+		entries := make([]struct {
+			TrailId  string
+			BucketId string
+		}, len(chunk))
+		for j, trail := range chunk {
+			entries[j] = struct {
+				TrailId  string
+				BucketId string
+			}{TrailId: trail.Id, BucketId: chunkBucketId}
 			if trail.Id == focusTrailId {
 				newBucketId = chunkBucketId
 			}
 		}
-
-		inClause, inParams := buildInClause("trail", ids)
-		params := dbx.Params{"bucket": chunkBucketId, "old": bucketId}
-		for key, value := range inParams {
-			params[key] = value
-		}
-		query := fmt.Sprintf(`UPDATE trail_time_bucket_entries
-			SET bucket = {:bucket}
-			WHERE %s AND bucket = {:old}`, inClause)
-		if _, err := app.DB().NewQuery(query).
-			Bind(params).
-			Execute(); err != nil {
+		if _, err := bulkInsertTrailTimeBucketEntries(app, entries); err != nil {
 			return "", err
 		}
 	}
@@ -814,4 +826,90 @@ func buildInClause(field string, values []string) (string, dbx.Params) {
 		params[key] = value
 	}
 	return fmt.Sprintf("%s IN (%s)", field, strings.Join(placeholders, ",")), params
+}
+
+// Bulk insert for trail_quad_nodes - much faster than individual inserts
+func bulkInsertTrailQuadNodes(app core.App, entries []struct {
+	TrailId string
+	NodeId  string
+}) (int64, error) {
+	if len(entries) == 0 {
+		return 0, nil
+	}
+
+	const batchSize = 500
+	var totalInserted int64
+
+	for i := 0; i < len(entries); i += batchSize {
+		end := i + batchSize
+		if end > len(entries) {
+			end = len(entries)
+		}
+		batch := entries[i:end]
+
+		valueStrings := make([]string, 0, len(batch))
+		params := dbx.Params{}
+		for j, entry := range batch {
+			trailKey := fmt.Sprintf("t%d", j)
+			nodeKey := fmt.Sprintf("n%d", j)
+			valueStrings = append(valueStrings, fmt.Sprintf("({:%s}, {:%s})", trailKey, nodeKey))
+			params[trailKey] = entry.TrailId
+			params[nodeKey] = entry.NodeId
+		}
+
+		query := fmt.Sprintf(`INSERT OR IGNORE INTO trail_quad_nodes (trail, quad_node) VALUES %s`,
+			strings.Join(valueStrings, ", "))
+
+		result, err := app.DB().NewQuery(query).Bind(params).Execute()
+		if err != nil {
+			return totalInserted, err
+		}
+		affected, _ := result.RowsAffected()
+		totalInserted += affected
+	}
+
+	return totalInserted, nil
+}
+
+// Bulk insert for trail_time_bucket_entries - much faster than individual inserts
+func bulkInsertTrailTimeBucketEntries(app core.App, entries []struct {
+	TrailId  string
+	BucketId string
+}) (int64, error) {
+	if len(entries) == 0 {
+		return 0, nil
+	}
+
+	const batchSize = 500
+	var totalInserted int64
+
+	for i := 0; i < len(entries); i += batchSize {
+		end := i + batchSize
+		if end > len(entries) {
+			end = len(entries)
+		}
+		batch := entries[i:end]
+
+		valueStrings := make([]string, 0, len(batch))
+		params := dbx.Params{}
+		for j, entry := range batch {
+			trailKey := fmt.Sprintf("t%d", j)
+			bucketKey := fmt.Sprintf("b%d", j)
+			valueStrings = append(valueStrings, fmt.Sprintf("({:%s}, {:%s})", trailKey, bucketKey))
+			params[trailKey] = entry.TrailId
+			params[bucketKey] = entry.BucketId
+		}
+
+		query := fmt.Sprintf(`INSERT OR IGNORE INTO trail_time_bucket_entries (trail, bucket) VALUES %s`,
+			strings.Join(valueStrings, ", "))
+
+		result, err := app.DB().NewQuery(query).Bind(params).Execute()
+		if err != nil {
+			return totalInserted, err
+		}
+		affected, _ := result.RowsAffected()
+		totalInserted += affected
+	}
+
+	return totalInserted, nil
 }

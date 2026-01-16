@@ -89,7 +89,7 @@ async function searchTrailsByBBox(event: RequestEvent, data: SearchPayload) {
     }
 
     const nodes = await fetchAllCounts(event, "quad_nodes", {
-        filter: buildBBoxFilter(bbox),
+        filter: buildPbBBoxFilter(bbox),
         fields: "id,trail_count",
     });
 
@@ -183,8 +183,8 @@ function normalizeOptions(data: SearchPayload): SearchOptions {
     return options;
 }
 
-function buildBBoxFilter(bbox: BBoxPayload) {
-    return `is_leaf = true AND max_lat >= ${bbox.minLat} AND min_lat <= ${bbox.maxLat} AND max_lon >= ${bbox.minLon} AND min_lon <= ${bbox.maxLon}`;
+function buildPbBBoxFilter(bbox: BBoxPayload) {
+    return `is_leaf = true && max_lat >= ${bbox.minLat} && min_lat <= ${bbox.maxLat} && max_lon >= ${bbox.minLon} && min_lon <= ${bbox.maxLon}`;
 }
 
 function buildTrailBBoxFilter(bbox: BBoxPayload) {
