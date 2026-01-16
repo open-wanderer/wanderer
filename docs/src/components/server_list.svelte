@@ -64,7 +64,7 @@
 </p>
 <p class="mb-12">
     Learn how to add your server to the list <a
-        href="https://github.com/Flomp/wanderer/discussions/361">here</a
+        href="https://github.com/open-wanderer/wanderer/discussions/361">here</a
     >.
 </p>
 <div

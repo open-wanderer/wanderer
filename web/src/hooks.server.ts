@@ -95,7 +95,11 @@ const auth: Handle = async ({ event, resolve }) => {
 
     meiliApiKey = publicMeilisearchKey!;
   }
-  const ms = new MeiliSearch({ host: env.MEILI_URL, apiKey: meiliApiKey });
+  const meiliHost = env.MEILI_URL;
+  if (!meiliHost) {
+    throw error(500, "Missing MEILI_URL");
+  }
+  const ms = new MeiliSearch({ host: meiliHost, apiKey: meiliApiKey });
 
   event.locals.ms = ms
   event.locals.pb = pb

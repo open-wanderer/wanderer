@@ -29,6 +29,7 @@ type StravaIntegration struct {
 	AccessToken  string `json:"accessToken,omitempty"`
 	RefreshToken string `json:"refreshToken,omitempty"`
 	ExpiresAt    int64  `json:"expiresAt,omitempty"`
+	Privacy      string `json:"privacy"`
 	After        string `json:"after,omitempty"`
 }
 type StravaRoute struct {

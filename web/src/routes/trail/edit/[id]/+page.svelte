@@ -5,7 +5,7 @@
     import Select from "$lib/components/base/select.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import Toggle from "$lib/components/base/toggle.svelte";
-    import ListSelectModal from "$lib/components/list/list_select_modal.svelte";
+    import ListSearchModal from "$lib/components/list/list_search_modal.svelte";
     import SummitLogCard from "$lib/components/summit_log/summit_log_card.svelte";
     import SummitLogModal from "$lib/components/summit_log/summit_log_modal.svelte";
     import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
@@ -111,7 +111,7 @@
 
     let waypointModal: WaypointModal;
     let summitLogModal: SummitLogModal;
-    let listSelectModal: ListSelectModal;
+    let listSelectModal: ListSearchModal;
 
     let loading = $state(false);
 
@@ -1516,11 +1516,11 @@
 <WaypointModal bind:this={waypointModal} onsave={saveWaypoint}></WaypointModal>
 <SummitLogModal bind:this={summitLogModal} onsave={(log) => saveSummitLog(log)}
 ></SummitLogModal>
-<ListSelectModal
+<ListSearchModal
     lists={lists.items}
     bind:this={listSelectModal}
     onchange={(e) => handleListSelection(e)}
-></ListSelectModal>
+></ListSearchModal>
 
 <style>
     #trail-map {
