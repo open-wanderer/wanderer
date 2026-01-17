@@ -161,6 +161,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(createTrailHandler(client))
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(updateTrailHandler(client))
+	app.OnRecordDelete("trails").BindFunc(deleteTrailShardsHandler())
 	app.OnRecordAfterDeleteSuccess("trails").BindFunc(deleteTrailHandler(client))
 
 	app.OnRecordCreateRequest("summit_logs").BindFunc(createSummitLogHandler(client))
@@ -380,10 +381,6 @@ func deleteTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 	return func(e *core.RecordEvent) error {
 		record := e.Record
 
-		if err := util.RemoveTrailShards(e.App, record); err != nil {
-			return err
-		}
-
 		task, err := client.Index("trails").DeleteDocument(record.Id)
 		if err != nil {
 			return err
@@ -405,6 +402,15 @@ func deleteTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			return err
 		}
 
+		return e.Next()
+	}
+}
+
+func deleteTrailShardsHandler() func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		if err := util.RemoveTrailShards(e.App, e.Record); err != nil {
+			return err
+		}
 		return e.Next()
 	}
 }

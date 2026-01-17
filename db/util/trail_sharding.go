@@ -8,6 +8,7 @@ import (
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 type quadNodeRecord struct {
@@ -241,7 +242,7 @@ func assignTrailToNode(app core.App, nodeId, trailId string, bbox TrailBoundingB
 			node.TrailCount++
 		}
 
-		if node.TrailCount > QuadTreeBucketMax {
+		if node.TrailCount > TrailBucketMax {
 			if node.Depth < QuadTreeMaxDepth {
 				if err := spatialSplitNode(app, node); err != nil {
 					return nil, err
@@ -352,8 +353,8 @@ func logicalSplitNode(app core.App, node *quadNodeRecord) error {
 		return trails[i].CreatedAt < trails[j].CreatedAt
 	})
 
-	for i := 0; i < len(trails); i += QuadTreeBucketMax {
-		end := i + QuadTreeBucketMax
+	for i := 0; i < len(trails); i += TrailBucketMax {
+		end := i + TrailBucketMax
 		if end > len(trails) {
 			end = len(trails)
 		}
@@ -361,7 +362,7 @@ func logicalSplitNode(app core.App, node *quadNodeRecord) error {
 		chunk := trails[i:end]
 		createdFrom := chunk[0].CreatedAt
 		createdTo := chunk[len(chunk)-1].CreatedAt
-		suffix := fmt.Sprintf("t%04d", i/QuadTreeBucketMax)
+		suffix := fmt.Sprintf("t%04d", i/TrailBucketMax)
 		childId, err := createQuadNode(app, node.Id, node.Depth+1, node.MinLat, node.MinLon, node.MaxLat, node.MaxLon, len(chunk), true, "logical", &createdFrom, &createdTo, node.Path+"/"+suffix)
 		if err != nil {
 			return err
@@ -462,8 +463,9 @@ func createQuadNode(app core.App, parentId string, depth int, minLat, minLon, ma
 }
 
 func insertTrailQuadNode(app core.App, trailId, nodeId string) (bool, error) {
-	result, err := app.DB().NewQuery(`INSERT OR IGNORE INTO trail_quad_nodes (trail, quad_node) VALUES ({:trail}, {:node})`).
-		Bind(dbx.Params{"trail": trailId, "node": nodeId}).
+	now := types.NowDateTime()
+	result, err := app.DB().NewQuery(`INSERT OR IGNORE INTO trail_quad_nodes (trail, quad_node, created, updated) VALUES ({:trail}, {:node}, {:now}, {:now})`).
+		Bind(dbx.Params{"trail": trailId, "node": nodeId, "now": now}).
 		Execute()
 	if err != nil {
 		return false, err
@@ -476,8 +478,9 @@ func insertTrailQuadNode(app core.App, trailId, nodeId string) (bool, error) {
 }
 
 func insertTrailTimeBucketEntry(app core.App, trailId, bucketId string) (bool, error) {
-	result, err := app.DB().NewQuery(`INSERT OR IGNORE INTO trail_time_bucket_entries (trail, bucket) VALUES ({:trail}, {:bucket})`).
-		Bind(dbx.Params{"trail": trailId, "bucket": bucketId}).
+	now := types.NowDateTime()
+	result, err := app.DB().NewQuery(`INSERT OR IGNORE INTO trail_time_bucket_entries (trail, bucket, created, updated) VALUES ({:trail}, {:bucket}, {:now}, {:now})`).
+		Bind(dbx.Params{"trail": trailId, "bucket": bucketId, "now": now}).
 		Execute()
 	if err != nil {
 		return false, err
@@ -559,7 +562,7 @@ func AssignTrailTimeBucket(app core.App, trail *core.Record) (string, error) {
 		}
 	}
 
-	if bucket.TrailCount >= QuadTreeBucketMax {
+	if bucket.TrailCount >= TrailBucketMax {
 		if bucket.CreatedTo == 0 {
 			updated, err := setTimeBucketEndIfOpen(app, bucket.Id, createdAt)
 			if err != nil {
@@ -701,7 +704,7 @@ func splitTimeBucketIfNeeded(app core.App, bucketId, focusTrailId string) (strin
 		All(&buckets); err != nil {
 		return "", err
 	}
-	if len(buckets) == 0 || buckets[0].TrailCount <= QuadTreeBucketMax {
+	if len(buckets) == 0 || buckets[0].TrailCount <= TrailBucketMax {
 		return bucketId, nil
 	}
 
@@ -733,7 +736,7 @@ func splitTimeBucketIfNeeded(app core.App, bucketId, focusTrailId string) (strin
 	newBucketId := bucketId
 	chunkStarts := []int{0}
 	for i := 0; i < len(trails); {
-		end := i + QuadTreeBucketMax
+		end := i + TrailBucketMax
 		if end > len(trails) {
 			end = len(trails)
 		}
@@ -841,6 +844,7 @@ func bulkInsertTrailQuadNodes(app core.App, entries []struct {
 	var totalInserted int64
 
 	for i := 0; i < len(entries); i += batchSize {
+		now := types.NowDateTime()
 		end := i + batchSize
 		if end > len(entries) {
 			end = len(entries)
@@ -848,16 +852,16 @@ func bulkInsertTrailQuadNodes(app core.App, entries []struct {
 		batch := entries[i:end]
 
 		valueStrings := make([]string, 0, len(batch))
-		params := dbx.Params{}
+		params := dbx.Params{"now": now}
 		for j, entry := range batch {
 			trailKey := fmt.Sprintf("t%d", j)
 			nodeKey := fmt.Sprintf("n%d", j)
-			valueStrings = append(valueStrings, fmt.Sprintf("({:%s}, {:%s})", trailKey, nodeKey))
+			valueStrings = append(valueStrings, fmt.Sprintf("({:%s}, {:%s}, {:now}, {:now})", trailKey, nodeKey))
 			params[trailKey] = entry.TrailId
 			params[nodeKey] = entry.NodeId
 		}
 
-		query := fmt.Sprintf(`INSERT OR IGNORE INTO trail_quad_nodes (trail, quad_node) VALUES %s`,
+		query := fmt.Sprintf(`INSERT OR IGNORE INTO trail_quad_nodes (trail, quad_node, created, updated) VALUES %s`,
 			strings.Join(valueStrings, ", "))
 
 		result, err := app.DB().NewQuery(query).Bind(params).Execute()
@@ -884,6 +888,7 @@ func bulkInsertTrailTimeBucketEntries(app core.App, entries []struct {
 	var totalInserted int64
 
 	for i := 0; i < len(entries); i += batchSize {
+		now := types.NowDateTime()
 		end := i + batchSize
 		if end > len(entries) {
 			end = len(entries)
@@ -891,16 +896,16 @@ func bulkInsertTrailTimeBucketEntries(app core.App, entries []struct {
 		batch := entries[i:end]
 
 		valueStrings := make([]string, 0, len(batch))
-		params := dbx.Params{}
+		params := dbx.Params{"now": now}
 		for j, entry := range batch {
 			trailKey := fmt.Sprintf("t%d", j)
 			bucketKey := fmt.Sprintf("b%d", j)
-			valueStrings = append(valueStrings, fmt.Sprintf("({:%s}, {:%s})", trailKey, bucketKey))
+			valueStrings = append(valueStrings, fmt.Sprintf("({:%s}, {:%s}, {:now}, {:now})", trailKey, bucketKey))
 			params[trailKey] = entry.TrailId
 			params[bucketKey] = entry.BucketId
 		}
 
-		query := fmt.Sprintf(`INSERT OR IGNORE INTO trail_time_bucket_entries (trail, bucket) VALUES %s`,
+		query := fmt.Sprintf(`INSERT OR IGNORE INTO trail_time_bucket_entries (trail, bucket, created, updated) VALUES %s`,
 			strings.Join(valueStrings, ", "))
 
 		result, err := app.DB().NewQuery(query).Bind(params).Execute()

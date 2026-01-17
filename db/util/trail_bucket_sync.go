@@ -160,14 +160,14 @@ func bulkRebuildShards(app core.App) error {
 // bulkBuildTimeBuckets creates all time buckets and entries in bulk
 func bulkBuildTimeBuckets(app core.App, trails []bulkTrailData) error {
 	// Trails are already sorted by created time
-	// Split into chunks of QuadTreeBucketMax
+	// Split into chunks of TrailBucketMax
 	var allEntries []struct {
 		TrailId  string
 		BucketId string
 	}
 
-	for i := 0; i < len(trails); i += QuadTreeBucketMax {
-		end := i + QuadTreeBucketMax
+	for i := 0; i < len(trails); i += TrailBucketMax {
+		end := i + TrailBucketMax
 		if end > len(trails) {
 			end = len(trails)
 		}
@@ -197,7 +197,7 @@ func bulkBuildTimeBuckets(app core.App, trails []bulkTrailData) error {
 		return err
 	}
 
-	app.Logger().Info(fmt.Sprintf("Created %d time buckets", (len(trails)+QuadTreeBucketMax-1)/QuadTreeBucketMax))
+	app.Logger().Info(fmt.Sprintf("Created %d time buckets", (len(trails)+TrailBucketMax-1)/TrailBucketMax))
 	return nil
 }
 
@@ -247,7 +247,7 @@ func bulkBuildQuadTree(app core.App, trails []bulkTrailData) error {
 		node := queue[0]
 		queue = queue[1:]
 
-		if len(node.trails) <= QuadTreeBucketMax {
+		if len(node.trails) <= TrailBucketMax {
 			// This is a leaf node - collect entries
 			leafNodes = append(leafNodes, node)
 			for _, trail := range node.trails {
@@ -382,8 +382,8 @@ func bulkLogicalSplit(app core.App, node *quadBuildNode) ([]*quadBuildNode, erro
 	})
 
 	var children []*quadBuildNode
-	for i := 0; i < len(node.trails); i += QuadTreeBucketMax {
-		end := i + QuadTreeBucketMax
+	for i := 0; i < len(node.trails); i += TrailBucketMax {
+		end := i + TrailBucketMax
 		if end > len(node.trails) {
 			end = len(node.trails)
 		}
@@ -391,7 +391,7 @@ func bulkLogicalSplit(app core.App, node *quadBuildNode) ([]*quadBuildNode, erro
 		chunk := node.trails[i:end]
 		createdFrom := chunk[0].CreatedAt
 		createdTo := chunk[len(chunk)-1].CreatedAt
-		suffix := fmt.Sprintf("t%04d", i/QuadTreeBucketMax)
+		suffix := fmt.Sprintf("t%04d", i/TrailBucketMax)
 
 		childId, err := createQuadNode(app, node.id, node.depth+1, node.minLat, node.minLon, node.maxLat, node.maxLon, len(chunk), true, "logical", &createdFrom, &createdTo, node.path+"/"+suffix)
 		if err != nil {
