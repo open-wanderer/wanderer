@@ -94,7 +94,7 @@
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
-    import { onMount, tick, untrack } from "svelte";
+    import { tick, untrack } from "svelte";
     import { _ } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
     import { fly, slide } from "svelte/transition";
@@ -157,6 +157,7 @@
     });
 
     let savedAtLeastOnce = $state(false);
+    let syncingTrailState = false;
 
     let tagItems: ComboboxItem[] = $state([]);
 
@@ -264,33 +265,68 @@
         },
     });
 
-    onMount(async () => {
-        clearAnchors();
-        clearRoute();
-        clearUndoRedoStack();
-
-        if ($formData.expand!.gpx_data) {
-            const gpx = GPX.parse($formData.expand!.gpx_data);
-            if (!(gpx instanceof Error)) {
-                if (gpx.rte && !gpx.trk) {
-                    gpx.trk = [
-                        new Track({
-                            trkseg: [
-                                new TrackSegment({
-                                    trkpt: gpx.rte?.at(0)?.rtept,
-                                }),
-                            ],
-                        }),
-                    ];
-                    gpx.rte = undefined;
-                }
-
-                setRoute(gpx);
-                initRouteAnchors(gpx);
-
-                updateTrailOnMap();
-            }
+    async function syncTrailState(nextTrail: Trail) {
+        if (syncingTrailState) {
+            return;
         }
+        syncingTrailState = true;
+
+        try {
+            savedAtLeastOnce = Boolean(nextTrail.id);
+            photoFiles = [];
+            gpxFile = null;
+            overwriteGPX = false;
+            drawingActive = false;
+            croppedGPX = null;
+            mapTrail = [];
+
+            formData.set({
+                ...nextTrail,
+                public: nextTrail.id
+                    ? nextTrail.public
+                    : page.data.settings?.privacy?.trails === "public",
+                category:
+                    nextTrail.category ||
+                    page.data.settings?.category ||
+                    $categories[0].id,
+            });
+            trail.set(nextTrail);
+
+            clearAnchors();
+            clearRoute();
+            clearUndoRedoStack();
+
+            await tick();
+
+            if (nextTrail.expand?.gpx_data) {
+                const gpx = GPX.parse(nextTrail.expand.gpx_data);
+                if (!(gpx instanceof Error)) {
+                    if (gpx.rte && !gpx.trk) {
+                        gpx.trk = [
+                            new Track({
+                                trkseg: [
+                                    new TrackSegment({
+                                        trkpt: gpx.rte?.at(0)?.rtept,
+                                    }),
+                                ],
+                            }),
+                        ];
+                        gpx.rte = undefined;
+                    }
+
+                    setRoute(gpx);
+                    initRouteAnchors(gpx);
+                }
+            }
+
+            updateTrailOnMapFrom(nextTrail);
+        } finally {
+            syncingTrailState = false;
+        }
+    }
+
+    $effect(() => {
+        void syncTrailState(data.trail);
     });
 
     function openFileBrowser() {
@@ -1060,6 +1096,13 @@
     function updateTrailOnMap() {
         const t: Trail = JSON.parse(JSON.stringify($formData));
         t.expand!.gpx = valhallaStore.route;
+        mapTrail = [t];
+    }
+
+    function updateTrailOnMapFrom(trailData: Trail) {
+        const t: Trail = JSON.parse(JSON.stringify(trailData));
+        t.expand ??= {};
+        t.expand.gpx = untrack(() => valhallaStore.route);
         mapTrail = [t];
     }
 
