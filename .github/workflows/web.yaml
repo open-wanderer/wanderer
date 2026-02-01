@@ -25,6 +25,7 @@ jobs:
         with:
           node-version: '22'
 
+      - run: docker compose up -d
       - run: npm install
       - run: npx playwright install --with-deps chromium
       - run: npm run check
