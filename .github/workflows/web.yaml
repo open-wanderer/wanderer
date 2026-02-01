@@ -14,9 +14,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
 
     steps:
       - uses: actions/checkout@v6
@@ -40,6 +37,10 @@ jobs:
 
       - run: docker compose up -d
       - run: npm install
+        working-directory: web
       - run: npx playwright install --with-deps chromium
+        working-directory: web
       - run: npm run check
+        working-directory: web
       - run: npm run test
+        working-directory: web
