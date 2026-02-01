@@ -26,7 +26,6 @@ jobs:
         with:
           go-version: '1.25'
 
-      - run: make db-build
       - run: make db-build-docker
 
       - run: make web-build-docker
