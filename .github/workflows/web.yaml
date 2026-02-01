@@ -25,6 +25,19 @@ jobs:
         with:
           node-version: '22'
 
+      - run: go build -o pocketbase_amd64
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: amd64
+        working-directory: db
+
+        # Build db image
+      - run: docker buildx build db/ --no-cache -t flomp/wanderer-db:latest
+
+        # Build web image
+      - run: docker buildx build web/ --no-cache -t flomp/wanderer-web:latest
+
       - run: docker compose up -d
       - run: npm install
       - run: npx playwright install --with-deps chromium
