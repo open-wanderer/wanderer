@@ -11,8 +11,8 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/playwright',
-  /* Run tests in files in parallel */
-  fullyParallel: true,
+  /* Run tests in files in parallel - disabled to prevent auth conflicts */
+  fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
@@ -34,8 +34,10 @@ export default defineConfig({
   projects: [
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
     {
-      name: 'teardown', testMatch: /.*\.teardown\.ts/, use:
-      {
+      name: 'teardown',
+      testMatch: /.*\.teardown\.ts/,
+      dependencies: ['chromium'],
+      use: {
         storageState: 'playwright/.auth/user.json',
       }
     },
@@ -52,7 +54,7 @@ export default defineConfig({
 
     {
       name: 'chromium',
-      // dependencies: ['setup'],
+      dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/user.json',
