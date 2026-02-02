@@ -9,6 +9,7 @@ export enum Language {
   hu = "hu",
   it = "it",
   nl = "nl",
+  no = "no",
   pl = "pl",
   pt = "pt",
   ru = "ru",

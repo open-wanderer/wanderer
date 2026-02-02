@@ -21,6 +21,7 @@
         { text: $_("hungarian"), value: "hu" },
         { text: $_("italian"), value: "it" },
         { text: $_("dutch"), value: "nl" },
+        { text: $_("norwegian"), value: "no" },
         { text: $_("polish"), value: "pl" },
         { text: $_("portuguese"), value: "pt" },
         { text: $_("russian"), value: "ru" },
