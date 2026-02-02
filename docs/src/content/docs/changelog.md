@@ -2,6 +2,19 @@
 title: Changelog
 description: What changed in the last patch?
 ---
+## v0.18.4
+### Bug fixes
+- Tags can now properly be removed from trails
+- Creating more than 29 lists does no longer prevent lists from loading
+- Fixes a bug that caused the GPS data to be removed from summit logs after editing
+- Fixes an issue that caused an infinite loop when creating a list with federation being active
+
+### Features
+- Trails can now be added to multiple lists at once
+
+### Translation
+-  Adds Norwegian translation (thanks @palhaland)
+
 ## v0.18.3
 ### Bug fixes
 - Fixes bug that prevented waypoints from being update or deleted in v0.18.2
