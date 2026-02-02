@@ -219,26 +219,28 @@
                     : 'moon'}"
                 onclick={() => toggleTheme()}
             ></button>
-            <div class="flex">
-                <a
-                    class="btn-primary btn-large !rounded-r-none focus:ring-0"
-                    href="/trail/edit/new"
-                    ><i class="fa fa-plus mr-2"></i>{$_("new-trail")}</a
-                >
-                <Dropdown
-                    items={importDropdownItems}
-                    onchange={(item) => handleImportDropdownClick(item)}
-                >
-                    {#snippet children({ toggleMenu: openDropdown })}
-                        <button
-                            onclick={openDropdown}
-                            class="bg-primary rounded-r-lg text-white min-h-12 hover:bg-primary-hover px-3"
-                            aria-label="Open trail create dropdown"
-                            ><i class="fa fa-caret-down"></i></button
-                        >
-                    {/snippet}
-                </Dropdown>
-            </div>
+            <nav data-sveltekit-reload>
+                <div class="flex">
+                    <a
+                        class="btn-primary btn-large !rounded-r-none focus:ring-0"
+                        href="/trail/edit/new"
+                        ><i class="fa fa-plus mr-2"></i>{$_("new-trail")}</a
+                    >
+                    <Dropdown
+                        items={importDropdownItems}
+                        onchange={(item) => handleImportDropdownClick(item)}
+                    >
+                        {#snippet children({ toggleMenu: openDropdown })}
+                            <button
+                                onclick={openDropdown}
+                                class="bg-primary rounded-r-lg text-white min-h-12 hover:bg-primary-hover px-3"
+                                aria-label="Open trail create dropdown"
+                                ><i class="fa fa-caret-down"></i></button
+                            >
+                        {/snippet}
+                    </Dropdown>
+                </div>
+            </nav>
             {#if page.data.notifications}
                 <NotificationDropdown></NotificationDropdown>
             {/if}
@@ -249,6 +251,7 @@
                 {#snippet children({ toggleMenu: openDropdown })}
                     <div class="flex items-center">
                         <button
+                            aria-label="Open user menu"
                             class="rounded-full bg-white text-black hover:bg-gray-200 focus:ring-4 ring-gray-100/50 transition-colors h-10 aspect-square"
                             onclick={openDropdown}
                         >

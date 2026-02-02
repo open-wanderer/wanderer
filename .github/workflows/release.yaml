@@ -18,11 +18,11 @@ jobs:
     steps:
       # 1. Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       # 2. Setup node & npm
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -53,12 +53,12 @@ jobs:
     steps:
       # 1. Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.22'
 
@@ -79,17 +79,9 @@ jobs:
           VERSION: ${{ needs.versioning.outputs.version }}
         run: |
           # Build db image
-          cd db
-          env GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o pocketbase_arm64
-          env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o pocketbase_amd64
-          cd ..
           docker buildx build db/ --no-cache -t flomp/wanderer-db:$VERSION -t flomp/wanderer-db:latest --platform=linux/amd64,linux/arm64 --push
 
           # Build web image
-          export PUBLIC_VALHALLA_URL=https://valhalla1.openstreetmap.de
-          cd web
-          npm ci && npm run build
-          cd ..
           docker buildx build web/ --no-cache -t flomp/wanderer-web:$VERSION -t flomp/wanderer-web:latest --platform=linux/amd64,linux/arm64 --push
 
           # Build docs image
@@ -106,7 +98,7 @@ jobs:
     steps:
       # 1. Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
       # 2. Extract release notes from CHANGELOG.md
