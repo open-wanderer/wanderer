@@ -19,6 +19,18 @@ import (
 )
 
 func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
+	quadNodeIds, err := TrailQuadNodeIDs(app, r.Id)
+	if err != nil {
+		return nil, err
+	}
+	timeBucketIds, err := TrailTimeBucketIDs(app, r.Id)
+	if err != nil {
+		return nil, err
+	}
+	return documentFromTrailRecordWithShards(app, r, author, includeShares, quadNodeIds, timeBucketIds)
+}
+
+func documentFromTrailRecordWithShards(app core.App, r *core.Record, author *core.Record, includeShares bool, quadNodeIds, timeBucketIds []string) (map[string]interface{}, error) {
 	photos := r.GetStringSlice("photos")
 	thumbnail := ""
 	if len(photos) > 0 {
@@ -44,6 +56,7 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 
 	polyline, err := getPolyline(app, r)
 	if err != nil {
+		app.Logger().Warn(fmt.Sprintf("failed to parse gpx for trail %s: %v", r.Id, err))
 		polyline = ""
 	}
 
@@ -58,29 +71,35 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 	}
 
 	document := map[string]any{
-		"id":             r.Id,
-		"author":         author.Id,
-		"author_name":    author.GetString("preferred_username"),
-		"author_avatar":  author.GetString("icon"),
-		"name":           r.GetString("name"),
-		"description":    r.GetString("description"),
-		"location":       r.GetString("location"),
-		"distance":       r.GetFloat("distance"),
-		"elevation_gain": r.GetFloat("elevation_gain"),
-		"elevation_loss": r.GetFloat("elevation_loss"),
-		"duration":       r.GetFloat("duration"),
-		"difficulty":     difficultyToNumber(r.GetString("difficulty")),
-		"category":       category,
-		"completed":      logCount > 0,
-		"date":           r.GetDateTime("date").Time().Unix(),
-		"created":        r.GetDateTime("created").Time().Unix(),
-		"public":         r.GetBool("public"),
-		"thumbnail":      thumbnail,
-		"gpx":            r.GetString("gpx"),
-		"tags":           tags,
-		"polyline":       polyline,
-		"domain":         domain,
-		"iri":            r.GetString("iri"),
+		"id":              r.Id,
+		"author":          author.Id,
+		"author_name":     author.GetString("preferred_username"),
+		"author_avatar":   author.GetString("icon"),
+		"name":            r.GetString("name"),
+		"description":     r.GetString("description"),
+		"location":        r.GetString("location"),
+		"distance":        r.GetFloat("distance"),
+		"elevation_gain":  r.GetFloat("elevation_gain"),
+		"elevation_loss":  r.GetFloat("elevation_loss"),
+		"duration":        r.GetFloat("duration"),
+		"difficulty":      difficultyToNumber(r.GetString("difficulty")),
+		"category":        category,
+		"completed":       logCount > 0,
+		"date":            r.GetDateTime("date").Time().Unix(),
+		"created":         r.GetDateTime("created").Time().Unix(),
+		"public":          r.GetBool("public"),
+		"thumbnail":       thumbnail,
+		"gpx":             r.GetString("gpx"),
+		"tags":            tags,
+		"polyline":        polyline,
+		"domain":          domain,
+		"iri":             r.GetString("iri"),
+		"min_lat":         r.GetFloat("min_lat"),
+		"min_lon":         r.GetFloat("min_lon"),
+		"max_lat":         r.GetFloat("max_lat"),
+		"max_lon":         r.GetFloat("max_lon"),
+		"time_bucket_ids": timeBucketIds,
+		"quad_node_ids":   quadNodeIds,
 		"_geo": map[string]float64{
 			"lat": r.GetFloat("lat"),
 			"lng": r.GetFloat("lon"),
@@ -134,6 +153,27 @@ func difficultyToNumber(difficulty string) int32 {
 	return 0
 }
 
+func trailBoundsFromRecord(r *core.Record) (float64, float64, float64, float64, bool) {
+	if r.Get("min_lat") != nil &&
+		r.Get("min_lon") != nil &&
+		r.Get("max_lat") != nil &&
+		r.Get("max_lon") != nil {
+		return r.GetFloat("min_lat"),
+			r.GetFloat("min_lon"),
+			r.GetFloat("max_lat"),
+			r.GetFloat("max_lon"),
+			true
+	}
+
+	if r.Get("lat") != nil && r.Get("lon") != nil {
+		lat := r.GetFloat("lat")
+		lon := r.GetFloat("lon")
+		return lat, lon, lat, lon, true
+	}
+
+	return 0, 0, 0, 0, false
+}
+
 func getPolyline(app core.App, r *core.Record) (string, error) {
 	gpxPath := r.GetString("gpx")
 	if len(gpxPath) == 0 {
@@ -163,7 +203,7 @@ func getPolyline(app core.App, r *core.Record) (string, error) {
 	}
 
 	gpxData.SimplifyTracks(50)
-	coordinates := make([][]float64, 4)
+	coordinates := make([][]float64, 0)
 	for _, trk := range gpxData.Tracks {
 		for _, seg := range trk.Segments {
 			for _, pt := range seg.Points {
@@ -171,6 +211,11 @@ func getPolyline(app core.App, r *core.Record) (string, error) {
 			}
 		}
 	}
+
+	if len(coordinates) == 0 {
+		return "", nil
+	}
+
 	return string(polyline.EncodeCoords(coordinates)), nil
 }
 
@@ -343,6 +388,95 @@ func IndexTrails(app core.App, trails []*core.Record, client meilisearch.Service
 	return nil
 }
 
+// IndexTrailsWithPreloadedShards indexes trails with pre-loaded shard mappings for better performance
+func IndexTrailsWithPreloadedShards(app core.App, trails []*core.Record, client meilisearch.ServiceManager, quadNodeMap map[string][]string, timeBucketMap map[string][]string) error {
+	documents := make([]map[string]any, len(trails))
+
+	for i, r := range trails {
+		errs := app.ExpandRecord(r, []string{"tags"}, nil)
+		if len(errs) > 0 {
+			return fmt.Errorf("failed to expand tags: %v", errs)
+		}
+		errs = app.ExpandRecord(r, []string{"category"}, nil)
+		if len(errs) > 0 {
+			return fmt.Errorf("failed to expand category: %v", errs)
+		}
+		errs = app.ExpandRecord(r, []string{"trail_share_via_trail"}, nil)
+		if len(errs) > 0 {
+			return fmt.Errorf("failed to expand trail_share_via_trail: %v", errs)
+		}
+		errs = app.ExpandRecord(r, []string{"trail_like_via_trail"}, nil)
+		if len(errs) > 0 {
+			return fmt.Errorf("failed to expand trail_like_via_trail: %v", errs)
+		}
+		errs = app.ExpandRecord(r, []string{"author"}, nil)
+		if len(errs) > 0 {
+			return fmt.Errorf("failed to expand author: %v", errs)
+		}
+
+		author := r.ExpandedOne("author")
+
+		// Use preloaded shard IDs instead of querying per trail
+		quadNodeIds := quadNodeMap[r.Id]
+		if quadNodeIds == nil {
+			quadNodeIds = []string{}
+		}
+		timeBucketIds := timeBucketMap[r.Id]
+		if timeBucketIds == nil {
+			timeBucketIds = []string{}
+		}
+
+		doc, err := documentFromTrailRecordWithShards(app, r, author, true, quadNodeIds, timeBucketIds)
+		if err != nil {
+			return err
+		}
+
+		documents[i] = doc
+	}
+
+	if _, err := client.Index("trails").AddDocuments(documents); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// BulkLoadShardMappings loads all trail-to-shard mappings in two queries
+func BulkLoadShardMappings(app core.App) (quadNodeMap map[string][]string, timeBucketMap map[string][]string, err error) {
+	quadNodeMap = make(map[string][]string)
+	timeBucketMap = make(map[string][]string)
+
+	if !BucketsEnabled() {
+		return quadNodeMap, timeBucketMap, nil
+	}
+
+	// Load all quad node mappings
+	var quadRows []struct {
+		Trail    string `db:"trail"`
+		QuadNode string `db:"quad_node"`
+	}
+	if err := app.DB().NewQuery(`SELECT trail, quad_node FROM trail_quad_nodes`).All(&quadRows); err != nil {
+		return nil, nil, err
+	}
+	for _, row := range quadRows {
+		quadNodeMap[row.Trail] = append(quadNodeMap[row.Trail], row.QuadNode)
+	}
+
+	// Load all time bucket mappings
+	var bucketRows []struct {
+		Trail  string `db:"trail"`
+		Bucket string `db:"bucket"`
+	}
+	if err := app.DB().NewQuery(`SELECT trail, bucket FROM trail_time_bucket_entries`).All(&bucketRows); err != nil {
+		return nil, nil, err
+	}
+	for _, row := range bucketRows {
+		timeBucketMap[row.Trail] = append(timeBucketMap[row.Trail], row.Bucket)
+	}
+
+	return quadNodeMap, timeBucketMap, nil
+}
+
 func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meilisearch.ServiceManager) error {
 	errs := app.ExpandRecord(r, []string{"tags"}, nil)
 	if len(errs) > 0 {
@@ -390,6 +524,52 @@ func UpdateTrailLikes(trailId string, likes []string, client meilisearch.Service
 	if _, err := client.Index("trails").UpdateDocuments(documents); err != nil {
 		return err
 	}
+	return nil
+}
+
+// BulkUpdateTrailShardIds updates only the shard IDs for trails in Meilisearch
+// This is much faster than full reindexing as it skips GPX parsing and record expansion
+func BulkUpdateTrailShardIds(client meilisearch.ServiceManager, quadNodeMap map[string][]string, timeBucketMap map[string][]string) error {
+	// Collect all trail IDs from both maps
+	trailIds := make(map[string]bool)
+	for trailId := range quadNodeMap {
+		trailIds[trailId] = true
+	}
+	for trailId := range timeBucketMap {
+		trailIds[trailId] = true
+	}
+
+	// Build partial documents with only id and shard fields
+	documents := make([]map[string]any, 0, len(trailIds))
+	for trailId := range trailIds {
+		quadNodeIds := quadNodeMap[trailId]
+		if quadNodeIds == nil {
+			quadNodeIds = []string{}
+		}
+		timeBucketIds := timeBucketMap[trailId]
+		if timeBucketIds == nil {
+			timeBucketIds = []string{}
+		}
+		documents = append(documents, map[string]any{
+			"id":              trailId,
+			"quad_node_ids":   quadNodeIds,
+			"time_bucket_ids": timeBucketIds,
+		})
+	}
+
+	// Update in batches
+	const batchSize = 500
+	for i := 0; i < len(documents); i += batchSize {
+		end := i + batchSize
+		if end > len(documents) {
+			end = len(documents)
+		}
+		batch := documents[i:end]
+		if _, err := client.Index("trails").UpdateDocuments(batch); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

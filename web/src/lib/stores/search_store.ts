@@ -85,7 +85,7 @@ type Geometry = {
 
 
 export async function searchTrails(q: string, options: SearchParams): Promise<Hits<TrailSearchResult>> {
-    const r = await fetch("/api/v1/search/trails", {
+    const r = await fetch("/api/v1/trail/search", {
         method: "POST",
         body: JSON.stringify({
             q,

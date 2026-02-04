@@ -62,12 +62,13 @@ export async function trails_search_filter(filter: TrailFilter, page: number = 1
     let filterText: string = buildFilterText(user, filter, true);
 
 
-    let r = await f("/api/v1/search/trails", {
+    let r = await f("/api/v1/trail/search", {
         method: "POST",
         body: JSON.stringify({
+            mode: "table",
             q: filter.q,
+            filter: filterText,
             options: {
-                filter: filterText,
                 attributesToRetrieve: defaultTrailSearchAttributes,
                 sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`],
                 hitsPerPage: perPage,
@@ -102,23 +103,35 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
         filterText = buildFilterText(user, filter, false);
     }
 
-    let r = await fetch("/api/v1/search/trails", {
+    let r = await fetch("/api/v1/trail/search", {
         method: "POST",
         body: JSON.stringify({
+            mode: "bbox",
             q: "",
+            filter: filterText,
+            bbox: {
+                minLat: southWest.lat,
+                minLon: southWest.lng,
+                maxLat: northEast.lat,
+                maxLon: northEast.lng,
+            },
             options: {
-                filter: [
-                    `_geoBoundingBox([${northEast.lat}, ${northEast.lng}], [${southWest.lat}, ${southWest.lng}])`,
-                    filterText
-                ],
                 sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`,],
                 attributesToRetrieve: [...defaultTrailSearchAttributes, ...(includePolyline ? ["polyline"] : [])],
                 hitsPerPage: 500,
                 page: page
-            }
+            },
         }),
     });
-    const result: { page: number, totalPages: number, hits: Hits<TrailSearchResult> } = await r.json();
+
+    const responseBody = await r.json();
+    if (!r.ok) {
+        throw new APIError(r.status, responseBody?.message, responseBody?.detail)
+    }
+    if (!responseBody?.hits) {
+        throw new APIError(500, "invalid_response", responseBody)
+    }
+    const result: { page: number, totalPages: number, hits: Hits<TrailSearchResult> } = responseBody;
 
     if (result.hits.length == 0) {
         trails = [];
@@ -517,28 +530,28 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
     }
 
     if (filter.public !== undefined || filter.private !== undefined || filter.shared !== undefined) {
-        filterText += " AND ("
+            filterText += " AND ("
 
-        const showPublic = filter.public === undefined || filter.public === true;
-        const showPrivate = filter.private === undefined || filter.private === true;
-        const showShared = filter.shared !== undefined && filter.shared === true;
+            const showPublic = filter.public === undefined || filter.public === true;
+            const showPrivate = filter.private === undefined || filter.private === true;
+            const showShared = filter.shared !== undefined && filter.shared === true;
 
-        if (showPublic === true) {
-            filterText += "(public = TRUE";
+            if (showPublic === true) {
+                filterText += "(public = TRUE";
             if (showPrivate === true && (!filter.author?.length || filter.author == user?.actor)) {
                 filterText += ` OR author = ${user?.actor}`;
-            }
-            filterText += ")";
+                }
+                filterText += ")";
         }
         else if (!filter.author?.length || filter.author == user?.actor) {
-            filterText += "public = FALSE";
+                filterText += "public = FALSE";
             filterText += ` AND author = ${user?.actor}`;
-        }
+            }
 
-        if (filter.shared !== undefined) {
-            if (filter.shared === true) {
+            if (filter.shared !== undefined) {
+                if (filter.shared === true) {
                 filterText += ` OR shares = ${user?.actor}`
-            } else {
+                } else {
                 filterText += ` AND NOT shares = ${user?.actor}`
 
             }
@@ -596,9 +609,6 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
         filterText += ` AND completed = ${filter.completed}`;
     }
 
-    if (filter.near.lat && filter.near.lon && includeGeo) {
-        filterText += ` AND _geoRadius(${filter.near.lat}, ${filter.near.lon}, ${filter.near.radius})`
-    }
     if (filter.near.lat && filter.near.lon && includeGeo) {
         filterText += ` AND _geoRadius(${filter.near.lat}, ${filter.near.lon}, ${filter.near.radius})`
     }

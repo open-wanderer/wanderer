@@ -76,6 +76,7 @@ export POCKETBASE_ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY_HERE
 # export UPLOAD_FOLDER=/app/uploads
 # export UPLOAD_USER=
 # export UPLOAD_PASSWORD=
+# export ENABLE_TRAIL_BUCKETS=true
 
 cd search && ./meilisearch --master-key $MEILI_MASTER_KEY &
 cd db && ./pocketbase serve &

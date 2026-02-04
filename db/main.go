@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -89,6 +90,65 @@ func initializeMeiliSearch() meilisearch.ServiceManager {
 	)
 }
 
+func ensureMeilisearchIndexes(client meilisearch.ServiceManager) error {
+	trailsSortable := []string{"created", "date", "difficulty", "distance", "elevation_gain", "elevation_loss", "name", "duration", "author"}
+	trailsFilterable := []string{
+		"_geo",
+		"_geojson",
+		"author",
+		"category",
+		"completed",
+		"date",
+		"difficulty",
+		"distance",
+		"elevation_gain",
+		"elevation_loss",
+		"public",
+		"shares",
+		"tags",
+		"likes",
+		"min_lat",
+		"min_lon",
+		"max_lat",
+		"max_lon",
+		"time_bucket_ids",
+		"quad_node_ids",
+		"id",
+	}
+	if err := ensureMeilisearchIndex(client, "trails", trailsSortable, trailsFilterable); err != nil {
+		return err
+	}
+
+	listsSortable := []string{"created", "name"}
+	listsFilterable := []string{"author", "public", "shares"}
+	return ensureMeilisearchIndex(client, "lists", listsSortable, listsFilterable)
+}
+
+func ensureMeilisearchIndex(client meilisearch.ServiceManager, uid string, sortable, filterable []string) error {
+	if _, err := client.GetIndex(uid); err != nil {
+		if _, err := client.CreateIndex(&meilisearch.IndexConfig{
+			Uid:        uid,
+			PrimaryKey: "id",
+		}); err != nil {
+			return fmt.Errorf("unable to create %s index: %w", uid, err)
+		}
+	}
+
+	if len(sortable) > 0 {
+		if _, err := client.Index(uid).UpdateSortableAttributes(&sortable); err != nil {
+			return fmt.Errorf("unable to configure sortable attributes for %s: %w", uid, err)
+		}
+	}
+
+	if len(filterable) > 0 {
+		if _, err := client.Index(uid).UpdateFilterableAttributes(&filterable); err != nil {
+			return fmt.Errorf("unable to configure filterable attributes for %s: %w", uid, err)
+		}
+	}
+
+	return nil
+}
+
 func registerMigrations(app *pocketbase.PocketBase) {
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
 		Dir:         "migrations",
@@ -101,6 +161,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(createTrailHandler(client))
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(updateTrailHandler(client))
+	app.OnRecordDelete("trails").BindFunc(deleteTrailShardsHandler())
 	app.OnRecordAfterDeleteSuccess("trails").BindFunc(deleteTrailHandler(client))
 
 	app.OnRecordCreateRequest("summit_logs").BindFunc(createSummitLogHandler(client))
@@ -141,7 +202,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordRequestEmailChangeRequest("users").BindFunc(changeUserEmailHandler())
 	app.OnServe().BindFunc(onBeforeServeHandler(client))
 
-	app.OnBootstrap().BindFunc(onBootstrapHandler())
+	app.OnBootstrap().BindFunc(onBootstrapHandler(client))
 }
 
 func setupCommands(app *pocketbase.PocketBase) {
@@ -241,6 +302,13 @@ func createTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		if err != nil {
 			return err
 		}
+		if _, err := util.UpdateTrailBoundingBox(e.App, record); err != nil {
+			e.App.Logger().Warn(fmt.Sprintf("Unable to update trail bbox for %s: %v", record.Id, err))
+			return err
+		}
+		if err := util.AssignTrailShards(e.App, record); err != nil {
+			return err
+		}
 		if err := util.IndexTrails(e.App, []*core.Record{record}, client); err != nil {
 			return err
 		}
@@ -277,6 +345,13 @@ func updateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		if err != nil {
 			return err
 		}
+		if _, err := util.UpdateTrailBoundingBox(e.App, record); err != nil {
+			e.App.Logger().Warn(fmt.Sprintf("Unable to update trail bbox for %s: %v", record.Id, err))
+			return err
+		}
+		if err := util.ReassignTrailShards(e.App, record); err != nil {
+			return err
+		}
 		err = util.UpdateTrail(e.App, record, author, client)
 		if err != nil {
 			return err
@@ -305,6 +380,7 @@ func updateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 func deleteTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
+
 		task, err := client.Index("trails").DeleteDocument(record.Id)
 		if err != nil {
 			return err
@@ -326,6 +402,15 @@ func deleteTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			return err
 		}
 
+		return e.Next()
+	}
+}
+
+func deleteTrailShardsHandler() func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		if err := util.RemoveTrailShards(e.App, e.Record); err != nil {
+			return err
+		}
 		return e.Next()
 	}
 }
@@ -958,16 +1043,29 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
 		registerCronJobs(se.App)
-		bootstrapData(se.App, client)
+		if err := util.SyncTrailBuckets(se.App, client, false); err != nil {
+			se.App.Logger().Error(fmt.Sprintf("trail bucket sync failed: %v", err))
+			return err
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		se.App.OnTerminate().BindFunc(func(e *core.TerminateEvent) error {
+			cancel()
+			return e.Next()
+		})
+		bootstrapData(ctx, se.App, client)
 
 		return se.Next()
 	}
 
 }
 
-func onBootstrapHandler() func(se *core.BootstrapEvent) error {
+func onBootstrapHandler(client meilisearch.ServiceManager) func(se *core.BootstrapEvent) error {
 	return func(e *core.BootstrapEvent) error {
 		if err := e.Next(); err != nil {
+			return err
+		}
+
+		if err := ensureMeilisearchIndexes(client); err != nil {
 			return err
 		}
 
@@ -1022,6 +1120,12 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 			return err
 		}
 		return e.JSON(http.StatusOK, map[string]string{"token": token})
+	})
+
+	se.Router.GET("/public/config", func(e *core.RequestEvent) error {
+		return e.JSON(http.StatusOK, map[string]any{
+			"enableTrailBuckets": util.BucketsEnabled(),
+		})
 	})
 
 	se.Router.POST("/integration/strava/token", func(e *core.RequestEvent) error {
@@ -1274,9 +1378,18 @@ func registerCronJobs(app core.App) {
 	})
 }
 
-func bootstrapData(app core.App, client meilisearch.ServiceManager) error {
+func bootstrapData(ctx context.Context, app core.App, client meilisearch.ServiceManager) error {
 	bootstrapCategories(app)
-	go bootstrapMeilisearchDocuments(app, client)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				app.Logger().Warn(fmt.Sprintf("meilisearch bootstrap aborted: %v", r))
+			}
+		}()
+		if err := bootstrapMeilisearchDocuments(ctx, app, client); err != nil && !errors.Is(err, context.Canceled) {
+			app.Logger().Warn(fmt.Sprintf("meilisearch bootstrap failed: %v", err))
+		}
+	}()
 	return nil
 }
 
@@ -1305,17 +1418,23 @@ func bootstrapCategories(app core.App) error {
 	return nil
 }
 
-func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) error {
+func bootstrapMeilisearchDocuments(ctx context.Context, app core.App, client meilisearch.ServiceManager) error {
 	// --- Trails ---
 	const pageSize int64 = 100
 	var page int64 = 0
 
 	// Clear index before re-indexing
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if _, err := client.Index("trails").DeleteAllDocuments(); err != nil {
 		return err
 	}
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		trails := []*core.Record{}
 		err := app.RecordQuery("trails").
 			Limit(pageSize).
@@ -1337,12 +1456,18 @@ func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManag
 	}
 
 	// --- Lists ---
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if _, err := client.Index("lists").DeleteAllDocuments(); err != nil {
 		return err
 	}
 
 	page = 0
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		lists := []*core.Record{}
 		err := app.RecordQuery("lists").
 			Limit(pageSize).
