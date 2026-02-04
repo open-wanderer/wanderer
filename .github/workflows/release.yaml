@@ -1,131 +1,89 @@
-name: Release Workflow
+name: Publish Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "The version to release (e.g., 0.12.0)"
-        required: true
+  pull_request:
+    types: [closed]
+    branches: [main]
 
 jobs:
-  # Job 1: Bump Versions and Create Tags
-  versioning:
+  # Only run if the PR was merged AND it came from a release branch
+  publish:
+    if: github.event.pull_request.merged == true && startsWith(github.head_ref, 'release/v')
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
+    
     outputs:
-      version: ${{ steps.set_version.outputs.version }}
+      version: ${{ steps.get_version.outputs.version }}
 
     steps:
-      # 1. Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      # 2. Setup node & npm
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-
-      # 3. Bump versions using npm
-      - name: Bump version in web and docs
-        id: set_version
+      - name: Set Version Output
+        id: get_version
         run: |
-          VERSION=${{ github.event.inputs.version }}
-          cd web && npm version $VERSION --no-git-tag-version && cd ..
-          cd docs && npm version $VERSION --no-git-tag-version && cd ..
-          echo "version=v$VERSION" >> $GITHUB_OUTPUT
-
-      # 4. Tag and push the new versions
-      - name: Commit and Tag
-        run: |
+          # Extract v0.12.0 from release/v0.12.0
+          VERSION_TAG=${GITHUB_HEAD_REF#release/}
+          echo "version=$VERSION_TAG" >> $GITHUB_OUTPUT
+          
+          # Git Tagging
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add web/package.json docs/package.json
-          git commit -m "Release ${{ github.event.inputs.version }}"
-          git tag "v${{ github.event.inputs.version }}"
-          git push origin main --tags
+          git tag $VERSION_TAG
+          git push origin $VERSION_TAG
 
-  # Job 2: Build Docker Images
   docker-build:
+    needs: publish
     runs-on: ubuntu-latest
-    needs: versioning
-
     steps:
-      # 1. Checkout the repository
-      - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.ref }}
-
+      - uses: actions/checkout@v4
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
-      # 2. Log in to Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 3. Setup docker multi platform builds
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 4. Build and push Docker images
       - name: Build Docker Images
         env:
-          VERSION: ${{ needs.versioning.outputs.version }}
+          VERSION: ${{ needs.publish.outputs.version }}
         run: |
-          # Build db image
           docker buildx build db/ --no-cache -t flomp/wanderer-db:$VERSION -t flomp/wanderer-db:latest --platform=linux/amd64,linux/arm64 --push
-
-          # Build web image
           docker buildx build web/ --no-cache -t flomp/wanderer-web:$VERSION -t flomp/wanderer-web:latest --platform=linux/amd64,linux/arm64 --push
-
-          # Build docs image
-          cd docs
-          npm ci && npm run build
-          cd ..
+          cd docs && npm ci && npm run build && cd ..
           docker buildx build docs/ --no-cache -t flomp/wanderer-docs:$VERSION -t flomp/wanderer-docs:latest --platform=linux/amd64,linux/arm64 --push
 
-  # Job 3: Publish the Release
   release:
+    needs: [publish, docker-build]
     runs-on: ubuntu-latest
-    needs: [versioning, docker-build]
-
+    permissions:
+      contents: write
     steps:
-      # 1. Checkout the repository
-      - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.ref }}
-      # 2. Extract release notes from CHANGELOG.md
+      - uses: actions/checkout@v4
+      
       - name: Extract release notes
         id: changelog
         run: |
-          VERSION="${{ needs.versioning.outputs.version }}"
-          CHANGELOG=$(awk -v ver="$VERSION" '
-            BEGIN { in_section = 0 }
-            /^# / {
-              if (in_section) exit
-              if ($2 == ver) in_section = 1
-            }
-            in_section { print }
-          ' CHANGELOG.md)
+          VERSION="${{ needs.publish.outputs.version }}"
+          # Clean 'v' from v0.12.0 for awk if your changelog uses 0.12.0
+          RAW_VER=${VERSION#v}
+          CHANGELOG=$(awk -v ver="$RAW_VER" 'BEGIN {in_section=0} /^# / {if (in_section) exit; if ($2 == ver) in_section=1} in_section {print}' CHANGELOG.md)
           echo 'changelog<<EOF' >> $GITHUB_OUTPUT
-          printf "%s\n" "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
 
-      # 3. Create GitHub Release
       - name: Create GitHub Release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.versioning.outputs.version }}
-          release_name: "${{ needs.versioning.outputs.version }}"
+          tag_name: ${{ needs.publish.outputs.version }}
           body: ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
