@@ -46,8 +46,8 @@
 
     let lists: List[] = $state(data.lists.items);
 
-    let confirmModal: ConfirmModal;
-    let listShareModal: ListShareModal;
+    let confirmModal: ConfirmModal | undefined = $state();
+    let listShareModal: ListShareModal | undefined = $state();
 
     let filter: ListFilter = $state(page.data.filter);
 
@@ -89,11 +89,11 @@
             return;
         }
         if (item.value == "share") {
-            listShareModal.openModal();
+            listShareModal?.openModal();
         } else if (item.value == "edit") {
             goto("/lists/edit/" + selectedList.id);
         } else if (item.value == "delete") {
-            confirmModal.openModal();
+            confirmModal?.openModal();
         }
     }
 
