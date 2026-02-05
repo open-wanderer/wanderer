@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -977,7 +978,7 @@ func onBootstrapHandler() func(se *core.BootstrapEvent) error {
 		if v := os.Getenv("ORIGIN"); v != "" {
 			e.App.Settings().Meta.AppURL = v
 		}
-		if v := os.Getenv("POCKETBASE_SMTP_SENDER_ADDRESS"); v != "" {
+		if v := cmp.Or(os.Getenv("POCKETBASE_SMTP_SENDER_ADDRESS"),os.Getenv("POCKETBASE_SMTP_SENDER_ADRESS")); v != "" {
 			e.App.Settings().Meta.SenderAddress = v
 		}
 		if v := os.Getenv("POCKETBASE_SMTP_SENDER_NAME"); v != "" {
