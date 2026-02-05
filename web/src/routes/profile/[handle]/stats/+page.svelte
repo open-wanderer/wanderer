@@ -222,7 +222,7 @@
 
     async function loadSummitLogs() {
         try {
-            const logs = await profile_stats_index(page.params.handle, filter);
+            const logs = await profile_stats_index(page.params.handle!, filter);
             summitLogs = logs;
         } catch (e) {
             show_toast({
@@ -406,7 +406,7 @@
         <div class=" overflow-x-auto">
             <SummitLogTable
                 {summitLogs}
-                handle={page.params.handle}
+                handle={page.params.handle!}
                 showCategory
                 showTrail
                 showRoute

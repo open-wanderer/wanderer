@@ -24,7 +24,7 @@
         loading = true;
         try {
             trails = await profile_trails_index(
-                page.params.handle,
+                page.params.handle!,
                 filter,
                 pagination.page,
                 pagination.items,
@@ -45,7 +45,7 @@
         pagination.page = newPage;
         try {
             trails = await profile_trails_index(
-                page.params.handle,
+                page.params.handle!,
                 filter,
                 newPage,
                 items ?? pagination.items,
