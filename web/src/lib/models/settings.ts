@@ -1,6 +1,7 @@
 import type { NotificationType } from "./notification";
 
 export enum Language {
+  cs = "cs",
   en = "en",
   de = "de",
   es = "es",

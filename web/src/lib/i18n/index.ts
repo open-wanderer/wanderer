@@ -3,7 +3,7 @@ import { getPb } from '$lib/pocketbase';
 import { init, register } from 'svelte-i18n';
 
 const defaultLocale = 'en'
-
+register('cs', () => import('./locales/cs.json'))
 register('en', () => import('./locales/en.json'))
 register('de', () => import('./locales/de.json'))
 register('es', () => import('./locales/es.json'))

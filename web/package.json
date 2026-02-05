@@ -53,7 +53,7 @@
     "activitypub-types": "^1.1.0",
     "autoprefixer": "^10.4.17",
     "canvas-confetti": "^1.9.3",
-    "canvg": "^4.0.1",
+    "canvg": "^4.0.3",
     "chart.js": "^4.4.6",
     "chartjs-plugin-crosshair": "^2.0.0",
     "chartjs-plugin-zoom": "^2.1.0",

@@ -13,6 +13,7 @@
     const settings = page.data.settings;
 
     const languages: SelectItem[] = [
+        { text: $_("czech"), value: "cs" },
         { text: $_("english"), value: "en" },
         { text: $_("german"), value: "de" },
         { text: $_("spanish"), value: "es" },
