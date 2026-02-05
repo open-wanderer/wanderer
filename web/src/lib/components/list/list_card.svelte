@@ -38,7 +38,7 @@
             : $theme === "light"
               ? emptyStateTrailLight
               : emptyStateTrailDark}
-        alt="avatar"
+        alt="list avatar"
     />
 
     <div class="self-start min-w-0 basis-full transition-transform">
@@ -67,7 +67,7 @@
                     class="rounded-full w-5 aspect-square mx-1 inline"
                     src={list.expand.author.icon ||
                         `https://api.dicebear.com/7.x/initials/svg?seed=${list.expand.author.preferred_username}&backgroundType=gradientLinear`}
-                    alt="avatar"
+                    alt="author avatar"
                 />
                 {handleFromRecordWithIRI(list)}
             </p>

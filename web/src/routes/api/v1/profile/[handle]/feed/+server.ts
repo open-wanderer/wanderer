@@ -1,6 +1,7 @@
 import { RecordListOptionsSchema } from '$lib/models/api/base_schema';
 import { type FeedItem } from '$lib/models/feed';
 import type { Trail } from '$lib/models/trail';
+import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { Collection, handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError, type ListResult } from 'pocketbase';
@@ -12,7 +13,7 @@ export async function GET(event: RequestEvent) {
     }
 
     try {
-        const { actor, error } = await event.locals.pb.send(`/activitypub/actor?resource=acct:${handle}`, { method: "GET", fetch: event.fetch, });
+        const { actor } = await getActorResponseForHandle(event, handle);
 
         const searchParams = Object.fromEntries(event.url.searchParams);
         const safeSearchParams = RecordListOptionsSchema.parse(searchParams);

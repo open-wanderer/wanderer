@@ -1,6 +1,6 @@
 {
   "name": "wanderer",
-  "version": "0.18.3",
+  "version": "0.18.4",
   "private": true,
   "scripts": {
     "dev": "vite dev",
@@ -13,7 +13,7 @@
     "test:unit": "vitest --passWithNoTests"
   },
   "devDependencies": {
-    "@playwright/test": "^1.42.1",
+    "@playwright/test": "^1.58.1",
     "@sveltejs/adapter-auto": "^3.0.0",
     "@sveltejs/kit": "^2.5.27",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
@@ -25,12 +25,12 @@
     "tailwindcss": "^4.0.0",
     "tslib": "^2.4.1",
     "typescript": "^5.5.0",
-    "vite": "^5.4.4"
+    "vite": "^5.4.21"
   },
   "type": "module",
   "dependencies": {
     "@felte/validator-zod": "^1.0.18",
-    "@fortawesome/fontawesome-free": "^6.5.1",
+    "@fortawesome/fontawesome-free": "^7.1.0",
     "@sveltejs/adapter-node": "^4.0.1",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.0.0",
@@ -53,7 +53,7 @@
     "activitypub-types": "^1.1.0",
     "autoprefixer": "^10.4.17",
     "canvas-confetti": "^1.9.3",
-    "canvg": "^4.0.1",
+    "canvg": "^4.0.3",
     "chart.js": "^4.4.6",
     "chartjs-plugin-crosshair": "^2.0.0",
     "chartjs-plugin-zoom": "^2.1.0",

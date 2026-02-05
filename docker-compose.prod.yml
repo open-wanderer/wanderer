@@ -30,7 +30,7 @@ services:
     volumes:
       - pb_data:/pb_data
     healthcheck:
-      test: wget --spider -q http://localhost:8090/health || exit 1
+      test: ["CMD", "/curl", "--fail", "http://localhost:8090/health"]
       interval: 15s
       retries: 10
       start_period: 20s
@@ -62,7 +62,7 @@ services:
       - "3000"
     restart: unless-stopped
     healthcheck:
-      test: curl --fail http://localhost:3000/ || exit 1
+      test: ["CMD", "/curl", "--fail", "http://localhost:3000/"]
       interval: 15s
       retries: 10
       start_period: 20s

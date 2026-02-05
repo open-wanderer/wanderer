@@ -19,9 +19,8 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
-      - name: go fmt
-        run: go fmt ./...
-        working-directory: db
+
+      - run: make db-fmt
       - name: Ensure formatting
         run: |
           if [ -n "$(gofmt -l .)" ]; then
@@ -30,9 +29,5 @@ jobs:
           fi
           git diff --exit-code
         working-directory: db
-      - name: go vet
-        run: go vet ./...
-        working-directory: db
-      - name: go test
-        run: go test ./...
-        working-directory: db
+      - run: make db-vet
+      - run: make db-test
