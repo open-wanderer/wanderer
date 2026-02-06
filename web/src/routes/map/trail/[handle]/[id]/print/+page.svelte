@@ -94,14 +94,15 @@
     });
 
     function faUnicode(name: string) {
-        var testI = document.createElement('i');
+        var testI = document.createElement("i");
         var char;
 
-        testI.className = 'fa fa-' + name;
+        testI.className = "fa fa-" + name;
         document.body.appendChild(testI);
 
-        char = window.getComputedStyle( testI, ':before' )
-                .content.replace(/'|"/g, '');
+        char = window
+            .getComputedStyle(testI, ":before")
+            .content.replace(/'|"/g, "");
 
         testI.remove();
 
@@ -111,10 +112,11 @@
     function getTextHeight(text: string, doc: jsPDF, width: number) {
         let numLines = doc.splitTextToSize(text, width).length;
 
-        return (numLines * doc.getFontSize() * doc.getLineHeightFactor() -
+        return (
+            (numLines * doc.getFontSize() * doc.getLineHeightFactor() -
                 doc.getFontSize() * (doc.getLineHeightFactor() - 1)) /
-            doc.internal.scaleFactor;
-
+            doc.internal.scaleFactor
+        );
     }
 
     async function print() {
@@ -203,7 +205,7 @@
 
                 doc.text(
                     iconText,
-                    iconPositionX + circleRadius - letterWidth / 2,
+                    iconPositionX + 2 * circleRadius - letterWidth / 2 - 0.3,
                     iconPositionY + circleRadius + letterHeight / 2 - 0.33,
                 );
             }
@@ -380,19 +382,29 @@
             }
 
             if (includeDescription && $trail.description) {
-                let textHeight = getTextHeight($trail.description, doc, width - 32)
+                let textHeight = getTextHeight(
+                    $trail.description,
+                    doc,
+                    width - 32,
+                );
                 if (currentHeight + textHeight + 8 > height) {
                     newPage();
                 }
-                doc.text(formatHTMLAsText($trail.description), 16, currentHeight, {
-                    maxWidth: width - 32,
-                });
-                currentHeight += getTextHeight($trail.description, doc, width - 32) + 8;
+                doc.text(
+                    formatHTMLAsText($trail.description),
+                    16,
+                    currentHeight,
+                    {
+                        maxWidth: width - 32,
+                    },
+                );
+                currentHeight +=
+                    getTextHeight($trail.description, doc, width - 32) + 8;
             }
 
             if (includeWaypoints && $trail.expand?.waypoints_via_trail) {
-                const header = $_("waypoints", { values: { n: 2 } })
-                let textHeight = getTextHeight(header, doc, width - 32)
+                const header = $_("waypoints", { values: { n: 2 } });
+                let textHeight = getTextHeight(header, doc, width - 32);
                 if (currentHeight + textHeight + 8 > height) {
                     newPage();
                 }
@@ -400,30 +412,58 @@
                 doc.text(header, 16, currentHeight);
                 currentHeight += textHeight + 8;
 
-                ($trail.expand.waypoints_via_trail || []).forEach(waypoint => {
-                    let description = waypoint.description || "";
-                    let name = waypoint.name || "";
+                ($trail.expand.waypoints_via_trail || []).forEach(
+                    (waypoint) => {
+                        let description = waypoint.description || "";
+                        let name = waypoint.name || "";
 
-                    let textHeight = getTextHeight(`${name ? name + "\n" : ""}${description}`, doc, width - 32 - 8) + (name ? 2 : 0);
-                    if (currentHeight + textHeight + 16 > height) {
-                        newPage();
-                    }
+                        let textHeight =
+                            getTextHeight(
+                                `${name ? name + "\n" : ""}${description}`,
+                                doc,
+                                width - 32 - 8,
+                            ) + (name ? 2 : 0);
+                        if (currentHeight + textHeight + 16 > height) {
+                            newPage();
+                        }
 
-                    doc.setFont("fa-solid-900", "normal");
-                    doc.text(String.fromCharCode(faUnicode(waypoint.icon || "circle")), 16, currentHeight);
+                        doc.setFont("fa-solid-900", "normal");
+                        doc.text(
+                            String.fromCharCode(
+                                faUnicode(waypoint.icon || "circle"),
+                            ),
+                            16,
+                            currentHeight,
+                        );
 
-                    if (name) {
-                        doc.setFont("IBMPlexSans-SemiBold", "bold");
-                        doc.text(formatHTMLAsText(name), 24, currentHeight);
-                        currentHeight += getTextHeight(formatHTMLAsText(name), doc, width - 32) + 2;
-                    }
+                        if (name) {
+                            doc.setFont("IBMPlexSans-SemiBold", "bold");
+                            doc.text(formatHTMLAsText(name), 24, currentHeight);
+                            currentHeight +=
+                                getTextHeight(
+                                    formatHTMLAsText(name),
+                                    doc,
+                                    width - 32,
+                                ) + 2;
+                        }
 
-                    doc.setFont("IBMPlexSans-Regular", "normal");
-                    doc.text(formatHTMLAsText(description), 24, currentHeight, {
-                        maxWidth: width - 32 - 8
-                    });
-                    currentHeight += getTextHeight(formatHTMLAsText(description), doc, width - 32 - 8) + 8;
-                });
+                        doc.setFont("IBMPlexSans-Regular", "normal");
+                        doc.text(
+                            formatHTMLAsText(description),
+                            24,
+                            currentHeight,
+                            {
+                                maxWidth: width - 32 - 8,
+                            },
+                        );
+                        currentHeight +=
+                            getTextHeight(
+                                formatHTMLAsText(description),
+                                doc,
+                                width - 32 - 8,
+                            ) + 8;
+                    },
+                );
             }
 
             addLogo();
@@ -533,7 +573,6 @@
             showGrid = true;
         }
     }
-
 </script>
 
 <svelte:head>
