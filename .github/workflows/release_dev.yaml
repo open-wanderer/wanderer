@@ -1,4 +1,4 @@
-name: Publish unstable Release
+name: Publish dev Release
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
 
       - name: Build Docker Images
         run: |
-          docker buildx build db/ --no-cache -t ghcr.io/${{ github.repository_owner }}/wanderer-db:unstable --platform=linux/amd64,linux/arm64 --push
-          docker buildx build web/ --no-cache -t ghcr.io/${{ github.repository_owner }}/wanderer-web:unstable --platform=linux/amd64,linux/arm64 --push
+          docker buildx build db/ --no-cache -t ghcr.io/${{ github.repository_owner }}/wanderer-db:dev --platform=linux/amd64,linux/arm64 --push
+          docker buildx build web/ --no-cache -t ghcr.io/${{ github.repository_owner }}/wanderer-web:dev --platform=linux/amd64,linux/arm64 --push
           cd docs && npm ci && npm run build && cd ..
-          docker buildx build docs/ --no-cache -t ghcr.io/${{ github.repository_owner }}/wanderer-docs:unstable --platform=linux/amd64,linux/arm64 --push
+          docker buildx build docs/ --no-cache -t ghcr.io/${{ github.repository_owner }}/wanderer-docs:dev --platform=linux/amd64,linux/arm64 --push
