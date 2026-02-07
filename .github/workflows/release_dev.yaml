@@ -13,10 +13,22 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Bump versions
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0)
+          BASE_VERSION=${LAST_TAG#v}
+          FULL_SHA=$(git rev-parse HEAD)
+          VERSION="${BASE_VERSION}-dev+${FULL_SHA}"
+          cd web && npm version $VERSION --no-git-tag-version && cd ..
+          cd docs && npm version $VERSION --no-git-tag-version && cd ..
 
       - name: Login to GHCR
         uses: docker/login-action@v3
