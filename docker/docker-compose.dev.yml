@@ -2,7 +2,7 @@ version: '3'
 
 services:
   search:
-    image: getmeili/meilisearch:v1.11.3
+    image: ghcr.io/open-wanderer/wanderer-search:dev
     environment:
       MEILI_URL: http://search:7700
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?}
