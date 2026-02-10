@@ -22,7 +22,17 @@ jobs:
           node-version: '22'
 
       - name: Bump versions
+        id: bump_versions
         run: |
+          MEILI_VERSION="$(sed -n 's/^ARG MEILI_TARGET_VERSION=//p' search/Dockerfile | head -n1)"
+
+          if [ -z "${MEILI_VERSION}" ]; then
+            echo "Could not determine MEILI_TARGET_VERSION from search/Dockerfile" >&2
+            exit 1
+          fi
+
+          echo "meili_target_version=${MEILI_VERSION}" >> $GITHUB_OUTPUT
+          
           LAST_TAG=$(git describe --tags --abbrev=0)
           BASE_VERSION=${LAST_TAG#v}
           FULL_SHA=$(git rev-parse HEAD)
@@ -41,6 +51,8 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker Images
+        env:
+          MEILI_TARGET_VERSION: ${{ steps.bump_versions.outputs.meili_target_version }}
         run: |
           docker buildx build search/ --no-cache --build-arg MEILI_TARGET_VERSION=$MEILI_TARGET_VERSION \
             -t ghcr.io/open-wanderer/wanderer-search:dev --platform=linux/amd64,linux/arm64 --push
