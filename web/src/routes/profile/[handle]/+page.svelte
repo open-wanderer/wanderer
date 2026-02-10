@@ -42,7 +42,7 @@
 
     async function loadNextPage() {
         pagination.page += 1;
-        feed = await profile_feed_index(page.params.handle, pagination.page);
+        feed = await profile_feed_index(page.params.handle!, pagination.page);
     }
 
     function handleFeedItemClick(f: FeedItem) {
