@@ -79,5 +79,14 @@
         "region": ["The Netherlands"],
         "language": ["Dutch", "English"],
         "category": ["Hiking"]
+    },    
+    {
+        "name": "Das WadeZimmer",
+        "url": "https://wadezimmer.de",
+        "description": "Actively maintained Wanderer instance located in Hamburg Germany. Currently most of the tracks are located in Europe but any track is welcome. ",
+        "image": "/server/imgs/wadezimmer.jpg",
+        "region": ["Europe", "Germany"],
+        "language": ["German", "English"],
+        "category": ["Cycling", "Hiking"]
     }
 ]
