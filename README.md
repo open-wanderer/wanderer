@@ -44,7 +44,7 @@ The first startup can take up to 90 seconds after which you can access the front
 
 > ⚠️ if you are using wanderer in a production environment make sure to change the MEILI_MASTER_KEY variable.
 
-You can also run wanderer on bare-metal. Check out the [documentation](https://wanderer.to/run/installation/#installation-from-source) for a detailed how-to guide.
+You can also run wanderer on bare-metal. Check out the [documentation](https://wanderer.to/run/installation/from-source) for a detailed how-to guide.
 
 ## Support wanderer
 
