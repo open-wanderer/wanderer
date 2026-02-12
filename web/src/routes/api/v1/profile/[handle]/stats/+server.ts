@@ -1,5 +1,6 @@
 import { RecordListOptionsSchema } from '$lib/models/api/base_schema';
 import type { SummitLog } from '$lib/models/summit_log';
+import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { Collection, handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError, type ListResult } from 'pocketbase';
@@ -9,9 +10,9 @@ export async function GET(event: RequestEvent) {
     if (!handle) {
         return error(400, { message: "Bad request" })
     }
-
+    
     try {
-        const {actor, error} = await event.locals.pb.send(`/activitypub/actor?resource=acct:${handle}`, { method: "GET", fetch: event.fetch, });
+        const { actor } = await getActorResponseForHandle(event, handle);
 
         const searchParams = Object.fromEntries(event.url.searchParams);
         const safeSearchParams = RecordListOptionsSchema.parse(searchParams);
@@ -20,7 +21,7 @@ export async function GET(event: RequestEvent) {
             safeSearchParams.filter = safeSearchParams.filter + `&&author='${actor.id}'`
         }else {
             safeSearchParams.filter = `author='${actor.id}'`
-        } 
+        }
 
         let summitLogs: SummitLog[];
         if (actor.isLocal) {

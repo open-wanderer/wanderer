@@ -44,7 +44,7 @@
         onedit,
     }: Props = $props();
 
-    let gallery: PhotoGallery;
+    let gallery: PhotoGallery | undefined = $state();
 
     let imgSrc: string[] = $state([]);
 
@@ -107,7 +107,7 @@
                 <button
                     class="relative w-16 aspect-square ml-2 mb-3 shrink-0"
                     type="button"
-                    onclick={() => gallery.openGallery()}
+                    onclick={() => gallery?.openGallery()}
                 >
                     {#each imgSrc as img, i}
                         {#if isVideoURL(img)}
