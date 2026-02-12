@@ -1,16 +1,16 @@
 ---
-title: Adjust File Limits
+title: Adjust Filesize Limits
 description: Configure which file sizes are permitted
 redirectFrom:
   - /run/backend-configuration/#adjust-filelimits
 ---
 import { Aside } from '@astrojs/starlight/components';
 
-wanderer brings several mechanisms which allow limiting the maximum file size of content provided by users.
+<span class="-tracking-[0.075em]">wanderer</span> brings several mechanisms which allow limiting the maximum file size of content provided by users.
 Pictures in the users profile, trail highlights and gpx tracks fall under this file size limit.
 
 <Aside> 
-As wanderer runs parts of the logic in the users browser those limits can only be enforced, when trying to save a ressource.
+As <span class="-tracking-[0.075em]">wanderer</span> runs parts of the logic in the users browser those limits can only be enforced, when trying to save a ressource.
 This can lead to non-intuitive errors such as: editing and creating a trail, which is too large, is possible - saving it is not.
 </Aside>
 

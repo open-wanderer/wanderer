@@ -23,6 +23,6 @@ For specific configuration guides see:
 - [Auth providers](./auth-providers/)
 - [Backup server](./backup-server/)
 - [Custom categories](./custom-categories/)
-- [Adjust File Limits](./adjust-filelimits/)
+- [Adjust Filesize Limits](./adjust-filesize-limits/)
 
 To learn more about what you can do in the admin dashboard please refer to PocketBase's [documentation](https://pocketbase.io/docs/).

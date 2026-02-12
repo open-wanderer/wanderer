@@ -108,7 +108,7 @@ export default defineConfig({
               { label: 'Authentication Providers', link: '/run/backend-configuration/auth-providers/' },
               { label: 'Backing up your server', link: '/run/backend-configuration/backup-server/' },
               { label: 'Custom categories', link: '/run/backend-configuration/custom-categories/' },
-              { label: 'Adjust File Limits', link: '/run/backend-configuration/adjust-filelimits/' },
+              { label: 'Adjust Filesize Limits', link: '/run/backend-configuration/adjust-filesize-limits/' },
             ]
           }
         ]
