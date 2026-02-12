@@ -27,15 +27,6 @@
         "category": ["General"]
     },
     {
-        "name": "Further Heights",
-        "url": "https://furtherheights.com",
-        "description": "An instance for those wanting to map trails and joining a community in the Pacific Northwest of North America.",
-        "image": "/server/imgs/furtherheights.com.png",
-        "region": ["North America"],
-        "language": ["English"],
-        "category": ["Hiking", "Biking", "4x4"]
-    },
-    {
         "name": "Giretti",
         "url": "https://giretti.gatti.ninja",
         "description": "An instance for Italy, with motorcycle category added.",
@@ -45,6 +36,15 @@
         "category": ["Biking", "Motorcycling", "General"]
     },
     {
+        "name": "Eble",
+        "url": "https://wanderer.eble.name",
+        "description": "Private Wanderer Instance, planned to replace Komoot after its dismal dying",
+        "image": "/server/imgs/eble.name.png",
+        "region": ["Europe", "Germany"],
+        "language": ["English","German"],
+        "category": ["Hiking", "Mountain Biking", "Climbing"]
+    },
+    {
         "name": "Towiski",
         "url": "https://wanderer.towiski.de",
         "description": "My Wanderer instance for the paths less traveled. Signups welcome.",
@@ -52,15 +52,6 @@
         "region": ["Tanzania", "Sri Lanka", "Germany", "Laos"],
         "language": ["English", "German"],
         "category": ["Biking", "Hiking"]
-    },
-    {
-        "name": "Greater Aztlan",
-        "url": "https://aztlan.yakka.space",
-        "description": "Description a small instance in greater Aztlan. know your land, know your self.",
-        "image": "/server/imgs/yakka.space.jpg",
-        "region": ["North America", "California"],
-        "language": ["English"],
-        "category": ["Hiking", "Cycling"]
     },
     {
         "name": "Mapper Trails",
@@ -79,12 +70,30 @@
         "region": ["The Netherlands"],
         "language": ["Dutch", "English"],
         "category": ["Hiking"]
-    },    
+    },
+    {
+        "name": "Hong Kong Wanderer",
+        "url": "https://wanderer.saankofi.com",
+        "description": "A community map of Hong Kong’s hikes, from well-known routes to hidden spots. Signups are welcome.",
+        "image": "/server/imgs/saankofi.com.png",
+        "region": ["Hong Kong"],
+        "language": ["English", "Chinese (Traditional)"],
+        "category": ["Hiking"]
+    },
+    {
+        "name": "adminForge | wanderer",
+        "url": "https://wanderer.adminforge.de",
+        "description": "General-purpose instance provided by adminForge.de. It is supported through voluntary donations from the users of adminForge.de.",
+        "image": "/server/imgs/adminforge.de.png",
+        "region": ["Germany"],
+        "language": ["German", "English"],
+        "category": ["General"]
+    },
     {
         "name": "Das WadeZimmer",
         "url": "https://wadezimmer.de",
         "description": "Actively maintained Wanderer instance located in Hamburg Germany. Currently most of the tracks are located in Europe but any track is welcome. ",
-        "image": "/server/imgs/wadezimmer.jpg",
+        "image": "/server/imgs/wadezimmer.de.jpg",
         "region": ["Europe", "Germany"],
         "language": ["German", "English"],
         "category": ["Cycling", "Hiking"]
