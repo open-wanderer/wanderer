@@ -38,7 +38,7 @@
     "@threlte/extras": "^9.0.0-next.55",
     "@tiptap/core": "^2.14.0",
     "@tiptap/extension-heading": "^2.14.0",
-    "@tiptap/extension-link": "^2.14.0",
+    "@tiptap/extension-link": "^3.19.0",
     "@tiptap/extension-mention": "^2.14.0",
     "@tiptap/extension-placeholder": "^2.14.0",
     "@tiptap/extension-underline": "^2.14.0",
