@@ -101,7 +101,7 @@
         }
         
         page.url.searchParams.set("page", newPage.toString());
-        goto(`?${page.url.searchParams.toString()}`);
+        goto(`?${page.url.searchParams.toString()}`, { keepFocus: true });
     }
 
     async function doPaginate(newPage: number, items: number) {
