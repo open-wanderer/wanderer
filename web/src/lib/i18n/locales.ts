@@ -1,21 +1,30 @@
-export const SUPPORTED_LOCALES = [
-  "en",
-  "de",
-  "es",
-  "eu",
-  "fr",
-  "hu",
-  "it",
-  "nl",
-  "pl",
-  "pt",
-  "ru",
-  "zh",
-] as const;
+type LocaleMessages = Record<string, unknown>;
+type LocaleModule = { default: LocaleMessages };
+type LocaleLoader = () => Promise<LocaleMessages>;
 
-export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+const localeModules = import.meta.glob<LocaleModule>("./locales/*.json");
 
-export const defaultLocale: SupportedLocale = "en";
+const localeEntries = Object.entries(localeModules)
+  .map(([path, loadModule]) => {
+    const match = path.match(/\/([a-z]{2,5}(?:-[a-z]{2,4})?)\.json$/i);
+    if (!match) return null;
+
+    const locale = match[1].toLowerCase();
+    const loader: LocaleLoader = async () => (await loadModule()).default;
+    return [locale, loader] as const;
+  })
+  .filter((entry): entry is readonly [string, LocaleLoader] => entry !== null);
+
+export const LOCALE_LOADERS: Record<string, LocaleLoader> = Object.fromEntries(
+  localeEntries,
+);
+
+export const SUPPORTED_LOCALES = Object.keys(LOCALE_LOADERS).sort();
+export type SupportedLocale = string;
+
+export const defaultLocale: SupportedLocale = SUPPORTED_LOCALES.includes("en")
+  ? "en"
+  : (SUPPORTED_LOCALES[0] ?? "en");
 
 export function normalizeLocale(raw: string | null | undefined): SupportedLocale {
   if (!raw) return defaultLocale;
@@ -35,7 +44,7 @@ export function normalizeLocale(raw: string | null | undefined): SupportedLocale
   }
 
   // Map "de-CH" -> "de", "en-US" -> "en", etc.
-  const base = tag.split("-")[0] as SupportedLocale;
+  const base = tag.split("-")[0];
 
   if (SUPPORTED_LOCALES.includes(base)) {
     return base;
