@@ -18,7 +18,7 @@
 
     let { waypoint, mode = "show", onchange }: Props = $props();
 
-    let gallery: PhotoGallery;
+    let gallery: PhotoGallery | undefined = $state();
 
     let imgSrc: string[] = $state([]);
     $effect(() => {
@@ -61,7 +61,7 @@
         <button
             class="relative basis-16 aspect-square ml-2 mb-3 shrink-0"
             type="button"
-            onclick={mode == "show" ? () => gallery.openGallery() : undefined}
+            onclick={mode == "show" ? () => gallery?.openGallery() : undefined}
         >
             {#each imgSrc as img, i}
                 {#if isVideoURL(img)}
