@@ -3,6 +3,7 @@ import { haversineDistance } from './utils';
 class GpxMetricsComputation {
   private readonly thresholdXY_m: number;  // Distance threshold for filtering on the XY axis (latitude / longitude)
   private readonly thresholdZ_m: number;  // Distance threshold for filtering on the Z axis (elevation)
+  private lastPointXY: any | null = null;
   private lastFilteredPointXY: any | null = null;
   private lastFilteredZ: number | null = null;
   private lastZ: number | null = null;
@@ -20,8 +21,9 @@ class GpxMetricsComputation {
   }
 
   addAndFilter(point: any) {
-    if (!this.lastFilteredPointXY) {
-      // Firstly, we are not yet filtering
+    if (!this.lastPointXY || !this.lastFilteredPointXY) {
+      // Initialize raw and smoothed anchors with the first point.
+      this.lastPointXY = point;
       this.lastFilteredPointXY = point;
       this.lastFilteredZ = point.ele ?? 0;
       this.lastZ = point.ele ?? 0;
@@ -29,6 +31,13 @@ class GpxMetricsComputation {
     }
 
     const distance = haversineDistance(
+      this.lastPointXY.$.lat,
+      this.lastPointXY.$.lon,
+      point.$.lat,
+      point.$.lon
+    );
+
+    const smoothedDistance = haversineDistance(
       this.lastFilteredPointXY.$.lat,
       this.lastFilteredPointXY.$.lon,
       point.$.lat,
@@ -38,7 +47,7 @@ class GpxMetricsComputation {
     this.totalDistance += distance;
     this.cumulativeDistance.push(this.totalDistance)
 
-    this.lastFilteredPointXY = point;
+    this.lastPointXY = point;
 
     const elevation = point.ele ?? 0;
     // @ts-ignore I know this.lastZ is not null
@@ -51,11 +60,12 @@ class GpxMetricsComputation {
       this.totalElevationLoss -= elevationDiff;
     }
 
-    if (distance < this.thresholdXY_m) {
+    if (smoothedDistance < this.thresholdXY_m) {
       return;
     }
 
-    this.totalDistanceSmoothed += distance;
+    this.totalDistanceSmoothed += smoothedDistance;
+    this.lastFilteredPointXY = point;
 
     // @ts-ignore: I know this.lastFilteredZ is not null
     const elevationDiffSmoothed = elevation - this.lastFilteredZ;
