@@ -62,7 +62,7 @@
             try {
                 await users_confirm_reset({
                     ...form,
-                    token: page.params.token,
+                    token: page.params.token!,
                 });
                 goto("/login");
                 show_toast({

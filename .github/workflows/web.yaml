@@ -14,9 +14,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
 
     steps:
       - uses: actions/checkout@v6
@@ -25,6 +22,17 @@ jobs:
         with:
           node-version: '22'
 
-      - run: npm install
-      - run: npm run check
-      - run: npm run test:unit
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - run: make db-build-docker
+
+      - run: make web-build-docker
+
+      - run: docker compose up -d
+
+      - run: make web-install
+      - run: make web-playwright-install
+      - run: make web-check
+      - run: make web-test
