@@ -25,14 +25,14 @@
     import { getIconForLocation } from "$lib/util/icon_util.js";
     import { Canvas } from "@threlte/core";
     import { marked } from "marked";
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     let { data } = $props();
 
     let searchDropdownItems: SearchItem[] = $state([]);
 
-    let feed = $state(data.feed);
+    let feed = $state(untrack(() => data.feed));
 
     let pagination = $derived({
         page: feed.page,

@@ -36,19 +36,21 @@
         modal.openModal();
     }
 
+    const getInitialFormValues = () => ({
+        email: integration?.komoot?.email ?? "",
+        password: integration?.komoot?.password ?? "",
+        completed: integration?.komoot?.completed ?? true,
+        planned: integration?.komoot?.planned ?? true,
+        active: integration?.komoot?.active ?? false,
+        privacy: integration?.komoot?.privacy ?? "original",
+    });
+
     const {
         form,
         errors,
         data: d,
     } = createForm({
-        initialValues: {
-            email: integration?.komoot?.email ?? "",
-            password: integration?.komoot?.password ?? "",
-            completed: integration?.komoot?.completed ?? true,
-            planned: integration?.komoot?.planned ?? true,
-            active: integration?.komoot?.active ?? false,
-            privacy: integration?.komoot?.privacy ?? "original",
-        },
+        initialValues: getInitialFormValues(),
         extend: validator({
             schema: KomootSchema,
         }),

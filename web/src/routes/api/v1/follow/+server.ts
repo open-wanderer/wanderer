@@ -1,6 +1,7 @@
 import type { Actor } from '$lib/models/activitypub/actor';
 import { FollowCreateSchema } from '$lib/models/api/follow_schema';
 import type { Follow } from '$lib/models/follow';
+import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { APIError, Collection, handleError, list } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import type { APOrderedCollectionPage } from 'activitypub-types';
@@ -19,7 +20,7 @@ export async function GET(event: RequestEvent) {
                 throw new APIError(400, "invalid params")
             }
 
-            const { actor }: { actor: Actor } = await event.locals.pb.send(`/activitypub/actor?resource=acct:${handle}`, { method: "GET", fetch: event.fetch, });
+            const { actor } = await getActorResponseForHandle(event, handle);
 
             const page = event.url.searchParams.get("page") ?? "1"
 

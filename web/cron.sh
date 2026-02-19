@@ -14,7 +14,7 @@ login() {
     local username="$1"
     local password="$2"
 
-    response=$(curl -c cookie.txt --location --request POST "$API_URL/auth/login" --header 'Content-Type: application/json' --data-raw "{\"username\": \"$username\", \"password\": \"$password\"}")
+    response=$(/curl -c cookie.txt --location --request POST "$API_URL/auth/login" --header 'Content-Type: application/json' --data-raw "{\"username\": \"$username\", \"password\": \"$password\"}")
 
     # Check if login was successful (look for "200 OK" in response headers)
     if [ $? -eq 0 ] && [ "$(echo "$response" | grep -c "token")" -eq 1 ]; then
@@ -32,7 +32,7 @@ upload_and_delete() {
     ls "$file"
     
     # API call to upload file
-    response=$(curl -b cookie.txt --location --request PUT "$API_URL/trail/upload" --header 'Content-Type: multipart/form-data' -F "file=@-" -F "name=$base_name" <"$file")
+    response=$(/curl -b cookie.txt --location --request PUT "$API_URL/trail/upload" --header 'Content-Type: multipart/form-data' -F "file=@-" -F "name=$base_name" <"$file")
     # Check if API call was successful (status code 200)
     if [ $? -eq 0 ] && [ "$(echo "$response" | grep -c "author")" -eq 1 ]; then
         echo "[INFO] [$(date +"%T")]: File $file uploaded successfully." > /proc/1/fd/1

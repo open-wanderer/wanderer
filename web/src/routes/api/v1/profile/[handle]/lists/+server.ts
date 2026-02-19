@@ -1,5 +1,6 @@
 import type { TrailSearchResult } from '$lib/models/trail';
 import type { ListSearchResult } from '$lib/stores/search_store';
+import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import type { SearchResponse } from 'meilisearch';
@@ -12,7 +13,7 @@ export async function POST(event: RequestEvent) {
     }
 
     try {
-        const {actor, error} = await event.locals.pb.send(`/activitypub/actor?resource=acct:${handle}`, { method: "GET", fetch: event.fetch, });
+        const { actor } = await getActorResponseForHandle(event, handle);
 
         const data = await event.request.json()
 

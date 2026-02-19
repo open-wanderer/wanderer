@@ -3,6 +3,7 @@
     import { _ } from "svelte-i18n";
     import RadioGroup, { type RadioItem } from "../base/radio_group.svelte";
     import { defaultMapState } from "$lib/vendor/maplibre-layer-manager/layers";
+    import { untrack } from "svelte";
 
     interface Props {
         settings: StyleSwitcherControlOptions;
@@ -10,7 +11,7 @@
 
     let { settings }: Props = $props();
 
-    let mapState = $state(settings.state);
+    let mapState = $state(untrack(() => settings.state));
 
     let container: HTMLDivElement;
 
