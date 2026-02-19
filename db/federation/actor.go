@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -18,6 +19,8 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
 )
+
+var ErrProfilePrivate = errors.New("profile is private")
 
 type WebfingerResponse struct {
 	Subject string `json:"subject"`
@@ -220,7 +223,7 @@ func assembleActor(actor *core.Record, dbActor *core.Record, app core.App, inclu
 	}
 
 	if private {
-		return dbActor, fmt.Errorf("profile is private")
+		return dbActor, ErrProfilePrivate
 	}
 
 	return dbActor, nil
@@ -361,7 +364,7 @@ func FetchCollection(actor *core.Record, url string) (*pub.OrderedCollection, er
 	}
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, fmt.Errorf("profile is private")
+			return nil, ErrProfilePrivate
 		}
 		return nil, fmt.Errorf("collection fetch %s returned: %v", url, resp.StatusCode)
 	}

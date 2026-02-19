@@ -105,9 +105,10 @@ export default defineConfig({
             items: [
               { label: 'Overview', link: '/run/backend-configuration/' },
               { label: 'SMTP', link: '/run/backend-configuration/smtp/' },
-              { label: 'OAuth2', link: '/run/backend-configuration/oauth2/' },
+              { label: 'Authentication Providers', link: '/run/backend-configuration/auth-providers/' },
               { label: 'Backing up your server', link: '/run/backend-configuration/backup-server/' },
               { label: 'Custom categories', link: '/run/backend-configuration/custom-categories/' },
+              { label: 'Adjust Filesize Limits', link: '/run/backend-configuration/adjust-filesize-limits/' },
             ]
           }
         ]

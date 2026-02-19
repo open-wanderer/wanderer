@@ -2,8 +2,8 @@
     import type { Comment } from "$lib/models/comment";
     import { formatTimeSince } from "$lib/util/format_util";
     import { _ } from "svelte-i18n";
+    import { untrack } from "svelte";
     import { fade } from "svelte/transition";
-    import TextField from "../base/text_field.svelte";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
     import Editor from "../base/editor.svelte";
 
@@ -18,7 +18,7 @@
 
     let editing: boolean = $state(false);
 
-    let editedComment = $state(comment.text);
+    let editedComment = $state(untrack(() => comment.text));
 
     $effect(() => {
         editedComment = comment.text;
