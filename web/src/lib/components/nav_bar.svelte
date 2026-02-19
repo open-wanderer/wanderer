@@ -251,6 +251,7 @@
                 {#snippet children({ toggleMenu: openDropdown })}
                     <div class="flex items-center">
                         <button
+                            aria-label="Open user menu"
                             class="rounded-full bg-white text-black hover:bg-gray-200 focus:ring-4 ring-gray-100/50 transition-colors h-10 aspect-square"
                             onclick={openDropdown}
                         >

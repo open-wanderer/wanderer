@@ -8,6 +8,7 @@
     } from "$lib/stores/trail_like_store";
     import { currentUser } from "$lib/stores/user_store";
     import confetti from "canvas-confetti";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     interface Props {
@@ -18,7 +19,7 @@
 
     let { trail }: Props = $props();
 
-    let likeCount = $state(trail.like_count);
+    let likeCount = $state(untrack(() => trail.like_count));
 
     let loading = $state(false);
 
@@ -66,8 +67,10 @@
     }
 
     let trailLike = $state(
-        trail.expand?.trail_like_via_trail?.find(
-            (l) => l.actor === $currentUser?.actor,
+        untrack(() =>
+            trail.expand?.trail_like_via_trail?.find(
+                (l) => l.actor === $currentUser?.actor,
+            ),
         ),
     );
 </script>
