@@ -34,6 +34,6 @@
         activeTab={parseInt(page.url.searchParams.get("t") ?? "0")}
         initTrail={data.trail}
         mode="overview"
-        handle={page.params.handle}
+        handle={page.params.handle!}
     ></TrailInfoPanel>
 {/if}

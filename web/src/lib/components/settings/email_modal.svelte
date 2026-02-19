@@ -2,6 +2,7 @@
     import Modal from "$lib/components/base/modal.svelte";
     import { validator } from "@felte/validator-zod";
     import { createForm } from "felte";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
     import { z } from "zod";
     import TextField from "../base/text_field.svelte";
@@ -24,7 +25,7 @@
     const { form, errors, setFields, setErrors } = createForm<{
         email: string;
     }>({
-        initialValues: { email: email },
+        initialValues: { email: untrack(() => email) },
         extend: validator({
             schema: z.object({
                 email: z

@@ -18,6 +18,14 @@ export class LayerManager {
         const storedMapState = localStorage.getItem("map-state")
         if (storedMapState) {
             this.state = JSON.parse(storedMapState)
+
+            // Fix for spelling correction introduced in v0.18.4
+            if (this.state && 'ammenity' in this.state.pois) {
+                this.state.pois.amenity = this.state.pois.ammenity;
+                delete this.state.pois.ammenity;
+
+                localStorage.setItem('map-state', JSON.stringify(this.state));
+            }
         } else {
             this.state = defaultMapState
         }
@@ -88,7 +96,7 @@ export class LayerManager {
 
 
     addLayer(id: string, layer: BaseLayer) {
-        if(!layer.spec) {
+        if (!layer.spec) {
             return;
         }
         if (this.layers[id] && this.map.getLayer(id)) {

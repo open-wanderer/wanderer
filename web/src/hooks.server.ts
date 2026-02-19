@@ -9,6 +9,7 @@ import { sequence } from '@sveltejs/kit/hooks'
 import { MeiliSearch } from 'meilisearch'
 import { locale } from 'svelte-i18n'
 import type { Actor } from '$lib/models/activitypub/actor'
+import { normalizeLocale } from '$lib/i18n/locales'
 
 
 function csrf(allowedPaths: string[]): Handle {
@@ -109,12 +110,14 @@ const auth: Handle = async ({ event, resolve }) => {
   }
   event.locals.settings = settings
 
-  const lang = settings?.language ?? event.request.headers.get('accept-language')?.split(',')[0]
+  const langHeader = event.request.headers.get('accept-language')?.split(',')[0]
+  const lang = settings?.language ?? langHeader
 
   if (lang) {
-    locale.set(lang)
+    const normalizedLocale = normalizeLocale(lang)
+    locale.set(normalizedLocale)
     if (pb.authStore.record) {
-      pb.authStore.record!.language = lang;
+      pb.authStore.record!.language = normalizedLocale;
     }
   }
 
