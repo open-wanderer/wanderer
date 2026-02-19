@@ -13,11 +13,12 @@
         integrations_update,
     } from "$lib/stores/integration_store.js";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     let { data } = $props();
 
-    let integration = $state(data.integration);
+    let integration = $state(untrack(() => data.integration));
 
     const scope = "read_all,activity:read_all";
     const redirectUri = page.url.href + "/callback/strava";
@@ -29,7 +30,7 @@
 
     let komootSettingsModal: KomootSettingsModal;
     let komootToggleValue: boolean = $state(
-        data.integration?.komoot?.active ?? false,
+        untrack(() => data.integration?.komoot?.active ?? false),
     );
 
     async function onSettingsSave(

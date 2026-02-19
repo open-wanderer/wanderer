@@ -210,8 +210,10 @@
             : title,
     );
 
-    let robotsParams = $state("");
-    if (additionalRobotsProps) {
+    let robotsParams = $derived.by(() => {
+        if (!additionalRobotsProps) {
+            return "";
+        }
         const {
             nosnippet,
             maxSnippet,
@@ -223,12 +225,12 @@
             unavailableAfter,
         } = additionalRobotsProps;
 
-        robotsParams = `${nosnippet ? ",nosnippet" : ""}${maxSnippet ? `,max-snippet:${maxSnippet}` : ""}${
+        return `${nosnippet ? ",nosnippet" : ""}${maxSnippet ? `,max-snippet:${maxSnippet}` : ""}${
             maxImagePreview ? `,max-image-preview:${maxImagePreview}` : ""
         }${noarchive ? ",noarchive" : ""}${unavailableAfter ? `,unavailable_after:${unavailableAfter}` : ""}${
             noimageindex ? ",noimageindex" : ""
         }${maxVideoPreview ? `,max-video-preview:${maxVideoPreview}` : ""}${notranslate ? ",notranslate" : ""}`;
-    }
+    });
 
     $effect(() => {
         if (!robots && additionalRobotsProps) {
