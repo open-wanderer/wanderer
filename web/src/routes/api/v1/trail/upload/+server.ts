@@ -6,8 +6,7 @@ import { trails_create } from "$lib/stores/trail_store";
 import { handleError } from "$lib/util/api_util";
 import { fromFile, gpx2trail } from "$lib/util/gpx_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
-import type MeiliSearch from "meilisearch";
-import type { Hits } from "meilisearch";
+import type { Hits, MeiliSearch } from "meilisearch";
 import { ClientResponseError } from "pocketbase";
 
 export async function PUT(event: RequestEvent) {

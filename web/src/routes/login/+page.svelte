@@ -21,7 +21,9 @@
 
     let { data: pageData }: PageProps = $props();
 
-    const authProviders = pageData.authMethods.oauth2.providers;
+    const authProviders = $derived.by(
+        () => pageData.authMethods.oauth2.providers,
+    );
 
     const { form, errors, data } = createForm<User>({
         initialValues: {

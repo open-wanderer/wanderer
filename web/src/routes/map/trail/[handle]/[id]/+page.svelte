@@ -6,11 +6,12 @@
     import { getFileURL } from "$lib/util/file_util.js";
     import * as M from "maplibre-gl";
     import "photoswipe/style.css";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     let { data } = $props();
 
-    const trail = $state(data.trail);
+    const trail = $state(untrack(() => data.trail));
 
     let markers: M.Marker[] = $state([]);
 </script>
