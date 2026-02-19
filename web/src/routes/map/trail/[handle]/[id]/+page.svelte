@@ -6,11 +6,12 @@
     import { getFileURL } from "$lib/util/file_util.js";
     import * as M from "maplibre-gl";
     import "photoswipe/style.css";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     let { data } = $props();
 
-    const trail = $state(data.trail);
+    const trail = $state(untrack(() => data.trail));
 
     let markers: M.Marker[] = $state([]);
 </script>
@@ -39,7 +40,7 @@
 
 <main class="grid grid-cols-1 md:grid-cols-[458px_1fr] gap-x-1 gap-y-4">
     <div id="panel" class="hidden md:block">
-        <TrailInfoPanel handle={page.params.handle} initTrail={trail} {markers}
+        <TrailInfoPanel handle={page.params.handle!} initTrail={trail} {markers}
         ></TrailInfoPanel>
     </div>
     <div id="trail-details">

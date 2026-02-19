@@ -7,12 +7,13 @@ export class ListsPage {
   readonly listItems: Locator;
   readonly listItemsImage: Locator;
 
-  readonly listModal: Locator;
-  readonly listModalAvatar: Locator;
-  readonly listModalName: Locator;
-  readonly listModalDescription: Locator;
-  readonly listModalSaveButton: Locator;
+  readonly listForm: Locator;
+  readonly listFormAvatar: Locator;
+  readonly listFormName: Locator;
+  readonly listFormDescription: Locator;
+  readonly listFormSaveButton: Locator;
 
+  readonly dropdownButton: Locator;
 
   readonly confirmModal: Locator;
   readonly confirmModalConfirmButton: Locator;
@@ -20,17 +21,19 @@ export class ListsPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.createListButton = page.locator("#create-list");
-    this.listModal = page.locator("#list-modal");
+    this.createListButton = page.getByLabel('New list');
+    this.listForm = page.locator("#list-form");
 
-    this.listModalAvatar = this.listModal.locator('input[name="avatar"]')
-    this.listModalName = this.listModal.locator('input[name="name"]')
-    this.listModalDescription = this.listModal.locator('textarea[name="description"]')
-    this.listModalSaveButton = this.listModal.getByText('Save');
+    this.listFormAvatar = page.locator('#avatar')
+    this.listFormName = page.locator('input[name="name"]')
+    this.listFormDescription = page.locator('.ProseMirror')
+    this.listFormSaveButton = this.listForm.locator('button[type="submit"]');
 
     this.listItems = page.locator('.list-list-item');
-    this.listItemsImage = page.locator('.list-list-item img');
+    // Only match the main avatar image (first img with aspect-square class in each list item)
+    this.listItemsImage = page.locator('.list-list-item img.aspect-square');
 
+    this.dropdownButton = page.getByLabel('Open dropdown');
 
     this.confirmModal = page.locator("#confirm-modal");
     this.confirmModalConfirmButton = this.confirmModal.locator("button").filter({ hasText: "Delete" });
@@ -40,33 +43,49 @@ export class ListsPage {
     await this.page.goto('/lists', { waitUntil: 'networkidle' });
   }
 
+  private async selectDropdownAction(action: string) {
+    await this.dropdownButton.click();
+    await this.page.locator(".menu .menu-item").filter({ hasText: action }).click();
+  }
+
   async create(name: string = "Test List") {
     await this.createListButton.click();
-    await this.listModalName.fill(name);
-    await this.listModalAvatar.setInputFiles([
+    await this.listFormName.fill(name);
+    await this.listFormAvatar.setInputFiles([
       "./tests/playwright/fixtures/avatar.webp"
     ]);
+
     await Promise.all([
       this.page.waitForResponse(resp => resp.url().includes('/api/v1/list') && resp.status() === 200),
-      this.listModalSaveButton.click()
+      this.listFormSaveButton.click()
     ]);
+
+    // Navigate back to lists page and wait for list items to load
+    await this.page.goto('/lists', { waitUntil: 'domcontentloaded' });
+    await this.listItems.first().waitFor({ state: 'visible', timeout: 10000 });
   }
 
   async update(name: string = "Updated List", description = "New Description") {
-    await this.listItems.first().locator(".dropdown button").click();
-    await this.listItems.first().locator(".menu .menu-item").filter({ hasText: "Edit" }).click();
-    await this.listModalName.fill(name);
-    await this.listModalDescription.fill(description);
+    await this.listItems.first().click();
+    await this.selectDropdownAction("Edit");
+
+    await this.listFormName.clear();
+    await this.listFormName.fill(name);
+    await this.listFormDescription.fill(description);
 
     await Promise.all([
       this.page.waitForResponse(resp => resp.url().includes('/api/v1/list') && resp.status() === 200),
-      this.listModalSaveButton.click()
+      this.listFormSaveButton.click()
     ]);
+
+    // Navigate back to lists page
+    await this.page.goto('/lists', { waitUntil: 'domcontentloaded' });
   }
 
   async delete() {
-    await this.listItems.first().locator(".dropdown button").click();
-    await this.listItems.first().locator(".menu .menu-item").filter({ hasText: "Delete" }).click();
+    await this.listItems.first().click();
+    await this.selectDropdownAction("Delete");
+
     await Promise.all([
       this.page.waitForResponse(resp => resp.url().includes('/api/v1/list') && resp.status() === 200),
       this.confirmModalConfirmButton.click()
@@ -74,8 +93,14 @@ export class ListsPage {
   }
 
   async removeAll() {
-    while ((await this.listItems.count()) > 0) {
+    await this.goto();
+
+    let count = await this.listItems.count();
+    while (count > 0) {
       await this.delete();
+      // Navigate back to lists page after deletion
+      await this.goto();
+      count = await this.listItems.count();
     }
   }
 

@@ -76,3 +76,10 @@
         </span>
     {/if}
 </div>
+
+<style>
+    :global(input[type="search"]::-webkit-search-cancel-button) {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+</style>

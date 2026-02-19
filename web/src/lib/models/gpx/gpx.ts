@@ -195,6 +195,12 @@ export default class GPX {
     }
 
     const heightResponse: ValhallaHeightResponse = await r2.json()
+    const heights = heightResponse.height ?? [];
+    const finiteHeights = heights.filter((height) => Number.isFinite(height)).length;
+
+    if (heights.length > 0 && finiteHeights === 0) {
+      return;
+    }
 
     let heightIndex = 0;
     for (const track of this.trk ?? []) {
