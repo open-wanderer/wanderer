@@ -1,11 +1,8 @@
 <script lang="ts">
-    import type { Actor } from "$lib/models/activitypub/actor";
     import type { List } from "$lib/models/list";
     import type { Trail } from "$lib/models/trail";
-    import type { UserAnonymous } from "$lib/models/user";
-    import { currentUser, users_show } from "$lib/stores/user_store";
+    import { currentUser } from "$lib/stores/user_store";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
-    import { getFileURL } from "$lib/util/file_util";
     import { _ } from "svelte-i18n";
     import { fly } from "svelte/transition";
 
@@ -17,14 +14,15 @@
 
     let { subject, large = false, type }: Props = $props();
 
-    const shareData =
+    let shareData = $derived.by(() =>
         type == "trail"
             ? (subject as Trail).expand?.trail_share_via_trail
-            : (subject as List).expand?.list_share_via_list;
+            : (subject as List).expand?.list_share_via_list,
+    );
 
     let showInfo: boolean = $state(false);
     let loading: boolean = $state(false);
-    let subjectIsOwned: boolean = subject.author == $currentUser?.actor;
+    let subjectIsOwned: boolean = $derived(subject.author == $currentUser?.actor);
 </script>
 
 <div class="relative trail-share-info">
