@@ -104,7 +104,13 @@
 
     let { data } = $props();
 
-    const valhallaEnabled = env.PUBLIC_VALHALLA_ENABLED === "true";
+    const valhallaEnabled = (() => {
+        const raw = env.PUBLIC_VALHALLA_ENABLED?.trim().toLowerCase();
+        if (!raw) {
+            return true;
+        }
+        return raw === "true";
+    })();
 
     let map: M.Map | undefined = $state();
     let mapPopup: M.Popup | undefined;
