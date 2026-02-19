@@ -1,8 +1,10 @@
 package main
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -976,7 +978,7 @@ func onBootstrapHandler() func(se *core.BootstrapEvent) error {
 		if v := os.Getenv("ORIGIN"); v != "" {
 			e.App.Settings().Meta.AppURL = v
 		}
-		if v := os.Getenv("POCKETBASE_SMTP_SENDER_ADRESS"); v != "" {
+		if v := cmp.Or(os.Getenv("POCKETBASE_SMTP_SENDER_ADDRESS"), os.Getenv("POCKETBASE_SMTP_SENDER_ADRESS")); v != "" {
 			e.App.Settings().Meta.SenderAddress = v
 		}
 		if v := os.Getenv("POCKETBASE_SMTP_SENDER_NAME"); v != "" {
@@ -1166,7 +1168,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 			}
 			return err
 		} else if err != nil && actor != nil {
-			if err.Error() == "profile is private" {
+			if errors.Is(err, federation.ErrProfilePrivate) {
 				// this is our own profile
 				if e.Auth != nil && actor.GetString("user") == e.Auth.Id {
 					return e.JSON(http.StatusOK, map[string]any{"actor": actor, "error": nil})
@@ -1214,7 +1216,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 		}
 		collection, err := federation.FetchCollection(userActor, fmt.Sprintf("%s?page=%d", url, intPage))
 		if err != nil {
-			if err.Error() == "profile is private" {
+			if errors.Is(err, federation.ErrProfilePrivate) {
 				return e.JSON(http.StatusNotFound, map[string]any{"error": "profile is private"})
 			}
 			return err

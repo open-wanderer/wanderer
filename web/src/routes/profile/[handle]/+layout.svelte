@@ -14,7 +14,7 @@
 
     let { data, children } = $props();
 
-    let profileShareModal: ProfileShareModal;
+    let profileShareModal: ProfileShareModal | undefined = $state();
 
     let followLoading: boolean = $state(false);
 
@@ -172,7 +172,7 @@
             <div class="px-4 mb-4 flex flex-col gap-2">
                 <button
                     class="btn-secondary basis-full"
-                    onclick={() => profileShareModal.openModal()}
+                    onclick={() => profileShareModal?.openModal()}
                     >{$_("share-profile")}</button
                 >
                 <a
