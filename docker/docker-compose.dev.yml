@@ -49,6 +49,7 @@ services:
       BODY_SIZE_LIMIT: Infinity
       PUBLIC_POCKETBASE_URL: http://db:8090
       PUBLIC_DISABLE_SIGNUP: "false"
+      PUBLIC_VALHALLA_ENABLED: "true"
       UPLOAD_FOLDER: /app/uploads
       UPLOAD_USER:
       UPLOAD_PASSWORD:
