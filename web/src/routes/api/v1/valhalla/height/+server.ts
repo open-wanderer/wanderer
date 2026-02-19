@@ -1,20 +1,18 @@
 import { getValhallaBaseUrl } from '$lib/server/valhalla';
-import { error, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
+import { proxyJsonResponse } from '$lib/server/http';
+import { json, type RequestEvent } from "@sveltejs/kit";
 
 
 export async function POST(event: RequestEvent) {
+    const baseUrl = getValhallaBaseUrl();
     const data = await event.request.json()
-    if (!getValhallaBaseUrl()) {
-        return error(400, "VALHALLA_URL not set")
+    if (!baseUrl) {
+        return json({ message: "VALHALLA_URL not set" }, { status: 400 })
     }
     try {
-        const r = await event.fetch(getValhallaBaseUrl() + '/height', { method: "POST", body: JSON.stringify(data) });        
-        const response = await r.json();
-        if (!r.ok) {
-            throw error(r.status as NumericRange<400,500>, response);
-        }
-        return json(response);
+        const response = await event.fetch(baseUrl + '/height', { method: "POST", body: JSON.stringify(data) });
+        return await proxyJsonResponse(response);
     } catch (e: any) {
-        throw error(e.status || 500, e)
+        return json({ message: "Valhalla request failed" }, { status: 502 })
     }
 }

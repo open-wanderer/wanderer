@@ -177,14 +177,17 @@ function getLocationDescription(address: Address) {
 
 export async function searchMulti(options: MultiSearchParams): Promise<MultiSearchResult<any>[]> {
 
-    const locationQuery = options.queries.find(q => q.indexUid === "locations");
-    const locationQueryIndex = locationQuery ? options.queries.indexOf(locationQuery) : -1
-    if (locationQueryIndex >= 0) {
-        options.queries.splice(locationQueryIndex, 1)
-    }
+    const locationQueryIndex = options.queries.findIndex(q => q.indexUid === "locations");
+    const locationQuery = locationQueryIndex >= 0 ? options.queries[locationQueryIndex] : undefined;
+    const queries = locationQueryIndex >= 0
+        ? options.queries.filter((_, index) => index !== locationQueryIndex)
+        : options.queries;
     const r = await fetch("/api/v1/search/multi", {
         method: "POST",
-        body: JSON.stringify(options),
+        body: JSON.stringify({
+            ...options,
+            queries,
+        }),
     });
 
     if (!r.ok) {

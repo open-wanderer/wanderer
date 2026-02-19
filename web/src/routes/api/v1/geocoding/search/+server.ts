@@ -1,4 +1,5 @@
 import { json, type RequestEvent } from "@sveltejs/kit";
+import { proxyJsonResponse } from "$lib/server/http";
 import { fetchNominatim } from "$lib/server/nominatim";
 
 export async function GET(event: RequestEvent) {
@@ -23,12 +24,7 @@ export async function GET(event: RequestEvent) {
 
     try {
         const response = await fetchNominatim(event, "/search", params);
-        const text = await response.text();
-        const payload = text.length ? safeJson(text) : {};
-        if (!response.ok) {
-            return json(payload, { status: response.status });
-        }
-        return json(payload);
+        return await proxyJsonResponse(response);
     } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         const detail = {
@@ -38,13 +34,5 @@ export async function GET(event: RequestEvent) {
         };
         console.error("Nominatim search request failed", detail);
         return json({ message: "Nominatim request failed", detail }, { status: 502 });
-    }
-}
-
-function safeJson(text: string): any {
-    try {
-        return JSON.parse(text);
-    } catch {
-        return { message: text };
     }
 }

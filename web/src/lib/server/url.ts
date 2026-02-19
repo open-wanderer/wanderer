@@ -1,6 +1,8 @@
 import { env as privateEnv } from "$env/dynamic/private";
 import { env as publicEnv } from "$env/dynamic/public";
 
+export type ExternalServiceUrlKey = "VALHALLA_URL" | "NOMINATIM_URL" | "OVERPASS_API_URL";
+
 export function normalizeBaseUrl(url: string): string {
     if (!/^https?:\/\//i.test(url)) {
         return `https://${url}`;
@@ -9,7 +11,7 @@ export function normalizeBaseUrl(url: string): string {
 }
 
 export function resolveBaseUrl(
-    key: string,
+    key: ExternalServiceUrlKey,
     fallback: string = "",
 ): string {
     const privateKey = `PRIVATE_${key}` as `PRIVATE_${string}`;
