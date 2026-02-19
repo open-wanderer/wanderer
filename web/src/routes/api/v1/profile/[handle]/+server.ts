@@ -1,6 +1,5 @@
-import { env } from '$env/dynamic/private';
 import type { Profile } from '$lib/models/profile';
-import { splitUsername } from '$lib/util/activitypub_util';
+import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 
@@ -10,12 +9,8 @@ export async function GET(event: RequestEvent) {
         return error(400, { message: "Bad request" })
     }
 
-    if(splitUsername(handle)[1] !== undefined && !event.locals.user) {
-        return error(401, { message: "Unauthorized" })
-    }
-
     try {
-        const { actor, error } = await event.locals.pb.send(`/activitypub/actor?resource=acct:${handle}&follows=true`, { method: "GET", fetch: event.fetch, });
+        const { actor, error: actorError } = await getActorResponseForHandle(event, handle, { follows: true });
 
         const profile: Profile = {
             id: actor.id!,
@@ -28,7 +23,7 @@ export async function GET(event: RequestEvent) {
             followers: actor.followerCount ?? 0,
             following: actor.followingCount ?? 0,
             icon: actor.icon ?? "",
-            error
+            error: actorError ?? undefined
         }
 
         return json({ profile, actor: actor })

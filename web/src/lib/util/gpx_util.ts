@@ -11,7 +11,7 @@ import EasyFit from "$lib/vendor/easy-fit/easy-fit";
 import type { Feature, FeatureCollection, GeoJSON, GeoJsonProperties, Position } from 'geojson';
 import JSZip from "jszip";
 import type { AuthRecord } from "pocketbase";
-import * as xmldom from 'xmldom';
+import { DOMParser as XMLDOMParser } from "@xmldom/xmldom";
 import { bbox, splitMultiLineStringToLineStrings } from "./geojson_util";
 import { trails_show } from "$lib/stores/trail_store";
 import { handleFromRecordWithIRI } from "./activitypub_util";
@@ -161,7 +161,7 @@ export async function fromFile(file: File | Blob) {
 }
 
 export function fromKML(kmlData: string) {
-    const parser = browser ? new DOMParser() : new xmldom.DOMParser();
+    const parser = browser ? new DOMParser() : new XMLDOMParser();
     const nodes = parser.parseFromString(kmlData, "text/xml")
     const geojson = kml(nodes) as Feature | FeatureCollection
 
@@ -178,7 +178,7 @@ export async function fromKMZ(kmzData: ArrayBuffer) {
 }
 
 export function fromTCX(tcxData: string) {
-    const parser = browser ? new DOMParser() : new xmldom.DOMParser();
+    const parser = browser ? new DOMParser() : new XMLDOMParser();
     const nodes = parser.parseFromString(tcxData, "text/xml")
     const geojson = tcx(nodes) as Feature | FeatureCollection
 

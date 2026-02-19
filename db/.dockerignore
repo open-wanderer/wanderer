@@ -1,0 +1,9 @@
+*
+!commands
+!federation
+!go.*
+!integrations
+!main.go
+!migrations
+!templates
+!util
