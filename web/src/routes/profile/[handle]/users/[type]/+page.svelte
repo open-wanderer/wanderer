@@ -3,10 +3,11 @@
     import { follows_index } from "$lib/stores/follow_store.js";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
     import { APIError } from "$lib/util/api_util.js";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
     let { data } = $props();
 
-    let follows = $state(data.follows);
+    let follows = $state(untrack(() => data.follows));
 
     $effect(() => {
         page.params.type;
@@ -60,7 +61,7 @@
 <svelte:window onscroll={onListScroll} />
 
 <div style="min-height: 70vh">
-    <h1 class="text-3xl font-semibold mb-4">{$_(page.params.type)}</h1>
+    <h1 class="text-3xl font-semibold mb-4">{$_(page.params.type!)}</h1>
     <ul class="space-y-4">
         {#each follows.items as follow}
             <a

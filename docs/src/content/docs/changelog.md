@@ -2,6 +2,23 @@
 title: Changelog
 description: What changed in the last patch?
 ---
+## v0.18.4
+### Bug fixes
+- Tags can now properly be removed from trails
+- Creating more than 29 lists does no longer prevent lists from loading
+- Fixes a bug that caused the GPS data to be removed from summit logs after editing
+- Fixes an issue that caused an infinite loop when creating a list with federation being active
+- Fixes an issue where bicycle routing options were incorrectly applied to car routing, and vice versa
+- Fixes an issue where filtering by multiple categories did not work as expected
+- Fixes imported tracks being marked private despite public-by-default settings
+
+### Features
+- Trails can now be added to multiple lists at once
+- ActivityPub: External user access now requires authentication (401)
+  
+### Translation
+-  Adds Norwegian translation (thanks @palhaland)
+
 ## v0.18.3
 ### Bug fixes
 - Fixes bug that prevented waypoints from being update or deleted in v0.18.2
