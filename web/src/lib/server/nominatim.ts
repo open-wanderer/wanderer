@@ -1,25 +1,13 @@
 import { version } from "$app/environment";
-import { env as privateEnv } from "$env/dynamic/private";
-import { env as publicEnv } from "$env/dynamic/public";
+import { resolveBaseUrl } from "$lib/server/url";
 import type { RequestEvent } from "@sveltejs/kit";
 
 const NOMINATIM_RATE_LIMIT_MS = 1000;
 const NOMINATIM_MAX_RETRIES = 2;
 let lastNominatimCall = 0;
 
-function normalizeBaseUrl(url: string): string {
-    if (!/^https?:\/\//i.test(url)) {
-        return `https://${url}`;
-    }
-    return url;
-}
-
 function getNominatimBaseUrl(): string {
-    const rawUrl =
-        privateEnv.PRIVATE_NOMINATIM_URL ??
-        publicEnv.PUBLIC_NOMINATIM_URL ??
-        "https://nominatim.openstreetmap.org";
-    return normalizeBaseUrl(rawUrl);
+    return resolveBaseUrl("NOMINATIM_URL", "https://nominatim.openstreetmap.org");
 }
 
 function needsRateLimiting(baseUrl: string): boolean {

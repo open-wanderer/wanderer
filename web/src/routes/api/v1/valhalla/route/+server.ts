@@ -1,5 +1,4 @@
-import { env as privateEnv } from '$env/dynamic/private';
-import { env as publicEnv } from '$env/dynamic/public';
+import { getValhallaBaseUrl } from '$lib/server/valhalla';
 import { error, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
 
 type RouteRequestBody = Record<string, unknown> & {
@@ -32,19 +31,4 @@ export async function POST(event: RequestEvent) {
         const message = e?.body ?? e?.message ?? e;
         return json({ message }, { status })
     }
-}
-
-function getValhallaBaseUrl(): string {
-    const rawUrl =
-        privateEnv.PRIVATE_VALHALLA_URL ??
-        publicEnv.PUBLIC_VALHALLA_URL ??
-        "";
-    return normalizeBaseUrl(rawUrl);
-}
-
-function normalizeBaseUrl(url: string): string {
-    if (!/^https?:\/\//i.test(url)) {
-        return `https://${url}`;
-    }
-    return url;
 }
