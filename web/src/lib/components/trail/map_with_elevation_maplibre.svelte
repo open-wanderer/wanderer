@@ -99,7 +99,7 @@
         onclick,
         onUnclusteredClick,
         oninit,
-        autoGeolocateOnDrawing = true,
+        autoGeolocateOnDrawing = false,
     }: Props = $props();
 
     let mapContainer: HTMLDivElement;
