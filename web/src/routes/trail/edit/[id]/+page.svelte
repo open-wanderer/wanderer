@@ -94,7 +94,7 @@
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
     import { fly } from "svelte/transition";
@@ -541,7 +541,7 @@
             } else {
                 list = await lists_add_trail(list, $formData as Trail);
             }
-            const index = lists.items.findIndex((l) => l.id == list.id);
+            const index = lists.items.findIndex((l: List) => l.id == list.id);
             if (index >= 0) {
                 lists.items[index] = list;
             }
