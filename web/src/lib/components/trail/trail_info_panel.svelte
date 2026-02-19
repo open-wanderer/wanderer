@@ -27,12 +27,11 @@
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import * as M from "maplibre-gl";
     import "photoswipe/style.css";
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
     import Button from "../base/button.svelte";
     import Chip from "../base/chip.svelte";
     import SkeletonNotificationCard from "../base/skeleton_notification_card.svelte";
-    import Textarea from "../base/textarea.svelte";
     import CommentCard from "../comment/comment_card.svelte";
     import EmptyStateComment from "../empty_states/empty_state_comment.svelte";
     import EmptyStateDescription from "../empty_states/empty_state_description.svelte";
@@ -77,7 +76,7 @@
     let summitLogModal: SummitLogModal;
     let confirmModal: ConfirmModal;
 
-    let trail = $state(initTrail);
+    let trail = $state(untrack(() => initTrail));
 
     const tabs = [
         $_("summit-book"),
@@ -93,14 +92,14 @@
     let newComment: Comment = $state({
         text: "",
         author: "",
-        trail: handle + "/" + (trail.id ?? ""),
+        trail: untrack(() => handle) + "/" + (trail.id ?? ""),
     });
 
-    let commentsLoading: boolean = $state(activeTab == 2);
+    let commentsLoading: boolean = $state(untrack(() => activeTab == 2));
     let commentCreateLoading: boolean = $state(false);
     let commentDeleteLoading: boolean = false;
 
-    let summitLogsLoading: boolean = $state(activeTab == 0);
+    let summitLogsLoading: boolean = $state(untrack(() => activeTab == 0));
     let summitLogCreateLoading: boolean = $state(false);
 
     let fullDescription: boolean = $state(false);

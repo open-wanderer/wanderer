@@ -32,9 +32,9 @@
         modal.openModal();
     }
 
-    function handleSelect(list: List) {
+    async function handleSelect(list: List) {
         const containsAll = listContainsAllTrails(list);
-        onchange?.(list);
+        await onchange?.(list);
 
         if (containsAll) {
             removeTrailsFromList(list);
@@ -46,8 +46,8 @@
         updateLists(query);
     }
 
-    function handleRemove(list: List) {
-        onchange?.(list);
+    async function handleRemove(list: List) {
+        await onchange?.(list);
 
         removeTrailsFromList(list);
 

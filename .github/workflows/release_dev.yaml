@@ -55,6 +55,6 @@ jobs:
           MEILI_TARGET_VERSION: ${{ steps.bump_versions.outputs.meili_target_version }}
         run: |
           docker buildx build search/ --no-cache --build-arg MEILI_TARGET_VERSION=$MEILI_TARGET_VERSION \
-            -t ghcr.io/open-wanderer/wanderer-search:dev --platform=linux/amd64,linux/arm64 --push
-          docker buildx build db/ --no-cache -t ghcr.io/open-wanderer/wanderer-db:dev --platform=linux/amd64,linux/arm64 --push
-          docker buildx build web/ --no-cache -t ghcr.io/open-wanderer/wanderer-web:dev --platform=linux/amd64,linux/arm64 --push
+            -t ghcr.io/open-wanderer/wanderer-search:dev --push
+          docker buildx build db/ --no-cache -t ghcr.io/open-wanderer/wanderer-db:dev --push
+          docker buildx build web/ --no-cache -t ghcr.io/open-wanderer/wanderer-web:dev --push

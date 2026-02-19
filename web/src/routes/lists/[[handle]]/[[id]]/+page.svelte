@@ -28,7 +28,7 @@
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util.js";
     import * as M from "maplibre-gl";
 
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
     import { slide } from "svelte/transition";
 
@@ -41,10 +41,10 @@
 
     const pagination: { page: number; totalPages: number } = $state({
         page: 1,
-        totalPages: data.lists.totalPages,
+        totalPages: untrack(() => data.lists.totalPages),
     });
 
-    let lists: List[] = $state(data.lists.items);
+    let lists: List[] = $state(untrack(() => data.lists.items));
 
     let confirmModal: ConfirmModal | undefined = $state();
     let listShareModal: ListShareModal | undefined = $state();
@@ -56,7 +56,9 @@
     let markers: M.Marker[] = $state([]);
 
     let selectedList: List | null = $state(
-        page.params.handle && page.params.id ? data.lists.items[0] : null,
+        untrack(() =>
+            page.params.handle && page.params.id ? data.lists.items[0] : null,
+        ),
     );
     let selectedTrail: Trail | null = $state(null);
 
