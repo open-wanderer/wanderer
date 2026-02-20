@@ -15,7 +15,7 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@sveltejs/adapter-auto": "^7.0.1",
-    "@sveltejs/kit": "^2.50.2",
+    "@sveltejs/kit": "^2.52.2",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20.11.25",
