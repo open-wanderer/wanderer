@@ -85,12 +85,12 @@
         loading = true;
         persistFilter();
 
-        await paginate(1, pagination.items);
+        await paginate(1, pagination.items, false);
 
         loading = false;
     }
 
-    async function paginate(newPage: number, items: number) {
+    async function paginate(newPage: number, items: number, scrollToTop: boolean = true) {
         pagination.page = newPage;
 
         try {
@@ -128,7 +128,7 @@
         }
         
         page.url.searchParams.set("page", newPage.toString());
-        goto(`?${page.url.searchParams.toString()}`, { keepFocus: true });
+        goto(`?${page.url.searchParams.toString()}`, { keepFocus: true, noScroll: !scrollToTop });
     }
 
     async function doPaginate(newPage: number, items: number) {
