@@ -42,5 +42,5 @@ jobs:
 
       - name: Build Docker Images
         run: |
-          docker buildx build db/ --no-cache -t ghcr.io/open-wanderer/wanderer-db:dev --platform=linux/amd64,linux/arm64 --push
-          docker buildx build web/ --no-cache -t ghcr.io/open-wanderer/wanderer-web:dev --platform=linux/amd64,linux/arm64 --push
+          docker buildx build db/ --no-cache -t ghcr.io/open-wanderer/wanderer-db:dev --push
+          docker buildx build web/ --no-cache -t ghcr.io/open-wanderer/wanderer-web:dev --push

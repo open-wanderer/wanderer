@@ -4,6 +4,7 @@
     import type { TrailFilter } from "$lib/models/trail.js";
     import { profile_trails_index } from "$lib/stores/profile_store.js";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     let { data } = $props();
@@ -11,14 +12,14 @@
     let loading = $state(true);
 
     let pagination = $state({
-        page: data.trails.page,
-        totalPages: data.trails.totalPages,
+        page: untrack(() => data.trails.page),
+        totalPages: untrack(() => data.trails.totalPages),
         items: 12,
     });
 
-    let trails = $state(data.trails);
+    let trails = $state(untrack(() => data.trails));
 
-    let filter: TrailFilter = $state(data.filter);
+    let filter: TrailFilter = $state(untrack(() => data.filter));
 
     async function handleFilterUpdate() {
         loading = true;

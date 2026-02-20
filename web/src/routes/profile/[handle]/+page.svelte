@@ -9,6 +9,7 @@
     import { profile_feed_index } from "$lib/stores/profile_store.js";
     import { theme } from "$lib/stores/theme_store.js";
     import { getFileURL } from "$lib/util/file_util.js";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     let { data } = $props();
@@ -18,7 +19,7 @@
         feed = data.feed
     })
 
-    let feed = $state(data.feed);
+    let feed = $state(untrack(() => data.feed));
 
     let loading: boolean = false;
 
