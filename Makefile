@@ -10,7 +10,7 @@ db-vet:
 
 .PHONY: install-golangci-lint
 install-golangci-lint:
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $HOME/go/bin v2.10.1
+	curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.10.1
 
 .PHONY: db-lint
 db-lint:
