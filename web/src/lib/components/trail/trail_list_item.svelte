@@ -130,13 +130,13 @@
                 {handleFromRecordWithIRI(trail)}
             </p>
         {/if}
-        {#if trail.tags.length}
+        {#if trail.tags.length && trail.expand?.tags}
             <div class="flex flex-wrap gap-1 mb-3 items-center">
-                {#each expandedTags ? trail.tags : trail.tags.slice(0, 2) as t}
-                    <Chip text={t} closable={false} primary={false}></Chip>
+                {#each expandedTags ? trail.expand.tags : trail.expand.tags.slice(0, 2) as tag}
+                    <Chip text={tag.name} closable={false} primary={false}></Chip>
                 {/each}
 
-                {#if trail.tags.length > 2}
+                {#if trail.expand.tags.length > 2}
                     <button
                         onclick={toggleExpandTags}
                         class="text-sm text-gray-500 hover:underline focus:outline-none"
@@ -145,7 +145,7 @@
                         {#if expandedTags}
                             Show less
                         {:else}
-                            +{trail.tags.length - 2} more
+                            +{trail.expand.tags.length - 2} more
                         {/if}
                     </button>
                 {/if}
