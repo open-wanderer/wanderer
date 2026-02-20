@@ -81,11 +81,11 @@
         localStorage.removeItem(TRAIL_LIST_FILTER_STORAGE_KEY);
     });
 
-    async function handleFilterUpdate() {
+    async function handleFilterUpdate(resetPagination: boolean = true) {
         loading = true;
         persistFilter();
 
-        await paginate(1, pagination.items, false);
+        await paginate(resetPagination ? 1 : pagination.page, pagination.items);
 
         loading = false;
     }
