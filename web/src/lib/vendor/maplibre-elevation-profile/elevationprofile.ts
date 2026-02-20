@@ -425,6 +425,19 @@ export class ElevationProfile {
         const elevationUnit = this.settings.unit === "imperial" ? "ft" : "m";
         Chart.defaults.font.size = this.settings.fontSize;
 
+        // using CrosshairPlugin normally can lead to race conditions:
+        // https://github.com/AbelHeinsbroek/chartjs-plugin-crosshair/issues/119
+        const CustomCrosshairPlugin = function (plugin: typeof CrosshairPlugin) {
+            const originalAfterDraw = plugin.afterDraw;
+            plugin.afterDraw = function (chart: Chart & { crosshair?: typeof CrosshairPlugin }, easing: boolean) {
+                if (chart && chart.crosshair) {
+                    originalAfterDraw.call(this, chart, easing);
+                }
+            };
+            return plugin;
+        };
+        Chart.register(CustomCrosshairPlugin(CrosshairPlugin));
+
         this.chart = new Chart<"line", Array<number>, number>(this.canvas, {
             type: "line",
 
@@ -674,7 +687,6 @@ export class ElevationProfile {
             },
 
             plugins: [
-                CrosshairPlugin,
                 {
                     id: "waypointPlugin",
                     afterDraw: (chart, args, options) => {
