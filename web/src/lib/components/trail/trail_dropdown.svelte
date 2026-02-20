@@ -410,7 +410,7 @@
             })}{:else if mode == "multi-select"}
             <button
                 aria-label="Open dropdown"
-                class="btn-primary flex-shrink-0 !font-medium"
+                class="btn-primary shrink-0 font-medium!"
                 onclick={openDropdown}
             >
                 <span
@@ -422,7 +422,7 @@
         {:else}
             <button
                 aria-label="Open dropdown"
-                class=" btn-primary !rounded-full h-12 w-12"
+                class="btn-primary rounded-full! h-12 w-12"
                 onclick={openDropdown}
             >
                 <i class="fa fa-ellipsis-vertical"></i>

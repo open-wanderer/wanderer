@@ -1,20 +1,50 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
+    import { browser } from "$app/environment";
+    import { beforeNavigate, goto } from "$app/navigation";
     import { page } from "$app/state";
     import TrailFilterPanel from "$lib/components/trail/trail_filter_panel.svelte";
     import TrailList from "$lib/components/trail/trail_list.svelte";
-    import type { Trail, TrailFilter, TrailSearchResult } from "$lib/models/trail";
+    import type { Trail, TrailFilter } from "$lib/models/trail";
     import { trails_search_filter } from "$lib/stores/trail_store";
     import type { Snapshot } from "@sveltejs/kit";
     import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
     import { APIError } from "$lib/util/api_util";
+    import { sanitizeTrailFilter } from "$lib/util/trail_filter_util";
+
+    const TRAIL_LIST_FILTER_STORAGE_KEY = "trailListFilter";
+
+    function restoreStoredFilter(defaultFilter: TrailFilter): TrailFilter {
+        if (!browser) {
+            return defaultFilter;
+        }
+
+        const stored = localStorage.getItem(TRAIL_LIST_FILTER_STORAGE_KEY);
+        if (!stored) {
+            return defaultFilter;
+        }
+
+        try {
+            const parsed = JSON.parse(stored) as Record<string, unknown>;
+            return sanitizeTrailFilter(parsed, defaultFilter);
+        } catch {
+            localStorage.removeItem(TRAIL_LIST_FILTER_STORAGE_KEY);
+            return defaultFilter;
+        }
+    }
+
+    function persistFilter() {
+        if (!browser) {
+            return;
+        }
+        localStorage.setItem(TRAIL_LIST_FILTER_STORAGE_KEY, JSON.stringify(filter));
+    }
 
     let filterExpanded: boolean = $state(true);
 
     let loading: boolean = $state(true);
 
-    let filter: TrailFilter = $state(page.data.filter);
+    let filter: TrailFilter = $state(restoreStoredFilter(page.data.filter));
     const pagination: { page: number; totalPages: number, items: number } = $state({
         page: page.url.searchParams.has("page")
             ? parseInt(page.url.searchParams.get("page")!)
@@ -27,24 +57,7 @@
     export const snapshot: Snapshot<TrailFilter> = {
         capture: () => filter,
         restore: (value) => {
-            const difficultyMap: Record<string, 0 | 1 | 2> = {
-                easy: 0,
-                moderate: 1,
-                difficult: 2,
-            };
-            // defensive copy
-            const migrated = { ...value };
-
-            if (Array.isArray(migrated.difficulty)) {
-                migrated.difficulty = migrated.difficulty.map((d: any) => {
-                    if (typeof d === "string" && d in difficultyMap) {
-                        return difficultyMap[d];
-                    }
-                    return d;
-                });
-            }
-
-            filter = migrated;
+            filter = sanitizeTrailFilter(value, page.data.filter);
             handleFilterUpdate();
         },
     };
@@ -55,15 +68,29 @@
         }
     });
 
+    beforeNavigate(({ to }) => {
+        if (!browser || !to?.url) {
+            return;
+        }
+
+        // Keep filter for in-page navigation (e.g. pagination on /trails).
+        if (to.url.pathname.startsWith("/trails")) {
+            return;
+        }
+
+        localStorage.removeItem(TRAIL_LIST_FILTER_STORAGE_KEY);
+    });
+
     async function handleFilterUpdate() {
         loading = true;
+        persistFilter();
 
-        await paginate(1, pagination.items);
+        await paginate(1, pagination.items, false);
 
         loading = false;
     }
 
-    async function paginate(newPage: number, items: number) {
+    async function paginate(newPage: number, items: number, scrollToTop: boolean = true) {
         pagination.page = newPage;
 
         try {
@@ -101,7 +128,7 @@
         }
         
         page.url.searchParams.set("page", newPage.toString());
-        goto(`?${page.url.searchParams.toString()}`, { keepFocus: true });
+        goto(`?${page.url.searchParams.toString()}`, { keepFocus: true, noScroll: !scrollToTop });
     }
 
     async function doPaginate(newPage: number, items: number) {
