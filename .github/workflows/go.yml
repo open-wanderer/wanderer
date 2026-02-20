@@ -19,24 +19,15 @@ jobs:
       - uses: actions/setup-go@v6
         with: { go-version-file: 'db/go.mod' }
 
-      - run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $HOME/go/bin v2.8.0
-
-      - name: fmt
-        run: golangci-lint fmt ./...
+      - run: make db-fmt
+      - name: Ensure formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Go files are not formatted"
+            exit 1
+          fi
+          git diff --exit-code
         working-directory: db
-
-      - name: check fmt
-        run: git diff --exit-code
-        working-directory: db
-
-      - name: go vet
-        run: go vet ./...
-        working-directory: db
-
-      - name: golangci-lint
-        run: golangci-lint run --verbose --show-stats ./...
-        working-directory: db
-
-      - name: go test
-        run: go test ./...
-        working-directory: db
+      - run: make db-vet
+      - run: make install-golangci-lint db-lint
+      - run: make db-test
