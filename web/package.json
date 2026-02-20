@@ -31,7 +31,7 @@
   "dependencies": {
     "@felte/validator-zod": "^1.0.18",
     "@fortawesome/fontawesome-free": "^7.1.0",
-    "@sveltejs/adapter-node": "^4.0.1",
+    "@sveltejs/adapter-node": "^5.5.2",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.18",
     "@threlte/core": "^8.3.1",
