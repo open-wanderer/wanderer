@@ -20,7 +20,7 @@
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20.11.25",
     "postcss": "^8.5.6",
-    "svelte": "^5.49.2",
+    "svelte": "^5.53.0",
     "svelte-check": "^4.3.6",
     "tailwindcss": "^4.0.0",
     "tslib": "^2.4.1",
