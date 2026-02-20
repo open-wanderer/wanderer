@@ -110,7 +110,19 @@
     }
 
     function getTextHeight(text: string, doc: jsPDF, width: number) {
-        let numLines = doc.splitTextToSize(text, width).length;
+        // Split text by newlines first to preserve blank lines
+        const paragraphs = text.split('\n');
+        let numLines = 0;
+
+        for (const paragraph of paragraphs) {
+            if (paragraph === '') {
+                // Empty line (blank line between paragraphs)
+                numLines += 1;
+            } else {
+                // Non-empty paragraph - count wrapped lines
+                numLines += doc.splitTextToSize(paragraph, width).length;
+            }
+        }
 
         return (
             (numLines * doc.getFontSize() * doc.getLineHeightFactor() -
@@ -382,8 +394,9 @@
             }
 
             if (includeDescription && $trail.description) {
+                const descriptionText = formatHTMLAsText($trail.description);
                 let textHeight = getTextHeight(
-                    $trail.description,
+                    descriptionText,
                     doc,
                     width - 32,
                 );
@@ -391,15 +404,14 @@
                     newPage();
                 }
                 doc.text(
-                    formatHTMLAsText($trail.description),
+                    descriptionText,
                     16,
                     currentHeight,
                     {
                         maxWidth: width - 32,
                     },
                 );
-                currentHeight +=
-                    getTextHeight($trail.description, doc, width - 32) + 8;
+                currentHeight += textHeight + 8;
             }
 
             if (includeWaypoints && $trail.expand?.waypoints_via_trail) {

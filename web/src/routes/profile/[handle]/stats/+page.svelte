@@ -29,6 +29,7 @@
         Title,
         Tooltip,
     } from "chart.js";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     let { data } = $props();
@@ -43,9 +44,9 @@
         BarElement,
     );
 
-    let summitLogs: SummitLog[] = $state(data.logs);
+    let summitLogs: SummitLog[] = $state(untrack(() => data.logs));
 
-    const filter = $state(data.filter);
+    const filter = $state(untrack(() => data.filter));
 
     const categorySelectItems: SelectItem[] = $categories.map((c) => ({
         value: c.id,
