@@ -1,0 +1,9 @@
+*
+!*.js
+!*.ts
+!package-lock.json*
+!package.json
+!src
+!static
+!tsconfig.json
+!cron.sh

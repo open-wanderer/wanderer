@@ -37,11 +37,11 @@
     import { validator } from "@felte/validator-zod";
     import { createForm } from "felte";
     import { z } from "zod";
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
 
     let { data } = $props();
 
-    let previewURL = $state(data.previewUrl ?? "");
+    let previewURL = $state(untrack(() => data.previewUrl ?? ""));
     let searchDropdownItems: SearchItem[] = $state([]);
 
     let activeTrailIndex: number = $state(-1);
@@ -76,17 +76,19 @@
             .optional(),
     });
 
+    const getInitialFormValues = () => ({
+        ...data.list,
+        public: data.list.id
+            ? data.list.public
+            : page.data.settings?.privacy?.lists === "public",
+    });
+
     const {
         form,
         errors,
         data: formData,
     } = createForm<z.infer<typeof ClientListCreateSchema>>({
-        initialValues: {
-            ...data.list,
-            public: data.list.id
-                ? data.list.public
-                : page.data.settings?.privacy?.lists === "public",
-        },
+        initialValues: getInitialFormValues(),
         extend: validator({
             schema: ClientListCreateSchema,
         }),
