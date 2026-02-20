@@ -77,7 +77,7 @@ jobs:
           RAW_VER=${VERSION#v}
           CHANGELOG=$(awk -v ver="$RAW_VER" 'BEGIN {in_section=0} /^# / {if (in_section) exit; if ($2 == ver) in_section=1} in_section {print}' CHANGELOG.md)
           echo 'changelog<<EOF' >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          printf "$CHANGELOG" >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
