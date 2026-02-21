@@ -26,7 +26,7 @@ login() {
     local username="$1"
     local password="$2"
 
-    response=$(/curl -c cookie.txt --location --request POST "$API_URL/auth/login" --header 'Content-Type: application/json' --data-raw "{\"username\": \"$username\", \"password\": \"$password\"}")
+    response=$(/curl -c ${COOKIE_FILE} --silent --location --request POST "$API_URL/auth/login" --header 'Content-Type: application/json' --data-raw "{\"username\": \"$username\", \"password\": \"$password\"}")
 
     # Check if login was successful (look for "200 OK" in response headers)
     if [ $? -eq 0 ] && [ "$(echo "$response" | grep -c "token")" -eq 1 ]; then
@@ -52,7 +52,7 @@ upload_and_delete() {
     mv "$afile" "$file" || return
 
     # API call to upload file
-    response=$(/curl -b cookie.txt --location --request PUT "$API_URL/trail/upload" --header 'Content-Type: multipart/form-data' -F "file=@-" -F "name=$base_name" <"$file")
+    response=$(/curl -b ${COOKIE_FILE} --silent --location --request PUT "$API_URL/trail/upload" --header 'Content-Type: multipart/form-data' -F "file=@-" -F "name=$base_name" <"$file")
     # Check if API call was successful (status code 200)
     if [ $? -eq 0 ] && [ "$(echo "$response" | grep -c "author")" -eq 1 ]; then
         log_info "File $file uploaded successfully."
@@ -60,14 +60,17 @@ upload_and_delete() {
         rm "$file"
         log_info "File $file deleted."
     else
-        echo $response
+        log_info "$response"
         log_error "Failed to upload file $file."
+        mv "$file" ".$afile"
     fi
 }
 
 # Login to obtain cookie
 if [ -n "$USERNAME" ] && [ -n "$PASSWORD" ]; then
     log_info "Starting auto-upload"
+
+    COOKIE_FILE=".cookie.$$.txt"
 
     login "$USERNAME" "$PASSWORD"
     # Iterate over each file in the folder
@@ -78,5 +81,6 @@ if [ -n "$USERNAME" ] && [ -n "$PASSWORD" ]; then
         fi
     done
 
+    rm -f ${COOKIE_FILE}
     log_info "Auto-upload completed"
 fi
