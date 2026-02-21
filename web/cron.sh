@@ -10,6 +10,8 @@ UPLOAD_FOLDER=$UPLOAD_FOLDER
 USERNAME=$UPLOAD_USER
 PASSWORD=$UPLOAD_PASSWORD
 
+# to use this script outside of the running docker container
+# please remove the redirect to /proc/1/fd/1
 log() {
     echo "[$1] [$(date +"%T")]: $2" > /proc/1/fd/1
 }
