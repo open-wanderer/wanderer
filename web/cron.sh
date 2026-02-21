@@ -10,6 +10,18 @@ UPLOAD_FOLDER=$UPLOAD_FOLDER
 USERNAME=$UPLOAD_USER
 PASSWORD=$UPLOAD_PASSWORD
 
+log() {
+    echo "[$1] [$(date +"%T")]: $2" > /proc/1/fd/1
+}
+
+log_info() {
+    log INFO "$@"
+}
+
+log_error() {
+    log ERROR "$@"
+}
+
 login() {
     local username="$1"
     local password="$2"
@@ -18,35 +30,44 @@ login() {
 
     # Check if login was successful (look for "200 OK" in response headers)
     if [ $? -eq 0 ] && [ "$(echo "$response" | grep -c "token")" -eq 1 ]; then
-        echo "[INFO] [$(date +"%T")]: Login successful. Cookie obtained." > /proc/1/fd/1
+        log_info "Login successful. Cookie obtained."
     else
-        echo "[ERROR] [$(date +"%T")]: Login failed. Unable to obtain cookie." > /proc/1/fd/1
+        log_error "Login failed. Unable to obtain cookie."
         exit 1
     fi
 }
 
 # Function to upload file and delete if successful
 upload_and_delete() {
-    local file="$1"
+    local afile="$1"
 
-    ls "$file"
-    
+    ls "$afile"
+
+    # use name of file for trackname
+    base_name=$(basename "$afile")
+
+    # prevent files from beeing uploaded by parallel running scripts
+    file="$afile".$$
+    # rename file with process id as suffix and fail silently if file not exists
+    mv "$afile" "$file" || return
+
     # API call to upload file
     response=$(/curl -b cookie.txt --location --request PUT "$API_URL/trail/upload" --header 'Content-Type: multipart/form-data' -F "file=@-" -F "name=$base_name" <"$file")
     # Check if API call was successful (status code 200)
     if [ $? -eq 0 ] && [ "$(echo "$response" | grep -c "author")" -eq 1 ]; then
-        echo "[INFO] [$(date +"%T")]: File $file uploaded successfully." > /proc/1/fd/1
+        log_info "File $file uploaded successfully."
         # Delete the file
         rm "$file"
-        echo "[INFO] [$(date +"%T")]: File $file deleted."
+        log_info "File $file deleted."
     else
         echo $response
-        echo "[ERROR] [$(date +"%T")]: Failed to upload file $file." > /proc/1/fd/1
+        log_error "Failed to upload file $file."
     fi
 }
+
 # Login to obtain cookie
 if [ -n "$USERNAME" ] && [ -n "$PASSWORD" ]; then
-    echo "[INFO] [$(date +"%T")]: Starting auto-upload" > /proc/1/fd/1
+    log_info "Starting auto-upload"
 
     login "$USERNAME" "$PASSWORD"
     # Iterate over each file in the folder
@@ -57,6 +78,5 @@ if [ -n "$USERNAME" ] && [ -n "$PASSWORD" ]; then
         fi
     done
 
-    echo "[INFO] [$(date +"%T")]: Auto-upload completed" > /proc/1/fd/1
-
+    log_info "Auto-upload completed"
 fi
