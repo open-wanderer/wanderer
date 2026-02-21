@@ -3,9 +3,6 @@
 # API endpoint URL
 API_URL="http://localhost:3000/api/v1"
 
-# Folder containing files to upload
-UPLOAD_FOLDER=$UPLOAD_FOLDER
-
 # Credentials for login
 USERNAME=$UPLOAD_USER
 PASSWORD=$UPLOAD_PASSWORD
@@ -43,8 +40,6 @@ login() {
 upload_and_delete() {
     local afile="$1"
 
-    ls "$afile"
-
     # use name of file for trackname
     base_name=$(basename "$afile")
 
@@ -53,17 +48,19 @@ upload_and_delete() {
     # rename file with process id as suffix and fail silently if file not exists
     mv "$afile" "$file" || return
 
+    log_info "uploading $afile"
+
     # API call to upload file
     response=$(/curl -b ${COOKIE_FILE} --silent --location --request PUT "$API_URL/trail/upload" --header 'Content-Type: multipart/form-data' -F "file=@-" -F "name=$base_name" <"$file")
     # Check if API call was successful (status code 200)
     if [ $? -eq 0 ] && [ "$(echo "$response" | grep -c "author")" -eq 1 ]; then
-        log_info "File $file uploaded successfully."
+        log_info "File $afile uploaded successfully."
         # Delete the file
         rm "$file"
-        log_info "File $file deleted."
+        log_info "File $afile deleted."
     else
         log_info "$response"
-        log_error "Failed to upload file $file."
+        log_error "Failed to upload file $afile."
         mv "$file" ".$afile"
     fi
 }
