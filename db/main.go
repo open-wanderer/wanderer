@@ -1412,12 +1412,18 @@ func bootstrapMeilisearchConfig(client meilisearch.ServiceManager) {
 		_, err := client.GetIndex(indexName)
 		if err != nil {
 			log.Printf("Index [%s] not found, creating it...", indexName)
-			_, err = client.CreateIndex(&meilisearch.IndexConfig{
+			task, err := client.CreateIndex(&meilisearch.IndexConfig{
 				Uid:        indexName,
 				PrimaryKey: "id",
 			})
 			if err != nil {
 				log.Printf("Failed to create index [%s]: %v", indexName, err)
+				continue
+			}
+
+			_, err = client.WaitForTask(task.TaskUID, 0)
+			if err != nil {
+				log.Printf("Error waiting for index creation [%s]: %v", indexName, err)
 				continue
 			}
 		}

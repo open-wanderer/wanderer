@@ -10,6 +10,7 @@ import { MeiliSearch } from 'meilisearch'
 import { locale } from 'svelte-i18n'
 import type { Actor } from '$lib/models/activitypub/actor'
 import { normalizeLocale } from '$lib/i18n/locales'
+import { handleError } from '$lib/util/api_util'
 
 
 function csrf(allowedPaths: string[]): Handle {
@@ -51,6 +52,8 @@ function isFormContentType(request: Request) {
 
 const auth: Handle = async ({ event, resolve }) => {
   const pb = new PocketBase(envPub.PUBLIC_POCKETBASE_URL)
+  const url = new URL(event.request.url);
+
   // load the store data from the request cookie string
   pb.authStore.loadFromCookie(event.request.headers.get('cookie') || '')
 
@@ -71,20 +74,24 @@ const auth: Handle = async ({ event, resolve }) => {
   }
 
   if (!meilisearchToken) {
-    const tokenResponse = await pb.send("/search/token", { method: "GET", fetch: event.fetch });
-    meilisearchToken = tokenResponse.token
-    event.cookies.set('meilisearch_token', `${meilisearchToken}|${currentUserId}`, {
-      path: '/',
-      httpOnly: false,
-      maxAge: 60 * 60 * 24,
-      sameSite: 'lax',
-      secure: secure
-    });
-  } else {
+    try {
+      const tokenResponse = await pb.send("/search/token", { method: "GET", fetch: event.fetch });
+      meilisearchToken = tokenResponse.token
+      event.cookies.set('meilisearch_token', `${meilisearchToken}|${currentUserId}`, {
+        path: '/',
+        httpOnly: false,
+        maxAge: 60 * 60 * 24,
+        sameSite: 'lax',
+        secure: secure
+      });
+    } catch (e) {
+      if (url.pathname.startsWith("/api")) {
+        return handleError(e)
+      }
+      throw error(500, "Failed to invalidate meilisearch token: " + e)
+    }
 
   }
-
-  const url = new URL(event.request.url);
 
   // validate the user existence and if the path is acceesible
   if (!pb.authStore.record && isRouteProtected(url)) {
