@@ -1009,20 +1009,37 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 		return e.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	se.Router.GET("/public/search/token", func(e *core.RequestEvent) error {
+	se.Router.GET("/search/token", func(e *core.RequestEvent) error {
 		searchRules := map[string]interface{}{
-			"lists": map[string]string{
-				"filter": "public = true",
-			},
-			"trails": map[string]string{
-				"filter": "public = true",
-			},
+			"lists":  map[string]string{"filter": "public = true"},
+			"trails": map[string]string{"filter": "public = true"},
 		}
+
+		if e.Auth != nil {
+			userId := e.Auth.Id
+			userActor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
+			if err != nil {
+				return err
+			}
+
+			searchRules = map[string]any{
+				"lists": map[string]string{
+					"filter": "public = true OR author = " + userActor.Id + " OR shares = " + userId,
+				},
+				"trails": map[string]string{
+					"filter": "public = true OR author = " + userActor.Id + " OR shares = " + userId,
+				},
+			}
+		}
+
 		token, err := util.GenerateMeilisearchToken(searchRules, client)
 		if err != nil {
-			return err
+			return e.InternalServerError("Failed to generate search token", err)
 		}
-		return e.JSON(http.StatusOK, map[string]string{"token": token})
+
+		return e.JSON(http.StatusOK, map[string]string{
+			"token": token,
+		})
 	})
 
 	se.Router.POST("/integration/strava/token", func(e *core.RequestEvent) error {
@@ -1277,6 +1294,7 @@ func registerCronJobs(app core.App) {
 
 func bootstrapData(app core.App, client meilisearch.ServiceManager) error {
 	bootstrapCategories(app)
+	bootstrapMeilisearchConfig(client)
 	go bootstrapMeilisearchDocuments(app, client)
 	return nil
 }
@@ -1365,4 +1383,56 @@ func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManag
 	}
 
 	return nil
+}
+
+func bootstrapMeilisearchConfig(client meilisearch.ServiceManager) {
+	configs := map[string]meilisearch.Settings{
+		"trails": {
+			SearchableAttributes: []string{"author_name", "name", "description", "location", "tags"},
+			FilterableAttributes: []string{
+				"_geo", "author", "category", "completed", "date", "difficulty",
+				"distance", "elevation_gain", "elevation_loss", "likes", "public",
+				"shares", "tags",
+			},
+			SortableAttributes: []string{
+				"author", "created", "date", "difficulty", "distance",
+				"duration", "elevation_gain", "elevation_loss", "like_count", "name",
+			},
+			RankingRules: []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
+		},
+		"lists": {
+			SearchableAttributes: []string{"*"},
+			FilterableAttributes: []string{"author", "public", "shares"},
+			SortableAttributes:   []string{"created", "name"},
+			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
+		},
+	}
+
+	for indexName, settings := range configs {
+		_, err := client.GetIndex(indexName)
+		if err != nil {
+			log.Printf("Index [%s] not found, creating it...", indexName)
+			task, err := client.CreateIndex(&meilisearch.IndexConfig{
+				Uid:        indexName,
+				PrimaryKey: "id",
+			})
+			if err != nil {
+				log.Printf("Failed to create index [%s]: %v", indexName, err)
+				continue
+			}
+
+			_, err = client.WaitForTask(task.TaskUID, 0)
+			if err != nil {
+				log.Printf("Error waiting for index creation [%s]: %v", indexName, err)
+				continue
+			}
+		}
+
+		_, err = client.Index(indexName).UpdateSettings(&settings)
+		if err != nil {
+			log.Printf("Failed to sync settings for index [%s]: %v", indexName, err)
+		} else {
+			log.Printf("Settings synced for index [%s]", indexName)
+		}
+	}
 }

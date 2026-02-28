@@ -10,6 +10,7 @@ import { MeiliSearch } from 'meilisearch'
 import { locale } from 'svelte-i18n'
 import type { Actor } from '$lib/models/activitypub/actor'
 import { normalizeLocale } from '$lib/i18n/locales'
+import { handleError } from '$lib/util/api_util'
 
 
 function csrf(allowedPaths: string[]): Handle {
@@ -49,15 +50,48 @@ function isFormContentType(request: Request) {
   );
 }
 
-let publicMeilisearchKey: string | undefined = undefined;
-
 const auth: Handle = async ({ event, resolve }) => {
   const pb = new PocketBase(envPub.PUBLIC_POCKETBASE_URL)
+  const url = new URL(event.request.url);
+
   // load the store data from the request cookie string
   pb.authStore.loadFromCookie(event.request.headers.get('cookie') || '')
 
-  const url = new URL(event.request.url);
+  const secure = event.url.protocol === "https:"
+  let meiliCookie = event.cookies.get('meilisearch_token');
+  let meilisearchToken: string | undefined = undefined;
+  const currentUserId = pb.authStore.record?.id || 'public';
 
+  if (meiliCookie) {
+    const [token, ownerId] = meiliCookie.split('|');
+
+    if (ownerId === currentUserId) {
+      meilisearchToken = token;
+    } else {
+      // Identity mismatch (e.g. just logged in/out)
+      event.cookies.delete('meilisearch_token', { path: '/' });
+    }
+  }
+
+  if (!meilisearchToken) {
+    try {
+      const tokenResponse = await pb.send("/search/token", { method: "GET", fetch: event.fetch });
+      meilisearchToken = tokenResponse.token
+      event.cookies.set('meilisearch_token', `${meilisearchToken}|${currentUserId}`, {
+        path: '/',
+        httpOnly: false,
+        maxAge: 60 * 60 * 24,
+        sameSite: 'lax',
+        secure: secure
+      });
+    } catch (e) {
+      if (url.pathname.startsWith("/api")) {
+        return handleError(e)
+      }
+      throw error(500, "Failed to invalidate meilisearch token: " + e)
+    }
+
+  }
 
   // validate the user existence and if the path is acceesible
   if (!pb.authStore.record && isRouteProtected(url)) {
@@ -79,28 +113,21 @@ const auth: Handle = async ({ event, resolve }) => {
   } catch (_) {
     // clear the auth store on failed refresh
     pb.authStore.clear()
+    event.cookies.delete('meilisearch_token', { path: '/' });
   }
 
-  let meiliApiKey: string = "";
   let settings: Settings | undefined;
   let actor: Actor | undefined;
+
   if (pb.authStore.record) {
-    meiliApiKey = pb.authStore.record.token
     settings = await pb.collection('settings').getFirstListItem<Settings>(`user="${pb.authStore.record.id}"`, { requestKey: null })
     actor = await pb.collection("activitypub_actors").getFirstListItem(`isLocal=1&&user='${pb.authStore.record.id}'`)
-  } else {
-    if (!publicMeilisearchKey) {
-      const response = await pb.send("/public/search/token", { method: "GET", fetch: event.fetch });
-      publicMeilisearchKey = response.token;
-    }
-
-    meiliApiKey = publicMeilisearchKey!;
   }
   const meiliHost = env.MEILI_URL;
   if (!meiliHost) {
     throw error(500, "Missing MEILI_URL");
   }
-  const ms = new MeiliSearch({ host: meiliHost, apiKey: meiliApiKey });
+  const ms = new MeiliSearch({ host: meiliHost, apiKey: meilisearchToken });
 
   event.locals.ms = ms
   event.locals.pb = pb
@@ -124,12 +151,11 @@ const auth: Handle = async ({ event, resolve }) => {
   const response = await resolve(event)
 
   // send back the default 'pb_auth' cookie to the client with the latest store state
-  const secure = event.url.protocol === "https:"
+  const pbCookie = pb.authStore.exportToCookie({ httpOnly: false, secure: secure, sameSite: "Lax" });
+  if (pbCookie) {
+    response.headers.append('set-cookie', pbCookie);
+  }
 
-  response.headers.set(
-    'set-cookie',
-    pb.authStore.exportToCookie({ httpOnly: false, secure: secure, sameSite: "Lax" })
-  )
 
   return response
 }
