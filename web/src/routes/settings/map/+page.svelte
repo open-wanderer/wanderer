@@ -23,8 +23,8 @@
     let settings = $derived(page.data.settings);
 
     let allowAutoGeolocate = $state(
-        page.data.settings.behavior?.allowAutoGeolocate ?? false
-    )
+        page.data.settings.behavior?.allowAutoGeolocate ?? false,
+    );
 
     async function handleAllowAutoGeolocateChange() {
         if (!settings) {
@@ -33,7 +33,7 @@
 
         try {
             if (!settings.behavior) {
-                settings.behavior = { allowAutoGeolocate: allowAutoGeolocate};
+                settings.behavior = { allowAutoGeolocate: allowAutoGeolocate };
             } else {
                 settings.behavior.allowAutoGeolocate = allowAutoGeolocate;
             }
@@ -166,12 +166,18 @@
                     ></Search>
                 </div>
             {/if}
-            <div 
-                class="mt-3 grid gap-4"
-                style="grid-template-columns: 1fr min-content ;">
-            <p>{$_("allowAutoGeolocate")}</p>
-            <div><Toggle bind:value={allowAutoGeolocate} onchange={handleAllowAutoGeolocateChange}></Toggle></div>
-        </div>
+            <div
+                class="mt-4 grid gap-4"
+                style="grid-template-columns: 1fr min-content ;"
+            >
+                <p>{$_("allow-auto-geolocate")}</p>
+                <div>
+                    <Toggle
+                        bind:value={allowAutoGeolocate}
+                        onchange={handleAllowAutoGeolocateChange}
+                    ></Toggle>
+                </div>
+            </div>
         </div>
         <div>
             <h4 class="text-xl font-medium mb-2">{$_("tilesets")}</h4>
