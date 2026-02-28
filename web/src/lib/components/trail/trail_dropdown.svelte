@@ -186,7 +186,7 @@
             ...(allowPublish()
                 ? [
                       {
-                          text: `${$_("visibilty")}: ${majorityOfSelectedTrailsArePublic() ? $_("private") : $_("public")}`,
+                          text: `${majorityOfSelectedTrailsArePublic() ? $_("set-private") : $_("set-public")}`,
                           value: "publish",
                           icon: majorityOfSelectedTrailsArePublic()
                               ? "lock"
