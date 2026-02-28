@@ -186,11 +186,12 @@
                                         >{token.last_used
                                             ? new Date(
                                                   token.last_used,
-                                              ).toLocaleDateString(undefined, {
-                                                  month: "long",
+                                              ).toLocaleTimeString(undefined, {
+                                                  month: "2-digit",
                                                   day: "2-digit",
                                                   year: "numeric",
-                                                  timeZone: "UTC",
+                                                  hour: "2-digit",
+                                                  minute: "2-digit",
                                               })
                                             : "-"}</td
                                     >

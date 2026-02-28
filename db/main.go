@@ -1044,15 +1044,17 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 		)
 
 		if err != nil {
-			return apis.NewNotFoundError("Invalid or revoked key", nil)
+			return apis.NewNotFoundError("Invalid or revoked API token", nil)
 		}
 		if !tokenRecord.GetDateTime("expiration").IsZero() &&
 			tokenRecord.GetDateTime("expiration").Time().Before(time.Now()) {
 			return apis.NewBadRequestError("Key has expired", nil)
 		}
 
-		tokenRecord.Set("last_used_at", time.Now())
-		e.App.Save(tokenRecord)
+		tokenRecord.Set("last_used", time.Now())
+		if err := e.App.Save(tokenRecord); err != nil {
+			return err
+		}
 
 		userRecord, _ := e.App.FindRecordById("users", tokenRecord.GetString("user"))
 		token, err := userRecord.NewAuthToken()
