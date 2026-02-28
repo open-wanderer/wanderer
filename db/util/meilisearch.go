@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
@@ -456,27 +456,37 @@ func UpdateListShares(listId string, shares []string, client meilisearch.Service
 	return nil
 }
 
-func GenerateMeilisearchToken(rules map[string]interface{}, client meilisearch.ServiceManager) (resp string, err error) {
-	apiKeyUid := ""
-	apiKey := ""
+func GenerateMeilisearchToken(rules map[string]interface{}, client meilisearch.ServiceManager) (string, error) {
+	var apiKeyUid string
+	var apiKey string
 
-	if keys, err := client.GetKeys(nil); err != nil {
-		log.Fatal(err)
-	} else {
-		for _, k := range keys.Results {
-			if k.Name == "Default Search API Key" {
+	keys, err := client.GetKeys(&meilisearch.KeysQuery{Limit: 20})
+	if err != nil {
+		return "", fmt.Errorf("meilisearch connection error: %w", err)
+	}
+
+	for _, k := range keys.Results {
+		for _, action := range k.Actions {
+			if action == "search" || k.Name == "Default Search API Key" {
 				apiKeyUid = k.UID
 				apiKey = k.Key
+				break
 			}
+		}
+		if apiKey != "" {
+			break
 		}
 	}
 
-	if len(apiKey) == 0 || len(apiKeyUid) == 0 {
-		return "", errors.New("unable to locate meilisearch API key")
+	if apiKey == "" || apiKeyUid == "" {
+		return "", errors.New("unable to locate a valid search API key")
 	}
 
+	expiresAt := time.Now().Add(24 * time.Hour)
+
 	options := &meilisearch.TenantTokenOptions{
-		APIKey: apiKey,
+		APIKey:    apiKey,
+		ExpiresAt: expiresAt,
 	}
 
 	return client.GenerateTenantToken(apiKeyUid, rules, options)
