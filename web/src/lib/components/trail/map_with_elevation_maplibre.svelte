@@ -1000,4 +1000,8 @@
         padding-bottom: 2.5px;
         @apply bg-menu-item-background-focus w-3 aspect-square rounded-full;
     }
+
+    :global(.maplibregl-user-location-accuracy-circle, .maplibregl-user-location-dot) {
+        pointer-events: none;
+    }
 </style>
