@@ -54,8 +54,30 @@ const auth: Handle = async ({ event, resolve }) => {
   const pb = new PocketBase(envPub.PUBLIC_POCKETBASE_URL)
   const url = new URL(event.request.url);
 
-  // load the store data from the request cookie string
-  pb.authStore.loadFromCookie(event.request.headers.get('cookie') || '')
+  // Handle API token based auth for API requests
+  if (event.request.headers.has("Authorization") && url.pathname.startsWith("/api")) {
+    const authHeader = event.request.headers.get("Authorization") as string;
+    const apiToken = authHeader.replace("Bearer ", "");
+    if (apiToken.startsWith("wanderer_key")) {
+      try {
+        const authData = await pb.send("/auth/token", {
+          method: "POST",
+          body: JSON.stringify({
+            api_token: apiToken
+          }),
+          fetch: event.fetch,
+        })
+        pb.authStore.save(authData.token, authData.record)
+      } catch (e) {
+        throw error(500, "Failed to verify API token " + e)
+      }
+
+    }
+  } else {
+    // load the store data from the request cookie string
+    pb.authStore.loadFromCookie(event.request.headers.get('cookie') || '')
+  }
+
 
   const secure = event.url.protocol === "https:"
   let meiliCookie = event.cookies.get('meilisearch_token');

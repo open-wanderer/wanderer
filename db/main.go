@@ -136,6 +136,8 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordsListRequest("feed", "profile_feed").BindFunc(listFeedHandler())
 
+	app.OnRecordCreate("api_tokens").BindFunc(createAPITokenHandler())
+
 	app.OnRecordCreateRequest().BindFunc(sanitizeHTML())
 	app.OnRecordUpdateRequest().BindFunc(sanitizeHTML())
 
@@ -955,6 +957,22 @@ func listFeedHandler() func(e *core.RecordsListRequestEvent) error {
 	}
 }
 
+func createAPITokenHandler() func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		rawToken := "wanderer_key_" + security.RandomString(32)
+
+		hashedKey := security.SHA256(rawToken)
+
+		e.Record.Set("token", hashedKey)
+
+		// Temporarily store rawToken so we can display it once to the user
+		e.Record.WithCustomData(true)
+		e.Record.Set("rawToken", rawToken)
+
+		return e.Next()
+	}
+}
+
 func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.ServeEvent) error {
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
@@ -1007,6 +1025,44 @@ func onBootstrapHandler() func(se *core.BootstrapEvent) error {
 func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/health", func(e *core.RequestEvent) error {
 		return e.JSON(http.StatusOK, map[string]string{"status": "ok"})
+	})
+
+	se.Router.POST("/auth/token", func(e *core.RequestEvent) error {
+		var data struct {
+			APIToken string `json:"api_token"`
+		}
+		if err := e.BindBody(&data); err != nil {
+			return apis.NewBadRequestError("Failed to read request data", err)
+		}
+
+		hashedAPIToken := security.SHA256(data.APIToken)
+
+		tokenRecord, err := e.App.FindFirstRecordByFilter(
+			"api_tokens",
+			"token = {:hash}",
+			map[string]any{"hash": hashedAPIToken},
+		)
+
+		if err != nil {
+			return apis.NewNotFoundError("Invalid or revoked key", nil)
+		}
+		if !tokenRecord.GetDateTime("expiration").IsZero() &&
+			tokenRecord.GetDateTime("expiration").Time().Before(time.Now()) {
+			return apis.NewBadRequestError("Key has expired", nil)
+		}
+
+		tokenRecord.Set("last_used_at", time.Now())
+		e.App.Save(tokenRecord)
+
+		userRecord, _ := e.App.FindRecordById("users", tokenRecord.GetString("user"))
+		token, err := userRecord.NewAuthToken()
+		if err != nil {
+			return err
+		}
+		return e.JSON(http.StatusOK, map[string]any{
+			"token":  token,
+			"record": userRecord,
+		})
 	})
 
 	se.Router.GET("/search/token", func(e *core.RequestEvent) error {
