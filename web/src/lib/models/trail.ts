@@ -1,3 +1,4 @@
+import cryptoRandomString from "crypto-random-string";
 import type { Actor } from "./activitypub/actor";
 import type { Category } from "./category";
 import type { Comment } from "./comment";
@@ -6,7 +7,7 @@ import type { SummitLog } from "./summit_log";
 import type { Tag } from "./tag";
 import type { TrailLike } from "./trail_like";
 import type { TrailShare } from "./trail_share";
-import type { Waypoint } from "./waypoint";
+import { Waypoint } from "./waypoint";
 
 class Trail {
     id?: string;
@@ -64,12 +65,13 @@ class Trail {
             thumbnail?: number,
             photos?: string[],
             gpx?: string,
+            gpx_data?: string,
             category?: Category,
             waypoints?: Waypoint[],
             summit_logs?: SummitLog[],
             comments?: Comment[],
             shares?: TrailShare[],
-            tags?: string[],
+            tags?: Tag[],
             description?: string
             created?: string
         }
@@ -89,7 +91,7 @@ class Trail {
         this.lon = params?.lon;
         this.thumbnail = params?.thumbnail ?? 0;
         this.photos = params?.photos ?? [];
-        this.tags = []
+        this.tags = [];
         this.gpx = params?.gpx;
         this.like_count = 0
         this.expand = {
@@ -97,11 +99,38 @@ class Trail {
             waypoints_via_trail: params?.waypoints ?? [],
             summit_logs_via_trail: params?.summit_logs ?? [],
             comments_via_trail: params?.comments ?? [],
-            trail_share_via_trail: params?.shares ?? []
+            trail_share_via_trail: params?.shares ?? [],
+            gpx_data: params?.gpx_data,
+            tags: params?.tags
         }
         this.description = params?.description ?? "";
         this.created = params?.created;
         this.author = "000000000000000"
+    }
+
+    static from(orig: Trail): Trail {
+        return new Trail(orig.name, {
+            date: orig.date,
+            description: orig.description,
+            difficulty: orig.difficulty,
+            distance: orig.distance,
+            duration: orig.duration,
+            elevation_gain: orig.elevation_gain,
+            elevation_loss: orig.elevation_loss,
+            lat: orig.lat,
+            lon: orig.lon,
+            location: orig.location,
+            public: orig.public,
+            tags: orig.expand?.tags,
+            category: orig.expand?.category,
+            gpx_data: orig.expand?.gpx_data,
+            waypoints: orig.expand?.waypoints_via_trail?.map(wp => new Waypoint(wp.lat, wp.lon, {
+                id: cryptoRandomString({ length: 15 }),
+                description: wp.description,
+                icon: wp.icon,
+                name: wp.name,
+            })),
+        })
     }
 }
 

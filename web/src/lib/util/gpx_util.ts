@@ -104,6 +104,10 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
         author: { name: trail.author ?? "", email: user?.email ?? "" }
     }
 
+    if (gpx.trk && gpx.trk.length > 0) {
+        gpx.trk[0].name = trail.name
+    }
+
     if (!gpx.wpt) {
         gpx.wpt = [];
     }

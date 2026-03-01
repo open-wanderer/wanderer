@@ -24,7 +24,7 @@
     let dropdownElement: HTMLUListElement | undefined = $state();
     let dropdownToggleElement: HTMLDivElement;
 
-    export async function toggleMenu(e: MouseEvent) {        
+    export async function toggleMenu(e: MouseEvent) {
         e.stopPropagation();
         e.preventDefault();
 
@@ -81,7 +81,10 @@
         isOpen = false;
     }
 
-    function handleItemClick(e: MouseEvent, item: { text: string; value: any }) {
+    function handleItemClick(
+        e: MouseEvent,
+        item: { text: string; value: any },
+    ) {
         e.preventDefault();
         e.stopPropagation();
         onchange?.(item);
