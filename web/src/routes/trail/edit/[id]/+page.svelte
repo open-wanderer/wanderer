@@ -1504,6 +1504,7 @@
                 waypoints={$formData.expand?.waypoints_via_trail}
                 drawing={drawingActive}
                 showTerrain={true}
+                autoGeolocateOnDrawing={page.params.id === "new"}
                 onmarkerdragend={moveMarker}
                 activeTrail={0}
                 bind:map
