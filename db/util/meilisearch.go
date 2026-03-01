@@ -346,11 +346,11 @@ func IndexTrails(app core.App, trails []*core.Record, client meilisearch.Service
 func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meilisearch.ServiceManager) error {
 	errs := app.ExpandRecord(r, []string{"tags"}, nil)
 	if len(errs) > 0 {
-		return fmt.Errorf("failed to expand tags: %v", errs)
+		return fmt.Errorf("meilisearch update trail: failed to expand tags: %v", errs)
 	}
 	errs = app.ExpandRecord(r, []string{"category"}, nil)
 	if len(errs) > 0 {
-		return fmt.Errorf("failed to expand category: %v", errs)
+		return fmt.Errorf("meilisearch update trail: failed to expand category: %v", errs)
 	}
 
 	doc, err := documentFromTrailRecord(app, r, author, false)
@@ -359,8 +359,16 @@ func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meili
 	}
 	documents := []map[string]interface{}{doc}
 
-	if _, err := client.Index("trails").UpdateDocuments(documents); err != nil {
+	task, err := client.Index("trails").UpdateDocuments(documents)
+
+	if err != nil {
 		return err
+	}
+
+	interval := 500 * time.Millisecond
+	_, err = client.WaitForTask(task.TaskUID, interval)
+	if err != nil {
+		return fmt.Errorf("meilisearch update trail: error waiting for task completion: %v", err)
 	}
 
 	return nil
