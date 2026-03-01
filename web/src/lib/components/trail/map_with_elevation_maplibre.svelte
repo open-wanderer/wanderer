@@ -5,7 +5,6 @@
     import type { Trail } from "$lib/models/trail";
     import type { Waypoint } from "$lib/models/waypoint";
     import { theme } from "$lib/stores/theme_store";
-    import { fetchGPX } from "$lib/stores/trail_store";
     import { findStartAndEndPoints } from "$lib/util/geojson_util";
     import {
         createMarkerFromWaypoint,
@@ -69,6 +68,7 @@
             trail: Trail,
         ) => void;
         oninit?: (map: M.Map) => void;
+        autoGeolocateOnDrawing?: boolean;
     }
 
     let {
@@ -99,6 +99,7 @@
         onclick,
         onUnclusteredClick,
         oninit,
+        autoGeolocateOnDrawing = false,
     }: Props = $props();
 
     let mapContainer: HTMLDivElement;
@@ -592,6 +593,10 @@
         if (trails[activeTrail]) {
             removeStartEndMarkers(trails[activeTrail].id);
         }
+
+        if (autoGeolocateOnDrawing) {
+            geolocate();
+        }
     }
 
     function stopDrawing() {
@@ -731,6 +736,8 @@
         }
     }
 
+    let geolocateControl : M.GeolocateControl;
+
     onMount(async () => {
         const initialState = {
             lng: 0,
@@ -800,8 +807,7 @@
             "top-left",
         );
 
-        map.addControl(
-            new M.GeolocateControl({
+        geolocateControl = new M.GeolocateControl({
                 positionOptions: {
                     enableHighAccuracy: true,
                 },
@@ -809,7 +815,8 @@
                     animate: fitBounds == "animate",
                 },
                 trackUserLocation: true,
-            }));
+            });
+        map.addControl(geolocateControl);
 
         if (showStyleSwitcher) {
             map.addControl(switcherControl);
@@ -901,6 +908,17 @@
         showWaypoints();
     });
 
+    function geolocate() {
+        if (!page.data.settings?.behavior) return;
+
+        if (page.data.settings.behavior.allowAutoGeolocate === true) {
+            if (geolocateControl._watchState === 'OFF') {
+                geolocateControl.options.trackUserLocation = true;
+                geolocateControl.trigger();
+            }
+        }
+    }
+
     onDestroy(() => {
         map?.remove();
     });
@@ -981,5 +999,9 @@
         line-height: 0;
         padding-bottom: 2.5px;
         @apply bg-menu-item-background-focus w-3 aspect-square rounded-full;
+    }
+
+    :global(.maplibregl-user-location-accuracy-circle, .maplibregl-user-location-dot) {
+        pointer-events: none;
     }
 </style>

@@ -4,6 +4,7 @@
         type Notification,
     } from "$lib/models/notification";
     import { formatTimeSince } from "$lib/util/format_util";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     interface Props {
@@ -16,11 +17,15 @@
 
     let { notification, onclick }: Props = $props();
 
-    const avatarSrc = notification.expand?.author.icon
-        ? notification.expand.author.icon
-        : `https://api.dicebear.com/7.x/initials/svg?seed=${notification.expand?.author.preferred_username ?? ""}&backgroundType=gradientLinear`;
+    const avatarSrc = untrack(() =>
+        notification.expand?.author.icon
+            ? notification.expand.author.icon
+            : `https://api.dicebear.com/7.x/initials/svg?seed=${notification.expand?.author.preferred_username ?? ""}&backgroundType=gradientLinear`,
+    );
 
-    const timeSince = formatTimeSince(new Date(notification.created ?? ""));
+    const timeSince = untrack(() =>
+        formatTimeSince(new Date(notification.created ?? "")),
+    );
 
     function getTitle(n: Notification) {
         switch (n.type) {

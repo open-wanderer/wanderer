@@ -1,31 +1,32 @@
 <script lang="ts">
-    import { page } from "$app/state";
     import Button from "$lib/components/base/button.svelte";
     import Editor from "$lib/components/base/editor.svelte";
     import type { SelectItem } from "$lib/components/base/select.svelte";
     import Select from "$lib/components/base/select.svelte";
-    import Textarea from "$lib/components/base/textarea.svelte";
     import type { Category } from "$lib/models/category.js";
     import { settings_update } from "$lib/stores/settings_store";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
     import { currentUser, users_update } from "$lib/stores/user_store";
     import { getFileURL } from "$lib/util/file_util";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     let { data } = $props();
 
-    let settings = $state(data.settings)
+    let settings = $state(untrack(() => data.settings));
 
     let selectedCategory = $state(
-        data.settings?.category || data.categories[0].id,
+        untrack(() => data.settings?.category || data.categories[0].id),
     );
 
-    let bio = $state(data.settings?.bio ?? "");
+    let bio = $state(untrack(() => data.settings?.bio ?? ""));
 
-    const categoryItems: SelectItem[] = data.categories.map((c: Category) => ({
-        text: $_(c.name),
-        value: c.id,
-    }));
+    let categoryItems: SelectItem[] = $derived.by(() =>
+        data.categories.map((c: Category) => ({
+            text: $_(c.name),
+            value: c.id,
+        })),
+    );
 
     function openFileBrowser() {
         document.getElementById("avatarInput")!.click();
