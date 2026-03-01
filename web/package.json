@@ -65,7 +65,7 @@
     "json-diff-ts": "^4.8.2",
     "jspdf": "^4.2.0",
     "jszip": "^3.10.1",
-    "maplibre-gl": "^4.7.1",
+    "maplibre-gl": "^5.19.0",
     "marked": "^16.2.0",
     "meilisearch": "^0.55.0",
     "ngeohash": "^0.6.3",
