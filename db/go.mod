@@ -1,8 +1,6 @@
 module pocketbase
 
-go 1.24.0
-
-toolchain go1.24.1
+go 1.25.0
 
 require (
 	github.com/go-ap/jsonld v0.0.0-20250905102310-8480b0fe24d9
