@@ -10,6 +10,8 @@ updates:
         update-types:
           - minor
           - patch
+    cooldown:
+      default-days: 7
   - package-ecosystem: github-actions
     open-pull-requests-limit: 5
     directory: "/"
@@ -20,6 +22,8 @@ updates:
         update-types:
           - minor
           - patch
+    cooldown:
+      default-days: 7
   - package-ecosystem: npm
     open-pull-requests-limit: 5
     directory: "/web"
@@ -30,6 +34,8 @@ updates:
         update-types:
           - minor
           - patch
+    cooldown:
+      default-days: 7
   - package-ecosystem: npm
     open-pull-requests-limit: 5
     directory: "/docs"
@@ -40,3 +46,38 @@ updates:
         update-types:
           - minor
           - patch
+    cooldown:
+      default-days: 7
+  - package-ecosystem: "docker"
+    directory: "/docs"
+    schedule:
+      interval: "monthly"
+    groups:
+      docker-docs-backward-compatible:
+        update-types:
+          - minor
+          - patch
+    cooldown:
+      default-days: 7
+  - package-ecosystem: "docker"
+    directory: "/search"
+    schedule:
+      interval: "monthly"
+    groups:
+      docker-search-backward-compatible:
+        update-types:
+          - minor
+          - patch
+    cooldown:
+      default-days: 7
+  - package-ecosystem: "docker"
+    directory: "/web"
+    schedule:
+      interval: "monthly"
+    groups:
+      docker-web-backward-compatible:
+        update-types:
+          - minor
+          - patch
+    cooldown:
+      default-days: 7
