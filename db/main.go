@@ -1294,9 +1294,7 @@ func bootstrapData(app core.App, client meilisearch.ServiceManager) error {
 	if err := bootstrapCategories(app); err != nil {
 		return err
 	}
-	if err := bootstrapMeilisearchConfig(client); err != nil {
-		return err
-	}
+	bootstrapMeilisearchConfig(client)
 	go func() {
 		if err := bootstrapMeilisearchDocuments(app, client); err != nil {
 			warning := fmt.Sprintf("Error bootstrapping meilisearch documents: %v", err)
