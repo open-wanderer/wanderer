@@ -238,7 +238,7 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
 
 }
 
-export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: File[], gpx?: File | Blob | null) {
+export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: File[], gpx?: File | Blob | null, exclude?: (keyof Trail)[]) {
     newTrail.author = oldTrail.author
 
     const waypointUpdates = compareObjectArrays<Waypoint>(oldTrail.expand?.waypoints_via_trail ?? [], newTrail.expand?.waypoints_via_trail ?? []);
@@ -295,7 +295,7 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
         newTrail.tags = newTrail.tags.filter(t => t != tag.id);
     }
 
-    const formData = objectToFormData(newTrail, ["expand"])
+    const formData = objectToFormData(newTrail, ["expand", ...(exclude ?? [])])
 
     if (gpx) {
         formData.append("gpx", gpx);

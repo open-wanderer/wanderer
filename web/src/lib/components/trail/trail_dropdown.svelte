@@ -1,28 +1,29 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
+    import { page } from "$app/state";
     import type { List } from "$lib/models/list";
     import type { Trail } from "$lib/models/trail";
+    import { categories } from "$lib/stores/category_store.js";
     import {
         lists_add_trail,
         lists_index,
         lists_remove_trail,
     } from "$lib/stores/list_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { trails_delete } from "$lib/stores/trail_store";
+    import { trails_delete, trails_update } from "$lib/stores/trail_store";
     import { currentUser } from "$lib/stores/user_store";
+    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
     import { getFileURL, saveAs } from "$lib/util/file_util";
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
     import JSZip from "jszip";
+    import type { Snippet } from "svelte";
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
     import ConfirmModal from "../confirm_modal.svelte";
     import ListSearchModal from "../list/list_search_modal.svelte";
     import TrailExportModal from "./trail_export_modal.svelte";
     import TrailShareModal from "./trail_share_modal.svelte";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
-    import type { Snippet } from "svelte";
-    import { page } from "$app/state";
 
     interface Props {
         trails?: Set<Trail> | undefined;
@@ -30,9 +31,10 @@
         toggle?: Snippet<[any]>;
         onDelete?: () => void;
         onShare?: () => void;
+        onUpdate?: () => void;
     }
 
-    let { trails, mode, toggle, onDelete, onShare }: Props = $props();
+    let { trails, mode, toggle, onDelete, onShare, onUpdate }: Props = $props();
 
     let confirmModal: ConfirmModal;
     let listSelectModal: ListSearchModal;
@@ -40,6 +42,8 @@
     let trailShareModal: TrailShareModal;
 
     let lists: List[] = $state([]);
+
+    let loading: boolean = $state(false);
 
     function allowEdit(): boolean {
         return (
@@ -51,6 +55,61 @@
                     (s) => s.permission == "edit",
                 ))!
         );
+    }
+
+    function majorityOfSelectedTrailsArePublic(): boolean {
+        if (trails === undefined || trails.size === 0) return false;
+
+        if (!Boolean($currentUser)) return false;
+
+        let publicCount = 0;
+
+        for (const cTrail of trails) {
+            if (cTrail.expand?.author === undefined) return false;
+            if (
+                cTrail.expand!.author!.id !== $currentUser?.actor &&
+                !cTrail.expand?.trail_share_via_trail?.some(
+                    (s) => s.permission == "edit",
+                )
+            ) {
+                return false;
+            }
+
+            if (cTrail.public) {
+                publicCount += 1;
+            }
+        }
+        return publicCount >= trails.size / 2;
+    }
+
+    function allowCopy(): boolean {
+        if ((trails?.size ?? 0) > 1) return false;
+
+        return !isMultiselectMode();
+    }
+
+    function allowPublish(): boolean {
+        if (mode !== "multi-select") return false;
+
+        if (trails === undefined || trails.size === 0) return false;
+
+        if (!Boolean($currentUser)) {
+            return false;
+        }
+
+        for (const cTrail of trails) {
+            if (cTrail.expand?.author === undefined) return false;
+            if (
+                cTrail.expand!.author!.id !== $currentUser?.actor &&
+                !cTrail.expand?.trail_share_via_trail?.some(
+                    (s) => s.permission == "edit",
+                )
+            ) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     function dropdownItems(): DropdownItem[] {
@@ -71,7 +130,13 @@
                   ]
                 : []),
             ...(!isMultiselectMode()
-                ? [{ text: $_("directions"), value: "direction", icon: "car" }]
+                ? [
+                      {
+                          text: $_("directions"),
+                          value: "direction",
+                          icon: "car",
+                      },
+                  ]
                 : []),
             ...(canExport()
                 ? [
@@ -83,25 +148,69 @@
                   ]
                 : []),
             ...(!isMultiselectMode()
-                ? [{ text: $_("print"), value: "print", icon: "print" }]
+                ? [
+                      {
+                          text: $_("print"),
+                          value: "print",
+                          icon: "print",
+                      },
+                  ]
                 : []),
             ...(!isFromCurrentUser()
                 ? []
                 : [
                       {
                           text: $_("add-to-list"),
-                          value: "list",
+                          value: "print",
                           icon: "bookmark",
                       },
                   ]),
             ...(isMultiselectMode() || !isFromCurrentUser()
                 ? []
-                : [{ text: $_("share"), value: "share", icon: "share" }]),
+                : [
+                      {
+                          text: $_("share"),
+                          value: "share",
+                          icon: "share",
+                      },
+                  ]),
+            ...(allowCopy()
+                ? [
+                      {
+                          text: $_("duplicate"),
+                          value: "copy",
+                          icon: "copy",
+                      },
+                  ]
+                : []),
+            ...(allowPublish()
+                ? [
+                      {
+                          text: `${majorityOfSelectedTrailsArePublic() ? $_("set-private") : $_("set-public")}`,
+                          value: "publish",
+                          icon: majorityOfSelectedTrailsArePublic()
+                              ? "lock"
+                              : "globe",
+                      },
+                  ]
+                : []),
             ...(allowEdit()
-                ? [{ text: $_("edit"), value: "edit", icon: "pen" }]
+                ? [
+                      {
+                          text: $_("edit"),
+                          value: "edit",
+                          icon: "pen",
+                      },
+                  ]
                 : []),
             ...(allowDelete()
-                ? [{ text: $_("delete"), value: "delete", icon: "trash" }]
+                ? [
+                      {
+                          text: $_("delete"),
+                          value: "delete",
+                          icon: "trash",
+                      },
+                  ]
                 : []),
         ];
     }
@@ -174,19 +283,20 @@
             return;
         }
 
-        const handle = page.params.handle ?? handleFromRecordWithIRI(trail())
+        const handle = page.params.handle ?? handleFromRecordWithIRI(trail());
 
-        if (item.value == "show") {
+        const ddVal = item.value as string;
+
+        if (ddVal == "show") {
             if (hasTrail()) {
-                const url = mode == "overview" || mode == "multi-select"
+                const url =
+                    mode == "overview" || mode == "multi-select"
                         ? `/map/trail/${handle}/${trailId()}`
-                        : `/trail/view/${handle}/${trailId()}`
-                
-                goto(
-                    url + '?' + page.url.searchParams
-                );
+                        : `/trail/view/${handle}/${trailId()}`;
+
+                goto(url + "?" + page.url.searchParams);
             }
-        } else if (item.value == "list") {
+        } else if (ddVal == "list") {
             lists = (
                 await lists_index(
                     { q: "", author: $currentUser?.actor ?? "" },
@@ -195,7 +305,7 @@
                 )
             ).items;
             listSelectModal.openModal();
-        } else if (item.value == "direction") {
+        } else if (ddVal == "direction") {
             if (hasTrail()) {
                 window
                     .open(
@@ -204,21 +314,70 @@
                     )
                     ?.focus();
             }
-        } else if (item.value == "print") {
+        } else if (ddVal == "print") {
             if (hasTrail()) {
-                goto(`/map/trail/${handle}/${trailId()}/print?${page.url.searchParams}`);
+                goto(
+                    `/map/trail/${handle}/${trailId()}/print?${page.url.searchParams}`,
+                );
             }
-        } else if (item.value == "share") {
+        } else if (ddVal == "share") {
             trailShareModal.openModal();
-        } else if (item.value == "download") {
+        } else if (ddVal == "download") {
             trailExportModal.openModal();
-        } else if (item.value == "edit") {
+        } else if (ddVal == "edit") {
             if (hasTrail()) {
                 goto(`/trail/edit/${trailId()}`);
             }
-        } else if (item.value == "delete") {
+        } else if (ddVal == "copy") {
+            if (hasTrail()) {
+                goto("/trail/edit/new?orig=" + trail()?.id);
+            }
+        } else if (ddVal == "publish") {
+            updateTrailsVisibility();
+        } else if (ddVal == "delete") {
             confirmModal.openModal();
         }
+    }
+
+    async function updateTrailsVisibility() {
+        const newVisibility = !majorityOfSelectedTrailsArePublic();
+
+        loading = true;
+        for (const cTrail of trails ?? []) {
+            if (!cTrail) continue;
+
+            if (!cTrail.expand?.author?.id) continue;
+
+            const origTrail: Trail = {
+                ...cTrail,
+                author: cTrail.expand!.author!.id,
+            };
+            const updatedTrail: Trail = {
+                ...origTrail,
+                public: newVisibility,
+            };
+
+            try {
+                await trails_update(
+                    origTrail,
+                    updatedTrail,
+                    undefined,
+                    undefined,
+                    ["tags", "category"],
+                );
+            } catch (e) {
+                console.error(e);
+
+                show_toast({
+                    type: "error",
+                    icon: "close",
+                    text: `${$_("error-saving-trail")}: ${cTrail.name}`,
+                });
+            }
+        }
+
+        loading = false;
+        onUpdate?.();
     }
 
     async function exportTrails(exportSettings: {
@@ -308,9 +467,12 @@
 
     async function deleteTrails() {
         if (hasTrail()) {
+            loading = true;
+
             for (const dTrail of trails!) {
                 await doDeleteTrail(dTrail);
             }
+            loading = false;
 
             onDelete?.();
         }
@@ -407,7 +569,11 @@
     {#snippet children({ toggleMenu: openDropdown })}
         {#if toggle}{@render toggle({
                 toggleMenu: openDropdown,
-            })}{:else if mode == "multi-select"}
+            })}
+        {:else if loading}
+            <div class:w-16={isMultiselectMode()}></div>
+            <div class="spinner light:spinner-dark"></div>
+        {:else if mode == "multi-select"}
             <button
                 aria-label="Open dropdown"
                 class="btn-primary shrink-0 font-medium!"
