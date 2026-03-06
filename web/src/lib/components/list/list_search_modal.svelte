@@ -5,6 +5,7 @@
     import type { Trail } from "$lib/models/trail";
     import { trail } from "$lib/stores/trail_store";
     import { getFileURL } from "$lib/util/file_util";
+    import { formatHTMLAsText } from "$lib/util/format_util";
     import { _ } from "svelte-i18n";
     import Modal from "../base/modal.svelte";
     import Search, { type SearchItem } from "../base/search.svelte";
@@ -25,6 +26,7 @@
     let searchItems: SearchItem[] = $state([]);
     let query = $state("");
     let listsVersion = $state(0);
+    const LIST_DESCRIPTION_PREVIEW_LENGTH = 100;
 
     export function openModal() {
         searchItems = [];
@@ -145,7 +147,7 @@
             })
             .map((list) => ({
                 text: list.name,
-                description: list.description,
+                description: getListDescriptionPreview(list.description),
                 value: list,
                 icon: list.avatar
                     ? getFileURL(list, list.avatar)
@@ -153,6 +155,17 @@
                       ? emptyStateTrailLight
                       : emptyStateTrailDark,
             }));
+    }
+
+    function getListDescriptionPreview(description?: string) {
+        const text = formatHTMLAsText(description);
+        if (!text.length) {
+            return undefined;
+        }
+
+        return text.length > LIST_DESCRIPTION_PREVIEW_LENGTH
+            ? `${text.substring(0, LIST_DESCRIPTION_PREVIEW_LENGTH)}...`
+            : text;
     }
 
     const children_render = $derived(children);
