@@ -308,7 +308,7 @@ func updateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 func deleteTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
-		task, err := client.Index("trails").DeleteDocument(record.Id)
+		task, err := client.Index("trails").DeleteDocument(record.Id, nil)
 		if err != nil {
 			return err
 		}
@@ -684,7 +684,7 @@ func updateListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 func deleteListHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
-		_, err := client.Index("lists").DeleteDocument(record.Id)
+		_, err := client.Index("lists").DeleteDocument(record.Id, nil)
 		if err != nil {
 			return err
 		}
@@ -1388,7 +1388,7 @@ func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManag
 	var page int64 = 0
 
 	// Clear index before re-indexing
-	if _, err := client.Index("trails").DeleteAllDocuments(); err != nil {
+	if _, err := client.Index("trails").DeleteAllDocuments(nil); err != nil {
 		return err
 	}
 
@@ -1414,7 +1414,7 @@ func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManag
 	}
 
 	// --- Lists ---
-	if _, err := client.Index("lists").DeleteAllDocuments(); err != nil {
+	if _, err := client.Index("lists").DeleteAllDocuments(nil); err != nil {
 		return err
 	}
 
