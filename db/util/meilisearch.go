@@ -246,7 +246,7 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	return document, nil
 }
 
-func documentFromRemoteRecord(r *core.Record, index string) (document map[string]interface{}, err error) {
+func documentFromRemoteRecord(r *core.Record, index string) (map[string]interface{}, error) {
 	client := &http.Client{}
 
 	if r.GetString("iri") == "" {
