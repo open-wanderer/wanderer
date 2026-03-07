@@ -295,10 +295,16 @@ func documentFromRemoteRecord(r *core.Record, index string) (document map[string
 		return nil, fmt.Errorf("no documents in result set")
 	}
 
-	document, ok := searchResponse.Hits[0].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected document format")
+	var document map[string]any
+	documentByteData, err := json.Marshal(searchResponse.Hits[0])
+	if err != nil {
+		return nil, err
 	}
+
+	if err := json.Unmarshal(documentByteData, &document); err != nil {
+		return nil, err
+	}
+
 	return document, nil
 }
 
@@ -337,7 +343,7 @@ func IndexTrails(app core.App, trails []*core.Record, client meilisearch.Service
 		documents[i] = doc
 	}
 
-	if _, err := client.Index("trails").AddDocuments(documents); err != nil {
+	if _, err := client.Index("trails").AddDocuments(documents, nil); err != nil {
 		return err
 	}
 
@@ -360,7 +366,7 @@ func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meili
 	}
 	documents := []map[string]interface{}{doc}
 
-	task, err := client.Index("trails").UpdateDocuments(documents)
+	task, err := client.Index("trails").UpdateDocuments(documents, nil)
 
 	if err != nil {
 		return err
@@ -382,7 +388,7 @@ func UpdateTrailShares(trailId string, shares []string, client meilisearch.Servi
 			"shares": shares,
 		},
 	}
-	if _, err := client.Index("trails").UpdateDocuments(documents); err != nil {
+	if _, err := client.Index("trails").UpdateDocuments(documents, nil); err != nil {
 		return err
 	}
 	return nil
@@ -396,7 +402,7 @@ func UpdateTrailLikes(trailId string, likes []string, client meilisearch.Service
 			"likes":      likes,
 		},
 	}
-	if _, err := client.Index("trails").UpdateDocuments(documents); err != nil {
+	if _, err := client.Index("trails").UpdateDocuments(documents, nil); err != nil {
 		return err
 	}
 	return nil
@@ -427,7 +433,7 @@ func IndexLists(app core.App, lists []*core.Record, client meilisearch.ServiceMa
 		}
 		documents[i] = doc
 	}
-	if _, err := client.Index("lists").AddDocuments(documents); err != nil {
+	if _, err := client.Index("lists").AddDocuments(documents, nil); err != nil {
 		return err
 	}
 
@@ -445,7 +451,7 @@ func UpdateList(app core.App, r *core.Record, author *core.Record, client meilis
 		return err
 	}
 
-	if _, err = client.Index("lists").UpdateDocuments(documents); err != nil {
+	if _, err = client.Index("lists").UpdateDocuments(documents, nil); err != nil {
 		return err
 	}
 
@@ -459,7 +465,7 @@ func UpdateListShares(listId string, shares []string, client meilisearch.Service
 			"shares": shares,
 		},
 	}
-	if _, err := client.Index("lists").UpdateDocuments(documents); err != nil {
+	if _, err := client.Index("lists").UpdateDocuments(documents, nil); err != nil {
 		return err
 	}
 	return nil

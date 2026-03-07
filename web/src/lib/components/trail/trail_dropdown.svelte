@@ -161,7 +161,7 @@
                 : [
                       {
                           text: $_("add-to-list"),
-                          value: "print",
+                          value: "list",
                           icon: "bookmark",
                       },
                   ]),
