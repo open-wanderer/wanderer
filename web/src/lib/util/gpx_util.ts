@@ -210,11 +210,11 @@ export async function fromFIT(fitData: ArrayBuffer) {
             trk: [
                 new Track({
                     trkseg: new TrackSegment({
-                        trkpt: data.records.flatMap(((d: { position_lat: any; position_long: any; timestamp: any; altitude: any; }) => {
+                        trkpt: data.records.flatMap(((d: { position_lat: any; position_long: any; timestamp: any; altitude: any; enhanced_altitude: any }) => {
                             return (d.position_lat && d.position_long) ? new GPXWaypoint({
                                 $: { lat: d.position_lat, lon: d.position_long },
                                 time: d.timestamp,
-                                ele: d.altitude
+                                ele: d.altitude ?? d.enhanced_altitude
 
                             }) : []
                         }))
