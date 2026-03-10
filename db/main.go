@@ -99,6 +99,7 @@ func registerMigrations(app *pocketbase.PocketBase) {
 
 func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceManager) {
 	app.OnRecordAfterCreateSuccess("users").BindFunc(createUserHandler(client))
+	app.OnRecordAfterUpdateSuccess("users").BindFunc(updateUserHandler(client))
 
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(createTrailHandler(client))
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(updateTrailHandler(client))
@@ -218,6 +219,47 @@ func createUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 		e.Record.Set("token", token)
 		if err := e.App.Save(e.Record); err != nil {
 			return err
+		}
+
+		return e.Next()
+	}
+}
+
+func updateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		actor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Record.Id)
+		if err != nil {
+			return e.Next()
+		}
+
+		icon := ""
+		origin := os.Getenv("ORIGIN")
+		if origin != "" && e.Record.GetString("avatar") != "" {
+			icon = fmt.Sprintf("%s/api/v1/files/_pb_users_auth_/%s/%s", origin, e.Record.Id, e.Record.GetString("avatar"))
+		}
+		actor.Set("icon", icon)
+		if err := e.App.Save(actor); err != nil {
+			return err
+		}
+
+		trails, err := e.App.FindRecordsByFilter("trails", "author={:author}", "", -1, 0, dbx.Params{"author": actor.Id})
+		if err != nil {
+			return err
+		}
+		if len(trails) > 0 {
+			if err := util.IndexTrails(e.App, trails, client); err != nil {
+				return err
+			}
+		}
+
+		lists, err := e.App.FindRecordsByFilter("lists", "author={:author}", "", -1, 0, dbx.Params{"author": actor.Id})
+		if err != nil {
+			return err
+		}
+		if len(lists) > 0 {
+			if err := util.IndexLists(e.App, lists, client); err != nil {
+				return err
+			}
 		}
 
 		return e.Next()
