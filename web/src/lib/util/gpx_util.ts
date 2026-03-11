@@ -213,7 +213,7 @@ export async function fromFIT(fitData: ArrayBuffer) {
                             return (d.position_lat && d.position_long) ? new GPXWaypoint({
                                 $: { lat: d.position_lat, lon: d.position_long },
                                 time: d.timestamp,
-                                ele: d.altitude
+                                ele: d.altitude ?? d.enhanced_altitude
 
                             }) : []
                         }))

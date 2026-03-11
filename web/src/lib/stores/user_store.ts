@@ -139,7 +139,17 @@ export async function users_update(user: User | { [K in keyof User]?: User[K] },
     }
 
     const model: User = await r.json();
-    currentUser.set(model);
+    const existing = get(currentUser);
+    const merged: User = {
+        ...(existing ?? {}),
+        ...model,
+    } as User;
+
+    if (!(merged as any).actor && (existing as any)?.actor) {
+        (merged as any).actor = (existing as any).actor;
+    }
+
+    currentUser.set(merged);
 }
 
 export async function users_delete(user: User) {
