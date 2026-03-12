@@ -22,9 +22,6 @@ if (UPLOAD_FOLDER) {
   const watcher = chokidar.watch(uploadPath, {
     persistent: true,
     ignoreInitial: true,
-    usePolling: true,
-    interval: 100,
-    binaryInterval: 300,
     awaitWriteFinish: {
       stabilityThreshold: 2000,
       pollInterval: 100
@@ -42,6 +39,7 @@ if (UPLOAD_FOLDER) {
       const fileBlob = new Blob([fileBuffer]);
       const formData = new FormData();
       formData.append('file', fileBlob, path.basename(filePath));
+      formData.append('ignoreDuplicates', "true");
 
       const response = await fetch(`${ORIGIN}/api/v1/trail/upload`, {
         method: 'PUT',

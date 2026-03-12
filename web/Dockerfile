@@ -16,6 +16,7 @@ WORKDIR /app/uploads
 WORKDIR /app
 
 COPY --from=build-env /app /app
+RUN apk add --no-cache curl
 COPY watcher.js /app/watcher.js
 
 CMD ["npm", "run", "start"]
