@@ -38,7 +38,7 @@
 
     let hammerheadSettingsModal: HammerheadSettingsModal;
     let hammerheadToggleValue: boolean = $state(
-        data.integration?.hammerhead?.active ?? false,
+        untrack(() => data.integration?.hammerhead?.active ?? false),
     );
 
     async function onSettingsSave(

@@ -2,6 +2,7 @@ package hammerhead
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"math"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/pocketbase/dbx"
@@ -64,7 +66,7 @@ func SyncHammerhead(app core.App) error {
 			continue
 		}
 
-		err = h.Login(hammerheadIntegration.Email, string(decryptedPassword), hammerheadIntegration.UserID)
+		err = h.Login(hammerheadIntegration.Email, string(decryptedPassword))
 		if err != nil {
 			warning := fmt.Sprintf("Hammerhead login failed: %v\n", err)
 			fmt.Print(warning)
@@ -301,7 +303,7 @@ func sendGetRequest(url string, auth *BasicAuthToken) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func (h *HammerheadApi) Login(email, password, userid string) error {
+func (h *HammerheadApi) Login(email, password string) error {
 	url := "https://dashboard.hammerhead.io/v1/auth/token"
 
 	body, err := getToken(url, &BasicAuthToken{email, password})
@@ -312,10 +314,37 @@ func (h *HammerheadApi) Login(email, password, userid string) error {
 	var data LoginResponse
 	json.Unmarshal(body, &data)
 
-	h.UserID = userid
 	h.Token = data.Token
+	derivedUserID, err := extractUserIDFromToken(data.Token)
+	if err != nil {
+		return fmt.Errorf("unable to determine Hammerhead user id automatically: %w", err)
+	}
+	h.UserID = derivedUserID
 
 	return nil
+}
+
+func extractUserIDFromToken(token string) (string, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return "", errors.New("token is not a JWT")
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("unable to decode JWT payload: %w", err)
+	}
+
+	var claims map[string]any
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return "", fmt.Errorf("unable to decode JWT claims: %w", err)
+	}
+
+	if value, ok := claims["sub"].(string); ok && value != "" {
+		return value, nil
+	}
+
+	return "", errors.New("no sub claim found in token")
 }
 
 func (h *HammerheadApi) fetchActivities(page int) ([]HammerheadActivityResponse, int, error) {

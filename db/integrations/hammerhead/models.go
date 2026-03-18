@@ -74,7 +74,6 @@ type HammerheadTour struct {
 type HammerheadIntegration struct {
 	Active    bool   `json:"active"`
 	Email     string `json:"email"`
-	UserID    string `json:"userid"`
 	Password  string `json:"password"`
 	Planned   bool   `json:"planned"`
 	Completed bool   `json:"completed"`

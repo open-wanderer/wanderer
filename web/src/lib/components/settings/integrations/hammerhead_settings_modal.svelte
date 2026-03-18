@@ -26,20 +26,21 @@
         modal.openModal();
     }
 
+    const getInitialFormValues = () => ({
+        email: integration?.hammerhead?.email ?? "",
+        password: integration?.hammerhead?.password ?? "",
+        completed: integration?.hammerhead?.completed ?? true,
+        planned: integration?.hammerhead?.planned ?? true,
+        active: integration?.hammerhead?.active ?? false,
+        after: integration?.hammerhead?.after,
+    });
+
     const {
         form,
         errors,
         data: formData,
     } = createForm({
-        initialValues: {
-            email: integration?.hammerhead?.email ?? "",
-            password: integration?.hammerhead?.password ?? "",
-            userid: integration?.hammerhead?.userid ?? "",
-            completed: integration?.hammerhead?.completed ?? true,
-            planned: integration?.hammerhead?.planned ?? true,
-            active: integration?.hammerhead?.active ?? false,
-            after: integration?.hammerhead?.after,
-        },
+        initialValues: getInitialFormValues(),
         extend: validator({
             schema: HammerheadSchema,
         }),
@@ -75,12 +76,6 @@
                 name="password"
                 type="password"
                 error={$errors.password}
-            ></TextField>
-            <TextField
-                label={$_("user-id")}
-                placeholder="1234567"
-                name="userid"
-                error={$errors.userid}
             ></TextField>
             <div class="flex flex-wrap gap-x-4">
                 <Toggle name="planned" label={$_("planned-tours", { values: { n: 2 } })}

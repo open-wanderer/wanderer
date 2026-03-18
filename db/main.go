@@ -1342,7 +1342,7 @@ func loginHammerhead(e *core.RequestEvent) (*hammerhead.HammerheadApi, error) {
 
 	k := &hammerhead.HammerheadApi{}
 
-	err = k.Login(hammerheadIntegration.Email, string(decryptedPassword), hammerheadIntegration.UserID)
+	err = k.Login(hammerheadIntegration.Email, string(decryptedPassword))
 	if err != nil {
 		return nil, apis.NewUnauthorizedError("invalid credentials", nil)
 	}

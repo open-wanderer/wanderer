@@ -26,7 +26,6 @@ export interface KomootIntegration extends BaseIntegration {
 export interface HammerheadIntegration extends BaseIntegration {
     email: string,
     password: string,
-    userid: string,
     completed: boolean,
     planned: boolean,
     after?: string

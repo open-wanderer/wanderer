@@ -23,7 +23,6 @@ const KomootSchema = z.object({
 const HammerheadSchema = z.object({
     email: z.string().email(),
     password: z.string(),
-    userid: z.string(),
     completed: z.boolean(),
     planned: z.boolean(),
     active: z.boolean(),
