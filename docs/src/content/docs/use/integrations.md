@@ -46,14 +46,9 @@ The Hammerhead integration requires your Hammerhead account details:
 
 1. Open the Hammerhead settings from the integrations menu.
 2. Enter your Hammerhead email and password.
-3. Enter your Hammerhead user ID.
-4. Choose whether you want to sync planned tours, completed tours, or both.
-5. (Optional) Set an "ignore trails before" date to avoid syncing duplicates if your Hammerhead account is already connected to other services.
-6. Save the settings and toggle the integration on. It will become active immediately after a successful login.
-
-To find your Hammerhead user ID, visit the Hammerhead dashboard, open a route or activity, and copy the user ID from the URL (example: `123456` in `https://dashboard.hammerhead.io/activities/123456.activity.xxx-xxx-xxx`).
-
-Note: This integration has only been tested with native Hammerhead accounts. SRAM accounts might work, but we have not validated them yet. Feedback is welcome.
+3. Choose whether you want to sync planned tours, completed tours, or both.
+4. (Optional) Set an "ignore trails before" date to avoid syncing duplicates if your Hammerhead account is already connected to other services.
+5. Save the settings and toggle the integration on. It will become active immediately after a successful login.
 
 ## Sync Interval
 
