@@ -3,7 +3,11 @@
     import { page } from "$app/state";
     import type { List } from "$lib/models/list";
     import type { Trail } from "$lib/models/trail";
-    import { categories } from "$lib/stores/category_store.js";
+    import {
+        integrations,
+        integrations_index,
+        uploadGpx,
+    } from "$lib/stores/integration_store";
     import {
         lists_add_trail,
         lists_index,
@@ -17,12 +21,14 @@
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
     import JSZip from "jszip";
-    import type { Snippet } from "svelte";
+    import { onMount, type Snippet } from "svelte";
     import { _ } from "svelte-i18n";
+    import { get } from "svelte/store";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
     import ConfirmModal from "../confirm_modal.svelte";
     import ListSearchModal from "../list/list_search_modal.svelte";
     import TrailExportModal from "./trail_export_modal.svelte";
+    import TrailSendModal from "./trail_send_modal.svelte";
     import TrailShareModal from "./trail_share_modal.svelte";
 
     interface Props {
