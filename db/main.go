@@ -100,6 +100,7 @@ func registerMigrations(app *pocketbase.PocketBase) {
 
 func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceManager) {
 	app.OnRecordAfterCreateSuccess("users").BindFunc(createUserHandler(client))
+	app.OnRecordAfterUpdateSuccess("users").BindFunc(updateUserHandler(client))
 
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(createTrailHandler(client))
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(updateTrailHandler(client))
@@ -136,6 +137,8 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordAfterUpdateSuccess("integrations").BindFunc(createUpdateIntegrationSuccessHandler())
 
 	app.OnRecordsListRequest("feed", "profile_feed").BindFunc(listFeedHandler())
+
+	app.OnRecordCreate("api_tokens").BindFunc(createAPITokenHandler())
 
 	app.OnRecordCreateRequest().BindFunc(sanitizeHTML())
 	app.OnRecordUpdateRequest().BindFunc(sanitizeHTML())
@@ -217,6 +220,47 @@ func createUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 		e.Record.Set("token", token)
 		if err := e.App.Save(e.Record); err != nil {
 			return err
+		}
+
+		return e.Next()
+	}
+}
+
+func updateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		actor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Record.Id)
+		if err != nil {
+			return e.Next()
+		}
+
+		icon := ""
+		origin := os.Getenv("ORIGIN")
+		if origin != "" && e.Record.GetString("avatar") != "" {
+			icon = fmt.Sprintf("%s/api/v1/files/_pb_users_auth_/%s/%s", origin, e.Record.Id, e.Record.GetString("avatar"))
+		}
+		actor.Set("icon", icon)
+		if err := e.App.Save(actor); err != nil {
+			return err
+		}
+
+		trails, err := e.App.FindRecordsByFilter("trails", "author={:author}", "", -1, 0, dbx.Params{"author": actor.Id})
+		if err != nil {
+			return err
+		}
+		if len(trails) > 0 {
+			if err := util.IndexTrails(e.App, trails, client); err != nil {
+				return err
+			}
+		}
+
+		lists, err := e.App.FindRecordsByFilter("lists", "author={:author}", "", -1, 0, dbx.Params{"author": actor.Id})
+		if err != nil {
+			return err
+		}
+		if len(lists) > 0 {
+			if err := util.IndexLists(e.App, lists, client); err != nil {
+				return err
+			}
 		}
 
 		return e.Next()
@@ -307,7 +351,7 @@ func updateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 func deleteTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
-		task, err := client.Index("trails").DeleteDocument(record.Id)
+		task, err := client.Index("trails").DeleteDocument(record.Id, nil)
 		if err != nil {
 			return err
 		}
@@ -683,7 +727,7 @@ func updateListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 func deleteListHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
-		_, err := client.Index("lists").DeleteDocument(record.Id)
+		_, err := client.Index("lists").DeleteDocument(record.Id, nil)
 		if err != nil {
 			return err
 		}
@@ -958,6 +1002,22 @@ func listFeedHandler() func(e *core.RecordsListRequestEvent) error {
 	}
 }
 
+func createAPITokenHandler() func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		rawToken := "wanderer_key_" + security.RandomString(32)
+
+		hashedKey := security.SHA256(rawToken)
+
+		e.Record.Set("token", hashedKey)
+
+		// Temporarily store rawToken so we can display it once to the user
+		e.Record.WithCustomData(true)
+		e.Record.Set("rawToken", rawToken)
+
+		return e.Next()
+	}
+}
+
 func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.ServeEvent) error {
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
@@ -1012,20 +1072,77 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 		return e.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	se.Router.GET("/public/search/token", func(e *core.RequestEvent) error {
-		searchRules := map[string]interface{}{
-			"lists": map[string]string{
-				"filter": "public = true",
-			},
-			"trails": map[string]string{
-				"filter": "public = true",
-			},
+	se.Router.POST("/auth/token", func(e *core.RequestEvent) error {
+		var data struct {
+			APIToken string `json:"api_token"`
 		}
-		token, err := util.GenerateMeilisearchToken(searchRules, client)
+		if err := e.BindBody(&data); err != nil {
+			return apis.NewBadRequestError("Failed to read request data", err)
+		}
+
+		hashedAPIToken := security.SHA256(data.APIToken)
+
+		tokenRecord, err := e.App.FindFirstRecordByFilter(
+			"api_tokens",
+			"token = {:hash}",
+			map[string]any{"hash": hashedAPIToken},
+		)
+
+		if err != nil {
+			return apis.NewNotFoundError("Invalid or revoked API token", nil)
+		}
+		if !tokenRecord.GetDateTime("expiration").IsZero() &&
+			tokenRecord.GetDateTime("expiration").Time().Before(time.Now()) {
+			return apis.NewBadRequestError("Key has expired", nil)
+		}
+
+		tokenRecord.Set("last_used", time.Now())
+		if err := e.App.Save(tokenRecord); err != nil {
+			return err
+		}
+
+		userRecord, _ := e.App.FindRecordById("users", tokenRecord.GetString("user"))
+		token, err := userRecord.NewAuthToken()
 		if err != nil {
 			return err
 		}
-		return e.JSON(http.StatusOK, map[string]string{"token": token})
+		return e.JSON(http.StatusOK, map[string]any{
+			"token":  token,
+			"record": userRecord,
+		})
+	})
+
+	se.Router.GET("/search/token", func(e *core.RequestEvent) error {
+		searchRules := map[string]interface{}{
+			"lists":  map[string]string{"filter": "public = true"},
+			"trails": map[string]string{"filter": "public = true"},
+		}
+
+		if e.Auth != nil {
+			userId := e.Auth.Id
+			userActor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
+			if err != nil {
+				return err
+			}
+
+			searchRules = map[string]any{
+				"lists": map[string]string{
+					"filter": "public = true OR author = " + userActor.Id + " OR shares = " + userId,
+				},
+				"trails": map[string]string{
+					"filter": "public = true OR author = " + userActor.Id + " OR shares = " + userId,
+				},
+			}
+		}
+
+		token, err := util.GenerateMeilisearchToken(searchRules, client)
+		if err != nil {
+			return e.InternalServerError("Failed to generate search token", err)
+		}
+
+		return e.JSON(http.StatusOK, map[string]string{
+			"token": token,
+		})
 	})
 
 	se.Router.POST("/integration/strava/token", func(e *core.RequestEvent) error {
@@ -1352,6 +1469,7 @@ func loginHammerhead(e *core.RequestEvent) (*hammerhead.HammerheadApi, error) {
 
 func bootstrapData(app core.App, client meilisearch.ServiceManager) error {
 	bootstrapCategories(app)
+	bootstrapMeilisearchConfig(client)
 	go bootstrapMeilisearchDocuments(app, client)
 	return nil
 }
@@ -1387,7 +1505,7 @@ func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManag
 	var page int64 = 0
 
 	// Clear index before re-indexing
-	if _, err := client.Index("trails").DeleteAllDocuments(); err != nil {
+	if _, err := client.Index("trails").DeleteAllDocuments(nil); err != nil {
 		return err
 	}
 
@@ -1413,7 +1531,7 @@ func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManag
 	}
 
 	// --- Lists ---
-	if _, err := client.Index("lists").DeleteAllDocuments(); err != nil {
+	if _, err := client.Index("lists").DeleteAllDocuments(nil); err != nil {
 		return err
 	}
 
@@ -1440,4 +1558,56 @@ func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManag
 	}
 
 	return nil
+}
+
+func bootstrapMeilisearchConfig(client meilisearch.ServiceManager) {
+	configs := map[string]meilisearch.Settings{
+		"trails": {
+			SearchableAttributes: []string{"author_name", "name", "description", "location", "tags"},
+			FilterableAttributes: []string{
+				"_geo", "author", "category", "completed", "date", "difficulty",
+				"distance", "elevation_gain", "elevation_loss", "likes", "public",
+				"shares", "tags",
+			},
+			SortableAttributes: []string{
+				"author", "created", "date", "difficulty", "distance",
+				"duration", "elevation_gain", "elevation_loss", "like_count", "name",
+			},
+			RankingRules: []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
+		},
+		"lists": {
+			SearchableAttributes: []string{"*"},
+			FilterableAttributes: []string{"author", "public", "shares"},
+			SortableAttributes:   []string{"created", "name"},
+			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
+		},
+	}
+
+	for indexName, settings := range configs {
+		_, err := client.GetIndex(indexName)
+		if err != nil {
+			log.Printf("Index [%s] not found, creating it...", indexName)
+			task, err := client.CreateIndex(&meilisearch.IndexConfig{
+				Uid:        indexName,
+				PrimaryKey: "id",
+			})
+			if err != nil {
+				log.Printf("Failed to create index [%s]: %v", indexName, err)
+				continue
+			}
+
+			_, err = client.WaitForTask(task.TaskUID, 0)
+			if err != nil {
+				log.Printf("Error waiting for index creation [%s]: %v", indexName, err)
+				continue
+			}
+		}
+
+		_, err = client.Index(indexName).UpdateSettings(&settings)
+		if err != nil {
+			log.Printf("Failed to sync settings for index [%s]: %v", indexName, err)
+		} else {
+			log.Printf("Settings synced for index [%s]", indexName)
+		}
+	}
 }

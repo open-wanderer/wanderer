@@ -6,16 +6,20 @@
         title?: string;
         text: string;
         action?: string;
+        deny?: string;
         id?: string;
         onconfirm?: () => void
+        oncancel?: () => void
     }
 
     let {
         title = $_("confirm-deletion"),
         text,
         action = "delete",
+        deny ="cancel",
         id = "confirm-modal",
-        onconfirm
+        onconfirm,
+        oncancel
     }: Props = $props();
 
     let modal: Modal;
@@ -24,6 +28,11 @@
         modal.openModal();
     }
 
+    function cancel() {
+        oncancel?.();
+        modal.closeModal!();
+    }
+    
     function confirm() {
         onconfirm?.()
         modal.closeModal!();
@@ -36,8 +45,8 @@
     {/snippet}
     {#snippet footer()}
         <div class="flex items-center gap-4">
-            <button class="btn-secondary" onclick={() => modal.closeModal()}
-                >{$_("cancel")}</button
+            <button class="btn-secondary" onclick={cancel}
+                >{$_(deny)}</button
             >
             <button
                 id="confirm"

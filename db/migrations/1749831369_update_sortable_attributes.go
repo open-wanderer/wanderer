@@ -20,7 +20,7 @@ func init() {
 			return err
 		}
 
-		_, err = client.Index("trails").UpdateFilterableAttributes(&[]string{
+		_, err = client.Index("trails").UpdateFilterableAttributes(&[]any{
 			"_geo", "author", "category", "completed", "date", "difficulty", "distance", "elevation_gain", "elevation_loss", "public", "shares", "tags", "likes",
 		})
 
@@ -33,7 +33,7 @@ func init() {
 			return err
 		}
 
-		_, err = client.Index("trails").UpdateFilterableAttributes(&[]string{
+		_, err = client.Index("trails").UpdateFilterableAttributes(&[]any{
 			"_geo", "author", "category", "completed", "date", "difficulty", "distance", "elevation_gain", "elevation_loss", "public", "shares", "tags",
 		})
 
