@@ -454,6 +454,8 @@
   "trail-not-in-list": "Trail is not in any list",
   "trail-not-shared": "Not shared with anyone",
   "trail-saved-successfully": "Trail saved successfully",
+  "trail-merge-complete": "{success} trail links completed.",
+  "trail-merge-complete-with-errors": "{success} trail links completed, {errors} failed.",
   "trails-for-you": "Trails for you",
   "tram-stop": "Tram stop",
   "unchanged": "unchanged",

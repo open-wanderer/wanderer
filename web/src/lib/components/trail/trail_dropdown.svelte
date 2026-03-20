@@ -746,7 +746,8 @@
             }
             return true;
         } catch (e) {
-            return false;
+            console.error("Failed to fetch comments for trail merge", e);
+            throw new Error($_("error-merging-trail"));
         }
     }
 

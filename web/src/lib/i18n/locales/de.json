@@ -454,6 +454,8 @@
   "trail-not-in-list": "Trail gehört zu keiner Liste.",
   "trail-not-shared": "Mit niemandem geteilt",
   "trail-saved-successfully": "Route gespeichert",
+  "trail-merge-complete": "{success} Routen-Verknüpfungen abgeschlossen.",
+  "trail-merge-complete-with-errors": "{success} Routen-Verknüpfungen abgeschlossen, {errors} fehlgeschlagen.",
   "trails-for-you": "Routen für dich",
   "tram-stop": "Tram Haltestelle",
   "unchanged": "unverändert",
