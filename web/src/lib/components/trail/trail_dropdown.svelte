@@ -566,7 +566,37 @@
         onProgress?.(2/6)
 
         const origTrail = await trails_show(trailTarget.id!, undefined, undefined, false);
-        const updatedTrail = await trails_show(trailTarget.id!, undefined, undefined, false);
+        const updatedTrail: Trail = {
+            ...origTrail,
+            tags: [...origTrail.tags],
+            photos: [...origTrail.photos],
+            expand: origTrail.expand
+                ? {
+                      ...origTrail.expand,
+                      tags: origTrail.expand.tags
+                          ? [...origTrail.expand.tags]
+                          : undefined,
+                      waypoints_via_trail: origTrail.expand.waypoints_via_trail
+                          ? [...origTrail.expand.waypoints_via_trail]
+                          : undefined,
+                      summit_logs_via_trail: origTrail.expand
+                          .summit_logs_via_trail
+                          ? [...origTrail.expand.summit_logs_via_trail]
+                          : undefined,
+                      comments_via_trail: origTrail.expand.comments_via_trail
+                          ? [...origTrail.expand.comments_via_trail]
+                          : undefined,
+                      trail_share_via_trail: origTrail.expand
+                          .trail_share_via_trail
+                          ? [...origTrail.expand.trail_share_via_trail]
+                          : undefined,
+                      trail_like_via_trail: origTrail.expand
+                          .trail_like_via_trail
+                          ? [...origTrail.expand.trail_like_via_trail]
+                          : undefined,
+                  }
+                : undefined,
+        };
         let trailUpdated = false;
 
         if (settings.tags && mTrailWithDetails.expand?.tags && mTrailWithDetails.expand?.tags.length > 0)  {
