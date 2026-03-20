@@ -613,14 +613,28 @@
         }
 
         if (settings.likes && mTrailWithDetails.expand?.trail_like_via_trail && mTrailWithDetails.expand?.trail_like_via_trail.length > 0) {
-            
+            const existingLikeActors = new Set(
+                updatedTrail.expand?.trail_like_via_trail
+                    ?.map((trailLike) => trailLike.actor)
+                    .filter(Boolean),
+            );
+            let newLikesCount = 0;
+
             for (const trailLike of mTrailWithDetails.expand.trail_like_via_trail) {
+                if (existingLikeActors.has(trailLike.actor)) {
+                    continue;
+                }
+
                 let newTrailLike = new TrailLike(trailLike.actor, trailTarget.id!);
                 await trail_like_create(newTrailLike);
+                existingLikeActors.add(trailLike.actor);
+                newLikesCount += 1;
             }
 
-            updatedTrail.like_count += mTrailWithDetails.like_count;
-            trailUpdated = true;
+            if (newLikesCount > 0) {
+                updatedTrail.like_count += newLikesCount;
+                trailUpdated = true;
+            }
         }
 
         if (trailUpdated) {
