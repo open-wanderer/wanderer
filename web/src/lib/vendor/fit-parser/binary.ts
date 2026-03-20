@@ -93,7 +93,7 @@ function readData(
         temp.push(blob[startIndex + i])
       }
     }
-    return Buffer.from(temp).toString('utf-8')
+    return new TextDecoder().decode(new Uint8Array(temp));
   }
 
   if (fDef.type === 'byte_array') {
