@@ -1108,11 +1108,51 @@
         document.getElementById("waypoint-photo-input")!.click();
     }
 
-    class GPXCoord
-    {
+    class GPXCoord {
         longitude!: number;
         latitude!: number;
-        photos: File[] | undefined;
+        file!: File;
+    }
+
+    class GPXCluster {
+        points!: GPXCoord[];
+        sumLatitude!: number;
+        sumLongitude!: number;
+        centerLatitude!: number;
+        centerLongitude!: number;
+    }
+
+    function canAddToCluster(
+        cluster: GPXCluster,
+        point: GPXCoord,
+        mergeRadius: number,
+    ) {
+        const distanceToCenter = haversineDistance(
+            cluster.centerLatitude,
+            cluster.centerLongitude,
+            point.latitude,
+            point.longitude,
+        );
+
+        return distanceToCenter <= mergeRadius;
+    }
+
+    function addPointToCluster(cluster: GPXCluster, point: GPXCoord) {
+        cluster.points.push(point);
+        cluster.sumLatitude += point.latitude;
+        cluster.sumLongitude += point.longitude;
+        cluster.centerLatitude = cluster.sumLatitude / cluster.points.length;
+        cluster.centerLongitude = cluster.sumLongitude / cluster.points.length;
+    }
+
+    function createCluster(point: GPXCoord): GPXCluster {
+        return {
+            points: [point],
+            sumLatitude: point.latitude,
+            sumLongitude: point.longitude,
+            centerLatitude: point.latitude,
+            centerLongitude: point.longitude,
+        };
     }
 
     async function handleWaypointPhotoSelection() {
@@ -1124,7 +1164,7 @@
             return;
         }
 
-        const liCoords: GPXCoord[] = [];
+        const clusters: GPXCluster[] = [];
 
         let mergeRadius = 50;
         if ($formData.category) {
@@ -1133,7 +1173,7 @@
                     continue;
                 }
 
-                if (cat.settings?.wp_merge_radius && cat.settings.wp_merge_radius > 0) {
+                if (cat.settings?.wp_merge_radius != null && cat.settings.wp_merge_radius >= 0) {
                     mergeRadius = cat.settings.wp_merge_radius;
                 }
 
@@ -1154,7 +1194,8 @@
 
                         c.latitude = convertDMSToDD(lat, latDir);
                         c.longitude = convertDMSToDD(lon, lonDir);
-                    
+                        c.file = file;
+
                         resolve(c);
                     } else {
                         resolve(undefined);
@@ -1174,37 +1215,33 @@
                 continue;
             }
 
-            var found = false;
-            if (liCoords.length > 0) {
-                for (let refCoords of liCoords) {
-                    const distance = haversineDistance(refCoords.latitude, refCoords.longitude, coords.latitude, coords.longitude);
-
-                    if (distance < mergeRadius) {
-                        found = true;
-                        if (!refCoords.photos) {
-                            refCoords.photos = [];
-                        }
-                        refCoords.photos.push(file);
-                        break;
-                    }
-                }
-            } 
-            
-            if (found === false) {
-                coords.photos = [file];
-                liCoords.push(coords);
-            }
-        }
-
-        for (const coords of liCoords) {
-            if (!coords.photos) {
+            if (mergeRadius === 0) {
+                clusters.push(createCluster(coords));
                 continue;
             }
 
-            const wp: Waypoint = new Waypoint(coords.latitude, coords.longitude, {
-                icon: coords.photos.length > 1 ? "images" : "image",
-            });
-            wp._photos = coords.photos;
+            const matchingCluster = clusters.find((cluster) =>
+                canAddToCluster(cluster, coords, mergeRadius),
+            );
+
+            if (matchingCluster) {
+                addPointToCluster(matchingCluster, coords);
+            } else {
+                clusters.push(createCluster(coords));
+            }
+        }
+
+        for (const cluster of clusters) {
+            const photos = cluster.points.map((point) => point.file);
+
+            const wp: Waypoint = new Waypoint(
+                cluster.centerLatitude,
+                cluster.centerLongitude,
+                {
+                    icon: photos.length > 1 ? "images" : "image",
+                },
+            );
+            wp._photos = photos;
             saveWaypoint(wp);
         }
     }

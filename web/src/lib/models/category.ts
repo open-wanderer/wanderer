@@ -2,11 +2,11 @@ interface Category {
     id: string;
     name: string;
     img: string;
-    settings: Settings;
+    settings?: Settings;
 }
 
 interface Settings {
-    wp_merge_radius: number;
+    wp_merge_radius?: number;
 }
 
 export type {Category}
