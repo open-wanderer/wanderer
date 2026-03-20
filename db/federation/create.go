@@ -58,7 +58,7 @@ func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, t
 		inbox := m.GetString("inbox")
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
-		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, m.GetString("preferred_username")))
+		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, fmt.Sprintf("@%s@%s", m.GetString("preferred_username"), m.GetString("domain"))))
 		tags.Append(mention)
 
 		mentions = append(mentions, inbox)
@@ -143,7 +143,7 @@ func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Recor
 	for _, m := range mentionedActors {
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
-		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, m.GetString("preferred_username")))
+		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, fmt.Sprintf("@%s@%s", m.GetString("preferred_username"), m.GetString("domain"))))
 		tags.Append(mention)
 
 		recipients = append(recipients, m.GetString("inbox"))
@@ -257,7 +257,7 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 		inbox := m.GetString("inbox")
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
-		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, m.GetString("preferred_username")))
+		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, fmt.Sprintf("@%s@%s", m.GetString("preferred_username"), m.GetString("domain"))))
 		mentionTags.Append(mention)
 
 		mentions = append(mentions, inbox)
