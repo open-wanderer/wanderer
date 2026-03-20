@@ -404,13 +404,17 @@
             new PreviewLayer(map, geojson, {
                 preview: {
                     onEnter: (e) => {
-                        const trail = trails.find(t => t.id === (e as any).features[0].properties.trail)
-                        if(!trail) return;
-                        highlightCluster(trail)
+                        const trail = trails.find(
+                            (t) =>
+                                t.id ===
+                                (e as any).features[0].properties.trail,
+                        );
+                        if (!trail) return;
+                        highlightCluster(trail, e.lngLat);
                     },
                     onLeave: (e) => {
-                        unHighlightCluster()
-                    }
+                        // unHighlightCluster();
+                    },
                 },
             }),
         );
@@ -510,16 +514,30 @@
         // map?.setPaintProperty(id, "line-color", "#648ad5");
     }
 
-    export async function highlightCluster(trail: Trail) {
+    export async function highlightCluster(
+        trail: Trail,
+        lnglat?: M.LngLatLike,
+    ) {
         if (!map || !map.style) {
             return;
         }
+        clusterPopup?.remove();
         clusterPopup = createPopupFromTrail(trail);
-        clusterPopup.setLngLat([trail.lon!, trail.lat!]).addTo(map);
-
+        clusterPopup.setLngLat(lnglat ?? [trail.lon!, trail.lat!]).addTo(map);
         clusterPopup.on("close", () => {
             unHighlightCluster(false);
         });
+        map.on("mousemove", unHighlightClusterDistanceNotifier)
+    }
+
+    function unHighlightClusterDistanceNotifier(e: M.MapMouseEvent) {
+        if (!clusterPopup || !map) {
+            return
+        }
+        if (map.project(clusterPopup.getLngLat()).dist(map.project(e.lngLat)) > 60) {
+            clusterPopup.remove();
+            map.off("mousemove", unHighlightClusterDistanceNotifier)
+        }
     }
 
     export async function unHighlightCluster(closePopup: boolean = true) {
@@ -736,7 +754,7 @@
         }
     }
 
-    let geolocateControl : M.GeolocateControl;
+    let geolocateControl: M.GeolocateControl;
 
     onMount(async () => {
         const initialState = {
@@ -808,14 +826,14 @@
         );
 
         geolocateControl = new M.GeolocateControl({
-                positionOptions: {
-                    enableHighAccuracy: true,
-                },
-                fitBoundsOptions: {
-                    animate: fitBounds == "animate",
-                },
-                trackUserLocation: true,
-            });
+            positionOptions: {
+                enableHighAccuracy: true,
+            },
+            fitBoundsOptions: {
+                animate: fitBounds == "animate",
+            },
+            trackUserLocation: true,
+        });
         map.addControl(geolocateControl);
 
         if (showStyleSwitcher) {
@@ -912,7 +930,7 @@
         if (!page.data.settings?.behavior) return;
 
         if (page.data.settings.behavior.allowAutoGeolocate === true) {
-            if (geolocateControl._watchState === 'OFF') {
+            if (geolocateControl._watchState === "OFF") {
                 geolocateControl.options.trackUserLocation = true;
                 geolocateControl.trigger();
             }
@@ -1001,7 +1019,10 @@
         @apply bg-menu-item-background-focus w-3 aspect-square rounded-full;
     }
 
-    :global(.maplibregl-user-location-accuracy-circle, .maplibregl-user-location-dot) {
+    :global(
+            .maplibregl-user-location-accuracy-circle,
+            .maplibregl-user-location-dot
+        ) {
         pointer-events: none;
     }
 </style>

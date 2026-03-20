@@ -46,7 +46,7 @@ func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, t
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
 
-	mentionedActors, handles, err := ActorsFromMentions(app, actor, trail.GetString("description"))
+	mentionedActors, err := ActorsFromMentions(app, actor, trail.GetString("description"))
 	if err != nil {
 		return err
 	}
@@ -54,11 +54,11 @@ func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, t
 	mentions := []string{}
 	cc := pub.ItemCollection{pub.IRI(trailAuthor.GetString("followers"))}
 	tags := pub.ItemCollection{}
-	for i, m := range mentionedActors {
+	for _, m := range mentionedActors {
 		inbox := m.GetString("inbox")
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
-		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, handles[i]))
+		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, fmt.Sprintf("@%s@%s", m.GetString("preferred_username"), m.GetString("domain"))))
 		tags.Append(mention)
 
 		mentions = append(mentions, inbox)
@@ -134,16 +134,16 @@ func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Recor
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, activityRecordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
 
-	mentionedActors, handles, err := ActorsFromMentions(app, actor, comment.GetString("text"))
+	mentionedActors, err := ActorsFromMentions(app, actor, comment.GetString("text"))
 	if err != nil {
 		return err
 	}
 	recipients := []string{}
 	tags := pub.ItemCollection{}
-	for i, m := range mentionedActors {
+	for _, m := range mentionedActors {
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
-		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, handles[i]))
+		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, fmt.Sprintf("@%s@%s", m.GetString("preferred_username"), m.GetString("domain"))))
 		tags.Append(mention)
 
 		recipients = append(recipients, m.GetString("inbox"))
@@ -245,7 +245,7 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 		to.Append(pub.IRI(summitLogTrailAuthor.GetString("iri")))
 	}
 
-	mentionedActors, handles, err := ActorsFromMentions(app, actor, summitLog.GetString("text"))
+	mentionedActors, err := ActorsFromMentions(app, actor, summitLog.GetString("text"))
 	if err != nil {
 		return err
 	}
@@ -253,11 +253,11 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 	mentions := []string{}
 	cc := pub.ItemCollection{pub.IRI(summitLogAuthor.GetString("followers"))}
 	mentionTags := pub.ItemCollection{}
-	for i, m := range mentionedActors {
+	for _, m := range mentionedActors {
 		inbox := m.GetString("inbox")
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
-		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, handles[i]))
+		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, fmt.Sprintf("@%s@%s", m.GetString("preferred_username"), m.GetString("domain"))))
 		mentionTags.Append(mention)
 
 		mentions = append(mentions, inbox)
@@ -807,10 +807,10 @@ func processCreateOrUpdateListActivity(activity pub.Activity, app core.App, acto
 	return err
 }
 
-func ActorsFromMentions(app core.App, actor *core.Record, htmlStr string) ([]*core.Record, []string, error) {
+func ActorsFromMentions(app core.App, actor *core.Record, htmlStr string) ([]*core.Record, error) {
 	doc, err := html.Parse(strings.NewReader(htmlStr))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var handles []string
@@ -849,5 +849,5 @@ func ActorsFromMentions(app core.App, actor *core.Record, htmlStr string) ([]*co
 		actors = append(actors, actor)
 	}
 
-	return actors, handles, nil
+	return actors, nil
 }
