@@ -478,6 +478,21 @@
         await processMergeQueue();
     }
 
+    function buildMergedCommentText(comment: TrailComment): string {
+        const author = comment.expand?.author;
+        const authorHandle = author
+            ? `@${author.preferred_username}${author.isLocal ? "" : `@${author.domain}`}`
+            : $_("someone");
+        const createdDate = comment.created
+            ? new Date(comment.created).toLocaleDateString()
+            : undefined;
+        const prefix = createdDate
+            ? `Imported comment from ${authorHandle} on ${createdDate}:`
+            : `Imported comment from ${authorHandle}:`;
+
+        return `${prefix}\n\n${comment.text}`;
+    }
+
     async function trails_merge(trailTarget: Trail, trailSource: Trail, settings: MergeSettings, onProgress?: (progress: number) => void) {
         
         let summit: SummitLog = new SummitLog(trailSource.date!, {
@@ -623,13 +638,9 @@
             if (commentsFetchResponse && mTrailWithDetails.expand?.comments_via_trail) {
                 for (const comment of mTrailWithDetails.expand.comments_via_trail) {
                     let newComment: TrailComment = { 
-                        text: comment.text, 
-                        author: comment.author,  
+                        text: buildMergedCommentText(comment),
+                        author: $currentUser!.actor,
                         trail: trailTarget.id!,
-                        created: comment.created,
-                        updated: comment.updated,
-                        iri: comment.iri,
-                        expand: comment.expand
                     };
 
                     await comments_create(newComment);
