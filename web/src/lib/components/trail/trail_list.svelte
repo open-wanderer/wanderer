@@ -328,11 +328,8 @@
                     mode={"multi-select"}
                     onDelete={() => handleTrailsEditDone(true)}
                     onShare={() => handleTrailsEditDone(false)}
-<<<<<<< merge-trails
                     onMerge={() => handleTrailsMergeDone(true)}
-=======
                     onUpdate={() => handleTrailsEditDone(true)}
->>>>>>> main
                 />
             </div>
         {/if}

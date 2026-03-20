@@ -14,11 +14,12 @@
         lists_remove_trail,
     } from "$lib/stores/list_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
-<<<<<<< merge-trails
-    import { trails_delete, trails_show, fetchGPX, trails_update } from "$lib/stores/trail_store";
-=======
-    import { trails_delete, trails_update } from "$lib/stores/trail_store";
->>>>>>> main
+    import {
+        fetchGPX,
+        trails_delete,
+        trails_show,
+        trails_update,
+    } from "$lib/stores/trail_store";
     import { currentUser } from "$lib/stores/user_store";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
     import { getFileURL, saveAs } from "$lib/util/file_util";
@@ -34,24 +35,20 @@
     import TrailExportModal from "./trail_export_modal.svelte";
     import TrailSendModal from "./trail_send_modal.svelte";
     import TrailShareModal from "./trail_share_modal.svelte";
-<<<<<<< merge-trails
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
-    import type { Snippet } from "svelte";
-    import { page } from "$app/state";
-	import { SummitLog } from "$lib/models/summit_log";
-    import { summit_logs_create } from "$lib/stores/summit_log_store";
+    import { SummitLog } from "$lib/models/summit_log";
     import type { Comment as TrailComment } from "$lib/models/comment";
     import { comments_create, comments_index } from "$lib/stores/comment_store";
+    import { summit_logs_create } from "$lib/stores/summit_log_store";
+    import { trail_like_create } from "$lib/stores/trail_like_store";
+    import {
+        mergeStore,
+        processMergeQueue,
+        type Merge,
+    } from "$lib/stores/trail_merge_store.svelte";
+    import { TrailLike } from "$lib/models/trail_like";
     import TrailMergeModal from "./trail_merge_modal.svelte";
     import type { MergeSettings } from "./trail_merge_modal.svelte";
-    import { processMergeQueue, mergeStore, type Merge } from "$lib/stores/trail_merge_store.svelte";
     import MergeDialog from "$lib/components/trail/trail_merge_dialog.svelte";
-  import { tags_create } from "$lib/stores/tag_store";
-  import { Tag } from "$lib/models/tag";
-  import { trail_like_create } from "$lib/stores/trail_like_store";
-  import { TrailLike } from "$lib/models/trail_like";
-=======
->>>>>>> main
 
     interface Props {
         trails?: Set<Trail> | undefined;
@@ -59,25 +56,17 @@
         toggle?: Snippet<[any]>;
         onDelete?: () => void;
         onShare?: () => void;
-<<<<<<< merge-trails
+        onUpdate?: () => void;
         onMerge?: () => void;
     }
 
-    let { trails, mode, toggle, onDelete, onShare, onMerge }: Props = $props();
-=======
-        onUpdate?: () => void;
-    }
-
-    let { trails, mode, toggle, onDelete, onShare, onUpdate }: Props = $props();
->>>>>>> main
+    let { trails, mode, toggle, onDelete, onShare, onUpdate, onMerge }: Props = $props();
 
     let confirmModal: ConfirmModal;
     let listSelectModal: ListSearchModal;
     let trailExportModal: TrailExportModal;
     let trailShareModal: TrailShareModal;
-<<<<<<< merge-trails
     let trailMergeModal: TrailMergeModal;
-=======
     let trailSendModal: TrailSendModal;
 
     const hammerheadIntegration = $derived(
@@ -85,7 +74,6 @@
             Boolean(integration.hammerhead?.active)
         )
     );
->>>>>>> main
 
     let lists: List[] = $state([]);
     let integrationsLoading = false;
@@ -144,7 +132,6 @@
         );
     }
 
-<<<<<<< merge-trails
     function allowMerge(): boolean {
         return (
             hasTrail() &&
@@ -155,7 +142,8 @@
                     (s) => s.permission == "edit",
                 ))!
         );
-=======
+    }
+
     function majorityOfSelectedTrailsArePublic(): boolean {
         if (trails === undefined || trails.size === 0) return false;
 
@@ -209,7 +197,6 @@
         }
 
         return true;
->>>>>>> main
     }
 
     function dropdownItems(): DropdownItem[] {
@@ -448,9 +435,10 @@
             updateTrailsVisibility();
         } else if (ddVal == "delete") {
             confirmModal.openModal();
-<<<<<<< merge-trails
         } else if (item.value == "merge") {
             trailMergeModal.openModal();
+        } else if (item.value == "send-to") {
+            trailSendModal.openModal();
         }
     }
 
@@ -672,10 +660,6 @@
             return true;
         } catch (e) {
             return false;
-=======
-        } else if (item.value == "send-to") {
-            trailSendModal.openModal();
->>>>>>> main
         }
     }
 
@@ -1000,14 +984,12 @@
     onsave={handleShareUpdate}
     bind:this={trailShareModal}
 ></TrailShareModal>
-<<<<<<< merge-trails
 <TrailMergeModal
     bind:this={trailMergeModal}
     onmerge={(settings) => mergeTrails(settings)}
 ></TrailMergeModal>
 
 <MergeDialog/>
-=======
 <TrailSendModal
     bind:this={trailSendModal}
     onsend={async (settings) => {
@@ -1016,4 +998,3 @@
         }
     }}
 ></TrailSendModal>
->>>>>>> main
