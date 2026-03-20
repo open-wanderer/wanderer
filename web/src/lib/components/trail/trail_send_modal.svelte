@@ -1,7 +1,9 @@
 <script lang="ts">
     import Modal from "$lib/components/base/modal.svelte";
     import { _ } from "svelte-i18n";
-	import hammerheadLogo from '$lib/assets/pngs/hammerhead_diamond_white.svg';
+    import hammerheadLogoWhite from "$lib/assets/svgs/logos/hammerhead_white.svg";
+    import hammerheadLogoDark from "$lib/assets/svgs/logos/hammerhead_dark.svg";
+    import { theme } from "$lib/stores/theme_store";
 
     interface Props {
         title?: string;
@@ -32,7 +34,7 @@
     {#snippet content()}
         <div>
             <button class="btn-secondary" onclick={sendTrail}>
-                <img class="h-20" src={hammerheadLogo} alt="integration logo"/>
+                <img class="h-20" src={$theme == "light" ? hammerheadLogoDark : hammerheadLogoWhite} alt="integration logo"/>
             </button>
         </div>
     {/snippet}
