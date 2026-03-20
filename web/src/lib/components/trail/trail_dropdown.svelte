@@ -120,28 +120,41 @@
 
     let loading: boolean = $state(false);
 
+    function canEditTrail(candidate: Trail | undefined): boolean {
+        if (!candidate || !$currentUser) {
+            return false;
+        }
+
+        return (
+            candidate.expand?.author?.id === $currentUser.actor ||
+            Boolean(
+                candidate.expand?.trail_share_via_trail?.some(
+                    (s) => s.permission == "edit",
+                ),
+            )
+        );
+    }
+
     function allowEdit(): boolean {
         return (
             hasTrail() &&
             !isMultiselectMode() &&
-            Boolean($currentUser) &&
-            (trail()!.expand?.author?.id === $currentUser?.actor ||
-                trail()!.expand?.trail_share_via_trail?.some(
-                    (s) => s.permission == "edit",
-                ))!
+            canEditTrail(trail())
         );
     }
 
     function allowMerge(): boolean {
-        return (
-            hasTrail() &&
-            isMultiselectMode() &&
-            Boolean($currentUser) &&
-            (trail()!.expand?.author?.id === $currentUser?.actor ||
-                trail()!.expand?.trail_share_via_trail?.some(
-                    (s) => s.permission == "edit",
-                ))!
-        );
+        if (!hasTrail() || !isMultiselectMode() || !Boolean($currentUser)) {
+            return false;
+        }
+
+        for (const cTrail of trails ?? []) {
+            if (!canEditTrail(cTrail)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     function majorityOfSelectedTrailsArePublic(): boolean {
@@ -152,13 +165,7 @@
         let publicCount = 0;
 
         for (const cTrail of trails) {
-            if (cTrail.expand?.author === undefined) return false;
-            if (
-                cTrail.expand!.author!.id !== $currentUser?.actor &&
-                !cTrail.expand?.trail_share_via_trail?.some(
-                    (s) => s.permission == "edit",
-                )
-            ) {
+            if (!canEditTrail(cTrail)) {
                 return false;
             }
 
@@ -185,13 +192,7 @@
         }
 
         for (const cTrail of trails) {
-            if (cTrail.expand?.author === undefined) return false;
-            if (
-                cTrail.expand!.author!.id !== $currentUser?.actor &&
-                !cTrail.expand?.trail_share_via_trail?.some(
-                    (s) => s.permission == "edit",
-                )
-            ) {
+            if (!canEditTrail(cTrail)) {
                 return false;
             }
         }
