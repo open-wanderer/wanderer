@@ -91,7 +91,7 @@
                 <input
                     id="include-likes-checkbox"
                     type="checkbox"
-                    bind:checked={settings.tags}
+                    bind:checked={settings.likes}
                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                 />
                 <label for="include-likes-checkbox" class="ms-2 text-sm"
