@@ -135,6 +135,23 @@
         );
     }
 
+    function getMergeTarget(): Trail | undefined {
+        if (!trails || trails.size === 0) {
+            return undefined;
+        }
+
+        for (const candidate of trails) {
+            if (
+                candidate.expand?.summit_logs_via_trail &&
+                candidate.expand.summit_logs_via_trail.length > 0
+            ) {
+                return candidate;
+            }
+        }
+
+        return [...trails][0];
+    }
+
     function allowEdit(): boolean {
         return (
             hasTrail() &&
@@ -148,8 +165,17 @@
             return false;
         }
 
+        const targetTrail = getMergeTarget();
+        if (!canEditTrail(targetTrail)) {
+            return false;
+        }
+
         for (const cTrail of trails ?? []) {
-            if (!canEditTrail(cTrail)) {
+            if (cTrail.id === targetTrail?.id) {
+                continue;
+            }
+
+            if (!allowDeleteTrail(cTrail)) {
                 return false;
             }
         }
