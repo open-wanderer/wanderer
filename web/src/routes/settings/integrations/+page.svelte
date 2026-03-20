@@ -8,7 +8,7 @@
         Integration,
         type HammerheadIntegration,
         type KomootIntegration,
-        type StravaIntegration
+        type StravaIntegration,
     } from "$lib/models/integration.js";
     import {
         integrations_create,
@@ -17,7 +17,9 @@
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
     import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
-	import hammerheadLogo from '$lib/assets/pngs/hammerhead_diamond_white.svg';
+    import hammerheadLogoWhite from "$lib/assets/svgs/logos/hammerhead_white.svg";
+    import hammerheadLogoDark from "$lib/assets/svgs/logos/hammerhead_dark.svg";
+    import { theme } from "$lib/stores/theme_store";
 
     let { data } = $props();
 
@@ -56,7 +58,7 @@
                 };
                 integration = await integrations_create(newIntegration);
             }
-            
+
             if (key == "komoot" || key == "hammerhead") {
                 let verified = await verifyLogin(key);
                 if (!verified) {
@@ -159,11 +161,14 @@
         });
     }
 
-    async function verifyLogin(integrationName: string) : Promise<boolean> {
+    async function verifyLogin(integrationName: string): Promise<boolean> {
         try {
-            const r = await fetch(`/api/v1/integration/${integrationName}/login`, {
-                method: "GET",
-            });
+            const r = await fetch(
+                `/api/v1/integration/${integrationName}/login`,
+                {
+                    method: "GET",
+                },
+            );
 
             if (!r.ok) {
                 throw Error();
@@ -208,7 +213,8 @@
 
         show_toast({
             text:
-                "Hammerhead " + $_(`integration-${value ? "enabled" : "disabled"}`),
+                "Hammerhead " +
+                $_(`integration-${value ? "enabled" : "disabled"}`),
             icon: "check",
             type: "success",
         });
@@ -242,7 +248,7 @@
         ontoggle={onKomootToggle}
     ></IntegrationCard>
     <IntegrationCard
-        img={hammerheadLogo}
+        img={$theme == "light" ? hammerheadLogoDark : hammerheadLogoWhite}
         title="Hammerhead"
         description={$_("integration-description-hammerhead")}
         disabled={!integration?.hammerhead}
