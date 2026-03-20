@@ -20,6 +20,21 @@ class MergeStore {
 
 export const mergeStore = new MergeStore();
 
+function getMergeErrorMessage(error: unknown): string {
+    if (error instanceof APIError) {
+        return error.message;
+    }
+
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    if (typeof error === "string") {
+        return error;
+    }
+
+    return "Unknown merge error";
+}
 
 export async function processMergeQueue(batchSize: number = 3) {
     if (mergeStore.merging) {
@@ -27,31 +42,35 @@ export async function processMergeQueue(batchSize: number = 3) {
     }
     mergeStore.merging = true;
 
-    while (mergeStore.enqueuedMerges.length > 0) {
-        const batch = mergeStore.enqueuedMerges.slice(0, batchSize);
-        const mergePromises: Promise<unknown>[] = [];
-        for (const b of batch) {
-            b.status = "merging";
-            mergePromises.push(
-                b.function(b.trailTarget, b.trailSource, b.settings, (p: number) => {
-                    b.progress = p
-                })
-            );
-        }
-        const results = await Promise.all(
-            mergePromises.map((p) => p.catch((e) => e)),
-        );
-        results.forEach((r, i) => {
-            const u = batch[i];
-            if (r instanceof APIError) {
-                u.status = "error"
-                u.error = r.message
-            } else {
-                u.status = "success"
+    try {
+        while (mergeStore.enqueuedMerges.length > 0) {
+            const batch = mergeStore.enqueuedMerges.slice(0, batchSize);
+            const mergePromises: Promise<unknown>[] = [];
+            for (const b of batch) {
+                b.status = "merging";
+                mergePromises.push(
+                    b.function(b.trailTarget, b.trailSource, b.settings, (p: number) => {
+                        b.progress = p
+                    })
+                );
             }
-            mergeStore.completedMerges.push(u);
-        });
-        mergeStore.enqueuedMerges.splice(0, batchSize)
+            const results = await Promise.all(
+                mergePromises.map((p) => p.catch((e) => e)),
+            );
+            results.forEach((r, i) => {
+                const u = batch[i];
+                if (r instanceof Error || typeof r === "string") {
+                    u.status = "error";
+                    u.error = getMergeErrorMessage(r);
+                } else {
+                    u.status = "success";
+                    u.error = undefined;
+                }
+                mergeStore.completedMerges.push(u);
+            });
+            mergeStore.enqueuedMerges.splice(0, batchSize)
+        }
+    } finally {
+        mergeStore.merging = false;
     }
-    mergeStore.merging = false;
 }
