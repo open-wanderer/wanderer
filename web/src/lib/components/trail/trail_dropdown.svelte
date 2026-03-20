@@ -529,8 +529,16 @@
         return await response.blob();
     }
 
+    const MERGE_PROGRESS_STEPS = 6;
+
     async function trails_merge(trailTarget: Trail, trailSource: Trail, settings: MergeSettings, onProgress?: (progress: number) => void) {
-        
+        const trailSourceAuthorId = trailSource.expand?.author?.id;
+        const trailSourceId = trailSource.id;
+        const trailTargetId = trailTarget.id;
+        if (!trailSourceAuthorId || !trailSourceId || !trailTargetId) {
+            throw new Error($_("error-merging-trail"));
+        }
+
         let summit: SummitLog = new SummitLog(trailSource.date!, {
             id: undefined,
             text: trailSource.description,
@@ -541,8 +549,8 @@
             photos: []
         });
 
-        summit.author = trailSource.expand?.author?.id!;
-        summit.trail = trailTarget.id;
+        summit.author = trailSourceAuthorId;
+        summit.trail = trailTargetId;
 
         let fileData = await trail2gpx(trailSource, $currentUser);
         const blob = new Blob([fileData], {
@@ -551,10 +559,10 @@
 
         summit._gpx = new File([blob], trailSource.gpx ?? "summit.gpx");
 
-        const mTrailWithDetails = await trails_show(trailSource.id!, undefined, undefined, false);
+        const mTrailWithDetails = await trails_show(trailSourceId, undefined, undefined, false);
 
         // part 1
-        onProgress?.(1/6)
+        onProgress?.(1 / MERGE_PROGRESS_STEPS)
 
         if (settings.photos) {
             for (const photo of mTrailWithDetails.photos) {
@@ -570,9 +578,9 @@
         await summit_logs_create(summit);
 
         // part 2
-        onProgress?.(2/6)
+        onProgress?.(2 / MERGE_PROGRESS_STEPS)
 
-        const origTrail = await trails_show(trailTarget.id!, undefined, undefined, false);
+        const origTrail = await trails_show(trailTargetId, undefined, undefined, false);
         const updatedTrail: Trail = {
             ...origTrail,
             tags: [...origTrail.tags],
@@ -632,7 +640,7 @@
                     continue;
                 }
 
-                let newTrailLike = new TrailLike(trailLike.actor, trailTarget.id!);
+                let newTrailLike = new TrailLike(trailLike.actor, trailTargetId);
                 await trail_like_create(newTrailLike);
                 existingLikeActors.add(trailLike.actor);
                 newLikesCount += 1;
@@ -649,7 +657,7 @@
         }
 
         // part 3
-        onProgress?.(3/6)
+        onProgress?.(3 / MERGE_PROGRESS_STEPS)
 
         if (settings.summitLog) {
             if (mTrailWithDetails.expand?.summit_logs_via_trail) {
@@ -682,8 +690,8 @@
                     }
 
                     if (summit2.expand.gpx_data) {
-                        var gpxBlob = new Blob([summit2.expand.gpx_data], {
-                            type: 'text/plain'
+                        const gpxBlob = new Blob([summit2.expand.gpx_data], {
+                            type: "text/plain"
                         });
                         const gpxFile = new File([gpxBlob], sourceSummit.gpx ?? "summit_log.gpx");
                         summit2._gpx = gpxFile;
@@ -699,7 +707,7 @@
                     }
 
                     summit2.author = sourceSummit.author;
-                    summit2.trail = trailTarget.id;
+                    summit2.trail = trailTargetId;
 
                     await summit_logs_create(summit2);
                 }
@@ -707,7 +715,7 @@
         }
 
         // part 5
-        onProgress?.(4/6)
+        onProgress?.(4 / MERGE_PROGRESS_STEPS)
 
         if (settings.comments) {
             let commentsFetchResponse = await fetchComments(mTrailWithDetails);
@@ -716,7 +724,7 @@
                     let newComment: TrailComment = { 
                         text: buildMergedCommentText(comment),
                         author: $currentUser!.actor,
-                        trail: trailTarget.id!,
+                        trail: trailTargetId,
                     };
 
                     await comments_create(newComment);
@@ -725,7 +733,7 @@
         }
 
         // part 6
-        onProgress?.(5/6)
+        onProgress?.(5 / MERGE_PROGRESS_STEPS)
 
         if (settings.delete) {
             await trails_delete(trailSource);
