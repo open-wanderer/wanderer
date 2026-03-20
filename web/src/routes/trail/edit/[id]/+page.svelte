@@ -1108,18 +1108,18 @@
         document.getElementById("waypoint-photo-input")!.click();
     }
 
-    class GPXCoord {
-        longitude!: number;
-        latitude!: number;
-        file!: File;
+    interface GPXCoord {
+        longitude: number;
+        latitude: number;
+        file: File;
     }
 
-    class GPXCluster {
-        points!: GPXCoord[];
-        sumLatitude!: number;
-        sumLongitude!: number;
-        centerLatitude!: number;
-        centerLongitude!: number;
+    interface GPXCluster {
+        points: GPXCoord[];
+        sumLatitude: number;
+        sumLongitude: number;
+        centerLatitude: number;
+        centerLongitude: number;
     }
 
     function canAddToCluster(
@@ -1190,13 +1190,11 @@
                     const lonDir = EXIF.getTag(p, "GPSLongitudeRef");
 
                     if (lat && lon) {
-                        var c = new GPXCoord();
-
-                        c.latitude = convertDMSToDD(lat, latDir);
-                        c.longitude = convertDMSToDD(lon, lonDir);
-                        c.file = file;
-
-                        resolve(c);
+                        resolve({
+                            latitude: convertDMSToDD(lat, latDir),
+                            longitude: convertDMSToDD(lon, lonDir),
+                            file,
+                        });
                     } else {
                         resolve(undefined);
                     }
