@@ -520,6 +520,15 @@
         return `${prefix}\n\n${comment.text}`;
     }
 
+    async function fetchPhotoBlob(photoURL: string, photoName: string): Promise<Blob> {
+        const response = await fetch(photoURL);
+        if (!response.ok) {
+            throw new Error(`Failed to download photo "${photoName}"`);
+        }
+
+        return await response.blob();
+    }
+
     async function trails_merge(trailTarget: Trail, trailSource: Trail, settings: MergeSettings, onProgress?: (progress: number) => void) {
         
         let summit: SummitLog = new SummitLog(trailSource.date!, {
@@ -550,9 +559,7 @@
         if (settings.photos) {
             for (const photo of mTrailWithDetails.photos) {
                 const photoURL = getFileURL(mTrailWithDetails, photo);
-                const photoBlob = await fetch(photoURL).then(
-                    (response) => response.blob(),
-                );
+                const photoBlob = await fetchPhotoBlob(photoURL, photo);
                 const photoData = new File([photoBlob], photo);
                 
                 if (!summit._photos) summit._photos = [];
@@ -649,7 +656,7 @@
 
                 for (const sourceSummit of mTrailWithDetails.expand?.summit_logs_via_trail) {
                     
-                    if (sourceSummit.date == mTrailWithDetails.date) continue;
+                    if (sourceSummit.date === mTrailWithDetails.date) continue;
 
                     let summit2: SummitLog = new SummitLog(sourceSummit.date!, {
                         id: undefined,
@@ -684,9 +691,7 @@
 
                     for (const photo2 of sourceSummit.photos) {
                         const photoURL2 = getFileURL(sourceSummit, photo2);
-                        const photoBlob2 = await fetch(photoURL2).then(
-                            (response) => response.blob(),
-                        );
+                        const photoBlob2 = await fetchPhotoBlob(photoURL2, photo2);
                         const photoData2 = new File([photoBlob2], photo2);
                         
                         if (!summit2._photos) summit2._photos = [];
