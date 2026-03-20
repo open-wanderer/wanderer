@@ -456,6 +456,8 @@
   "trail-saved-successfully": "Trail saved successfully",
   "trail-merge-complete": "{success} trail links completed.",
   "trail-merge-complete-with-errors": "{success} trail links completed, {errors} failed.",
+  "trail-merge-summary": "Remaining {remaining} - Processed {processed}/{total}",
+  "trail-merge-result-summary": "Merged {success} - Error {errors}",
   "trails-for-you": "Trails for you",
   "tram-stop": "Tram stop",
   "unchanged": "unchanged",

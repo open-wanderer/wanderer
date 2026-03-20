@@ -456,6 +456,8 @@
   "trail-saved-successfully": "Route gespeichert",
   "trail-merge-complete": "{success} Routen-Verknüpfungen abgeschlossen.",
   "trail-merge-complete-with-errors": "{success} Routen-Verknüpfungen abgeschlossen, {errors} fehlgeschlagen.",
+  "trail-merge-summary": "Verbleibend {remaining} - Verarbeitet {processed}/{total}",
+  "trail-merge-result-summary": "Verknüpft {success} - Fehler {errors}",
   "trails-for-you": "Routen für dich",
   "tram-stop": "Tram Haltestelle",
   "unchanged": "unverändert",

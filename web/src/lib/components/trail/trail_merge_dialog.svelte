@@ -74,15 +74,23 @@
         <div class="flex gap-x-2 items-start justify-between">
             <div>
                 <p class="font-medium">
-                    Remaining {remaining} - Processed {mergeStore
-                        .completedMerges.length}/{mergeStore.enqueuedMerges
-                        .length + mergeStore.completedMerges.length}
+                    {$_("trail-merge-summary", {
+                        values: {
+                            remaining,
+                            processed: mergeStore.completedMerges.length,
+                            total:
+                                mergeStore.enqueuedMerges.length +
+                                mergeStore.completedMerges.length,
+                        },
+                    })}
                 </p>
                 <p class="text-sm">
-                    Merged <span class="text-emerald-400"
-                        >{successfulMerges}</span
-                    >
-                    - Error <span class="text-red-400">{errorMerges}</span>
+                    {$_("trail-merge-result-summary", {
+                        values: {
+                            success: successfulMerges,
+                            errors: errorMerges,
+                        },
+                    })}
                 </p>
             </div>
             <div class="space-x-2">
@@ -151,7 +159,7 @@
                     {#if u.status == "merging"}
                         <div
                             class="progress-bar my-1 rounded-md"
-                            style="height:2px; width:{u.progress}%; background-color:#3549bb;transition: width 0.5s ease-in-out;"
+                            style="height:2px; width:{u.progress * 100}%; background-color:#3549bb;transition: width 0.5s ease-in-out;"
                         ></div>
                     {:else if u.error}
                         <p class="text-red-400 text-xs">

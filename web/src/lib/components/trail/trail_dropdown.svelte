@@ -472,16 +472,9 @@
     async function mergeTrails(settings: MergeSettings) {  
         if (!trails || trails.size < 2) return;
 
-        let trailTarget: Trail | undefined  = undefined;
-        for (const mTrail of trails) {
-            if (mTrail.expand?.summit_logs_via_trail && mTrail.expand?.summit_logs_via_trail.length > 0) {
-                trailTarget = mTrail;
-                break;
-            }
-        }
-
+        const trailTarget = getMergeTarget();
         if (!trailTarget) {
-            trailTarget = [...trails][0];
+            return;
         }
 
         if (!trailTarget.expand) {
