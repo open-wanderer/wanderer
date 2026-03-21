@@ -20,6 +20,7 @@
     }
 
     let { user }: Props = $props();
+    const navUser = $derived($currentUser ?? user);
 
     let navBarItems = [
         { text: "Home", value: "/" },
@@ -139,7 +140,7 @@
     </div>
     <hr class="my-6 border-input-border" />
     <div class="flex flex-col basis-full">
-        {#if user}
+        {#if navUser}
             <a class="btn-primary text-center mx-4" href="/trail/edit/new"
                 ><i class="fa fa-plus mr-2"></i>{$_("new-trail")}</a
             >
@@ -148,26 +149,26 @@
             <div class="flex gap-4 items-center justify-between m-4">
                 <a
                     class="shrink-0"
-                    href="/profile/@{user.username.toLowerCase()}"
+                    href="/profile/@{navUser.username.toLowerCase()}"
                 >
                     <img
                         class="rounded-full w-10 aspect-square"
-                        src={getFileURL(user, user.avatar) ||
-                            `https://api.dicebear.com/7.x/initials/svg?seed=${user.username.toLowerCase()}&backgroundType=gradientLinear`}
+                        src={getFileURL(navUser, navUser.avatar) ||
+                            `https://api.dicebear.com/7.x/initials/svg?seed=${navUser.username.toLowerCase()}&backgroundType=gradientLinear`}
                         alt="avatar"
                     />
                 </a>
                 <a
-                    href="/profile/@{user.username.toLowerCase()}"
+                    href="/profile/@{navUser.username.toLowerCase()}"
                     style="width: calc(100% - 104px)"
                 >
                     <p class="text-sm overflow-hidden text-ellipsis">
-                        {user.username}
+                        {navUser.username}
                     </p>
                     <p
                         class="text-sm text-gray-500 overflow-hidden text-ellipsis"
                     >
-                        {user.email}
+                        {navUser.email}
                     </p>
                 </a>
                 <button
@@ -210,7 +211,7 @@
             <a class="font-semibold z-10" href={item.value}>{item.text}</a>
         {/each}
     </menu>
-    {#if user}
+    {#if navUser}
         <div class="hidden lg:flex gap-6 items-center">
             <button
                 aria-label="Toggle theme"
@@ -257,8 +258,8 @@
                         >
                             <img
                                 class="rounded-full w-full h-full"
-                                src={getFileURL(user, user.avatar) ||
-                                    `https://api.dicebear.com/7.x/initials/svg?seed=${user.username.toLowerCase()}&backgroundType=gradientLinear`}
+                                src={getFileURL(navUser, navUser.avatar) ||
+                                    `https://api.dicebear.com/7.x/initials/svg?seed=${navUser.username.toLowerCase()}&backgroundType=gradientLinear`}
                                 alt="avatar"
                             />
                         </button>
