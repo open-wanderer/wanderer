@@ -30,6 +30,7 @@ class Settings {
   user?: string;
   privacy?: { account: "public" | "private", trails: "public" | "private", lists: "public" | "private" } | null
   notifications?: Record<NotificationType, { web: boolean, email: boolean }> | null
+  behavior?: Behavior | null;
 
   constructor(
     unit: "metric" | "imperial",
@@ -52,6 +53,10 @@ class Settings {
     this.tilesets = params?.tilesets ?? [];
     this.terrain = params?.terrain;
   }
+}
+
+export type Behavior = {
+    allowAutoGeolocate: boolean;
 }
 
 

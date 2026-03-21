@@ -137,11 +137,11 @@
         localStorage.removeItem(TRAIL_LIST_FILTER_STORAGE_KEY);
     });
 
-    async function handleFilterUpdate() {
+    async function handleFilterUpdate(resetPagination: boolean = true) {
         loading = true;
         persistFilter();
 
-        await paginate(1, pagination.items, false);
+        await paginate(resetPagination ? 1 : pagination.page, pagination.items);
 
         loading = false;
     }
@@ -152,12 +152,14 @@
         try {
             await doPaginate(newPage, items);
         } catch (err: any) {
-            let apiError : APIError = err;
-            if (apiError.status == 413) { // content too large
-                
+            let apiError: APIError = err;
+            if (apiError.status == 413) {
+                // content too large
+
                 let newItems = 10;
-                    
-                if (items == 12 || items == 24 || items == 48 || items == 96) { // cards view
+
+                if (items == 12 || items == 24 || items == 48 || items == 96) {
+                    // cards view
                     if (items > 96) {
                         newItems = 96;
                     } else if (items > 48) {
@@ -178,11 +180,11 @@
                         newItems = 10;
                     }
                 }
-                    
+
                 await doPaginate(newPage, newItems);
             }
         }
-        
+
         page.url.searchParams.set("page", newPage.toString());
         goto(`?${page.url.searchParams.toString()}`, { keepFocus: true, noScroll: !scrollToTop });
     }
@@ -209,14 +211,14 @@
         categories={page.data.categories}
         bind:filter
         {filterExpanded}
-        onupdate={handleFilterUpdate}
+        onupdate={() => handleFilterUpdate()}
     ></TrailFilterPanel>
     <TrailList
         bind:filter
         {loading}
         {trails}
         {pagination}
-        onupdate={handleFilterUpdate}
+        onupdate={() => handleFilterUpdate(false)}
         onpagination={paginate}
         ondisplaychange={handleDisplayModeChange}
     >
