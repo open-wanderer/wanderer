@@ -21,8 +21,8 @@ const SettingsCreateSchema = z.object({
         trails: z.enum(["public", "private"]),
         lists: z.enum(["public", "private"])
     }).optional().nullable(),
-    notifications: z.record(z.enum(Object.values(NotificationType) as [string, ...string[]]), z.object({ web: z.boolean(), email: z.boolean() })).optional().nullable()
-
+    notifications: z.record(z.enum(Object.values(NotificationType) as [string, ...string[]]), z.object({ web: z.boolean(), email: z.boolean() })).optional().nullable(),
+    behavior: z.object({ allowAutoGeolocate: z.boolean() }).optional().nullable(),
 }) satisfies ZodType<Settings>
 ZodType<Partial<Comment>>
 

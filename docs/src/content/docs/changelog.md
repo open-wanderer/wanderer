@@ -2,6 +2,29 @@
 title: Changelog
 description: What changed in the last patch?
 ---
+## v0.18.5
+### Security
+- Fixes CVE-2022-39299 via xmldom upgrade
+### Features
+- Persist trail list filter settings in local storage: filters are preserved on reload and when navigating back from a trail, and reset when - leaving the trail list
+### Bug Fixes
+- Skip elevation correction when Valhalla returns invalid (null) elevation data; original GPX values are preserved
+- Improved threshold handling for high-frequency GPX tracks to ensure correct ascent/descent calculation
+- Fixes trail upload for new users without default privacy settings
+- Fixes focus loss and duplicate “Cancel” button in trail filter search (Chrome)
+- Fixes async state issue in list search modal (bulk assignment works again)
+- Fixes locale errors and improved dynamic locale detection
+- Fixes PDF/print layout so descriptions render correctly and no longer overlap waypoints (thanks to @RobertClarke64)
+- Corrected POCKETBASE_SMTP_SENDER_ADDRESS spelling (previously POCKETBASE_SMTP_SENDER_ADRESS, now deprecated but backwards compatible)
+- Fixes amenity naming in stored map state, including migration
+- Fixes race condition in map plugin that caused errors when printing a trail
+
+### Translation
+- Added Czech language support (thanks @Sheepa)
+
+### Dependencies
+- Updated most dependencies, including security and maintenance updates
+
 ## v0.18.4
 ### Bug fixes
 - Tags can now properly be removed from trails

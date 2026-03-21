@@ -7,7 +7,7 @@ x-common-env: &cenv
 services:
   search:
     container_name: wanderer-search
-    image: getmeili/meilisearch:v1.11.3
+    image: getmeili/meilisearch:v1.36.0
     environment:
       <<: *cenv
       MEILI_NO_ANALYTICS: "true"
