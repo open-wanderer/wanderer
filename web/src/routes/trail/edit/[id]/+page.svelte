@@ -272,6 +272,7 @@
         clearUndoRedoStack();
 
         if ($formData.expand!.gpx_data) {
+            $formData.id ??= cryptoRandomString({ length: 15 });
             const gpx = GPX.parse($formData.expand!.gpx_data);
             if (!(gpx instanceof Error)) {
                 if (gpx.rte && !gpx.trk) {
@@ -1504,6 +1505,7 @@
                 waypoints={$formData.expand?.waypoints_via_trail}
                 drawing={drawingActive}
                 showTerrain={true}
+                autoGeolocateOnDrawing={page.params.id === "new"}
                 onmarkerdragend={moveMarker}
                 activeTrail={0}
                 bind:map
