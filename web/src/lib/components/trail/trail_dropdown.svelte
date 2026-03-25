@@ -3,7 +3,11 @@
     import { page } from "$app/state";
     import type { List } from "$lib/models/list";
     import type { Trail } from "$lib/models/trail";
-    import { categories } from "$lib/stores/category_store.js";
+    import {
+        integrations,
+        integrations_index,
+        uploadGpx,
+    } from "$lib/stores/integration_store";
     import {
         lists_add_trail,
         lists_index,
@@ -17,12 +21,14 @@
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
     import JSZip from "jszip";
-    import type { Snippet } from "svelte";
+    import { onMount, type Snippet } from "svelte";
     import { _ } from "svelte-i18n";
+    import { get } from "svelte/store";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
     import ConfirmModal from "../confirm_modal.svelte";
     import ListSearchModal from "../list/list_search_modal.svelte";
     import TrailExportModal from "./trail_export_modal.svelte";
+    import TrailSendModal from "./trail_send_modal.svelte";
     import TrailShareModal from "./trail_share_modal.svelte";
 
     interface Props {
@@ -40,8 +46,56 @@
     let listSelectModal: ListSearchModal;
     let trailExportModal: TrailExportModal;
     let trailShareModal: TrailShareModal;
+    let trailSendModal: TrailSendModal;
+
+    const hammerheadIntegration = $derived(
+        $integrations.find((integration) =>
+            Boolean(integration.hammerhead?.active)
+        )
+    );
 
     let lists: List[] = $state([]);
+    let integrationsLoading = false;
+    let integrationsLoadedForUser: string | undefined;
+
+    onMount(() => {
+        const unsubscribe = currentUser.subscribe(async (user) => {
+            if (!user) {
+                integrationsLoadedForUser = undefined;
+                return;
+            }
+
+            const existing = get(integrations);
+            if (
+                existing.length &&
+                existing[0]?.user === user.id
+            ) {
+                integrationsLoadedForUser = user.id;
+                return;
+            }
+
+            if (
+                integrationsLoading ||
+                integrationsLoadedForUser === user.id
+            ) {
+                return;
+            }
+
+            integrationsLoading = true;
+            try {
+                await integrations_index();
+                integrationsLoadedForUser = user.id;
+            } catch (error) {
+                console.error("Failed to load integrations", error);
+            } finally {
+                integrationsLoading = false;
+            }
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    });
 
     let loading: boolean = $state(false);
 
@@ -212,6 +266,15 @@
                       },
                   ]
                 : []),
+            ...(!isMultiselectMode() && hammerheadIntegration && canExport()
+                ? [
+                      {
+                          text: $_("send-to"),
+                          value: "send-to",
+                          icon: "upload",
+                      },
+                  ]
+                : []),
         ];
     }
 
@@ -336,6 +399,51 @@
             updateTrailsVisibility();
         } else if (ddVal == "delete") {
             confirmModal.openModal();
+        } else if (item.value == "send-to") {
+            trailSendModal.openModal();
+        }
+    }
+
+    async function uploadToHammerhead() {
+        if (!hammerheadIntegration || !hasTrail()) {
+            console.error("No Hammerhead integration found.");
+            return;
+        }
+
+        for (const uTrail of trails!) {
+            try {
+                if (uTrail.gpx) {
+                    const gpxData = await trail2gpx(uTrail, $currentUser);
+                    const formData = new FormData();
+                    const gpxFile = new File(
+                        [gpxData],
+                        `${uTrail.name || "trail"}.gpx`,
+                        { type: "application/gpx+xml" },
+                    );
+                    formData.append("file", gpxFile);
+
+                    await uploadGpx("hammerhead", gpxFile);
+
+                    show_toast({
+                        type: "success",
+                        icon: "check",
+                        text: $_("uploaded-trail-to-hammerhead"),
+                    });
+                } else {
+                    show_toast({
+                        type: "error",
+                        icon: "close",
+                        text: $_("trail-has-no-gpx"),
+                    });
+                }
+            } catch (e) {
+                console.error(e);
+                show_toast({
+                    type: "error",
+                    icon: "close",
+                    text: $_("error-uploading-trail-to-hammerhead"),
+                });
+            }
         }
     }
 
@@ -617,3 +725,11 @@
     onsave={handleShareUpdate}
     bind:this={trailShareModal}
 ></TrailShareModal>
+<TrailSendModal
+    bind:this={trailSendModal}
+    onsend={async (settings) => {
+        if (settings.integrationName === "hammerhead") {
+            await uploadToHammerhead();
+        }
+    }}
+></TrailSendModal>

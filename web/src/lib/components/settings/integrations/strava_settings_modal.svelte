@@ -70,7 +70,7 @@
 <Modal
     id="strava-settings-modal"
     size="md:min-w-lg"
-    title={"strava " + $_("settings")}
+    title={"Strava " + $_("settings")}
     bind:this={modal}
 >
     {#snippet content()}
@@ -114,7 +114,7 @@
             <div class="flex items-end relative gap-x-2 pt-2 border-t border-input-border">
                 <Datepicker
                     error={$errors.after}
-                    label={$_("after")}
+                    label={$_("ignore-trails-before-date")}
                     bind:value={$formData.after}
                 ></Datepicker>
                 <button
