@@ -37,7 +37,10 @@
         if (!browser) {
             return;
         }
-        localStorage.setItem(TRAIL_LIST_FILTER_STORAGE_KEY, JSON.stringify(filter));
+        localStorage.setItem(
+            TRAIL_LIST_FILTER_STORAGE_KEY,
+            JSON.stringify(filter),
+        );
     }
 
     let filterExpanded: boolean = $state(true);
@@ -45,13 +48,14 @@
     let loading: boolean = $state(true);
 
     let filter: TrailFilter = $state(restoreStoredFilter(page.data.filter));
-    const pagination: { page: number; totalPages: number, items: number } = $state({
-        page: page.url.searchParams.has("page")
-            ? parseInt(page.url.searchParams.get("page")!)
-            : 1,
-        totalPages: 1,
-        items: 25,
-    });
+    const pagination: { page: number; totalPages: number; items: number } =
+        $state({
+            page: page.url.searchParams.has("page")
+                ? parseInt(page.url.searchParams.get("page")!)
+                : 1,
+            totalPages: 1,
+            items: 25,
+        });
     let trails: Trail[] = $state([]);
     let trailsFullWidth = $state(false);
     let widthPreferences: Record<string, boolean> = $state({});
@@ -123,7 +127,7 @@
         trailsFullWidth = !trailsFullWidth;
         updateWidthPreference(currentDisplayMode, trailsFullWidth);
     }
-  
+
     beforeNavigate(({ to }) => {
         if (!browser || !to?.url) {
             return;
@@ -146,7 +150,11 @@
         loading = false;
     }
 
-    async function paginate(newPage: number, items: number, scrollToTop: boolean = true) {
+    async function paginate(
+        newPage: number,
+        items: number,
+        scrollToTop: boolean = true,
+    ) {
         pagination.page = newPage;
 
         try {
@@ -186,7 +194,10 @@
         }
 
         page.url.searchParams.set("page", newPage.toString());
-        goto(`?${page.url.searchParams.toString()}`, { keepFocus: true, noScroll: !scrollToTop });
+        goto(`?${page.url.searchParams.toString()}`, {
+            keepFocus: true,
+            noScroll: !scrollToTop,
+        });
     }
 
     async function doPaginate(newPage: number, items: number) {
@@ -225,26 +236,18 @@
         {#snippet trailWidthToggleSnippet()}
             <button
                 type="button"
-                class="btn-icon flex items-center justify-center"
+                class="btn-icon"
                 onclick={toggleTrailWidth}
                 aria-pressed={trailsFullWidth}
-                aria-label={trailsFullWidth ? "Condense trail list" : "Expand trail list"}
-                title={trailsFullWidth ? "Condense trail list" : "Expand trail list"}
+                aria-label={trailsFullWidth
+                    ? $_("collapse-trail-list")
+                    : $_("expand-trail-list")}
+                title={trailsFullWidth
+                    ? $_("collapse-trail-list")
+                    : $_("expand-trail-list")}
             >
-                {#if trailsFullWidth}
-                    <div class="flex items-center gap-0.5">
-                        <i class="fa fa-angle-right"></i>
-                        <i class="fa fa-angle-left"></i>
-                    </div>
-                {:else}
-                    <div class="flex items-center gap-0.5">
-                        <i class="fa fa-angle-left"></i>
-                        <i class="fa fa-angle-right"></i>
-                    </div>
-                {/if}
-                <span class="sr-only">
-                    {trailsFullWidth ? "Condense view" : "Expand view"}
-                </span>
+                <i class="fa {trailsFullWidth ? 'fa-minimize' : 'fa-maximize'}"
+                ></i>
             </button>
         {/snippet}
     </TrailList>
