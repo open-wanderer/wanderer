@@ -246,7 +246,7 @@
                     ? $_("collapse-trail-list")
                     : $_("expand-trail-list")}
             >
-                <i class="fa {trailsFullWidth ? 'fa-minimize' : 'fa-maximize'}"
+                <i class="fa {trailsFullWidth ? 'fa-compress' : 'fa-expand'}"
                 ></i>
             </button>
         {/snippet}
