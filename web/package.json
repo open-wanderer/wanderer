@@ -49,7 +49,7 @@
     "@turf/distance": "^7.3.3",
     "@types/chart.js": "^4.0.1",
     "@types/three": "^0.182.0",
-    "@xmldom/xmldom": "^0.8.11",
+    "@xmldom/xmldom": "^0.8.12",
     "activitypub-types": "^1.1.0",
     "autoprefixer": "^10.4.24",
     "canvas-confetti": "^1.9.4",
