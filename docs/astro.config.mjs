@@ -29,6 +29,11 @@ export default defineConfig({
           base: 'api-reference',
           label: 'API Reference',
           schema: 'wanderer.openapi.yaml',
+          sidebar: {
+            operations: {
+              
+            }
+          }
         },
       ]),
     ],
@@ -85,9 +90,9 @@ export default defineConfig({
           {
             label: 'Installation',
             items: [
-                { label: 'Quickstart', link: '/run/installation/quick' },
-                { label: 'Manual Docker Setup', link: '/run/installation/docker' },
-                { label: 'Install from Source', link: '/run/installation/from-source' },
+              { label: 'Quickstart', link: '/run/installation/quick' },
+              { label: 'Manual Docker Setup', link: '/run/installation/docker' },
+              { label: 'Install from Source', link: '/run/installation/from-source' },
             ]
           },
           {
