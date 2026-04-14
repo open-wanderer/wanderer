@@ -19,6 +19,7 @@ import (
 	"time"
 
 	pub "github.com/go-ap/activitypub"
+	"github.com/go-fed/httpsig"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
@@ -626,4 +627,69 @@ func TrailObjectFromIRI(iri string) (*pub.Object, error) {
 	}
 
 	return &object, nil
+}
+
+func VerifySignature(app core.App, req *http.Request, publicKeyPem string) (bool, error) {
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return false, fmt.Errorf("ORIGIN not set")
+	}
+	block, _ := pem.Decode([]byte(publicKeyPem))
+	if block == nil || block.Type != "PUBLIC KEY" {
+		return false, fmt.Errorf("could not decode publicKeyPem to PUBLIC KEY pem block type")
+	}
+
+	req.URL = &url.URL{
+		Path: req.Header.Get("X-Forwarded-Path"),
+	}
+
+	url, err := url.Parse(origin)
+	if err != nil {
+		return false, err
+	}
+
+	req.Header.Set("Host", url.Host)
+	req.Host = url.Host
+
+	app.Logger().Info(req.Header.Get("signature"))
+
+	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return false, err
+	}
+
+	v, err := httpsig.NewVerifier(req)
+	if err != nil {
+		return false, err
+	}
+
+	err = v.Verify(publicKey, httpsig.RSA_SHA256)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func SplitHandle(handle string) (string, string) {
+
+	cleaned := strings.TrimPrefix(handle, "@")
+	cleaned = strings.TrimSpace(cleaned)
+
+	if !strings.Contains(cleaned, "@") {
+		return cleaned, ""
+	}
+
+	parts := strings.SplitN(cleaned, "@", 2)
+	user := parts[0]
+	domain := parts[1]
+
+	return user, domain
+}
+
+func ItemID(item pub.Item) string {
+	if item == nil || item.GetID() == "" {
+		return ""
+	}
+	return item.GetID().String()
 }

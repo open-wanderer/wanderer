@@ -1,4 +1,5 @@
 import { follows_index } from "$lib/stores/follow_store";
+import { profile_follows_index } from "$lib/stores/profile_store";
 import { APIError } from "$lib/util/api_util";
 import { error, type Load } from "@sveltejs/kit";
 import { ClientResponseError } from "pocketbase";
@@ -9,8 +10,12 @@ export const load: Load = async ({ params, fetch }) => {
     }
 
     try {
-        const follows = await follows_index({ type: params.type, username: params.handle! },
-            1, 10, fetch)
+        const follows = await profile_follows_index(
+            params.handle!,
+            params.type as "followers" | "following",
+            1,
+            fetch,
+        );
         return { follows }
 
     } catch (e) {

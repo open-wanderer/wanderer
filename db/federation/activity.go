@@ -4,12 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
-	"database/sql"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -126,106 +123,4 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 		wg.Wait()
 	}()
 	return nil
-}
-
-func ProcessActivity(e *core.RequestEvent) error {
-	origin := os.Getenv("ORIGIN")
-	if origin == "" {
-		return fmt.Errorf("ORIGIN not set")
-	}
-
-	body, err := io.ReadAll(e.Request.Body)
-	if err != nil {
-		return err
-	}
-	var activity pub.Activity
-	activity.UnmarshalJSON(body)
-
-	inbox := fmt.Sprintf("%s%s", origin, e.Request.Header.Get("X-Forwarded-Path"))
-
-	recipient, err := e.App.FindFirstRecordByData("activitypub_actors", "inbox", inbox)
-	if err != nil {
-		return err
-	}
-
-	actor, err := e.App.FindFirstRecordByData("activitypub_actors", "iri", activity.Actor.GetID().String())
-	if err != nil {
-		if err == sql.ErrNoRows {
-			actor, err = GetActorByIRI(e.App, recipient, activity.Actor.GetID().String(), false)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
-
-		}
-	}
-
-	verified, err := verifySignature(e.App, e.Request, actor.GetString("public_key"))
-	if err != nil || !verified {
-		e.App.Logger().Error(err.Error())
-		return e.UnauthorizedError("Invalid http signature", err)
-	}
-
-	switch activity.Type {
-	case pub.FollowType:
-		err = ProcessFollowActivity(e.App, actor, activity)
-	case pub.AcceptType:
-		err = ProcessAcceptActivity(e.App, actor, activity)
-	case pub.UndoType:
-		err = ProcessUndoActivity(e.App, actor, activity)
-	case pub.UpdateType:
-		fallthrough
-	case pub.CreateType:
-		err = ProcessCreateOrUpdateActivity(e.App, actor, recipient, activity)
-	case pub.DeleteType:
-		err = ProcessDeleteActivity(e.App, actor, activity)
-	case pub.AnnounceType:
-		err = ProcessAnnounceActivity(e.App, actor, activity)
-	case pub.LikeType:
-		err = ProcessLikeActivity(e.App, actor, activity)
-	}
-	return e.JSON(http.StatusOK, err)
-}
-
-func verifySignature(app core.App, req *http.Request, publicKeyPem string) (bool, error) {
-	origin := os.Getenv("ORIGIN")
-	if origin == "" {
-		return false, fmt.Errorf("ORIGIN not set")
-	}
-	block, _ := pem.Decode([]byte(publicKeyPem))
-	if block == nil || block.Type != "PUBLIC KEY" {
-		return false, fmt.Errorf("could not decode publicKeyPem to PUBLIC KEY pem block type")
-	}
-
-	req.URL = &url.URL{
-		Path: req.Header.Get("X-Forwarded-Path"),
-	}
-
-	url, err := url.Parse(origin)
-	if err != nil {
-		return false, err
-	}
-
-	req.Header.Set("Host", url.Host)
-	req.Host = url.Host
-
-	app.Logger().Info(req.Header.Get("signature"))
-
-	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return false, err
-	}
-
-	v, err := httpsig.NewVerifier(req)
-	if err != nil {
-		return false, err
-	}
-
-	err = v.Verify(publicKey, httpsig.RSA_SHA256)
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
 }

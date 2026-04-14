@@ -22,6 +22,7 @@ export class List {
 
     }
     created?: string;
+    updated?: string;
     author: string;
 
     constructor(name: string, trails: Trail[], params?: { description?: string, public?: boolean, avatar?: string, author?: string }) {

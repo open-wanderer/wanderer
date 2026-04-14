@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"pocketbase/util"
 	"strings"
 	"time"
 
@@ -30,24 +31,8 @@ type WebfingerResponse struct {
 	} `json:"links"`
 }
 
-func SplitHandle(handle string) (string, string) {
-
-	cleaned := strings.TrimPrefix(handle, "@")
-	cleaned = strings.TrimSpace(cleaned)
-
-	if !strings.Contains(cleaned, "@") {
-		return cleaned, ""
-	}
-
-	parts := strings.SplitN(cleaned, "@", 2)
-	user := parts[0]
-	domain := parts[1]
-
-	return user, domain
-}
-
 func GetActorByHandle(app core.App, actor *core.Record, handle string, includeFollows bool) (*core.Record, error) {
-	username, domain := SplitHandle(handle)
+	username, domain := util.SplitHandle(handle)
 
 	filter := "preferred_username={:username}&&"
 	if domain != "" {
@@ -165,7 +150,7 @@ func assembleActor(actor *core.Record, dbActor *core.Record, app core.App, inclu
 	} else {
 
 		// check if value is still cached
-		twoHoursAgo := time.Now().Add(-2 * time.Hour)
+		twoHoursAgo := time.Now().UTC().Add(-2 * time.Hour)
 		if !includeFollows && dbActor.GetDateTime("last_fetched").Time().After(twoHoursAgo) {
 			return dbActor, nil
 		}
@@ -192,18 +177,18 @@ func assembleActor(actor *core.Record, dbActor *core.Record, app core.App, inclu
 		domain := strings.TrimPrefix(parsedUrl.Hostname(), "www.")
 
 		dbActor.Set("domain", domain)
-		dbActor.Set("followers", pubActor.Followers.GetID().String())
-		dbActor.Set("inbox", pubActor.Inbox.GetID().String())
+		dbActor.Set("followers", util.ItemID(pubActor.Followers))
+		dbActor.Set("inbox", util.ItemID(pubActor.Inbox))
 		dbActor.Set("iri", pubActor.GetID().String())
 		dbActor.Set("username", pubActor.Name.String())
 		dbActor.Set("preferred_username", pubActor.PreferredUsername.String())
-		dbActor.Set("following", pubActor.Following.GetID().String())
+		dbActor.Set("following", util.ItemID(pubActor.Following))
 		dbActor.Set("summary", pubActor.Summary.String())
-		dbActor.Set("outbox", pubActor.Outbox.GetID().String())
+		dbActor.Set("outbox", util.ItemID(pubActor.Outbox))
 		dbActor.Set("icon", icon)
 		dbActor.Set("published", pubActor.Published.String())
 		dbActor.Set("public_key", pubActor.PublicKey.PublicKeyPem)
-		dbActor.Set("last_fetched", time.Now())
+		dbActor.Set("last_fetched", time.Now().UTC())
 
 		if includeFollows {
 			dbActor.Set("followerCount", int(followers.TotalItems))
@@ -297,12 +282,12 @@ func fetchRemoteActor(actor *core.Record, iri string, includeFollows bool) (*pub
 
 	if includeFollows {
 		// Fetch followers
-		if data, err := FetchCollection(actor, pubActor.Followers.GetID().String()); err == nil {
+		if data, err := FetchCollection(actor, util.ItemID(pubActor.Followers)); err == nil {
 			followers = *data
 		}
 
 		// Fetch following
-		if data, err := FetchCollection(actor, pubActor.Following.GetID().String()); err == nil {
+		if data, err := FetchCollection(actor, util.ItemID(pubActor.Following)); err == nil {
 			following = *data
 		}
 	}
