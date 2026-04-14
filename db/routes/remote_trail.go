@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"pocketbase/federation"
 	"strings"
+	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
@@ -33,13 +34,13 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 	if handle != "" {
 		// If we have a handle, we are looking for a remote trail.
 		// Construct the IRI first to see if we already know this trail.
-		record, err = findLocalByRemoteInfo(e, userActor, handle, trailID)
+		record, err = findLocalTrailByRemoteInfo(e, userActor, handle, trailID)
 		if err != nil {
 			return e.InternalServerError("Failed to resolve trail", err)
 		}
 
 		// If the record has no ID, it's a new Shell
-		if record.Id == "" {
+		if record.Id == "" || record.GetBool("needs_full_sync") {
 			// Blocking sync for new records
 			record, err = performFullSync(e.App, userActor, e.Request.URL, record)
 			if err != nil {
@@ -47,10 +48,10 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 			}
 		} else {
 			// We already have it locally. Show and update background.
-			// updatedAt := record.GetDateTime("updated").Time()
-			// if time.Since(updatedAt) > 60*time.Minute {
-			go performFullSync(e.App, userActor, e.Request.URL, record)
-			// }
+			updatedAt := record.GetDateTime("updated").Time()
+			if time.Now().UTC().Sub(updatedAt) > 60*time.Minute {
+				go performFullSync(e.App, userActor, e.Request.URL, record)
+			}
 		}
 	} else {
 		// Standard local fetch by ID
@@ -63,7 +64,7 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 	return expandAndReturn(e, record, expandQuery)
 }
 
-func findLocalByRemoteInfo(e *core.RequestEvent, userActor *core.Record, handle, trailID string) (*core.Record, error) {
+func findLocalTrailByRemoteInfo(e *core.RequestEvent, userActor *core.Record, handle, trailID string) (*core.Record, error) {
 	// 1. Get Actor to build the IRI
 	actor, err := federation.GetActorByHandle(e.App, userActor, handle, false)
 	if err != nil {
@@ -115,7 +116,9 @@ func performFullSync(app core.App, userActor *core.Record, reqURL *url.URL, loca
 		syncRecordFiles(localTrail, "trails", remoteID, origin, remoteMap)
 
 		// 2. Map Relations & Simple Fields
-		syncMetadata(txApp, localTrail, remoteMap)
+		syncTrailMetadata(txApp, localTrail, remoteMap)
+
+		localTrail.Set("needs_full_sync", false)
 
 		if err := txApp.Save(localTrail); err != nil {
 			return err
@@ -149,7 +152,7 @@ func performFullSync(app core.App, userActor *core.Record, reqURL *url.URL, loca
 
 // --- Sub-Sync Helpers ---
 
-func syncMetadata(app core.App, record *core.Record, data map[string]any) {
+func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 	// Resolve Category if present in expand
 	if expand, ok := data["expand"].(map[string]any); ok {
 		if cat, ok := expand["category"].(map[string]any); ok {

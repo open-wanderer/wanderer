@@ -251,6 +251,8 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/remote/trail/{id}", routes.RemoteTrailGet)
 	se.Router.GET("/remote/trail/{id}/comments", routes.RemoteTrailCommentsList)
 
+	se.Router.GET("/remote/list/{id}", routes.RemoteListGet)
+
 	se.Router.GET("/remote/profile/{handle}/follows", routes.RemoteProfileFollowsList)
 
 }
