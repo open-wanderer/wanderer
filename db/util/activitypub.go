@@ -265,6 +265,7 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	record.Set("public", true)
 	record.Set("iri", t.ID.String())
 	record.Set("author", actor.Id)
+	record.Set("needs_full_sync", true)
 
 	categoryRecord, err := app.FindFirstRecordByData("categories", "name", category)
 	if err == nil {
