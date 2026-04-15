@@ -12,6 +12,7 @@
     import { onMount, tick } from "svelte";
     import type { Snippet } from "svelte";
     import TrailDropdown from "$lib/components/trail/trail_dropdown.svelte";
+    import { goto } from "$app/navigation";
 
     interface Props {
         filter?: TrailFilter | null;
@@ -313,6 +314,16 @@
         handleHoverUpdate(trail);
     }
 
+    function handleTrailClick(trail: Trail) {
+        if (selection && selection.size > 0) {
+            handleSelectionUpdate(trail);
+        } else {
+            goto(
+                `/trail/view/@${trail.author}${trail.domain ? `@${trail.domain}` : ""}/${trail.id}`,
+            );
+        }
+    }
+
     function setItemsPerPage() {
         localStorage.setItem("paginationItems", pagination.items.toString());
         onpagination?.(1, pagination.items);
@@ -417,12 +428,13 @@
                 ></TrailTable>
             {:else}
                 {#each trails as trail}
-                    <a
+                    <div
                         class="max-w-full flex-1"
                         class:basis-full={selectedDisplayOption === "list"}
-                        href="/trail/view/@{trail.author}{trail.domain
-                            ? `@${trail.domain}`
-                            : ''}/{trail.id}"
+                        role="button"
+                        tabindex="0"
+                        onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleTrailClick(trail)}
+                        onclick={() => handleTrailClick(trail)}
                         onmouseenter={(e) => handleMouseEnter(trail)}
                         onmouseleave={(e) => handleMouseLeave(trail)}
                     >
@@ -444,7 +456,7 @@
                                     handleSelectionUpdate(trail)}
                             ></TrailListItem>
                         {/if}
-                    </a>
+                    </div>
                 {/each}
             {/if}
         {/if}
