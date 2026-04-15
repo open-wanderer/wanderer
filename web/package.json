@@ -33,7 +33,7 @@
     "@fortawesome/fontawesome-free": "^7.1.0",
     "@sveltejs/adapter-node": "^5.5.2",
     "@tailwindcss/typography": "^0.5.19",
-    "@tailwindcss/vite": "^4.1.18",
+    "@tailwindcss/vite": "^4.2.2",
     "@threlte/core": "^8.3.1",
     "@threlte/extras": "^9.7.1",
     "@tiptap/core": "^2.14.0",
