@@ -1,12 +1,14 @@
 <script lang="ts">
     import { page } from "$app/state";
+    import HammerheadSettingsModal from "$lib/components/settings/integrations/hammerhead_settings_modal.svelte";
     import IntegrationCard from "$lib/components/settings/integrations/integration_card.svelte";
     import KomootSettingsModal from "$lib/components/settings/integrations/komoot_settings_modal.svelte";
     import StravaSettingsModal from "$lib/components/settings/integrations/strava_settings_modal.svelte";
     import {
         Integration,
+        type HammerheadIntegration,
         type KomootIntegration,
-        type StravaIntegration
+        type StravaIntegration,
     } from "$lib/models/integration.js";
     import {
         integrations_create,
@@ -15,6 +17,9 @@
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
     import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
+    import hammerheadLogoWhite from "$lib/assets/svgs/logos/hammerhead_white.svg";
+    import hammerheadLogoDark from "$lib/assets/svgs/logos/hammerhead_dark.svg";
+    import { theme } from "$lib/stores/theme_store";
 
     let { data } = $props();
 
@@ -33,9 +38,14 @@
         untrack(() => data.integration?.komoot?.active ?? false),
     );
 
+    let hammerheadSettingsModal: HammerheadSettingsModal;
+    let hammerheadToggleValue: boolean = $state(
+        untrack(() => data.integration?.hammerhead?.active ?? false),
+    );
+
     async function onSettingsSave(
-        form: StravaIntegration | KomootIntegration,
-        key: "strava" | "komoot",
+        form: StravaIntegration | KomootIntegration | HammerheadIntegration,
+        key: "strava" | "komoot" | "hammerhead",
     ) {
         try {
             if (integration) {
@@ -47,6 +57,13 @@
                     [key]: form,
                 };
                 integration = await integrations_create(newIntegration);
+            }
+
+            if (key == "komoot" || key == "hammerhead") {
+                let verified = await verifyLogin(key);
+                if (!verified) {
+                    return;
+                }
             }
 
             show_toast({
@@ -104,7 +121,7 @@
             }
 
             show_toast({
-                text: "strava " + $_("integration-disabled"),
+                text: "Strava " + $_("integration-disabled"),
                 icon: "check",
                 type: "success",
             });
@@ -116,23 +133,11 @@
             return;
         }
         if (value) {
-            try {
-                const r = await fetch("/api/v1/integration/komoot/login", {
-                    method: "GET",
-                });
-
-                if (!r.ok) {
-                    throw Error();
-                }
-            } catch (e) {
-                komootToggleValue = false;
-                show_toast({
-                    text: $_("error-logging-in-to-komoot"),
-                    icon: "close",
-                    type: "error",
-                });
+            let verified = await verifyLogin("komoot");
+            if (!verified) {
                 return;
             }
+
             integration.komoot.active = true;
         } else {
             integration.komoot.active = false;
@@ -141,7 +146,7 @@
             integration = await integrations_update(integration);
         } catch (e) {
             show_toast({
-                text: $_("error-updating-strava-integration"),
+                text: $_("error-updating-komoot-integration"),
                 icon: "close",
                 type: "error",
             });
@@ -151,6 +156,65 @@
         show_toast({
             text:
                 "komoot " + $_(`integration-${value ? "enabled" : "disabled"}`),
+            icon: "check",
+            type: "success",
+        });
+    }
+
+    async function verifyLogin(integrationName: string): Promise<boolean> {
+        try {
+            const r = await fetch(
+                `/api/v1/integration/${integrationName}/login`,
+                {
+                    method: "GET",
+                },
+            );
+
+            if (!r.ok) {
+                throw Error();
+            }
+        } catch (e) {
+            hammerheadToggleValue = false;
+            show_toast({
+                text: $_(`error-logging-in-to-${integrationName}`),
+                icon: "close",
+                type: "error",
+            });
+            return false;
+        }
+
+        return true;
+    }
+
+    async function onHammerheadToggle(value: boolean) {
+        if (!integration?.hammerhead) {
+            return;
+        }
+        if (value) {
+            let verified = await verifyLogin("hammerhead");
+            if (!verified) {
+                return;
+            }
+            integration.hammerhead.active = true;
+        } else {
+            integration.hammerhead.active = false;
+        }
+
+        try {
+            integration = await integrations_update(integration);
+        } catch (e) {
+            show_toast({
+                text: $_("error-updating-hammerhead-integration"),
+                icon: "close",
+                type: "error",
+            });
+            return;
+        }
+
+        show_toast({
+            text:
+                "Hammerhead " +
+                $_(`integration-${value ? "enabled" : "disabled"}`),
             icon: "check",
             type: "success",
         });
@@ -167,7 +231,7 @@
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     <IntegrationCard
         img="https://upload.wikimedia.org/wikipedia/commons/c/cb/Strava_Logo.svg"
-        title="strava"
+        title="Strava"
         description={$_("integration-description-strava")}
         disabled={!integration?.strava}
         active={stravaToggleValue}
@@ -183,6 +247,15 @@
         onclick={() => komootSettingsModal.openModal()}
         ontoggle={onKomootToggle}
     ></IntegrationCard>
+    <IntegrationCard
+        img={$theme == "light" ? hammerheadLogoDark : hammerheadLogoWhite}
+        title="Hammerhead"
+        description={$_("integration-description-hammerhead")}
+        disabled={!integration?.hammerhead}
+        bind:active={hammerheadToggleValue}
+        onclick={() => hammerheadSettingsModal.openModal()}
+        ontoggle={onHammerheadToggle}
+    ></IntegrationCard>
 </div>
 
 <StravaSettingsModal
@@ -196,3 +269,9 @@
     {integration}
     onsave={(form) => onSettingsSave(form, "komoot")}
 ></KomootSettingsModal>
+
+<HammerheadSettingsModal
+    bind:this={hammerheadSettingsModal}
+    {integration}
+    onsave={(form) => onSettingsSave(form, "hammerhead")}
+></HammerheadSettingsModal>
