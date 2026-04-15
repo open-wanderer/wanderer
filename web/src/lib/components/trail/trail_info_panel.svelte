@@ -391,9 +391,13 @@
                                 {trail.location}
                             </h3>
                         {/if}
-                        <h3 class="text-lg">
+                        <h3>
                             <i class="fa fa-gauge mr-2"></i>
                             {$_(trail.difficulty ?? "?")}
+                        </h3>
+                        <h3>
+                            <i class="fa {trail.completed ? 'fa-clipboard-check': 'fa-clipboard-list'} mr-2"></i>
+                            {$_(trail.completed ? 'completed' : 'not-completed')}
                         </h3>
                     </div>
                 </div>
