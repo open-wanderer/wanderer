@@ -112,15 +112,19 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
     }
 
     for (const wp of gpxTrail.expand!.waypoints_via_trail ?? []) {
-        const gpxWpt = gpx.wpt.find((w) => w.$.lat == wp.lat && w.$.lon == wp.lon)
+        let gpxWpt = gpx.wpt.find((w) => w.$.lat == wp.lat && w.$.lon == wp.lon)
         if (!gpxWpt) {
-            gpx.wpt.push(new GPXWaypoint({
+            gpxWpt = new GPXWaypoint({
                 $: {
                     lat: wp.lat,
                     lon: wp.lon
                 }
-            }))
+            })
+            gpx.wpt.push(gpxWpt)
         }
+        gpxWpt.desc = wp.description
+        gpxWpt.name = wp.name
+        gpxWpt.sym = wp.icon
     }
 
     return gpx.toString();
