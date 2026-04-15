@@ -15,8 +15,8 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@sveltejs/adapter-auto": "^7.0.1",
-    "@sveltejs/kit": "^2.53.4",
-    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@sveltejs/kit": "^2.57.1",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^25.3.3",
     "postcss": "^8.5.6",
@@ -25,7 +25,7 @@
     "tailwindcss": "^4.0.0",
     "tslib": "^2.4.1",
     "typescript": "^5.9.3",
-    "vite": "^5.4.21"
+    "vite": "^8.0.8"
   },
   "type": "module",
   "dependencies": {
@@ -33,7 +33,7 @@
     "@fortawesome/fontawesome-free": "^7.1.0",
     "@sveltejs/adapter-node": "^5.5.2",
     "@tailwindcss/typography": "^0.5.19",
-    "@tailwindcss/vite": "^4.1.18",
+    "@tailwindcss/vite": "^4.2.2",
     "@threlte/core": "^8.3.1",
     "@threlte/extras": "^9.7.1",
     "@tiptap/core": "^2.14.0",
@@ -49,7 +49,7 @@
     "@turf/distance": "^7.3.3",
     "@types/chart.js": "^4.0.1",
     "@types/three": "^0.182.0",
-    "@xmldom/xmldom": "^0.8.11",
+    "@xmldom/xmldom": "^0.8.12",
     "activitypub-types": "^1.1.0",
     "autoprefixer": "^10.4.24",
     "canvas-confetti": "^1.9.4",
@@ -66,7 +66,7 @@
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "maplibre-gl": "^4.7.1",
-    "marked": "^16.2.0",
+    "marked": "^17.0.4",
     "meilisearch": "^0.55.0",
     "ngeohash": "^0.6.3",
     "nouislider": "^15.7.1",
@@ -76,7 +76,7 @@
     "qrcode": "^1.4.4",
     "svelte-i18n": "^4.0.0",
     "three": "^0.182.0",
-    "vitest": "^1.6.1",
+    "vitest": "^4.1.4",
     "zod": "^3.24.1"
   }
 }
