@@ -284,6 +284,7 @@ func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomoo
 		"id":                trailid,
 		"name":              detailedTour.Name,
 		"public":            public,
+		"completed":         detailedTour.Type == "tour_recorded",
 		"distance":          detailedTour.Distance,
 		"elevation_gain":    detailedTour.ElevationUp,
 		"elevation_loss":    detailedTour.ElevationDown,
