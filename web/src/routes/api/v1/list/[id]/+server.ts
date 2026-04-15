@@ -5,6 +5,80 @@ import { objectToFormData } from "$lib/util/file_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError } from "pocketbase";
 
+/**
+ * @swagger
+ * /api/v1/list/{id}:
+ *   get:
+ *     summary: Get list
+ *     description: Retrieves a list by ID. Supports federated queries via handle parameter, fetching from remote instances and remapping file URLs
+ *     tags:
+ *       - Lists
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: expand
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: handle
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List with optional federated data
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ *   post:
+ *     summary: Update list
+ *     description: Updates a list by ID
+ *     tags:
+ *       - Lists
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: List
+ *       400:
+ *         description: Bad Request
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ *   delete:
+ *     summary: Delete list
+ *     description: Deletes a list by ID
+ *     tags:
+ *       - Lists
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Success
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     try {
         if (!event.url.searchParams.has("handle")) {

@@ -11,6 +11,40 @@ import type { APActivity, APOrderedCollectionPage, APRoot } from 'activitypub-ty
 import type { ListResult } from 'pocketbase';
 
 
+/**
+ * @swagger
+ * /api/v1/activitypub/user/{handle}/outbox:
+ *   get:
+ *     summary: Get ActivityPub outbox collection
+ *     description: Retrieves an OrderedCollection paginated list of activities published by this user
+ *     tags:
+ *       - ActivityPub
+ *     parameters:
+ *       - in: path
+ *         name: handle
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: perPage
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: ActivityPub OrderedCollectionPage
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
 
 
