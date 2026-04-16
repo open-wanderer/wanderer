@@ -39,8 +39,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *       500:
  *         description: Internal Server Error
  */
-export async function GET(event: RequestEvent) {
- */
+
 export async function GET(event: RequestEvent) {
     try {
         const r = await list<Category>(event, Collection.categories);
