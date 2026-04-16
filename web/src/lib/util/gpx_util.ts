@@ -15,6 +15,7 @@ import type { Feature, FeatureCollection, GeoJsonProperties, Position } from 'ge
 import JSZip from "jszip";
 import type { AuthRecord } from "pocketbase";
 import { handleFromRecordWithIRI } from "./activitypub_util";
+import { icons } from "./icon_util";
 
 
 export async function gpx2trail(gpxString: string, fallbackName?: string, correctElevation: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
@@ -44,6 +45,9 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
         wp.id = cryptoRandomString({ length: 15 });
         wp.name = wpt.name ?? ""
         wp.description = wpt.desc;
+        if(wpt.sym && icons.includes(wpt.sym)) {
+            wp.icon = wpt.sym as typeof icons[number];
+        }
         trail.expand!.waypoints_via_trail?.push(wp);
     }
 
