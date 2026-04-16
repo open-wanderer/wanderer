@@ -171,8 +171,8 @@
             <p class="whitespace-nowrap">
                 <i
                     class="fa {trail.completed
-                        ? 'fa-clipboard-check'
-                        : 'fa-clipboard-list'} mr-2"
+                        ? 'fa-flag-checkered'
+                        : 'fa-compass-drafting'} mr-2"
                 ></i>
                 {$_(trail.completed ? "completed" : "not-completed")}
             </p>

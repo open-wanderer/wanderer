@@ -1363,7 +1363,7 @@
         <Toggle
             name="completed"
             label={$formData.completed ? $_("completed") : $_("not-completed")}
-            icon={$formData.completed ? "clipboard-check" : "clipboard-list"}
+            icon={$formData.completed ? "flag-checkered" : "compass-drafting"}
         ></Toggle>
         <Toggle
             name="public"

@@ -3,6 +3,7 @@
   "Canoeing": "Kanufahren",
   "Climbing": "Klettern",
   "Hiking": "Wandern",
+  "Skiing": "Skifahren",
   "Walking": "Laufen",
   "about": "Über",
   "account-delete-confirm": "Du bist dabei, dein Konto zu löschen. Alle deine Routen werden ebenfalls gelöscht. Möchtest du fortfahren?",
@@ -264,6 +265,8 @@
   "make-thumbnail": "Thumbnail festlegen",
   "map": "Karte",
   "map-style": "Kartenstil",
+  "mark-trail-as-completed": "Route als abgeschlossen markieren",
+  "mark-trail-as-completed-modal-text": "Möchtest du diese Route als abgeschlossen markieren? Du kannst diesen Status jederzeit wieder ändern.",
   "max-hiking-difficulty": "Max. Schwierigkeit der Wanderung",
   "metric": "Metrisch",
   "moderate": "Mittel",
@@ -291,6 +294,7 @@
   "new-password-text": "Wähle ein neues Passwort",
   "new-token-generated": "",
   "new-trail": "Neue Route",
+  "no": "Nein",
   "no-account": "Du hast noch kein Konto?",
   "no-api-tokens": "",
   "no-comments-so-far": "Bisher keine Kommentare",
@@ -467,5 +471,6 @@
   "welcome_to": "Willkommen bei",
   "width": "Breite",
   "wrong-username-or-password": "Falscher Nutzername oder falsches Passwort",
+  "yes": "Ja",
   "you-can": "Du kannst"
 }
