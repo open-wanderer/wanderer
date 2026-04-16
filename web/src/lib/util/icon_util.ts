@@ -1,6 +1,6 @@
 import type { LocationSearchResult } from "$lib/stores/search_store";
 
-export const icons: string[] = ["0",
+export const icons = ["0",
     "1",
     "2",
     "3",

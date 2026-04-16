@@ -45,7 +45,7 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
         wp.id = cryptoRandomString({ length: 15 });
         wp.name = wpt.name ?? ""
         wp.description = wpt.desc;
-        if(wpt.sym && icons.includes(wpt.sym)) {
+        if(wpt.sym && icons.includes(wpt.sym as typeof icons[number])) {
             wp.icon = wpt.sym as typeof icons[number];
         }
         trail.expand!.waypoints_via_trail?.push(wp);
