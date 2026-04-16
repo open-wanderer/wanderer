@@ -314,14 +314,13 @@
         handleHoverUpdate(trail);
     }
 
-    function handleTrailClick(trail: Trail) {
+    function handleTrailClick(e: Event, trail: Trail) {
         if (selection && selection.size > 0) {
+            e.stopPropagation();
+            e.preventDefault();
             handleSelectionUpdate(trail);
-        } else {
-            goto(
-                `/trail/view/@${trail.author}${trail.domain ? `@${trail.domain}` : ""}/${trail.id}`,
-            );
-        }
+        } 
+        return true
     }
 
     function setItemsPerPage() {
@@ -428,13 +427,13 @@
                 ></TrailTable>
             {:else}
                 {#each trails as trail}
-                    <div
+                    <a
                         class="max-w-full flex-1"
                         class:basis-full={selectedDisplayOption === "list"}
-                        role="button"
-                        tabindex="0"
-                        onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleTrailClick(trail)}
-                        onclick={() => handleTrailClick(trail)}
+                        onclick={(e) => handleTrailClick(e,trail)}
+                        href="/trail/view/@{trail.author}{trail.domain
+                            ? `@${trail.domain}`
+                            : ''}/{trail.id}"
                         onmouseenter={(e) => handleMouseEnter(trail)}
                         onmouseleave={(e) => handleMouseLeave(trail)}
                     >
@@ -456,7 +455,7 @@
                                     handleSelectionUpdate(trail)}
                             ></TrailListItem>
                         {/if}
-                    </div>
+                    </a>
                 {/each}
             {/if}
         {/if}
