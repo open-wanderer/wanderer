@@ -39,8 +39,7 @@ import type { ListResult } from 'pocketbase';
  *       500:
  *         description: Internal Server Error
  */
-export async function GET(event: RequestEvent) {
- */
+
 export async function GET(event: RequestEvent) {
 
     try {
