@@ -8,7 +8,7 @@ description: How to import and export trails in wanderer
 <span class="-tracking-[0.075em]">wanderer</span> supports bulk uploading of trails via an auto-upload folder. A file watcher automatically detects new files added to this directory and imports them into your library.
 
 :::note
-This feature is currently only available for Docker installations.
+This feature is currently only available for Docker installations. Files added to the folder while the container is not running are ignored.
 :::
 
 :::caution
