@@ -1,11 +1,13 @@
 package federation
 
 import (
+	"context"
 	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -87,20 +89,42 @@ func GetActorByIRI(app core.App, actor *core.Record, iri string, includeFollows 
 func iriFromHandle(domain string, username string) (string, error) {
 	client := &http.Client{}
 
-	webfingerURL := fmt.Sprintf("https://%s/.well-known/webfinger?resource=acct:%s@%s", domain, username, domain)
-	resp, err := client.Get(webfingerURL)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("webfinger request failed: %v", err)
+	u := &url.URL{
+		Scheme: "https",
+		Host:   domain,
+		Path:   "/.well-known/webfinger",
+	}
+	q := u.Query()
+	q.Set("resource", fmt.Sprintf("acct:%s@%s", username, domain))
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequestWithContext(context.Background(), "GET", u.String(), nil)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("webfinger request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status: %d", resp.StatusCode)
+	}
+
+	limitedReader := io.LimitReader(resp.Body, 102400)
+
 	var wf WebfingerResponse
-	if err := json.NewDecoder(resp.Body).Decode(&wf); err != nil {
-		return "", err
+	if err := json.NewDecoder(limitedReader).Decode(&wf); err != nil {
+		return "", fmt.Errorf("failed to decode JSON: %w", err)
 	}
 
 	for _, link := range wf.Links {
 		if link.Rel == "self" {
+			if _, err := url.Parse(link.Href); err != nil {
+				return "", fmt.Errorf("invalid IRI in response")
+			}
 			return link.Href, nil
 		}
 	}
