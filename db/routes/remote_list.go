@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"pocketbase/federation"
+	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
@@ -26,34 +27,27 @@ func RemoteListGet(e *core.RequestEvent) error {
 		userActor, _ = e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
 	}
 
-	// 1. Resolve the "Actual" Record or Shell
 	if handle != "" {
-		// If we have a handle, we are looking for a remote trail.
-		// Construct the IRI first to see if we already know this trail.
 		record, err = findLocalListByRemoteInfo(e, userActor, handle, listID)
 		if err != nil {
 			return e.InternalServerError("Failed to resolve trail", err)
 		}
 
-		// If the record has no ID, it's a new Shell
 		if record.Id == "" {
-			// Blocking sync for new records
 			record, err = performFullListSync(e.App, userActor, e.Request.URL, record)
 			if err != nil {
 				return e.InternalServerError("Sync failed", err)
 			}
 		} else {
-			// We already have it locally. Show and update background.
-			// updatedAt := record.GetDateTime("updated").Time()
-			// if time.Since(updatedAt) > 60*time.Minute {
-			go performFullSync(e.App, userActor, e.Request.URL, record)
-			// }
+			updatedAt := record.GetDateTime("updated").Time()
+			if time.Now().UTC().Sub(updatedAt) > 60*time.Minute {
+				go performFullSync(e.App, userActor, e.Request.URL, record)
+			}
 		}
 	} else {
-		// Standard local fetch by ID
-		record, err = e.App.FindRecordById("trails", listID)
+		record, err = e.App.FindRecordById("lists", listID)
 		if err != nil {
-			return e.NotFoundError("Trail not found", nil)
+			return e.NotFoundError("List not found", nil)
 		}
 	}
 
@@ -141,7 +135,6 @@ func syncListMetadata(record *core.Record, data map[string]any) {
 }
 
 func syncListRecordFiles(record *core.Record, collection, remoteID, origin string, data map[string]any) {
-	// Handle avatar
 	if gpx, ok := data["avatar"].(string); ok && record.GetString("avatar") == "" {
 		if f, err := downloadFile(origin, collection, remoteID, gpx); err == nil {
 			record.Set("avatar", f)
