@@ -1,10 +1,10 @@
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
-import fs from 'fs';
+import { enhancedImages } from '@sveltejs/enhanced-img';
 
 export default defineConfig({
-	plugins: [tailwindcss(), sveltekit()],
+	plugins: [enhancedImages(), tailwindcss(), sveltekit()],
 	test: { include: ['src/**/*.{test,spec}.{js,ts}'] },
 	ssr: { noExternal: ['three'] },
 	...(process.env.WANDERER_ENV == "dev" ? {

@@ -15,6 +15,7 @@
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@sveltejs/adapter-auto": "^7.0.1",
+    "@sveltejs/enhanced-img": "^0.10.4",
     "@sveltejs/kit": "^2.57.1",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@types/canvas-confetti": "^1.9.0",
@@ -34,8 +35,8 @@
     "@sveltejs/adapter-node": "^5.5.2",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.2",
-    "@threlte/core": "^8.3.1",
-    "@threlte/extras": "^9.7.1",
+    "@threlte/core": "^8.5.9",
+    "@threlte/extras": "^9.14.6",
     "@tiptap/core": "^2.14.0",
     "@tiptap/extension-heading": "^2.14.0",
     "@tiptap/extension-link": "^2.14.0",
@@ -48,7 +49,7 @@
     "@turf/destination": "^7.3.3",
     "@turf/distance": "^7.3.3",
     "@types/chart.js": "^4.0.1",
-    "@types/three": "^0.182.0",
+    "@types/three": "^0.183.1",
     "@xmldom/xmldom": "^0.8.12",
     "activitypub-types": "^1.1.0",
     "autoprefixer": "^10.4.24",
@@ -75,7 +76,7 @@
     "pocketbase": "^0.26.8",
     "qrcode": "^1.4.4",
     "svelte-i18n": "^4.0.0",
-    "three": "^0.182.0",
+    "three": "^0.183.1",
     "vitest": "^4.1.4",
     "zod": "^3.24.1"
   }
