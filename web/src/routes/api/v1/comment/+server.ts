@@ -3,6 +3,51 @@ import type { Comment } from '$lib/models/comment';
 import { Collection, create, handleError, list } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
+/**
+ * @swagger
+ * /api/v1/comment:
+ *   get:
+ *     summary: List comments
+ *     tags:
+ *       - Comments
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: perPage
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: expand
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: handle
+ *         schema:
+ *           type: string
+ *           description: Federated query parameter
+ *     responses:
+ *       200:
+ *         description: List of comments
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ListResult'
+ *       400:
+ *         description: Bad Request
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     try {
         const comments = await list<Comment>(event, Collection.comments);
