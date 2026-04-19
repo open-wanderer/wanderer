@@ -91,6 +91,7 @@
                                 options.HTMLAttributes,
                             ),
                             options.renderText?.({
+                                suggestion: {...options.suggestion, editor: editor!},
                                 options: options,
                                 node,
                             }),
