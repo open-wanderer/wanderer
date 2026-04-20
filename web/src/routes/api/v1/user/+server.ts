@@ -5,6 +5,31 @@ import { Collection, handleError } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError } from 'pocketbase';
 
+/**
+ * @swagger
+ * /api/v1/user:
+ *   put:
+ *     summary: Create user (sign up)
+ *     tags:
+ *       - Users
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UserCreateInput'
+ *     responses:
+ *       201:
+ *         description: User created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Bad Request - Signup disabled or invalid data
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function PUT(event: RequestEvent) {
     if (env.PUBLIC_DISABLE_SIGNUP === "true") {
         throw new ClientResponseError({ status: 401, response: { messgage: "Forbidden" } })
