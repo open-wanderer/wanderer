@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { page } from "$app/state";
     import emptyStateUploadDark from "$lib/assets/svgs/empty_states/empty_state_upload_dark.svg";
     import emptyStateUploadLight from "$lib/assets/svgs/empty_states/empty_state_upload_light.svg";
     import Button from "$lib/components/base/button.svelte";
@@ -131,7 +132,7 @@
 </script>
 
 <svelte:head>
-    <title>{$_("settings")} | wanderer</title>
+    <title>{$_("settings")} | {page.data.appTitle}</title>
 </svelte:head>
 
 <div class="space-y-6">

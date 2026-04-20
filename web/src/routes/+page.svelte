@@ -147,7 +147,7 @@
 </script>
 
 <svelte:head>
-    <title>Home | wanderer</title>
+    <title>Home | {page.data.appTitle}</title>
 </svelte:head>
 
 <svelte:window onscroll={onScroll} />
@@ -161,7 +161,7 @@
         style="max-height: calc(100vh - 112px); top: 112px;"
     >
         <h2 class="text-5xl sm:text-6xl md:text-7xl font-bold">
-            {$_("welcome_to")} <span class="-tracking-[0.075em]">wanderer</span>
+            {$_("welcome_to")} <span class="-tracking-[0.075em]">{page.data.appTitle}</span>
         </h2>
         <h5>
             {$_("hero_section_0_text")}

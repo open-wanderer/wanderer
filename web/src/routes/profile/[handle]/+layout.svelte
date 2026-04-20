@@ -57,7 +57,7 @@
 </script>
 
 <MetaTags
-    title={`${$_("profile")} | wanderer`}
+    title={`${$_("profile")} | ${page.data.appTitle}`}
     openGraph={{
         title: data.profile.username,
         description: data.profile.bio,

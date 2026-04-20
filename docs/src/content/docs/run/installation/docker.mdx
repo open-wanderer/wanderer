@@ -116,7 +116,7 @@ services:
       PUBLIC_NOMINATIM_URL: https://nominatim.openstreetmap.org
     volumes:
       - ./data/uploads:/app/uploads
-      # - ./data/about.md:/app/build/client/md/about.md
+      # - ./data/:/app/build/client/md/
     ports:
       - "3000:3000"
     networks:

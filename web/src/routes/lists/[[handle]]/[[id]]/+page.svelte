@@ -238,7 +238,7 @@
 </script>
 
 <svelte:head>
-    <title>{$_("list", { values: { n: 2 } })} | wanderer</title>
+    <title>{$_("list", { values: { n: 2 } })} | {page.data.appTitle}</title>
 </svelte:head>
 <main class="grid grid-cols-1 md:grid-cols-[430px_1fr] gap-4 lg:gap-4 md:mx-4">
     <div

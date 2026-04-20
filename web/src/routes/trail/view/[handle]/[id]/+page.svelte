@@ -11,7 +11,7 @@
 
 {#if data.trail}
     <MetaTags
-        title={`${data.trail.name} | ${$_("trail", { values: { n: 1 } })} | wanderer`}
+        title={`${data.trail.name} | ${$_("trail", { values: { n: 1 } })} | ${page.data.appTitle}`}
         openGraph={{
             title: data.trail.name,
             description: data.trail.description,

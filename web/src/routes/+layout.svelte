@@ -90,7 +90,7 @@
     </div>
 {/if}
 
-<NavBar user={data.user}></NavBar>
+<NavBar user={data.user} mdPages={data.mdPages}></NavBar>
 <PageLoadingBar class="text-content"></PageLoadingBar>
 <Toast></Toast>
 <UploadDialog></UploadDialog>

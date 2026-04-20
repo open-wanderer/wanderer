@@ -18,7 +18,7 @@
 
 
 <MetaTags
-    title={`${data.trail.name} | ${$_("map")} | wanderer`}
+    title={`${data.trail.name} | ${$_("map")} | ${page.data.appTitle}`}
     openGraph={{
         title: data.trail.name,
         description: data.trail.description,

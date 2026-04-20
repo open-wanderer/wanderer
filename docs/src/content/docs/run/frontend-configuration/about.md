@@ -1,5 +1,5 @@
 ---
-title: Edit the "About" section
+title: Edit the "About" section 
 description: How to how to edit the "About" section
 ---
 
@@ -30,10 +30,10 @@ Depending on how you installed <span class="-tracking-[0.075em]">wanderer</span>
 2. Find the `volumes` section of the `web` container.
 3. Look for the following line (it is commented out by default):
 ```yaml 
- - ./data/about.md:/app/build/client/md/about.md
+ - ./data/:/app/build/client/md/
  ```
 4. Uncomment the line (remove the `#` at the beginning, if present).
-5. Make sure the left-hand side (`./data/about.md`) points to a valid Markdown file on your host machine.
+5. Make sure the left-hand side (`./data/`) points to a valid directory on your host machine containing an `about.md` file.
 6. Save your changes and restart the container:
 ```bash
 docker compose restart web
@@ -46,3 +46,4 @@ docker compose restart web
 3. Replace the contents with your own Markdown text.
 4. Save the file.
 5. No rebuild is required — the file is loaded dynamically at runtime.
+

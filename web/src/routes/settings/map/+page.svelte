@@ -141,7 +141,7 @@
 </script>
 
 <svelte:head>
-    <title>{$_("settings")} | wanderer</title>
+    <title>{$_("settings")} | {page.data.appTitle}</title>
 </svelte:head>
 <h2 class="text-2xl font-semibold">{$_("map")}</h2>
 <hr class="mt-4 mb-6 border-input-border" />

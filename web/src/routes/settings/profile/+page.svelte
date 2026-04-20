@@ -73,7 +73,7 @@
 </script>
 
 <svelte:head>
-    <title>{$_("settings")} | wanderer</title>
+    <title>{$_("settings")} | {page.data.appTitle}</title>
 </svelte:head>
 {#if $currentUser}
     <h2 class="text-2xl font-semibold">{$_("profile")}</h2>

@@ -6,7 +6,7 @@
     import { currentUser, logout } from "$lib/stores/user_store";
     import { getFileURL } from "$lib/util/file_util";
     import type { AuthRecord } from "pocketbase";
-    import { _ } from "svelte-i18n";
+    import { _, locale } from "svelte-i18n";
     import { backInOut, cubicOut } from "svelte/easing";
     import { Tween } from "svelte/motion";
     import Drawer from "./base/drawer.svelte";
@@ -17,10 +17,21 @@
 
     interface Props {
         user: AuthRecord;
+        mdPages?: Record<string, string[]>;
     }
 
-    let { user }: Props = $props();
+    let { user, mdPages = {} }: Props = $props();
     const navUser = $derived($currentUser ?? user);
+
+    let currentMdPages: string[] = $derived.by(() => {
+        const loc = $locale ?? "";
+        const prefix = loc.substring(0, 2);
+        if (mdPages[prefix]) return mdPages[prefix];
+        if (mdPages[loc]) return mdPages[loc];
+        return [];
+    });
+   
+  
 
     let navBarItems = [
         { text: "Home", value: "/" },
@@ -137,6 +148,9 @@
         {#each navBarItems as item}
             <a class="font-semibold text-xl" href={item.value}>{item.text}</a>
         {/each}
+        {#each currentMdPages as name}
+            <a class="font-semibold text-xl" href="/pages/{name}">{name}</a>
+        {/each}
     </div>
     <hr class="my-6 border-input-border" />
     <div class="flex flex-col basis-full">
@@ -209,6 +223,9 @@
         ></div>
         {#each navBarItems as item}
             <a class="font-semibold z-10" href={item.value}>{item.text}</a>
+        {/each}
+        {#each currentMdPages as name}
+            <a class="font-semibold z-10" href="/pages/{name}">{name}</a>
         {/each}
     </menu>
     {#if navUser}

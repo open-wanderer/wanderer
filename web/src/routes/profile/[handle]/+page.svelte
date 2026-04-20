@@ -63,7 +63,7 @@
 <svelte:window onscroll={onListScroll} />
 
 <svelte:head>
-    <title>{$_("profile")} | wanderer</title>
+    <title>{$_("profile")} | {page.data.appTitle}</title>
 </svelte:head>
 
 <div class="space-y-6">

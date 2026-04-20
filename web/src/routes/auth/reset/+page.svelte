@@ -1,5 +1,6 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
+    import { page } from "$app/state";
     import Button from "$lib/components/base/button.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import LogoTextTwoLineDark from "$lib/components/logo/logo_text_two_line_dark.svelte";
@@ -50,7 +51,7 @@
 </script>
 
 <svelte:head>
-    <title>{$_("login")} | wanderer</title>
+    <title>{$_("login")} | {page.data.appTitle}</title>
 </svelte:head>
 <main class="flex justify-center">
     <form

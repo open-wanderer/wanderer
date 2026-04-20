@@ -84,7 +84,7 @@
 </script>
 
 <svelte:head>
-    <title>{$_("login")} | wanderer</title>
+    <title>{$_("login")} | {page.data.appTitle}</title>
 </svelte:head>
 <main class="flex justify-center">
     <form

@@ -1,9 +1,10 @@
 <script lang="ts">
+    import { page } from "$app/state";
     import { _ } from "svelte-i18n";
 </script>
 
 <svelte:head>
-    <title>{$_("email-verified")} | wanderer</title>
+    <title>{$_("email-verified")} | {page.data.appTitle}</title>
 </svelte:head>
 <main class="flex justify-center items-start">
     <div

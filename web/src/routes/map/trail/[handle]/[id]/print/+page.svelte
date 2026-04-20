@@ -588,7 +588,7 @@
 </script>
 
 <svelte:head>
-    <title>{$_("print")} | wanderer</title>
+    <title>{$_("print")} | {page.data.appTitle}</title>
 </svelte:head>
 
 <main

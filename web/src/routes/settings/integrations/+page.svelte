@@ -222,7 +222,7 @@
 </script>
 
 <svelte:head>
-    <title>{$_("settings")} | wanderer</title>
+    <title>{$_("settings")} | {page.data.appTitle}</title>
 </svelte:head>
 
 <h3 class="text-2xl font-semibold">{$_("integrations")}</h3>
