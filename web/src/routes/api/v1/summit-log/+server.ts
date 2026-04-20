@@ -4,6 +4,47 @@ import { Collection, create, handleError, list } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { type ListResult } from "pocketbase";
 
+/**
+ * @swagger
+ * /api/v1/summit-log:
+ *   get:
+ *     summary: List summit logs
+ *     description: Retrieves a paginated list of summit logs with deduplication of federated data
+ *     tags:
+ *       - Summit Logs
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: perPage
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: expand
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: handle
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ListResult<SummitLog> with local/remote items deduplicated
+ *       400:
+ *         description: Bad Request
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     try {
         if (!event.url.searchParams.has("handle")) {
@@ -89,6 +130,31 @@ export async function GET(event: RequestEvent) {
     }
 }
 
+/**
+ * @swagger
+ * /api/v1/summit-log:
+ *   put:
+ *     summary: Create summit log
+ *     tags:
+ *       - Summit Logs
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SummitLogInput'
+ *     responses:
+ *       201:
+ *         description: Summit log created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SummitLog'
+ *       400:
+ *         description: Bad Request
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function PUT(event: RequestEvent) {
     try {
         const r = await create<SummitLog>(event, SummitLogCreateSchema, Collection.summit_logs)

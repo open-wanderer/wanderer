@@ -1,14 +1,44 @@
 import { env } from '$env/dynamic/private';
-import { env as publicEnv } from '$env/dynamic/public';
 
 import type { Actor } from '$lib/models/activitypub/actor';
 import type { Follow } from '$lib/models/follow';
 import { splitUsername } from '$lib/util/activitypub_util';
 import { handleError } from '$lib/util/api_util';
-import { error, json, type RequestEvent } from '@sveltejs/kit';
+import { json, type RequestEvent } from '@sveltejs/kit';
 import type { APOrderedCollectionPage, APRoot } from 'activitypub-types';
 import type { ListResult } from 'pocketbase';
 
+
+/**
+ * @swagger
+ * /api/v1/activitypub/user/{handle}/following:
+ *   get:
+ *     summary: Get ActivityPub following collection
+ *     description: Retrieves an OrderedCollection paginated list of accounts the user follows
+ *     tags:
+ *       - ActivityPub
+ *     parameters:
+ *       - in: path
+ *         name: handle
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: ActivityPub OrderedCollectionPage
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 
 export async function GET(event: RequestEvent) {
 
