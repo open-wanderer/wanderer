@@ -87,7 +87,7 @@ func GetActorByIRI(app core.App, actor *core.Record, iri string, includeFollows 
 }
 
 func iriFromHandle(domain string, username string) (string, error) {
-	client := &http.Client{}
+	client := util.SafeHTTPClient()
 
 	u := &url.URL{
 		Scheme: "https",
@@ -245,7 +245,7 @@ func fetchRemoteActor(actor *core.Record, iri string, includeFollows bool) (*pub
 		return nil, nil, nil, fmt.Errorf("POCKETBASE_ENCRYPTION_KEY not set")
 	}
 
-	client := &http.Client{}
+	client := util.SafeHTTPClient()
 	req, _ := http.NewRequest("GET", iri, nil)
 
 	headers := map[string]string{
@@ -367,7 +367,8 @@ func FetchCollection(actor *core.Record, url string) (*pub.OrderedCollection, er
 		}
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	client := util.SafeHTTPClient()
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("collection fetch failed for %s: %v", url, err)
 	}
