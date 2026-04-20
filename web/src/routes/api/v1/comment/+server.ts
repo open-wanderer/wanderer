@@ -31,11 +31,6 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *         name: expand
  *         schema:
  *           type: string
- *       - in: query
- *         name: handle
- *         schema:
- *           type: string
- *           description: Federated query parameter
  *     responses:
  *       200:
  *         description: List of comments

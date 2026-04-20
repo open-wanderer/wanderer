@@ -8,7 +8,6 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  * /api/v1/summit-log:
  *   get:
  *     summary: List summit logs
- *     description: Retrieves a paginated list of summit logs with deduplication of federated data
  *     tags:
  *       - Summit Logs
  *     parameters:
@@ -32,13 +31,9 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *         name: expand
  *         schema:
  *           type: string
- *       - in: query
- *         name: handle
- *         schema:
- *           type: string
  *     responses:
  *       200:
- *         description: ListResult<SummitLog> with local/remote items deduplicated
+ *         description: List of summit logs
  *       400:
  *         description: Bad Request
  *       500:

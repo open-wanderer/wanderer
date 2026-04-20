@@ -9,7 +9,6 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  * /api/v1/follow:
  *   get:
  *     summary: List follows
- *     description: Retrieves follows or ActivityPub follower/following collections. Supports federated queries via handle parameter
  *     tags:
  *       - Follows
  *     parameters:
@@ -33,18 +32,9 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *         name: expand
  *         schema:
  *           type: string
- *       - in: query
- *         name: handle
- *         schema:
- *           type: string
- *       - in: query
- *         name: type
- *         schema:
- *           type: string
- *           enum: [followers, following]
  *     responses:
  *       200:
- *         description: List of follows or ActivityPub collection
+ *         description: List of follows
  *         content:
  *           application/json:
  *             schema:

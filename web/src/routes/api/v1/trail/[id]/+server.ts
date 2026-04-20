@@ -9,7 +9,7 @@ import type PocketBase from "pocketbase";
  * /api/v1/trail/{id}:
  *   get:
  *     summary: Get trail
- *     description: Retrieves a trail by ID. Supports federated queries via handle parameter, fetching from remote instances and remapping file URLs
+ *     description: Retrieves a trail by ID
  *     tags:
  *       - Trails
  *     parameters:
@@ -23,16 +23,12 @@ import type PocketBase from "pocketbase";
  *         schema:
  *           type: string
  *       - in: query
- *         name: handle
- *         schema:
- *           type: string
- *       - in: query
  *         name: share
  *         schema:
  *           type: string
  *     responses:
  *       200:
- *         description: Trail with optional federated data
+ *         description: Trail
  *       404:
  *         description: Not Found
  *       500:

@@ -8,7 +8,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  * /api/v1/list/{id}:
  *   get:
  *     summary: Get list
- *     description: Retrieves a list by ID. Supports federated queries via handle parameter, fetching from remote instances and remapping file URLs
+ *     description: Retrieves a list by ID
  *     tags:
  *       - Lists
  *     parameters:
@@ -21,13 +21,9 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *         name: expand
  *         schema:
  *           type: string
- *       - in: query
- *         name: handle
- *         schema:
- *           type: string
  *     responses:
  *       200:
- *         description: List with optional federated data
+ *         description: List
  *       404:
  *         description: Not Found
  *       500:
