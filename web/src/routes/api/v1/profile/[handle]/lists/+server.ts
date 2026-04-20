@@ -1,10 +1,52 @@
 import type { TrailSearchResult } from '$lib/models/trail';
 import type { ListSearchResult } from '$lib/stores/search_store';
+import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import type { SearchResponse } from 'meilisearch';
 import { ClientResponseError } from 'pocketbase';
 
+/**
+ * @swagger
+ * /api/v1/profile/{handle}/lists:
+ *   post:
+ *     summary: Search user lists
+ *     description: Searches a user's lists via Meilisearch, with federation support
+ *     tags:
+ *       - Profiles
+ *     parameters:
+ *       - in: path
+ *         name: handle
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - q
+ *             properties:
+ *               q:
+ *                 type: string
+ *               options:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Meilisearch response with list results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         description: Bad Request
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function POST(event: RequestEvent) {
     const handle = event.params.handle;
     if (!handle) {
@@ -12,7 +54,7 @@ export async function POST(event: RequestEvent) {
     }
 
     try {
-        const {actor, error} = await event.locals.pb.send(`/activitypub/actor?resource=acct:${handle}`, { method: "GET", fetch: event.fetch, });
+        const { actor } = await getActorResponseForHandle(event, handle);
 
         const data = await event.request.json()
 

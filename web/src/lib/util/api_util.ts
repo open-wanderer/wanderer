@@ -41,6 +41,7 @@ export enum Collection {
     trails_bounding_box = "trails_bounding_box",
     trails_filter = "trails_filter",
     users_anonymous = "users_anonymous",
+    api_tokens = "api_tokens"
 
 }
 

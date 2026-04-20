@@ -107,7 +107,7 @@
     let map: M.Map | undefined = $state();
     let mapPopup: M.Popup | undefined;
     let mapTrail: Trail[] = $state([]);
-    let lists = $state(data.lists);
+    let lists = $state(untrack(() => data.lists));
 
     let waypointModal: WaypointModal;
     let summitLogModal: SummitLogModal;
@@ -160,22 +160,24 @@
 
     let tagItems: ComboboxItem[] = $state([]);
 
+    const getInitialFormValues = () => ({
+        ...data.trail,
+        public: data.trail.id
+            ? data.trail.public
+            : page.data.settings?.privacy?.trails === "public",
+        category:
+            data.trail.category ||
+            page.data.settings?.category ||
+            $categories[0].id,
+    });
+
     const {
         form,
         errors,
         data: formData,
         setFields,
     } = createForm<z.infer<typeof ClientTrailCreateSchema>>({
-        initialValues: {
-            ...data.trail,
-            public: data.trail.id
-                ? data.trail.public
-                : page.data.settings?.privacy?.trails === "public",
-            category:
-                data.trail.category ||
-                page.data.settings?.category ||
-                $categories[0].id,
-        },
+        initialValues: getInitialFormValues(),
         extend: validator({
             schema: ClientTrailCreateSchema,
         }),
@@ -270,6 +272,7 @@
         clearUndoRedoStack();
 
         if ($formData.expand!.gpx_data) {
+            $formData.id ??= cryptoRandomString({ length: 15 });
             const gpx = GPX.parse($formData.expand!.gpx_data);
             if (!(gpx instanceof Error)) {
                 if (gpx.rte && !gpx.trk) {
@@ -1502,6 +1505,7 @@
                 waypoints={$formData.expand?.waypoints_via_trail}
                 drawing={drawingActive}
                 showTerrain={true}
+                autoGeolocateOnDrawing={page.params.id === "new"}
                 onmarkerdragend={moveMarker}
                 activeTrail={0}
                 bind:map

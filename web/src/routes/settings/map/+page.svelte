@@ -14,12 +14,40 @@
     } from "$lib/stores/search_store";
     import { settings_update } from "$lib/stores/settings_store";
     import { currentUser } from "$lib/stores/user_store";
-    import { country_codes } from "$lib/util/country_code_util";
     import { getIconForLocation } from "$lib/util/icon_util";
     import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
+    import Toggle from "$lib/components/base/toggle.svelte";
+    import { show_toast } from "$lib/stores/toast_store.svelte.js";
 
     let settings = $derived(page.data.settings);
+
+    let allowAutoGeolocate = $state(
+        page.data.settings.behavior?.allowAutoGeolocate ?? false,
+    );
+
+    async function handleAllowAutoGeolocateChange() {
+        if (!settings) {
+            return;
+        }
+
+        try {
+            if (!settings.behavior) {
+                settings.behavior = { allowAutoGeolocate: allowAutoGeolocate };
+            } else {
+                settings.behavior.allowAutoGeolocate = allowAutoGeolocate;
+            }
+
+            await settings_update(settings);
+        } catch (e) {
+            show_toast({
+                type: "error",
+                icon: "close",
+                text: "Error updating behavior settings",
+            });
+            console.error(e);
+        }
+    }
 
     const mapFocus: SelectItem[] = [
         { text: $_("trail", { values: { n: 2 } }), value: "trails" },
@@ -138,6 +166,18 @@
                     ></Search>
                 </div>
             {/if}
+            <div
+                class="mt-4 grid gap-4"
+                style="grid-template-columns: 1fr min-content ;"
+            >
+                <p>{$_("allow-auto-geolocate")}</p>
+                <div>
+                    <Toggle
+                        bind:value={allowAutoGeolocate}
+                        onchange={handleAllowAutoGeolocateChange}
+                    ></Toggle>
+                </div>
+            </div>
         </div>
         <div>
             <h4 class="text-xl font-medium mb-2">{$_("tilesets")}</h4>

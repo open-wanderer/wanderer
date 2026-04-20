@@ -1,20 +1,22 @@
 <script lang="ts">
-    import { goto, invalidateAll } from "$app/navigation";
+    import { invalidateAll } from "$app/navigation";
     import { page } from "$app/state";
     import Button from "$lib/components/base/button.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import LogoTextTwoLineDark from "$lib/components/logo/logo_text_two_line_dark.svelte";
     import LogoTextTwoLineLight from "$lib/components/logo/logo_text_two_line_light.svelte";
-    import { Language, type Settings } from "$lib/models/settings";
+    import { Language } from "$lib/models/settings";
     import type { User } from "$lib/models/user";
     import { settings_update } from "$lib/stores/settings_store";
     import { theme } from "$lib/stores/theme_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import { login, users_create } from "$lib/stores/user_store";
+    import { APIError } from "$lib/util/api_util";
     import { validator } from "@felte/validator-zod";
     import { createForm } from "felte";
+    import { ClientResponseError } from "pocketbase";
     import { _ } from "svelte-i18n";
-    import { INVALID, z } from "zod";
+    import { z } from "zod";
 
     let loading: boolean = $state(false);
     const { form, errors } = createForm<User>({
@@ -60,11 +62,24 @@
             try {
                 await users_create(newUser);
             } catch (e) {
-                show_toast({
-                    icon: "close",
-                    type: "error",
-                    text: $_("error-creating-user"),
-                });
+                if (
+                    e instanceof APIError &&
+                    e.detail?.data?.email?.code === "validation_not_unique"
+                ) {
+                    $errors.email = [$_("email-not-unique")];
+                } else if (
+                    e instanceof APIError &&
+                    e.detail?.data?.username?.code === "validation_not_unique"
+                ) {
+                    $errors.username = [$_("username-not-unique")];
+                } else {
+                    show_toast({
+                        icon: "close",
+                        type: "error",
+                        text: $_("error-creating-user"),
+                    });
+                }
+
                 return;
             } finally {
                 loading = false;

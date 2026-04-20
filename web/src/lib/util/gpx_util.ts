@@ -1,21 +1,20 @@
 import GPX from "$lib/models/gpx/gpx";
 import { Trail } from "$lib/models/trail";
-import { gpx, kml, tcx } from "$lib/vendor/toGeoJSON/toGeoJSON";
+import { kml, tcx } from "$lib/vendor/toGeoJSON/toGeoJSON";
 import cryptoRandomString from "crypto-random-string";
 //@ts-ignore
 import { browser } from "$app/environment";
 import Track from "$lib/models/gpx/track";
 import TrackSegment from "$lib/models/gpx/track-segment";
 import GPXWaypoint from "$lib/models/gpx/waypoint";
-import EasyFit from "$lib/vendor/easy-fit/easy-fit";
-import type { Feature, FeatureCollection, GeoJSON, GeoJsonProperties, Position } from 'geojson';
+import { Waypoint } from "$lib/models/waypoint";
+import { trails_show } from "$lib/stores/trail_store";
+import FitParser from "$lib/vendor/fit-parser/fit_parser";
+import { DOMParser as XMLDOMParser } from "@xmldom/xmldom";
+import type { Feature, FeatureCollection, GeoJsonProperties, Position } from 'geojson';
 import JSZip from "jszip";
 import type { AuthRecord } from "pocketbase";
-import * as xmldom from 'xmldom';
-import { bbox, splitMultiLineStringToLineStrings } from "./geojson_util";
-import { trails_show } from "$lib/stores/trail_store";
 import { handleFromRecordWithIRI } from "./activitypub_util";
-import { Waypoint } from "$lib/models/waypoint";
 
 
 export async function gpx2trail(gpxString: string, fallbackName?: string, correctElevation: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
@@ -104,6 +103,10 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
         author: { name: trail.author ?? "", email: user?.email ?? "" }
     }
 
+    if (gpx.trk && gpx.trk.length > 0) {
+        gpx.trk[0].name = trail.name
+    }
+
     if (!gpx.wpt) {
         gpx.wpt = [];
     }
@@ -161,7 +164,7 @@ export async function fromFile(file: File | Blob) {
 }
 
 export function fromKML(kmlData: string) {
-    const parser = browser ? new DOMParser() : new xmldom.DOMParser();
+    const parser = browser ? new DOMParser() : new XMLDOMParser();
     const nodes = parser.parseFromString(kmlData, "text/xml")
     const geojson = kml(nodes) as Feature | FeatureCollection
 
@@ -178,7 +181,7 @@ export async function fromKMZ(kmzData: ArrayBuffer) {
 }
 
 export function fromTCX(tcxData: string) {
-    const parser = browser ? new DOMParser() : new xmldom.DOMParser();
+    const parser = browser ? new DOMParser() : new XMLDOMParser();
     const nodes = parser.parseFromString(tcxData, "text/xml")
     const geojson = tcx(nodes) as Feature | FeatureCollection
 
@@ -188,8 +191,8 @@ export function fromTCX(tcxData: string) {
 }
 
 export async function fromFIT(fitData: ArrayBuffer) {
-    const easyFit = new EasyFit();
-    return new Promise<string>((resolve, reject) => easyFit.parse(fitData, function (error, data) {
+    const fitParser = new FitParser();
+    return new Promise<string>((resolve, reject) => fitParser.parse(fitData, function (error, data) {
 
         if (error) {
             console.error(error);
@@ -200,17 +203,17 @@ export async function fromFIT(fitData: ArrayBuffer) {
             metadata: {
                 name: "",
                 desc: "",
-                time: data.activity?.timestamp ?? new Date(),
+                time: data?.activity?.timestamp ?? new Date(),
                 keywords: "wanderer"
             },
             trk: [
                 new Track({
                     trkseg: new TrackSegment({
-                        trkpt: data.records.flatMap(((d: { position_lat: any; position_long: any; timestamp: any; altitude: any; }) => {
+                        trkpt: data?.records?.flatMap(((d) => {
                             return (d.position_lat && d.position_long) ? new GPXWaypoint({
                                 $: { lat: d.position_lat, lon: d.position_long },
                                 time: d.timestamp,
-                                ele: d.altitude
+                                ele: d.altitude ?? d.enhanced_altitude
 
                             }) : []
                         }))

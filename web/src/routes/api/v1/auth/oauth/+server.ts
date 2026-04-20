@@ -7,6 +7,24 @@ import { handleError } from "$lib/util/api_util";
 
 const redirectURL = private_env.ORIGIN + "/login/redirect"
 
+/**
+ * @swagger
+ * /api/v1/auth/oauth:
+ *   get:
+ *     summary: List OAuth providers
+ *     description: Lists available OAuth2 authentication methods with provider images
+ *     tags:
+ *       - Authentication
+ *     responses:
+ *       200:
+ *         description: OAuth2 providers and configuration
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     try {
         const r = await event.locals.pb.collection('users').listAuthMethods();

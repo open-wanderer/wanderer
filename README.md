@@ -4,7 +4,7 @@
 
   <h4>The trail catalogue that makes your GPS data searchable</h4>
 
-[![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/open-wanderer/wanderer-web/latest)](https://github.com/open-wanderer/wanderer/)
+[![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/flomp/wanderer-web/latest)](https://github.com/open-wanderer/wanderer/)
 [![GitHub Repo stars](https://img.shields.io/github/stars/open-wanderer/wanderer?style=social)](https://github.com/open-wanderer/wanderer/)
 [![Buy Me A Coffee](https://img.shields.io/badge/Support-wanderer-yellow?logo=buy-me-a-coffee)](https://www.buymeacoffee.com/wanderertrails)
 [![Discord](https://img.shields.io/discord/1249895457396621332?style=social&logo=discord&label=Developer%20Discord)](https://discord.gg/USSEBY98CP)
@@ -44,7 +44,7 @@ The first startup can take up to 90 seconds after which you can access the front
 
 > ⚠️ if you are using wanderer in a production environment make sure to change the MEILI_MASTER_KEY variable.
 
-You can also run wanderer on bare-metal. Check out the [documentation](https://wanderer.to/run/installation/#installation-from-source) for a detailed how-to guide.
+You can also run wanderer on bare-metal. Check out the [documentation](https://wanderer.to/run/installation/from-source) for a detailed how-to guide.
 
 ## Support wanderer
 

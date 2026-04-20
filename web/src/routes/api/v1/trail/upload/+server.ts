@@ -6,10 +6,43 @@ import { trails_create } from "$lib/stores/trail_store";
 import { handleError } from "$lib/util/api_util";
 import { fromFile, gpx2trail } from "$lib/util/gpx_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
-import type MeiliSearch from "meilisearch";
-import type { Hits } from "meilisearch";
+import type { Hits, MeiliSearch } from "meilisearch";
 import { ClientResponseError } from "pocketbase";
 
+/**
+ * @swagger
+ * /api/v1/trail/upload:
+ *   put:
+ *     summary: Upload and parse GPX file as trail
+ *     description: Uploads a GPX file, parses it to extract trail data, performs duplicate detection, and indexes in search
+ *     tags:
+ *       - Trails
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *               name:
+ *                 type: string
+ *               ignoreDuplicates:
+ *                 type: boolean
+ *     responses:
+ *       201:
+ *         description: Trail created from GPX
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Trail'
+ *       400:
+ *         description: Bad Request - Invalid or empty GPX file
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function PUT(event: RequestEvent) {
     try {
         const data = await event.request.formData();
@@ -46,7 +79,7 @@ export async function PUT(event: RequestEvent) {
             trail.location ??= location;
         }
 
-        trail.public = event.locals.settings.privacy.trails == "public"
+        trail.public = event.locals.settings.privacy?.trails == "public"
 
         // const log = new SummitLog(trail.date as string, {
         //     distance: trail.distance,
