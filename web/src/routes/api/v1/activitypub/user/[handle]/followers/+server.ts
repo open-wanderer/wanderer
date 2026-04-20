@@ -9,6 +9,37 @@ import type { APOrderedCollectionPage, APRoot } from 'activitypub-types';
 import type { ListResult } from 'pocketbase';
 
 
+/**
+ * @swagger
+ * /api/v1/activitypub/user/{handle}/followers:
+ *   get:
+ *     summary: Get ActivityPub followers collection
+ *     description: Retrieves an OrderedCollection paginated list of followers for a user
+ *     tags:
+ *       - ActivityPub
+ *     parameters:
+ *       - in: path
+ *         name: handle
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: ActivityPub OrderedCollectionPage
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
+
 export async function GET(event: RequestEvent) {
 
     try {

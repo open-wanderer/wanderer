@@ -1,0 +1,6616 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Wanderer API",
+    "version": "v0.18.5",
+    "description": "API documentation for wanderer backend"
+  },
+  "servers": [],
+  "paths": {
+    "/api/v1/waypoint": {
+      "get": {
+        "summary": "List waypoints",
+        "tags": [
+          "Waypoints"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of waypoints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create waypoint",
+        "tags": [
+          "Waypoints"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaypointInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Waypoint created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Waypoint"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/waypoint/{id}": {
+      "get": {
+        "summary": "Get waypoint",
+        "tags": [
+          "Waypoints"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Waypoint details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Waypoint"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update waypoint",
+        "tags": [
+          "Waypoints"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaypointUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Waypoint updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Waypoint"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete waypoint",
+        "tags": [
+          "Waypoints"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Waypoint deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/waypoint/{id}/file": {
+      "post": {
+        "summary": "Upload waypoint file",
+        "description": "Uploads a file (photo) for a waypoint",
+        "tags": [
+          "Waypoints"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File uploaded, waypoint updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Waypoint"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/valhalla/route": {
+      "post": {
+        "summary": "Get route data",
+        "description": "Queries Valhalla service for routing data",
+        "tags": [
+          "Valhalla"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Route data from Valhalla",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/valhalla/height": {
+      "post": {
+        "summary": "Get elevation data",
+        "description": "Queries Valhalla service for elevation data at coordinates",
+        "tags": [
+          "Valhalla"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Elevation data from Valhalla",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/user": {
+      "put": {
+        "summary": "Create user (sign up)",
+        "tags": [
+          "Users"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Signup disabled or invalid data"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/user/{id}": {
+      "get": {
+        "summary": "Get user by ID",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update user",
+        "description": "Updates a user. Handles password changes and email change requests",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete user",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/user/{id}/file": {
+      "post": {
+        "summary": "Upload user file",
+        "description": "Uploads a file (avatar) for a user",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File uploaded, user updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail-share": {
+      "get": {
+        "summary": "List trail shares",
+        "description": "Retrieves a paginated list of trail shares with optional ActivityPub actor resolution",
+        "tags": [
+          "Trail Shares"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListResult<TrailShare>"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create trail share",
+        "description": "Creates a new trail share. Converts ActivityPub actor IRI to ID",
+        "tags": [
+          "Trail Shares"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrailShareInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Trail share created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrailShare"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail-share/{id}": {
+      "get": {
+        "summary": "Get trail share",
+        "description": "Retrieves a trail share by ID",
+        "tags": [
+          "Trail Shares"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TrailShare"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update trail share",
+        "tags": [
+          "Trail Shares"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrailShareUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Trail share updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrailShare"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete trail share",
+        "tags": [
+          "Trail Shares"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trail share deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail-link-share": {
+      "get": {
+        "summary": "List trail link shares",
+        "tags": [
+          "Trail Link Shares"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of trail link shares",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create trail link share",
+        "tags": [
+          "Trail Link Shares"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrailLinkShareInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Trail link share created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrailLinkShare"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail-link-share/{id}": {
+      "get": {
+        "summary": "Get trail link share",
+        "description": "Retrieves a trail link share by ID",
+        "tags": [
+          "Trail Link Shares"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TrailLinkShare"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update trail link share",
+        "tags": [
+          "Trail Link Shares"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrailLinkShareUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Trail link share updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrailLinkShare"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete trail link share",
+        "tags": [
+          "Trail Link Shares"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trail link share deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail-like": {
+      "get": {
+        "summary": "List trail likes",
+        "tags": [
+          "Trail Likes"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of trail likes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create trail like",
+        "tags": [
+          "Trail Likes"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrailLikeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Trail like created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrailLike"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail-like/delete": {
+      "post": {
+        "summary": "Delete trail like by actor and trail",
+        "description": "Deletes a trail like without needing to know its ID. Uses actor and trail IDs to find and delete",
+        "tags": [
+          "Trail Likes"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrailLikeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Trail like deleted"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail-like/{id}": {
+      "get": {
+        "summary": "Get trail like",
+        "description": "Retrieves a trail like by ID",
+        "tags": [
+          "Trail Likes"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TrailLike"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete trail like",
+        "tags": [
+          "Trail Likes"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trail like deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail": {
+      "get": {
+        "summary": "List trails",
+        "description": "Retrieves a paginated list of trails with optional filtering and sorting",
+        "tags": [
+          "Trails"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListResult<Trail>"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create trail",
+        "tags": [
+          "Trails"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrailCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Trail created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail/upload": {
+      "put": {
+        "summary": "Upload and parse GPX file as trail",
+        "description": "Uploads a GPX file, parses it to extract trail data, performs duplicate detection, and indexes in search",
+        "tags": [
+          "Trails"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "ignoreDuplicates": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Trail created from GPX",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid or empty GPX file"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail/recommend": {
+      "get": {
+        "summary": "Get trail recommendations",
+        "description": "Retrieves random trail recommendations from Meilisearch",
+        "tags": [
+          "Trails"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "size",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of recommended trails",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Trail"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail/form": {
+      "put": {
+        "summary": "Create trail with file upload",
+        "description": "Creates a new trail with file upload (GPX/photos) and date normalization",
+        "tags": [
+          "Trails"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/TrailCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Trail created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail/form/{id}": {
+      "post": {
+        "summary": "Update trail with file upload",
+        "description": "Updates a trail with file upload (GPX/photos) and date normalization",
+        "tags": [
+          "Trails"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/TrailUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Trail updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail/filter": {
+      "get": {
+        "summary": "Get trail filter values",
+        "description": "Retrieves min/max values for trail filtering (distance, elevation gain/loss)",
+        "tags": [
+          "Trails"
+        ],
+        "responses": {
+          "200": {
+            "description": "Trail filter values (min/max for distance, elevation)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "min_distance": {
+                      "type": "number"
+                    },
+                    "max_distance": {
+                      "type": "number"
+                    },
+                    "min_elevation_gain": {
+                      "type": "number"
+                    },
+                    "max_elevation_gain": {
+                      "type": "number"
+                    },
+                    "min_elevation_loss": {
+                      "type": "number"
+                    },
+                    "max_elevation_loss": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail/download": {
+      "post": {
+        "summary": "Download file from URL",
+        "description": "Downloads a file from a URL and returns it as a blob",
+        "tags": [
+          "Trails"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "url"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File blob",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail/bounding-box": {
+      "get": {
+        "summary": "Get trail bounding box",
+        "description": "Retrieves geographic bounding box (lat/lon bounds) for user's trails",
+        "tags": [
+          "Trails"
+        ],
+        "responses": {
+          "200": {
+            "description": "Bounding box coordinates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "max_lat": {
+                      "type": "number"
+                    },
+                    "min_lat": {
+                      "type": "number"
+                    },
+                    "max_lon": {
+                      "type": "number"
+                    },
+                    "min_lon": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail/{id}": {
+      "get": {
+        "summary": "Get trail",
+        "description": "Retrieves a trail by ID. Supports federated queries via handle parameter, fetching from remote instances and remapping file URLs",
+        "tags": [
+          "Trails"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "handle",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "share",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trail with optional federated data"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/trail/{id}/file": {
+      "post": {
+        "summary": "Upload trail file",
+        "description": "Uploads a file for a trail",
+        "tags": [
+          "Trails"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/tag": {
+      "get": {
+        "summary": "List tags",
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create tag",
+        "tags": [
+          "Tags"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tag created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tag"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/tag/{id}": {
+      "get": {
+        "summary": "Get tag",
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tag details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tag"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update tag",
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tag updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tag"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete tag",
+        "tags": [
+          "Tags"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tag deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/summit-log": {
+      "get": {
+        "summary": "List summit logs",
+        "description": "Retrieves a paginated list of summit logs with deduplication of federated data",
+        "tags": [
+          "Summit Logs"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "handle",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListResult<SummitLog> with local/remote items deduplicated"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create summit log",
+        "tags": [
+          "Summit Logs"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummitLogInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Summit log created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummitLog"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/summit-log/form": {
+      "put": {
+        "summary": "Create summit log with file upload",
+        "description": "Creates a new summit log with file upload (photos/GPX) and date normalization",
+        "tags": [
+          "Summit Logs"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SummitLogInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Summit log created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummitLog"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/summit-log/form/{id}": {
+      "post": {
+        "summary": "Update summit log with file upload",
+        "description": "Updates a summit log with file upload (photos/GPX) and date normalization",
+        "tags": [
+          "Summit Logs"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/SummitLogUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Summit log updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummitLog"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/summit-log/{id}": {
+      "get": {
+        "summary": "Get summit log",
+        "tags": [
+          "Summit Logs"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Summit log details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummitLog"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update summit log",
+        "tags": [
+          "Summit Logs"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummitLogUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Summit log updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummitLog"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete summit log",
+        "tags": [
+          "Summit Logs"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Summit log deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/summit-log/{id}/file": {
+      "post": {
+        "summary": "Upload summit log file",
+        "description": "Uploads a file (photo or GPX) for a summit log",
+        "tags": [
+          "Summit Logs"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File uploaded, summit log updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummitLog"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/settings": {
+      "put": {
+        "summary": "Create settings",
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Settings created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/settings/{id}": {
+      "get": {
+        "summary": "Get settings",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Settings details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update settings",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Settings updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete settings",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Settings deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/search/multi": {
+      "post": {
+        "summary": "Multi-index search",
+        "description": "Performs batch searches across multiple Meilisearch indices",
+        "tags": [
+          "Search"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "queries"
+                ],
+                "properties": {
+                  "queries": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Combined Meilisearch results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/search/actor": {
+      "get": {
+        "summary": "Search actors",
+        "description": "Searches for ActivityPub actors by username, combining local and federated results",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeSelf",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of matching actors",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/search/{index}": {
+      "post": {
+        "summary": "Search Meilisearch index",
+        "description": "Performs a search on a specific Meilisearch index",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "q"
+                ],
+                "properties": {
+                  "q": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Meilisearch search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/profile/{handle}": {
+      "get": {
+        "summary": "Get user profile",
+        "description": "Retrieves a user's profile by handle, with optional federation support",
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handle",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile and actor data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/profile/{handle}/trails": {
+      "post": {
+        "summary": "Search user trails",
+        "description": "Searches a user's trails via Meilisearch, with federation support",
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handle",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "q"
+                ],
+                "properties": {
+                  "q": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Meilisearch response with trail results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/profile/{handle}/stats": {
+      "get": {
+        "summary": "Get user summit statistics",
+        "description": "Retrieves summit log statistics for a user, with federation support",
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handle",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SummitLog statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/profile/{handle}/lists": {
+      "post": {
+        "summary": "Search user lists",
+        "description": "Searches a user's lists via Meilisearch, with federation support",
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handle",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "q"
+                ],
+                "properties": {
+                  "q": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Meilisearch response with list results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/profile/{handle}/feed": {
+      "get": {
+        "summary": "Get user activity feed",
+        "description": "Retrieves activity feed for a user, with federation support",
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handle",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "FeedItem list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/notification": {
+      "get": {
+        "summary": "List notifications",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of notifications",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/notification/{id}": {
+      "post": {
+        "summary": "Update notification",
+        "description": "Updates a notification by ID (typically to mark as read)",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Notification"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/list-share": {
+      "get": {
+        "summary": "List list shares",
+        "description": "Retrieves a paginated list of list shares with optional ActivityPub actor resolution",
+        "tags": [
+          "List Shares"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListResult<ListShare>"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create list share",
+        "description": "Creates a new list share. Converts ActivityPub actor IRI to ID",
+        "tags": [
+          "List Shares"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListShareInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "List share created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListShare"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/list-share/{id}": {
+      "get": {
+        "summary": "Get list share",
+        "description": "Retrieves a list share by ID",
+        "tags": [
+          "List Shares"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListShare"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update list share",
+        "tags": [
+          "List Shares"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListShareUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "List share updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListShare"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete list share",
+        "tags": [
+          "List Shares"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List share deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/list": {
+      "get": {
+        "summary": "List all lists",
+        "tags": [
+          "Lists"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of lists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create list",
+        "tags": [
+          "Lists"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "List created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/list/form": {
+      "put": {
+        "summary": "Create list with file upload",
+        "description": "Creates a new list with file upload (avatar)",
+        "tags": [
+          "Lists"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "List"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/list/form/{id}": {
+      "post": {
+        "summary": "Update list with file upload",
+        "description": "Updates a list with file upload (avatar)",
+        "tags": [
+          "Lists"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "List"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/list/{id}": {
+      "get": {
+        "summary": "Get list",
+        "description": "Retrieves a list by ID. Supports federated queries via handle parameter, fetching from remote instances and remapping file URLs",
+        "tags": [
+          "Lists"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "handle",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List with optional federated data"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update list",
+        "description": "Updates a list by ID",
+        "tags": [
+          "Lists"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "List"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete list",
+        "description": "Deletes a list by ID",
+        "tags": [
+          "Lists"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/list/{id}/file": {
+      "post": {
+        "summary": "Upload list file",
+        "description": "Uploads a file (cover image) for a list",
+        "tags": [
+          "Lists"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File uploaded, list updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/integration": {
+      "get": {
+        "summary": "List integrations",
+        "tags": [
+          "Integrations"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of integrations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create integration",
+        "tags": [
+          "Integrations"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Integration created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Integration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/integration/komoot/login": {
+      "get": {
+        "summary": "Get Komoot login endpoint",
+        "description": "Proxies to backend to get Komoot login configuration",
+        "tags": [
+          "Integrations"
+        ],
+        "responses": {
+          "200": {
+            "description": "Komoot login endpoint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/integration/hammerhead/upload": {
+      "post": {
+        "summary": "Upload via Hammerhead integration",
+        "description": "Proxies file upload to backend Hammerhead integration",
+        "tags": [
+          "Integrations"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/integration/hammerhead/login": {
+      "get": {
+        "summary": "Get Hammerhead login endpoint",
+        "description": "Proxies to backend to get Hammerhead login configuration",
+        "tags": [
+          "Integrations"
+        ],
+        "responses": {
+          "200": {
+            "description": "Hammerhead login endpoint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/integration/{id}": {
+      "get": {
+        "summary": "Get integration",
+        "tags": [
+          "Integrations"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Integration details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Integration"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update integration",
+        "tags": [
+          "Integrations"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Integration updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Integration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete integration",
+        "tags": [
+          "Integrations"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Integration deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/follow": {
+      "get": {
+        "summary": "List follows",
+        "description": "Retrieves follows or ActivityPub follower/following collections. Supports federated queries via handle parameter",
+        "tags": [
+          "Follows"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "handle",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "followers",
+                "following"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of follows or ActivityPub collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/follow/{id}": {
+      "delete": {
+        "summary": "Delete follow",
+        "tags": [
+          "Follows"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Follow deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/files/{collection}/{record}/{file}": {
+      "get": {
+        "summary": "Download file",
+        "description": "Downloads a file from a record with optional thumbnail generation",
+        "tags": [
+          "Files"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "record",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "thumb",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File download",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/feed": {
+      "get": {
+        "summary": "Get activity feed",
+        "description": "Retrieves the user's activity feed",
+        "tags": [
+          "Feed"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activity feed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/comment": {
+      "get": {
+        "summary": "List comments",
+        "tags": [
+          "Comments"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "handle",
+            "schema": {
+              "type": "string",
+              "description": "Federated query parameter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of comments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/comment/{id}": {
+      "get": {
+        "summary": "Get comment",
+        "tags": [
+          "Comments"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comment details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Update comment",
+        "tags": [
+          "Comments"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comment updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete comment",
+        "tags": [
+          "Comments"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comment deleted"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/category": {
+      "get": {
+        "summary": "List categories",
+        "description": "Retrieves a paginated list of activity categories",
+        "tags": [
+          "Categories"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/reset": {
+      "post": {
+        "summary": "Request password reset",
+        "description": "Sends a password reset email",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset email sent"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oauth": {
+      "get": {
+        "summary": "List OAuth providers",
+        "description": "Lists available OAuth2 authentication methods with provider images",
+        "tags": [
+          "Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "OAuth2 providers and configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Authenticate user",
+        "description": "Authenticates a user with email or username and password",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User authenticated with auth token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid credentials"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/confirm-reset": {
+      "post": {
+        "summary": "Confirm password reset",
+        "description": "Confirms and applies a password reset with a valid token",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset completed"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/api-token": {
+      "get": {
+        "summary": "List API tokens",
+        "description": "Retrieves a paginated list of API tokens with optional filtering and sorting",
+        "tags": [
+          "API Tokens"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer",
+              "default": 30
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "page": {
+                      "type": "integer"
+                    },
+                    "perPage": {
+                      "type": "integer"
+                    },
+                    "totalItems": {
+                      "type": "integer"
+                    },
+                    "totalPages": {
+                      "type": "integer"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/APIToken"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create API token",
+        "description": "Creates a new API token",
+        "tags": [
+          "API Tokens"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "expand",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/APITokenInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/api-token/{id}": {
+      "delete": {
+        "summary": "Delete API token",
+        "description": "Deletes an API token by ID",
+        "tags": [
+          "API Tokens"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "API token ID (15 chars)"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/activitypub/user/{handle}": {
+      "get": {
+        "summary": "Get ActivityPub actor profile",
+        "description": "Retrieves an ActivityPub Person object for a user with public key",
+        "tags": [
+          "ActivityPub"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handle",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActivityPub Person object with publicKey",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/activitypub/user/{handle}/outbox": {
+      "get": {
+        "summary": "Get ActivityPub outbox collection",
+        "description": "Retrieves an OrderedCollection paginated list of activities published by this user",
+        "tags": [
+          "ActivityPub"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handle",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "perPage",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActivityPub OrderedCollectionPage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/activitypub/user/{handle}/inbox": {
+      "post": {
+        "summary": "Receive ActivityPub activities",
+        "description": "Receives and processes incoming ActivityPub activities (Create, Update, Delete, Follow, etc.)",
+        "tags": [
+          "ActivityPub"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handle",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Activity processed"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/activitypub/user/{handle}/following": {
+      "get": {
+        "summary": "Get ActivityPub following collection",
+        "description": "Retrieves an OrderedCollection paginated list of accounts the user follows",
+        "tags": [
+          "ActivityPub"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handle",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActivityPub OrderedCollectionPage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/activitypub/user/{handle}/followers": {
+      "get": {
+        "summary": "Get ActivityPub followers collection",
+        "description": "Retrieves an OrderedCollection paginated list of followers for a user",
+        "tags": [
+          "ActivityPub"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handle",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActivityPub OrderedCollectionPage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/activitypub/trail/{id}": {
+      "get": {
+        "summary": "Get ActivityPub trail",
+        "description": "Retrieves an ActivityPub Trail object by ID (proxied from backend)",
+        "tags": [
+          "ActivityPub"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActivityPub Trail object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/activitypub/comment/{id}": {
+      "get": {
+        "summary": "Get ActivityPub comment",
+        "description": "Retrieves an ActivityPub Comment object by ID (proxied from backend)",
+        "tags": [
+          "ActivityPub"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActivityPub Comment object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/activitypub/activity/{id}": {
+      "get": {
+        "summary": "Get ActivityPub activity",
+        "description": "Retrieves an ActivityPub Activity object by ID",
+        "tags": [
+          "ActivityPub"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActivityPub Activity object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "APIToken": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "user"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Token ID (15 chars)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Token name"
+          },
+          "user": {
+            "type": "string",
+            "description": "User ID that owns this token"
+          },
+          "expiration": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Optional expiration date"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "APITokenInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "user"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Token name"
+          },
+          "expiration": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Optional expiration date (must be in future)"
+          },
+          "user": {
+            "type": "string",
+            "description": "User ID (15 chars)"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "User ID (15 chars)"
+          },
+          "username": {
+            "type": "string",
+            "description": "Username (3+ chars, alphanumeric with dots)"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User email address"
+          },
+          "avatar": {
+            "type": "string",
+            "description": "Avatar file path"
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Email verification status"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UserCreateInput": {
+        "type": "object",
+        "required": [
+          "username",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "pattern": "^\\w[\\w\\.]*$",
+            "description": "Username (3+ chars, starts with word char)"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User email address"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72,
+            "description": "Password (8-72 chars)"
+          },
+          "passwordConfirm": {
+            "type": "string",
+            "description": "Password confirmation (must match password)"
+          }
+        }
+      },
+      "UserUpdateInput": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "pattern": "^\\w[\\w\\.]*$"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72
+          },
+          "oldPassword": {
+            "type": "string",
+            "description": "Required when changing password"
+          },
+          "passwordConfirm": {
+            "type": "string",
+            "description": "Must match password"
+          }
+        }
+      },
+      "Tag": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Tag ID (15 chars)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Tag name"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TagInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Tag name"
+          }
+        }
+      },
+      "TagUpdateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Tag name"
+          }
+        }
+      },
+      "Trail": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "author",
+          "public"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Trail ID (15 chars)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Trail name"
+          },
+          "description": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string",
+            "description": "Author user ID"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "moderate",
+              "difficult"
+            ]
+          },
+          "lat": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "distance": {
+            "type": "number",
+            "description": "Distance in meters"
+          },
+          "elevation_gain": {
+            "type": "number",
+            "description": "Elevation gain in meters"
+          },
+          "elevation_loss": {
+            "type": "number",
+            "description": "Elevation loss in meters"
+          },
+          "duration": {
+            "type": "number",
+            "description": "Duration in seconds"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "thumbnail": {
+            "type": "integer",
+            "description": "Index of thumbnail photo"
+          },
+          "like_count": {
+            "type": "integer",
+            "default": 0
+          },
+          "category": {
+            "type": "string",
+            "description": "Category ID (15 chars)"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gpx": {
+            "type": "string",
+            "description": "GPX file path"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TrailCreateInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "author",
+          "public"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Optional custom ID (15 chars)"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "author": {
+            "type": "string",
+            "description": "Author user ID (15 chars)"
+          },
+          "description": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "moderate",
+              "difficult"
+            ]
+          },
+          "lat": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "distance": {
+            "type": "number"
+          },
+          "elevation_gain": {
+            "type": "number"
+          },
+          "elevation_loss": {
+            "type": "number"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "thumbnail": {
+            "type": "integer"
+          },
+          "like_count": {
+            "type": "integer",
+            "default": 0
+          },
+          "category": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "gpx": {
+            "type": "string"
+          }
+        }
+      },
+      "TrailUpdateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "moderate",
+              "difficult"
+            ]
+          },
+          "lat": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "distance": {
+            "type": "number"
+          },
+          "elevation_gain": {
+            "type": "number"
+          },
+          "elevation_loss": {
+            "type": "number"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "photos-": {
+            "type": "string",
+            "description": "Remove photo by name"
+          },
+          "photos+": {
+            "type": "string",
+            "description": "Add photo by name"
+          },
+          "thumbnail": {
+            "type": "integer"
+          },
+          "like_count": {
+            "type": "integer",
+            "default": 0
+          },
+          "category": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gpx": {
+            "type": "string"
+          }
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "author",
+          "trail"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Comment ID (15 chars)"
+          },
+          "text": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string",
+            "description": "Author user ID (15 chars)"
+          },
+          "trail": {
+            "type": "string",
+            "description": "Trail ID (15 chars)"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CommentInput": {
+        "type": "object",
+        "required": [
+          "text",
+          "author",
+          "trail"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string",
+            "description": "Author user ID (15 chars)"
+          },
+          "trail": {
+            "type": "string",
+            "description": "Trail ID (15 chars)"
+          }
+        }
+      },
+      "CommentUpdateInput": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "SummitLog": {
+        "type": "object",
+        "required": [
+          "id",
+          "date",
+          "author"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Summit log ID (15 chars)"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "text": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string",
+            "description": "Author user ID (15 chars)"
+          },
+          "trail": {
+            "type": "string",
+            "description": "Associated trail ID"
+          },
+          "gpx": {
+            "type": "string"
+          },
+          "distance": {
+            "type": "number"
+          },
+          "elevation_gain": {
+            "type": "number"
+          },
+          "elevation_loss": {
+            "type": "number"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SummitLogInput": {
+        "type": "object",
+        "required": [
+          "date",
+          "author"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Optional custom ID (15 chars)"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "text": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string",
+            "description": "Author user ID (15 chars)"
+          },
+          "trail": {
+            "type": "string",
+            "description": "Trail ID (15 chars)"
+          },
+          "gpx": {
+            "type": "string"
+          },
+          "distance": {
+            "type": "number"
+          },
+          "elevation_gain": {
+            "type": "number"
+          },
+          "elevation_loss": {
+            "type": "number"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          }
+        }
+      },
+      "SummitLogUpdateInput": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "text": {
+            "type": "string"
+          },
+          "gpx": {
+            "type": "string"
+          },
+          "distance": {
+            "type": "number"
+          },
+          "elevation_gain": {
+            "type": "number"
+          },
+          "elevation_loss": {
+            "type": "number"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "photos-": {
+            "type": "string",
+            "description": "Remove photo by name"
+          },
+          "photos+": {
+            "type": "string",
+            "description": "Add photo by name"
+          }
+        }
+      },
+      "Waypoint": {
+        "type": "object",
+        "required": [
+          "id",
+          "lat",
+          "lon",
+          "author"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Waypoint ID (15 chars)"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "distance_from_start": {
+            "type": "number",
+            "description": "Distance from trail start in meters"
+          },
+          "icon": {
+            "type": "string",
+            "description": "Icon identifier"
+          },
+          "author": {
+            "type": "string",
+            "description": "Author user ID (15 chars)"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "trail": {
+            "type": "string",
+            "description": "Trail ID (15 chars)"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WaypointInput": {
+        "type": "object",
+        "required": [
+          "lat",
+          "lon",
+          "author"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Optional custom ID (15 chars)"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "distance_from_start": {
+            "type": "number"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string",
+            "description": "Author user ID (15 chars)"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "trail": {
+            "type": "string"
+          }
+        }
+      },
+      "WaypointUpdateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "distance_from_start": {
+            "type": "number"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "photos-": {
+            "type": "string",
+            "description": "Remove photo by name"
+          },
+          "photos+": {
+            "type": "string",
+            "description": "Add photo by name"
+          }
+        }
+      },
+      "List": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "author",
+          "public"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "List ID (15 chars)"
+          },
+          "name": {
+            "type": "string"
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string",
+            "description": "Author user ID"
+          },
+          "trails": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Trail IDs (15 chars)"
+            }
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ListInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "public",
+          "trails",
+          "author"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Optional custom ID (15 chars)"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "trails": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Trail ID (15 chars)"
+            }
+          },
+          "author": {
+            "type": "string"
+          }
+        }
+      },
+      "ListUpdateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "public": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "trails": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "trails-": {
+            "type": "string",
+            "description": "Remove trail by ID"
+          },
+          "trails+": {
+            "type": "string",
+            "description": "Add trail by ID"
+          }
+        }
+      },
+      "TrailShare": {
+        "type": "object",
+        "required": [
+          "id",
+          "actor",
+          "trail",
+          "permission"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Share ID (15 chars)"
+          },
+          "actor": {
+            "type": "string",
+            "format": "uri",
+            "description": "ActivityPub actor IRI"
+          },
+          "trail": {
+            "type": "string",
+            "description": "Trail ID (15 chars)"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "view",
+              "edit"
+            ]
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TrailShareInput": {
+        "type": "object",
+        "required": [
+          "actor",
+          "trail",
+          "permission"
+        ],
+        "properties": {
+          "actor": {
+            "type": "string",
+            "format": "uri",
+            "description": "ActivityPub actor IRI"
+          },
+          "trail": {
+            "type": "string",
+            "description": "Trail ID (15 chars)"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "view",
+              "edit"
+            ]
+          }
+        }
+      },
+      "TrailShareUpdateInput": {
+        "type": "object",
+        "required": [
+          "permission"
+        ],
+        "properties": {
+          "permission": {
+            "type": "string",
+            "enum": [
+              "view",
+              "edit"
+            ]
+          }
+        }
+      },
+      "ListShare": {
+        "type": "object",
+        "required": [
+          "id",
+          "actor",
+          "list",
+          "permission"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Share ID (15 chars)"
+          },
+          "actor": {
+            "type": "string",
+            "format": "uri",
+            "description": "ActivityPub actor IRI"
+          },
+          "list": {
+            "type": "string",
+            "description": "List ID (15 chars)"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "view",
+              "edit"
+            ]
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ListShareInput": {
+        "type": "object",
+        "required": [
+          "actor",
+          "list",
+          "permission"
+        ],
+        "properties": {
+          "actor": {
+            "type": "string",
+            "format": "uri",
+            "description": "ActivityPub actor IRI"
+          },
+          "list": {
+            "type": "string",
+            "description": "List ID (15 chars)"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "view",
+              "edit"
+            ]
+          }
+        }
+      },
+      "ListShareUpdateInput": {
+        "type": "object",
+        "required": [
+          "permission"
+        ],
+        "properties": {
+          "permission": {
+            "type": "string",
+            "enum": [
+              "view",
+              "edit"
+            ]
+          }
+        }
+      },
+      "TrailLinkShare": {
+        "type": "object",
+        "required": [
+          "id",
+          "trail",
+          "permission"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Share ID (15 chars)"
+          },
+          "trail": {
+            "type": "string",
+            "description": "Trail ID (15 chars)"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "view",
+              "edit"
+            ]
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TrailLinkShareInput": {
+        "type": "object",
+        "required": [
+          "trail",
+          "permission"
+        ],
+        "properties": {
+          "trail": {
+            "type": "string",
+            "description": "Trail ID (15 chars)"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "view",
+              "edit"
+            ]
+          }
+        }
+      },
+      "TrailLinkShareUpdateInput": {
+        "type": "object",
+        "required": [
+          "permission"
+        ],
+        "properties": {
+          "permission": {
+            "type": "string",
+            "enum": [
+              "view",
+              "edit"
+            ]
+          }
+        }
+      },
+      "TrailLike": {
+        "type": "object",
+        "required": [
+          "id",
+          "actor",
+          "trail"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Like ID (15 chars)"
+          },
+          "actor": {
+            "type": "string",
+            "description": "User ID (15 chars)"
+          },
+          "trail": {
+            "type": "string",
+            "description": "Trail ID (15 chars)"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TrailLikeInput": {
+        "type": "object",
+        "required": [
+          "actor",
+          "trail"
+        ],
+        "properties": {
+          "actor": {
+            "type": "string",
+            "description": "User ID (15 chars)"
+          },
+          "trail": {
+            "type": "string",
+            "description": "Trail ID (15 chars)"
+          }
+        }
+      },
+      "Follow": {
+        "type": "object",
+        "required": [
+          "id",
+          "follower",
+          "followee"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Follow ID (15 chars)"
+          },
+          "follower": {
+            "type": "string",
+            "description": "Follower user ID"
+          },
+          "followee": {
+            "type": "string",
+            "description": "Followee user ID (15 chars)"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FollowInput": {
+        "type": "object",
+        "required": [
+          "followee"
+        ],
+        "properties": {
+          "followee": {
+            "type": "string",
+            "description": "Followee user ID (15 chars)"
+          }
+        }
+      },
+      "Integration": {
+        "type": "object",
+        "required": [
+          "id",
+          "user"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Integration ID (15 chars)"
+          },
+          "user": {
+            "type": "string",
+            "description": "User ID (15 chars)"
+          },
+          "strava": {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "integer"
+              },
+              "clientSecret": {
+                "type": "string"
+              },
+              "routes": {
+                "type": "boolean"
+              },
+              "activities": {
+                "type": "boolean"
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "after": {
+                "type": "string",
+                "format": "date"
+              },
+              "privacy": {
+                "type": "string",
+                "enum": [
+                  "original",
+                  "settings"
+                ]
+              }
+            }
+          },
+          "komoot": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "password": {
+                "type": "string"
+              },
+              "completed": {
+                "type": "boolean"
+              },
+              "planned": {
+                "type": "boolean"
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "privacy": {
+                "type": "string",
+                "enum": [
+                  "original",
+                  "settings"
+                ]
+              }
+            }
+          },
+          "hammerhead": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "password": {
+                "type": "string"
+              },
+              "completed": {
+                "type": "boolean"
+              },
+              "planned": {
+                "type": "boolean"
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "after": {
+                "type": "string",
+                "format": "date"
+              }
+            }
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "IntegrationInput": {
+        "type": "object",
+        "required": [
+          "user"
+        ],
+        "properties": {
+          "user": {
+            "type": "string",
+            "description": "User ID (15 chars)"
+          },
+          "strava": {
+            "type": "object"
+          },
+          "komoot": {
+            "type": "object"
+          },
+          "hammerhead": {
+            "type": "object"
+          }
+        }
+      },
+      "IntegrationUpdateInput": {
+        "type": "object",
+        "properties": {
+          "strava": {
+            "type": "object",
+            "nullable": true
+          },
+          "komoot": {
+            "type": "object",
+            "nullable": true
+          },
+          "hammerhead": {
+            "type": "object",
+            "nullable": true
+          }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "required": [
+          "id",
+          "user",
+          "type",
+          "seen"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Notification ID (15 chars)"
+          },
+          "user": {
+            "type": "string",
+            "description": "User ID (15 chars)"
+          },
+          "type": {
+            "type": "string",
+            "description": "Notification type"
+          },
+          "seen": {
+            "type": "boolean",
+            "default": false
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "NotificationUpdateInput": {
+        "type": "object",
+        "required": [
+          "seen"
+        ],
+        "properties": {
+          "seen": {
+            "type": "boolean",
+            "const": true,
+            "description": "Mark as read"
+          }
+        }
+      },
+      "Settings": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Settings ID (15 chars)"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "metric",
+              "imperial"
+            ]
+          },
+          "language": {
+            "type": "string",
+            "description": "Language code"
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "mapFocus": {
+            "type": "string",
+            "enum": [
+              "trails",
+              "location"
+            ]
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "lon": {
+                "type": "number"
+              }
+            },
+            "nullable": true
+          },
+          "category": {
+            "type": "string"
+          },
+          "tilesets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            },
+            "nullable": true
+          },
+          "terrain": {
+            "type": "object",
+            "properties": {
+              "terrain": {
+                "type": "string",
+                "format": "uri"
+              },
+              "hillshading": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "nullable": true
+          },
+          "user": {
+            "type": "string"
+          },
+          "privacy": {
+            "type": "object",
+            "properties": {
+              "account": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "private"
+                ]
+              },
+              "trails": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "private"
+                ]
+              },
+              "lists": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "private"
+                ]
+              }
+            },
+            "nullable": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SettingsInput": {
+        "type": "object",
+        "properties": {
+          "unit": {
+            "type": "string",
+            "enum": [
+              "metric",
+              "imperial"
+            ]
+          },
+          "language": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "mapFocus": {
+            "type": "string",
+            "enum": [
+              "trails",
+              "location"
+            ]
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "lon": {
+                "type": "number"
+              }
+            },
+            "nullable": true
+          },
+          "category": {
+            "type": "string"
+          },
+          "tilesets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            },
+            "nullable": true
+          },
+          "terrain": {
+            "type": "object",
+            "properties": {
+              "terrain": {
+                "type": "string",
+                "format": "uri"
+              },
+              "hillshading": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "nullable": true
+          },
+          "user": {
+            "type": "string"
+          },
+          "privacy": {
+            "type": "object",
+            "properties": {
+              "account": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "private"
+                ]
+              },
+              "trails": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "private"
+                ]
+              },
+              "lists": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "private"
+                ]
+              }
+            },
+            "nullable": true
+          }
+        }
+      },
+      "ListResult": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "perPage": {
+            "type": "integer"
+          },
+          "totalItems": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

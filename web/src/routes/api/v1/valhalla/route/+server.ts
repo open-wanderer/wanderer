@@ -2,6 +2,32 @@ import { env } from '$env/dynamic/public';
 import { error, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
 
 
+/**
+ * @swagger
+ * /api/v1/valhalla/route:
+ *   post:
+ *     summary: Get route data
+ *     description: Queries Valhalla service for routing data
+ *     tags:
+ *       - Valhalla
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Route data from Valhalla
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         description: Bad Request
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function POST(event: RequestEvent) {
     const data = await event.request.json()
     if (!env.PUBLIC_VALHALLA_URL) {

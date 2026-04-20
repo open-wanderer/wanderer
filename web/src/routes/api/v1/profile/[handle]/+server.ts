@@ -3,6 +3,32 @@ import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 
+/**
+ * @swagger
+ * /api/v1/profile/{handle}:
+ *   get:
+ *     summary: Get user profile
+ *     description: Retrieves a user's profile by handle, with optional federation support
+ *     tags:
+ *       - Profiles
+ *     parameters:
+ *       - in: path
+ *         name: handle
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Profile and actor data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     const handle = event.params.handle;
     if (!handle) {
