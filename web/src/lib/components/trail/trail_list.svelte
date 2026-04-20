@@ -10,12 +10,13 @@
     import SkeletonCard from "../base/skeleton_card.svelte";
     import SkeletonListItem from "../base/skeleton_list_item.svelte";
     import { onMount, tick } from "svelte";
+    import type { Snippet } from "svelte";
     import TrailDropdown from "$lib/components/trail/trail_dropdown.svelte";
 
     interface Props {
         filter?: TrailFilter | null;
         trails: Trail[];
-        pagination?: { page: number; totalPages: number, items: number };
+        pagination?: { page: number; totalPages: number; items: number };
         loading?: boolean;
         fullWidthCards?: boolean;
         onupdate?: (
@@ -23,6 +24,8 @@
             selection: Set<Trail> | undefined,
         ) => void;
         onpagination?: (page: number, items: number) => void;
+        ondisplaychange?: (display: string) => void;
+        trailWidthToggleSnippet?: Snippet;
     }
 
     let {
@@ -37,6 +40,8 @@
         fullWidthCards = false,
         onupdate,
         onpagination,
+        ondisplaychange,
+        trailWidthToggleSnippet: trailWidthToggleSnippet,
     }: Props = $props();
 
     const displayOptions: SelectItem[] = [
@@ -44,14 +49,14 @@
         { text: $_("list", { values: { n: 1 } }), value: "list" },
         { text: $_("table"), value: "table" },
     ];
-    
+
     const perPageOptions: SelectItem[] = [
         { text: "10", value: 10 },
         { text: "25", value: 25 },
         { text: "50", value: 50 },
         { text: "100", value: 100 },
     ];
-    
+
     const perPageOptionsCards: SelectItem[] = [
         { text: "12", value: 12 },
         { text: "24", value: 24 },
@@ -63,6 +68,10 @@
 
     let selection: Set<Trail> | undefined = $state();
     let hoveredTrail: Trail | undefined = $state();
+
+    function notifyDisplayChange() {
+        ondisplaychange?.(selectedDisplayOption);
+    }
 
     const sortOptions: SelectItem[] = [
         { text: $_("name"), value: "name" },
@@ -96,7 +105,7 @@
         }
         if (paginationItems) {
             pagination.items = +paginationItems;
-        
+
             let itemsChanged = false;
             if (selectedDisplayOption == "cards") {
                 if (pagination.items > 50) {
@@ -129,10 +138,14 @@
             }
 
             if (itemsChanged) {
-                localStorage.setItem("paginationItems", pagination.items.toString());
+                localStorage.setItem(
+                    "paginationItems",
+                    pagination.items.toString(),
+                );
             }
         }
         onupdate?.(filter, selection);
+        notifyDisplayChange();
     });
 
     function setDisplayOption() {
@@ -170,8 +183,12 @@
         }
 
         if (itemsChanged) {
-            localStorage.setItem("paginationItems", pagination.items.toString());
+            localStorage.setItem(
+                "paginationItems",
+                pagination.items.toString(),
+            );
         }
+        notifyDisplayChange();
     }
 
     function setSort() {
@@ -304,7 +321,7 @@
 
 <div class="min-w-0">
     <div class="flex items-end flex-wrap lg:flex-nowrap gap-x-6 gap-y-2 mx-4">
-        <div class="basis-full order-1 md:order-none">
+        <div class="basis-full order-1 md:order-0">
             <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}
@@ -313,7 +330,7 @@
             ></Pagination>
         </div>
         {#if selection !== undefined && selection.size > 0}
-            <div class="flex relative flex-shrink-0">
+            <div class="flex relative shrink-0">
                 <TrailDropdown
                     trails={selection}
                     mode={"multi-select"}
@@ -347,12 +364,16 @@
         {/if}
         <div class="shrink-0">
             <p class="text-sm text-gray-500 pb-2">{$_("display-as")}</p>
-
-            <Select
-                bind:value={selectedDisplayOption}
-                items={displayOptions}
-                onchange={() => setDisplayOption()}
-            ></Select>
+            <div class="flex items-center gap-2">
+                <Select
+                    bind:value={selectedDisplayOption}
+                    items={displayOptions}
+                    onchange={() => setDisplayOption()}
+                ></Select>
+                {#if trailWidthToggleSnippet}
+                    {@render trailWidthToggleSnippet?.()}
+                {/if}
+            </div>
         </div>
     </div>
 
@@ -428,8 +449,8 @@
             {/if}
         {/if}
     </div>
-    <div class="flex items-end flex-wrap lg:flex-nowrap gap-x-6 gap-y-2 mx-4">
-        <div class="basis-full order-1 md:order-none">
+    <div class="flex items-start flex-wrap lg:flex-nowrap gap-x-6 gap-y-2 mx-4">
+        <div class="basis-full order-1 md:order-0">
             <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}
@@ -440,7 +461,9 @@
         <div class="shrink-0">
             <Select
                 bind:value={pagination.items}
-                items={selectedDisplayOption == "cards" ? perPageOptionsCards : perPageOptions}
+                items={selectedDisplayOption == "cards"
+                    ? perPageOptionsCards
+                    : perPageOptions}
                 onchange={setItemsPerPage}
             ></Select>
         </div>

@@ -8,6 +8,32 @@ import { error, json, type RequestEvent } from '@sveltejs/kit';
 import { type APActor, type APRoot } from 'activitypub-types';
 
 
+/**
+ * @swagger
+ * /api/v1/activitypub/user/{handle}:
+ *   get:
+ *     summary: Get ActivityPub actor profile
+ *     description: Retrieves an ActivityPub Person object for a user with public key
+ *     tags:
+ *       - ActivityPub
+ *     parameters:
+ *       - in: path
+ *         name: handle
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ActivityPub Person object with publicKey
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
 
     try {
