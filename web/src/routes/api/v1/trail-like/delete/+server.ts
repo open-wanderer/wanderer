@@ -3,7 +3,30 @@ import { Collection, handleError } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 
-// this route exists so we can delete a like without knowing its ID
+/**
+ * @swagger
+ * /api/v1/trail-like/delete:
+ *   post:
+ *     summary: Delete trail like by actor and trail
+ *     description: Deletes a trail like without needing to know its ID. Uses actor and trail IDs to find and delete
+ *     tags:
+ *       - Trail Likes
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TrailLikeInput'
+ *     responses:
+ *       200:
+ *         description: Trail like deleted
+ *       400:
+ *         description: Bad Request
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function POST(event: RequestEvent) {
     try {
 

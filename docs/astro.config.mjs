@@ -28,7 +28,7 @@ export default defineConfig({
         {
           base: 'api-reference',
           label: 'API Reference',
-          schema: 'wanderer.openapi.yaml',
+          schema: 'wanderer.openapi.json',
           sidebar: {
             operations: {
               

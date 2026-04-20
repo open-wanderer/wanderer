@@ -3,6 +3,32 @@ import { Collection, handleError, show } from "$lib/util/api_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import type { APActivity, APRoot } from 'activitypub-types';
 
+/**
+ * @swagger
+ * /api/v1/activitypub/activity/{id}:
+ *   get:
+ *     summary: Get ActivityPub activity
+ *     description: Retrieves an ActivityPub Activity object by ID
+ *     tags:
+ *       - ActivityPub
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ActivityPub Activity object
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     try {
         const a = await show<Activity>(event, Collection.activitypub_activities)
