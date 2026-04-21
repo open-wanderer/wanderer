@@ -6,4 +6,5 @@
 !main.go
 !migrations
 !templates
+!trailmerge
 !util
