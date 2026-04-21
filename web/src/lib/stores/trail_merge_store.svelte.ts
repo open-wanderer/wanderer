@@ -1,9 +1,9 @@
 import type { MergeSettings } from "$lib/components/trail/trail_merge_modal.svelte";
 import type { Trail } from "$lib/models/trail";
 import { APIError } from "$lib/util/api_util";
-import { show_toast } from "./toast_store.svelte";
 import { get } from "svelte/store";
 import { _ } from "svelte-i18n";
+import { translateTrailMergeError } from "./trail_merge_i18n";
 
 export type Merge = {
     trailTarget: Trail,
@@ -25,18 +25,18 @@ export const mergeStore = new MergeStore();
 
 function getMergeErrorMessage(error: unknown): string {
     if (error instanceof APIError) {
-        return error.message;
+        return translateTrailMergeError(error.message);
     }
 
     if (error instanceof Error) {
-        return error.message;
+        return translateTrailMergeError(error.message);
     }
 
     if (typeof error === "string") {
-        return error;
+        return translateTrailMergeError(error);
     }
 
-    return "Unknown merge error";
+    return get(_)("trail-merge-unknown-error");
 }
 
 export async function processMergeQueue(batchSize: number = 3) {
@@ -77,31 +77,5 @@ export async function processMergeQueue(batchSize: number = 3) {
     } finally {
         mergeStore.merging = false;
     }
-
-    const completedThisRun = mergeStore.completedMerges.slice(completedBeforeRun);
-    if (completedThisRun.length === 0) {
-        return;
-    }
-
-    const successfulCount = completedThisRun.filter((merge) => merge.status === "success").length;
-    const errorCount = completedThisRun.filter((merge) => merge.status === "error").length;
-
-    if (errorCount === 0) {
-        show_toast({
-            type: "success",
-            icon: "check",
-            text: get(_)("trail-merge-complete", {
-                values: { success: successfulCount },
-            }),
-        });
-        return;
-    }
-
-    show_toast({
-        type: successfulCount > 0 ? "warning" : "error",
-        icon: successfulCount > 0 ? "triangle-exclamation" : "close",
-        text: get(_)("trail-merge-complete-with-errors", {
-            values: { success: successfulCount, errors: errorCount },
-        }),
-    }, 5000);
+    void completedBeforeRun;
 }

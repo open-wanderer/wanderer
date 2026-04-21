@@ -22,6 +22,7 @@
         { text: $_("notifications"), value: "/settings/notifications" },
         { text: $_("map"), value: "/settings/map" },
         { text: $_("integrations"), value: "/settings/integrations" },
+        { text: $_("similar-trails"), value: "/settings/maintenance/similar-trails" },
         { text: `${$_("import")}/${$_("export")}`, value: "/settings/export" },
         {
             text: $_("help"),

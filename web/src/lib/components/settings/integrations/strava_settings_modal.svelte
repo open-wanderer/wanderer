@@ -1,5 +1,6 @@
 <script lang="ts">
     import Datepicker from "$lib/components/base/datepicker.svelte";
+    import IntegrationMergeSettings from "$lib/components/settings/integrations/integration_merge_settings.svelte";
     import Modal from "$lib/components/base/modal.svelte";
     import type { SelectItem } from "$lib/components/base/select.svelte";
     import Select from "$lib/components/base/select.svelte";
@@ -43,7 +44,10 @@
         activities: integration?.strava?.activities ?? true,
         active: integration?.strava?.active ?? false,
         after: integration?.strava?.after,
-        privacy: integration?.komoot?.privacy ?? "original",
+        privacy: integration?.strava?.privacy ?? "original",
+        merge: integration?.strava?.merge ?? {
+            enabled: false,
+        },
     });
 
     const {
@@ -130,6 +134,8 @@
             >
                 {$_("strava-integration-after-date-hint")}
             </p>
+
+            <IntegrationMergeSettings prefix="merge" />
         </form>
     {/snippet}
     {#snippet footer()}

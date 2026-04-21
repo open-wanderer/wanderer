@@ -15,7 +15,6 @@
     } from "$lib/stores/list_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import {
-        fetchGPX,
         trails_delete,
         trails_show,
         trails_update,
@@ -35,20 +34,21 @@
     import TrailExportModal from "./trail_export_modal.svelte";
     import TrailSendModal from "./trail_send_modal.svelte";
     import TrailShareModal from "./trail_share_modal.svelte";
-    import { SummitLog } from "$lib/models/summit_log";
-    import type { Comment as TrailComment } from "$lib/models/comment";
-    import { comments_create, comments_index } from "$lib/stores/comment_store";
-    import { summit_logs_create } from "$lib/stores/summit_log_store";
-    import { trail_like_create } from "$lib/stores/trail_like_store";
     import {
         mergeStore,
         processMergeQueue,
         type Merge,
     } from "$lib/stores/trail_merge_store.svelte";
-    import { TrailLike } from "$lib/models/trail_like";
     import TrailMergeModal from "./trail_merge_modal.svelte";
-    import type { MergeSettings } from "./trail_merge_modal.svelte";
+    import type { MergeSelection, MergeSettings } from "./trail_merge_modal.svelte";
     import MergeDialog from "$lib/components/trail/trail_merge_dialog.svelte";
+    import { trail_merge } from "$lib/stores/trail_merge_api";
+
+    export interface MergeResult {
+        targetTrail: Trail;
+        deletedTrailIds: string[];
+        successfulMergeCount: number;
+    }
 
     interface Props {
         trails?: Set<Trail> | undefined;
@@ -57,7 +57,7 @@
         onDelete?: () => void;
         onShare?: () => void;
         onUpdate?: () => void;
-        onMerge?: () => void;
+        onMerge?: (result: MergeResult) => void;
     }
 
     let { trails, mode, toggle, onDelete, onShare, onUpdate, onMerge }: Props = $props();
@@ -129,7 +129,9 @@
             candidate.expand?.author?.id === $currentUser.actor ||
             Boolean(
                 candidate.expand?.trail_share_via_trail?.some(
-                    (s) => s.permission == "edit",
+                    (s) =>
+                        s.permission == "edit" &&
+                        s.actor == $currentUser.actor,
                 ),
             )
         );
@@ -181,6 +183,10 @@
         }
 
         return true;
+    }
+
+    function allowFindSimilarTrails(): boolean {
+        return hasTrail() && !isMultiselectMode() && Boolean($currentUser) && hasGpx() && isFromCurrentUser(trail());
     }
 
     function majorityOfSelectedTrailsArePublic(): boolean {
@@ -338,6 +344,13 @@
             ...(allowMerge()
                 ? [{ text: $_("link"), value: "merge", icon: "link" }]
                 : []),
+            ...(allowFindSimilarTrails()
+                ? [{
+                    text: $_("find-similar-trails"),
+                    value: "find-similar-trails",
+                    icon: "link",
+                }]
+                : []),
         ];
     }
 
@@ -463,25 +476,27 @@
         } else if (ddVal == "delete") {
             confirmModal.openModal();
         } else if (item.value == "merge") {
-            trailMergeModal.openModal();
+            await trailMergeModal.openModal(Array.from(trails ?? []));
+        } else if (item.value == "find-similar-trails") {
+            if (trail()) {
+                await trailMergeModal.openSimilarTrailsModal(trail()!);
+            }
         } else if (item.value == "send-to") {
             trailSendModal.openModal();
         }
     }
 
-    async function mergeTrails(settings: MergeSettings) {  
-        if (!trails || trails.size < 2) return;
-
-        const trailTarget = getMergeTarget();
-        if (!trailTarget) {
+    async function mergeTrails(settings: MergeSettings, selection: MergeSelection) {  
+        let trailTarget = selection.targetTrail;
+        if (!trailTarget.id) {
             return;
         }
 
         if (!trailTarget.expand) {
-            return;
+            trailTarget = await trails_show(trailTarget.id);
         }
 
-        for (const t of trails) {
+        for (const t of selection.sourceTrails) {
             if (t.id === trailTarget.id) continue;
 
             const u: Merge = {
@@ -490,268 +505,39 @@
                 progress: 0,
                 status: "enqueued",
                 settings: settings,
-                function: trails_merge
+                function: trails_merge_backend
             };
             mergeStore.enqueuedMerges.push(u);
         }
 
+        const completedBeforeRun = mergeStore.completedMerges.length;
         await processMergeQueue();
-    }
+        const completedThisRun = mergeStore.completedMerges.slice(completedBeforeRun);
+        const successfulMerges = completedThisRun.filter(
+            (merge) => merge.status === "success",
+        );
+        const successfulThisRun = successfulMerges.length;
 
-    function buildMergedCommentText(comment: TrailComment): string {
-        const author = comment.expand?.author;
-        const authorHandle = author
-            ? `@${author.preferred_username}${author.isLocal ? "" : `@${author.domain}`}`
-            : $_("someone");
-        const createdDate = comment.created
-            ? new Date(comment.created).toLocaleDateString()
-            : undefined;
-        const prefix = createdDate
-            ? `Imported comment from ${authorHandle} on ${createdDate}:`
-            : `Imported comment from ${authorHandle}:`;
-
-        return `${prefix}\n\n${comment.text}`;
-    }
-
-    async function fetchPhotoBlob(photoURL: string, photoName: string): Promise<Blob> {
-        const response = await fetch(photoURL);
-        if (!response.ok) {
-            throw new Error(`Failed to download photo "${photoName}"`);
+        if (settings.delete && successfulThisRun > 0) {
+            onMerge?.({
+                targetTrail: trailTarget,
+                deletedTrailIds: successfulMerges
+                    .map((merge) => merge.trailSource.id)
+                    .filter((id): id is string => Boolean(id)),
+                successfulMergeCount: successfulThisRun,
+            });
         }
-
-        return await response.blob();
     }
 
-    const MERGE_PROGRESS_STEPS = 6;
-
-    async function trails_merge(trailTarget: Trail, trailSource: Trail, settings: MergeSettings, onProgress?: (progress: number) => void) {
-        const trailSourceAuthorId = trailSource.expand?.author?.id;
-        const trailSourceId = trailSource.id;
-        const trailTargetId = trailTarget.id;
-        if (!trailSourceAuthorId || !trailSourceId || !trailTargetId) {
+    async function trails_merge_backend(trailTarget: Trail, trailSource: Trail, settings: MergeSettings, onProgress?: (progress: number) => void) {
+        if (!trailTarget.id || !trailSource.id) {
             throw new Error($_("error-merging-trail"));
         }
 
-        let summit: SummitLog = new SummitLog(trailSource.date!, {
-            id: undefined,
-            text: trailSource.description,
-            distance: trailSource.distance,
-            elevation_loss: trailSource.elevation_loss,
-            elevation_gain: trailSource.elevation_gain,
-            duration: trailSource.duration,
-            photos: []
-        });
-
-        summit.author = trailSourceAuthorId;
-        summit.trail = trailTargetId;
-
-        let fileData = await trail2gpx(trailSource, $currentUser);
-        const blob = new Blob([fileData], {
-                    type: "application/json",
-                });
-
-        summit._gpx = new File([blob], trailSource.gpx ?? "summit.gpx");
-
-        const mTrailWithDetails = await trails_show(trailSourceId, undefined, undefined, false);
-
-        // part 1
-        onProgress?.(1 / MERGE_PROGRESS_STEPS)
-
-        if (settings.photos) {
-            for (const photo of mTrailWithDetails.photos) {
-                const photoURL = getFileURL(mTrailWithDetails, photo);
-                const photoBlob = await fetchPhotoBlob(photoURL, photo);
-                const photoData = new File([photoBlob], photo);
-                
-                if (!summit._photos) summit._photos = [];
-                summit._photos.push(photoData);
-            }
-        }
-
-        await summit_logs_create(summit);
-
-        // part 2
-        onProgress?.(2 / MERGE_PROGRESS_STEPS)
-
-        const origTrail = await trails_show(trailTargetId, undefined, undefined, false);
-        const updatedTrail: Trail = {
-            ...origTrail,
-            tags: [...origTrail.tags],
-            photos: [...origTrail.photos],
-            expand: origTrail.expand
-                ? {
-                      ...origTrail.expand,
-                      tags: origTrail.expand.tags
-                          ? [...origTrail.expand.tags]
-                          : undefined,
-                      waypoints_via_trail: origTrail.expand.waypoints_via_trail
-                          ? [...origTrail.expand.waypoints_via_trail]
-                          : undefined,
-                      summit_logs_via_trail: origTrail.expand
-                          .summit_logs_via_trail
-                          ? [...origTrail.expand.summit_logs_via_trail]
-                          : undefined,
-                      comments_via_trail: origTrail.expand.comments_via_trail
-                          ? [...origTrail.expand.comments_via_trail]
-                          : undefined,
-                      trail_share_via_trail: origTrail.expand
-                          .trail_share_via_trail
-                          ? [...origTrail.expand.trail_share_via_trail]
-                          : undefined,
-                      trail_like_via_trail: origTrail.expand
-                          .trail_like_via_trail
-                          ? [...origTrail.expand.trail_like_via_trail]
-                          : undefined,
-                  }
-                : undefined,
-        };
-        let trailUpdated = false;
-
-        if (settings.tags && mTrailWithDetails.expand?.tags && mTrailWithDetails.expand?.tags.length > 0)  {
-
-            if (updatedTrail.expand?.tags) {
-                updatedTrail.expand.tags = [...updatedTrail.expand.tags, ...mTrailWithDetails.expand.tags];
-            } else if (updatedTrail.expand) {
-                updatedTrail.expand.tags = mTrailWithDetails.expand.tags;
-            } else {
-                updatedTrail.expand = { tags: mTrailWithDetails.expand.tags };
-            }
-
-            trailUpdated = true;
-        }
-
-        if (settings.likes && mTrailWithDetails.expand?.trail_like_via_trail && mTrailWithDetails.expand?.trail_like_via_trail.length > 0) {
-            const existingLikeActors = new Set(
-                updatedTrail.expand?.trail_like_via_trail
-                    ?.map((trailLike) => trailLike.actor)
-                    .filter(Boolean),
-            );
-            let newLikesCount = 0;
-
-            for (const trailLike of mTrailWithDetails.expand.trail_like_via_trail) {
-                if (existingLikeActors.has(trailLike.actor)) {
-                    continue;
-                }
-
-                let newTrailLike = new TrailLike(trailLike.actor, trailTargetId);
-                await trail_like_create(newTrailLike);
-                existingLikeActors.add(trailLike.actor);
-                newLikesCount += 1;
-            }
-
-            if (newLikesCount > 0) {
-                updatedTrail.like_count += newLikesCount;
-                trailUpdated = true;
-            }
-        }
-
-        if (trailUpdated) {
-            await trails_update(origTrail, updatedTrail);
-        }
-
-        // part 3
-        onProgress?.(3 / MERGE_PROGRESS_STEPS)
-
-        if (settings.summitLog) {
-            if (mTrailWithDetails.expand?.summit_logs_via_trail) {
-
-                for (const sourceSummit of mTrailWithDetails.expand?.summit_logs_via_trail) {
-                    
-                    if (sourceSummit.date === mTrailWithDetails.date) continue;
-
-                    let summit2: SummitLog = new SummitLog(sourceSummit.date!, {
-                        id: undefined,
-                        text: sourceSummit.text,
-                        distance: sourceSummit.distance,
-                        elevation_loss: sourceSummit.elevation_loss,
-                        elevation_gain: sourceSummit.elevation_gain,
-                        duration: sourceSummit.duration,
-                        photos: []
-                    });
-
-                    if (!sourceSummit.expand?.gpx_data) {
-                        const gpxData: string = await fetchGPX(sourceSummit as any, fetch);
-                        summit2.expand = {
-                            ...(summit2.expand ?? {}),
-                            gpx_data: gpxData,
-                        };
-                    } else {
-                        summit2.expand = {
-                                ...(summit2.expand ?? {}),
-                                gpx_data: sourceSummit.expand.gpx_data,
-                        }
-                    }
-
-                    if (summit2.expand.gpx_data) {
-                        const gpxBlob = new Blob([summit2.expand.gpx_data], {
-                            type: "text/plain"
-                        });
-                        const gpxFile = new File([gpxBlob], sourceSummit.gpx ?? "summit_log.gpx");
-                        summit2._gpx = gpxFile;
-                    }
-
-                    for (const photo2 of sourceSummit.photos) {
-                        const photoURL2 = getFileURL(sourceSummit, photo2);
-                        const photoBlob2 = await fetchPhotoBlob(photoURL2, photo2);
-                        const photoData2 = new File([photoBlob2], photo2);
-                        
-                        if (!summit2._photos) summit2._photos = [];
-                        summit2._photos.push(photoData2);
-                    }
-
-                    summit2.author = sourceSummit.author;
-                    summit2.trail = trailTargetId;
-
-                    await summit_logs_create(summit2);
-                }
-            }
-        }
-
-        // part 5
-        onProgress?.(4 / MERGE_PROGRESS_STEPS)
-
-        if (settings.comments) {
-            let commentsFetchResponse = await fetchComments(mTrailWithDetails);
-            if (commentsFetchResponse && mTrailWithDetails.expand?.comments_via_trail) {
-                for (const comment of mTrailWithDetails.expand.comments_via_trail) {
-                    let newComment: TrailComment = { 
-                        text: buildMergedCommentText(comment),
-                        author: $currentUser!.actor,
-                        trail: trailTargetId,
-                    };
-
-                    await comments_create(newComment);
-                }
-            }
-        }
-
-        // part 6
-        onProgress?.(5 / MERGE_PROGRESS_STEPS)
-
-        if (settings.delete) {
-            await trails_delete(trailSource);
-            onMerge?.();
-        }
-
-        // part 7
-        onProgress?.(1)
+        onProgress?.(0.2);
+        await trail_merge(trailSource.id, trailTarget.id, settings);
+        onProgress?.(1);
     }
-
-
-    async function fetchComments(cTrail: Trail) : Promise<boolean> {
-        const trailId = cTrail.iri ? cTrail.iri : cTrail.id!;
-        try {
-            let trailComments = await comments_index(trailId);
-            if (cTrail.expand && trailComments && trailComments.length > 0) {
-                cTrail.expand.comments_via_trail = trailComments;
-            }
-            return true;
-        } catch (e) {
-            console.error("Failed to fetch comments for trail merge", e);
-            throw new Error($_("error-merging-trail"));
-        }
-    }
-
     async function uploadToHammerhead() {
         if (!hammerheadIntegration || !hasTrail()) {
             console.error("No Hammerhead integration found.");
@@ -1075,7 +861,7 @@
 ></TrailShareModal>
 <TrailMergeModal
     bind:this={trailMergeModal}
-    onmerge={(settings) => mergeTrails(settings)}
+    onmerge={(settings, selection) => mergeTrails(settings, selection)}
 ></TrailMergeModal>
 
 <MergeDialog/>

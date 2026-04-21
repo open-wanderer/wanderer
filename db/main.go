@@ -1021,7 +1021,7 @@ func createAPITokenHandler() func(e *core.RecordEvent) error {
 func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.ServeEvent) error {
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
-		registerCronJobs(se.App)
+		registerCronJobs(se.App, client)
 		bootstrapData(se.App, client)
 
 		return se.Next()
@@ -1071,6 +1071,8 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/health", func(e *core.RequestEvent) error {
 		return e.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
+
+	registerTrailMergeRoutes(se, client)
 
 	se.Router.POST("/auth/token", func(e *core.RequestEvent) error {
 		var data struct {
@@ -1395,26 +1397,26 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	})
 }
 
-func registerCronJobs(app core.App) {
+func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 	schedule := os.Getenv("POCKETBASE_CRON_SYNC_SCHEDULE")
 	if len(schedule) == 0 {
 		schedule = "0 2 * * *"
 	}
 
 	app.Cron().MustAdd("integrations", schedule, func() {
-		err := strava.SyncStrava(app)
+		err := strava.SyncStrava(app, client)
 		if err != nil {
 			warning := fmt.Sprintf("Error syncing with strava: %v", err)
 			fmt.Println(warning)
 			app.Logger().Error(warning)
 		}
-		err = komoot.SyncKomoot(app)
+		err = komoot.SyncKomoot(app, client)
 		if err != nil {
 			warning := fmt.Sprintf("Error syncing with komoot: %v", err)
 			fmt.Println(warning)
 			app.Logger().Error(warning)
 		}
-		err = hammerhead.SyncHammerhead(app)
+		err = hammerhead.SyncHammerhead(app, client)
 		if err != nil {
 			warning := fmt.Sprintf("Error syncing with hammerhead: %v", err)
 			fmt.Println(warning)

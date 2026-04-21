@@ -13,7 +13,11 @@
     let visibleMerges = $derived(
         mergeStore.enqueuedMerges
             .concat(mergeStore.completedMerges)
-            .sort((a, b) => (a.trailSource > b.trailSource ? 1 : -1)),
+            .sort((a, b) =>
+                (a.trailSource.name || a.trailSource.id || "").localeCompare(
+                    b.trailSource.name || b.trailSource.id || "",
+                ),
+            ),
     );
 
     let remaining = $derived(mergeStore.enqueuedMerges.length);
@@ -94,11 +98,11 @@
                 </p>
             </div>
             <div class="space-x-2">
-                <button title={$_('clear-all')} aria-label="Dismiss all" onclick={dismissAllCompleted}
+                <button title={$_('clear-all')} aria-label={$_('clear-all')} onclick={dismissAllCompleted}
                     ><i class="fa fa-ban"></i></button
                 >
                 <button
-                    aria-label="Minimize"
+                    aria-label={$_("minimize")}
                     onclick={(e) => {
                         e.stopPropagation();
                         minimized = true;
@@ -135,21 +139,21 @@
                         </p>
                         {#if u.status == "error" || u.status == "cancelled"}
                             <button
-                                aria-label="Re-merge"
+                                aria-label={$_("trail-merge-retry")}
                                 onclick={() => reMerge(u)}
                                 ><i class="fa fa-redo text-sm"></i></button
                             >
                         {/if}
                         {#if u.status == "enqueued"}
                             <button
-                                aria-label="Cancel merge"
+                                aria-label={$_("trail-merge-cancel")}
                                 onclick={() => cancelMerge(u)}
                                 ><i class="fa fa-stop text-sm"></i></button
                             >
                         {/if}
                         {#if u.status != "enqueued" && u.status != "merging"}
                             <button
-                                aria-label="Dismiss"
+                                aria-label={$_("dismiss")}
                                 onclick={() => dismissMerge(u)}
                                 ><i class="fa fa-close text-sm"></i></button
                             >
