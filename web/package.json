@@ -35,7 +35,7 @@
     "@felte/validator-zod": "^1.0.18",
     "@fortawesome/fontawesome-free": "^7.1.0",
     "@sveltejs/adapter-node": "^5.5.2",
-    "@tailwindcss/vite": "^4.2.3",
+    "@tailwindcss/vite": "^4.2.4",
     "@threlte/core": "^8.5.9",
     "@threlte/extras": "^9.14.6",
     "@tiptap/core": "^2.14.0",
@@ -78,7 +78,7 @@
     "pocketbase": "^0.26.8",
     "qrcode": "^1.4.4",
     "svelte-i18n": "^4.0.0",
-    "tailwindcss": "^4.2.3",
+    "tailwindcss": "^4.2.4",
     "three": "^0.183.1",
     "vitest": "^4.1.4",
     "zod": "^3.24.1"
