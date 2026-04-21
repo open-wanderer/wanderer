@@ -1,9 +1,9 @@
-import tailwindcss from '@tailwindcss/vite';
-import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vitest/config';
 import { enhancedImages } from '@sveltejs/enhanced-img';
-import openapiPlugin from 'sveltekit-openapi-generator';
+import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
 import fs from 'fs';
+import openapiPlugin from 'sveltekit-openapi-generator';
+import { defineConfig } from 'vitest/config';
 
 const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
 
@@ -17,7 +17,7 @@ export default defineConfig({
 		outputPath: 'static/docs/api/wanderer.openapi.json',
 		include: ['src/routes/api/v1/**/*.{js,ts}'],
 		baseSchemasPath: 'src/lib/models/api/openapi_schemas.ts',
-	}),tailwindcss(), sveltekit()],
+	}), tailwindcss(), sveltekit()],
 	test: { include: ['src/**/*.{test,spec}.{js,ts}'] },
 	ssr: { noExternal: ['three'] },
 	...(process.env.WANDERER_ENV == "dev" ? {
