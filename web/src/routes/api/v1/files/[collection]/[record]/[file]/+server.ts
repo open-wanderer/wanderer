@@ -1,6 +1,49 @@
 import { error, json, type RequestEvent } from "@sveltejs/kit";
 import { z } from "zod";
 
+/**
+ * @swagger
+ * /api/v1/files/{collection}/{record}/{file}:
+ *   get:
+ *     summary: Download file
+ *     description: Downloads a file from a record with optional thumbnail generation
+ *     tags:
+ *       - Files
+ *     parameters:
+ *       - in: path
+ *         name: collection
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: record
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: file
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: thumb
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: File download
+ *         content:
+ *           application/octet-stream:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       400:
+ *         description: Bad Request
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
 
     const safeParams = z.object({

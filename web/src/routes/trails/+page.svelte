@@ -37,7 +37,10 @@
         if (!browser) {
             return;
         }
-        localStorage.setItem(TRAIL_LIST_FILTER_STORAGE_KEY, JSON.stringify(filter));
+        localStorage.setItem(
+            TRAIL_LIST_FILTER_STORAGE_KEY,
+            JSON.stringify(filter),
+        );
     }
 
     let filterExpanded: boolean = $state(true);
@@ -45,14 +48,19 @@
     let loading: boolean = $state(true);
 
     let filter: TrailFilter = $state(restoreStoredFilter(page.data.filter));
-    const pagination: { page: number; totalPages: number, items: number } = $state({
-        page: page.url.searchParams.has("page")
-            ? parseInt(page.url.searchParams.get("page")!)
-            : 1,
-        totalPages: 1,
-        items: 25,
-    });
+    const pagination: { page: number; totalPages: number; items: number } =
+        $state({
+            page: page.url.searchParams.has("page")
+                ? parseInt(page.url.searchParams.get("page")!)
+                : 1,
+            totalPages: 1,
+            items: 25,
+        });
     let trails: Trail[] = $state([]);
+    let trailsFullWidth = $state(false);
+    let widthPreferences: Record<string, boolean> = $state({});
+    let currentDisplayMode: string = $state("cards");
+    const widthPreferenceStorageKey = "trailWidthPreferences";
 
     export const snapshot: Snapshot<TrailFilter> = {
         capture: () => filter,
@@ -66,7 +74,59 @@
         if (window.innerWidth < 768) {
             filterExpanded = false;
         }
+        loadWidthPreferences();
     });
+
+    function loadWidthPreferences() {
+        if (typeof localStorage === "undefined") {
+            return;
+        }
+        try {
+            const stored = localStorage.getItem(widthPreferenceStorageKey);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed && typeof parsed === "object") {
+                    widthPreferences = parsed;
+                }
+            }
+        } catch (err) {
+            console.warn("Failed to parse trail width preferences", err);
+        }
+        applyWidthPreference(currentDisplayMode);
+    }
+
+    function applyWidthPreference(mode: string) {
+        trailsFullWidth = widthPreferences[mode] ?? false;
+    }
+
+    function persistWidthPreferences() {
+        if (typeof localStorage === "undefined") {
+            return;
+        }
+        try {
+            localStorage.setItem(
+                widthPreferenceStorageKey,
+                JSON.stringify(widthPreferences),
+            );
+        } catch (err) {
+            console.warn("Failed to persist trail width preferences", err);
+        }
+    }
+
+    function updateWidthPreference(mode: string, value: boolean) {
+        widthPreferences = { ...widthPreferences, [mode]: value };
+        persistWidthPreferences();
+    }
+
+    function handleDisplayModeChange(mode: string) {
+        currentDisplayMode = mode;
+        applyWidthPreference(mode);
+    }
+
+    function toggleTrailWidth() {
+        trailsFullWidth = !trailsFullWidth;
+        updateWidthPreference(currentDisplayMode, trailsFullWidth);
+    }
 
     beforeNavigate(({ to }) => {
         if (!browser || !to?.url) {
@@ -90,7 +150,11 @@
         loading = false;
     }
 
-    async function paginate(newPage: number, items: number, scrollToTop: boolean = true) {
+    async function paginate(
+        newPage: number,
+        items: number,
+        scrollToTop: boolean = true,
+    ) {
         pagination.page = newPage;
 
         try {
@@ -130,7 +194,10 @@
         }
 
         page.url.searchParams.set("page", newPage.toString());
-        goto(`?${page.url.searchParams.toString()}`, { keepFocus: true, noScroll: !scrollToTop });
+        goto(`?${page.url.searchParams.toString()}`, {
+            keepFocus: true,
+            noScroll: !scrollToTop,
+        });
     }
 
     async function doPaginate(newPage: number, items: number) {
@@ -149,7 +216,7 @@
 </svelte:head>
 
 <main
-    class="grid grid-cols-1 md:grid-cols-[300px_1fr] items-start gap-8 max-w-7xl mx-6 md:mx-auto"
+    class={`grid grid-cols-1 md:grid-cols-[300px_1fr] items-start gap-8 mx-6 ${trailsFullWidth ? "md:mx-6 max-w-full" : "md:mx-auto max-w-7xl"}`}
 >
     <TrailFilterPanel
         categories={page.data.categories}
@@ -164,5 +231,24 @@
         {pagination}
         onupdate={() => handleFilterUpdate(false)}
         onpagination={paginate}
-    ></TrailList>
+        ondisplaychange={handleDisplayModeChange}
+    >
+        {#snippet trailWidthToggleSnippet()}
+            <button
+                type="button"
+                class="btn-icon"
+                onclick={toggleTrailWidth}
+                aria-pressed={trailsFullWidth}
+                aria-label={trailsFullWidth
+                    ? $_("collapse-trail-list")
+                    : $_("expand-trail-list")}
+                title={trailsFullWidth
+                    ? $_("collapse-trail-list")
+                    : $_("expand-trail-list")}
+            >
+                <i class="fa {trailsFullWidth ? 'fa-compress' : 'fa-expand'}"
+                ></i>
+            </button>
+        {/snippet}
+    </TrailList>
 </main>

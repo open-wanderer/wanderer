@@ -3,6 +3,43 @@ import type { Trail } from '$lib/models/trail';
 import { Collection, create, handleError, list } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
+/**
+ * @swagger
+ * /api/v1/trail:
+ *   get:
+ *     summary: List trails
+ *     description: Retrieves a paginated list of trails with optional filtering and sorting
+ *     tags:
+ *       - Trails
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: perPage
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: expand
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ListResult<Trail>
+ *       400:
+ *         description: Bad Request
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     try {
         const r = await list<Trail>(event, Collection.trails);
@@ -23,6 +60,31 @@ export async function GET(event: RequestEvent) {
     }
 }
 
+/**
+ * @swagger
+ * /api/v1/trail:
+ *   put:
+ *     summary: Create trail
+ *     tags:
+ *       - Trails
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TrailCreateInput'
+ *     responses:
+ *       201:
+ *         description: Trail created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Trail'
+ *       400:
+ *         description: Bad Request
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function PUT(event: RequestEvent) {
     try {        
         const r = await create<Trail>(event, TrailCreateSchema, Collection.trails)

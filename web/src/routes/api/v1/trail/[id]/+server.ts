@@ -7,6 +7,40 @@ import { json, type RequestEvent } from "@sveltejs/kit";
 import type PocketBase from "pocketbase";
 import { ClientResponseError } from "pocketbase";
 
+/**
+ * @swagger
+ * /api/v1/trail/{id}:
+ *   get:
+ *     summary: Get trail
+ *     description: Retrieves a trail by ID. Supports federated queries via handle parameter, fetching from remote instances and remapping file URLs
+ *     tags:
+ *       - Trails
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: expand
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: handle
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: share
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Trail with optional federated data
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     try {
         // try to get the trail simply via the
