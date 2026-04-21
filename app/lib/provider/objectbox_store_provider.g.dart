@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'api_provider.dart';
+part of 'objectbox_store_provider.dart';
 
 // **************************************************************************
 // RiverpodGenerator
@@ -9,50 +9,50 @@ part of 'api_provider.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
-@ProviderFor(Api)
-final apiProvider = ApiProvider._();
+@ProviderFor(ObjectBox)
+final objectBoxProvider = ObjectBoxProvider._();
 
-final class ApiProvider extends $NotifierProvider<Api, Dio> {
-  ApiProvider._()
+final class ObjectBoxProvider extends $NotifierProvider<ObjectBox, Store> {
+  ObjectBoxProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'apiProvider',
-        isAutoDispose: false,
+        name: r'objectBoxProvider',
+        isAutoDispose: true,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$apiHash();
+  String debugGetCreateSourceHash() => _$objectBoxHash();
 
   @$internal
   @override
-  Api create() => Api();
+  ObjectBox create() => ObjectBox();
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(Dio value) {
+  Override overrideWithValue(Store value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<Dio>(value),
+      providerOverride: $SyncValueProvider<Store>(value),
     );
   }
 }
 
-String _$apiHash() => r'6af0b3098c6f071e3e7c52fb591af6d23a7e26d3';
+String _$objectBoxHash() => r'61f7ca205899848e8ab5170e636ab2c45ec0db82';
 
-abstract class _$Api extends $Notifier<Dio> {
-  Dio build();
+abstract class _$ObjectBox extends $Notifier<Store> {
+  Store build();
   @$mustCallSuper
   @override
   void runBuild() {
-    final ref = this.ref as $Ref<Dio, Dio>;
+    final ref = this.ref as $Ref<Store, Store>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<Dio, Dio>,
-              Dio,
+              AnyNotifier<Store, Store>,
+              Store,
               Object?,
               Object?
             >;

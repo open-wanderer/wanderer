@@ -23,6 +23,9 @@ dependencies:
   go_router: ^17.2.1
   intl: any
   json_annotation: ^4.11.0
+  objectbox: ^5.3.1
+  objectbox_flutter_libs: ^5.3.1
+  path: ^1.9.1
   path_provider: ^2.1.5
   riverpod_annotation: ^4.0.2
 
@@ -34,6 +37,7 @@ dev_dependencies:
   freezed: ^3.2.5
   json_serializable: ^6.13.0
   json_to_arb: ^0.1.14
+  objectbox_generator: ^5.3.1
   riverpod_generator: ^4.0.3
 
 flutter:
@@ -55,10 +59,3 @@ flutter:
           weight: 600
         - asset: assets/fonts/IBMPlexSans/IBMPlexSans-Bold.ttf
           weight: 700
-
-json_to_arb:
-  source: ../web/src/lib/i18n/locales
-  output: lib/i18n/
-  locales:
-    - en
-    - de

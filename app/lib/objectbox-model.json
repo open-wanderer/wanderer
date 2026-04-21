@@ -1,0 +1,88 @@
+{
+  "_note1": "KEEP THIS FILE! Check it into a version control system (VCS) like git.",
+  "_note2": "ObjectBox manages crucial IDs for your object model. See docs for details.",
+  "_note3": "If you have VCS merge conflicts, you must resolve them according to ObjectBox docs.",
+  "entities": [
+    {
+      "id": "1:7780573664962685596",
+      "lastPropertyId": "14:2866207440067158385",
+      "name": "UserEntity",
+      "properties": [
+        {
+          "id": "1:854683695191930618",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:7544298695757463036",
+          "name": "id",
+          "indexId": "1:6385663453030780933",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "3:4557026159293183610",
+          "name": "username",
+          "type": 9
+        },
+        {
+          "id": "4:8020216890117256428",
+          "name": "email",
+          "type": 9
+        },
+        {
+          "id": "7:4115797788444623288",
+          "name": "created",
+          "type": 9
+        },
+        {
+          "id": "8:8205764523610310818",
+          "name": "updated",
+          "type": 9
+        },
+        {
+          "id": "9:745437973107337822",
+          "name": "avatar",
+          "type": 9
+        },
+        {
+          "id": "10:5347105035037516494",
+          "name": "iri",
+          "type": 9
+        },
+        {
+          "id": "11:7893614394671506312",
+          "name": "preferredUsername",
+          "type": 9
+        },
+        {
+          "id": "13:7065438667653102047",
+          "name": "serverUrl",
+          "type": 9
+        },
+        {
+          "id": "14:2866207440067158385",
+          "name": "actorId",
+          "type": 9
+        }
+      ],
+      "relations": []
+    }
+  ],
+  "lastEntityId": "1:7780573664962685596",
+  "lastIndexId": "1:6385663453030780933",
+  "lastRelationId": "0:0",
+  "lastSequenceId": "0:0",
+  "modelVersion": 5,
+  "modelVersionParserMinimum": 5,
+  "retiredEntityUids": [],
+  "retiredIndexUids": [],
+  "retiredPropertyUids": [
+    1147012112998304753,
+    3896929027028370202,
+    1409733009498121897
+  ],
+  "retiredRelationUids": [],
+  "version": 1
+}

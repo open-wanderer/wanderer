@@ -9,12 +9,11 @@ part of 'auth_provider.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
-@ProviderFor(AuthNotifier)
-final authProvider = AuthNotifierProvider._();
+@ProviderFor(Auth)
+final authProvider = AuthProvider._();
 
-final class AuthNotifierProvider
-    extends $AsyncNotifierProvider<AuthNotifier, User?> {
-  AuthNotifierProvider._()
+final class AuthProvider extends $AsyncNotifierProvider<Auth, UserEntity?> {
+  AuthProvider._()
     : super(
         from: null,
         argument: null,
@@ -26,26 +25,26 @@ final class AuthNotifierProvider
       );
 
   @override
-  String debugGetCreateSourceHash() => _$authNotifierHash();
+  String debugGetCreateSourceHash() => _$authHash();
 
   @$internal
   @override
-  AuthNotifier create() => AuthNotifier();
+  Auth create() => Auth();
 }
 
-String _$authNotifierHash() => r'6b46630c991b5e61cab0c2bf26c01628f855b08d';
+String _$authHash() => r'c9c5e485fb92a319f819005ee482f9940b24f422';
 
-abstract class _$AuthNotifier extends $AsyncNotifier<User?> {
-  FutureOr<User?> build();
+abstract class _$Auth extends $AsyncNotifier<UserEntity?> {
+  FutureOr<UserEntity?> build();
   @$mustCallSuper
   @override
   void runBuild() {
-    final ref = this.ref as $Ref<AsyncValue<User?>, User?>;
+    final ref = this.ref as $Ref<AsyncValue<UserEntity?>, UserEntity?>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<AsyncValue<User?>, User?>,
-              AsyncValue<User?>,
+              AnyNotifier<AsyncValue<UserEntity?>, UserEntity?>,
+              AsyncValue<UserEntity?>,
               Object?,
               Object?
             >;

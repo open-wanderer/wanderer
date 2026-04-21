@@ -37,15 +37,20 @@ class WandererButton extends StatelessWidget {
             backgroundColor: theme.colorScheme.primary,
             foregroundColor: theme.colorScheme.onPrimary,
             minimumSize: Size(0, large ? 56 : 40),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
             elevation: 0,
           ).copyWith(
-            foregroundColor: WidgetStateProperty.all(
-              theme.colorScheme.onPrimary,
-            ),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return theme.colorScheme.onInverseSurface.withValues(
+                  alpha: 0.48,
+                );
+              }
+              return theme.colorScheme.onPrimary;
+            }),
             backgroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.hovered)) {
                 return theme.colorScheme.primaryContainer;
@@ -57,9 +62,9 @@ class WandererButton extends StatelessWidget {
       buttonStyle =
           OutlinedButton.styleFrom(
             foregroundColor: theme.colorScheme.onSurface,
-            side: BorderSide(color: theme.colorScheme.outline),
+            side: BorderSide(color: Theme.of(context).primaryColor),
             minimumSize: Size(0, large ? 56 : 40),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
@@ -90,19 +95,22 @@ class WandererButton extends StatelessWidget {
     return Stack(
       alignment: Alignment.center,
       children: [
-        Opacity(
-          opacity: loading ? 0.0 : 1.0,
-          child: primary
-              ? ElevatedButton(
-                  onPressed: isEnabled ? onPressed : null,
-                  style: style,
-                  child: _buildContent(),
-                )
-              : OutlinedButton(
-                  onPressed: isEnabled ? onPressed : null,
-                  style: style,
-                  child: _buildContent(),
-                ),
+        SizedBox(
+          width: double.infinity,
+          child: Opacity(
+            opacity: loading ? 0.0 : 1.0,
+            child: primary
+                ? ElevatedButton(
+                    onPressed: isEnabled ? onPressed : null,
+                    style: style,
+                    child: _buildContent(),
+                  )
+                : OutlinedButton(
+                    onPressed: isEnabled ? onPressed : null,
+                    style: style,
+                    child: _buildContent(),
+                  ),
+          ),
         ),
 
         if (loading)
@@ -110,9 +118,9 @@ class WandererButton extends StatelessWidget {
             width: 20,
             height: 20,
             child: CircularProgressIndicator(
-              strokeWidth: 2,
+              strokeWidth: 3,
               valueColor: AlwaysStoppedAnimation<Color>(
-                primary ? Colors.white : Theme.of(context).colorScheme.primary,
+                Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),

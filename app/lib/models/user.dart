@@ -1,12 +1,16 @@
 import 'dart:convert';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:wanderer/entities/user_entity.dart';
+import 'package:wanderer/models/actor.dart';
 
 part 'user.freezed.dart';
 part 'user.g.dart';
 
 @Freezed()
 abstract class User with _$User {
+  const User._();
+
   const factory User({
     required String id,
     required String username,
@@ -16,6 +20,7 @@ abstract class User with _$User {
     required String created,
     required String updated,
     String? avatar,
+    UserExpand? expand,
   }) = _User;
 
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
@@ -25,4 +30,38 @@ abstract class User with _$User {
     final map = jsonDecode(decoded) as Map<String, dynamic>;
     return User.fromJson(map['record'] as Map<String, dynamic>);
   }
+
+  UserEntity toEntity() {
+    if (expand?.actor == null) {
+      throw Exception(
+        "Cannot convert User to UserEntity without expanded actor",
+      );
+    }
+
+    final userIri = Uri.parse(expand!.actor!.iri);
+    final rootUri = Uri(scheme: userIri.scheme, host: userIri.host);
+
+    return UserEntity(
+      id: id,
+      actorId: expand!.actor!.id,
+      username: expand!.actor!.username,
+      preferredUsername: expand!.actor!.preferredUsername,
+      email: email,
+      created: created,
+      updated: updated,
+      avatar: avatar,
+      iri: expand!.actor!.iri,
+      serverUrl: rootUri.toString(),
+    );
+  }
+}
+
+@Freezed()
+abstract class UserExpand with _$UserExpand {
+  const factory UserExpand({
+    @JsonKey(name: 'activitypub_actors_via_user') Actor? actor,
+  }) = _UserExpand;
+
+  factory UserExpand.fromJson(Map<String, dynamic> json) =>
+      _$UserExpandFromJson(json);
 }

@@ -15,6 +15,9 @@ _User _$UserFromJson(Map<String, dynamic> json) => _User(
   created: json['created'] as String,
   updated: json['updated'] as String,
   avatar: json['avatar'] as String?,
+  expand: json['expand'] == null
+      ? null
+      : UserExpand.fromJson(json['expand'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$UserToJson(_User instance) => <String, dynamic>{
@@ -26,4 +29,16 @@ Map<String, dynamic> _$UserToJson(_User instance) => <String, dynamic>{
   'created': instance.created,
   'updated': instance.updated,
   'avatar': instance.avatar,
+  'expand': instance.expand,
 };
+
+_UserExpand _$UserExpandFromJson(Map<String, dynamic> json) => _UserExpand(
+  actor: json['activitypub_actors_via_user'] == null
+      ? null
+      : Actor.fromJson(
+          json['activitypub_actors_via_user'] as Map<String, dynamic>,
+        ),
+);
+
+Map<String, dynamic> _$UserExpandToJson(_UserExpand instance) =>
+    <String, dynamic>{'activitypub_actors_via_user': instance.actor};

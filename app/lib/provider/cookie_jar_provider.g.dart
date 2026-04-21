@@ -15,11 +15,11 @@ final cookieJarProvider = CookieJarProvider._();
 final class CookieJarProvider
     extends
         $FunctionalProvider<
-          AsyncValue<PersistCookieJar>,
           PersistCookieJar,
-          FutureOr<PersistCookieJar>
+          PersistCookieJar,
+          PersistCookieJar
         >
-    with $FutureModifier<PersistCookieJar>, $FutureProvider<PersistCookieJar> {
+    with $Provider<PersistCookieJar> {
   CookieJarProvider._()
     : super(
         from: null,
@@ -36,14 +36,21 @@ final class CookieJarProvider
 
   @$internal
   @override
-  $FutureProviderElement<PersistCookieJar> $createElement(
-    $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
+  $ProviderElement<PersistCookieJar> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
 
   @override
-  FutureOr<PersistCookieJar> create(Ref ref) {
+  PersistCookieJar create(Ref ref) {
     return cookieJar(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(PersistCookieJar value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<PersistCookieJar>(value),
+    );
   }
 }
 
-String _$cookieJarHash() => r'1085aa4085863dd9976ff32b11e389fb83a13c7c';
+String _$cookieJarHash() => r'81f64d3555f21c9f775b8a85f94131f20141c9de';

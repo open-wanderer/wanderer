@@ -9,12 +9,10 @@ part of 'router_provider.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
-@ProviderFor(router)
+@ProviderFor(Router)
 final routerProvider = RouterProvider._();
 
-final class RouterProvider
-    extends $FunctionalProvider<GoRouter, GoRouter, GoRouter>
-    with $Provider<GoRouter> {
+final class RouterProvider extends $NotifierProvider<Router, GoRouter> {
   RouterProvider._()
     : super(
         from: null,
@@ -31,13 +29,7 @@ final class RouterProvider
 
   @$internal
   @override
-  $ProviderElement<GoRouter> $createElement($ProviderPointer pointer) =>
-      $ProviderElement(pointer);
-
-  @override
-  GoRouter create(Ref ref) {
-    return router(ref);
-  }
+  Router create() => Router();
 
   /// {@macro riverpod.override_with_value}
   Override overrideWithValue(GoRouter value) {
@@ -48,4 +40,22 @@ final class RouterProvider
   }
 }
 
-String _$routerHash() => r'e1a609e0156172dc9e2a8a3aa19f704dff9dce9e';
+String _$routerHash() => r'bc89a8936b3386244e6969e26aa76cfcaea93783';
+
+abstract class _$Router extends $Notifier<GoRouter> {
+  GoRouter build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<GoRouter, GoRouter>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<GoRouter, GoRouter>,
+              GoRouter,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}

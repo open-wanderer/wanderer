@@ -1,31 +1,50 @@
+import 'package:dio/dio.dart';
+import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/auth_response.dart';
 import 'package:wanderer/models/user.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
+import 'package:wanderer/provider/objectbox_store_provider.dart';
 
 part 'auth_provider.g.dart';
 
 @riverpod
-class AuthNotifier extends _$AuthNotifier {
-  @override
-  FutureOr<User?> build() async {
-    final jar = await ref.watch(cookieJarProvider.future);
+class Auth extends _$Auth {
+  late final Box<UserEntity> _box;
 
-    final cookies = await jar.loadForRequest(
-      Uri.parse('https://demo.wanderer.to'),
-    );
-    final pbAuthCookie = cookies.where((c) => c.name == 'pb_auth').firstOrNull;
-    if (pbAuthCookie != null) {
-      try {
-        return User.fromCookie(pbAuthCookie.value);
-      } catch (e) {
-        await jar.deleteAll();
-        return null;
-      }
-    } else {
+  @override
+  FutureOr<UserEntity?> build() async {
+    final store = ref.watch(objectBoxProvider);
+
+    _box = store.box<UserEntity>();
+
+    final savedUserEntity = _box.getAll().firstOrNull;
+    if (savedUserEntity == null) {
       return null;
     }
+
+    ref.read(apiProvider.notifier).updateBaseUrl(savedUserEntity.serverUrl);
+
+    final jar = ref.watch(cookieJarProvider);
+
+    final cookies = await jar.loadForRequest(
+      Uri.parse(savedUserEntity.serverUrl),
+    );
+    final pbAuthCookie = cookies.where((c) => c.name == 'pb_auth').firstOrNull;
+
+    if (pbAuthCookie != null) {
+      _updateUserEntity(savedUserEntity.id).catchError((err) {
+        if (err is DioException && err.response?.statusCode == 404) {
+          logout();
+        }
+        return null;
+      });
+
+      return savedUserEntity;
+    }
+    return null;
   }
 
   Future<User?> login(String username, String password) async {
@@ -39,18 +58,46 @@ class AuthNotifier extends _$AuthNotifier {
 
     state = const AsyncLoading();
 
+    // Login
     state = await AsyncValue.guard(() async {
-      final response = await ref
+      final loginResponse = await ref
           .read(apiProvider)
           .post(
             '/auth/login',
             data: {'username': username, 'password': password},
           );
+      final authData = AuthResponse.fromJson(loginResponse.data);
 
-      final authData = AuthResponse.fromJson(response.data);
-
-      return authData.record;
+      // Fetch user data with expanded actor
+      final userEntity = await _updateUserEntity(authData.record.id);
+      return userEntity;
     });
     return null;
+  }
+
+  Future<void> logout() async {
+    final jar = ref.read(cookieJarProvider);
+    await jar.deleteAll();
+    _box.removeAll();
+    ref.invalidateSelf();
+  }
+
+  Future<UserEntity?> _updateUserEntity(String id) async {
+    try {
+      final userResponse = await ref
+          .read(apiProvider)
+          .get(
+            "/user/$id",
+            queryParameters: {"expand": "activitypub_actors_via_user"},
+          );
+      final userData = User.fromJson(userResponse.data);
+
+      final UserEntity userEntity = userData.toEntity();
+      _box.put(userEntity);
+
+      return userEntity;
+    } catch (err) {
+      return null;
+    }
   }
 }
