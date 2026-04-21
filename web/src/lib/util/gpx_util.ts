@@ -15,6 +15,7 @@ import type { Feature, FeatureCollection, GeoJsonProperties, Position } from 'ge
 import JSZip from "jszip";
 import type { AuthRecord } from "pocketbase";
 import { handleFromRecordWithIRI } from "./activitypub_util";
+import { icons } from "./icon_util";
 
 
 export async function gpx2trail(gpxString: string, fallbackName?: string, correctElevation: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
@@ -44,6 +45,9 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
         wp.id = cryptoRandomString({ length: 15 });
         wp.name = wpt.name ?? ""
         wp.description = wpt.desc;
+        if(wpt.sym && icons.includes(wpt.sym as typeof icons[number])) {
+            wp.icon = wpt.sym as typeof icons[number];
+        }
         trail.expand!.waypoints_via_trail?.push(wp);
     }
 
@@ -112,15 +116,19 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
     }
 
     for (const wp of gpxTrail.expand!.waypoints_via_trail ?? []) {
-        const gpxWpt = gpx.wpt.find((w) => w.$.lat == wp.lat && w.$.lon == wp.lon)
+        let gpxWpt = gpx.wpt.find((w) => w.$.lat == wp.lat && w.$.lon == wp.lon)
         if (!gpxWpt) {
-            gpx.wpt.push(new GPXWaypoint({
+            gpxWpt = new GPXWaypoint({
                 $: {
                     lat: wp.lat,
                     lon: wp.lon
                 }
-            }))
+            })
+            gpx.wpt.push(gpxWpt)
         }
+        gpxWpt.desc = wp.description
+        gpxWpt.name = wp.name
+        gpxWpt.sym = wp.icon
     }
 
     return gpx.toString();
