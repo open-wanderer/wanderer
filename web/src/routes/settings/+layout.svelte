@@ -26,7 +26,7 @@
         { text: `${$_("import")}/${$_("export")}`, value: "/settings/export" },
         {
             text: $_("help"),
-            value: "https://wanderer.to/run/installation",
+            value: "https://wanderer.to/run/installation/quick",
         },
     ];
 
