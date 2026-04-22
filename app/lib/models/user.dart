@@ -3,22 +3,26 @@ import 'dart:convert';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/actor.dart';
+import 'package:wanderer/models/record.dart';
 
 part 'user.freezed.dart';
 part 'user.g.dart';
 
 @Freezed()
-abstract class User with _$User {
+abstract class User with _$User, RecordFunctions implements IRecord {
   const User._();
 
   const factory User({
     required String id,
+    required String collectionId,
+    required String collectionName,
+    required String created,
+    required String updated,
     required String username,
     required String email,
     required bool emailVisibility,
     required bool verified,
-    required String created,
-    required String updated,
+
     String? avatar,
     UserExpand? expand,
   }) = _User;
@@ -43,6 +47,8 @@ abstract class User with _$User {
 
     return UserEntity(
       id: id,
+      collectionId: collectionId,
+      collectionName: collectionName,
       actorId: expand!.actor!.id,
       username: expand!.actor!.username,
       preferredUsername: expand!.actor!.preferredUsername,

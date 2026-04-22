@@ -2,17 +2,17 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:form_builder_validators/form_builder_validators.dart';
+import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/components/base/wanderer_text_field.dart';
+import 'package:wanderer/components/welcome/server_selctor.dart';
 import 'package:wanderer/models/api_error.dart';
 import 'package:wanderer/provider/auth_provider.dart';
-import 'package:wanderer/provider/current_server_provider.dart';
-import 'package:wanderer/provider/router_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+
 import '/i18n/app_localizations.dart';
-import 'package:form_builder_validators/form_builder_validators.dart';
 
 class LoginScreen extends ConsumerWidget {
   LoginScreen({super.key});
@@ -22,8 +22,6 @@ class LoginScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final loginState = ref.watch(authProvider);
-    final serverURL = ref.watch(currentServerProvider);
-    final router = ref.watch(routerProvider);
 
     ref.listen(authProvider, (previous, next) {
       next.whenOrNull(
@@ -79,32 +77,7 @@ class LoginScreen extends ConsumerWidget {
                 ),
                 SizedBox(height: 12),
 
-                Material(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(12),
-                  clipBehavior: Clip.antiAlias,
-                  child: ListTile(
-                    onTap: () => router.push('/select-server'),
-                    leading: FaIcon(
-                      FontAwesomeIcons.fediverse,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    title: Text(
-                      serverURL?.replaceFirst(RegExp(r'https?://'), '') ??
-                          "Select Server",
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      "Current Server", // "Current Server"
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
-                    trailing: const FaIcon(FontAwesomeIcons.pencil, size: 14),
-                  ),
-                ),
-
+                ServerSelector(icon: FontAwesomeIcons.pencil),
                 WandererTextField(
                   name: 'username',
                   label:

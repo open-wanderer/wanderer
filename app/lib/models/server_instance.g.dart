@@ -9,10 +9,10 @@ part of 'server_instance.dart';
 _ServerInstance _$ServerInstanceFromJson(
   Map<String, dynamic> json,
 ) => _ServerInstance(
-  name: json['name'] as String,
+  name: json['name'] as String?,
   url: json['url'] as String,
-  description: json['description'] as String,
-  image: json['image'] as String,
+  description: json['description'] as String?,
+  image: json['image'] as String?,
   region:
       (json['region'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],

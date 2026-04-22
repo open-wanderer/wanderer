@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wanderer/models/server_instance.dart';
 import 'package:wanderer/provider/api_provider.dart';
-import 'package:wanderer/provider/current_server_provider.dart';
-import 'package:wanderer/provider/welcome/server_list_provider.dart'; // Your custom button
+import 'package:wanderer/provider/welcome/server_selection_provider.dart'; // Your custom button
 
 class ServerSelectionScreen extends ConsumerStatefulWidget {
   const ServerSelectionScreen({super.key});
@@ -24,15 +24,15 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
     super.dispose();
   }
 
-  void _selectAndGoBack(String input) {
-    var url = input.trim();
+  void _selectAndGoBack(ServerInstance server) {
+    var url = server.url.trim();
     if (url.isEmpty) return;
 
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://$url';
     }
 
-    ref.read(currentServerProvider.notifier).update(url);
+    ref.read(serverSelectionProvider.notifier).setSelectedServer(server);
     ref.read(apiProvider.notifier).updateBaseUrl(url);
 
     context.pop();
@@ -41,7 +41,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final directoryAsync = ref.watch(serverDirectoryProvider);
+    final severSelection = ref.watch(serverSelectionProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text("Select Instance")),
@@ -58,7 +58,9 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                   icon: const FaIcon(FontAwesomeIcons.chevronRight, size: 16),
                   onPressed: () {
                     if (_urlController.text.isNotEmpty) {
-                      _selectAndGoBack(_urlController.text.trim());
+                      _selectAndGoBack(
+                        ServerInstance(url: _urlController.text.trim()),
+                      );
                     }
                   },
                 ),
@@ -67,19 +69,20 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                 ),
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
-              onSubmitted: (value) => _selectAndGoBack(value),
+              onSubmitted: (value) =>
+                  _selectAndGoBack(ServerInstance(url: value)),
             ),
           ),
 
           const Divider(),
 
           Expanded(
-            child: directoryAsync.when(
-              data: (servers) {
-                final filteredServers = servers
+            child: severSelection.when(
+              data: (serverState) {
+                final filteredServers = serverState.availableServers
                     .where(
                       (s) =>
-                          s.name.toLowerCase().contains(
+                          s.name!.toLowerCase().contains(
                             _searchQuery.toLowerCase(),
                           ) ||
                           s.url.toLowerCase().contains(
@@ -100,8 +103,9 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                         const SizedBox(height: 16),
                         Text("No servers match '$_searchQuery'"),
                         TextButton(
-                          onPressed: () =>
-                              _selectAndGoBack(_urlController.text),
+                          onPressed: () => _selectAndGoBack(
+                            ServerInstance(url: _urlController.text.trim()),
+                          ),
                           child: const Text("Use custom URL instead"),
                         ),
                       ],
@@ -138,7 +142,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                         ),
                       ),
                       title: Text(
-                        server.name,
+                        server.name!,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       subtitle: Column(
@@ -154,7 +158,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                           ),
                         ],
                       ),
-                      onTap: () => _selectAndGoBack(server.url),
+                      onTap: () => _selectAndGoBack(server),
                     );
                   },
                 );

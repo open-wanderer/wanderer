@@ -1,12 +1,19 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:wanderer/models/record.dart';
 
 part 'actor.freezed.dart';
 part 'actor.g.dart';
 
 @Freezed()
-abstract class Actor with _$Actor {
+abstract class Actor with _$Actor, RecordFunctions implements IRecord {
+  const Actor._();
+
   const factory Actor({
     required String id,
+    required String collectionId,
+    required String collectionName,
+    required String created,
+    required String updated,
     required String username,
     @JsonKey(name: 'preferred_username') required String preferredUsername,
     String? domain,

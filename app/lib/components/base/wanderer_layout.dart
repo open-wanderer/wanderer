@@ -13,7 +13,7 @@ class WandererLayout extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    final user = ref.watch(authProvider).requireValue!;
+    final user = ref.watch(authProvider).value;
 
     final int currentIndex = _calculateSelectedIndex(router.state.uri.path);
 
@@ -38,29 +38,15 @@ class WandererLayout extends ConsumerWidget {
           ),
           BottomNavigationBarItem(
             icon: CircleAvatar(
-              radius: 12, // Standard size to match other icons
+              radius: 12,
               backgroundColor: Colors.grey.shade300,
               backgroundImage: NetworkImage(
-                user.avatar ??
-                    "https://api.dicebear.com/7.x/initials/png?seed=${user.preferredUsername}&backgroundType=gradientLinear",
+                user?.getFileUrl(user.serverUrl, user.avatar) ??
+                    "https://api.dicebear.com/7.x/initials/png?seed=${user?.preferredUsername}&backgroundType=gradientLinear",
               ),
               onBackgroundImageError: (_, _) => FaIcon(FontAwesomeIcons.user),
             ),
-            activeIcon: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Theme.of(context).primaryColor,
-                  width: 2,
-                ),
-              ),
-              child: const CircleAvatar(
-                radius: 10, // Slightly smaller to account for the border
-                backgroundImage: NetworkImage(
-                  'https://your-url.com/avatar.jpg',
-                ),
-              ),
-            ),
+
             label: AppLocalizations.of(context)!.profile,
           ),
         ],

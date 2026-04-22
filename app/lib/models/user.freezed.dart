@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$User {
 
- String get id; String get username; String get email; bool get emailVisibility; bool get verified; String get created; String get updated; String? get avatar; UserExpand? get expand;
+ String get id; String get collectionId; String get collectionName; String get created; String get updated; String get username; String get email; bool get emailVisibility; bool get verified; String? get avatar; UserExpand? get expand;
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $UserCopyWith<User> get copyWith => _$UserCopyWithImpl<User>(this as User, _$ide
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.email, email) || other.email == email)&&(identical(other.emailVisibility, emailVisibility) || other.emailVisibility == emailVisibility)&&(identical(other.verified, verified) || other.verified == verified)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&(identical(other.expand, expand) || other.expand == expand));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.username, username) || other.username == username)&&(identical(other.email, email) || other.email == email)&&(identical(other.emailVisibility, emailVisibility) || other.emailVisibility == emailVisibility)&&(identical(other.verified, verified) || other.verified == verified)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&(identical(other.expand, expand) || other.expand == expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,username,email,emailVisibility,verified,created,updated,avatar,expand);
+int get hashCode => Object.hash(runtimeType,id,collectionId,collectionName,created,updated,username,email,emailVisibility,verified,avatar,expand);
 
 @override
 String toString() {
-  return 'User(id: $id, username: $username, email: $email, emailVisibility: $emailVisibility, verified: $verified, created: $created, updated: $updated, avatar: $avatar, expand: $expand)';
+  return 'User(id: $id, collectionId: $collectionId, collectionName: $collectionName, created: $created, updated: $updated, username: $username, email: $email, emailVisibility: $emailVisibility, verified: $verified, avatar: $avatar, expand: $expand)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $UserCopyWith<$Res>  {
   factory $UserCopyWith(User value, $Res Function(User) _then) = _$UserCopyWithImpl;
 @useResult
 $Res call({
- String id, String username, String email, bool emailVisibility, bool verified, String created, String updated, String? avatar, UserExpand? expand
+ String id, String collectionId, String collectionName, String created, String updated, String username, String email, bool emailVisibility, bool verified, String? avatar, UserExpand? expand
 });
 
 
@@ -65,16 +65,18 @@ class _$UserCopyWithImpl<$Res>
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? email = null,Object? emailVisibility = null,Object? verified = null,Object? created = null,Object? updated = null,Object? avatar = freezed,Object? expand = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? collectionId = null,Object? collectionName = null,Object? created = null,Object? updated = null,Object? username = null,Object? email = null,Object? emailVisibility = null,Object? verified = null,Object? avatar = freezed,Object? expand = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
+as String,collectionName: null == collectionName ? _self.collectionName : collectionName // ignore: cast_nullable_to_non_nullable
+as String,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
+as String,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
 as String,emailVisibility: null == emailVisibility ? _self.emailVisibility : emailVisibility // ignore: cast_nullable_to_non_nullable
 as bool,verified: null == verified ? _self.verified : verified // ignore: cast_nullable_to_non_nullable
-as bool,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
-as String,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
-as String,avatar: freezed == avatar ? _self.avatar : avatar // ignore: cast_nullable_to_non_nullable
+as bool,avatar: freezed == avatar ? _self.avatar : avatar // ignore: cast_nullable_to_non_nullable
 as String?,expand: freezed == expand ? _self.expand : expand // ignore: cast_nullable_to_non_nullable
 as UserExpand?,
   ));
@@ -173,10 +175,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username,  String email,  bool emailVisibility,  bool verified,  String created,  String updated,  String? avatar,  UserExpand? expand)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  String created,  String updated,  String username,  String email,  bool emailVisibility,  bool verified,  String? avatar,  UserExpand? expand)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
-return $default(_that.id,_that.username,_that.email,_that.emailVisibility,_that.verified,_that.created,_that.updated,_that.avatar,_that.expand);case _:
+return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.email,_that.emailVisibility,_that.verified,_that.avatar,_that.expand);case _:
   return orElse();
 
 }
@@ -194,10 +196,10 @@ return $default(_that.id,_that.username,_that.email,_that.emailVisibility,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username,  String email,  bool emailVisibility,  bool verified,  String created,  String updated,  String? avatar,  UserExpand? expand)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  String created,  String updated,  String username,  String email,  bool emailVisibility,  bool verified,  String? avatar,  UserExpand? expand)  $default,) {final _that = this;
 switch (_that) {
 case _User():
-return $default(_that.id,_that.username,_that.email,_that.emailVisibility,_that.verified,_that.created,_that.updated,_that.avatar,_that.expand);case _:
+return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.email,_that.emailVisibility,_that.verified,_that.avatar,_that.expand);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -214,10 +216,10 @@ return $default(_that.id,_that.username,_that.email,_that.emailVisibility,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username,  String email,  bool emailVisibility,  bool verified,  String created,  String updated,  String? avatar,  UserExpand? expand)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String collectionId,  String collectionName,  String created,  String updated,  String username,  String email,  bool emailVisibility,  bool verified,  String? avatar,  UserExpand? expand)?  $default,) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
-return $default(_that.id,_that.username,_that.email,_that.emailVisibility,_that.verified,_that.created,_that.updated,_that.avatar,_that.expand);case _:
+return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.email,_that.emailVisibility,_that.verified,_that.avatar,_that.expand);case _:
   return null;
 
 }
@@ -229,16 +231,18 @@ return $default(_that.id,_that.username,_that.email,_that.emailVisibility,_that.
 @JsonSerializable()
 
 class _User extends User {
-  const _User({required this.id, required this.username, required this.email, required this.emailVisibility, required this.verified, required this.created, required this.updated, this.avatar, this.expand}): super._();
+  const _User({required this.id, required this.collectionId, required this.collectionName, required this.created, required this.updated, required this.username, required this.email, required this.emailVisibility, required this.verified, this.avatar, this.expand}): super._();
   factory _User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
 
 @override final  String id;
+@override final  String collectionId;
+@override final  String collectionName;
+@override final  String created;
+@override final  String updated;
 @override final  String username;
 @override final  String email;
 @override final  bool emailVisibility;
 @override final  bool verified;
-@override final  String created;
-@override final  String updated;
 @override final  String? avatar;
 @override final  UserExpand? expand;
 
@@ -255,16 +259,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.email, email) || other.email == email)&&(identical(other.emailVisibility, emailVisibility) || other.emailVisibility == emailVisibility)&&(identical(other.verified, verified) || other.verified == verified)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&(identical(other.expand, expand) || other.expand == expand));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.username, username) || other.username == username)&&(identical(other.email, email) || other.email == email)&&(identical(other.emailVisibility, emailVisibility) || other.emailVisibility == emailVisibility)&&(identical(other.verified, verified) || other.verified == verified)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&(identical(other.expand, expand) || other.expand == expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,username,email,emailVisibility,verified,created,updated,avatar,expand);
+int get hashCode => Object.hash(runtimeType,id,collectionId,collectionName,created,updated,username,email,emailVisibility,verified,avatar,expand);
 
 @override
 String toString() {
-  return 'User(id: $id, username: $username, email: $email, emailVisibility: $emailVisibility, verified: $verified, created: $created, updated: $updated, avatar: $avatar, expand: $expand)';
+  return 'User(id: $id, collectionId: $collectionId, collectionName: $collectionName, created: $created, updated: $updated, username: $username, email: $email, emailVisibility: $emailVisibility, verified: $verified, avatar: $avatar, expand: $expand)';
 }
 
 
@@ -275,7 +279,7 @@ abstract mixin class _$UserCopyWith<$Res> implements $UserCopyWith<$Res> {
   factory _$UserCopyWith(_User value, $Res Function(_User) _then) = __$UserCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String username, String email, bool emailVisibility, bool verified, String created, String updated, String? avatar, UserExpand? expand
+ String id, String collectionId, String collectionName, String created, String updated, String username, String email, bool emailVisibility, bool verified, String? avatar, UserExpand? expand
 });
 
 
@@ -292,16 +296,18 @@ class __$UserCopyWithImpl<$Res>
 
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? email = null,Object? emailVisibility = null,Object? verified = null,Object? created = null,Object? updated = null,Object? avatar = freezed,Object? expand = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? collectionId = null,Object? collectionName = null,Object? created = null,Object? updated = null,Object? username = null,Object? email = null,Object? emailVisibility = null,Object? verified = null,Object? avatar = freezed,Object? expand = freezed,}) {
   return _then(_User(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
+as String,collectionName: null == collectionName ? _self.collectionName : collectionName // ignore: cast_nullable_to_non_nullable
+as String,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
+as String,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
 as String,emailVisibility: null == emailVisibility ? _self.emailVisibility : emailVisibility // ignore: cast_nullable_to_non_nullable
 as bool,verified: null == verified ? _self.verified : verified // ignore: cast_nullable_to_non_nullable
-as bool,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
-as String,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
-as String,avatar: freezed == avatar ? _self.avatar : avatar // ignore: cast_nullable_to_non_nullable
+as bool,avatar: freezed == avatar ? _self.avatar : avatar // ignore: cast_nullable_to_non_nullable
 as String?,expand: freezed == expand ? _self.expand : expand // ignore: cast_nullable_to_non_nullable
 as UserExpand?,
   ));

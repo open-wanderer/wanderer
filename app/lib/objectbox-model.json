@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:7780573664962685596",
-      "lastPropertyId": "14:2866207440067158385",
+      "lastPropertyId": "16:3428765833145641366",
       "name": "UserEntity",
       "properties": [
         {
@@ -64,6 +64,16 @@
         {
           "id": "14:2866207440067158385",
           "name": "actorId",
+          "type": 9
+        },
+        {
+          "id": "15:8180888277546441967",
+          "name": "collectionId",
+          "type": 9
+        },
+        {
+          "id": "16:3428765833145641366",
+          "name": "collectionName",
           "type": 9
         }
       ],

@@ -12,15 +12,15 @@ part 'auth_provider.g.dart';
 
 @riverpod
 class Auth extends _$Auth {
-  late final Box<UserEntity> _box;
+  Box<UserEntity> get _box => ref.read(objectBoxProvider).box<UserEntity>();
 
   @override
   FutureOr<UserEntity?> build() async {
     final store = ref.watch(objectBoxProvider);
 
-    _box = store.box<UserEntity>();
+    final box = store.box<UserEntity>();
 
-    final savedUserEntity = _box.getAll().firstOrNull;
+    final savedUserEntity = box.getAll().firstOrNull;
     if (savedUserEntity == null) {
       return null;
     }
@@ -83,21 +83,17 @@ class Auth extends _$Auth {
   }
 
   Future<UserEntity?> _updateUserEntity(String id) async {
-    try {
-      final userResponse = await ref
-          .read(apiProvider)
-          .get(
-            "/user/$id",
-            queryParameters: {"expand": "activitypub_actors_via_user"},
-          );
-      final userData = User.fromJson(userResponse.data);
+    final userResponse = await ref
+        .read(apiProvider)
+        .get(
+          "/user/$id",
+          queryParameters: {"expand": "activitypub_actors_via_user"},
+        );
+    final userData = User.fromJson(userResponse.data);
 
-      final UserEntity userEntity = userData.toEntity();
-      _box.put(userEntity);
+    final UserEntity userEntity = userData.toEntity();
+    _box.put(userEntity);
 
-      return userEntity;
-    } catch (err) {
-      return null;
-    }
+    return userEntity;
   }
 }

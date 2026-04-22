@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ServerInstance {
 
- String get name; String get url; String get description; String get image; List<String> get region; List<String> get language; List<String> get category;
+ String? get name; String get url; String? get description; String? get image; List<String> get region; List<String> get language; List<String> get category;
 /// Create a copy of ServerInstance
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $ServerInstanceCopyWith<$Res>  {
   factory $ServerInstanceCopyWith(ServerInstance value, $Res Function(ServerInstance) _then) = _$ServerInstanceCopyWithImpl;
 @useResult
 $Res call({
- String name, String url, String description, String image, List<String> region, List<String> language, List<String> category
+ String? name, String url, String? description, String? image, List<String> region, List<String> language, List<String> category
 });
 
 
@@ -65,13 +65,13 @@ class _$ServerInstanceCopyWithImpl<$Res>
 
 /// Create a copy of ServerInstance
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? url = null,Object? description = null,Object? image = null,Object? region = null,Object? language = null,Object? category = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? name = freezed,Object? url = null,Object? description = freezed,Object? image = freezed,Object? region = null,Object? language = null,Object? category = null,}) {
   return _then(_self.copyWith(
-name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
-as String,description: null == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
-as String,image: null == image ? _self.image : image // ignore: cast_nullable_to_non_nullable
-as String,region: null == region ? _self.region : region // ignore: cast_nullable_to_non_nullable
+name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String?,url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
+as String,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
+as String?,image: freezed == image ? _self.image : image // ignore: cast_nullable_to_non_nullable
+as String?,region: null == region ? _self.region : region // ignore: cast_nullable_to_non_nullable
 as List<String>,language: null == language ? _self.language : language // ignore: cast_nullable_to_non_nullable
 as List<String>,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as List<String>,
@@ -159,7 +159,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String name,  String url,  String description,  String image,  List<String> region,  List<String> language,  List<String> category)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? name,  String url,  String? description,  String? image,  List<String> region,  List<String> language,  List<String> category)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ServerInstance() when $default != null:
 return $default(_that.name,_that.url,_that.description,_that.image,_that.region,_that.language,_that.category);case _:
@@ -180,7 +180,7 @@ return $default(_that.name,_that.url,_that.description,_that.image,_that.region,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String name,  String url,  String description,  String image,  List<String> region,  List<String> language,  List<String> category)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? name,  String url,  String? description,  String? image,  List<String> region,  List<String> language,  List<String> category)  $default,) {final _that = this;
 switch (_that) {
 case _ServerInstance():
 return $default(_that.name,_that.url,_that.description,_that.image,_that.region,_that.language,_that.category);case _:
@@ -200,7 +200,7 @@ return $default(_that.name,_that.url,_that.description,_that.image,_that.region,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String name,  String url,  String description,  String image,  List<String> region,  List<String> language,  List<String> category)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? name,  String url,  String? description,  String? image,  List<String> region,  List<String> language,  List<String> category)?  $default,) {final _that = this;
 switch (_that) {
 case _ServerInstance() when $default != null:
 return $default(_that.name,_that.url,_that.description,_that.image,_that.region,_that.language,_that.category);case _:
@@ -215,13 +215,13 @@ return $default(_that.name,_that.url,_that.description,_that.image,_that.region,
 @JsonSerializable()
 
 class _ServerInstance implements ServerInstance {
-  const _ServerInstance({required this.name, required this.url, required this.description, required this.image, final  List<String> region = const [], final  List<String> language = const [], final  List<String> category = const []}): _region = region,_language = language,_category = category;
+  const _ServerInstance({this.name, required this.url, this.description, this.image, final  List<String> region = const [], final  List<String> language = const [], final  List<String> category = const []}): _region = region,_language = language,_category = category;
   factory _ServerInstance.fromJson(Map<String, dynamic> json) => _$ServerInstanceFromJson(json);
 
-@override final  String name;
+@override final  String? name;
 @override final  String url;
-@override final  String description;
-@override final  String image;
+@override final  String? description;
+@override final  String? image;
  final  List<String> _region;
 @override@JsonKey() List<String> get region {
   if (_region is EqualUnmodifiableListView) return _region;
@@ -277,7 +277,7 @@ abstract mixin class _$ServerInstanceCopyWith<$Res> implements $ServerInstanceCo
   factory _$ServerInstanceCopyWith(_ServerInstance value, $Res Function(_ServerInstance) _then) = __$ServerInstanceCopyWithImpl;
 @override @useResult
 $Res call({
- String name, String url, String description, String image, List<String> region, List<String> language, List<String> category
+ String? name, String url, String? description, String? image, List<String> region, List<String> language, List<String> category
 });
 
 
@@ -294,13 +294,13 @@ class __$ServerInstanceCopyWithImpl<$Res>
 
 /// Create a copy of ServerInstance
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? name = null,Object? url = null,Object? description = null,Object? image = null,Object? region = null,Object? language = null,Object? category = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? name = freezed,Object? url = null,Object? description = freezed,Object? image = freezed,Object? region = null,Object? language = null,Object? category = null,}) {
   return _then(_ServerInstance(
-name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
-as String,description: null == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
-as String,image: null == image ? _self.image : image // ignore: cast_nullable_to_non_nullable
-as String,region: null == region ? _self._region : region // ignore: cast_nullable_to_non_nullable
+name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String?,url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
+as String,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
+as String?,image: freezed == image ? _self.image : image // ignore: cast_nullable_to_non_nullable
+as String?,region: null == region ? _self._region : region // ignore: cast_nullable_to_non_nullable
 as List<String>,language: null == language ? _self._language : language // ignore: cast_nullable_to_non_nullable
 as List<String>,category: null == category ? _self._category : category // ignore: cast_nullable_to_non_nullable
 as List<String>,

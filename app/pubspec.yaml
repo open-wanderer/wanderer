@@ -15,6 +15,7 @@ dependencies:
   flutter_form_builder: ^10.3.0+2
   flutter_localizations:
     sdk: flutter
+  flutter_map: ^8.3.0
   flutter_riverpod: ^3.3.1
   flutter_svg: ^2.2.4
   font_awesome_flutter: ^11.0.0
@@ -23,11 +24,13 @@ dependencies:
   go_router: ^17.2.1
   intl: any
   json_annotation: ^4.11.0
+  latlong2: ^0.9.1
   objectbox: ^5.3.1
   objectbox_flutter_libs: ^5.3.1
   path: ^1.9.1
   path_provider: ^2.1.5
   riverpod_annotation: ^4.0.2
+  vector_map_tiles: ^10.0.0-beta.2
 
 dev_dependencies:
   build_runner: ^2.13.1

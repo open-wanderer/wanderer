@@ -22,7 +22,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(1, 7780573664962685596),
     name: 'UserEntity',
-    lastPropertyId: const obx_int.IdUid(14, 2866207440067158385),
+    lastPropertyId: const obx_int.IdUid(16, 3428765833145641366),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -89,6 +89,18 @@ final _entities = <obx_int.ModelEntity>[
       obx_int.ModelProperty(
         id: const obx_int.IdUid(14, 2866207440067158385),
         name: 'actorId',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(15, 8180888277546441967),
+        name: 'collectionId',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(16, 3428765833145641366),
+        name: 'collectionName',
         type: 9,
         flags: 0,
       ),
@@ -182,7 +194,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         );
         final serverUrlOffset = fbb.writeString(object.serverUrl);
         final actorIdOffset = fbb.writeString(object.actorId);
-        fbb.startTable(15);
+        final collectionIdOffset = fbb.writeString(object.collectionId);
+        final collectionNameOffset = fbb.writeString(object.collectionName);
+        fbb.startTable(17);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, usernameOffset);
@@ -194,6 +208,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(10, preferredUsernameOffset);
         fbb.addOffset(12, serverUrlOffset);
         fbb.addOffset(13, actorIdOffset);
+        fbb.addOffset(14, collectionIdOffset);
+        fbb.addOffset(15, collectionNameOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -203,6 +219,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final idParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 6, '');
+        final collectionIdParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 32, '');
+        final collectionNameParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 34, '');
         final actorIdParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 30, '');
@@ -232,6 +254,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         ).vTableGetNullable(buffer, rootOffset, 20);
         final object = UserEntity(
           id: idParam,
+          collectionId: collectionIdParam,
+          collectionName: collectionNameParam,
           actorId: actorIdParam,
           username: usernameParam,
           preferredUsername: preferredUsernameParam,
@@ -306,5 +330,15 @@ class UserEntity_ {
   /// See [UserEntity.actorId].
   static final actorId = obx.QueryStringProperty<UserEntity>(
     _entities[0].properties[10],
+  );
+
+  /// See [UserEntity.collectionId].
+  static final collectionId = obx.QueryStringProperty<UserEntity>(
+    _entities[0].properties[11],
+  );
+
+  /// See [UserEntity.collectionName].
+  static final collectionName = obx.QueryStringProperty<UserEntity>(
+    _entities[0].properties[12],
   );
 }

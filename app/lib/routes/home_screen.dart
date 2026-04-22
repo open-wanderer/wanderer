@@ -8,14 +8,16 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final username = ref
-        .watch(authProvider)
-        .maybeWhen(
-          data: (user) => user?.preferredUsername ?? "Guest",
-          orElse: () => "Loading...",
-        );
+    final user = ref.watch(authProvider).value;
 
     final baseURL = ref.watch(apiProvider).options.baseUrl;
-    return Scaffold(body: Center(child: Text("Welcome, $username@$baseURL!")));
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [Text("Welcome, ${user?.username}@$baseURL!")],
+        ),
+      ),
+    );
   }
 }

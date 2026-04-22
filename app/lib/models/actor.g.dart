@@ -8,6 +8,10 @@ part of 'actor.dart';
 
 _Actor _$ActorFromJson(Map<String, dynamic> json) => _Actor(
   id: json['id'] as String,
+  collectionId: json['collectionId'] as String,
+  collectionName: json['collectionName'] as String,
+  created: json['created'] as String,
+  updated: json['updated'] as String,
   username: json['username'] as String,
   preferredUsername: json['preferred_username'] as String,
   domain: json['domain'] as String?,
@@ -29,6 +33,10 @@ _Actor _$ActorFromJson(Map<String, dynamic> json) => _Actor(
 
 Map<String, dynamic> _$ActorToJson(_Actor instance) => <String, dynamic>{
   'id': instance.id,
+  'collectionId': instance.collectionId,
+  'collectionName': instance.collectionName,
+  'created': instance.created,
+  'updated': instance.updated,
   'username': instance.username,
   'preferred_username': instance.preferredUsername,
   'domain': instance.domain,

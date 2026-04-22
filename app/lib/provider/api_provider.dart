@@ -19,7 +19,7 @@ class Api extends _$Api {
     return dio;
   }
 
-  void updateBaseUrl(String baseURL) {
-    state.options.baseUrl = baseURL;
+  void updateBaseUrl(String baseUrl) {
+    state.options.baseUrl = "$baseUrl/api/v1";
   }
 }
