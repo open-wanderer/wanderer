@@ -1193,6 +1193,146 @@
  *               enum: [public, private]
  *           nullable: true
  *
+ *     TrailMergeSettings:
+ *       type: object
+ *       required:
+ *         - summitLog
+ *         - photos
+ *         - comments
+ *         - delete
+ *         - tags
+ *         - likes
+ *       properties:
+ *         summitLog:
+ *           type: boolean
+ *         photos:
+ *           type: boolean
+ *         comments:
+ *           type: boolean
+ *         delete:
+ *           type: boolean
+ *         tags:
+ *           type: boolean
+ *         likes:
+ *           type: boolean
+ *
+ *     TrailMergeSuggestRequest:
+ *       type: object
+ *       required:
+ *         - mode
+ *       properties:
+ *         mode:
+ *           type: string
+ *           enum: [manual-selection, auto-discovery, maintenance-groups]
+ *         trailIds:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Required for manual-selection
+ *         sourceTrailId:
+ *           type: string
+ *           description: Required for auto-discovery
+ *
+ *     TrailMergeSuggestCandidate:
+ *       type: object
+ *       required:
+ *         - trailId
+ *         - score
+ *         - reason
+ *         - warnings
+ *         - selectable
+ *       properties:
+ *         trailId:
+ *           type: string
+ *         score:
+ *           type: number
+ *         reason:
+ *           type: string
+ *         warnings:
+ *           type: array
+ *           items:
+ *             type: string
+ *         selectable:
+ *           type: boolean
+ *
+ *     TrailMergeSuggestResponse:
+ *       type: object
+ *       required:
+ *         - targetTrailId
+ *         - reason
+ *         - warnings
+ *         - candidates
+ *       properties:
+ *         targetTrailId:
+ *           type: string
+ *         reason:
+ *           type: string
+ *         warnings:
+ *           type: array
+ *           items:
+ *             type: string
+ *         candidates:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/TrailMergeSuggestCandidate'
+ *
+ *     TrailMergeSuggestGroup:
+ *       type: object
+ *       required:
+ *         - groupId
+ *         - trailIds
+ *         - targetTrailId
+ *         - reason
+ *         - score
+ *         - indirect
+ *       properties:
+ *         groupId:
+ *           type: string
+ *         trailIds:
+ *           type: array
+ *           items:
+ *             type: string
+ *         targetTrailId:
+ *           type: string
+ *         reason:
+ *           type: string
+ *         score:
+ *           type: number
+ *         indirect:
+ *           type: boolean
+ *
+ *     TrailMergeSuggestGroupsResponse:
+ *       type: object
+ *       required:
+ *         - groups
+ *       properties:
+ *         groups:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/TrailMergeSuggestGroup'
+ *
+ *     TrailMergeExecuteRequest:
+ *       type: object
+ *       required:
+ *         - sourceTrailId
+ *         - targetTrailId
+ *         - settings
+ *       properties:
+ *         sourceTrailId:
+ *           type: string
+ *         targetTrailId:
+ *           type: string
+ *         settings:
+ *           $ref: '#/components/schemas/TrailMergeSettings'
+ *
+ *     TrailMergeExecuteResponse:
+ *       type: object
+ *       required:
+ *         - acknowledged
+ *       properties:
+ *         acknowledged:
+ *           type: boolean
+ *
  *     ListResult:
  *       type: object
  *       properties:

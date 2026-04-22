@@ -88,20 +88,6 @@ func CompareTrailCoordinates(aCoords [][2]float64, bCoords [][2]float64) (*Trail
 	return compareSampledTrails(a, b), nil
 }
 
-func CompareTrailCoordinatesReversed(aCoords [][2]float64, bCoords [][2]float64) (*TrailGeometryMetrics, error) {
-	if len(aCoords) < 2 || len(bCoords) < 2 {
-		return nil, fmt.Errorf("missing geometry")
-	}
-
-	a := resampleTrailCoordinates(aCoords, 64)
-	b := resampleTrailCoordinates(bCoords, 64)
-	if len(a) < 2 || len(b) < 2 {
-		return nil, fmt.Errorf("missing geometry")
-	}
-
-	return compareSampledTrails(a, reversePoints(b)), nil
-}
-
 func compareSampledTrails(a []trailPoint, b []trailPoint) *TrailGeometryMetrics {
 	count := min(len(a), len(b))
 	if count == 0 {
@@ -124,15 +110,6 @@ func compareSampledTrails(a []trailPoint, b []trailPoint) *TrailGeometryMetrics 
 		StartDistanceMeters: HaversineDistanceMeters(a[0].Lat, a[0].Lon, b[0].Lat, b[0].Lon),
 		EndDistanceMeters:   HaversineDistanceMeters(a[count-1].Lat, a[count-1].Lon, b[count-1].Lat, b[count-1].Lon),
 	}
-}
-
-func reversePoints(points []trailPoint) []trailPoint {
-	reversed := make([]trailPoint, len(points))
-	for i := range points {
-		reversed[len(points)-1-i] = points[i]
-	}
-
-	return reversed
 }
 
 func resampleTrailCoordinates(coords [][2]float64, targetPoints int) []trailPoint {

@@ -233,8 +233,70 @@
     }
 
     function dropdownItems(): DropdownItem[] {
+        const separator = (value: string): DropdownItem => ({
+            text: "",
+            value,
+            separator: true,
+        });
+        const allowListManagement = isFromCurrentUser();
+        const allowShareSingleTrail = !isMultiselectMode() && isFromCurrentUser();
+        const allowSingleOutput = canExport() || (!isMultiselectMode() && hammerheadIntegration && canExport());
+
+        if (isMultiselectMode()) {
+            return [
+                ...(allowMerge()
+                    ? [{ text: $_("link"), value: "merge", icon: "link" }]
+                    : []),
+                ...(allowMerge() && (canExport() || allowListManagement || allowPublish() || allowDelete())
+                    ? [separator("sep-multi-actions")]
+                    : []),
+                ...(canExport()
+                    ? [
+                          {
+                              text: $_("export"),
+                              value: "download",
+                              icon: "download",
+                          },
+                      ]
+                    : []),
+                ...(!allowListManagement
+                    ? []
+                    : [
+                          {
+                              text: $_("add-to-list"),
+                              value: "list",
+                              icon: "bookmark",
+                          },
+                      ]),
+                ...(((canExport() || allowListManagement) && (allowPublish() || allowDelete()))
+                    ? [separator("sep-multi-visibility")]
+                    : []),
+                ...(allowPublish()
+                    ? [
+                          {
+                              text: `${majorityOfSelectedTrailsArePublic() ? $_("set-private") : $_("set-public")}`,
+                              value: "publish",
+                              icon: majorityOfSelectedTrailsArePublic()
+                                  ? "lock"
+                                  : "globe",
+                          },
+                      ]
+                    : []),
+                ...(allowDelete()
+                    ? [
+                          separator("sep-multi-danger"),
+                          {
+                              text: $_("delete"),
+                              value: "delete",
+                              icon: "trash",
+                          },
+                      ]
+                    : []),
+            ];
+        }
+
         return [
-            ...(!isMultiselectMode()
+            ...(hasTrail()
                 ? [
                       mode == "overview" || mode == "multi-select"
                           ? {
@@ -247,10 +309,6 @@
                                 value: "show",
                                 icon: "table-columns",
                             },
-                  ]
-                : []),
-            ...(!isMultiselectMode()
-                ? [
                       {
                           text: $_("directions"),
                           value: "direction",
@@ -258,25 +316,38 @@
                       },
                   ]
                 : []),
-            ...(canExport()
+            ...((hasTrail() && (allowEdit() || allowFindSimilarTrails() || allowCopy()))
+                ? [separator("sep-single-edit")]
+                : []),
+            ...(allowEdit()
                 ? [
                       {
-                          text: $_("export"),
-                          value: "download",
-                          icon: "download",
+                          text: $_("edit"),
+                          value: "edit",
+                          icon: "pen",
                       },
                   ]
                 : []),
-            ...(!isMultiselectMode()
-                ? [
+            ...(allowFindSimilarTrails()
+                ? [{
+                    text: $_("find-similar-trails"),
+                    value: "find-similar-trails",
+                    icon: "link",
+                }]
+                : []),
+                ...(allowCopy()
+                    ? [
                       {
-                          text: $_("print"),
-                          value: "print",
-                          icon: "print",
+                          text: $_("duplicate"),
+                          value: "copy",
+                          icon: "copy",
                       },
                   ]
                 : []),
-            ...(!isFromCurrentUser()
+            ...((allowListManagement || allowShareSingleTrail || allowPublish())
+                ? [separator("sep-single-organize")]
+                : []),
+            ...(!allowListManagement
                 ? []
                 : [
                       {
@@ -285,7 +356,7 @@
                           icon: "bookmark",
                       },
                   ]),
-            ...(isMultiselectMode() || !isFromCurrentUser()
+            ...(!allowShareSingleTrail
                 ? []
                 : [
                       {
@@ -294,15 +365,6 @@
                           icon: "share",
                       },
                   ]),
-            ...(allowCopy()
-                ? [
-                      {
-                          text: $_("duplicate"),
-                          value: "copy",
-                          icon: "copy",
-                      },
-                  ]
-                : []),
             ...(allowPublish()
                 ? [
                       {
@@ -314,21 +376,15 @@
                       },
                   ]
                 : []),
-            ...(allowEdit()
-                ? [
-                      {
-                          text: $_("edit"),
-                          value: "edit",
-                          icon: "pen",
-                      },
-                  ]
+            ...((allowSingleOutput || allowDelete())
+                ? [separator("sep-single-output")]
                 : []),
-            ...(allowDelete()
+            ...(canExport()
                 ? [
                       {
-                          text: $_("delete"),
-                          value: "delete",
-                          icon: "trash",
+                          text: $_("export"),
+                          value: "download",
+                          icon: "download",
                       },
                   ]
                 : []),
@@ -341,15 +397,24 @@
                       },
                   ]
                 : []),
-            ...(allowMerge()
-                ? [{ text: $_("link"), value: "merge", icon: "link" }]
+            ...(!isMultiselectMode()
+                ? [
+                      {
+                          text: $_("print"),
+                          value: "print",
+                          icon: "print",
+                      },
+                  ]
                 : []),
-            ...(allowFindSimilarTrails()
-                ? [{
-                    text: $_("find-similar-trails"),
-                    value: "find-similar-trails",
-                    icon: "link",
-                }]
+            ...(allowDelete()
+                ? [
+                      separator("sep-single-danger"),
+                      {
+                          text: $_("delete"),
+                          value: "delete",
+                          icon: "trash",
+                      },
+                  ]
                 : []),
         ];
     }

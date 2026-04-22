@@ -108,6 +108,28 @@ type maintenanceTrailCandidate struct {
 	Distance float64
 }
 
+type targetSelectionStats struct {
+	TrailID                 string
+	SummitLogCount          int64
+	CommentCount            int64
+	PhotoCount              int
+	LikeCount               int64
+	TagCount                int
+	ExternalReferenceCount  int64
+	WaypointCount           int64
+	HasDescription          bool
+	GeometryCentralityScore float64
+	PriorityClass           int
+	TotalScore              float64
+	CreatedAtUnix           int64
+}
+
+type targetSelectionResult struct {
+	TrailID string
+	Reason  string
+	Stats   map[string]targetSelectionStats
+}
+
 func DefaultIntegrationAutoMergeSettings() IntegrationAutoMergeSettings {
 	return IntegrationAutoMergeSettings{
 		Enabled: false,
@@ -125,6 +147,9 @@ func DefaultIntegrationAutoMergeMergeSettings() MergeSettings {
 	}
 }
 
+// Suggest returns merge target suggestions for the requested mode.
+// The mode only determines the candidate set; target ranking itself is
+// delegated to the shared chooseTargetTrail selection strategy.
 func Suggest(app core.App, actorID string, request SuggestRequest) (*SuggestResponse, error) {
 	switch request.Mode {
 	case SuggestModeManualSelection:
@@ -136,6 +161,9 @@ func Suggest(app core.App, actorID string, request SuggestRequest) (*SuggestResp
 	}
 }
 
+// SuggestGroups returns temporary groups of potentially repeated or duplicate
+// trails for maintenance workflows. Group members are discovered first and the
+// suggested target trail is then selected by the shared chooseTargetTrail logic.
 func SuggestGroups(app core.App, actorID string, request SuggestRequest) (*SuggestGroupsResponse, error) {
 	switch request.Mode {
 	case SuggestModeMaintenance:
@@ -145,6 +173,9 @@ func SuggestGroups(app core.App, actorID string, request SuggestRequest) (*Sugge
 	}
 }
 
+// Merge links a source trail into a target trail in a single transaction.
+// It moves or recreates trail-related content according to the provided
+// settings and keeps the target trail indexed and federated afterwards.
 func Merge(app core.App, client meilisearch.ServiceManager, actor *core.Record, sourceTrailID string, targetTrailID string, settings MergeSettings) error {
 	if actor == nil {
 		return ErrMissingActor
@@ -241,6 +272,336 @@ func CanMerge(app core.App, actorID string, source *core.Record, target *core.Re
 	return true
 }
 
+// chooseTargetTrail applies the shared target selection strategy used by
+// manual selection, auto-discovery and maintenance suggestions.
+// It computes trail-level stats, assigns a priority class, derives a weighted
+// score and returns both the winning trail and an explainable reason code.
+func chooseTargetTrail(app core.App, trails []*core.Record, referenceTrails []*core.Record) (*targetSelectionResult, error) {
+	if len(trails) == 0 {
+		return &targetSelectionResult{
+			TrailID: "",
+			Reason:  "deterministic_fallback",
+			Stats:   map[string]targetSelectionStats{},
+		}, nil
+	}
+
+	coordsByTrailID := make(map[string][][2]float64, len(trails)+len(referenceTrails))
+	for _, trail := range append(append([]*core.Record{}, trails...), referenceTrails...) {
+		if trail == nil {
+			continue
+		}
+		if _, exists := coordsByTrailID[trail.Id]; exists {
+			continue
+		}
+		coords, err := util.TrailCoordinates(app, trail)
+		if err != nil {
+			coordsByTrailID[trail.Id] = nil
+			continue
+		}
+		coordsByTrailID[trail.Id] = coords
+	}
+
+	statsByTrailID := make(map[string]targetSelectionStats, len(trails))
+	for _, trail := range trails {
+		stats, err := buildTargetSelectionStats(app, trail, trails, referenceTrails, coordsByTrailID)
+		if err != nil {
+			return nil, err
+		}
+		statsByTrailID[trail.Id] = stats
+	}
+
+	bestTrail := trails[0]
+	bestStats := statsByTrailID[bestTrail.Id]
+	for _, trail := range trails[1:] {
+		stats := statsByTrailID[trail.Id]
+		if compareTargetSelectionStats(stats, bestStats) < 0 {
+			bestTrail = trail
+			bestStats = stats
+		}
+	}
+
+	return &targetSelectionResult{
+		TrailID: bestTrail.Id,
+		Reason:  deriveTargetSelectionReason(bestTrail.Id, statsByTrailID),
+		Stats:   statsByTrailID,
+	}, nil
+}
+
+// buildTargetSelectionStats collects the data needed for trail target ranking.
+// The score intentionally favors preserving trails that already carry more
+// durable user value such as summit logs, external references and richer content.
+func buildTargetSelectionStats(
+	app core.App,
+	trail *core.Record,
+	groupTrails []*core.Record,
+	referenceTrails []*core.Record,
+	coordsByTrailID map[string][][2]float64,
+) (targetSelectionStats, error) {
+	summitLogCount, err := app.CountRecords("summit_logs", dbx.NewExp("trail={:trail}", dbx.Params{"trail": trail.Id}))
+	if err != nil {
+		return targetSelectionStats{}, err
+	}
+	commentCount, err := app.CountRecords("comments", dbx.NewExp("trail={:trail}", dbx.Params{"trail": trail.Id}))
+	if err != nil {
+		return targetSelectionStats{}, err
+	}
+	likeCount, err := app.CountRecords("trail_like", dbx.NewExp("trail={:trail}", dbx.Params{"trail": trail.Id}))
+	if err != nil {
+		return targetSelectionStats{}, err
+	}
+	externalReferenceCount, err := app.CountRecords("trail_external_reference", dbx.NewExp("trail={:trail}", dbx.Params{"trail": trail.Id}))
+	if err != nil {
+		return targetSelectionStats{}, err
+	}
+	waypointCount, err := app.CountRecords("waypoints", dbx.NewExp("trail={:trail}", dbx.Params{"trail": trail.Id}))
+	if err != nil {
+		return targetSelectionStats{}, err
+	}
+
+	geometryCentralityScore := trailGeometryCentralityScore(trail, groupTrails, referenceTrails, coordsByTrailID)
+	hasDescription := strings.TrimSpace(trail.GetString("description")) != ""
+	photoCount := len(trail.GetStringSlice("photos"))
+	tagCount := len(trail.GetStringSlice("tags"))
+	priorityClass := targetPriorityClass(summitLogCount, externalReferenceCount, commentCount, photoCount, hasDescription)
+
+	totalScore := float64(summitLogCount)*1000.0 +
+		float64(externalReferenceCount)*400.0 +
+		float64(commentCount)*120.0 +
+		float64(photoCount)*80.0 +
+		float64(likeCount)*20.0 +
+		float64(tagCount)*10.0 +
+		boolScore(hasDescription)*15.0 +
+		float64(waypointCount)*15.0 +
+		geometryCentralityScore*200.0
+
+	return targetSelectionStats{
+		TrailID:                 trail.Id,
+		SummitLogCount:          summitLogCount,
+		CommentCount:            commentCount,
+		PhotoCount:              photoCount,
+		LikeCount:               likeCount,
+		TagCount:                tagCount,
+		ExternalReferenceCount:  externalReferenceCount,
+		WaypointCount:           waypointCount,
+		HasDescription:          hasDescription,
+		GeometryCentralityScore: geometryCentralityScore,
+		PriorityClass:           priorityClass,
+		TotalScore:              totalScore,
+		CreatedAtUnix:           trail.GetDateTime("created").Time().Unix(),
+	}, nil
+}
+
+// trailGeometryCentralityScore measures how well a trail fits geometrically
+// within the provided candidate set. Higher values indicate that the trail is
+// a more central representative of the group or of the source/candidate set.
+func trailGeometryCentralityScore(
+	trail *core.Record,
+	groupTrails []*core.Record,
+	referenceTrails []*core.Record,
+	coordsByTrailID map[string][][2]float64,
+) float64 {
+	trailCoords := coordsByTrailID[trail.Id]
+	if len(trailCoords) < 2 {
+		return 0
+	}
+
+	scoreSum := 0.0
+	comparisons := 0
+	for _, other := range groupTrails {
+		if other == nil || other.Id == trail.Id {
+			continue
+		}
+		metrics, err := util.CompareTrailCoordinates(trailCoords, coordsByTrailID[other.Id])
+		if err != nil {
+			continue
+		}
+		scoreSum += geometryScore(metrics)
+		comparisons++
+	}
+
+	for _, other := range referenceTrails {
+		if other == nil || other.Id == trail.Id {
+			continue
+		}
+		metrics, err := util.CompareTrailCoordinates(trailCoords, coordsByTrailID[other.Id])
+		if err != nil {
+			continue
+		}
+		scoreSum += geometryScore(metrics)
+		comparisons++
+	}
+
+	if comparisons == 0 {
+		return 0
+	}
+
+	return scoreSum / float64(comparisons)
+}
+
+// targetPriorityClass creates a coarse ranking tier before weighted scoring.
+// Trails with summit logs are preferred first, then trails with external
+// references, then trails with richer content, and finally plain trails.
+func targetPriorityClass(
+	summitLogCount int64,
+	externalReferenceCount int64,
+	commentCount int64,
+	photoCount int,
+	hasDescription bool,
+) int {
+	switch {
+	case summitLogCount > 0:
+		return 4
+	case externalReferenceCount > 0:
+		return 3
+	case commentCount > 0 || photoCount > 0 || hasDescription:
+		return 2
+	default:
+		return 1
+	}
+}
+
+func boolScore(v bool) float64 {
+	if v {
+		return 1
+	}
+	return 0
+}
+
+func compareTargetSelectionStats(a targetSelectionStats, b targetSelectionStats) int {
+	switch {
+	case a.PriorityClass > b.PriorityClass:
+		return -1
+	case a.PriorityClass < b.PriorityClass:
+		return 1
+	case a.TotalScore > b.TotalScore:
+		return -1
+	case a.TotalScore < b.TotalScore:
+		return 1
+	case a.GeometryCentralityScore > b.GeometryCentralityScore:
+		return -1
+	case a.GeometryCentralityScore < b.GeometryCentralityScore:
+		return 1
+	case a.CreatedAtUnix < b.CreatedAtUnix:
+		return -1
+	case a.CreatedAtUnix > b.CreatedAtUnix:
+		return 1
+	default:
+		return strings.Compare(a.TrailID, b.TrailID)
+	}
+}
+
+// deriveTargetSelectionReason returns a single explainable reason code for the
+// selected trail. The reason reflects the strongest distinguishing factor that
+// made the winner stand out against the remaining candidates.
+func deriveTargetSelectionReason(selectedTrailID string, statsByTrailID map[string]targetSelectionStats) string {
+	selected, ok := statsByTrailID[selectedTrailID]
+	if !ok {
+		return "deterministic_fallback"
+	}
+
+	allStats := make([]targetSelectionStats, 0, len(statsByTrailID))
+	for _, stats := range statsByTrailID {
+		allStats = append(allStats, stats)
+	}
+
+	if selected.SummitLogCount > maxOtherInt64(selectedTrailID, allStats, func(stats targetSelectionStats) int64 {
+		return stats.SummitLogCount
+	}) {
+		return "highest_summit_log_count"
+	}
+	if selected.ExternalReferenceCount > maxOtherInt64(selectedTrailID, allStats, func(stats targetSelectionStats) int64 {
+		return stats.ExternalReferenceCount
+	}) {
+		return "most_external_references"
+	}
+	selectedContentScore := trailContentScore(selected)
+	if selectedContentScore > maxOtherFloat64(selectedTrailID, allStats, trailContentScore) {
+		return "most_complete_content"
+	}
+	if selected.GeometryCentralityScore > maxOtherFloat64(selectedTrailID, allStats, func(stats targetSelectionStats) float64 {
+		return stats.GeometryCentralityScore
+	}) {
+		return "most_central_geometry"
+	}
+	if selected.CreatedAtUnix < minOtherInt64(selectedTrailID, allStats, func(stats targetSelectionStats) int64 {
+		return stats.CreatedAtUnix
+	}) {
+		return "oldest_trail"
+	}
+
+	return "deterministic_fallback"
+}
+
+func trailContentScore(stats targetSelectionStats) float64 {
+	return float64(stats.CommentCount)*120.0 +
+		float64(stats.PhotoCount)*80.0 +
+		float64(stats.LikeCount)*20.0 +
+		float64(stats.TagCount)*10.0 +
+		boolScore(stats.HasDescription)*15.0 +
+		float64(stats.WaypointCount)*15.0
+}
+
+func maxOtherInt64(selectedTrailID string, stats []targetSelectionStats, valueFn func(targetSelectionStats) int64) int64 {
+	var maxValue int64
+	initialized := false
+	for _, stat := range stats {
+		if stat.TrailID == selectedTrailID {
+			continue
+		}
+		value := valueFn(stat)
+		if !initialized || value > maxValue {
+			maxValue = value
+			initialized = true
+		}
+	}
+	if !initialized {
+		return -1
+	}
+	return maxValue
+}
+
+func minOtherInt64(selectedTrailID string, stats []targetSelectionStats, valueFn func(targetSelectionStats) int64) int64 {
+	var minValue int64
+	initialized := false
+	for _, stat := range stats {
+		if stat.TrailID == selectedTrailID {
+			continue
+		}
+		value := valueFn(stat)
+		if !initialized || value < minValue {
+			minValue = value
+			initialized = true
+		}
+	}
+	if !initialized {
+		return selectedOnlyMinInt64Fallback()
+	}
+	return minValue
+}
+
+func selectedOnlyMinInt64Fallback() int64 {
+	return 1<<63 - 1
+}
+
+func maxOtherFloat64(selectedTrailID string, stats []targetSelectionStats, valueFn func(targetSelectionStats) float64) float64 {
+	maxValue := 0.0
+	initialized := false
+	for _, stat := range stats {
+		if stat.TrailID == selectedTrailID {
+			continue
+		}
+		value := valueFn(stat)
+		if !initialized || value > maxValue {
+			maxValue = value
+			initialized = true
+		}
+	}
+	if !initialized {
+		return -1
+	}
+	return maxValue
+}
+
 func suggestForManualSelection(app core.App, actorID string, trailIDs []string) (*SuggestResponse, error) {
 	if len(trailIDs) < 2 {
 		return nil, ErrRequiresMultipleTrails
@@ -255,44 +616,47 @@ func suggestForManualSelection(app core.App, actorID string, trailIDs []string) 
 		trails = append(trails, trail)
 	}
 
-	suggestedIndex := 0
-	reason := "first_selected"
-	for i, trail := range trails {
-		logCount, err := app.CountRecords("summit_logs", dbx.NewExp("trail={:trail}", dbx.Params{"trail": trail.Id}))
-		if err != nil {
-			return nil, err
-		}
-		if logCount > 0 {
-			suggestedIndex = i
-			reason = "existing_summit_logs"
-			break
-		}
+	selection, err := chooseTargetTrail(app, trails, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	suggestedTrailID := selection.TrailID
+	reason := selection.Reason
+	if suggestedTrailID == "" && len(trails) > 0 {
+		suggestedTrailID = trails[0].Id
+		reason = "deterministic_fallback"
 	}
 
 	candidates := make([]SuggestCandidate, 0, len(trails))
-	for i, candidate := range trails {
+	for _, candidate := range trails {
 		warnings := make([]string, 0)
-		for j, other := range trails {
-			if i == j {
+		for _, other := range trails {
+			if candidate.Id == other.Id {
 				continue
 			}
 			warnings = appendUniqueStrings(warnings, geometryWarnings(app, other, candidate)...)
 		}
 
+		stats, ok := selection.Stats[candidate.Id]
+		score := 0.0
+		if ok {
+			score = stats.TotalScore - float64(len(warnings))*0.1
+		}
+
 		candidates = append(candidates, SuggestCandidate{
 			TrailID:    candidate.Id,
-			Score:      candidateScore(i == suggestedIndex, len(warnings)),
-			Reason:     reasonForCandidate(i == suggestedIndex, candidate.Id == trails[suggestedIndex].Id, reason),
+			Score:      score,
+			Reason:     reasonForCandidate(candidate.Id == suggestedTrailID, reason),
 			Warnings:   warnings,
 			Selectable: canEditTrail(app, candidate, actorID),
 		})
 	}
 
-	selectedCandidate := candidates[suggestedIndex]
 	return &SuggestResponse{
-		TargetTrailID: selectedCandidate.TrailID,
+		TargetTrailID: suggestedTrailID,
 		Reason:        reason,
-		Warnings:      selectedCandidate.Warnings,
+		Warnings:      candidateWarningsForTrail(candidates, suggestedTrailID),
 		Candidates:    candidates,
 	}, nil
 }
@@ -326,6 +690,7 @@ func suggestForAutoDiscovery(app core.App, actorID string, sourceTrailID string)
 	}
 
 	candidates := make([]SuggestCandidate, 0)
+	candidateTrailsByID := make(map[string]*core.Record)
 	for _, candidate := range candidateTrails {
 		metrics, err := util.TrailGeometrySimilarity(app, source, candidate)
 		if err != nil {
@@ -338,22 +703,12 @@ func suggestForAutoDiscovery(app core.App, actorID string, sourceTrailID string)
 		candidates = append(candidates, SuggestCandidate{
 			TrailID:    candidate.Id,
 			Score:      geometryScore(metrics),
-			Reason:     "geometry_match",
+			Reason:     "selected_trail",
 			Warnings:   []string{},
 			Selectable: canEditTrail(app, candidate, actorID),
 		})
+		candidateTrailsByID[candidate.Id] = candidate
 	}
-
-	slices.SortFunc(candidates, func(a, b SuggestCandidate) int {
-		switch {
-		case a.Score > b.Score:
-			return -1
-		case a.Score < b.Score:
-			return 1
-		default:
-			return strings.Compare(a.TrailID, b.TrailID)
-		}
-	})
 
 	response := &SuggestResponse{
 		Candidates: candidates,
@@ -361,8 +716,37 @@ func suggestForAutoDiscovery(app core.App, actorID string, sourceTrailID string)
 		Warnings:   []string{},
 	}
 	if len(candidates) > 0 {
-		response.TargetTrailID = candidates[0].TrailID
-		response.Reason = candidates[0].Reason
+		eligibleTrails := make([]*core.Record, 0, len(candidates))
+		for _, candidate := range candidates {
+			if trail, ok := candidateTrailsByID[candidate.TrailID]; ok {
+				eligibleTrails = append(eligibleTrails, trail)
+			}
+		}
+
+		selection, err := chooseTargetTrail(app, eligibleTrails, []*core.Record{source})
+		if err != nil {
+			return nil, err
+		}
+		response.TargetTrailID = selection.TrailID
+		response.Reason = selection.Reason
+
+		for i := range candidates {
+			candidates[i].Reason = reasonForCandidate(candidates[i].TrailID == selection.TrailID, selection.Reason)
+			if stats, ok := selection.Stats[candidates[i].TrailID]; ok {
+				candidates[i].Score = stats.TotalScore
+			}
+		}
+
+		slices.SortFunc(candidates, func(a, b SuggestCandidate) int {
+			switch {
+			case a.Score > b.Score:
+				return -1
+			case a.Score < b.Score:
+				return 1
+			default:
+				return strings.Compare(a.TrailID, b.TrailID)
+			}
+		})
 	}
 
 	return response, nil
@@ -471,7 +855,7 @@ func suggestMaintenanceGroups(app core.App, actorID string) (*SuggestGroupsRespo
 			return strings.Compare(a.Id, b.Id)
 		})
 
-		targetTrailID, reason, err := chooseSuggestedGroupTarget(app, componentTrails, trailScores)
+		targetTrailID, reason, err := chooseSuggestedGroupTarget(app, componentTrails)
 		if err != nil {
 			return nil, err
 		}
@@ -744,48 +1128,13 @@ func collectConnectedTrailIDs(startID string, adjacency map[string][]string, vis
 	return component
 }
 
-func chooseSuggestedGroupTarget(app core.App, trails []*core.Record, trailScores map[string]float64) (string, string, error) {
-	bestTrailID := ""
-	bestReason := "geometry_match"
-	bestLogCount := int64(-1)
-	bestScore := -1.0
-
-	for _, trail := range trails {
-		logCount, err := app.CountRecords("summit_logs", dbx.NewExp("trail={:trail}", dbx.Params{"trail": trail.Id}))
-		if err != nil {
-			return "", "", err
-		}
-
-		score := trailScores[trail.Id]
-		switch {
-		case logCount > bestLogCount:
-			bestTrailID = trail.Id
-			if logCount > 0 {
-				bestReason = "existing_summit_logs"
-			} else {
-				bestReason = "geometry_match"
-			}
-			bestLogCount = logCount
-			bestScore = score
-		case logCount == bestLogCount && score > bestScore:
-			bestTrailID = trail.Id
-			if logCount > 0 {
-				bestReason = "existing_summit_logs"
-			} else {
-				bestReason = "geometry_match"
-			}
-			bestScore = score
-		case logCount == bestLogCount && score == bestScore && (bestTrailID == "" || strings.Compare(trail.Id, bestTrailID) < 0):
-			bestTrailID = trail.Id
-			if logCount > 0 {
-				bestReason = "existing_summit_logs"
-			} else {
-				bestReason = "geometry_match"
-			}
-		}
+func chooseSuggestedGroupTarget(app core.App, trails []*core.Record) (string, string, error) {
+	selection, err := chooseTargetTrail(app, trails, nil)
+	if err != nil {
+		return "", "", err
 	}
 
-	return bestTrailID, bestReason, nil
+	return selection.TrailID, selection.Reason, nil
 }
 
 func mergeTrailIntoTarget(ctx mergeContext) (mergeSideEffects, error) {
@@ -1088,7 +1437,6 @@ func geometryWarnings(app core.App, source *core.Record, target *core.Record) []
 	if err != nil {
 		return []string{"missing_geometry"}
 	}
-	reversedMetrics, reversedErr := util.CompareTrailCoordinatesReversed(sourceCoords, targetCoords)
 
 	warnings := make([]string, 0)
 	if metrics.StartDistanceMeters > 500 {
@@ -1099,9 +1447,6 @@ func geometryWarnings(app core.App, source *core.Record, target *core.Record) []
 	}
 	if metrics.MeanDistanceMeters > 150 || metrics.MaxDistanceMeters > 750 {
 		warnings = append(warnings, "geometry_differs")
-	}
-	if reversedErr == nil && isStrongGeometryMatch(reversedMetrics) && !isStrongGeometryMatch(metrics) {
-		warnings = append(warnings, "reverse_direction_only")
 	}
 
 	return warnings
@@ -1126,21 +1471,22 @@ func geometryScore(metrics *util.TrailGeometryMetrics) float64 {
 	return 1.0 / (1.0 + metrics.MeanDistanceMeters + metrics.MaxDistanceMeters*0.25)
 }
 
-func candidateScore(isSuggested bool, warningCount int) float64 {
-	score := 1.0
+func reasonForCandidate(isSuggested bool, suggestedReason string) string {
 	if isSuggested {
-		score += 1.0
-	}
-
-	return score - float64(warningCount)*0.1
-}
-
-func reasonForCandidate(isSuggested bool, isSelected bool, suggestedReason string) string {
-	if isSuggested || isSelected {
 		return suggestedReason
 	}
 
 	return "selected_trail"
+}
+
+func candidateWarningsForTrail(candidates []SuggestCandidate, trailID string) []string {
+	for _, candidate := range candidates {
+		if candidate.TrailID == trailID {
+			return candidate.Warnings
+		}
+	}
+
+	return []string{}
 }
 
 func canEditTrail(app core.App, trail *core.Record, actorID string) bool {
