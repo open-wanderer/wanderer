@@ -23,37 +23,6 @@ export async function users_create(user: User) {
     return createdUser;
 }
 
-export async function users_search(q: string, includeSelf: boolean = true) {
-    const user = get(currentUser)
-
-    let r = await fetch('/api/v1/user/anonymous?' + new URLSearchParams({
-        "filter": `username~"${q}"${includeSelf ? '' : `&&id!="${user?.id}"`}`,
-    }), {
-        method: 'GET',
-    })
-    if (!r.ok) {
-        const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
-    }
-
-    const response = await r.json()
-    return response.items;
-
-}
-
-export async function users_show(id: string, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
-    let r = await f(`/api/v1/user/anonymous/${id}`, {
-        method: 'GET',
-    })
-    if (!r.ok) {
-        const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
-    }
-    const response: UserAnonymous = await r.json()
-
-    return response;
-}
-
 export async function users_auth_methods(f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<AuthMethodsList> {
     const r = await f('/api/v1/auth/oauth', {
         method: 'GET',
@@ -139,7 +108,17 @@ export async function users_update(user: User | { [K in keyof User]?: User[K] },
     }
 
     const model: User = await r.json();
-    currentUser.set(model);
+    const existing = get(currentUser);
+    const merged: User = {
+        ...(existing ?? {}),
+        ...model,
+    } as User;
+
+    if (!(merged as any).actor && (existing as any)?.actor) {
+        (merged as any).actor = (existing as any).actor;
+    }
+
+    currentUser.set(merged);
 }
 
 export async function users_delete(user: User) {

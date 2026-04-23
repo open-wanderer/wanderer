@@ -91,6 +91,7 @@
                                 options.HTMLAttributes,
                             ),
                             options.renderText?.({
+                                suggestion: {...options.suggestion, editor: editor!},
                                 options: options,
                                 node,
                             }),
@@ -151,7 +152,7 @@
                                 return (_: Event, item: SearchItem) => {
                                     props.command({
                                         id: item.value.iri,
-                                        label: `${item.value.username}${item.value.isLocal ? "" : "@" + item.value.domain}`,
+                                        label: `${item.value.preferred_username}${item.value.isLocal ? "" : "@" + item.value.domain}`,
                                     });
                                 };
                             }

@@ -1,11 +1,62 @@
 import type { Actor } from '$lib/models/activitypub/actor';
 import { FollowCreateSchema } from '$lib/models/api/follow_schema';
 import type { Follow } from '$lib/models/follow';
+import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { APIError, Collection, handleError, list } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import type { APOrderedCollectionPage } from 'activitypub-types';
 import { ClientResponseError, type ListResult } from "pocketbase";
 
+/**
+ * @swagger
+ * /api/v1/follow:
+ *   get:
+ *     summary: List follows
+ *     description: Retrieves follows or ActivityPub follower/following collections. Supports federated queries via handle parameter
+ *     tags:
+ *       - Follows
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: perPage
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: expand
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: handle
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [followers, following]
+ *     responses:
+ *       200:
+ *         description: List of follows or ActivityPub collection
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ListResult'
+ *       400:
+ *         description: Bad Request
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     try {
         if (!event.url.searchParams.has("handle")) {
@@ -19,7 +70,7 @@ export async function GET(event: RequestEvent) {
                 throw new APIError(400, "invalid params")
             }
 
-            const { actor }: { actor: Actor } = await event.locals.pb.send(`/activitypub/actor?resource=acct:${handle}`, { method: "GET", fetch: event.fetch, });
+            const { actor } = await getActorResponseForHandle(event, handle);
 
             const page = event.url.searchParams.get("page") ?? "1"
 

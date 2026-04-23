@@ -4,6 +4,43 @@ import type { TrailShare } from '$lib/models/trail_share';
 import { Collection, create, handleError, list } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
+/**
+ * @swagger
+ * /api/v1/trail-share:
+ *   get:
+ *     summary: List trail shares
+ *     description: Retrieves a paginated list of trail shares with optional ActivityPub actor resolution
+ *     tags:
+ *       - Trail Shares
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: perPage
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: expand
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ListResult<TrailShare>
+ *       400:
+ *         description: Bad Request
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     try {
         const r = await list<TrailShare>(event, Collection.trail_share);
@@ -13,6 +50,32 @@ export async function GET(event: RequestEvent) {
     }
 }
 
+/**
+ * @swagger
+ * /api/v1/trail-share:
+ *   put:
+ *     summary: Create trail share
+ *     description: Creates a new trail share. Converts ActivityPub actor IRI to ID
+ *     tags:
+ *       - Trail Shares
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TrailShareInput'
+ *     responses:
+ *       201:
+ *         description: Trail share created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/TrailShare'
+ *       400:
+ *         description: Bad Request
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function PUT(event: RequestEvent) {
     try {
         const data = await event.request.json();

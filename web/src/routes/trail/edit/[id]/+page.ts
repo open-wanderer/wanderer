@@ -8,7 +8,7 @@ import { get } from "svelte/store";
 
 export const load: Load = async ({ params, fetch, url }) => {
     const user = get(currentUser)
-   
+
     if (!params.id) {
         return error(400, "Bad Request")
     }
@@ -17,7 +17,14 @@ export const load: Load = async ({ params, fetch, url }) => {
 
     let trail: Trail;
     if (params.id === "new") {
-        trail = new Trail("", { category: categories[0] });
+        // duplicate trail
+        if (url.searchParams.has("orig")) {
+            const originalId = url.searchParams.get("orig")!;
+            const originalTrail = await trails_show(originalId, undefined, undefined, true, fetch);
+            trail = Trail.from(originalTrail)
+        } else {
+            trail = new Trail("", { category: categories[0] });
+        }
     } else {
         trail = await trails_show(params.id, undefined, url.searchParams.get("share") ?? undefined, true, fetch);
     }

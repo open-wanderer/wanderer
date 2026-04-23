@@ -5,7 +5,6 @@
     import type { Trail } from "$lib/models/trail";
     import type { Waypoint } from "$lib/models/waypoint";
     import { theme } from "$lib/stores/theme_store";
-    import { fetchGPX } from "$lib/stores/trail_store";
     import { findStartAndEndPoints } from "$lib/util/geojson_util";
     import {
         createMarkerFromWaypoint,
@@ -69,6 +68,7 @@
             trail: Trail,
         ) => void;
         oninit?: (map: M.Map) => void;
+        autoGeolocateOnDrawing?: boolean;
     }
 
     let {
@@ -99,6 +99,7 @@
         onclick,
         onUnclusteredClick,
         oninit,
+        autoGeolocateOnDrawing = false,
     }: Props = $props();
 
     let mapContainer: HTMLDivElement;
@@ -459,13 +460,17 @@
             new PreviewLayer(map, geojson, {
                 preview: {
                     onEnter: (e) => {
-                        const trail = trails.find(t => t.id === (e as any).features[0].properties.trail)
-                        if(!trail) return;
-                        highlightCluster(trail)
+                        const trail = trails.find(
+                            (t) =>
+                                t.id ===
+                                (e as any).features[0].properties.trail,
+                        );
+                        if (!trail) return;
+                        highlightCluster(trail, e.lngLat);
                     },
                     onLeave: (e) => {
-                        unHighlightCluster()
-                    }
+                        // unHighlightCluster();
+                    },
                 },
             }),
         );
@@ -565,16 +570,30 @@
         // map?.setPaintProperty(id, "line-color", "#648ad5");
     }
 
-    export async function highlightCluster(trail: Trail) {
+    export async function highlightCluster(
+        trail: Trail,
+        lnglat?: M.LngLatLike,
+    ) {
         if (!map || !map.style) {
             return;
         }
+        clusterPopup?.remove();
         clusterPopup = createPopupFromTrail(trail);
-        clusterPopup.setLngLat([trail.lon!, trail.lat!]).addTo(map);
-
+        clusterPopup.setLngLat(lnglat ?? [trail.lon!, trail.lat!]).addTo(map);
         clusterPopup.on("close", () => {
             unHighlightCluster(false);
         });
+        map.on("mousemove", unHighlightClusterDistanceNotifier)
+    }
+
+    function unHighlightClusterDistanceNotifier(e: M.MapMouseEvent) {
+        if (!clusterPopup || !map) {
+            return
+        }
+        if (map.project(clusterPopup.getLngLat()).dist(map.project(e.lngLat)) > 60) {
+            clusterPopup.remove();
+            map.off("mousemove", unHighlightClusterDistanceNotifier)
+        }
     }
 
     export async function unHighlightCluster(closePopup: boolean = true) {
@@ -647,6 +666,10 @@
         map.getCanvas().style.cursor = "crosshair";
         if (trails[activeTrail]) {
             removeStartEndMarkers(trails[activeTrail].id);
+        }
+
+        if (autoGeolocateOnDrawing) {
+            geolocate();
         }
     }
 
@@ -787,6 +810,8 @@
         }
     }
 
+    let geolocateControl: M.GeolocateControl;
+
     onMount(async () => {
         const initialState = {
             lng: 0,
@@ -856,16 +881,16 @@
             "top-left",
         );
 
-        map.addControl(
-            new M.GeolocateControl({
-                positionOptions: {
-                    enableHighAccuracy: true,
-                },
-                fitBoundsOptions: {
-                    animate: fitBounds == "animate",
-                },
-                trackUserLocation: true,
-            }));
+        geolocateControl = new M.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: true,
+            },
+            fitBoundsOptions: {
+                animate: fitBounds == "animate",
+            },
+            trackUserLocation: true,
+        });
+        map.addControl(geolocateControl);
 
         if (showStyleSwitcher) {
             map.addControl(switcherControl);
@@ -956,6 +981,17 @@
 
         showWaypoints();
     });
+
+    function geolocate() {
+        if (!page.data.settings?.behavior) return;
+
+        if (page.data.settings.behavior.allowAutoGeolocate === true) {
+            if (geolocateControl._watchState === "OFF") {
+                geolocateControl.options.trackUserLocation = true;
+                geolocateControl.trigger();
+            }
+        }
+    }
 
     onDestroy(() => {
         map?.remove();
@@ -1060,5 +1096,12 @@
         line-height: 0;
         padding-bottom: 2.5px;
         @apply bg-menu-item-background-focus w-3 aspect-square rounded-full;
+    }
+
+    :global(
+            .maplibregl-user-location-accuracy-circle,
+            .maplibregl-user-location-dot
+        ) {
+        pointer-events: none;
     }
 </style>

@@ -31,7 +31,9 @@
     --color-footer-background: rgba(var(--footer-background));
     --color-separator: rgba(var(--separator));
 
-    --font-sans: "IBMPlexSans"
+    --font-sans: "IBMPlexSans";
+
+    --fa-width: auto;
 }
 
 @layer base {

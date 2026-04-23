@@ -141,6 +141,7 @@
         ? 'outline-dashed outline-input-border'
         : ''}"
     role="dialog"
+    tabindex="0"
     ondragover={handlePhotoDragOver}
     ondragleave={handlePhotoDragLeave}
     ondrop={handlePhotoDrop}

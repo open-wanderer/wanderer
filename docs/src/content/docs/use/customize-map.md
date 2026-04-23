@@ -38,3 +38,12 @@ To add the respective URLs navigate to `Settings -> Display` and add them in the
 2. Locate the compass control in the top-right corner of the map.
 3. Click and drag the compass control to tilt the map into 3D mode.
 4. Adjust the tilt and rotation as desired to view the terrain in 3D.
+
+## Route drawing behavior
+
+You can configure how new route drawing starts in `Settings -> Display`.
+
+- Enable `Begin drawing a new trail from your current location` to automatically center route drawing on your current GPS location.
+- Disable it to start drawing at the current map view instead.
+
+This option only affects creating a **new** trail in the route editor.

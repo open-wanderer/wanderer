@@ -1,17 +1,52 @@
 import { RecordListOptionsSchema } from '$lib/models/api/base_schema';
 import type { SummitLog } from '$lib/models/summit_log';
+import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { Collection, handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError, type ListResult } from 'pocketbase';
 
+/**
+ * @swagger
+ * /api/v1/profile/{handle}/stats:
+ *   get:
+ *     summary: Get user summit statistics
+ *     description: Retrieves summit log statistics for a user, with federation support
+ *     tags:
+ *       - Profiles
+ *     parameters:
+ *       - in: path
+ *         name: handle
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: perPage
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: SummitLog statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ListResult'
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     const handle = event.params.handle;
     if (!handle) {
         return error(400, { message: "Bad request" })
     }
-
+    
     try {
-        const {actor, error} = await event.locals.pb.send(`/activitypub/actor?resource=acct:${handle}`, { method: "GET", fetch: event.fetch, });
+        const { actor } = await getActorResponseForHandle(event, handle);
 
         const searchParams = Object.fromEntries(event.url.searchParams);
         const safeSearchParams = RecordListOptionsSchema.parse(searchParams);
@@ -20,7 +55,7 @@ export async function GET(event: RequestEvent) {
             safeSearchParams.filter = safeSearchParams.filter + `&&author='${actor.id}'`
         }else {
             safeSearchParams.filter = `author='${actor.id}'`
-        } 
+        }
 
         let summitLogs: SummitLog[];
         if (actor.isLocal) {
