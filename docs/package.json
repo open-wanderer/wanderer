@@ -13,7 +13,7 @@
     "@astrojs/check": "^0.9.6",
     "@astrojs/node": "^10.0.5",
     "@astrojs/starlight": "^0.38.3",
-    "@astrojs/starlight-tailwind": "^4.0.2",
+    "@astrojs/starlight-tailwind": "^5.0.0",
     "@astrojs/svelte": "^8.0.5",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.8",
