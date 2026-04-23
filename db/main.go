@@ -49,7 +49,7 @@ func verifySettings(app core.App) {
 	if len(encryptionKey) != 32 {
 		// terminate if the encryption key is not set or is not exactly 32 bytes long,
 		// as this is a requirement for PocketBase to function properly.
-		log.Fatal("POCKETBASE_ENCRYPTION_KEY must be exactly 32 bytes long- See https://wanderer.to/run/installation/#prerequisites for more information")
+		log.Fatal("POCKETBASE_ENCRYPTION_KEY must be exactly 32 bytes long- See https://wanderer.to/run/installation/docker#prerequisites for more information")
 	}
 
 	if encryptionKey == defaultPocketBaseEncryptionKey {

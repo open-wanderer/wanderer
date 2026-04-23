@@ -13,7 +13,7 @@
         <h5 class="font-semibold">Resources</h5>
         <ul class="mt-4 text-sm">
             <li>
-                <a href="https://wanderer.to/run/installation/"
+                <a href="https://wanderer.to/run/installation/quick/"
                     >{$_("documentation")}</a
                 >
             </li>
