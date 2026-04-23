@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
     import type { Trail, TrailFilter } from "$lib/models/trail";
     import {
         formatDistance,
@@ -7,21 +8,27 @@
     } from "$lib/util/format_util";
     import { _ } from "svelte-i18n";
     import type { SelectItem } from "../base/select.svelte";
-    import { goto } from "$app/navigation";
-    import { getFileURL } from "$lib/util/file_util";
     import ShareInfo from "../share_info.svelte";
-    
+
     interface Props {
         tableHeader: SelectItem[];
         trails?: Trail[] | null;
         selection: Set<Trail> | undefined;
         filter?: TrailFilter | null;
         items: number;
-        onsort?: (value: any) => void
-        onTrailSelect?: (value: any) => void
+        onsort?: (value: any) => void;
+        onTrailSelect?: (value: any) => void;
     }
 
-    let { tableHeader, trails = null, selection, filter = null, items, onsort, onTrailSelect: onselect }: Props = $props();
+    let {
+        tableHeader,
+        trails = null,
+        selection,
+        filter = null,
+        items,
+        onsort,
+        onTrailSelect: onselect,
+    }: Props = $props();
 
     function getColumnWidth(columnValue: string): string {
         switch (columnValue) {
@@ -44,31 +51,29 @@
     }
 
     function setSelectedTrail(e: Event, trail: Trail) {
-        e.stopPropagation()
+        e.stopPropagation();
 
         if (trail !== undefined) {
             if (onselect !== undefined) {
-                onselect(trail)
+                onselect(trail);
+            } else {
+                console.error("undefined event handler");
             }
-            else {
-                console.error("undefined event handler")
-            }   
         }
     }
 
     function setSelectedAllTrails(e: Event) {
-        onselect?.(undefined)
+        onselect?.(undefined);
     }
 
     function isSelected(trail: Trail): boolean {
         if (selection === undefined) {
             return false;
         }
-        
+
         if (trail !== undefined) {
             for (const strail of selection) {
-                if (strail !== undefined && strail.id === trail.id)
-                    return true;
+                if (strail !== undefined && strail.id === trail.id) return true;
             }
         }
 
@@ -76,13 +81,26 @@
     }
 
     function allSelected(): boolean {
-        if (selection === undefined || trails === undefined || trails === null) {
+        if (
+            selection === undefined ||
+            trails === undefined ||
+            trails === null
+        ) {
             return false;
         }
 
         return selection.size === trails.length;
     }
 
+    function handleTrailClick(trail: Trail) {
+        if (selection && selection.size > 0) {
+            onselect?.(trail);
+        } else {
+            goto(
+                `/trail/view/@${trail.author}${trail.domain ? `@${trail.domain}` : ""}/${trail.id}`,
+            );
+        }
+    }
 </script>
 
 <div
@@ -92,7 +110,9 @@
         <thead>
             <tr class="bg-secondary-hover">
                 <th
-                    class="p-4 text-left text-sm font-medium {getColumnWidth("select")}"
+                    class="p-4 text-left text-sm font-medium {getColumnWidth(
+                        'select',
+                    )}"
                 >
                     <div class="flex items-center">
                         <input
@@ -130,12 +150,7 @@
                 {#each trails as trail}
                     <tr
                         class="border-t border-input-border cursor-pointer hover:bg-secondary-hover transition-colors"
-                        onclick={() =>
-                            goto(
-                                `/trail/view/@${trail.author}${
-                                    trail.domain ? `@${trail.domain}` : ""
-                                }/${trail.id}`,
-                            )}
+                        onclick={() => handleTrailClick(trail)}
                     >
                         <td class="p-4 text-sm">
                             <div class="flex items-center">
@@ -143,14 +158,18 @@
                                     type="checkbox"
                                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                                     checked={isSelected(trail)}
-                                    onclick={(e: Event) => setSelectedTrail(e, trail)}
+                                    onclick={(e: Event) =>
+                                        setSelectedTrail(e, trail)}
                                 />
                             </div>
                         </td>
                         <td
                             class="flex justify-between items-center text-sm relative"
                         >
-                            <div class="p-4 w-[75%] line-clamp-2 wrap-anywhere" title={trail.name}>
+                            <div
+                                class="p-4 w-[75%] line-clamp-2 wrap-anywhere"
+                                title={trail.name}
+                            >
                                 {trail.name}
                             </div>
                             <div class="flex flex-col items-center">
