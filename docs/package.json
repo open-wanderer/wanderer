@@ -23,6 +23,6 @@
     "starlight-openapi": "^0.24.0",
     "svelte": "^5.55.4",
     "tailwindcss": "^4.1.10",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.2"
   }
 }
