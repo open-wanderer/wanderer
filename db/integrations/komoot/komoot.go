@@ -295,19 +295,22 @@ func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomoo
 	}
 
 	record.Load(map[string]any{
-		"id":             trailid,
-		"name":           detailedTour.Name,
-		"public":         public,
-		"distance":       detailedTour.Distance,
-		"elevation_gain": detailedTour.ElevationUp,
-		"elevation_loss": detailedTour.ElevationDown,
-		"duration":       detailedTour.Duration,
-		"date":           detailedTour.Date,
-		"lat":            detailedTour.StartPoint.Lat,
-		"lon":            detailedTour.StartPoint.Lng,
-		"difficulty":     diffculty,
-		"category":       categoryId,
-		"author":         actor,
+		"id":                trailid,
+		"name":              detailedTour.Name,
+		"public":            public,
+		"completed":         detailedTour.Type == "tour_recorded",
+		"distance":          detailedTour.Distance,
+		"elevation_gain":    detailedTour.ElevationUp,
+		"elevation_loss":    detailedTour.ElevationDown,
+		"duration":          detailedTour.Duration,
+		"date":              detailedTour.Date,
+		"external_provider": "komoot",
+		"external_id":       strconv.Itoa(detailedTour.ID),
+		"lat":               detailedTour.StartPoint.Lat,
+		"lon":               detailedTour.StartPoint.Lng,
+		"difficulty":        diffculty,
+		"category":          categoryId,
+		"author":            actor,
 	})
 
 	if photos != nil {

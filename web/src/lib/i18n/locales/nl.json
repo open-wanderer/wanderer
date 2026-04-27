@@ -3,6 +3,7 @@
   "Canoeing": "Kanoën",
   "Climbing": "Klimmen",
   "Hiking": "Hiken",
+  "Skiing": "",
   "Walking": "Wandelen",
   "about": "Over",
   "account-delete-confirm": "Je staat op het punt je account te verwijderen. Al je routes worden hierdoor eveneens verwijderd. Wil je doorgaan?",
@@ -264,6 +265,8 @@
   "make-thumbnail": "Miniatuur maken",
   "map": "Kaart",
   "map-style": "Kaartstijl",
+  "mark-trail-as-completed": "",
+  "mark-trail-as-completed-modal-text": "",
   "max-hiking-difficulty": "Max. Hiking Moeilijkheid",
   "metric": "Metrisch",
   "moderate": "Gemiddeld",
@@ -291,6 +294,7 @@
   "new-password-text": "Stel nieuw wachtwoord in",
   "new-token-generated": "",
   "new-trail": "Nieuwe Route",
+  "no": "",
   "no-account": "Heb je nog geen account?",
   "no-api-tokens": "",
   "no-comments-so-far": "Tot nu toe geen opmerkingen",
@@ -467,5 +471,6 @@
   "welcome_to": "Welkom bij",
   "width": "Breedte",
   "wrong-username-or-password": "Onjuiste gebruikersnaam of wachtwoord",
+  "yes": "",
   "you-can": "Jij kunt"
 }

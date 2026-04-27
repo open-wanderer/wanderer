@@ -3,6 +3,7 @@
   "Canoeing": "Kanoistika",
   "Climbing": "Horolezectví",
   "Hiking": "Turistika",
+  "Skiing": "",
   "Walking": "Chůze",
   "about": "O aplikaci",
   "account-delete-confirm": "Chystáte se odstranit svůj účet. Všechny vaše záznamy budou odstraněny též. Chcete pokračovat?",
@@ -264,6 +265,8 @@
   "make-thumbnail": "Vytvořit náhled",
   "map": "Mapa",
   "map-style": "Styl mapy",
+  "mark-trail-as-completed": "",
+  "mark-trail-as-completed-modal-text": "",
   "max-hiking-difficulty": "Max. obtížnost túry",
   "metric": "Metrický",
   "moderate": "Středně náročné",
@@ -291,6 +294,7 @@
   "new-password-text": "Nastavit nové heslo",
   "new-token-generated": "",
   "new-trail": "Nová trasa",
+  "no": "",
   "no-account": "Ještě nemáte účet?",
   "no-api-tokens": "",
   "no-comments-so-far": "Zatím žádné komentáře",
@@ -467,5 +471,6 @@
   "welcome_to": "Vítejte v",
   "width": "Šířka",
   "wrong-username-or-password": "Nesprávné uživatelské jméno nebo heslo",
+  "yes": "",
   "you-can": "Můžete"
 }

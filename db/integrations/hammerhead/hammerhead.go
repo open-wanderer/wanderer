@@ -545,19 +545,22 @@ func createTrailFromActivity(app core.App, detailedTour *HammerheadActivity, gpx
 	}
 
 	record.Load(map[string]any{
-		"id":             trailid,
-		"name":           detailedTour.ActivityData.Name,
-		"public":         false,
-		"distance":       detailedTour.ActivityData.ActivityInfo[idDistance].Value.Value,
-		"elevation_gain": detailedTour.ActivityData.ActivityInfo[idElevationGain].Value.Value,
-		"elevation_loss": detailedTour.ActivityData.ActivityInfo[idElevationLoss].Value.Value,
-		"duration":       duration / 1000,
-		"date":           detailedTour.ActivityData.CreatedAt,
-		"lat":            startLat,
-		"lon":            startLng,
-		"difficulty":     diffculty,
-		"category":       categoryId,
-		"author":         actor,
+		"id":                trailid,
+		"name":              detailedTour.ActivityData.Name,
+		"public":            false,
+		"completed":         true,
+		"distance":          detailedTour.ActivityData.ActivityInfo[idDistance].Value.Value,
+		"elevation_gain":    detailedTour.ActivityData.ActivityInfo[idElevationGain].Value.Value,
+		"elevation_loss":    detailedTour.ActivityData.ActivityInfo[idElevationLoss].Value.Value,
+		"duration":          duration / 1000,
+		"date":              detailedTour.ActivityData.CreatedAt,
+		"external_provider": "hammerhead",
+		"external_id":       detailedTour.ActivityData.ID,
+		"lat":               startLat,
+		"lon":               startLng,
+		"difficulty":        diffculty,
+		"category":          categoryId,
+		"author":            actor,
 	})
 
 	if gpx != nil {
