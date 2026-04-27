@@ -265,6 +265,8 @@
   "make-thumbnail": "Lag miniatyrbilde",
   "map": "Kart",
   "map-style": "Kartstil",
+  "mark-trail-as-completed": "",
+  "mark-trail-as-completed-modal-text": "",
   "max-hiking-difficulty": "Maks. vanskelighetsgrad",
   "metric": "Metrisk",
   "moderate": "Moderat",
@@ -292,6 +294,7 @@
   "new-password-text": "Sett et nytt passord",
   "new-token-generated": "Nytt API-token generert",
   "new-trail": "Ny sti",
+  "no": "",
   "no-account": "Har du ikke en konto?",
   "no-api-tokens": "Du har ingen API-tokens",
   "no-comments-so-far": "Ingen kommentarer ennå",
@@ -468,5 +471,6 @@
   "welcome_to": "Velkommen til",
   "width": "Bredde",
   "wrong-username-or-password": "Feil brukernavn eller passord",
+  "yes": "",
   "you-can": "Du kan"
 }

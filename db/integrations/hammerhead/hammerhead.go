@@ -543,6 +543,7 @@ func createTrailFromActivity(app core.App, detailedTour *HammerheadActivity, gpx
 		"id":                trailid,
 		"name":              detailedTour.ActivityData.Name,
 		"public":            false,
+		"completed":         true,
 		"distance":          detailedTour.ActivityData.ActivityInfo[idDistance].Value.Value,
 		"elevation_gain":    detailedTour.ActivityData.ActivityInfo[idElevationGain].Value.Value,
 		"elevation_loss":    detailedTour.ActivityData.ActivityInfo[idElevationLoss].Value.Value,
