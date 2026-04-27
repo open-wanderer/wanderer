@@ -102,6 +102,7 @@
     import { z } from "zod";
     import Track from "$lib/models/gpx/track.js";
     import TrackSegment from "$lib/models/gpx/track-segment.js";
+    import ConfirmModal from "$lib/components/confirm_modal.svelte";
 
     let { data } = $props();
 
@@ -113,6 +114,7 @@
     let waypointModal: WaypointModal;
     let summitLogModal: SummitLogModal;
     let listSelectModal: ListSearchModal;
+    let markTrailAsCompletedModal: ConfirmModal;
 
     let loading = $state(false);
 
@@ -453,7 +455,8 @@
         if (!$formData.expand!.waypoints_via_trail?.length) {
             $formData.expand!.waypoints_via_trail = [];
         }
-        $formData.expand!.waypoints_via_trail = $formData.expand!.waypoints_via_trail;
+        $formData.expand!.waypoints_via_trail =
+            $formData.expand!.waypoints_via_trail;
 
         // updateTrailOnMap();
     }
@@ -465,7 +468,8 @@
             ) ?? -1;
 
         if (editedWaypointIndex >= 0) {
-            $formData.expand!.waypoints_via_trail![editedWaypointIndex] = savedWaypoint;
+            $formData.expand!.waypoints_via_trail![editedWaypointIndex] =
+                savedWaypoint;
         } else {
             savedWaypoint.id = cryptoRandomString({ length: 15 });
             $formData.expand!.waypoints_via_trail = [
@@ -480,7 +484,9 @@
     function moveMarker(marker: M.Marker, wpId?: string) {
         const position = marker.getLngLat();
         const editableWaypointIndex =
-            $formData.expand!.waypoints_via_trail?.findIndex((w) => w.id == wpId) ?? -1;
+            $formData.expand!.waypoints_via_trail?.findIndex(
+                (w) => w.id == wpId,
+            ) ?? -1;
         const editableWaypoint =
             $formData.expand!.waypoints_via_trail![editableWaypointIndex];
         if (!editableWaypoint) {
@@ -488,7 +494,9 @@
         }
         editableWaypoint.lat = position.lat;
         editableWaypoint.lon = position.lng;
-        $formData.expand!.waypoints_via_trail = [...($formData.expand!.waypoints_via_trail ?? [])];
+        $formData.expand!.waypoints_via_trail = [
+            ...($formData.expand!.waypoints_via_trail ?? []),
+        ];
         // updateTrailOnMap();
     }
 
@@ -515,6 +523,13 @@
                 ...($formData.expand!.summit_logs_via_trail ?? []),
                 log,
             ];
+        }
+
+        if (
+            $formData.expand?.summit_logs_via_trail?.length == 1 &&
+            !$formData.completed
+        ) {
+            markTrailAsCompletedModal.openModal();
         }
     }
 
@@ -1235,6 +1250,10 @@
         initRouteAnchors(valhallaStore.route, true);
         updateTrailWithRouteData();
     }
+
+    function markTrailAsCompleted() {
+        setFields("completed", true);
+    }
 </script>
 
 <svelte:head>
@@ -1248,7 +1267,7 @@
 <main class="grid grid-cols-1 md:grid-cols-[400px_1fr]">
     <form
         id="trail-form"
-        class="overflow-y-auto overflow-x-hidden flex flex-col gap-4 px-8 order-1 md:order-none mt-8 md:mt-0"
+        class="overflow-y-auto overflow-x-hidden flex flex-col gap-4 px-8 order-1 md:order-0 mt-8 md:mt-0"
         use:form
     >
         <Search
@@ -1429,6 +1448,11 @@
         </div>
 
         <Toggle
+            name="completed"
+            label={$formData.completed ? $_("completed") : $_("not-completed")}
+            icon={$formData.completed ? "flag-checkered" : "compass-drafting"}
+        ></Toggle>
+        <Toggle
             name="public"
             label={$formData.public ? $_("public") : $_("private")}
             icon={$formData.public ? "globe" : "lock"}
@@ -1593,6 +1617,15 @@
     bind:this={listSelectModal}
     onchange={(e) => handleListSelection(e)}
 ></ListSearchModal>
+<ConfirmModal
+    id="mark-trail-as-completed-modal"
+    title={$_("mark-trail-as-completed")}
+    text={$_("mark-trail-as-completed-modal-text")}
+    action={$_("yes")}
+    deny={$_("no")}
+    bind:this={markTrailAsCompletedModal}
+    onconfirm={markTrailAsCompleted}
+></ConfirmModal>
 
 <style>
     #trail-map {
