@@ -74,7 +74,8 @@
     } from "$lib/components/base/search.svelte";
     import RouteEditor from "$lib/components/trail/route_editor.svelte";
     import { TagCreateSchema } from "$lib/models/api/tag_schema.js";
-    import { convertDMSToDD, haversineDistance } from "$lib/models/gpx/utils.js";
+    import { convertDMSToDD } from "$lib/models/gpx/utils.js";
+    import { getPb } from "$lib/pocketbase";
     import { Tag } from "$lib/models/tag.js";
     import {
         searchLocationReverse,
@@ -1109,50 +1110,22 @@
     }
 
     interface GPXCoord {
+        id: string;
         longitude: number;
         latitude: number;
         file: File;
     }
 
-    interface GPXCluster {
-        points: GPXCoord[];
-        sumLatitude: number;
-        sumLongitude: number;
-        centerLatitude: number;
-        centerLongitude: number;
+    interface WaypointPhotoCluster {
+        lat: number;
+        lon: number;
+        photos: string[];
     }
 
-    function canAddToCluster(
-        cluster: GPXCluster,
-        point: GPXCoord,
-        mergeRadius: number,
-    ) {
-        const distanceToCenter = haversineDistance(
-            cluster.centerLatitude,
-            cluster.centerLongitude,
-            point.latitude,
-            point.longitude,
-        );
-
-        return distanceToCenter <= mergeRadius;
-    }
-
-    function addPointToCluster(cluster: GPXCluster, point: GPXCoord) {
-        cluster.points.push(point);
-        cluster.sumLatitude += point.latitude;
-        cluster.sumLongitude += point.longitude;
-        cluster.centerLatitude = cluster.sumLatitude / cluster.points.length;
-        cluster.centerLongitude = cluster.sumLongitude / cluster.points.length;
-    }
-
-    function createCluster(point: GPXCoord): GPXCluster {
-        return {
-            points: [point],
-            sumLatitude: point.latitude,
-            sumLongitude: point.longitude,
-            centerLatitude: point.latitude,
-            centerLongitude: point.longitude,
-        };
+    interface WaypointPhotoClusterResponse {
+        mergeEnabled: boolean;
+        mergeRadius: number;
+        clusters: WaypointPhotoCluster[];
     }
 
     async function handleWaypointPhotoSelection() {
@@ -1164,24 +1137,9 @@
             return;
         }
 
-        const clusters: GPXCluster[] = [];
+        const photoCoords: GPXCoord[] = [];
 
-        let mergeRadius = 50;
-        if ($formData.category) {
-            for (const cat of $categories) {
-                if ($formData.category !== cat.id) {
-                    continue;
-                }
-
-                if (cat.settings?.wp_merge_radius != null && cat.settings.wp_merge_radius >= 0) {
-                    mergeRadius = cat.settings.wp_merge_radius;
-                }
-
-                break;
-            }
-        }
-
-        for (const file of files) {
+        for (const [index, file] of Array.from(files).entries()) {
             const coords = await new Promise<GPXCoord | undefined>((resolve) => {
                 EXIF.getData(file, function (p) {
                     const lat = EXIF.getTag(p, "GPSLatitude");
@@ -1191,6 +1149,7 @@
 
                     if (lat && lon) {
                         resolve({
+                            id: index.toString(),
                             latitude: convertDMSToDD(lat, latDir),
                             longitude: convertDMSToDD(lon, lonDir),
                             file,
@@ -1213,28 +1172,47 @@
                 continue;
             }
 
-            if (mergeRadius === 0) {
-                clusters.push(createCluster(coords));
-                continue;
-            }
-
-            const matchingCluster = clusters.find((cluster) =>
-                canAddToCluster(cluster, coords, mergeRadius),
-            );
-
-            if (matchingCluster) {
-                addPointToCluster(matchingCluster, coords);
-            } else {
-                clusters.push(createCluster(coords));
-            }
+            photoCoords.push(coords);
         }
 
-        for (const cluster of clusters) {
-            const photos = cluster.points.map((point) => point.file);
+        let clusterResponse: WaypointPhotoClusterResponse;
+        try {
+            clusterResponse = await getPb().send("/waypoint/cluster", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                },
+                body: JSON.stringify({
+                    category: $formData.category,
+                    photos: photoCoords.map((coords) => ({
+                        id: coords.id,
+                        lat: coords.latitude,
+                        lon: coords.longitude,
+                    })),
+                }),
+            });
+        } catch (e) {
+            show_toast(
+                {
+                    type: "error",
+                    icon: "warning",
+                    text: $_("waypoint-cluster-error"),
+                },
+                10000,
+            );
+            return;
+        }
+
+        const fileMap = new Map(photoCoords.map((coords) => [coords.id, coords.file]));
+
+        for (const cluster of clusterResponse.clusters) {
+            const photos = cluster.photos
+                .map((id) => fileMap.get(id))
+                .filter((file): file is File => file != null);
 
             const wp: Waypoint = new Waypoint(
-                cluster.centerLatitude,
-                cluster.centerLongitude,
+                cluster.lat,
+                cluster.lon,
                 {
                     icon: photos.length > 1 ? "images" : "image",
                 },

@@ -26,7 +26,26 @@ func init() {
 			return err
 		}
 
-		return app.Save(collection)
+		if err := app.Save(collection); err != nil {
+			return err
+		}
+
+		records, err := app.FindAllRecords("categories")
+		if err != nil {
+			return err
+		}
+
+		for _, record := range records {
+			record.Set("settings", map[string]any{
+				"wp_merge_enabled": true,
+				"wp_merge_radius":  50,
+			})
+			if err := app.Save(record); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}, func(app core.App) error {
 		collection, err := app.FindCollectionByNameOrId("kjxvi8asj2igqwf")
 		if err != nil {

@@ -297,6 +297,7 @@
   "no-data": "Keine Daten",
   "no-description-for-now": "Noch keine Beschreibung",
   "no-gps-data-in-image": "Keine GPS-Daten im Bild",
+  "waypoint-cluster-error": "Wegpunkt-Gruppen konnten nicht erstellt werden",
   "no-grid": "Kein Gitter",
   "no-notifications": "Keine Benachrichtigungen",
   "no-photos-here": "Hier sind noch keine Fotos",
