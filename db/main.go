@@ -31,6 +31,7 @@ import (
 
 	_ "pocketbase/migrations"
 	"pocketbase/util"
+	"pocketbase/waypointcluster"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/microcosm-cc/bluemonday"
@@ -1072,7 +1073,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 		return e.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	se.Router.POST("/waypoint/cluster", waypointClusterHandler)
+	se.Router.POST("/waypoint/cluster", waypointcluster.Handler)
 
 	se.Router.POST("/auth/token", func(e *core.RequestEvent) error {
 		var data struct {
