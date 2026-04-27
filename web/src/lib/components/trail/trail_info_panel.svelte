@@ -295,7 +295,7 @@
                 </button>
             {/if}
             <div
-                class="grid gap-[1px] {headerPhotos.length > 1
+                class="grid gap-px {headerPhotos.length > 1
                     ? 'grid-cols-[8fr_5fr]'
                     : 'grid-cols-1'} h-80 rounded-t-3xl overflow-hidden cursor-pointer"
             >
