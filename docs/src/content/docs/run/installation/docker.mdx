@@ -108,13 +108,12 @@ services:
       BODY_SIZE_LIMIT: Infinity
       PUBLIC_POCKETBASE_URL: http://db:8090
       PUBLIC_DISABLE_SIGNUP: "false"
-      PUBLIC_VALHALLA_ENABLED: "true"
       UPLOAD_FOLDER: /app/uploads
       UPLOAD_USER:
       UPLOAD_PASSWORD:
-      PRIVATE_OVERPASS_API_URL: https://overpass-api.de
-      PRIVATE_VALHALLA_URL: https://valhalla1.openstreetmap.de
-      PRIVATE_NOMINATIM_URL: https://nominatim.openstreetmap.org
+      OVERPASS_API_URL: https://overpass-api.de
+      VALHALLA_URL: https://valhalla1.openstreetmap.de
+      NOMINATIM_URL: https://nominatim.openstreetmap.org
       # Optional: trust private CAs for server-side API calls
       # NODE_EXTRA_CA_CERTS: /etc/ssl/private-ca/ca.pem
     volumes:

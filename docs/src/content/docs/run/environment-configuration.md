@@ -53,12 +53,11 @@ These variables configure server-side requests to Valhalla, Nominatim and Overpa
 
 | Environment Variable     | Description                                                                 | Default                             |
 | ------------------------ | --------------------------------------------------------------------------- | ----------------------------------- |
-| PUBLIC_VALHALLA_ENABLED  | Enables Valhalla route editing in the UI when set to `true`                | true                               |
-| PRIVATE_VALHALLA_URL     | Valhalla API URL used for auto-routing and elevation data       | https://valhalla1.openstreetmap.de  |
-| PRIVATE_NOMINATIM_URL    | Nominatim API URL used for (reverse) geocoding                  | https://nominatim.openstreetmap.org |
-| PRIVATE_OVERPASS_API_URL | Overpass API URL used for map points of interest                | https://overpass-api.de             |
+| VALHALLA_URL     | Valhalla API URL used for auto-routing and elevation data       | https://valhalla1.openstreetmap.de  |
+| NOMINATIM_URL    | Nominatim API URL used for (reverse) geocoding                  | https://nominatim.openstreetmap.org |
+| OVERPASS_API_URL | Overpass API URL used for map points of interest                | https://overpass-api.de             |
 
-When `PRIVATE_*_URL` is unset, the backend falls back to legacy `PUBLIC_*_URL`.
+When `*_URL` is unset, the backend falls back to legacy `PUBLIC_*_URL`.
 
 ## Custom CA certificates
 
