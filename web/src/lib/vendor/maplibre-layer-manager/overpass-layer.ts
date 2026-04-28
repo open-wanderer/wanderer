@@ -12,7 +12,7 @@ import type { OverpassResponse } from "./types";
 import { env } from '$env/dynamic/public'
 
 export class OverpassLayer implements BaseLayer {
-    private overpassApiURL: string = (env.PUBLIC_OVERPASS_API_URL && env.PUBLIC_OVERPASS_API_URL.length > 0 ? env.PUBLIC_OVERPASS_API_URL : "https://overpass-api.de") + "/api/interpreter";
+    private overpassApiURL: string = "/api/v1/overpass/interpreter";
 
     data: GeoJSON.FeatureCollection = ({ type: 'FeatureCollection', features: [] });
 

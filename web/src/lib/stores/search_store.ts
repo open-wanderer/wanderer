@@ -1,10 +1,8 @@
-import { env } from "$env/dynamic/public";
 import type { Actor } from "$lib/models/activitypub/actor";
 import { defaultTrailSearchAttributes, type TrailSearchResult } from "$lib/models/trail";
 import { APIError } from "$lib/util/api_util";
 import type { Hits, MultiSearchParams, MultiSearchResponse, MultiSearchResult, SearchParams, SearchResponse } from "meilisearch";
 import type { ListResult } from "pocketbase";
-import { version } from "$app/environment";
 
 export type LocationSearchResult = {
     name: string;
@@ -104,14 +102,17 @@ export async function searchTrails(q: string, options: SearchParams): Promise<Hi
     return response.hits
 }
 
-export async function searchLocations(q: string, limit?: number): Promise<Hits<LocationSearchResult>> {
-    const nominatimURL = env.PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org"
-    const r = await fetch(`${nominatimURL}/search?q=${q}&format=geojson&addressdetails=1${limit ? '&limit=' + limit : ''}`, {
-        method: "GET",
-        headers: new Headers({
-            "User-Agent": "wanderer/" + version
-        })
-    });
+export async function searchLocations(q: string, limit?: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<Hits<LocationSearchResult>> {
+    if (!q.trim()) {
+        return [];
+    }
+
+    const params = new URLSearchParams({
+            q,
+            format: "geojson",
+            addressdetails: "1",
+        });
+    const r = await fetchGeocoding("search", params, f);
     if (!r.ok) {
         const response = await r.json();
         throw new APIError(r.status, response.message, response.detail)
@@ -127,14 +128,20 @@ export async function searchLocations(q: string, limit?: number): Promise<Hits<L
     }))
 }
 
-export async function searchLocationReverse(lat: number, lon: number) {
-    const nominatimURL = env.PUBLIC_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org"
-    const r = await fetch(`${nominatimURL}/reverse?lat=${lat}&lon=${lon}&format=geojson&addressdetails=1`, {
-        method: "GET",
-        headers: new Headers({
-            "User-Agent": "wanderer/" + version
-        })
-    });
+async function fetchGeocoding(path: string, params: URLSearchParams, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<Response> {
+    const query = params.toString();
+    const url = query.length ? `/api/v1/geocoding/${path}?${query}` : `/api/v1/geocoding/${path}`;
+    return await f(url);
+}
+
+export async function searchLocationReverse(lat: number, lon: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+    const params = new URLSearchParams({
+            lat: String(lat),
+            lon: String(lon),
+            format: "geojson",
+            addressdetails: "1",
+        });
+    const r = await fetchGeocoding("reverse", params, f);
     if (!r.ok) {
         const response = await r.json();
         throw new APIError(r.status, response.message, response.detail)
@@ -170,14 +177,17 @@ function getLocationDescription(address: Address) {
 
 export async function searchMulti(options: MultiSearchParams): Promise<MultiSearchResult<any>[]> {
 
-    const locationQuery = options.queries.find(q => q.indexUid === "locations");
-    const locationQueryIndex = locationQuery ? options.queries.indexOf(locationQuery) : -1
-    if (locationQueryIndex >= 0) {
-        options.queries.splice(locationQueryIndex, 1)
-    }
+    const locationQueryIndex = options.queries.findIndex(q => q.indexUid === "locations");
+    const locationQuery = locationQueryIndex >= 0 ? options.queries[locationQueryIndex] : undefined;
+    const queries = locationQueryIndex >= 0
+        ? options.queries.filter((_, index) => index !== locationQueryIndex)
+        : options.queries;
     const r = await fetch("/api/v1/search/multi", {
         method: "POST",
-        body: JSON.stringify(options),
+        body: JSON.stringify({
+            ...options,
+            queries,
+        }),
     });
 
     if (!r.ok) {

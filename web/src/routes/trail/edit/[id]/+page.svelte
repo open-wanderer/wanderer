@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { env } from "$env/dynamic/public";
     import Button from "$lib/components/base/button.svelte";
     import Datepicker from "$lib/components/base/datepicker.svelte";
     import Select from "$lib/components/base/select.svelte";
@@ -125,6 +124,13 @@
     let gpxFile: File | Blob | null = null;
 
     let drawingActive = $state(false);
+
+    function routeCalculationErrorText(error: unknown) {
+        if (error instanceof Error && error.message) {
+            return error.message;
+        }
+        return "Error calculating route";
+    }
     let overwriteGPX = false;
     let draggingMarker = false;
 
@@ -661,7 +667,7 @@
         } catch (e) {
             console.error(e);
             show_toast({
-                text: "Error calculating route",
+                text: routeCalculationErrorText(e),
                 icon: "close",
                 type: "error",
             });
@@ -833,7 +839,7 @@
         } catch (e) {
             console.error(e);
             show_toast({
-                text: "Error calculating route",
+                text: routeCalculationErrorText(e),
                 icon: "close",
                 type: "error",
             });
@@ -883,7 +889,7 @@
         } catch (e) {
             console.error(e);
             show_toast({
-                text: "Error calculating route",
+                text: routeCalculationErrorText(e),
                 icon: "close",
                 type: "error",
             });
@@ -1287,32 +1293,30 @@
                 ? $_("upload-new-file")
                 : $_("upload-file")}</Button
         >
-        {#if env.PUBLIC_VALHALLA_URL}
-            <div class="flex gap-4 items-center w-full">
-                <hr class="basis-full border-input-border" />
-                <span class="text-gray-500 uppercase">{$_("or")}</span>
-                <hr class="basis-full border-input-border" />
-            </div>
-            <button
-                class="btn-primary"
-                type="button"
-                onclick={async () => {
-                    if (drawingActive) {
-                        await stopDrawing();
-                    } else {
-                        startDrawing();
-                    }
-                }}
-            >
-                {$formData.expand?.gpx_data
-                    ? drawingActive
-                        ? $_("stop-editing")
-                        : $_("edit-route")
-                    : drawingActive
-                      ? $_("stop-drawing")
-                      : $_("draw-a-route")}</button
-            >
-        {/if}
+        <div class="flex gap-4 items-center w-full">
+            <hr class="basis-full border-input-border" />
+            <span class="text-gray-500 uppercase">{$_("or")}</span>
+            <hr class="basis-full border-input-border" />
+        </div>
+        <button
+            class="btn-primary"
+            type="button"
+            onclick={async () => {
+                if (drawingActive) {
+                    await stopDrawing();
+                } else {
+                    startDrawing();
+                }
+            }}
+        >
+            {$formData.expand?.gpx_data
+                ? drawingActive
+                    ? $_("stop-editing")
+                    : $_("edit-route")
+                : drawingActive
+                    ? $_("stop-drawing")
+                    : $_("draw-a-route")}</button
+        >
         <input
             type="file"
             name="gpx"
