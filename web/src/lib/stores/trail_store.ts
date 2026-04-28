@@ -441,6 +441,7 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
             name: h.name,
             photos: h.thumbnail ? [h.thumbnail] : [],
             public: h.public,
+            completed: h.completed,
             summit_logs: [],
             waypoints: [],
             tags: h.tags ?? [],

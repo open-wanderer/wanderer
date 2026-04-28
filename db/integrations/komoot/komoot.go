@@ -292,6 +292,7 @@ func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomoo
 		"id":                trailid,
 		"name":              detailedTour.Name,
 		"public":            public,
+		"completed":         detailedTour.Type == "tour_recorded",
 		"distance":          detailedTour.Distance,
 		"elevation_gain":    detailedTour.ElevationUp,
 		"elevation_loss":    detailedTour.ElevationDown,
@@ -405,9 +406,9 @@ func fetchRoutePhotos(k *KomootApi, tour *DetailedKomootTour) ([]*filesystem.Fil
 		return nil, err
 	}
 
-	photos := make([]*filesystem.File, data.Page.TotalElements)
+	photos := make([]*filesystem.File, 0, len(data.Embedded.Items))
 
-	for i, img := range data.Embedded.Items {
+	for _, img := range data.Embedded.Items {
 		photo, err := fetchPhoto(img.Src, "", "")
 		if err != nil {
 			return nil, err
@@ -415,7 +416,7 @@ func fetchRoutePhotos(k *KomootApi, tour *DetailedKomootTour) ([]*filesystem.Fil
 		if strings.HasSuffix(photo.Name, ".gif") {
 			continue
 		}
-		photos[i] = photo
+		photos = append(photos, photo)
 
 		//TODO: komoot photos can have location data. Maybe we should create a waypoint for those photos?
 	}
@@ -425,9 +426,9 @@ func fetchRoutePhotos(k *KomootApi, tour *DetailedKomootTour) ([]*filesystem.Fil
 
 func fetchWaypointPhotos(wp Item) ([]*filesystem.File, error) {
 
-	photos := make([]*filesystem.File, len(wp.Embedded.Reference.Embedded.Images.Embedded.Items))
+	photos := make([]*filesystem.File, 0, len(wp.Embedded.Reference.Embedded.Images.Embedded.Items))
 
-	for i, img := range wp.Embedded.Reference.Embedded.Images.Embedded.Items {
+	for _, img := range wp.Embedded.Reference.Embedded.Images.Embedded.Items {
 		photo, err := fetchPhoto(img.Src, "", "")
 		if err != nil {
 			return nil, err
@@ -435,7 +436,7 @@ func fetchWaypointPhotos(wp Item) ([]*filesystem.File, error) {
 		if strings.HasSuffix(photo.Name, ".gif") {
 			continue
 		}
-		photos[i] = photo
+		photos = append(photos, photo)
 	}
 
 	return photos, nil

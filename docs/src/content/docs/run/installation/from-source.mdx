@@ -66,7 +66,7 @@ export ORIGIN=http://localhost:3000
 export MEILI_URL=http://127.0.0.1:7700
 export MEILI_MASTER_KEY=YOU_SHOULD_DEFINITELY_CHANGE_ME
 export PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
-export PUBLIC_VALHALLA_URL=https://valhalla1.openstreetmap.de
+export VALHALLA_URL=https://valhalla1.openstreetmap.de
 export POCKETBASE_ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY_HERE
 
 # Optional configuration
@@ -76,6 +76,7 @@ export POCKETBASE_ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY_HERE
 # export UPLOAD_FOLDER=/app/uploads
 # export UPLOAD_USER=
 # export UPLOAD_PASSWORD=
+# export NODE_EXTRA_CA_CERTS=/absolute/path/to/ca.pem
 
 cd search && ./meilisearch --master-key $MEILI_MASTER_KEY &
 cd db && ./pocketbase serve &
