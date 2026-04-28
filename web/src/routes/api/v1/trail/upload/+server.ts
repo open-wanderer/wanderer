@@ -75,8 +75,12 @@ export async function PUT(event: RequestEvent) {
         }
 
         if (trail.lat && trail.lon) {
-            const location = await searchLocationReverse(trail.lat, trail.lon)
-            trail.location ??= location;
+            try {
+                const location = await searchLocationReverse(trail.lat, trail.lon, event.fetch)
+                trail.location ??= location;
+            } catch (e: any) {
+                console.warn("Reverse geocoding failed during upload", e);
+            }
         }
 
         trail.public = event.locals.settings.privacy?.trails == "public"

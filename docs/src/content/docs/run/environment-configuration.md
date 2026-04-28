@@ -42,10 +42,38 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | BODY_SIZE_LIMIT         | Maximum allowed upload size                                                      | Infinity                            |
 | PUBLIC_POCKETBASE_URL   | IP or hostname (including the port) of your pocketbase instance                  | http://db:8090                      |
 | PUBLIC_DISABLE_SIGNUP   | Disables signup option for new users                                             | false                               |
-| PUBLIC_VALHALLA_URL     | Public IP or hostname (including the port) of a valhalla instance                | https://valhalla1.openstreetmap.de  |
-| PUBLIC_NOMINATIM_URL    | Public IP or hostname (including the port) of a nominatim instance               | https://nominatim.openstreetmap.org |
 | PUBLIC_PRIVATE_INSTANCE | Setting this to true will block visitors from viewing content without an account | false                               |
 | UPLOAD_FOLDER           | Folder from which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                                   | /app/uploads                        |
 | UPLOAD_USER             | Username for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
 | UPLOAD_PASSWORD         | Password for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
-| PUBLIC_OVERPASS_API_URL | Overpass API URL used for map points of interest                                 | https://overpass-api.de        |
+
+## Geocoding & Routing
+
+These variables configure server-side requests to Valhalla, Nominatim and Overpass.
+
+| Environment Variable     | Description                                                                 | Default                             |
+| ------------------------ | --------------------------------------------------------------------------- | ----------------------------------- |
+| VALHALLA_URL     | Valhalla API URL used for auto-routing and elevation data       | https://valhalla1.openstreetmap.de  |
+| NOMINATIM_URL    | Nominatim API URL used for (reverse) geocoding                  | https://nominatim.openstreetmap.org |
+| OVERPASS_API_URL | Overpass API URL used for map points of interest                | https://overpass-api.de             |
+
+When `*_URL` is unset, the backend falls back to legacy `PUBLIC_*_URL`.
+
+## Custom CA certificates
+
+If your API endpoints use certificates signed by a private CA, add the CA bundle and set `NODE_EXTRA_CA_CERTS` for the `web` service.
+
+| Environment Variable | Description                                                              | Default |
+| -------------------- | ------------------------------------------------------------------------ | ------- |
+| NODE_EXTRA_CA_CERTS  | Path to an additional CA bundle used by Node.js TLS connections          |         |
+
+Example (`docker-compose.yml`):
+
+```yaml
+services:
+  web:
+    environment:
+      NODE_EXTRA_CA_CERTS: /etc/ssl/private-ca/ca.pem
+    volumes:
+      - ./certs/ca.pem:/etc/ssl/private-ca/ca.pem:ro
+```
