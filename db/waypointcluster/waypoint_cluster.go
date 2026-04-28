@@ -17,8 +17,9 @@ type waypointMergeSettings struct {
 }
 
 type waypointClusterRequest struct {
-	Category string                 `json:"category"`
-	Photos   []waypointClusterPhoto `json:"photos"`
+	Category  string                    `json:"category"`
+	Photos    []waypointClusterPhoto    `json:"photos"`
+	Waypoints []waypointClusterWaypoint `json:"waypoints"`
 }
 
 type waypointClusterPhoto struct {
@@ -27,12 +28,20 @@ type waypointClusterPhoto struct {
 	Lon float64 `json:"lon"`
 }
 
+type waypointClusterWaypoint struct {
+	ID  string  `json:"id"`
+	Lat float64 `json:"lat"`
+	Lon float64 `json:"lon"`
+}
+
 type waypointPhotoCluster struct {
-	Photos []string `json:"photos"`
-	SumLat float64  `json:"-"`
-	SumLon float64  `json:"-"`
-	Lat    float64  `json:"lat"`
-	Lon    float64  `json:"lon"`
+	Waypoint string   `json:"waypoint,omitempty"`
+	Photos   []string `json:"photos"`
+	SumLat   float64  `json:"-"`
+	SumLon   float64  `json:"-"`
+	Count    int      `json:"-"`
+	Lat      float64  `json:"lat"`
+	Lon      float64  `json:"lon"`
 }
 
 type categorySettings struct {
@@ -66,6 +75,18 @@ func Handler(e *core.RequestEvent) error {
 		}
 	}
 
+	for _, waypoint := range data.Waypoints {
+		if waypoint.ID == "" {
+			return apis.NewBadRequestError("Invalid waypoint id", nil)
+		}
+		if waypoint.Lat < -90 || waypoint.Lat > 90 {
+			return apis.NewBadRequestError("Invalid waypoint latitude", nil)
+		}
+		if waypoint.Lon < -180 || waypoint.Lon > 180 {
+			return apis.NewBadRequestError("Invalid waypoint longitude", nil)
+		}
+	}
+
 	mergeSettings, err := getWaypointMergeSettings(e.App, data.Category)
 	if err != nil {
 		return err
@@ -74,7 +95,7 @@ func Handler(e *core.RequestEvent) error {
 	return e.JSON(http.StatusOK, map[string]any{
 		"mergeEnabled": mergeSettings.Enabled,
 		"mergeRadius":  mergeSettings.Radius,
-		"clusters":     clusterWaypointPhotos(data.Photos, mergeSettings),
+		"clusters":     clusterWaypointPhotos(data.Photos, data.Waypoints, mergeSettings),
 	})
 }
 
@@ -109,8 +130,14 @@ func getWaypointMergeSettings(app core.App, categoryId string) (waypointMergeSet
 	return defaultSettings, nil
 }
 
-func clusterWaypointPhotos(photos []waypointClusterPhoto, mergeSettings waypointMergeSettings) []waypointPhotoCluster {
+func clusterWaypointPhotos(photos []waypointClusterPhoto, waypoints []waypointClusterWaypoint, mergeSettings waypointMergeSettings) []waypointPhotoCluster {
 	clusters := []waypointPhotoCluster{}
+
+	if mergeSettings.Enabled {
+		for _, waypoint := range waypoints {
+			clusters = append(clusters, newWaypointCluster(waypoint))
+		}
+	}
 
 	for _, photo := range photos {
 		if !mergeSettings.Enabled {
@@ -142,8 +169,21 @@ func newWaypointPhotoCluster(photo waypointClusterPhoto) waypointPhotoCluster {
 		Photos: []string{photo.ID},
 		SumLat: photo.Lat,
 		SumLon: photo.Lon,
+		Count:  1,
 		Lat:    photo.Lat,
 		Lon:    photo.Lon,
+	}
+}
+
+func newWaypointCluster(waypoint waypointClusterWaypoint) waypointPhotoCluster {
+	return waypointPhotoCluster{
+		Waypoint: waypoint.ID,
+		Photos:   []string{},
+		SumLat:   waypoint.Lat,
+		SumLon:   waypoint.Lon,
+		Count:    1,
+		Lat:      waypoint.Lat,
+		Lon:      waypoint.Lon,
 	}
 }
 
@@ -151,6 +191,7 @@ func addPhotoToWaypointCluster(cluster *waypointPhotoCluster, photo waypointClus
 	cluster.Photos = append(cluster.Photos, photo.ID)
 	cluster.SumLat += photo.Lat
 	cluster.SumLon += photo.Lon
-	cluster.Lat = cluster.SumLat / float64(len(cluster.Photos))
-	cluster.Lon = cluster.SumLon / float64(len(cluster.Photos))
+	cluster.Count++
+	cluster.Lat = cluster.SumLat / float64(cluster.Count)
+	cluster.Lon = cluster.SumLon / float64(cluster.Count)
 }

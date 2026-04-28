@@ -21,7 +21,7 @@
 
     interface Props {
         children?: Snippet<[any]>;
-        onsave?: (waypoint: Waypoint) => void
+        onsave?: (waypoint: Waypoint) => boolean | Promise<boolean> | void
     }
 
     let { children, onsave }: Props = $props();
@@ -30,6 +30,10 @@
 
     export function openModal() {
         modal.openModal();
+    }
+
+    export function closeModal() {
+        modal.closeModal();
     }
 
     const ClientWaypointCreateSchema = WaypointCreateSchema.extend({
@@ -42,9 +46,11 @@
         initialValues: $waypoint,
         extend: validator({ schema: ClientWaypointCreateSchema }),
         onSubmit: async (form) => {
-            onsave?.(form);
+            const shouldClose = await onsave?.(form);
 
-            modal.closeModal!();
+            if (shouldClose !== false) {
+                modal.closeModal!();
+            }
         },
         transform: (values: unknown) => {
             const v = values as any;
