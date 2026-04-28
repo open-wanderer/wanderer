@@ -1,5 +1,6 @@
-import { env } from '$env/dynamic/public';
-import { error, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
+import { getValhallaBaseUrl } from '$lib/server/valhalla';
+import { proxyJsonResponse } from '$lib/server/http';
+import { json, type RequestEvent } from "@sveltejs/kit";
 
 
 /**
@@ -29,18 +30,15 @@ import { error, json, type NumericRange, type RequestEvent } from "@sveltejs/kit
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
+    const baseUrl = getValhallaBaseUrl();
     const data = await event.request.json()
-    if (!env.PUBLIC_VALHALLA_URL) {
-        return error(400, "PUBLIC_VALHALLA_URL not set")
+    if (!baseUrl) {
+        return json({ message: "VALHALLA_URL not set" }, { status: 400 })
     }
     try {
-        const r = await event.fetch(env.PUBLIC_VALHALLA_URL + '/height', { method: "POST", body: JSON.stringify(data) });        
-        const response = await r.json();
-        if (!r.ok) {
-            throw error(r.status as NumericRange<400,500>, response);
-        }
-        return json(response);
+        const response = await event.fetch(baseUrl + '/height', { method: "POST", body: JSON.stringify(data) });
+        return await proxyJsonResponse(response);
     } catch (e: any) {
-        throw error(e.status || 500, e)
+        return json({ message: "Valhalla request failed" }, { status: 502 })
     }
 }

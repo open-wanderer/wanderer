@@ -15,6 +15,7 @@ class Trail {
     location?: string;
     date?: string;
     public: boolean;
+    completed: boolean;
     distance?: number;
     elevation_gain?: number;
     elevation_loss?: number;
@@ -55,6 +56,7 @@ class Trail {
             location?: string,
             date?: string,
             public?: boolean,
+            completed?: boolean,
             distance?: number,
             elevation_gain?: number,
             elevation_loss?: number,
@@ -82,6 +84,7 @@ class Trail {
         this.location = params?.location;
         this.date = params?.date ?? new Date().toISOString().split('T')[0];
         this.public = params?.public ?? false
+        this.completed = params?.completed ?? false,
         this.distance = params?.distance ?? 0;
         this.elevation_gain = params?.elevation_gain ?? 0;
         this.elevation_loss = params?.elevation_loss ?? 0;
