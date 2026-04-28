@@ -55,7 +55,7 @@ class WelcomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   WandererButton(
-                    onPressed: () => {}, // router.push('/register')
+                    onPressed: () => {router.push('/register')},
                     secondary: true,
                     disabled: serverSelection.value?.selectedServer == null,
                     child: Text(AppLocalizations.of(context)!.register),

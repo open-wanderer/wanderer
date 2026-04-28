@@ -7,6 +7,7 @@ import 'package:wanderer/routes/home_screen.dart';
 import 'package:wanderer/routes/login_screen.dart';
 import 'package:wanderer/routes/map_screen.dart';
 import 'package:wanderer/routes/profile_screen.dart';
+import 'package:wanderer/routes/register_screen.dart';
 import 'package:wanderer/routes/server_selection_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
 
@@ -23,7 +24,7 @@ Listenable routerListenable(Ref ref) {
   final notifier = RouterNotifier();
 
   ref.listen(authProvider, (previous, next) {
-    if (!next.isLoading && previous?.value != next.value) {
+    if (!next.isLoading) {
       notifier.notify();
     }
   });
@@ -51,7 +52,12 @@ class Router extends _$Router {
 
         final bool loggedIn = user != null;
 
-        final unprotectedRoutes = ['/welcome', '/login', '/select-server'];
+        final unprotectedRoutes = [
+          '/welcome',
+          '/login',
+          '/register',
+          '/select-server',
+        ];
 
         if (!loggedIn && !unprotectedRoutes.contains(state.matchedLocation)) {
           return '/welcome';
@@ -83,6 +89,10 @@ class Router extends _$Router {
           builder: (context, state) => ServerSelectionScreen(),
         ),
         GoRoute(path: '/login', builder: (context, state) => LoginScreen()),
+        GoRoute(
+          path: '/register',
+          builder: (context, state) => RegisterScreen(),
+        ),
       ],
     );
   }

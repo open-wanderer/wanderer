@@ -47,7 +47,40 @@ class Auth extends _$Auth {
     return null;
   }
 
-  Future<User?> login(String username, String password) async {
+  Future<UserEntity?> register(
+    String username,
+    String email,
+    String password,
+  ) async {
+    if (username.isEmpty || email.isEmpty || password.isEmpty) {
+      state = AsyncError(
+        Exception("Fields cannot be empty"),
+        StackTrace.current,
+      );
+      return null;
+    }
+
+    state = const AsyncLoading();
+
+    // register
+    state = await AsyncValue.guard(() async {
+      await ref
+          .read(apiProvider)
+          .put(
+            '/user',
+            data: {
+              'username': username,
+              'email': email,
+              'password': password,
+              'passwordConfirm': password,
+            },
+          );
+      return await login(username, password);
+    });
+    return state.value;
+  }
+
+  Future<UserEntity?> login(String username, String password) async {
     if (username.isEmpty || password.isEmpty) {
       state = AsyncError(
         Exception("Fields cannot be empty"),
@@ -72,7 +105,7 @@ class Auth extends _$Auth {
       final userEntity = await _updateUserEntity(authData.record.id);
       return userEntity;
     });
-    return null;
+    return state.value;
   }
 
   Future<void> logout() async {
