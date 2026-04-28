@@ -265,8 +265,8 @@
   "make-thumbnail": "Vytvořit náhled",
   "map": "Mapa",
   "map-style": "Styl mapy",
-  "mark-trail-as-completed": "Mark trail as completed",
-  "mark-trail-as-completed-modal-text": "Would you like to mark this trail as completed? You can change this status again at any time.",
+  "mark-trail-as-completed": "Označit trasu jako dokončenou",
+  "mark-trail-as-completed-modal-text": "Chcete tuto trasu označit jako absolvovanou? Tento stav můžete kdykoli změnit.",
   "max-hiking-difficulty": "Max. obtížnost túry",
   "metric": "Metrický",
   "moderate": "Středně náročné",
@@ -294,7 +294,7 @@
   "new-password-text": "Nastavit nové heslo",
   "new-token-generated": "Vygenerován nový API token",
   "new-trail": "Nová trasa",
-  "no": "No",
+  "no": "Ne",
   "no-account": "Ještě nemáte účet?",
   "no-api-tokens": "Nemáte žádné API tokeny",
   "no-comments-so-far": "Zatím žádné komentáře",
@@ -471,6 +471,6 @@
   "welcome_to": "Vítejte v",
   "width": "Šířka",
   "wrong-username-or-password": "Nesprávné uživatelské jméno nebo heslo",
-  "yes": "Yes",
+  "yes": "Ano",
   "you-can": "Můžete"
 }
