@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"fmt"
 	"log"
 	"os"
@@ -12,7 +11,6 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
-	"github.com/spf13/cast"
 
 	"pocketbase/commands"
 	"pocketbase/hooks"
@@ -23,8 +21,6 @@ import (
 
 	_ "pocketbase/migrations"
 	"pocketbase/util"
-
-	"github.com/microcosm-cc/bluemonday"
 )
 
 const (
@@ -132,102 +128,27 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordCreate("api_tokens").BindFunc(hooks.CreateAPITokenHandler())
 
-	app.OnRecordCreateRequest().BindFunc(sanitizeHTML())
-	app.OnRecordUpdateRequest().BindFunc(sanitizeHTML())
+	app.OnRecordCreateRequest().BindFunc(util.SanitizeHTML())
+	app.OnRecordUpdateRequest().BindFunc(util.SanitizeHTML())
 
 	app.OnServe().BindFunc(onBeforeServeHandler(client))
 
-	app.OnBootstrap().BindFunc(onBootstrapHandler())
+	app.OnBootstrap().BindFunc(hooks.OnBootstrapHandler())
 }
 
 func setupCommands(app *pocketbase.PocketBase) {
 	app.RootCmd.AddCommand(commands.Dedup(app))
 }
 
-func sanitizeHTML() func(e *core.RecordRequestEvent) error {
-	return func(e *core.RecordRequestEvent) error {
-		fieldsToSanitize := map[string][]string{
-			"lists":       {"description"},
-			"settings":    {"bio"},
-			"summit_logs": {"text"},
-			"trails":      {"description"},
-			"comments":    {"text"},
-			"waypoints":   {"description"},
-		}
-		collection := e.Collection.Name
-		fields, ok := fieldsToSanitize[collection]
-		if !ok {
-			return e.Next()
-		}
-
-		p := bluemonday.NewPolicy()
-		p.AllowStandardAttributes()
-		p.AllowStandardURLs()
-		p.AllowLists()
-		p.AllowElements("br", "div", "hr", "p", "span", "wbr")
-		p.AllowElements("b", "strong", "em", "u", "blockquote", "a")
-		p.AllowAttrs("href").OnElements("a")
-		p.AllowAttrs("target").OnElements("a")
-		p.AllowAttrs("class").OnElements("a")
-
-		for _, field := range fields {
-			if val, ok := e.Record.Get(field).(string); ok {
-				sanitizedValue := p.Sanitize(val)
-				e.Record.Set(field, sanitizedValue)
-			}
-		}
-
-		return e.Next()
-	}
-}
-
 func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.ServeEvent) error {
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
 		registerCronJobs(se.App)
-		bootstrapData(se.App, client)
+		initData(se.App, client)
 
 		return se.Next()
 	}
 
-}
-
-func onBootstrapHandler() func(se *core.BootstrapEvent) error {
-	return func(e *core.BootstrapEvent) error {
-		if err := e.Next(); err != nil {
-			return err
-		}
-
-		if e.App.Settings().Meta.AppName == "Acme" {
-			e.App.Settings().Meta.AppName = "wanderer"
-		}
-		if v := os.Getenv("ORIGIN"); v != "" {
-			e.App.Settings().Meta.AppURL = v
-		}
-		if v := cmp.Or(os.Getenv("POCKETBASE_SMTP_SENDER_ADDRESS"), os.Getenv("POCKETBASE_SMTP_SENDER_ADRESS")); v != "" {
-			e.App.Settings().Meta.SenderAddress = v
-		}
-		if v := os.Getenv("POCKETBASE_SMTP_SENDER_NAME"); v != "" {
-			e.App.Settings().Meta.SenderName = v
-		}
-		if v := os.Getenv("POCKETBASE_SMTP_ENABLED"); v != "" {
-			e.App.Settings().SMTP.Enabled = cast.ToBool(v)
-		}
-		if v := os.Getenv("POCKETBASE_SMTP_HOST"); v != "" {
-			e.App.Settings().SMTP.Host = v
-		}
-		if v := os.Getenv("POCKETBASE_SMTP_PORT"); v != "" {
-			e.App.Settings().SMTP.Port = cast.ToInt(v)
-		}
-		if v := os.Getenv("POCKETBASE_SMTP_USERNAME"); v != "" {
-			e.App.Settings().SMTP.Username = v
-		}
-		if v := os.Getenv("POCKETBASE_SMTP_PASSWORD"); v != "" {
-			e.App.Settings().SMTP.Password = v
-		}
-
-		return e.App.Save(e.App.Settings())
-	}
 }
 
 func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
@@ -286,14 +207,14 @@ func registerCronJobs(app core.App) {
 	})
 }
 
-func bootstrapData(app core.App, client meilisearch.ServiceManager) error {
-	bootstrapCategories(app)
-	bootstrapMeilisearchConfig(client)
-	go bootstrapMeilisearchDocuments(app, client)
+func initData(app core.App, client meilisearch.ServiceManager) error {
+	initCategories(app)
+	initMeilisearchConfig(client)
+	go initMeilisearchDocuments(app, client)
 	return nil
 }
 
-func bootstrapCategories(app core.App) error {
+func initCategories(app core.App) error {
 	query := app.RecordQuery("categories")
 	records := []*core.Record{}
 
@@ -322,7 +243,59 @@ func bootstrapCategories(app core.App) error {
 	return nil
 }
 
-func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) error {
+func initMeilisearchConfig(client meilisearch.ServiceManager) {
+	configs := map[string]meilisearch.Settings{
+		"trails": {
+			SearchableAttributes: []string{"author_name", "name", "description", "location", "tags"},
+			FilterableAttributes: []string{
+				"_geo", "author", "category", "completed", "date", "difficulty",
+				"distance", "elevation_gain", "elevation_loss", "likes", "public",
+				"shares", "tags",
+			},
+			SortableAttributes: []string{
+				"author", "created", "date", "difficulty", "distance",
+				"duration", "elevation_gain", "elevation_loss", "like_count", "name",
+			},
+			RankingRules: []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
+		},
+		"lists": {
+			SearchableAttributes: []string{"*"},
+			FilterableAttributes: []string{"author", "public", "shares"},
+			SortableAttributes:   []string{"created", "name"},
+			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
+		},
+	}
+
+	for indexName, settings := range configs {
+		_, err := client.GetIndex(indexName)
+		if err != nil {
+			log.Printf("Index [%s] not found, creating it...", indexName)
+			task, err := client.CreateIndex(&meilisearch.IndexConfig{
+				Uid:        indexName,
+				PrimaryKey: "id",
+			})
+			if err != nil {
+				log.Printf("Failed to create index [%s]: %v", indexName, err)
+				continue
+			}
+
+			_, err = client.WaitForTask(task.TaskUID, 0)
+			if err != nil {
+				log.Printf("Error waiting for index creation [%s]: %v", indexName, err)
+				continue
+			}
+		}
+
+		_, err = client.Index(indexName).UpdateSettings(&settings)
+		if err != nil {
+			log.Printf("Failed to sync settings for index [%s]: %v", indexName, err)
+		} else {
+			log.Printf("Settings synced for index [%s]", indexName)
+		}
+	}
+}
+
+func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) error {
 	// --- Trails ---
 	const pageSize int64 = 100
 	var page int64 = 0
@@ -381,56 +354,4 @@ func bootstrapMeilisearchDocuments(app core.App, client meilisearch.ServiceManag
 	}
 
 	return nil
-}
-
-func bootstrapMeilisearchConfig(client meilisearch.ServiceManager) {
-	configs := map[string]meilisearch.Settings{
-		"trails": {
-			SearchableAttributes: []string{"author_name", "name", "description", "location", "tags"},
-			FilterableAttributes: []string{
-				"_geo", "author", "category", "completed", "date", "difficulty",
-				"distance", "elevation_gain", "elevation_loss", "likes", "public",
-				"shares", "tags",
-			},
-			SortableAttributes: []string{
-				"author", "created", "date", "difficulty", "distance",
-				"duration", "elevation_gain", "elevation_loss", "like_count", "name",
-			},
-			RankingRules: []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
-		},
-		"lists": {
-			SearchableAttributes: []string{"*"},
-			FilterableAttributes: []string{"author", "public", "shares"},
-			SortableAttributes:   []string{"created", "name"},
-			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
-		},
-	}
-
-	for indexName, settings := range configs {
-		_, err := client.GetIndex(indexName)
-		if err != nil {
-			log.Printf("Index [%s] not found, creating it...", indexName)
-			task, err := client.CreateIndex(&meilisearch.IndexConfig{
-				Uid:        indexName,
-				PrimaryKey: "id",
-			})
-			if err != nil {
-				log.Printf("Failed to create index [%s]: %v", indexName, err)
-				continue
-			}
-
-			_, err = client.WaitForTask(task.TaskUID, 0)
-			if err != nil {
-				log.Printf("Error waiting for index creation [%s]: %v", indexName, err)
-				continue
-			}
-		}
-
-		_, err = client.Index(indexName).UpdateSettings(&settings)
-		if err != nil {
-			log.Printf("Failed to sync settings for index [%s]: %v", indexName, err)
-		} else {
-			log.Printf("Settings synced for index [%s]", indexName)
-		}
-	}
 }
