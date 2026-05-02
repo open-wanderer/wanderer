@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/meilisearch/meilisearch-go"
-	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/tkrajina/gpxgo/gpx"
 	"github.com/twpayne/go-polyline"
@@ -52,11 +51,6 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 		domain = author.GetString("domain")
 	}
 
-	logCount, err := app.CountRecords("summit_logs", dbx.NewExp("trail={:id}", dbx.Params{"id": r.Id}))
-	if err != nil {
-		return nil, err
-	}
-
 	document := map[string]any{
 		"id":             r.Id,
 		"author":         author.Id,
@@ -71,7 +65,7 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 		"duration":       r.GetFloat("duration"),
 		"difficulty":     difficultyToNumber(r.GetString("difficulty")),
 		"category":       category,
-		"completed":      logCount > 0,
+		"completed":      r.GetBool("completed"),
 		"date":           r.GetDateTime("date").Time().Unix(),
 		"created":        r.GetDateTime("created").Time().Unix(),
 		"public":         r.GetBool("public"),

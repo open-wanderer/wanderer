@@ -8,4 +8,6 @@
 !migrations
 !routes
 !templates
+!waypointcluster
+!waypointcluster/**
 !util

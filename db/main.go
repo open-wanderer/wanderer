@@ -234,6 +234,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/health", routes.Health)
 
 	se.Router.POST("/auth/token", routes.AuthToken)
+	se.Router.POST("/waypoint/cluster", routes.WaypointCluster)
 
 	se.Router.GET("/search/token", routes.SearchToken(client))
 
@@ -306,6 +307,10 @@ func bootstrapCategories(app core.App) error {
 		for _, element := range categories {
 			record := core.NewRecord(collection)
 			record.Set("name", element)
+			record.Set("settings", map[string]any{
+				"wp_merge_enabled": true,
+				"wp_merge_radius":  50,
+			})
 			f, _ := filesystem.NewFileFromPath("migrations/initial_data/" + strings.ToLower(element) + ".jpg")
 			record.Set("img", f)
 			err := app.Save(record)
