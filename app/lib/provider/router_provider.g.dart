@@ -48,7 +48,7 @@ final class RouterListenableProvider
   }
 }
 
-String _$routerListenableHash() => r'6c9bd38cc501df99b02c9ce7a1b503d250f2178a';
+String _$routerListenableHash() => r'643820ed0e59076cb5f0680ee20cba2ae21e3a45';
 
 @ProviderFor(Router)
 final routerProvider = RouterProvider._();
@@ -81,7 +81,7 @@ final class RouterProvider extends $NotifierProvider<Router, GoRouter> {
   }
 }
 
-String _$routerHash() => r'8bb1ae6cdcfbf912e64314bf6656c92f1821b502';
+String _$routerHash() => r'b39076afaafbad6684afcb9884a292cac8e8ee63';
 
 abstract class _$Router extends $Notifier<GoRouter> {
   GoRouter build();
