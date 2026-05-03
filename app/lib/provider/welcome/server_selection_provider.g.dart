@@ -9,12 +9,12 @@ part of 'server_selection_provider.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
-@ProviderFor(ServerSelection)
-final serverSelectionProvider = ServerSelectionProvider._();
+@ProviderFor(ServerSelectionNotifier)
+final serverSelectionProvider = ServerSelectionNotifierProvider._();
 
-final class ServerSelectionProvider
-    extends $AsyncNotifierProvider<ServerSelection, ServerState> {
-  ServerSelectionProvider._()
+final class ServerSelectionNotifierProvider
+    extends $AsyncNotifierProvider<ServerSelectionNotifier, ServerState> {
+  ServerSelectionNotifierProvider._()
     : super(
         from: null,
         argument: null,
@@ -26,16 +26,17 @@ final class ServerSelectionProvider
       );
 
   @override
-  String debugGetCreateSourceHash() => _$serverSelectionHash();
+  String debugGetCreateSourceHash() => _$serverSelectionNotifierHash();
 
   @$internal
   @override
-  ServerSelection create() => ServerSelection();
+  ServerSelectionNotifier create() => ServerSelectionNotifier();
 }
 
-String _$serverSelectionHash() => r'd3b0f5e17aec17c883d5fdef3a668fe32f9ff3d1';
+String _$serverSelectionNotifierHash() =>
+    r'fed88e170f18eccdb25c076c038d896040d98fed';
 
-abstract class _$ServerSelection extends $AsyncNotifier<ServerState> {
+abstract class _$ServerSelectionNotifier extends $AsyncNotifier<ServerState> {
   FutureOr<ServerState> build();
   @$mustCallSuper
   @override

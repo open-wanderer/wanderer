@@ -131,6 +131,7 @@ _TrailSearchResult _$TrailSearchResultFromJson(
   Map<String, dynamic> json,
 ) => _TrailSearchResult(
   id: json['id'] as String,
+  collectionId: json['collectionId'] as String? ?? 'trails',
   author: json['author'] as String,
   authorName: json['author_name'] as String,
   authorAvatar: json['author_avatar'] as String,
@@ -162,6 +163,7 @@ _TrailSearchResult _$TrailSearchResultFromJson(
 Map<String, dynamic> _$TrailSearchResultToJson(_TrailSearchResult instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'collectionId': instance.collectionId,
       'author': instance.author,
       'author_name': instance.authorName,
       'author_avatar': instance.authorAvatar,
@@ -188,4 +190,28 @@ Map<String, dynamic> _$TrailSearchResultToJson(_TrailSearchResult instance) =>
       'iri': instance.iri,
       'gpx': instance.gpx,
       '_geo': instance.geo,
+    };
+
+_TrailFilterValues _$TrailFilterValuesFromJson(Map<String, dynamic> json) =>
+    _TrailFilterValues(
+      minDistance: (json['min_distance'] as num).toDouble(),
+      maxDistance: (json['max_distance'] as num).toDouble(),
+      minElevationGain: (json['min_elevation_gain'] as num).toDouble(),
+      maxElevationGain: (json['max_elevation_gain'] as num).toDouble(),
+      minElevationLoss: (json['min_elevation_loss'] as num).toDouble(),
+      maxElevationLoss: (json['max_elevation_loss'] as num).toDouble(),
+      minDuration: (json['min_duration'] as num).toDouble(),
+      maxDuration: (json['max_duration'] as num).toDouble(),
+    );
+
+Map<String, dynamic> _$TrailFilterValuesToJson(_TrailFilterValues instance) =>
+    <String, dynamic>{
+      'min_distance': instance.minDistance,
+      'max_distance': instance.maxDistance,
+      'min_elevation_gain': instance.minElevationGain,
+      'max_elevation_gain': instance.maxElevationGain,
+      'min_elevation_loss': instance.minElevationLoss,
+      'max_elevation_loss': instance.maxElevationLoss,
+      'min_duration': instance.minDuration,
+      'max_duration': instance.maxDuration,
     };

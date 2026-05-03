@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:wanderer/models/record.dart';
 import 'tag.dart';
 import 'category.dart';
 import 'waypoint.dart';
@@ -85,9 +86,10 @@ abstract class GeoLocation with _$GeoLocation {
 }
 
 @freezed
-abstract class TrailSearchResult with _$TrailSearchResult {
+abstract class TrailSearchResult with _$TrailSearchResult, RecordFunctions {
   const factory TrailSearchResult({
     required String id,
+    @Default('trails') String collectionId,
     required String author,
     @JsonKey(name: 'author_name') required String authorName,
     @JsonKey(name: 'author_avatar') required String authorAvatar,
@@ -116,64 +118,10 @@ abstract class TrailSearchResult with _$TrailSearchResult {
     @JsonKey(name: '_geo') required GeoLocation geo,
   }) = _TrailSearchResult;
 
-  factory TrailSearchResult.fromJson(Map<String, dynamic> json) =>
-      _$TrailSearchResultFromJson(json);
-
-  // Added logic to match your searchResultToTrailList requirements
   const TrailSearchResult._();
 
-  Trail toTrail() {
-    final createdIso = DateTime.fromMillisecondsSinceEpoch(
-      created * 1000,
-    ).toIso8601String();
-    final dateIso = DateTime.fromMillisecondsSinceEpoch(
-      date * 1000,
-    ).toIso8601String();
-
-    return Trail(
-      id: id,
-      name: name,
-      author: author,
-      description: description,
-      location: location,
-      distance: distance,
-      elevationGain: elevationGain,
-      elevationLoss: elevationLoss,
-      duration: duration,
-      difficulty: difficulty == 0
-          ? TrailDifficulty.easy
-          : difficulty == 1
-          ? TrailDifficulty.moderate
-          : TrailDifficulty.difficult,
-      lat: geo.lat,
-      lon: geo.lng,
-      public: public,
-      photos: thumbnail.isNotEmpty ? [thumbnail] : [],
-      tags: tags ?? [],
-      category: category,
-      created: createdIso,
-      date: dateIso,
-      gpx: gpx,
-      polyline: polyline,
-      domain: domain,
-      iri: iri,
-      likeCount: likeCount,
-      expand: TrailExpand(
-        trailShareViaTrail: shares
-            ?.map(
-              (s) => TrailShare(
-                actor: s,
-                trail: id,
-                permission: TrailPermission.view,
-              ),
-            )
-            .toList(),
-        trailLikeViaTrail: likes
-            ?.map((l) => TrailLike(actor: l, trail: id))
-            .toList(),
-      ),
-    );
-  }
+  factory TrailSearchResult.fromJson(Map<String, dynamic> json) =>
+      _$TrailSearchResultFromJson(json);
 }
 
 @freezed
@@ -186,7 +134,7 @@ abstract class TrailNear with _$TrailNear {
 abstract class TrailFilter with _$TrailFilter {
   const factory TrailFilter({
     required String q,
-    required List<String> category,
+    required List<Category> category,
     required List<String> tags,
     required List<int> difficulty, // 0, 1, 2
     String? author,
@@ -210,20 +158,125 @@ abstract class TrailFilter with _$TrailFilter {
     required String sort, // "name" | "distance" | "elevation_gain" | "created"
     required String sortOrder, // "+" | "-"
   }) = _TrailFilter;
+
+  const TrailFilter._();
+
+  String toFilterText({required String actor, bool includeGeo = true}) {
+    List<String> parts = [];
+
+    // Basic Numeric Filters
+    parts.add('distance >= ${distanceMin.floor()}');
+    parts.add('elevation_gain >= ${elevationGainMin.floor()}');
+    parts.add('elevation_loss >= ${elevationLossMin.floor()}');
+
+    if (distanceMax < distanceLimit) {
+      parts.add('distance <= ${distanceMax.ceil()}');
+    }
+    if (elevationGainMax < elevationGainLimit) {
+      parts.add('elevation_gain <= ${elevationGainMax.ceil()}');
+    }
+    if (elevationLossMax < elevationLossLimit) {
+      parts.add('elevation_loss <= ${elevationLossMax.ceil()}');
+    }
+
+    // Difficulty
+    if (difficulty.isNotEmpty) {
+      parts.add('difficulty IN [${difficulty.join(",")}]');
+    }
+
+    // Author
+    if (author != null && author!.isNotEmpty) {
+      parts.add('author = $author');
+    }
+
+    // Visibility Logic (Public / Private / Shared)
+    if (public != null || private != null || shared != null) {
+      List<String> visibilityOrBlocks = [];
+
+      final bool showPublic = public ?? true;
+      final bool showPrivate = private ?? true;
+      final bool showShared = shared ?? false;
+
+      if (showPublic) {
+        String publicBlock = "public = TRUE";
+        // If showing private trails and user is the author (or no specific author requested)
+        if (showPrivate &&
+            (author == null || author!.isEmpty || author == actor)) {
+          publicBlock = "($publicBlock OR author = $actor)";
+        }
+        visibilityOrBlocks.add(publicBlock);
+      } else if (author == null || author!.isEmpty || author == actor) {
+        visibilityOrBlocks.add("(public = FALSE AND author = $actor)");
+      }
+
+      if (shared != null) {
+        if (showShared) {
+          visibilityOrBlocks.add("shares = $actor");
+        } else {
+          parts.add("NOT shares = $actor");
+        }
+      }
+
+      if (visibilityOrBlocks.isNotEmpty) {
+        parts.add("(${visibilityOrBlocks.join(" OR ")})");
+      }
+    }
+
+    // Liked
+    if (liked == true) {
+      parts.add('likes = $actor');
+    }
+
+    // Dates
+    if (startDate != null) {
+      final seconds = DateTime.parse(startDate!).millisecondsSinceEpoch ~/ 1000;
+      parts.add('date >= $seconds');
+    }
+    if (endDate != null) {
+      final seconds = DateTime.parse(endDate!).millisecondsSinceEpoch ~/ 1000;
+      parts.add('date <= $seconds');
+    }
+
+    // Categories and Tags
+    if (category.isNotEmpty) {
+      final catList = category.map((c) => "'${c.name}'").join(", ");
+      parts.add('category IN [$catList]');
+    }
+
+    if (tags.isNotEmpty) {
+      final tagList = tags.map((t) => "tags = '$t'").join(" OR ");
+      parts.add('($tagList)');
+    }
+
+    // Completed
+    if (completed != null) {
+      parts.add('completed = $completed');
+    }
+
+    // Geo Location
+    if (includeGeo && near.lat != null && near.lon != null) {
+      parts.add('_geoRadius(${near.lat}, ${near.lon}, ${near.radius})');
+    }
+
+    return parts.join(" AND ");
+  }
 }
 
 @freezed
 abstract class TrailFilterValues with _$TrailFilterValues {
   const factory TrailFilterValues({
-    required double minDistance,
-    required double maxDistance,
-    required double minElevationGain,
-    required double maxElevationGain,
-    required double minElevationLoss,
-    required double maxElevationLoss,
-    required double minDuration,
-    required double maxDuration,
+    @JsonKey(name: 'min_distance') required double minDistance,
+    @JsonKey(name: 'max_distance') required double maxDistance,
+    @JsonKey(name: 'min_elevation_gain') required double minElevationGain,
+    @JsonKey(name: 'max_elevation_gain') required double maxElevationGain,
+    @JsonKey(name: 'min_elevation_loss') required double minElevationLoss,
+    @JsonKey(name: 'max_elevation_loss') required double maxElevationLoss,
+    @JsonKey(name: 'min_duration') required double minDuration,
+    @JsonKey(name: 'max_duration') required double maxDuration,
   }) = _TrailFilterValues;
+
+  factory TrailFilterValues.fromJson(Map<String, dynamic> json) =>
+      _$TrailFilterValuesFromJson(json);
 }
 
 @freezed
@@ -235,3 +288,31 @@ abstract class TrailBoundingBox with _$TrailBoundingBox {
     required double minLon,
   }) = _TrailBoundingBox;
 }
+
+const List<String> defaultTrailSearchAttributes = [
+  "id",
+  "author",
+  "author_name",
+  "author_avatar",
+  "name",
+  "description",
+  "location",
+  "distance",
+  "elevation_gain",
+  "elevation_loss",
+  "duration",
+  "difficulty",
+  "category",
+  "completed",
+  "date",
+  "created",
+  "public",
+  "thumbnail",
+  "domain",
+  "gpx",
+  "tags",
+  "like_count",
+  "shares",
+  "iri",
+  "_geo",
+];

@@ -241,6 +241,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.2"
+  duration:
+    dependency: "direct main"
+    description:
+      name: duration
+      sha256: "13e5d20723c9c1dde8fb318cf86716d10ce294734e81e44ae1a817f3ae714501"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.3"
   equatable:
     dependency: transitive
     description:
@@ -1071,6 +1079,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.6.16"
+  textfield_tags:
+    dependency: "direct main"
+    description:
+      name: textfield_tags
+      sha256: d1f2204114157a1296bb97c20d7f8c8c7fd036212812afb2e19de7bb34acc55b
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.1"
   typed_data:
     dependency: transitive
     description:

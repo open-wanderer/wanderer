@@ -9,6 +9,8 @@ import 'package:wanderer/routes/map_screen.dart';
 import 'package:wanderer/routes/profile_screen.dart';
 import 'package:wanderer/routes/register_screen.dart';
 import 'package:wanderer/routes/server_selection_screen.dart';
+import 'package:wanderer/routes/trail_filter_screen.dart';
+import 'package:wanderer/routes/trail_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
 
 part 'router_provider.g.dart';
@@ -53,6 +55,7 @@ class Router extends _$Router {
         final bool loggedIn = user != null;
 
         final unprotectedRoutes = [
+          '/',
           '/welcome',
           '/login',
           '/register',
@@ -64,7 +67,7 @@ class Router extends _$Router {
         }
 
         if (loggedIn && unprotectedRoutes.contains(state.matchedLocation)) {
-          return '/';
+          return '/trail';
         }
 
         return null;
@@ -76,6 +79,14 @@ class Router extends _$Router {
           },
           routes: [
             GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+            GoRoute(
+              path: '/trail',
+              builder: (context, state) => const TrailScreen(),
+            ),
+            GoRoute(
+              path: '/trail/filter',
+              builder: (context, state) => const TrailFilterScreen(),
+            ),
             GoRoute(path: '/map', builder: (context, state) => MapScreen()),
             GoRoute(
               path: '/profile',

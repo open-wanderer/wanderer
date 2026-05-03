@@ -12,7 +12,7 @@ class ServerState {
 }
 
 @riverpod
-class ServerSelection extends _$ServerSelection {
+class ServerSelectionNotifier extends _$ServerSelectionNotifier {
   @override
   Future<ServerState> build() async {
     final dio = Dio();

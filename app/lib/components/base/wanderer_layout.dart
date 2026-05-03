@@ -53,7 +53,7 @@ class WandererLayout extends ConsumerWidget {
         onTap: (index) {
           switch (index) {
             case 0:
-              router.go('/');
+              router.go('/trail');
               break;
             case 1:
               router.go('/map');
