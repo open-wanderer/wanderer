@@ -135,7 +135,7 @@ abstract class TrailFilter with _$TrailFilter {
   const factory TrailFilter({
     required String q,
     required List<Category> category,
-    required List<String> tags,
+    required List<Tag> tags,
     required List<int> difficulty, // 0, 1, 2
     String? author,
     bool? public,
@@ -244,7 +244,7 @@ abstract class TrailFilter with _$TrailFilter {
     }
 
     if (tags.isNotEmpty) {
-      final tagList = tags.map((t) => "tags = '$t'").join(" OR ");
+      final tagList = tags.map((t) => "tags = '${t.name}'").join(" OR ");
       parts.add('($tagList)');
     }
 

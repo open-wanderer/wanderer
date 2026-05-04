@@ -1,4 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
 
@@ -53,5 +54,21 @@ class TrailFilterNotifier extends _$TrailFilterNotifier {
     if (currentState == null) return;
 
     state = AsyncData(updater(currentState));
+  }
+
+  void addTag(Tag tag) {
+    updateFilter((f) => f.copyWith(tags: [...f.tags, tag]));
+  }
+
+  void removeTag(Tag tag) {
+    updateFilter(
+      (f) => f.copyWith(
+        tags: f.tags
+            .where(
+              (t) => t.name != tag.name && (t.id == null || t.id != tag.id),
+            )
+            .toList(),
+      ),
+    );
   }
 }

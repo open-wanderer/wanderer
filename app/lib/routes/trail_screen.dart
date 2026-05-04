@@ -87,7 +87,6 @@ class _TrailScreenState extends ConsumerState<TrailScreen> {
               ),
             ),
 
-            // Use .when to handle states within the sliver context
             trailsAsync.when(
               data: (state) => SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
