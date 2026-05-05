@@ -554,6 +554,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filter_tags => 'Filter tags';
 
   @override
+  String get filter_trails => 'Filter trails';
+
+  @override
   String get finish => 'Finish';
 
   @override
@@ -1234,6 +1237,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get search_trails => 'Search trails';
+
+  @override
+  String get select_date => 'Select date';
 
   @override
   String get select_list => 'Select List';

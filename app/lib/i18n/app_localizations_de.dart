@@ -556,6 +556,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get filter_tags => 'Tags filtern';
 
   @override
+  String get filter_trails => 'Routen filtern';
+
+  @override
   String get finish => 'Ziel';
 
   @override
@@ -1237,6 +1240,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get search_trails => 'Route suchen';
+
+  @override
+  String get select_date => 'Datum auswählen';
 
   @override
   String get select_list => 'Liste auswählen';

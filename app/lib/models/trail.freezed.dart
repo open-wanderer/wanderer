@@ -1692,7 +1692,7 @@ as double,
 mixin _$TrailFilter {
 
  String get q; List<Category> get category; List<Tag> get tags; List<int> get difficulty;// 0, 1, 2
- String? get author; bool? get public; bool? get shared; bool? get private; TrailNear get near; double get distanceMin; double get distanceMax; double get distanceLimit; double get elevationGainMin; double get elevationGainMax; double get elevationGainLimit; double get elevationLossMin; double get elevationLossMax; double get elevationLossLimit; String? get startDate; String? get endDate; bool? get completed; bool? get liked; String get sort;// "name" | "distance" | "elevation_gain" | "created"
+ String? get author; bool? get public; bool? get shared; bool? get private; TrailNear get near; double get distanceMin; double get distanceMax; double get distanceLimit; double get elevationGainMin; double get elevationGainMax; double get elevationGainLimit; double get elevationLossMin; double get elevationLossMax; double get elevationLossLimit; DateTime? get startDate; DateTime? get endDate; bool? get completed; bool? get liked; String get sort;// "name" | "distance" | "elevation_gain" | "created"
  String get sortOrder;
 /// Create a copy of TrailFilter
 /// with the given fields replaced by the non-null parameter values.
@@ -1724,7 +1724,7 @@ abstract mixin class $TrailFilterCopyWith<$Res>  {
   factory $TrailFilterCopyWith(TrailFilter value, $Res Function(TrailFilter) _then) = _$TrailFilterCopyWithImpl;
 @useResult
 $Res call({
- String q, List<Category> category, List<Tag> tags, List<int> difficulty, String? author, bool? public, bool? shared, bool? private, TrailNear near, double distanceMin, double distanceMax, double distanceLimit, double elevationGainMin, double elevationGainMax, double elevationGainLimit, double elevationLossMin, double elevationLossMax, double elevationLossLimit, String? startDate, String? endDate, bool? completed, bool? liked, String sort, String sortOrder
+ String q, List<Category> category, List<Tag> tags, List<int> difficulty, String? author, bool? public, bool? shared, bool? private, TrailNear near, double distanceMin, double distanceMax, double distanceLimit, double elevationGainMin, double elevationGainMax, double elevationGainLimit, double elevationLossMin, double elevationLossMax, double elevationLossLimit, DateTime? startDate, DateTime? endDate, bool? completed, bool? liked, String sort, String sortOrder
 });
 
 
@@ -1762,8 +1762,8 @@ as double,elevationLossMin: null == elevationLossMin ? _self.elevationLossMin : 
 as double,elevationLossMax: null == elevationLossMax ? _self.elevationLossMax : elevationLossMax // ignore: cast_nullable_to_non_nullable
 as double,elevationLossLimit: null == elevationLossLimit ? _self.elevationLossLimit : elevationLossLimit // ignore: cast_nullable_to_non_nullable
 as double,startDate: freezed == startDate ? _self.startDate : startDate // ignore: cast_nullable_to_non_nullable
-as String?,endDate: freezed == endDate ? _self.endDate : endDate // ignore: cast_nullable_to_non_nullable
-as String?,completed: freezed == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
+as DateTime?,endDate: freezed == endDate ? _self.endDate : endDate // ignore: cast_nullable_to_non_nullable
+as DateTime?,completed: freezed == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
 as bool?,liked: freezed == liked ? _self.liked : liked // ignore: cast_nullable_to_non_nullable
 as bool?,sort: null == sort ? _self.sort : sort // ignore: cast_nullable_to_non_nullable
 as String,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
@@ -1861,7 +1861,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  String? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  String? startDate,  String? endDate,  bool? completed,  bool? liked,  String sort,  String sortOrder)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  String? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  DateTime? startDate,  DateTime? endDate,  bool? completed,  bool? liked,  String sort,  String sortOrder)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _TrailFilter() when $default != null:
 return $default(_that.q,_that.category,_that.tags,_that.difficulty,_that.author,_that.public,_that.shared,_that.private,_that.near,_that.distanceMin,_that.distanceMax,_that.distanceLimit,_that.elevationGainMin,_that.elevationGainMax,_that.elevationGainLimit,_that.elevationLossMin,_that.elevationLossMax,_that.elevationLossLimit,_that.startDate,_that.endDate,_that.completed,_that.liked,_that.sort,_that.sortOrder);case _:
@@ -1882,7 +1882,7 @@ return $default(_that.q,_that.category,_that.tags,_that.difficulty,_that.author,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  String? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  String? startDate,  String? endDate,  bool? completed,  bool? liked,  String sort,  String sortOrder)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  String? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  DateTime? startDate,  DateTime? endDate,  bool? completed,  bool? liked,  String sort,  String sortOrder)  $default,) {final _that = this;
 switch (_that) {
 case _TrailFilter():
 return $default(_that.q,_that.category,_that.tags,_that.difficulty,_that.author,_that.public,_that.shared,_that.private,_that.near,_that.distanceMin,_that.distanceMax,_that.distanceLimit,_that.elevationGainMin,_that.elevationGainMax,_that.elevationGainLimit,_that.elevationLossMin,_that.elevationLossMax,_that.elevationLossLimit,_that.startDate,_that.endDate,_that.completed,_that.liked,_that.sort,_that.sortOrder);case _:
@@ -1902,7 +1902,7 @@ return $default(_that.q,_that.category,_that.tags,_that.difficulty,_that.author,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  String? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  String? startDate,  String? endDate,  bool? completed,  bool? liked,  String sort,  String sortOrder)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  String? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  DateTime? startDate,  DateTime? endDate,  bool? completed,  bool? liked,  String sort,  String sortOrder)?  $default,) {final _that = this;
 switch (_that) {
 case _TrailFilter() when $default != null:
 return $default(_that.q,_that.category,_that.tags,_that.difficulty,_that.author,_that.public,_that.shared,_that.private,_that.near,_that.distanceMin,_that.distanceMax,_that.distanceLimit,_that.elevationGainMin,_that.elevationGainMax,_that.elevationGainLimit,_that.elevationLossMin,_that.elevationLossMax,_that.elevationLossLimit,_that.startDate,_that.endDate,_that.completed,_that.liked,_that.sort,_that.sortOrder);case _:
@@ -1957,8 +1957,8 @@ class _TrailFilter extends TrailFilter {
 @override final  double elevationLossMin;
 @override final  double elevationLossMax;
 @override final  double elevationLossLimit;
-@override final  String? startDate;
-@override final  String? endDate;
+@override final  DateTime? startDate;
+@override final  DateTime? endDate;
 @override final  bool? completed;
 @override final  bool? liked;
 @override final  String sort;
@@ -1995,7 +1995,7 @@ abstract mixin class _$TrailFilterCopyWith<$Res> implements $TrailFilterCopyWith
   factory _$TrailFilterCopyWith(_TrailFilter value, $Res Function(_TrailFilter) _then) = __$TrailFilterCopyWithImpl;
 @override @useResult
 $Res call({
- String q, List<Category> category, List<Tag> tags, List<int> difficulty, String? author, bool? public, bool? shared, bool? private, TrailNear near, double distanceMin, double distanceMax, double distanceLimit, double elevationGainMin, double elevationGainMax, double elevationGainLimit, double elevationLossMin, double elevationLossMax, double elevationLossLimit, String? startDate, String? endDate, bool? completed, bool? liked, String sort, String sortOrder
+ String q, List<Category> category, List<Tag> tags, List<int> difficulty, String? author, bool? public, bool? shared, bool? private, TrailNear near, double distanceMin, double distanceMax, double distanceLimit, double elevationGainMin, double elevationGainMax, double elevationGainLimit, double elevationLossMin, double elevationLossMax, double elevationLossLimit, DateTime? startDate, DateTime? endDate, bool? completed, bool? liked, String sort, String sortOrder
 });
 
 
@@ -2033,8 +2033,8 @@ as double,elevationLossMin: null == elevationLossMin ? _self.elevationLossMin : 
 as double,elevationLossMax: null == elevationLossMax ? _self.elevationLossMax : elevationLossMax // ignore: cast_nullable_to_non_nullable
 as double,elevationLossLimit: null == elevationLossLimit ? _self.elevationLossLimit : elevationLossLimit // ignore: cast_nullable_to_non_nullable
 as double,startDate: freezed == startDate ? _self.startDate : startDate // ignore: cast_nullable_to_non_nullable
-as String?,endDate: freezed == endDate ? _self.endDate : endDate // ignore: cast_nullable_to_non_nullable
-as String?,completed: freezed == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
+as DateTime?,endDate: freezed == endDate ? _self.endDate : endDate // ignore: cast_nullable_to_non_nullable
+as DateTime?,completed: freezed == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
 as bool?,liked: freezed == liked ? _self.liked : liked // ignore: cast_nullable_to_non_nullable
 as bool?,sort: null == sort ? _self.sort : sort // ignore: cast_nullable_to_non_nullable
 as String,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable

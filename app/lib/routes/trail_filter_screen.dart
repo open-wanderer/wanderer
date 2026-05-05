@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:textfield_tags/textfield_tags.dart';
 import 'package:wanderer/components/base/wanderer_autocomplete.dart';
+import 'package:wanderer/components/base/wanderer_date_picker.dart';
 import 'package:wanderer/components/base/wanderer_filter_chip.dart';
+import 'package:wanderer/components/base/wanderer_radio_group.dart';
 import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -12,6 +14,7 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/tag_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
+import 'package:wanderer/util/format_util.dart';
 
 class TrailFilterScreen extends ConsumerStatefulWidget {
   const TrailFilterScreen({super.key});
@@ -20,30 +23,48 @@ class TrailFilterScreen extends ConsumerStatefulWidget {
   ConsumerState<TrailFilterScreen> createState() => _TrailFilterScreenState();
 }
 
+enum CompletionStatus {
+  completed,
+  notCompleted,
+  noPreference;
+
+  bool? toBool() => switch (this) {
+    CompletionStatus.completed => true,
+    CompletionStatus.notCompleted => false,
+    CompletionStatus.noPreference => null,
+  };
+
+  static CompletionStatus fromBool(bool? value) => switch (value) {
+    true => CompletionStatus.completed,
+    false => CompletionStatus.notCompleted,
+    null => CompletionStatus.noPreference,
+  };
+}
+
 class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
   @override
   Widget build(BuildContext context) {
+    final l18n = AppLocalizations.of(context)!;
+
     final filter = ref.watch(trailFilterProvider);
     final UserEntity user = ref.watch(authProvider).value!;
     final categories = ref.watch(categoryProvider);
 
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(title: Text(l18n.filter_trails)),
       body: filter.when(
         data: (f) {
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: ListView(
               children: [
                 Text(
                   filter.value?.toFilterText(actor: user.actorId) ??
                       "Filter loading...",
                 ),
-                Text(
-                  AppLocalizations.of(context)?.categories ?? "Categories",
-                  style: TextTheme.of(context).labelLarge,
-                ),
+                Text(l18n.categories, style: TextTheme.of(context).labelLarge),
+                const SizedBox(height: 8),
+
                 WandererFilterChip<Category>(
                   options: categories.value ?? [],
                   selectedValues: f.category,
@@ -56,10 +77,10 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                         );
                   },
                 ),
-                Text(
-                  AppLocalizations.of(context)?.tags ?? "Tags",
-                  style: TextTheme.of(context).labelLarge,
-                ),
+                const SizedBox(height: 16),
+                Text(l18n.tags, style: TextTheme.of(context).labelLarge),
+                const SizedBox(height: 8),
+
                 WandererAutocomplete<Tag>(
                   hintText:
                       AppLocalizations.of(context)?.filter_tags ??
@@ -89,32 +110,35 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                       .read(trailFilterProvider.notifier)
                       .removeTag(value.data),
                 ),
-                Text(
-                  AppLocalizations.of(context)?.author ?? "Author",
-                  style: TextTheme.of(context).labelLarge,
-                ),
+                const SizedBox(height: 16),
+
+                Text(l18n.author, style: TextTheme.of(context).labelLarge),
+                const SizedBox(height: 8),
+
                 WandererSearchBar(
                   onChanged: (value) => ref
                       .read(trailFilterProvider.notifier)
                       .updateFilter((filter) => filter.copyWith(author: value)),
                 ),
+                const SizedBox(height: 16),
+
                 Text(
                   AppLocalizations.of(context)?.visibilty_status ??
                       "Visibility status",
                   style: TextTheme.of(context).labelLarge,
                 ),
                 CheckboxListTile(
+                  dense: true,
                   value: filter.value?.public,
-                  title: Text(AppLocalizations.of(context)?.public ?? "Public"),
+                  title: Text(l18n.public),
                   onChanged: (value) => ref
                       .read(trailFilterProvider.notifier)
                       .updateFilter((filter) => filter.copyWith(public: value)),
                 ),
                 CheckboxListTile(
+                  dense: true,
                   value: filter.value?.private,
-                  title: Text(
-                    AppLocalizations.of(context)?.private ?? "Private",
-                  ),
+                  title: Text(l18n.private),
                   onChanged: (value) => ref
                       .read(trailFilterProvider.notifier)
                       .updateFilter(
@@ -122,24 +146,26 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                       ),
                 ),
                 CheckboxListTile(
+                  dense: true,
                   value: filter.value?.shared,
-                  title: Text(AppLocalizations.of(context)?.shared ?? "Shared"),
+                  title: Text(l18n.shared),
 
                   onChanged: (value) => ref
                       .read(trailFilterProvider.notifier)
                       .updateFilter((filter) => filter.copyWith(shared: value)),
                 ),
-                Text(
-                  AppLocalizations.of(context)?.difficulty ?? "Difficulty",
-                  style: TextTheme.of(context).labelLarge,
-                ),
+                const SizedBox(height: 16),
+
+                Text(l18n.difficulty, style: TextTheme.of(context).labelLarge),
+                const SizedBox(height: 8),
+
                 WandererFilterChip<int>(
                   options: [0, 1, 2],
                   selectedValues: f.difficulty,
                   labelBuilder: (c) {
                     switch (c) {
                       case 0:
-                        return AppLocalizations.of(context)?.easy ?? "Easy";
+                        return l18n.easy;
                       case 1:
                         return AppLocalizations.of(context)?.moderate ??
                             "Moderate";
@@ -158,20 +184,20 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                         );
                   },
                 ),
-                Text(
-                  AppLocalizations.of(context)?.distance ?? "Distance",
-                  style: TextTheme.of(context).labelLarge,
-                ),
+                const SizedBox(height: 16),
+
+                Text(l18n.distance, style: TextTheme.of(context).labelLarge),
                 RangeSlider(
                   values: RangeValues(
                     filter.value?.distanceMin ?? 0,
                     filter.value?.distanceMax ?? 0,
                   ),
-                  min: filter.value?.distanceMin ?? 0,
+
+                  min: 0,
                   max: filter.value?.distanceLimit ?? 0,
                   labels: RangeLabels(
-                    (filter.value?.distanceMin ?? 0).round().toString(),
-                    (filter.value?.distanceMax ?? 0).round().toString(),
+                    formatDistance(filter.value?.distanceMin),
+                    "${formatElevation(filter.value?.distanceMax)}${filter.value?.distanceMax == filter.value?.distanceLimit ? "+" : ""}",
                   ),
                   onChanged: (RangeValues values) {
                     ref
@@ -184,6 +210,144 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                         );
                   },
                 ),
+                const SizedBox(height: 16),
+
+                Text(
+                  l18n.elevation_gain,
+                  style: TextTheme.of(context).labelLarge,
+                ),
+                RangeSlider(
+                  values: RangeValues(
+                    filter.value?.elevationGainMin ?? 0,
+                    filter.value?.elevationGainMax ?? 0,
+                  ),
+
+                  min: 0,
+                  max: filter.value?.elevationGainLimit ?? 0,
+                  labels: RangeLabels(
+                    formatElevation(filter.value?.elevationGainMin),
+                    "${formatElevation(filter.value?.elevationGainMax)}${filter.value?.elevationGainMax == filter.value?.elevationGainLimit ? "+" : ""}",
+                  ),
+                  onChanged: (RangeValues values) {
+                    ref
+                        .read(trailFilterProvider.notifier)
+                        .updateFilter(
+                          (filter) => filter.copyWith(
+                            elevationGainMin: values.start,
+                            elevationGainMax: values.end,
+                          ),
+                        );
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                Text(
+                  l18n.elevation_loss,
+                  style: TextTheme.of(context).labelLarge,
+                ),
+                RangeSlider(
+                  values: RangeValues(
+                    filter.value?.elevationLossMin ?? 0,
+                    filter.value?.elevationLossMax ?? 0,
+                  ),
+                  min: 0,
+                  max: filter.value?.elevationLossLimit ?? 0,
+                  labels: RangeLabels(
+                    formatElevation(filter.value?.elevationLossMin),
+                    "${formatElevation(filter.value?.elevationLossMax)}${filter.value?.elevationLossMax == filter.value?.elevationLossLimit ? "+" : ""}",
+                  ),
+                  onChanged: (RangeValues values) {
+                    ref
+                        .read(trailFilterProvider.notifier)
+                        .updateFilter(
+                          (filter) => filter.copyWith(
+                            elevationLossMin: values.start,
+                            elevationLossMax: values.end,
+                          ),
+                        );
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                Text(l18n.before, style: TextTheme.of(context).labelLarge),
+                const SizedBox(height: 8),
+
+                WandererDatePicker(
+                  name: "start",
+                  initialValue: filter.value?.startDate,
+                  onChanged: (value) {
+                    ref
+                        .read(trailFilterProvider.notifier)
+                        .updateFilter(
+                          (filter) => filter.copyWith(startDate: value),
+                        );
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                Text(l18n.after, style: TextTheme.of(context).labelLarge),
+                const SizedBox(height: 8),
+
+                WandererDatePicker(
+                  name: "start",
+                  initialValue: filter.value?.endDate,
+                  onChanged: (value) {
+                    ref
+                        .read(trailFilterProvider.notifier)
+                        .updateFilter(
+                          (filter) => filter.copyWith(endDate: value),
+                        );
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                Text(l18n.like_status, style: TextTheme.of(context).labelLarge),
+                CheckboxListTile(
+                  dense: true,
+                  value: filter.value?.liked,
+                  title: Text(l18n.private),
+                  onChanged: (value) => ref
+                      .read(trailFilterProvider.notifier)
+                      .updateFilter((filter) => filter.copyWith(liked: value)),
+                ),
+                const SizedBox(height: 16),
+
+                Text(
+                  l18n.completion_status,
+                  style: TextTheme.of(context).labelLarge,
+                ),
+                const SizedBox(height: 8),
+
+                WandererRadioGroup<CompletionStatus>(
+                  name: "completion_status",
+                  initialValue: CompletionStatus.fromBool(
+                    filter.value?.completed,
+                  ),
+
+                  options: [
+                    WandererRadioOption(
+                      label: l18n.completed,
+                      value: CompletionStatus.completed,
+                    ),
+                    WandererRadioOption(
+                      label: l18n.not_completed,
+                      value: CompletionStatus.notCompleted,
+                    ),
+                    WandererRadioOption(
+                      label: l18n.no_preference,
+                      value: CompletionStatus.noPreference,
+                    ),
+                  ],
+
+                  onValueChanged: (status) {
+                    ref
+                        .read(trailFilterProvider.notifier)
+                        .updateFilter(
+                          (f) => f.copyWith(completed: status?.toBool()),
+                        );
+                  },
+                ),
+                const SizedBox(height: 16),
               ],
             ),
           );

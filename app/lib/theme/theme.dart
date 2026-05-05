@@ -58,6 +58,10 @@ class AppTheme {
             : const Color.fromRGBO(209, 213, 219, 1),
         thickness: 1,
       ),
+
+      sliderTheme: SliderThemeData(
+        showValueIndicator: ShowValueIndicator.onDrag,
+      ),
     );
   }
 }

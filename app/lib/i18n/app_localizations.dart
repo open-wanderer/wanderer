@@ -1094,6 +1094,12 @@ abstract class AppLocalizations {
   /// **'Filter tags'**
   String get filter_tags;
 
+  /// No description provided for @filter_trails.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter trails'**
+  String get filter_trails;
+
   /// No description provided for @finish.
   ///
   /// In en, this message translates to:
@@ -2287,6 +2293,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search trails'**
   String get search_trails;
+
+  /// No description provided for @select_date.
+  ///
+  /// In en, this message translates to:
+  /// **'Select date'**
+  String get select_date;
 
   /// No description provided for @select_list.
   ///

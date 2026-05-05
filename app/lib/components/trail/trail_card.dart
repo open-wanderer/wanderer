@@ -1,6 +1,7 @@
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -70,9 +71,10 @@ class TrailCard extends ConsumerWidget {
                     aspectRatio: 16 / 9,
                     child: thumbnail != null
                         ? Image.network(thumbnail, fit: BoxFit.cover)
-                        : Container(
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.image_not_supported),
+                        : SvgPicture.asset(
+                            "assets/svgs/empty_state_trail_${Brightness.light.name}.svg",
+                            semanticsLabel: 'wanderer logo',
+                            height: 80,
                           ),
                   ),
                 ),

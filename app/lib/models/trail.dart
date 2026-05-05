@@ -151,8 +151,8 @@ abstract class TrailFilter with _$TrailFilter {
     required double elevationLossMin,
     required double elevationLossMax,
     required double elevationLossLimit,
-    String? startDate,
-    String? endDate,
+    DateTime? startDate,
+    DateTime? endDate,
     bool? completed,
     bool? liked,
     required String sort, // "name" | "distance" | "elevation_gain" | "created"
@@ -229,11 +229,11 @@ abstract class TrailFilter with _$TrailFilter {
 
     // Dates
     if (startDate != null) {
-      final seconds = DateTime.parse(startDate!).millisecondsSinceEpoch ~/ 1000;
+      final seconds = startDate!.millisecondsSinceEpoch ~/ 1000;
       parts.add('date >= $seconds');
     }
     if (endDate != null) {
-      final seconds = DateTime.parse(endDate!).millisecondsSinceEpoch ~/ 1000;
+      final seconds = endDate!.millisecondsSinceEpoch ~/ 1000;
       parts.add('date <= $seconds');
     }
 
