@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"pocketbase/federation"
+	"pocketbase/util"
 	"strings"
 	"time"
 
@@ -93,12 +94,14 @@ func findLocalTrailByRemoteInfo(e *core.RequestEvent, userActor *core.Record, ha
 // --- Core Sync Logic ---
 
 func performFullSync(app core.App, userActor *core.Record, reqURL *url.URL, localTrail *core.Record) (*core.Record, error) {
+	client := util.SafeHTTPClient()
+
 	iri := localTrail.GetString("iri")
 	remoteUrl, _ := url.Parse(iri)
 	remoteUrl.RawQuery = reqURL.RawQuery // Forward params
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
-	res, err := http.Get(remoteUrl.String())
+	res, err := client.Get(remoteUrl.String())
 	if err != nil || res.StatusCode != 200 {
 		return localTrail, err
 	}
@@ -275,8 +278,10 @@ func syncRecordFiles(record *core.Record, collection, remoteID, origin string, d
 }
 
 func downloadFile(origin, col, id, name string) (*filesystem.File, error) {
+	client := util.SafeHTTPClient()
+
 	url := fmt.Sprintf("%s/api/v1/files/%s/%s/%s", origin, col, id, name)
-	res, err := http.Get(url)
+	res, err := client.Get(url)
 	if err != nil || res.StatusCode != 200 {
 		return nil, fmt.Errorf("download failed")
 	}

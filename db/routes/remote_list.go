@@ -3,9 +3,9 @@ package routes
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"pocketbase/federation"
+	"pocketbase/util"
 	"time"
 
 	"github.com/pocketbase/dbx"
@@ -80,12 +80,14 @@ func findLocalListByRemoteInfo(e *core.RequestEvent, userActor *core.Record, han
 }
 
 func performFullListSync(app core.App, userActor *core.Record, reqURL *url.URL, localList *core.Record) (*core.Record, error) {
+	client := util.SafeHTTPClient()
+
 	iri := localList.GetString("iri")
 	remoteUrl, _ := url.Parse(iri)
 	remoteUrl.RawQuery = reqURL.RawQuery
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
-	res, err := http.Get(remoteUrl.String())
+	res, err := client.Get(remoteUrl.String())
 	if err != nil || res.StatusCode != 200 {
 		return localList, err
 	}
@@ -145,7 +147,7 @@ func syncListRecordFiles(record *core.Record, collection, remoteID, origin strin
 func syncTrails(txApp core.App, userActor *core.Record, list *core.Record, origin string, trails []any) error {
 	col, _ := txApp.FindCollectionByNameOrId("trails")
 
-	localTrails := make([]string, len(trails))
+	localTrails := make([]string, 0, len(trails))
 
 	for _, tData := range trails {
 		raw := tData.(map[string]any)

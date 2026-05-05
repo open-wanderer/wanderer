@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"pocketbase/federation"
+	"pocketbase/util"
 	"strconv"
 	"strings"
 
@@ -87,12 +88,14 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 }
 
 func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
+	client := util.SafeHTTPClient()
+
 	trailIRI := trail.GetString("iri")
 	remoteTrailID := getRemoteIdFromIRI(trailIRI)
 	u, _ := url.Parse(trailIRI)
 
 	remoteURL := fmt.Sprintf("%s://%s/api/v1/comment?filter=trail='%s'&expand=author", u.Scheme, u.Host, remoteTrailID)
-	res, err := http.Get(remoteURL)
+	res, err := client.Get(remoteURL)
 	if err != nil || res.StatusCode != 200 {
 		return fmt.Errorf("remote fetch failed: %w", err)
 	}

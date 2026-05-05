@@ -70,7 +70,10 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 		return err
 	}
 	var activity pub.Activity
-	activity.UnmarshalJSON(body)
+	err = activity.UnmarshalJSON(body)
+	if err != nil {
+		return err
+	}
 
 	inbox := fmt.Sprintf("%s%s", origin, e.Request.Header.Get("X-Forwarded-Path"))
 

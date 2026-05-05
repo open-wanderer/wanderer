@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"pocketbase/util"
 	"slices"
 	"strings"
 	"time"
@@ -67,7 +68,7 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 		}
 		pubID := actor.GetString("iri") + "#main-key"
 
-		client := &http.Client{}
+		client := util.SafeHTTPClient()
 		sem := semaphore.NewWeighted(5)
 
 		slices.Sort(recipients)

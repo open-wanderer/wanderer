@@ -116,7 +116,7 @@ func SyncOutbox(app core.App, actor *core.Record) error {
 }
 
 func fetchOutboxPage(app core.App, actor *core.Record, pageURL string) error {
-	client := &http.Client{}
+	client := SafeHTTPClient()
 
 	req, err := http.NewRequest(http.MethodGet, pageURL, nil)
 	if err != nil {
@@ -603,7 +603,7 @@ func ObjectFromComment(app core.App, comment *core.Record, mentions *pub.ItemCol
 func TrailObjectFromIRI(iri string) (*pub.Object, error) {
 	fetchURL := strings.Replace(iri, "api/v1/trail", "api/v1/activitypub/trail", 1)
 
-	client := &http.Client{}
+	client := SafeHTTPClient()
 
 	req, err := http.NewRequest(http.MethodGet, fetchURL, nil)
 	if err != nil {

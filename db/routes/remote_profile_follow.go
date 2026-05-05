@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"pocketbase/federation"
+	"pocketbase/util"
 	"strconv"
 	"sync"
 	"time"
@@ -49,7 +50,7 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 	}
 
 	// 2. Fetch Remote Content
-	client := &http.Client{}
+	client := util.SafeHTTPClient()
 	req, _ := http.NewRequest("GET", fmt.Sprintf("%s?page=%d", collectionIRI, page), nil)
 	req.Header.Set("Accept", "application/activity+json")
 
