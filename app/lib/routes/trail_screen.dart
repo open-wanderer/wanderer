@@ -1,8 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/router_provider.dart';
@@ -17,8 +16,6 @@ class TrailScreen extends ConsumerStatefulWidget {
 }
 
 class _TrailScreenState extends ConsumerState<TrailScreen> {
-  Timer? _debounce;
-
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
@@ -46,19 +43,11 @@ class _TrailScreenState extends ConsumerState<TrailScreen> {
                         shadowColor: Colors.black26,
                         borderRadius: BorderRadius.circular(30),
                         clipBehavior: Clip.antiAlias,
-                        child: TextField(
+                        child: WandererSearchBar(
                           onChanged: (value) {
-                            if (_debounce?.isActive ?? false) {
-                              _debounce!.cancel();
-                            }
-                            _debounce = Timer(
-                              const Duration(milliseconds: 500),
-                              () {
-                                ref
-                                    .read(trailFilterProvider.notifier)
-                                    .updateFilter((f) => f.copyWith(q: value));
-                              },
-                            );
+                            ref
+                                .read(trailFilterProvider.notifier)
+                                .updateFilter((f) => f.copyWith(q: value));
                           },
                           decoration: InputDecoration(
                             hintText: AppLocalizations.of(

@@ -99,113 +99,110 @@ class _WandererAutocompleteState<T> extends State<WandererAutocomplete<T>> {
                 return null;
               },
               inputFieldBuilder: (context, inputFieldValues) {
-                return Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: TextField(
-                    controller: inputFieldValues.textEditingController,
-                    focusNode: inputFieldValues.focusNode,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: const OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: Color.fromARGB(255, 74, 137, 92),
-                          width: 3.0,
-                        ),
+                return TextField(
+                  controller: inputFieldValues.textEditingController,
+                  focusNode: inputFieldValues.focusNode,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outline,
+                        width: 1.5,
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 1.5,
-                        ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 1.5,
                       ),
-                      hintText: inputFieldValues.tags.isNotEmpty
-                          ? ''
-                          : widget.hintText ?? '',
-                      hintStyle: TextStyle(color: Colors.grey),
-                      errorText: inputFieldValues.error,
-                      prefixIconConstraints: BoxConstraints(
-                        maxWidth: _distanceToField * 0.74,
-                      ),
-                      prefixIcon: inputFieldValues.tags.isNotEmpty
-                          ? SingleChildScrollView(
-                              controller: inputFieldValues.tagScrollController,
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: inputFieldValues.tags.map((
-                                  DynamicTagData<T> tagData,
-                                ) {
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).primaryColor,
-                                      borderRadius: const BorderRadius.all(
-                                        Radius.circular(20.0),
-                                      ),
+                    ),
+                    hintText: inputFieldValues.tags.isNotEmpty
+                        ? ''
+                        : widget.hintText ?? '',
+                    hintStyle: TextStyle(color: Colors.grey),
+                    errorText: inputFieldValues.error,
+                    prefixIconConstraints: BoxConstraints(
+                      maxWidth: _distanceToField * 0.74,
+                    ),
+                    prefixIcon: inputFieldValues.tags.isNotEmpty
+                        ? SingleChildScrollView(
+                            controller: inputFieldValues.tagScrollController,
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: inputFieldValues.tags.map((
+                                DynamicTagData<T> tagData,
+                              ) {
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).primaryColor,
+                                    borderRadius: const BorderRadius.all(
+                                      Radius.circular(20.0),
                                     ),
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 5.0,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10.0,
-                                      vertical: 5.0,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        InkWell(
-                                          child: Text(
-                                            tagData.tag,
-                                            style: TextStyle(
-                                              color: Theme.of(
-                                                context,
-                                              ).colorScheme.onPrimary,
-                                            ),
-                                          ),
-                                          onTap: () {
-                                            // print("${tag.tag} selected");
-                                          },
-                                        ),
-                                        const SizedBox(width: 4.0),
-                                        InkWell(
-                                          child: FaIcon(
-                                            FontAwesomeIcons.circleXmark,
-                                            size: 12.0,
+                                  ),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 5.0,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10.0,
+                                    vertical: 5.0,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      InkWell(
+                                        child: Text(
+                                          tagData.tag,
+                                          style: TextStyle(
                                             color: Theme.of(
                                               context,
                                             ).colorScheme.onPrimary,
                                           ),
-                                          onTap: () {
-                                            widget.onDeleted?.call(tagData);
-                                            inputFieldValues.onTagRemoved(
-                                              tagData,
-                                            );
-                                          },
                                         ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            )
-                          : null,
-                    ),
-                    onSubmitted: (value) {
-                      if (value.isEmpty) {
-                        return;
-                      }
-                      if (_dynamicTagController.getTags!.any(
-                        (element) =>
-                            element.tag.toLowerCase() == value.toLowerCase(),
-                      )) {
-                        return;
-                      }
-                      if (widget.onSubmitted != null) {
-                        DynamicTagData<T> tagData = widget.onSubmitted!(value);
-                        inputFieldValues.onTagSubmitted(tagData);
-                      }
-                    },
+                                        onTap: () {
+                                          // print("${tag.tag} selected");
+                                        },
+                                      ),
+                                      const SizedBox(width: 4.0),
+                                      InkWell(
+                                        child: FaIcon(
+                                          FontAwesomeIcons.circleXmark,
+                                          size: 12.0,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                        ),
+                                        onTap: () {
+                                          widget.onDeleted?.call(tagData);
+                                          inputFieldValues.onTagRemoved(
+                                            tagData,
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          )
+                        : null,
                   ),
+                  onSubmitted: (value) {
+                    if (value.isEmpty) {
+                      return;
+                    }
+                    if (_dynamicTagController.getTags!.any(
+                      (element) =>
+                          element.tag.toLowerCase() == value.toLowerCase(),
+                    )) {
+                      return;
+                    }
+                    if (widget.onSubmitted != null) {
+                      DynamicTagData<T> tagData = widget.onSubmitted!(value);
+                      inputFieldValues.onTagSubmitted(tagData);
+                    }
+                  },
                 );
               },
             );
