@@ -71,7 +71,7 @@ func verifySettings(app core.App) {
 func main() {
 
 	app := pocketbase.New()
-	client := initializeMeiliSearch()
+	client := initializeMeilisearch()
 
 	verifySettings(app)
 
@@ -85,7 +85,7 @@ func main() {
 	}
 }
 
-func initializeMeiliSearch() meilisearch.ServiceManager {
+func initializeMeilisearch() meilisearch.ServiceManager {
 	return meilisearch.New(
 		os.Getenv("MEILI_URL"),
 		meilisearch.WithAPIKey(os.Getenv("MEILI_MASTER_KEY")),
