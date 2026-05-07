@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -43,6 +44,9 @@ func RemoteListGet(e *core.RequestEvent) error {
 		if record.Id == "" || record.GetBool("needs_full_sync") {
 			record, err = performFullListSync(e.App, ctx, e.Request.URL, record)
 			if err != nil {
+				if errors.Is(err, util.ErrRateLimited) {
+					return e.TooManyRequestsError("Too many requests", err)
+				}
 				return e.InternalServerError("Sync failed", err)
 			}
 		} else {

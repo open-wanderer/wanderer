@@ -3,10 +3,12 @@ package routes
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"pocketbase/federation"
 	"pocketbase/util"
 	"strings"
@@ -51,6 +53,9 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 			// Blocking sync for new records
 			record, err = performFullSync(e.App, ctx, e.Request.URL, record)
 			if err != nil {
+				if errors.Is(err, util.ErrRateLimited) {
+					return e.TooManyRequestsError("Too many requests", err)
+				}
 				return e.InternalServerError("Sync failed", err)
 			}
 		} else {
@@ -228,7 +233,10 @@ func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, ori
 			iri = fmt.Sprintf("%s/api/v1/summit_logs/%s", origin, slID)
 		}
 
-		sl, _ := txApp.FindFirstRecordByData("summit_logs", "iri", iri)
+		remoteSummitLogUrl, _ := url.Parse(iri)
+		possibleLocalId := path.Base(remoteSummitLogUrl.Path)
+
+		sl, _ := txApp.FindFirstRecordByFilter("summit_logs", "iri={:iri} || id={:id}", dbx.Params{"id": possibleLocalId, "iri": iri})
 		if sl == nil {
 			sl = core.NewRecord(col)
 		}

@@ -2,9 +2,11 @@ package routes
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"path"
 	"pocketbase/federation"
 	"pocketbase/util"
 	"strconv"
@@ -101,14 +103,18 @@ func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 	}
 
 	trailIRI := trail.GetString("iri")
-	remoteTrailID := getRemoteIdFromIRI(trailIRI)
 	u, _ := url.Parse(trailIRI)
+
+	remoteTrailID := path.Base(u.Path)
 
 	remoteURL := fmt.Sprintf("%s://%s/api/v1/comment?filter=trail='%s'&expand=author", u.Scheme, u.Host, remoteTrailID)
 
 	req, _ := http.NewRequestWithContext(ctx, "GET", remoteURL, nil)
 	res, err := client.Do(req)
 	if err != nil || res.StatusCode != 200 {
+		if errors.Is(err, util.ErrRateLimited) {
+			return e.TooManyRequestsError("Too many requests", err)
+		}
 		return fmt.Errorf("remote fetch failed: %w", err)
 	}
 	defer res.Body.Close()
@@ -130,8 +136,11 @@ func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 				remoteIRI = fmt.Sprintf("%s://%s/api/v1/comment/%s", u.Scheme, u.Host, remoteID)
 			}
 
-			// Find existing record by IRI to avoid duplicates
-			commentRecord, _ := txApp.FindFirstRecordByData("comments", "iri", remoteIRI)
+			remoteCommentUrl, _ := url.Parse(remoteIRI)
+			possibleLocalId := path.Base(remoteCommentUrl.Path)
+
+			// Find existing record by IRI or ID to avoid duplicates
+			commentRecord, _ := txApp.FindFirstRecordByFilter("comments", "iri={:iri} || id={:id}", dbx.Params{"id": possibleLocalId, "iri": remoteIRI})
 			if commentRecord == nil {
 				commentRecord = core.NewRecord(collection)
 				commentRecord.Set("iri", remoteIRI)
@@ -174,16 +183,4 @@ func expandAndReturnList(e *core.RequestEvent, records []*core.Record, query str
 	}
 
 	return e.JSON(http.StatusOK, records)
-}
-
-func getRemoteIdFromIRI(iri string) string {
-	u, err := url.Parse(iri)
-	if err != nil {
-		return ""
-	}
-	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
-	if len(parts) == 0 {
-		return ""
-	}
-	return parts[len(parts)-1]
 }

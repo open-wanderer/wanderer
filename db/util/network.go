@@ -78,7 +78,7 @@ func (rl *RateLimiter) CheckRateLimit(identifier string, host string) error {
 
 	if len(timestamps) >= rl.maxReqs {
 		rl.requests[key] = timestamps
-		return fmt.Errorf("rate limit exceeded")
+		return ErrRateLimited
 	}
 
 	rl.requests[key] = append(timestamps, now)

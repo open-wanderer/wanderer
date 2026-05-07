@@ -171,6 +171,8 @@ func ActivitypubActorFollow(e *core.RequestEvent) error {
 	if err != nil {
 		if errors.Is(err, federation.ErrProfilePrivate) {
 			return e.JSON(http.StatusNotFound, map[string]any{"error": "profile is private"})
+		} else if errors.Is(err, util.ErrRateLimited) {
+			return e.TooManyRequestsError("Too many requests", err)
 		}
 		return err
 	}

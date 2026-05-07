@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -61,6 +62,9 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
+		if errors.Is(err, util.ErrRateLimited) {
+			return e.TooManyRequestsError("Too many requests", err)
+		}
 		return e.InternalServerError("Failed to fetch remote collection", err)
 	}
 	defer resp.Body.Close()
