@@ -31,12 +31,16 @@ func ActivitypubActor(e *core.RequestEvent) error {
 			return err
 		}
 	}
+	ctx, err := util.GetSafeActorContext(e.Request, userActor)
+	if err != nil {
+		return err
+	}
 
 	var actor *core.Record
 	if resource != "" {
-		actor, err = federation.GetActorByHandle(e.App, userActor, resource, follows)
+		actor, err = federation.GetActorByHandle(e.App, ctx, resource, follows)
 	} else {
-		actor, err = federation.GetActorByIRI(e.App, userActor, iri, follows)
+		actor, err = federation.GetActorByIRI(e.App, ctx, iri, follows)
 	}
 	if err != nil && actor == nil {
 		if strings.HasPrefix(err.Error(), "webfinger") {
@@ -85,7 +89,11 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 	actor, err := e.App.FindFirstRecordByData("activitypub_actors", "iri", activity.Actor.GetID().String())
 	if err != nil {
 		if err == sql.ErrNoRows {
-			actor, err = federation.GetActorByIRI(e.App, recipient, activity.Actor.GetID().String(), false)
+			ctx, err := util.GetSafeActorContext(e.Request, recipient)
+			if err != nil {
+				return err
+			}
+			actor, err = federation.GetActorByIRI(e.App, ctx, activity.Actor.GetID().String(), false)
 			if err != nil {
 				return err
 			}
@@ -149,12 +157,17 @@ func ActivitypubActorFollow(e *core.RequestEvent) error {
 		}
 	}
 
+	ctx, err := util.GetSafeActorContext(e.Request, userActor)
+	if err != nil {
+		return err
+	}
+
 	url := actor.GetString(followType)
 
 	if url == "" {
 		return e.BadRequestError("unknown type: "+followType, nil)
 	}
-	collection, err := federation.FetchCollection(userActor, fmt.Sprintf("%s?page=%d", url, intPage))
+	collection, err := federation.FetchCollection(e.App, ctx, fmt.Sprintf("%s?page=%d", url, intPage))
 	if err != nil {
 		if errors.Is(err, federation.ErrProfilePrivate) {
 			return e.JSON(http.StatusNotFound, map[string]any{"error": "profile is private"})

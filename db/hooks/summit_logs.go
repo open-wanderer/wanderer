@@ -22,6 +22,11 @@ func CreateSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
+		ctx, err := util.GetSafeActorContext(e.Request, userActor)
+		if err != nil {
+			return err
+		}
+
 		trail, err := e.App.FindRecordById("trails", e.Record.GetString("trail"))
 		if err != nil {
 			return err
@@ -31,7 +36,7 @@ func CreateSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
-		err = federation.CreateSummitLogActivity(e.App, userActor, e.Record, pub.CreateType)
+		err = federation.CreateSummitLogActivity(e.App, ctx, e.Record, pub.CreateType)
 		if err != nil {
 			return err
 		}
@@ -53,7 +58,12 @@ func UpdateSummitLogHandler() func(e *core.RecordRequestEvent) error {
 			return err
 		}
 
-		err = federation.CreateSummitLogActivity(e.App, userActor, e.Record, pub.UpdateType)
+		ctx, err := util.GetSafeActorContext(e.Request, userActor)
+		if err != nil {
+			return err
+		}
+
+		err = federation.CreateSummitLogActivity(e.App, ctx, e.Record, pub.UpdateType)
 		if err != nil {
 			return err
 		}

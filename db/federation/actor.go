@@ -62,7 +62,7 @@ func validateActorResponse(actor *pub.Actor) error {
 	return nil
 }
 
-func GetActorByHandle(app core.App, userActor *core.Record, handle string, includeFollows bool) (*core.Record, error) {
+func GetActorByHandle(app core.App, ctx context.Context, handle string, includeFollows bool) (*core.Record, error) {
 	username, domain := util.SplitHandle(handle)
 
 	filter := "preferred_username={:username}&&"
@@ -82,7 +82,7 @@ func GetActorByHandle(app core.App, userActor *core.Record, handle string, inclu
 
 		dbActor = core.NewRecord(collection)
 		dbActor.Set("isLocal", false)
-		iri, err := iriFromHandle(dbActor, domain, username)
+		iri, err := iriFromHandle(ctx, domain, username)
 		if err != nil {
 			return nil, err
 		}
@@ -92,10 +92,10 @@ func GetActorByHandle(app core.App, userActor *core.Record, handle string, inclu
 		return nil, err
 	}
 
-	return assembleActor(userActor, dbActor, app, includeFollows)
+	return assembleActor(app, ctx, dbActor, includeFollows || dbActor.Id == "")
 }
 
-func GetActorByIRI(app core.App, actor *core.Record, iri string, includeFollows bool) (*core.Record, error) {
+func GetActorByIRI(app core.App, ctx context.Context, iri string, includeFollows bool) (*core.Record, error) {
 	var dbActor *core.Record
 	dbActor, err := app.FindFirstRecordByFilter("activitypub_actors", "iri={:iri}", dbx.Params{"iri": iri})
 	if err != nil && err == sql.ErrNoRows {
@@ -112,10 +112,10 @@ func GetActorByIRI(app core.App, actor *core.Record, iri string, includeFollows 
 		return nil, err
 	}
 
-	return assembleActor(actor, dbActor, app, includeFollows)
+	return assembleActor(app, ctx, dbActor, includeFollows || dbActor.Id == "")
 }
 
-func iriFromHandle(userActor *core.Record, domain string, username string) (string, error) {
+func iriFromHandle(ctx context.Context, domain string, username string) (string, error) {
 	client := util.SafeHTTPClient()
 
 	u := &url.URL{
@@ -126,8 +126,6 @@ func iriFromHandle(userActor *core.Record, domain string, username string) (stri
 	q := u.Query()
 	q.Set("resource", fmt.Sprintf("acct:%s@%s", username, domain))
 	u.RawQuery = q.Encode()
-
-	ctx := context.WithValue(context.Background(), "actorID", userActor.Id)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
 	if err != nil {
@@ -162,7 +160,7 @@ func iriFromHandle(userActor *core.Record, domain string, username string) (stri
 	return "", fmt.Errorf("no iri in response")
 }
 
-func assembleActor(userActor *core.Record, dbActor *core.Record, app core.App, includeFollows bool) (*core.Record, error) {
+func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, includeFollows bool) (*core.Record, error) {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return nil, fmt.Errorf("ORIGIN environment variable not set")
@@ -209,7 +207,7 @@ func assembleActor(userActor *core.Record, dbActor *core.Record, app core.App, i
 		if dbActor.GetDateTime("last_fetched").Time().After(twoHoursAgo) {
 			return dbActor, nil
 		}
-		pubActor, followers, following, err := fetchRemoteActor(userActor, dbActor.GetString("iri"), includeFollows)
+		pubActor, followers, following, err := fetchRemoteActor(app, ctx, dbActor.GetString("iri"), includeFollows)
 		if err != nil {
 			if dbActor.Id != "" {
 				return dbActor, err
@@ -230,6 +228,13 @@ func assembleActor(userActor *core.Record, dbActor *core.Record, app core.App, i
 			return nil, err
 		}
 		domain := strings.TrimPrefix(parsedUrl.Hostname(), "www.")
+
+		// this is a race condition that gets triggered when the profile is opened for the first time
+		existingActor, _ := app.FindFirstRecordByData("activitypub_actors", "iri", dbActor.GetString("iri"))
+
+		if existingActor != nil {
+			dbActor = existingActor
+		}
 
 		dbActor.Set("domain", domain)
 		dbActor.Set("followers", util.ItemID(pubActor.Followers))
@@ -252,13 +257,7 @@ func assembleActor(userActor *core.Record, dbActor *core.Record, app core.App, i
 	}
 
 	err := app.Save(dbActor)
-	if err != nil && err.Error() == "iri: Value must be unique." {
-		dbActor, err = app.FindFirstRecordByData("activitypub_actors", "iri", dbActor.GetString("iri"))
-		if err != nil {
-			return nil, err
-		}
-		return dbActor, nil
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -270,14 +269,13 @@ func assembleActor(userActor *core.Record, dbActor *core.Record, app core.App, i
 }
 
 // Fetches an AP actor and optionally followers/following collections
-func fetchRemoteActor(userActor *core.Record, iri string, includeFollows bool) (*pub.Actor, *pub.OrderedCollection, *pub.OrderedCollection, error) {
+func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFollows bool) (*pub.Actor, *pub.OrderedCollection, *pub.OrderedCollection, error) {
 	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
 	if len(encryptionKey) == 0 {
 		return nil, nil, nil, fmt.Errorf("POCKETBASE_ENCRYPTION_KEY not set")
 	}
 
 	client := util.SafeHTTPClient()
-	ctx := context.WithValue(context.Background(), "actorID", userActor.Id)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", iri, nil)
 
@@ -292,6 +290,8 @@ func fetchRemoteActor(userActor *core.Record, iri string, includeFollows bool) (
 		req.Header.Add(k, v)
 	}
 
+	userActorId := strings.TrimPrefix(ctx.Value("actor").(string), "actor:")
+	userActor, err := app.FindRecordById("activitypub_actors", userActorId)
 	if userActor != nil && userActor.GetString("private_key") != "" {
 		dbPrivateKey := userActor.GetString("private_key")
 
@@ -344,12 +344,12 @@ func fetchRemoteActor(userActor *core.Record, iri string, includeFollows bool) (
 
 	if includeFollows {
 		// Fetch followers
-		if data, err := FetchCollection(userActor, util.ItemID(pubActor.Followers)); err == nil {
+		if data, err := FetchCollection(app, ctx, util.ItemID(pubActor.Followers)); err == nil {
 			followers = *data
 		}
 
 		// Fetch following
-		if data, err := FetchCollection(userActor, util.ItemID(pubActor.Following)); err == nil {
+		if data, err := FetchCollection(app, ctx, util.ItemID(pubActor.Following)); err == nil {
 			following = *data
 		}
 	}
@@ -357,12 +357,11 @@ func fetchRemoteActor(userActor *core.Record, iri string, includeFollows bool) (
 	return &pubActor, &followers, &following, nil
 }
 
-func FetchCollection(userActor *core.Record, collectionURL string) (*pub.OrderedCollection, error) {
+func FetchCollection(app core.App, ctx context.Context, collectionURL string) (*pub.OrderedCollection, error) {
 	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
 	if len(encryptionKey) == 0 {
 		return nil, fmt.Errorf("POCKETBASE_ENCRYPTION_KEY not set")
 	}
-	ctx := context.WithValue(context.Background(), "actorID", userActor.Id)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", collectionURL, nil)
 
@@ -376,7 +375,8 @@ func FetchCollection(userActor *core.Record, collectionURL string) (*pub.Ordered
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
-
+	userActorId := strings.TrimPrefix(ctx.Value("actor").(string), "actor:")
+	userActor, err := app.FindRecordById("activitypub_actors", userActorId)
 	if userActor != nil && userActor.GetString("private_key") != "" {
 		dbPrivateKey := userActor.GetString("private_key")
 		if dbPrivateKey != "" {

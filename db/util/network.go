@@ -2,11 +2,15 @@ package util
 
 import (
 	"context"
+	"crypto/sha256"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/pocketbase/pocketbase/core"
 )
 
 type RateLimiter struct {
@@ -14,42 +18,66 @@ type RateLimiter struct {
 	requests map[string][]time.Time
 	maxReqs  int
 	window   time.Duration
+	salt     string
 }
 
 var ErrRateLimited = fmt.Errorf("rate limit exceeded for origin")
 
 func NewRateLimiter(maxReqs int, window time.Duration) *RateLimiter {
-	return &RateLimiter{
+	rl := &RateLimiter{
 		requests: make(map[string][]time.Time),
 		maxReqs:  maxReqs,
 		window:   window,
+		salt:     fmt.Sprintf("%d", time.Now().UnixNano()),
 	}
+
+	go rl.cleanupWorker()
+	return rl
 }
 
-func (rl *RateLimiter) CheckRateLimit(origin string) error {
+func (rl *RateLimiter) CheckRateLimit(identifier string, host string) error {
+	key := rl.hashIdentifier(identifier + ":" + host)
+
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
 	now := time.Now()
 	threshold := now.Add(-rl.window)
 
-	timestamps := rl.requests[origin]
-
-	w := 0
-	for _, t := range timestamps {
+	var active []time.Time
+	for _, t := range rl.requests[key] {
 		if t.After(threshold) {
-			timestamps[w] = t
-			w++
+			active = append(active, t)
 		}
 	}
-	rl.requests[origin] = timestamps[:w]
 
-	if len(rl.requests[origin]) >= rl.maxReqs {
+	if len(active) >= rl.maxReqs {
+		rl.requests[key] = active
 		return ErrRateLimited
 	}
 
-	rl.requests[origin] = append(rl.requests[origin], now)
+	rl.requests[key] = append(active, now)
 	return nil
+}
+
+func (rl *RateLimiter) cleanupWorker() {
+	ticker := time.NewTicker(rl.window * 2)
+	for range ticker.C {
+		rl.mu.Lock()
+		now := time.Now()
+		for key, timestamps := range rl.requests {
+			// If the newest timestamp is older than the window, delete the whole key
+			if len(timestamps) == 0 || now.Sub(timestamps[len(timestamps)-1]) > rl.window {
+				delete(rl.requests, key)
+			}
+		}
+		rl.mu.Unlock()
+	}
+}
+
+func (rl *RateLimiter) hashIdentifier(id string) string {
+	hash := sha256.Sum256([]byte(id + rl.salt))
+	return fmt.Sprintf("%x", hash)
 }
 
 var ActivityPubRateLimiter = NewRateLimiter(30, time.Minute)
@@ -108,35 +136,50 @@ func SafeHTTPClient() *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				host, port, err := net.SplitHostPort(addr)
-				if err != nil {
-					return nil, err
+				host, port, _ := net.SplitHostPort(addr)
+
+				identifier, _ := ctx.Value("actor").(string)
+				if identifier == "" {
+					identifier = "system"
 				}
 
-				actorID, _ := ctx.Value("actorID").(string)
-				if actorID == "" {
-					actorID = "system"
-				}
-
-				limitKey := fmt.Sprintf("%s:%s", actorID, host)
-
-				if err := ActivityPubRateLimiter.CheckRateLimit(limitKey); err != nil {
+				if err := ActivityPubRateLimiter.CheckRateLimit(identifier, host); err != nil {
 					return nil, err
 				}
 
 				ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
-				if err != nil {
-					return nil, err
+				if err != nil || len(ips) == 0 {
+					return nil, fmt.Errorf("failed to resolve: %w", err)
 				}
+
 				for _, ip := range ips {
 					if isPrivateOrReservedIP(ip) {
 						return nil, fmt.Errorf("SSRF blocked: %s", ip)
 					}
 				}
 
-				// Use the first validated IP to prevent DNS Rebinding
+				// Standard practice: Dial the first resolved IP to prevent TOCTOU/Rebinding
 				return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].String(), port))
 			},
 		},
 	}
+}
+
+func GetSafeActorContext(r *http.Request, userActor *core.Record) (context.Context, error) {
+	var identifier string
+
+	if userActor != nil {
+		identifier = "actor:" + userActor.Id
+	} else if r != nil {
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		identifier = "anon:" + ip
+	} else {
+		return nil, errors.New("request or actor must be defined")
+	}
+
+	parentCtx := context.Background()
+	if r != nil {
+		parentCtx = r.Context()
+	}
+	return context.WithValue(parentCtx, "actor", identifier), nil
 }

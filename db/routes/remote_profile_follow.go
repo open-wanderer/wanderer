@@ -38,8 +38,13 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 		userActor, _ = e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
 	}
 
+	ctx, err := util.GetSafeActorContext(e.Request, userActor)
+	if err != nil {
+		return err
+	}
+
 	// 1. Resolve Target Actor
-	actor, err := federation.GetActorByHandle(e.App, userActor, handle, false)
+	actor, err := federation.GetActorByHandle(e.App, ctx, handle, false)
 	if err != nil {
 		return e.NotFoundError("Actor not found", err)
 	}
@@ -51,7 +56,7 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 
 	// 2. Fetch Remote Content
 	client := util.SafeHTTPClient()
-	req, _ := http.NewRequest("GET", fmt.Sprintf("%s?page=%d", collectionIRI, page), nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s?page=%d", collectionIRI, page), nil)
 	req.Header.Set("Accept", "application/activity+json")
 
 	resp, err := client.Do(req)
@@ -94,7 +99,7 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 	}
 
 	// 5. Resolve IRIs to Local Records
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	var mu sync.Mutex
@@ -116,7 +121,7 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 			done := make(chan *core.Record, 1)
 			go func() {
 				// Pass false to sync to prevent deep recursion/heavy syncing if possible
-				res, err := federation.GetActorByIRI(e.App, userActor, actorIRI, false)
+				res, err := federation.GetActorByIRI(e.App, timeoutCtx, actorIRI, false)
 				if err == nil {
 					done <- res
 				} else {

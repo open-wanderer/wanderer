@@ -90,12 +90,24 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 	client := util.SafeHTTPClient()
 
+	var userActor *core.Record
+	if e.Auth != nil {
+		userActor, _ = e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
+	}
+
+	ctx, err := util.GetSafeActorContext(e.Request, userActor)
+	if err != nil {
+		return err
+	}
+
 	trailIRI := trail.GetString("iri")
 	remoteTrailID := getRemoteIdFromIRI(trailIRI)
 	u, _ := url.Parse(trailIRI)
 
 	remoteURL := fmt.Sprintf("%s://%s/api/v1/comment?filter=trail='%s'&expand=author", u.Scheme, u.Host, remoteTrailID)
-	res, err := client.Get(remoteURL)
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", remoteURL, nil)
+	res, err := client.Do(req)
 	if err != nil || res.StatusCode != 200 {
 		return fmt.Errorf("remote fetch failed: %w", err)
 	}
@@ -106,11 +118,6 @@ func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 	}
 	if err := json.NewDecoder(res.Body).Decode(&remoteData); err != nil {
 		return err
-	}
-
-	var userActor *core.Record
-	if e.Auth != nil {
-		userActor, _ = e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
 	}
 
 	collection, _ := e.App.FindCollectionByNameOrId("comments")
@@ -135,7 +142,7 @@ func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 			if expand, ok := raw["expand"].(map[string]any); ok {
 				if author, ok := expand["author"].(map[string]any); ok {
 					authorIRI, _ := author["iri"].(string)
-					actor, err := federation.GetActorByIRI(txApp, userActor, authorIRI, false)
+					actor, err := federation.GetActorByIRI(txApp, ctx, authorIRI, false)
 					if err == nil {
 						raw["author"] = actor.Id
 					}

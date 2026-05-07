@@ -15,14 +15,15 @@ import (
 func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
-		author, err := e.App.FindRecordById("activitypub_actors", record.GetString(("author")))
+
+		userActor, err := e.App.FindRecordById("activitypub_actors", record.GetString(("author")))
 		if err != nil {
 			return err
 		}
 		if err := util.IndexTrails(e.App, []*core.Record{record}, client); err != nil {
 			return err
 		}
-		if !author.GetBool("isLocal") {
+		if !userActor.GetBool("isLocal") {
 			// this happens if someone fetches a remote trail
 			// we create a stub trail record for later reference
 			// no need to create an activity for that
@@ -34,12 +35,18 @@ func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			return err
 		}
 
-		err = federation.CreateTrailActivity(e.App, author, e.Record, activitypub.CreateType)
+		ctx, err := util.GetSafeActorContext(nil, userActor)
+
 		if err != nil {
 			return err
 		}
 
-		_, err = util.InsertIntoFeed(e.App, author.Id, author.Id, record.Id, util.TrailFeed)
+		err = federation.CreateTrailActivity(e.App, ctx, e.Record, activitypub.CreateType)
+		if err != nil {
+			return err
+		}
+
+		_, err = util.InsertIntoFeed(e.App, userActor.Id, userActor.Id, record.Id, util.TrailFeed)
 		if err != nil {
 			return err
 		}
@@ -51,15 +58,15 @@ func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
-		author, err := e.App.FindRecordById("activitypub_actors", record.GetString(("author")))
+		userActor, err := e.App.FindRecordById("activitypub_actors", record.GetString(("author")))
 		if err != nil {
 			return err
 		}
-		err = util.UpdateTrail(e.App, record, author, client)
+		err = util.UpdateTrail(e.App, record, userActor, client)
 		if err != nil {
 			return err
 		}
-		if !author.GetBool("isLocal") {
+		if !userActor.GetBool("isLocal") {
 			// this happens if someone fetches a remote trail
 			// we create a stub trail record for later reference
 			// no need to create an activity for that
@@ -71,7 +78,13 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			return err
 		}
 
-		err = federation.CreateTrailActivity(e.App, author, e.Record, pub.UpdateType)
+		ctx, err := util.GetSafeActorContext(nil, userActor)
+
+		if err != nil {
+			return err
+		}
+
+		err = federation.CreateTrailActivity(e.App, ctx, e.Record, pub.UpdateType)
 		if err != nil {
 			return err
 		}

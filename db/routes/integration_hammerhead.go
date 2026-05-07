@@ -44,6 +44,8 @@ func loginHammerhead(e *core.RequestEvent) (*hammerhead.HammerheadApi, error) {
 	userId := ""
 	if e.Auth != nil {
 		userId = e.Auth.Id
+	} else {
+		return nil, e.UnauthorizedError("authentication required", nil)
 	}
 
 	integrations, err := e.App.FindAllRecords("integrations", dbx.NewExp("user = {:id}", dbx.Params{"id": userId}))

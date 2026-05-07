@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"pocketbase/federation"
+	"pocketbase/util"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/meilisearch/meilisearch-go"
@@ -18,7 +19,12 @@ func CreateCommentHandler() func(e *core.RecordRequestEvent) error {
 			return err
 		}
 
-		err = federation.CreateCommentActivity(e.App, userActor, e.Record, pub.CreateType)
+		ctx, err := util.GetSafeActorContext(e.Request, userActor)
+		if err != nil {
+			return err
+		}
+
+		err = federation.CreateCommentActivity(e.App, ctx, e.Record, pub.CreateType)
 		if err != nil {
 			return err
 		}
@@ -33,7 +39,12 @@ func UpdateCommentHandler() func(e *core.RecordRequestEvent) error {
 			return err
 		}
 
-		err = federation.CreateCommentActivity(e.App, userActor, e.Record, pub.UpdateType)
+		ctx, err := util.GetSafeActorContext(e.Request, userActor)
+		if err != nil {
+			return err
+		}
+
+		err = federation.CreateCommentActivity(e.App, ctx, e.Record, pub.UpdateType)
 		if err != nil {
 			return err
 		}

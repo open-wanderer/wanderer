@@ -111,53 +111,6 @@ func generateKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	return priv, pub, nil
 }
 
-func SyncOutbox(app core.App, actor *core.Record) error {
-	return fetchOutboxPage(app, actor, actor.GetString("outbox")+"?page=1")
-}
-
-func fetchOutboxPage(app core.App, actor *core.Record, pageURL string) error {
-	client := SafeHTTPClient()
-
-	req, err := http.NewRequest(http.MethodGet, pageURL, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Add("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	var page pub.OrderedCollectionPage
-	err = json.Unmarshal(body, &page)
-	if err != nil {
-		return err
-	}
-
-	for _, item := range page.OrderedItems {
-		activity, err := pub.ToActivity(item)
-		if err != nil {
-			return err
-		}
-		if activity.Type != pub.CreateType {
-			continue
-		}
-	}
-
-	if page.Next != nil {
-		return fetchOutboxPage(app, actor, page.Next.GetID().String())
-	}
-
-	return nil
-}
-
 func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
 	t, err := pub.ToObject(activity.Object)
 	if err != nil {

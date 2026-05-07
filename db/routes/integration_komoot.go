@@ -21,6 +21,8 @@ func IntegrationKommotLogin(e *core.RequestEvent) error {
 	userId := ""
 	if e.Auth != nil {
 		userId = e.Auth.Id
+	} else {
+		return e.UnauthorizedError("authentication required", nil)
 	}
 
 	integrations, err := e.App.FindAllRecords("integrations", dbx.NewExp("user = {:id}", dbx.Params{"id": userId}))

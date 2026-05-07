@@ -1,8 +1,10 @@
 package routes
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"pocketbase/federation"
 	"pocketbase/util"
@@ -27,21 +29,26 @@ func RemoteListGet(e *core.RequestEvent) error {
 		userActor, _ = e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
 	}
 
+	ctx, err := util.GetSafeActorContext(e.Request, userActor)
+	if err != nil {
+		return err
+	}
+
 	if handle != "" {
-		record, err = findLocalListByRemoteInfo(e, userActor, handle, listID)
+		record, err = findLocalListByRemoteInfo(e, ctx, handle, listID)
 		if err != nil {
 			return e.InternalServerError("Failed to resolve trail", err)
 		}
 
 		if record.Id == "" {
-			record, err = performFullListSync(e.App, userActor, e.Request.URL, record)
+			record, err = performFullListSync(e.App, ctx, e.Request.URL, record)
 			if err != nil {
 				return e.InternalServerError("Sync failed", err)
 			}
 		} else {
 			updatedAt := record.GetDateTime("updated").Time()
 			if time.Now().UTC().Sub(updatedAt) > 60*time.Minute {
-				go performFullSync(e.App, userActor, e.Request.URL, record)
+				go performFullSync(e.App, ctx, e.Request.URL, record)
 			}
 		}
 	} else {
@@ -54,9 +61,9 @@ func RemoteListGet(e *core.RequestEvent) error {
 	return expandAndReturn(e, record, expandQuery)
 }
 
-func findLocalListByRemoteInfo(e *core.RequestEvent, userActor *core.Record, handle, trailID string) (*core.Record, error) {
+func findLocalListByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle, trailID string) (*core.Record, error) {
 	// 1. Get Actor to build the IRI
-	actor, err := federation.GetActorByHandle(e.App, userActor, handle, false)
+	actor, err := federation.GetActorByHandle(e.App, ctx, handle, false)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +86,7 @@ func findLocalListByRemoteInfo(e *core.RequestEvent, userActor *core.Record, han
 	return shell, nil
 }
 
-func performFullListSync(app core.App, userActor *core.Record, reqURL *url.URL, localList *core.Record) (*core.Record, error) {
+func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, localList *core.Record) (*core.Record, error) {
 	client := util.SafeHTTPClient()
 
 	iri := localList.GetString("iri")
@@ -87,7 +94,12 @@ func performFullListSync(app core.App, userActor *core.Record, reqURL *url.URL, 
 	remoteUrl.RawQuery = reqURL.RawQuery
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
-	res, err := client.Get(remoteUrl.String())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, remoteUrl.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := client.Do(req)
 	if err != nil || res.StatusCode != 200 {
 		return localList, err
 	}
@@ -102,7 +114,7 @@ func performFullListSync(app core.App, userActor *core.Record, reqURL *url.URL, 
 		remoteID, _ := remoteMap["id"].(string)
 
 		// 1. Sync Files
-		syncListRecordFiles(localList, "lists", remoteID, origin, remoteMap)
+		syncListRecordFiles(ctx, localList, "lists", remoteID, origin, remoteMap)
 
 		// 2. Map Relations & Simple Fields
 		syncListMetadata(localList, remoteMap)
@@ -110,7 +122,7 @@ func performFullListSync(app core.App, userActor *core.Record, reqURL *url.URL, 
 		// 3. Sync Trails
 		if expand, ok := remoteMap["expand"].(map[string]any); ok {
 			if trails, ok := expand["trails"].([]any); ok {
-				err = syncTrails(txApp, userActor, localList, origin, trails)
+				err = syncTrails(txApp, ctx, localList, origin, trails)
 				if err != nil {
 					return err
 				}
@@ -136,15 +148,15 @@ func syncListMetadata(record *core.Record, data map[string]any) {
 	record.Load(data)
 }
 
-func syncListRecordFiles(record *core.Record, collection, remoteID, origin string, data map[string]any) {
+func syncListRecordFiles(ctx context.Context, record *core.Record, collection, remoteID, origin string, data map[string]any) {
 	if gpx, ok := data["avatar"].(string); ok && record.GetString("avatar") == "" {
-		if f, err := downloadFile(origin, collection, remoteID, gpx); err == nil {
+		if f, err := downloadFile(ctx, origin, collection, remoteID, gpx); err == nil {
 			record.Set("avatar", f)
 		}
 	}
 }
 
-func syncTrails(txApp core.App, userActor *core.Record, list *core.Record, origin string, trails []any) error {
+func syncTrails(txApp core.App, ctx context.Context, list *core.Record, origin string, trails []any) error {
 	col, _ := txApp.FindCollectionByNameOrId("trails")
 
 	localTrails := make([]string, 0, len(trails))
@@ -168,7 +180,7 @@ func syncTrails(txApp core.App, userActor *core.Record, list *core.Record, origi
 		author := list.GetString("author")
 		if expand, ok := raw["expand"].(map[string]any); ok {
 			if authorMap, ok := expand["author"].(map[string]any); ok {
-				actor, err := federation.GetActorByIRI(txApp, userActor, authorMap["iri"].(string), false)
+				actor, err := federation.GetActorByIRI(txApp, ctx, authorMap["iri"].(string), false)
 				if err != nil {
 					return err
 				}
