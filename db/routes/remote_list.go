@@ -40,7 +40,7 @@ func RemoteListGet(e *core.RequestEvent) error {
 			return e.InternalServerError("Failed to resolve trail", err)
 		}
 
-		if record.Id == "" {
+		if record.Id == "" || record.GetBool("needs_full_sync") {
 			record, err = performFullListSync(e.App, ctx, e.Request.URL, record)
 			if err != nil {
 				return e.InternalServerError("Sync failed", err)
@@ -118,6 +118,8 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 
 		// 2. Map Relations & Simple Fields
 		syncListMetadata(localList, remoteMap)
+
+		localList.Set("needs_full_sync", false)
 
 		// 3. Sync Trails
 		if expand, ok := remoteMap["expand"].(map[string]any); ok {

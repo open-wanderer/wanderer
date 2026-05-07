@@ -145,7 +145,13 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		}
 	} else {
 		// this trail exists already
-		// nothing more to do
+		// ensure that it is fully synced to catch waypoint/summit log updates
+
+		record.Set("needs_full_sync", true)
+		err = app.Save(record)
+		if err != nil {
+			return nil, err
+		}
 
 		return record, nil
 	}
@@ -428,7 +434,9 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 		}
 	} else {
 		// this list exists already
-		// nothing more to do
+		// ensure that it is fully synced to catch trail updates
+
+		record.Set("needs_full_sync", true)
 
 		return record, nil
 	}
@@ -438,6 +446,7 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 	record.Set("public", true)
 	record.Set("iri", iri)
 	record.Set("author", actor.Id)
+	record.Set("needs_full_sync", true)
 
 	if l.Attachment != nil {
 
