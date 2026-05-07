@@ -48,7 +48,7 @@ func RemoteListGet(e *core.RequestEvent) error {
 		} else {
 			updatedAt := record.GetDateTime("updated").Time()
 			if time.Now().UTC().Sub(updatedAt) > 60*time.Minute {
-				go performFullSync(e.App, ctx, e.Request.URL, record)
+				go performFullListSync(e.App, ctx, e.Request.URL, record)
 			}
 		}
 	} else {
