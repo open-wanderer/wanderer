@@ -2,7 +2,10 @@ package util
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -13,71 +16,73 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
+var ErrRateLimited = fmt.Errorf("rate limit exceeded for origin")
+
 type RateLimiter struct {
 	mu       sync.RWMutex
 	requests map[string][]time.Time
 	maxReqs  int
 	window   time.Duration
-	salt     string
+	key      []byte
 }
-
-var ErrRateLimited = fmt.Errorf("rate limit exceeded for origin")
 
 func NewRateLimiter(maxReqs int, window time.Duration) *RateLimiter {
 	rl := &RateLimiter{
 		requests: make(map[string][]time.Time),
 		maxReqs:  maxReqs,
 		window:   window,
-		salt:     fmt.Sprintf("%d", time.Now().UnixNano()),
+		key:      make([]byte, 32),
 	}
+	rand.Read(rl.key)
 
-	go rl.cleanupWorker()
+	// Background worker: Cleans up memory and rotates keys
+	go rl.maintenanceWorker()
 	return rl
 }
 
-func (rl *RateLimiter) CheckRateLimit(identifier string, host string) error {
-	key := rl.hashIdentifier(identifier + ":" + host)
-
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	now := time.Now()
-	threshold := now.Add(-rl.window)
-
-	var active []time.Time
-	for _, t := range rl.requests[key] {
-		if t.After(threshold) {
-			active = append(active, t)
-		}
-	}
-
-	if len(active) >= rl.maxReqs {
-		rl.requests[key] = active
-		return ErrRateLimited
-	}
-
-	rl.requests[key] = append(active, now)
-	return nil
-}
-
-func (rl *RateLimiter) cleanupWorker() {
+func (rl *RateLimiter) maintenanceWorker() {
 	ticker := time.NewTicker(rl.window * 2)
 	for range ticker.C {
 		rl.mu.Lock()
-		now := time.Now()
-		for key, timestamps := range rl.requests {
-			// If the newest timestamp is older than the window, delete the whole key
-			if len(timestamps) == 0 || now.Sub(timestamps[len(timestamps)-1]) > rl.window {
-				delete(rl.requests, key)
-			}
-		}
+
+		newKey := make([]byte, 32)
+		rand.Read(newKey)
+		rl.key = newKey
+
+		rl.requests = make(map[string][]time.Time)
+
 		rl.mu.Unlock()
 	}
 }
 
-func (rl *RateLimiter) hashIdentifier(id string) string {
-	hash := sha256.Sum256([]byte(id + rl.salt))
-	return fmt.Sprintf("%x", hash)
+func (rl *RateLimiter) CheckRateLimit(identifier string, host string) error {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	h := hmac.New(sha256.New, rl.key)
+	h.Write([]byte(identifier + ":" + host))
+	key := hex.EncodeToString(h.Sum(nil))
+
+	now := time.Now()
+	threshold := now.Add(-rl.window)
+
+	timestamps := rl.requests[key]
+	w := 0
+	for _, t := range timestamps {
+		if t.After(threshold) {
+			timestamps[w] = t
+			w++
+		}
+	}
+	timestamps = timestamps[:w]
+
+	if len(timestamps) >= rl.maxReqs {
+		rl.requests[key] = timestamps
+		return fmt.Errorf("rate limit exceeded")
+	}
+
+	rl.requests[key] = append(timestamps, now)
+	return nil
 }
 
 var ActivityPubRateLimiter = NewRateLimiter(30, time.Minute)
