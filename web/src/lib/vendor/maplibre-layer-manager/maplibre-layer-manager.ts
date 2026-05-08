@@ -108,8 +108,8 @@ export class LayerManager {
 
                 const source = this.map.getSource(sourceId) as M.GeoJSONSource
                 source.setData(s.data)
-                this.layers[id] = layer
             }
+            this.layers[id] = layer
             return;
         }
         for (const [id, s] of Object.entries(layer.spec.sources)) {
