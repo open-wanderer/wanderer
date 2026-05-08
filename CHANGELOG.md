@@ -46,7 +46,7 @@
 - Fixed double GPX upload when creating a trail. (PR #969)
 - Fixed help links. (PR #938)
 - Fixed a MapLibre layer manager issue that could prevent existing map layers from being tracked correctly after data updates. (PR #960, thanks @palhaland)
-
+- Fixed search endpoints returning invalid errors in some failure cases. (PR #961, thanks @palhaland)
 
 ## Translation
 - The Norwegian translations have been updated. (PR #931, thanks @palhaland)
