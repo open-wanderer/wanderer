@@ -45,6 +45,8 @@
 - List descriptions in the selection modal are now fixed. (PR #869)
 - Fixed double GPX upload when creating a trail. (PR #969)
 - Fixed help links. (PR #938)
+- Fixed a MapLibre layer manager issue that could prevent existing map layers from being tracked correctly after data updates. (PR #960, thanks @palhaland)
+
 
 ## Translation
 - The Norwegian translations have been updated. (PR #931, thanks @palhaland)
