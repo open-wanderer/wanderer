@@ -6,7 +6,7 @@ import { trails_create } from "$lib/stores/trail_store";
 import { handleError } from "$lib/util/api_util";
 import { fromFile, gpx2trail } from "$lib/util/gpx_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
-import type { Hits, MeiliSearch } from "meilisearch";
+import type { Hits, Meilisearch } from "meilisearch";
 import { ClientResponseError } from "pocketbase";
 
 /**
@@ -111,7 +111,7 @@ export async function PUT(event: RequestEvent) {
     }
 }
 
-async function findDuplicate(ms: MeiliSearch, t1: Trail) {
+async function findDuplicate(ms: Meilisearch, t1: Trail) {
     const response = await ms.index("trails").search("", {});
 
     const trails: TrailSearchResult[] = response.hits as Hits<TrailSearchResult>

@@ -301,6 +301,7 @@
   "no-data": "Ez dago daturik",
   "no-description-for-now": "Ez dago deskribapenik",
   "no-gps-data-in-image": "Ez dago GPS daturik irudian",
+  "waypoint-cluster-error": "Could not create waypoint clusters",
   "no-grid": "Ez dago saretarik",
   "no-notifications": "Ez dago jakinarazpenik",
   "no-photos-here": "Ez dago argazki edo bideorik",

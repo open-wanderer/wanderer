@@ -221,17 +221,37 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
 
     let model: Trail = await r.json();
 
+    const createdSummitLogs: SummitLog[] = [];
     for (const summitLog of trail.expand?.summit_logs_via_trail ?? []) {
         summitLog.trail = model.id!;
-        await summit_logs_create(summitLog, f);
+        createdSummitLogs.push(await summit_logs_create(summitLog, f));
     }
 
+    const createdWaypoints: Waypoint[] = [];
     for (const wp of trail.expand?.waypoints_via_trail ?? []) {
         wp.trail = model.id!;
-        await waypoints_create({
+        createdWaypoints.push(await waypoints_create({
             ...wp,
             marker: undefined,
-        }, f, user);
+        }, f, user));
+    }
+
+    if (!model.expand) {
+        model.expand = {};
+    }
+
+    if (createdSummitLogs.length) {
+        model.expand.summit_logs_via_trail = [
+            ...(model.expand.summit_logs_via_trail ?? []),
+            ...createdSummitLogs,
+        ];
+    }
+
+    if (createdWaypoints.length) {
+        model.expand.waypoints_via_trail = [
+            ...(model.expand.waypoints_via_trail ?? []),
+            ...createdWaypoints,
+        ];
     }
 
     return model;

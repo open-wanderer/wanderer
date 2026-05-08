@@ -2,6 +2,10 @@
 title: Changelog
 description: What changed in the last patch?
 ---
+## Unreleased
+### Features
+- Geotagged waypoint photos are now grouped into one waypoint when they are within the category's waypoint merge radius. Existing categories are initialized with waypoint merging enabled and a 50m merge radius; set `settings.wp_merge_enabled` to `false` on a category to keep creating one waypoint per photo.
+
 ## v0.18.5
 ### Security
 - Fixes CVE-2022-39299 via xmldom upgrade

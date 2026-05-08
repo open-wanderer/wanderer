@@ -301,6 +301,7 @@
   "no-data": "Ingen data",
   "no-description-for-now": "Ingen beskrivelse ennå",
   "no-gps-data-in-image": "Ingen GPS-data i bildet",
+  "waypoint-cluster-error": "Could not create waypoint clusters",
   "no-grid": "Ingen rutenett",
   "no-notifications": "Ingen varsler",
   "no-photos-here": "Ingen bilder eller videoer her",

@@ -301,6 +301,7 @@
   "no-data": "Нет данных",
   "no-description-for-now": "Пока нет описания",
   "no-gps-data-in-image": "No GPS data in image",
+  "waypoint-cluster-error": "Could not create waypoint clusters",
   "no-grid": "Без сетки",
   "no-notifications": "Нет уведомлений",
   "no-photos-here": "Здесь нет фото/видео",

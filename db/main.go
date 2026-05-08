@@ -31,6 +31,7 @@ import (
 
 	_ "pocketbase/migrations"
 	"pocketbase/util"
+	"pocketbase/waypointcluster"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/microcosm-cc/bluemonday"
@@ -70,7 +71,7 @@ func verifySettings(app core.App) {
 func main() {
 
 	app := pocketbase.New()
-	client := initializeMeiliSearch()
+	client := initializeMeilisearch()
 
 	verifySettings(app)
 
@@ -84,7 +85,7 @@ func main() {
 	}
 }
 
-func initializeMeiliSearch() meilisearch.ServiceManager {
+func initializeMeilisearch() meilisearch.ServiceManager {
 	return meilisearch.New(
 		os.Getenv("MEILI_URL"),
 		meilisearch.WithAPIKey(os.Getenv("MEILI_MASTER_KEY")),
@@ -1073,6 +1074,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	})
 
 	registerTrailMergeRoutes(se, client)
+	se.Router.POST("/waypoint/cluster", waypointcluster.Handler)
 
 	se.Router.POST("/auth/token", func(e *core.RequestEvent) error {
 		var data struct {
@@ -1490,6 +1492,10 @@ func bootstrapCategories(app core.App) error {
 		for _, element := range categories {
 			record := core.NewRecord(collection)
 			record.Set("name", element)
+			record.Set("settings", map[string]any{
+				"wp_merge_enabled": true,
+				"wp_merge_radius":  50,
+			})
 			f, _ := filesystem.NewFileFromPath("migrations/initial_data/" + strings.ToLower(element) + ".jpg")
 			record.Set("img", f)
 			err := app.Save(record)
