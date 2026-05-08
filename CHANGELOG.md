@@ -1,6 +1,57 @@
-# Unreleased
+# v0.19.0
+
+## Breaking Changes
+- Bulk uploads no longer use `UPLOAD_USER` / `UPLOAD_PASSWORD` authentication. Uploads now require an API token; files must be placed in a subfolder of the upload directory named after the respective API token (PR #886):
+  ```
+  upload-dir/
+    <api-token>/
+      tour.gpx
+  ```
+- Bulk uploads no longer run on a cron schedule but via a file watcher. Files placed in the upload folder while the container is not running will not be processed automatically. (PR #886)
+- External service URLs have been moved from public frontend variables to server-side variables: `VALHALLA_URL`, `NOMINATIM_URL`, `OVERPASS_API_URL`. The old `PUBLIC_*` variables remain as a fallback but should be migrated. (PR #697)
+- The waypoint data model has been extended for federation: waypoints now have an `iri` and reference their author via an ActivityPub actor. Affects only clients that access PocketBase collections directly, not the standard UI. (PR #930)
+- ActivityPub actor counters have been renamed to `follower_count` and `following_count`. Affects only clients that access PocketBase collections directly. (PR #930)
+- OpenAPI documentation is now generated from annotations and served as JSON (YAML endpoint removed). (PR #927)
+
+## Security
+- HTML content in descriptions, comments, summit logs, waypoints, and profile bios is now sanitized server-side to reduce XSS risk. Some custom HTML may be stripped on save. (PR #930)
+- Added API tokens so external tools and automations can interact with wanderer. (PR #848)
+- Anonymous user API endpoints have been removed. This only affects third-party applications that accessed user data without authentication; regular users and the standard UI are unaffected. (PR #927)
+- Additional CSRF/SSRF protections and rate limiting for ActivityPub and outbound network calls. (PR #930)
+
 ## Features
-- Geotagged waypoint photos are now grouped into one waypoint when they are within the category's waypoint merge radius. Existing categories are initialized with waypoint merging enabled and a 50m merge radius; set `settings.wp_merge_enabled` to `false` on a category to keep creating one waypoint per photo.
+- Added Hammerhead integration, including sync for planned and completed tours and manual trail sending. (PR #628)
+- Federation has been significantly expanded and refactored, with more robust remote content sync and local caching for remote trails and lists. (PR #930)
+- Trails can now be explicitly marked as completed. (PR #920)
+- Geotagged waypoint photos are automatically merged into existing or nearby waypoints within the category's configured merge radius. (PR #457)
+- The trail overview has new narrow/wide view modes and improved multi-select. (PR #666, #921)
+- Trails can be copied directly and their visibility changed more easily. (PR #571)
+- External geocoding, routing, and Overpass calls now run server-side. (PR #697)
+- New setting: optionally start drawing a new trail from the current location. (PR #592)
+- GPX exports now include additional metadata for waypoints. (PR #919)
+- FIT import uses a more compatible parser. (PR #884)
+- Frontpage performance improved. (PR #929)
+- 3D terrain rendering improved. (PR #881)
+- Improved saving of public lists. (PR #554)
+
+## Bug Fixes
+- Fixed broken WebFinger requests. (PR #966)
+- Fixed theme detection via corrected `color-scheme` query selector. (PR #957, thanks @mfortini)
+- Fixed hillshading visibility on the map. (PR #942)
+- Komoot sync now runs to completion. (PR #917, thanks @StefanSchloegl)
+- Komoot integration now handles invalid photos more robustly. (PR #941)
+- Mentions now work correctly when `username` and `preferred_username` differ. (PR #885)
+- Fixed avatar updates. (PR #870)
+- Fixed list descriptions in the selection modal. (PR #869)
+- Fixed double GPX upload when creating a trail. (PR #969)
+- Fixed help links. (PR #938)
+
+## Translation
+- Norwegian translation updated. (PR #931, thanks @palhaland)
+
+## Maintenance
+- Updated Meilisearch, PocketBase, Go, web/docs dependencies, CI actions, and Docker build setup.
+
 
 # v0.18.5
 ## Security
