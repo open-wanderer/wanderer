@@ -83,23 +83,20 @@ export async function POST(event: RequestEvent) {
         const params = event.params
         const safeParams = RecordIdSchema.parse(params);
 
-        const safeData = UserUpdateSchema.parse(data);
-
-        const { email: _email, ...updateData } = safeData;
-
-        const r = await event.locals.pb.collection('users').update<User>(safeParams.id, updateData)
-
-        if (safeData.email && safeData.email != event.locals.pb.authStore.record!.email) {
-            const emailChange = await event.locals.pb.send('/user/email', {
-                method: 'POST',
-                body: JSON.stringify({ email: safeData.email }),
-            });
-            event.locals.pb.authStore.save(emailChange.token, emailChange.record);
-            r.email = safeData.email;
+        if (safeParams.id !== event.locals.pb.authStore.record!.id) {
+            return json({ message: 'Forbidden' }, { status: 403 });
         }
 
+        if (data.email !== undefined) {
+            return json({ message: 'Use POST /api/v1/user/{id}/email for email changes' }, { status: 400 });
+        }
+
+        const safeData = UserUpdateSchema.parse(data);
+        const { email: _email, ...updateData } = safeData;
+        const r = await event.locals.pb.collection('users').update<User>(safeParams.id, updateData)
+
         if (safeData.password) {
-            const authR = await event.locals.pb.collection('users').authWithPassword(safeData.email ?? event.locals.pb.authStore.record!.email, safeData.password);
+            const authR = await event.locals.pb.collection('users').authWithPassword(event.locals.pb.authStore.record!.email, safeData.password);
             return json(authR.record)
         }
         return json(r);
