@@ -16,15 +16,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/tkrajina/gpxgo/gpx"
+
+	"pocketbase/trailmerge"
+	"pocketbase/util"
 )
 
-func SyncHammerhead(app core.App) error {
+func SyncHammerhead(app core.App, client meilisearch.ServiceManager) error {
 	integrations, err := app.FindAllRecords("integrations", dbx.NewExp("true"))
 	if err != nil {
 		return err
@@ -44,12 +48,11 @@ func SyncHammerhead(app core.App) error {
 			app.Logger().Warn(warning)
 			continue
 		}
-		actorId := actor.Id
-
 		hammerheadString := i.GetString("hammerhead")
 		hammerheadIntegration := HammerheadIntegration{
 			Planned:   true,
 			Completed: true,
+			Merge:     trailmerge.DefaultIntegrationAutoMergeSettings(),
 		}
 		json.Unmarshal([]byte(hammerheadString), &hammerheadIntegration)
 
@@ -108,7 +111,7 @@ func SyncHammerhead(app core.App) error {
 					totalPages = curTotalPages
 				}
 
-				err, stopped = syncTrailWithTours(app, h, actorId, tours, after)
+				err, stopped = syncTrailWithTours(app, client, h, actor, hammerheadIntegration, tours, after)
 				if err != nil {
 					warning := fmt.Sprintf("error syncing Hammerhead tours with trails: %v\n", err)
 					fmt.Print(warning)
@@ -139,7 +142,7 @@ func SyncHammerhead(app core.App) error {
 					totalPages = curTotalPages
 				}
 
-				err, stopped = syncTrailWithActivities(app, h, actorId, tours, after)
+				err, stopped = syncTrailWithActivities(app, client, h, actor, hammerheadIntegration, tours, after)
 				if err != nil {
 					warning := fmt.Sprintf("error syncing Hammerhead tours with trails: %v\n", err)
 					fmt.Print(warning)
@@ -406,15 +409,13 @@ func (h *HammerheadApi) fetchDetailedTour(tour HammerheadTourResponse) (*Hammerh
 	return data, nil
 }
 
-func syncTrailWithTours(app core.App, k *HammerheadApi, actor string, tours []HammerheadTourResponse, after int64) (error, bool) {
+func syncTrailWithTours(app core.App, client meilisearch.ServiceManager, k *HammerheadApi, actor *core.Record, integration HammerheadIntegration, tours []HammerheadTourResponse, after int64) (error, bool) {
 	for _, tour := range tours {
-
-		trails, err := app.FindRecordsByFilter("trails", "external_id = {:id}", "", 1, 0, dbx.Params{"id": tour.ID})
+		existingTrail, err := util.FindTrailByExternalReference(app, "hammerhead", tour.ID)
 		if err != nil {
 			return err, true
 		}
-
-		if len(trails) != 0 {
+		if existingTrail != nil {
 			continue
 		}
 
@@ -439,25 +440,26 @@ func syncTrailWithTours(app core.App, k *HammerheadApi, actor string, tours []Ha
 			continue
 		}
 
-		_, err = createTrailFromTour(app, detailedTour, gpx, actor)
+		trailID, err := createTrailFromTour(app, detailedTour, gpx, actor.Id)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for tour '%s': %v", tour.Name, err))
 			continue
+		}
+		if err := trailmerge.TryAutoMergeImportedTrail(app, client, actor, trailID, integration.Merge); err != nil {
+			app.Logger().Warn(fmt.Sprintf("Unable to auto-merge imported Hammerhead tour '%s': %v", tour.Name, err))
 		}
 	}
 
 	return nil, false
 }
 
-func syncTrailWithActivities(app core.App, k *HammerheadApi, actor string, tours []HammerheadActivityResponse, after int64) (error, bool) {
+func syncTrailWithActivities(app core.App, client meilisearch.ServiceManager, k *HammerheadApi, actor *core.Record, integration HammerheadIntegration, tours []HammerheadActivityResponse, after int64) (error, bool) {
 	for _, tour := range tours {
-
-		trails, err := app.FindRecordsByFilter("trails", "external_id = {:id}", "", 1, 0, dbx.Params{"id": tour.ID})
+		existingTrail, err := util.FindTrailByExternalReference(app, "hammerhead", tour.ID)
 		if err != nil {
 			return err, true
 		}
-
-		if len(trails) != 0 {
+		if existingTrail != nil {
 			continue
 		}
 
@@ -483,10 +485,13 @@ func syncTrailWithActivities(app core.App, k *HammerheadApi, actor string, tours
 			continue
 		}
 
-		_, err = createTrailFromActivity(app, detailedTour, gpx, actor)
+		trailID, err := createTrailFromActivity(app, detailedTour, gpx, actor.Id)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for tour '%s': %v", tour.Name, err))
 			continue
+		}
+		if err := trailmerge.TryAutoMergeImportedTrail(app, client, actor, trailID, integration.Merge); err != nil {
+			app.Logger().Warn(fmt.Sprintf("Unable to auto-merge imported Hammerhead activity '%s': %v", tour.Name, err))
 		}
 	}
 
@@ -565,6 +570,9 @@ func createTrailFromActivity(app core.App, detailedTour *HammerheadActivity, gpx
 	if err := app.Save(record); err != nil {
 		return "", err
 	}
+	if err := util.EnsureTrailExternalReference(app, trailid, "hammerhead", detailedTour.ActivityData.ID); err != nil {
+		return "", err
+	}
 
 	collection, err = app.FindCollectionByNameOrId("summit_logs")
 	if err != nil {
@@ -607,20 +615,18 @@ func createTrailFromTour(app core.App, detailedTour *HammerheadTour, gpx *filesy
 	diffculty := "easy" // ToDo: calculate difficulty
 
 	record.Load(map[string]any{
-		"id":                trailid,
-		"name":              detailedTour.Name,
-		"public":            detailedTour.IsPublic,
-		"distance":          detailedTour.Distance,
-		"elevation_gain":    detailedTour.Elevation.Gain,
-		"elevation_loss":    detailedTour.Elevation.Loss,
-		"date":              detailedTour.CreatedAt,
-		"external_provider": "hammerhead",
-		"external_id":       detailedTour.ID,
-		"lat":               detailedTour.StartLocation.Lat,
-		"lon":               detailedTour.StartLocation.Lng,
-		"difficulty":        diffculty,
-		"category":          categoryId,
-		"author":            actor,
+		"id":             trailid,
+		"name":           detailedTour.Name,
+		"public":         detailedTour.IsPublic,
+		"distance":       detailedTour.Distance,
+		"elevation_gain": detailedTour.Elevation.Gain,
+		"elevation_loss": detailedTour.Elevation.Loss,
+		"date":           detailedTour.CreatedAt,
+		"lat":            detailedTour.StartLocation.Lat,
+		"lon":            detailedTour.StartLocation.Lng,
+		"difficulty":     diffculty,
+		"category":       categoryId,
+		"author":         actor,
 	})
 
 	if gpx != nil {
@@ -628,6 +634,9 @@ func createTrailFromTour(app core.App, detailedTour *HammerheadTour, gpx *filesy
 	}
 
 	if err := app.Save(record); err != nil {
+		return "", err
+	}
+	if err := util.EnsureTrailExternalReference(app, trailid, "hammerhead", detailedTour.ID); err != nil {
 		return "", err
 	}
 

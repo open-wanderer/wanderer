@@ -1,7 +1,8 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
+    import { page } from "$app/state";
     import Tabs from "$lib/components/base/tabs.svelte";
-    import TrailDropdown from "$lib/components/trail/trail_dropdown.svelte";
+    import TrailDropdown, { type MergeResult } from "$lib/components/trail/trail_dropdown.svelte";
     import { Comment } from "$lib/models/comment";
     import type { Trail } from "$lib/models/trail";
 
@@ -268,6 +269,21 @@
         summitLogs.set(newSummitLogList);
     }
 
+    function handleTrailMerge(result: MergeResult) {
+        if (!trail.id || !result.deletedTrailIds.includes(trail.id)) {
+            return;
+        }
+
+        const targetHandle = handleFromRecordWithIRI(result.targetTrail);
+        const targetPath =
+            mode === "map"
+                ? `/map/trail/${targetHandle}/${result.targetTrail.id}`
+                : `/trail/view/${targetHandle}/${result.targetTrail.id}`;
+
+        const search = page.url.searchParams.toString();
+        goto(search ? `${targetPath}?${search}` : targetPath);
+    }
+
     async function markTrailAsCompleted() {
         trail.completed = true;
         const updatedTrail: Trail = { ...trail };
@@ -429,6 +445,7 @@
                         trails={new Set<Trail>([trail])}
                         onDelete={() =>
                             history.length ? history.back() : goto("/trails")}
+                        onMerge={handleTrailMerge}
                         {mode}
                     ></TrailDropdown>
                 </div>

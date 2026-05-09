@@ -143,7 +143,7 @@ func setupCommands(app *pocketbase.PocketBase) {
 func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.ServeEvent) error {
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
-		registerCronJobs(se.App)
+		registerCronJobs(se.App, client)
 		initData(se.App, client)
 
 		return se.Next()
@@ -156,6 +156,9 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 	se.Router.POST("/auth/token", routes.AuthToken)
 	se.Router.POST("/waypoint/cluster", routes.WaypointCluster)
+
+	se.Router.POST("/trail-merge/suggest", routes.TrailMergeSuggest)
+	se.Router.POST("/trail-merge", routes.TrailMerge(client))
 
 	se.Router.GET("/search/token", routes.SearchToken(client))
 
@@ -179,26 +182,26 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 }
 
-func registerCronJobs(app core.App) {
+func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 	schedule := os.Getenv("POCKETBASE_CRON_SYNC_SCHEDULE")
 	if len(schedule) == 0 {
 		schedule = "0 2 * * *"
 	}
 
 	app.Cron().MustAdd("integrations", schedule, func() {
-		err := strava.SyncStrava(app)
+		err := strava.SyncStrava(app, client)
 		if err != nil {
 			warning := fmt.Sprintf("Error syncing with strava: %v", err)
 			fmt.Println(warning)
 			app.Logger().Error(warning)
 		}
-		err = komoot.SyncKomoot(app)
+		err = komoot.SyncKomoot(app, client)
 		if err != nil {
 			warning := fmt.Sprintf("Error syncing with komoot: %v", err)
 			fmt.Println(warning)
 			app.Logger().Error(warning)
 		}
-		err = hammerhead.SyncHammerhead(app)
+		err = hammerhead.SyncHammerhead(app, client)
 		if err != nil {
 			warning := fmt.Sprintf("Error syncing with hammerhead: %v", err)
 			fmt.Println(warning)

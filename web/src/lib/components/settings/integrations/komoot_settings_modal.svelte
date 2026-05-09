@@ -1,5 +1,6 @@
 <script lang="ts">
     import Modal from "$lib/components/base/modal.svelte";
+    import IntegrationMergeSettings from "$lib/components/settings/integrations/integration_merge_settings.svelte";
     import Select, {
         type SelectItem,
     } from "$lib/components/base/select.svelte";
@@ -43,6 +44,9 @@
         planned: integration?.komoot?.planned ?? true,
         active: integration?.komoot?.active ?? false,
         privacy: integration?.komoot?.privacy ?? "original",
+        merge: integration?.komoot?.merge ?? {
+            enabled: false,
+        },
     });
 
     const {
@@ -106,6 +110,8 @@
                     {$_("integration-privacy-hint-user")}
                 {/if}
             </p>
+
+            <IntegrationMergeSettings prefix="merge" />
         </form>
     {/snippet}
     {#snippet footer()}
