@@ -8,7 +8,7 @@
     } from "$lib/components/base/search.svelte";
     import EmptyStateFeed from "$lib/components/empty_states/empty_state_feed.svelte";
     import FeedCard from "$lib/components/profile/feed_card.svelte";
-    import Scene from "$lib/components/scene.svelte";
+    import Scene from "$lib/components/3D/scene.svelte";
     import TrailCard from "$lib/components/trail/trail_card.svelte";
     import {
         defaultTrailSearchAttributes,
@@ -27,6 +27,8 @@
     import { marked } from "marked";
     import { onMount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
+    import StarSky from "$lib/components/3D/star_sky.svelte";
+    import { fade } from "svelte/transition";
 
     let { data } = $props();
 
@@ -153,14 +155,14 @@
 <svelte:window onscroll={onScroll} />
 
 <section
-    class="hero grid grid-cols-1 lg:grid-cols-2 md:px-8 gap-4 md:gap-8"
+    class="hero grid grid-cols-1 lg:grid-cols-2 lg:px-8 gap-4 lg:gap-8"
     style="min-height: calc(100vh - 112px)"
 >
     <div
-        class="flex flex-col justify-center gap-8 px-8 md:px-24 mt-0 lg:sticky"
+        class="flex flex-col justify-center gap-8 px-8 lg:px-24 mt-0 lg:sticky"
         style="max-height: calc(100vh - 112px); top: 112px;"
     >
-        <h2 class="text-5xl sm:text-6xl md:text-7xl font-bold">
+        <h2 class="text-5xl sm:text-6xl lg:text-7xl font-bold">
             {$_("welcome_to")} <span class="-tracking-[0.075em]">wanderer</span>
         </h2>
         <h5>
@@ -190,16 +192,34 @@
 </section>
 {#if !page.data.user}
     <div
-        class="hidden md:block w-full fixed top-[112px] -z-10"
+        class="hidden lg:block w-full fixed top-[112px] -z-10"
         style="min-height: calc(100vh - 112px)"
     >
-        <Canvas toneMapping={0}>
-            <Scene></Scene>
-        </Canvas>
+        <div class="invisible dark:visible">
+            <StarSky></StarSky>
+        </div>
+        <div class="absolute h-full w-[60%] left-[40%]">
+            <Canvas toneMapping={0}>
+                <Scene></Scene>
+            </Canvas>
+            {#if $theme === "light"}
+                <enhanced:img
+                    class="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 max-h-3/4"
+                    src="/static/models/wanderer_diorama_light.png"
+                    alt="wanderer Diorama"
+                />
+            {:else}
+                <enhanced:img
+                    class="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 max-h-3/4"
+                    src="/static/models/wanderer_diorama_dark.png"
+                    alt="wanderer Diorama"
+                />
+            {/if}
+        </div>
     </div>
-    <section class="md:px-8 md:max-w-1/2 mb-24" id="about">
-        <div class="px-8 md:px-24">
-            <h2 class="text-4xl md:text-5xl font-bold mt-1 mb-8">
+    <section class="lg:px-8 lg:max-w-1/2 mb-24" id="about">
+        <div class="px-8 lg:px-24">
+            <h2 class="text-4xl lg:text-5xl font-bold mt-1 mb-8">
                 {$_("about")}
             </h2>
             <div class="prose dark:prose-invert">
@@ -207,9 +227,9 @@
             </div>
         </div>
     </section>
-    <section class="md:px-8 md:max-w-1/2 mb-24" id="trails">
-        <div class="px-8 md:px-24 space-y-4">
-            <h2 class="text-4xl md:text-5xl font-bold">
+    <section class="lg:px-8 lg:max-w-1/2 mb-24" id="trails">
+        <div class="px-8 lg:px-24 space-y-4">
+            <h2 class="text-4xl lg:text-5xl font-bold">
                 {$_("explore-some-trails")}
             </h2>
             <h5>
@@ -243,9 +263,9 @@
             {/if}
         </div>
     </section>
-    <section id="get-started" class="md:px-8 md:max-w-1/2 mb-24">
-        <div class="px-8 md:px-24 space-y-4 text-center">
-            <h2 class="text-4xl md:text-5xl font-bold">{$_("get-started")}</h2>
+    <section id="get-started" class="lg:px-8 lg:max-w-1/2 mb-24">
+        <div class="px-8 lg:px-24 space-y-4 text-center">
+            <h2 class="text-4xl lg:text-5xl font-bold">{$_("get-started")}</h2>
             <p>{$_("ready-to-join")}?</p>
             <a
                 class="inline-block btn-primary btn-large"

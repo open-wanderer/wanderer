@@ -12,7 +12,7 @@ export ORIGIN=http://localhost:5173
 export MEILI_URL=http://127.0.0.1:7700
 export MEILI_MASTER_KEY=p2gYZAWODOrwTPr4AYoahCZ9CI8y9bUd0yQLGk-E3m8
 export PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
-export PUBLIC_VALHALLA_URL=https://valhalla1.openstreetmap.de
+export VALHALLA_URL=https://valhalla1.openstreetmap.de
 export POCKETBASE_ENCRYPTION_KEY=9ada3c93163812101e50e2bf49e880bc
 
 cd search && ./meilisearch --master-key $MEILI_MASTER_KEY &

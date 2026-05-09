@@ -31,6 +31,7 @@ import (
 
 	_ "pocketbase/migrations"
 	"pocketbase/util"
+	"pocketbase/waypointcluster"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/microcosm-cc/bluemonday"
@@ -49,7 +50,7 @@ func verifySettings(app core.App) {
 	if len(encryptionKey) != 32 {
 		// terminate if the encryption key is not set or is not exactly 32 bytes long,
 		// as this is a requirement for PocketBase to function properly.
-		log.Fatal("POCKETBASE_ENCRYPTION_KEY must be exactly 32 bytes long- See https://wanderer.to/run/installation/#prerequisites for more information")
+		log.Fatal("POCKETBASE_ENCRYPTION_KEY must be exactly 32 bytes long- See https://wanderer.to/run/installation/docker#prerequisites for more information")
 	}
 
 	if encryptionKey == defaultPocketBaseEncryptionKey {
@@ -70,7 +71,7 @@ func verifySettings(app core.App) {
 func main() {
 
 	app := pocketbase.New()
-	client := initializeMeiliSearch()
+	client := initializeMeilisearch()
 
 	verifySettings(app)
 
@@ -84,7 +85,7 @@ func main() {
 	}
 }
 
-func initializeMeiliSearch() meilisearch.ServiceManager {
+func initializeMeilisearch() meilisearch.ServiceManager {
 	return meilisearch.New(
 		os.Getenv("MEILI_URL"),
 		meilisearch.WithAPIKey(os.Getenv("MEILI_MASTER_KEY")),
@@ -1021,7 +1022,7 @@ func createAPITokenHandler() func(e *core.RecordEvent) error {
 func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.ServeEvent) error {
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
-		registerCronJobs(se.App)
+		registerCronJobs(se.App, client)
 		bootstrapData(se.App, client)
 
 		return se.Next()
@@ -1071,6 +1072,9 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/health", func(e *core.RequestEvent) error {
 		return e.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
+
+	registerTrailMergeRoutes(se, client)
+	se.Router.POST("/waypoint/cluster", waypointcluster.Handler)
 
 	se.Router.POST("/auth/token", func(e *core.RequestEvent) error {
 		var data struct {
@@ -1395,26 +1399,26 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	})
 }
 
-func registerCronJobs(app core.App) {
+func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 	schedule := os.Getenv("POCKETBASE_CRON_SYNC_SCHEDULE")
 	if len(schedule) == 0 {
 		schedule = "0 2 * * *"
 	}
 
 	app.Cron().MustAdd("integrations", schedule, func() {
-		err := strava.SyncStrava(app)
+		err := strava.SyncStrava(app, client)
 		if err != nil {
 			warning := fmt.Sprintf("Error syncing with strava: %v", err)
 			fmt.Println(warning)
 			app.Logger().Error(warning)
 		}
-		err = komoot.SyncKomoot(app)
+		err = komoot.SyncKomoot(app, client)
 		if err != nil {
 			warning := fmt.Sprintf("Error syncing with komoot: %v", err)
 			fmt.Println(warning)
 			app.Logger().Error(warning)
 		}
-		err = hammerhead.SyncHammerhead(app)
+		err = hammerhead.SyncHammerhead(app, client)
 		if err != nil {
 			warning := fmt.Sprintf("Error syncing with hammerhead: %v", err)
 			fmt.Println(warning)
@@ -1488,6 +1492,10 @@ func bootstrapCategories(app core.App) error {
 		for _, element := range categories {
 			record := core.NewRecord(collection)
 			record.Set("name", element)
+			record.Set("settings", map[string]any{
+				"wp_merge_enabled": true,
+				"wp_merge_radius":  50,
+			})
 			f, _ := filesystem.NewFileFromPath("migrations/initial_data/" + strings.ToLower(element) + ".jpg")
 			record.Set("img", f)
 			err := app.Save(record)

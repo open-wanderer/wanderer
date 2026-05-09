@@ -12,6 +12,7 @@
     import { onMount, tick } from "svelte";
     import type { Snippet } from "svelte";
     import TrailDropdown from "$lib/components/trail/trail_dropdown.svelte";
+    import { goto } from "$app/navigation";
 
     interface Props {
         filter?: TrailFilter | null;
@@ -297,6 +298,15 @@
         else hoveredTrail = undefined;
     }
 
+    async function handleTrailsMergeDone(resetSelection: boolean = false) {
+        if (resetSelection) {
+            selection?.clear();
+            hoveredTrail = undefined;
+        }
+        await tick();
+        onupdate?.(filter, selection);
+    }
+
     async function handleTrailsEditDone(resetSelection: boolean = false) {
         if (resetSelection) {
             selection = new Set<Trail>();
@@ -311,6 +321,15 @@
     }
     function handleMouseLeave(trail: Trail) {
         handleHoverUpdate(trail);
+    }
+
+    function handleTrailClick(e: Event, trail: Trail) {
+        if (selection && selection.size > 0) {
+            e.stopPropagation();
+            e.preventDefault();
+            handleSelectionUpdate(trail);
+        } 
+        return true
     }
 
     function setItemsPerPage() {
@@ -336,6 +355,7 @@
                     mode={"multi-select"}
                     onDelete={() => handleTrailsEditDone(true)}
                     onShare={() => handleTrailsEditDone(false)}
+                    onMerge={() => handleTrailsMergeDone(true)}
                     onUpdate={() => handleTrailsEditDone(true)}
                 />
             </div>
@@ -420,6 +440,7 @@
                     <a
                         class="max-w-full flex-1"
                         class:basis-full={selectedDisplayOption === "list"}
+                        onclick={(e) => handleTrailClick(e,trail)}
                         href="/trail/view/@{trail.author}{trail.domain
                             ? `@${trail.domain}`
                             : ''}/{trail.id}"

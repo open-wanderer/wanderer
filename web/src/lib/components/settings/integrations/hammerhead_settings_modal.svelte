@@ -1,5 +1,6 @@
 <script lang="ts">
     import Datepicker from "$lib/components/base/datepicker.svelte";
+    import IntegrationMergeSettings from "$lib/components/settings/integrations/integration_merge_settings.svelte";
     import Modal from "$lib/components/base/modal.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import Toggle from "$lib/components/base/toggle.svelte";
@@ -33,6 +34,9 @@
         planned: integration?.hammerhead?.planned ?? true,
         active: integration?.hammerhead?.active ?? false,
         after: integration?.hammerhead?.after,
+        merge: integration?.hammerhead?.merge ?? {
+            enabled: false,
+        },
     });
 
     const {
@@ -104,6 +108,8 @@
                     ><i class="fa fa-close"></i></button
                 >
             </div>
+
+            <IntegrationMergeSettings prefix="merge" />
         </form>
     {/snippet}
     {#snippet footer()}

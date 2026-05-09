@@ -12,14 +12,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/tkrajina/gpxgo/gpx"
+
+	"pocketbase/trailmerge"
+	"pocketbase/util"
 )
 
-func SyncKomoot(app core.App) error {
+func SyncKomoot(app core.App, client meilisearch.ServiceManager) error {
 	integrations, err := app.FindAllRecords("integrations", dbx.NewExp("true"))
 	if err != nil {
 		return err
@@ -39,12 +43,11 @@ func SyncKomoot(app core.App) error {
 			app.Logger().Warn(warning)
 			continue
 		}
-		actorId := actor.Id
-
 		komootString := i.GetString("komoot")
 		komootIntegration := KomootIntegration{
 			Planned:   true,
 			Completed: true,
+			Merge:     trailmerge.DefaultIntegrationAutoMergeSettings(),
 		}
 		json.Unmarshal([]byte(komootString), &komootIntegration)
 
@@ -68,25 +71,27 @@ func SyncKomoot(app core.App) error {
 			app.Logger().Warn(warning)
 			continue
 		}
-		hasNewTours := true
-		page := 0
-		for hasNewTours {
-			tours, err := k.fetchTours(page)
+		totalPages := 1
+		for page := 0; page < totalPages; page++ {
+			tours, tp, err := k.fetchTours(page)
 			if err != nil {
-				warning := fmt.Sprintf("error fetching tours from komoot: %v\n", err)
+				warning := fmt.Sprintf("error fetching tours from komoot (page %d): %v\n", page, err)
 				fmt.Print(warning)
 				app.Logger().Warn(warning)
-				continue
+				break
 			}
+			totalPages = tp
 
-			hasNewTours, err = syncTrailWithTours(app, k, komootIntegration, userId, actorId, tours)
+			allAlreadySynced, err := syncTrailWithTours(app, client, k, komootIntegration, userId, actor, tours)
 			if err != nil {
 				warning := fmt.Sprintf("error syncing komoot tours with trails: %v\n", err)
 				fmt.Print(warning)
 				app.Logger().Warn(warning)
-				continue
+				break
 			}
-			page += 1
+			if allAlreadySynced {
+				break
+			}
 		}
 	}
 
@@ -156,20 +161,18 @@ func (k *KomootApi) Login(email, password string) error {
 
 	return nil
 }
-func (k *KomootApi) fetchTours(page int) ([]KomootTour, error) {
+func (k *KomootApi) fetchTours(page int) ([]KomootTour, int, error) {
 	currentUri := fmt.Sprintf("https://api.komoot.de/v007/users/%s/tours/?page=%d&sort_field=date&sort_direction=desc&limit=30", k.UserID, page)
 
 	body, err := sendRequest(currentUri, k.buildHeader())
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var data KomootToursResponse
 	json.Unmarshal(body, &data)
 
-	tours := data.Embedded.Tours
-
-	return tours, nil
+	return data.Embedded.Tours, data.Page.TotalPages, nil
 }
 
 func (k *KomootApi) fetchDetailedTour(tour KomootTour) (*DetailedKomootTour, error) {
@@ -184,17 +187,25 @@ func (k *KomootApi) fetchDetailedTour(tour KomootTour) (*DetailedKomootTour, err
 	return data, nil
 }
 
-func syncTrailWithTours(app core.App, k *KomootApi, i KomootIntegration, user string, actor string, tours []KomootTour) (bool, error) {
-	hasNewTours := false
+// syncTrailWithTours imports tours not yet in the DB. Returns allAlreadySynced=true
+// when every tour on this page was already imported, so the caller can stop paginating
+// early during incremental syncs. Tours skipped due to type filters do NOT count as
+// synced - only tours already present in the DB do.
+func syncTrailWithTours(app core.App, client meilisearch.ServiceManager, k *KomootApi, i KomootIntegration, user string, actor *core.Record, tours []KomootTour) (bool, error) {
+	allAlreadySynced := true
 	for _, tour := range tours {
-		trails, err := app.FindRecordsByFilter("trails", "external_id = {:id}", "", 1, 0, dbx.Params{"id": strconv.Itoa(int(tour.ID))})
+		existingTrail, err := util.FindTrailByExternalReference(app, "komoot", strconv.Itoa(int(tour.ID)))
 		if err != nil {
-			return hasNewTours, err
+			return false, err
 		}
-		if len(trails) != 0 || (tour.Type == "tour_planned" && !i.Planned) || (tour.Type == "tour_recorded" && !i.Completed) {
+		if existingTrail != nil {
 			continue
 		}
-		hasNewTours = true
+		// Tour is not yet in the DB - we must keep paginating regardless of type filter
+		allAlreadySynced = false
+		if (tour.Type == "tour_planned" && !i.Planned) || (tour.Type == "tour_recorded" && !i.Completed) {
+			continue
+		}
 		detailedTour, err := k.fetchDetailedTour(tour)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to fetch details for tour '%s': %v", tour.Name, err))
@@ -205,7 +216,7 @@ func syncTrailWithTours(app core.App, k *KomootApi, i KomootIntegration, user st
 			app.Logger().Warn(fmt.Sprintf("Unable to generate GPX for tour '%s': %v", tour.Name, err))
 			continue
 		}
-		trailid, err := createTrailFromTour(app, k, detailedTour, gpx, user, actor, i.Privacy)
+		trailid, err := createTrailFromTour(app, k, detailedTour, gpx, user, actor.Id, i.Privacy)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for tour '%s': %v", tour.Name, err))
 			continue
@@ -215,9 +226,12 @@ func syncTrailWithTours(app core.App, k *KomootApi, i KomootIntegration, user st
 			app.Logger().Warn(fmt.Sprintf("Unable to create waypoints for tour '%s': %v", tour.Name, err))
 			continue
 		}
+		if err := trailmerge.TryAutoMergeImportedTrail(app, client, actor, trailid, i.Merge); err != nil {
+			app.Logger().Warn(fmt.Sprintf("Unable to auto-merge imported komoot tour '%s': %v", tour.Name, err))
+		}
 
 	}
-	return hasNewTours, nil
+	return allAlreadySynced, nil
 }
 
 func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomootTour, gpx *filesystem.File, user string, actor string, privacy string) (string, error) {
@@ -284,6 +298,7 @@ func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomoo
 		"id":                trailid,
 		"name":              detailedTour.Name,
 		"public":            public,
+		"completed":         detailedTour.Type == "tour_recorded",
 		"distance":          detailedTour.Distance,
 		"elevation_gain":    detailedTour.ElevationUp,
 		"elevation_loss":    detailedTour.ElevationDown,
@@ -306,6 +321,9 @@ func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomoo
 	}
 
 	if err := app.Save(record); err != nil {
+		return "", err
+	}
+	if err := util.EnsureTrailExternalReference(app, trailid, "komoot", strconv.Itoa(detailedTour.ID)); err != nil {
 		return "", err
 	}
 
@@ -397,9 +415,9 @@ func fetchRoutePhotos(k *KomootApi, tour *DetailedKomootTour) ([]*filesystem.Fil
 		return nil, err
 	}
 
-	photos := make([]*filesystem.File, data.Page.TotalElements)
+	photos := make([]*filesystem.File, 0, len(data.Embedded.Items))
 
-	for i, img := range data.Embedded.Items {
+	for _, img := range data.Embedded.Items {
 		photo, err := fetchPhoto(img.Src, "", "")
 		if err != nil {
 			return nil, err
@@ -407,7 +425,7 @@ func fetchRoutePhotos(k *KomootApi, tour *DetailedKomootTour) ([]*filesystem.Fil
 		if strings.HasSuffix(photo.Name, ".gif") {
 			continue
 		}
-		photos[i] = photo
+		photos = append(photos, photo)
 
 		//TODO: komoot photos can have location data. Maybe we should create a waypoint for those photos?
 	}
@@ -417,9 +435,9 @@ func fetchRoutePhotos(k *KomootApi, tour *DetailedKomootTour) ([]*filesystem.Fil
 
 func fetchWaypointPhotos(wp Item) ([]*filesystem.File, error) {
 
-	photos := make([]*filesystem.File, len(wp.Embedded.Reference.Embedded.Images.Embedded.Items))
+	photos := make([]*filesystem.File, 0, len(wp.Embedded.Reference.Embedded.Images.Embedded.Items))
 
-	for i, img := range wp.Embedded.Reference.Embedded.Images.Embedded.Items {
+	for _, img := range wp.Embedded.Reference.Embedded.Images.Embedded.Items {
 		photo, err := fetchPhoto(img.Src, "", "")
 		if err != nil {
 			return nil, err
@@ -427,7 +445,7 @@ func fetchWaypointPhotos(wp Item) ([]*filesystem.File, error) {
 		if strings.HasSuffix(photo.Name, ".gif") {
 			continue
 		}
-		photos[i] = photo
+		photos = append(photos, photo)
 	}
 
 	return photos, nil

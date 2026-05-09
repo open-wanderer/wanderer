@@ -64,9 +64,9 @@ services:
       UPLOAD_FOLDER: /app/uploads
       UPLOAD_USER:
       UPLOAD_PASSWORD:
-      PUBLIC_OVERPASS_API_URL: https://overpass-api.de
-      PUBLIC_VALHALLA_URL: https://valhalla1.openstreetmap.de
-      PUBLIC_NOMINATIM_URL: https://nominatim.openstreetmap.org
+      OVERPASS_API_URL: https://overpass-api.de
+      VALHALLA_URL: https://valhalla1.openstreetmap.de
+      NOMINATIM_URL: https://nominatim.openstreetmap.org
     volumes:
       - ./data/uploads:/app/uploads
       # - ./data/about.md:/app/build/client/md/about.md
@@ -76,7 +76,7 @@ services:
       - wanderer
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "/curl", "--fail", "http://localhost:3000/"]
+      test: ["CMD", "curl", "--fail", "http://localhost:3000/"]
       interval: 15s
       retries: 10
       start_period: 20s
