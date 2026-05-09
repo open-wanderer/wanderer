@@ -48,6 +48,6 @@ export async function POST(event: RequestEvent) {
     } catch (e: any) {
         console.error(e);
 
-        throw error(e.httpStatus, e)
+        throw error(e.httpStatus || 500, e)
     }
 }

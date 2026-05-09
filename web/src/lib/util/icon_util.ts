@@ -1530,7 +1530,7 @@ export function getIconForLocation(l: LocationSearchResult): typeof icons[number
             case "hamlet":
                 return "building"
         }
-    } else if(l.category === "historic") {
+    } else if (l.category === "historic") {
         return "eye"
     }
     switch (l.category) {

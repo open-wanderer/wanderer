@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Wanderer API",
-    "version": "v0.18.5",
+    "version": "0.18.5",
     "description": "API documentation for wanderer backend"
   },
   "servers": [],

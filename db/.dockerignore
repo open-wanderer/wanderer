@@ -6,4 +6,6 @@
 !main.go
 !migrations
 !templates
+!waypointcluster
+!waypointcluster/**
 !util

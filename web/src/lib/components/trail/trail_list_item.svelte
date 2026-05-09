@@ -133,7 +133,8 @@
         {#if trail.tags.length && trail.expand?.tags}
             <div class="flex flex-wrap gap-1 mb-3 items-center">
                 {#each expandedTags ? trail.expand.tags : trail.expand.tags.slice(0, 2) as tag}
-                    <Chip text={tag.name} closable={false} primary={false}></Chip>
+                    <Chip text={tag.name} closable={false} primary={false}
+                    ></Chip>
                 {/each}
 
                 {#if trail.expand.tags.length > 2}
@@ -154,7 +155,9 @@
         <div class="flex flex-wrap gap-x-8 gap-y-1">
             {#if trail.expand?.category?.name || trail.category}
                 <p>
-                    <i class="fa fa-shapes mr-3"> </i>{$_(trail.expand?.category?.name ?? trail.category ?? "-")}
+                    <i class="fa fa-shapes mr-3"> </i>{$_(
+                        trail.expand?.category?.name ?? trail.category ?? "-",
+                    )}
                 </p>
             {/if}
             {#if trail.location}
@@ -164,6 +167,14 @@
             {/if}
             <p class="whitespace-nowrap">
                 <i class="fa fa-gauge mr-3"></i>{$_(trail.difficulty ?? "?")}
+            </p>
+            <p class="whitespace-nowrap">
+                <i
+                    class="fa {trail.completed
+                        ? 'fa-flag-checkered'
+                        : 'fa-compass-drafting'} mr-2"
+                ></i>
+                {$_(trail.completed ? "completed" : "not-completed")}
             </p>
         </div>
 
