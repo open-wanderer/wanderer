@@ -31,11 +31,11 @@
 
     let citySearchQuery: string = "";
 
-    let confirmModal: ConfirmModal;
-    let emailModal: EmailModal;
-    let passwordModal: PasswordModal;
-    let tokenModal: ApiTokenModal;
-    let tokenSuccessModal: ApiTokenSuccessModal;
+    let confirmModal: ConfirmModal = $state()!;
+    let emailModal: EmailModal = $state()!;
+    let passwordModal: PasswordModal = $state()!;
+    let tokenModal: ApiTokenModal = $state()!;
+    let tokenSuccessModal: ApiTokenSuccessModal = $state()!;
 
     let tokenLoading: boolean = $state(false);
     let rawAPIToken: string | null = $state(null);
