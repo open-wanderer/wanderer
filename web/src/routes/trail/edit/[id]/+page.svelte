@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { env } from "$env/dynamic/public";
     import Button from "$lib/components/base/button.svelte";
     import Datepicker from "$lib/components/base/datepicker.svelte";
     import Select from "$lib/components/base/select.svelte";
@@ -11,6 +10,9 @@
     import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
     import PhotoPicker from "$lib/components/trail/photo_picker.svelte";
     import WaypointCard from "$lib/components/waypoint/waypoint_card.svelte";
+    import WaypointMergeModal, {
+        type WaypointMergeOptions,
+    } from "$lib/components/waypoint/waypoint_merge_modal.svelte";
     import WaypointModal from "$lib/components/waypoint/waypoint_modal.svelte";
     import { SummitLogCreateSchema } from "$lib/models/api/summit_log_schema.js";
     import { TrailCreateSchema } from "$lib/models/api/trail_schema.js";
@@ -75,6 +77,7 @@
     import RouteEditor from "$lib/components/trail/route_editor.svelte";
     import { TagCreateSchema } from "$lib/models/api/tag_schema.js";
     import { convertDMSToDD } from "$lib/models/gpx/utils.js";
+    import { getPb } from "$lib/pocketbase";
     import { Tag } from "$lib/models/tag.js";
     import {
         searchLocationReverse,
@@ -94,13 +97,14 @@
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
-    import { onMount, tick, untrack } from "svelte";
+    import { onMount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
-    import { fly, slide } from "svelte/transition";
+    import { fly } from "svelte/transition";
     import { z } from "zod";
     import Track from "$lib/models/gpx/track.js";
     import TrackSegment from "$lib/models/gpx/track-segment.js";
+    import ConfirmModal from "$lib/components/confirm_modal.svelte";
 
     let { data } = $props();
 
@@ -110,8 +114,10 @@
     let lists = $state(untrack(() => data.lists));
 
     let waypointModal: WaypointModal;
+    let waypointMergeModal: WaypointMergeModal;
     let summitLogModal: SummitLogModal;
     let listSelectModal: ListSearchModal;
+    let markTrailAsCompletedModal: ConfirmModal;
 
     let loading = $state(false);
 
@@ -122,8 +128,19 @@
     let gpxFile: File | Blob | null = null;
 
     let drawingActive = $state(false);
+
+    function routeCalculationErrorText(error: unknown) {
+        if (error instanceof Error && error.message) {
+            return error.message;
+        }
+        return "Error calculating route";
+    }
     let overwriteGPX = false;
     let draggingMarker = false;
+    
+    let pendingWaypointMerge:
+        | { incoming: Waypoint; existing: Waypoint }
+        | undefined = $state();
 
     let searchDropdownItems: SearchItem[] = $state([]);
 
@@ -452,19 +469,21 @@
         if (!$formData.expand!.waypoints_via_trail?.length) {
             $formData.expand!.waypoints_via_trail = [];
         }
-        $formData.expand!.waypoints_via_trail = $formData.expand!.waypoints_via_trail;
+        $formData.expand!.waypoints_via_trail =
+            $formData.expand!.waypoints_via_trail;
 
         // updateTrailOnMap();
     }
 
-    function saveWaypoint(savedWaypoint: Waypoint) {
+    function commitWaypoint(savedWaypoint: Waypoint) {
         let editedWaypointIndex =
             $formData.expand!.waypoints_via_trail?.findIndex(
                 (s) => s.id == savedWaypoint.id,
             ) ?? -1;
 
         if (editedWaypointIndex >= 0) {
-            $formData.expand!.waypoints_via_trail![editedWaypointIndex] = savedWaypoint;
+            $formData.expand!.waypoints_via_trail![editedWaypointIndex] =
+                savedWaypoint;
         } else {
             savedWaypoint.id = cryptoRandomString({ length: 15 });
             $formData.expand!.waypoints_via_trail = [
@@ -476,10 +495,177 @@
         }
     }
 
+    function getExistingWaypointClusterInputs() {
+        return (
+            $formData.expand?.waypoints_via_trail
+                ?.filter((wp) => wp.id)
+                .map((wp) => ({
+                    id: wp.id!,
+                    lat: wp.lat,
+                    lon: wp.lon,
+                })) ?? []
+        );
+    }
+
+    async function saveWaypoint(savedWaypoint: Waypoint) {
+        const editedWaypointIndex =
+            $formData.expand!.waypoints_via_trail?.findIndex(
+                (s) => s.id == savedWaypoint.id,
+            ) ?? -1;
+
+        if (editedWaypointIndex >= 0) {
+            commitWaypoint(savedWaypoint);
+            return true;
+        }
+
+        const matchingWaypoint = await findMergeableWaypoint(savedWaypoint);
+        if (matchingWaypoint) {
+            pendingWaypointMerge = {
+                incoming: savedWaypoint,
+                existing: matchingWaypoint,
+            };
+            waypointModal.closeModal();
+            waypointMergeModal.openModal();
+            return false;
+        }
+
+        commitWaypoint(savedWaypoint);
+        return true;
+    }
+
+    async function findMergeableWaypoint(savedWaypoint: Waypoint) {
+        const existingWaypoints = getExistingWaypointClusterInputs();
+
+        if (!existingWaypoints.length) {
+            return;
+        }
+
+        try {
+            const clusterResponse: WaypointPhotoClusterResponse =
+                await getPb().send("/waypoint/cluster", {
+                    method: "POST",
+                    headers: {
+                        "content-type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        category: $formData.category,
+                        photos: [
+                            {
+                                id: waypointMergeCheckPhotoId,
+                                lat: savedWaypoint.lat,
+                                lon: savedWaypoint.lon,
+                            },
+                        ],
+                        waypoints: existingWaypoints,
+                    }),
+                });
+
+            const matchingCluster = clusterResponse.clusters.find(
+                (cluster) =>
+                    cluster.waypoint &&
+                    cluster.photos.includes(waypointMergeCheckPhotoId),
+            );
+
+            if (!matchingCluster?.waypoint) {
+                return;
+            }
+
+            return $formData.expand?.waypoints_via_trail?.find(
+                (wp) => wp.id === matchingCluster.waypoint,
+            );
+        } catch (e) {
+            show_toast(
+                {
+                    type: "error",
+                    icon: "warning",
+                    text: $_("waypoint-cluster-error"),
+                },
+                10000,
+            );
+        }
+    }
+
+    function createPendingWaypointAnyway() {
+        if (!pendingWaypointMerge) {
+            return;
+        }
+
+        commitWaypoint(pendingWaypointMerge.incoming);
+        closeWaypointMergeModal();
+    }
+
+    function addPendingWaypointToExisting(options: WaypointMergeOptions) {
+        if (!pendingWaypointMerge) {
+            return;
+        }
+
+        const { incoming, existing } = pendingWaypointMerge;
+        const mergedWaypoint = {
+            ...existing,
+            icon: options.icon ? incoming.icon : existing.icon,
+            name: options.title
+                ? appendDistinctText(existing.name, incoming.name, " / ")
+                : existing.name,
+            description: options.description
+                ? appendDistinctText(
+                      existing.description,
+                      incoming.description,
+                      "\n\n",
+                  )
+                : existing.description,
+            photos: existing.photos ?? [],
+            _photos: options.photos
+                ? [
+                      ...((existing as Waypoint)._photos ?? []),
+                      ...(incoming._photos ?? []),
+                  ]
+                : (existing as Waypoint)._photos,
+        } as Waypoint;
+
+        closeWaypointMergeModal();
+        waypoint.set(mergedWaypoint);
+        waypointModal.openModal();
+    }
+
+    function appendDistinctText(
+        existing: string | undefined,
+        incoming: string | undefined,
+        separator: string,
+    ) {
+        const existingText = existing?.trim() ?? "";
+        const incomingText = incoming?.trim() ?? "";
+
+        if (!incomingText || existingText === incomingText) {
+            return existing ?? "";
+        }
+
+        if (!existingText) {
+            return incomingText;
+        }
+
+        return `${existingText}${separator}${incomingText}`;
+    }
+
+    function closeWaypointMergeModal() {
+        pendingWaypointMerge = undefined;
+        waypointMergeModal.closeModal();
+    }
+
+    function cancelPendingWaypointMerge() {
+        if (pendingWaypointMerge) {
+            waypoint.set(pendingWaypointMerge.incoming);
+        }
+
+        closeWaypointMergeModal();
+        waypointModal.openModal();
+    }
+
     function moveMarker(marker: M.Marker, wpId?: string) {
         const position = marker.getLngLat();
         const editableWaypointIndex =
-            $formData.expand!.waypoints_via_trail?.findIndex((w) => w.id == wpId) ?? -1;
+            $formData.expand!.waypoints_via_trail?.findIndex(
+                (w) => w.id == wpId,
+            ) ?? -1;
         const editableWaypoint =
             $formData.expand!.waypoints_via_trail![editableWaypointIndex];
         if (!editableWaypoint) {
@@ -487,7 +673,9 @@
         }
         editableWaypoint.lat = position.lat;
         editableWaypoint.lon = position.lng;
-        $formData.expand!.waypoints_via_trail = [...($formData.expand!.waypoints_via_trail ?? [])];
+        $formData.expand!.waypoints_via_trail = [
+            ...($formData.expand!.waypoints_via_trail ?? []),
+        ];
         // updateTrailOnMap();
     }
 
@@ -514,6 +702,13 @@
                 ...($formData.expand!.summit_logs_via_trail ?? []),
                 log,
             ];
+        }
+
+        if (
+            $formData.expand?.summit_logs_via_trail?.length == 1 &&
+            !$formData.completed
+        ) {
+            markTrailAsCompletedModal.openModal();
         }
     }
 
@@ -542,7 +737,7 @@
             } else {
                 list = await lists_add_trail(list, $formData as Trail);
             }
-            const index = lists.items.findIndex((l) => l.id == list.id);
+            const index = lists.items.findIndex((l: List) => l.id == list.id);
             if (index >= 0) {
                 lists.items[index] = list;
             }
@@ -645,7 +840,7 @@
         } catch (e) {
             console.error(e);
             show_toast({
-                text: "Error calculating route",
+                text: routeCalculationErrorText(e),
                 icon: "close",
                 type: "error",
             });
@@ -817,7 +1012,7 @@
         } catch (e) {
             console.error(e);
             show_toast({
-                text: "Error calculating route",
+                text: routeCalculationErrorText(e),
                 icon: "close",
                 type: "error",
             });
@@ -867,7 +1062,7 @@
         } catch (e) {
             console.error(e);
             show_toast({
-                text: "Error calculating route",
+                text: routeCalculationErrorText(e),
                 icon: "close",
                 type: "error",
             });
@@ -1108,6 +1303,28 @@
         document.getElementById("waypoint-photo-input")!.click();
     }
 
+    interface GPXCoord {
+        id: string;
+        longitude: number;
+        latitude: number;
+        file: File;
+    }
+
+    interface WaypointPhotoCluster {
+        lat: number;
+        lon: number;
+        waypoint?: string;
+        photos: string[];
+    }
+
+    interface WaypointPhotoClusterResponse {
+        mergeEnabled: boolean;
+        mergeRadius: number;
+        clusters: WaypointPhotoCluster[];
+    }
+
+    const waypointMergeCheckPhotoId = "__waypoint_merge_check__";
+
     async function handleWaypointPhotoSelection() {
         const files = (
             document.getElementById("waypoint-photo-input") as HTMLInputElement
@@ -1117,8 +1334,10 @@
             return;
         }
 
-        for (const file of files) {
-            const coords = await new Promise<number[]>((resolve) => {
+        const photoCoords: GPXCoord[] = [];
+
+        for (const [index, file] of Array.from(files).entries()) {
+            const coords = await new Promise<GPXCoord | undefined>((resolve) => {
                 EXIF.getData(file, function (p) {
                     const lat = EXIF.getTag(p, "GPSLatitude");
                     const latDir = EXIF.getTag(p, "GPSLatitudeRef");
@@ -1126,22 +1345,19 @@
                     const lonDir = EXIF.getTag(p, "GPSLongitudeRef");
 
                     if (lat && lon) {
-                        resolve([
-                            convertDMSToDD(lat, latDir),
-                            convertDMSToDD(lon, lonDir),
-                        ]);
+                        resolve({
+                            id: index.toString(),
+                            latitude: convertDMSToDD(lat, latDir),
+                            longitude: convertDMSToDD(lon, lonDir),
+                            file,
+                        });
                     } else {
-                        resolve([]);
+                        resolve(undefined);
                     }
                 });
             });
-            if (coords.length) {
-                const wp: Waypoint = new Waypoint(coords[0], coords[1], {
-                    icon: "image",
-                });
-                wp._photos = [file];
-                saveWaypoint(wp);
-            } else {
+
+            if (!coords) {
                 show_toast(
                     {
                         type: "warning",
@@ -1150,7 +1366,80 @@
                     },
                     10000,
                 );
+                continue;
             }
+
+            photoCoords.push(coords);
+        }
+
+        let clusterResponse: WaypointPhotoClusterResponse;
+        try {
+            clusterResponse = await getPb().send("/waypoint/cluster", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                },
+                body: JSON.stringify({
+                    category: $formData.category,
+                    photos: photoCoords.map((coords) => ({
+                        id: coords.id,
+                        lat: coords.latitude,
+                        lon: coords.longitude,
+                    })),
+                    waypoints: getExistingWaypointClusterInputs(),
+                }),
+            });
+        } catch (e) {
+            show_toast(
+                {
+                    type: "error",
+                    icon: "warning",
+                    text: $_("waypoint-cluster-error"),
+                },
+                10000,
+            );
+            return;
+        }
+
+        const fileMap = new Map(photoCoords.map((coords) => [coords.id, coords.file]));
+
+        for (const cluster of clusterResponse.clusters) {
+            const photos = cluster.photos
+                .map((id) => fileMap.get(id))
+                .filter((file): file is File => file != null);
+
+            if (!photos.length) {
+                continue;
+            }
+
+            if (cluster.waypoint) {
+                const existingWaypoint =
+                    $formData.expand?.waypoints_via_trail?.find(
+                        (wp) => wp.id === cluster.waypoint,
+                    );
+
+                if (existingWaypoint) {
+                    const existingWaypointPhotos =
+                        (existingWaypoint as Waypoint)._photos ?? [];
+
+                    commitWaypoint({
+                        ...existingWaypoint,
+                        photos: existingWaypoint.photos ?? [],
+                        _photos: [...existingWaypointPhotos, ...photos],
+                    } as Waypoint);
+                    continue;
+                }
+            }
+
+            const wp: Waypoint = new Waypoint(
+                cluster.lat,
+                cluster.lon,
+                {
+                    icon: photos.length > 1 ? "images" : "image",
+                },
+            );
+            wp._photos = photos;
+            commitWaypoint(wp);
         }
     }
 
@@ -1167,6 +1456,10 @@
         initRouteAnchors(valhallaStore.route, true);
         updateTrailWithRouteData();
     }
+
+    function markTrailAsCompleted() {
+        setFields("completed", true);
+    }
 </script>
 
 <svelte:head>
@@ -1180,7 +1473,7 @@
 <main class="grid grid-cols-1 md:grid-cols-[400px_1fr]">
     <form
         id="trail-form"
-        class="overflow-y-auto overflow-x-hidden flex flex-col gap-4 px-8 order-1 md:order-none mt-8 md:mt-0"
+        class="overflow-y-auto overflow-x-hidden flex flex-col gap-4 px-8 order-1 md:order-0 mt-8 md:mt-0"
         use:form
     >
         <Search
@@ -1200,32 +1493,30 @@
                 ? $_("upload-new-file")
                 : $_("upload-file")}</Button
         >
-        {#if env.PUBLIC_VALHALLA_URL}
-            <div class="flex gap-4 items-center w-full">
-                <hr class="basis-full border-input-border" />
-                <span class="text-gray-500 uppercase">{$_("or")}</span>
-                <hr class="basis-full border-input-border" />
-            </div>
-            <button
-                class="btn-primary"
-                type="button"
-                onclick={async () => {
-                    if (drawingActive) {
-                        await stopDrawing();
-                    } else {
-                        startDrawing();
-                    }
-                }}
-            >
-                {$formData.expand?.gpx_data
-                    ? drawingActive
-                        ? $_("stop-editing")
-                        : $_("edit-route")
-                    : drawingActive
-                      ? $_("stop-drawing")
-                      : $_("draw-a-route")}</button
-            >
-        {/if}
+        <div class="flex gap-4 items-center w-full">
+            <hr class="basis-full border-input-border" />
+            <span class="text-gray-500 uppercase">{$_("or")}</span>
+            <hr class="basis-full border-input-border" />
+        </div>
+        <button
+            class="btn-primary"
+            type="button"
+            onclick={async () => {
+                if (drawingActive) {
+                    await stopDrawing();
+                } else {
+                    startDrawing();
+                }
+            }}
+        >
+            {$formData.expand?.gpx_data
+                ? drawingActive
+                    ? $_("stop-editing")
+                    : $_("edit-route")
+                : drawingActive
+                    ? $_("stop-drawing")
+                    : $_("draw-a-route")}</button
+        >
         <input
             type="file"
             name="gpx"
@@ -1360,6 +1651,11 @@
             ></Select>
         </div>
 
+        <Toggle
+            name="completed"
+            label={$formData.completed ? $_("completed") : $_("not-completed")}
+            icon={$formData.completed ? "flag-checkered" : "compass-drafting"}
+        ></Toggle>
         <Toggle
             name="public"
             label={$formData.public ? $_("public") : $_("private")}
@@ -1518,6 +1814,13 @@
     </div>
 </main>
 <WaypointModal bind:this={waypointModal} onsave={saveWaypoint}></WaypointModal>
+<WaypointMergeModal
+    merge={pendingWaypointMerge}
+    bind:this={waypointMergeModal}
+    oncreate={createPendingWaypointAnyway}
+    onmerge={addPendingWaypointToExisting}
+    oncancel={cancelPendingWaypointMerge}
+></WaypointMergeModal>
 <SummitLogModal bind:this={summitLogModal} onsave={(log) => saveSummitLog(log)}
 ></SummitLogModal>
 <ListSearchModal
@@ -1525,6 +1828,15 @@
     bind:this={listSelectModal}
     onchange={(e) => handleListSelection(e)}
 ></ListSearchModal>
+<ConfirmModal
+    id="mark-trail-as-completed-modal"
+    title={$_("mark-trail-as-completed")}
+    text={$_("mark-trail-as-completed-modal-text")}
+    action={$_("yes")}
+    deny={$_("no")}
+    bind:this={markTrailAsCompletedModal}
+    onconfirm={markTrailAsCompleted}
+></ConfirmModal>
 
 <style>
     #trail-map {
