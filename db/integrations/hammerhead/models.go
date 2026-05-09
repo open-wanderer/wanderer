@@ -3,7 +3,7 @@ package hammerhead
 import (
 	"time"
 
-	"pocketbase/trailmerge"
+	"pocketbase/services/trailmerge"
 )
 
 type HammerheadToursResponse struct {

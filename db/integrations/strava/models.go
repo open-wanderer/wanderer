@@ -3,7 +3,7 @@ package strava
 import (
 	"time"
 
-	"pocketbase/trailmerge"
+	"pocketbase/services/trailmerge"
 )
 
 type TokenRequest struct {

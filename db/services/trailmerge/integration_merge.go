@@ -1,6 +1,8 @@
 package trailmerge
 
 import (
+	"context"
+
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -8,6 +10,7 @@ import (
 func TryAutoMergeImportedTrail(
 	app core.App,
 	client meilisearch.ServiceManager,
+	ctx context.Context,
 	actor *core.Record,
 	sourceTrailID string,
 	settings IntegrationAutoMergeSettings,
@@ -40,5 +43,5 @@ func TryAutoMergeImportedTrail(
 		return nil
 	}
 
-	return Merge(app, client, actor, sourceTrailID, targetTrailID, DefaultIntegrationAutoMergeMergeSettings())
+	return Merge(app, client, ctx, actor, sourceTrailID, targetTrailID, DefaultIntegrationAutoMergeMergeSettings())
 }

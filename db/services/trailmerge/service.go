@@ -2,16 +2,18 @@ package trailmerge
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"io"
+	"slices"
+	"strings"
+
 	pub "github.com/go-ap/activitypub"
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
-	"io"
-	"slices"
-	"strings"
 
 	"pocketbase/federation"
 	"pocketbase/util"
@@ -176,7 +178,7 @@ func SuggestGroups(app core.App, actorID string, request SuggestRequest) (*Sugge
 // Merge links a source trail into a target trail in a single transaction.
 // It moves or recreates trail-related content according to the provided
 // settings and keeps the target trail indexed and federated afterwards.
-func Merge(app core.App, client meilisearch.ServiceManager, actor *core.Record, sourceTrailID string, targetTrailID string, settings MergeSettings) error {
+func Merge(app core.App, client meilisearch.ServiceManager, ctx context.Context, actor *core.Record, sourceTrailID string, targetTrailID string, settings MergeSettings) error {
 	if actor == nil {
 		return ErrMissingActor
 	}
@@ -198,7 +200,7 @@ func Merge(app core.App, client meilisearch.ServiceManager, actor *core.Record, 
 			return err
 		}
 
-		ctx := mergeContext{
+		mergeCtx := mergeContext{
 			App:      txApp,
 			Client:   client,
 			Actor:    actor,
@@ -208,7 +210,7 @@ func Merge(app core.App, client meilisearch.ServiceManager, actor *core.Record, 
 			Settings: settings,
 		}
 
-		sideEffects, err := mergeTrailIntoTarget(ctx)
+		sideEffects, err := mergeTrailIntoTarget(mergeCtx)
 		if err != nil {
 			return err
 		}
@@ -233,11 +235,8 @@ func Merge(app core.App, client meilisearch.ServiceManager, actor *core.Record, 
 		if err != nil {
 			return err
 		}
-		logAuthor, err := app.FindRecordById("activitypub_actors", record.GetString("author"))
-		if err != nil {
-			return err
-		}
-		if err := federation.CreateSummitLogActivity(app, logAuthor, record, pub.CreateType); err != nil {
+
+		if err := federation.CreateSummitLogActivity(app, ctx, record, pub.CreateType); err != nil {
 			return err
 		}
 	}
@@ -247,7 +246,7 @@ func Merge(app core.App, client meilisearch.ServiceManager, actor *core.Record, 
 		if err != nil {
 			return err
 		}
-		if err := federation.CreateCommentActivity(app, actor, record, pub.CreateType); err != nil {
+		if err := federation.CreateCommentActivity(app, ctx, record, pub.CreateType); err != nil {
 			return err
 		}
 	}
