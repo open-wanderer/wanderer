@@ -5,11 +5,8 @@
 !go.*
 !integrations
 !main.go
-!trail_merge_routes.go
 !migrations
 !routes
 !templates
-!trailmerge
-!waypointcluster
-!waypointcluster/**
+!services
 !util
