@@ -85,17 +85,24 @@ export async function POST(event: RequestEvent) {
 
         const safeData = UserUpdateSchema.parse(data);
 
+        const { email: _email, ...updateData } = safeData;
+
+        const r = await event.locals.pb.collection('users').update<User>(safeParams.id, updateData)
+
         if (safeData.email && safeData.email != event.locals.pb.authStore.record!.email) {
-            const r = await event.locals.pb.collection('users').requestEmailChange(safeData.email);
-            event.locals.pb.authStore.record!.email = safeData.email;
+            const emailChange = await event.locals.pb.send('/user/email', {
+                method: 'POST',
+                body: JSON.stringify({ email: safeData.email }),
+            });
+            event.locals.pb.authStore.save(emailChange.token, emailChange.record);
+            r.email = safeData.email;
         }
-        const r = await event.locals.pb.collection('users').update<User>(safeParams.id, safeData)
+
         if (safeData.password) {
-            const r = await event.locals.pb.collection('users').authWithPassword(safeData.email ?? safeData.username!, safeData.password);
-            return json(r.record)
-        } else {
-            return json(r);
+            const authR = await event.locals.pb.collection('users').authWithPassword(safeData.email ?? event.locals.pb.authStore.record!.email, safeData.password);
+            return json(authR.record)
         }
+        return json(r);
     } catch (e: any) {
         return handleError(e);
     }

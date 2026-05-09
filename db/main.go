@@ -88,7 +88,6 @@ func registerMigrations(app *pocketbase.PocketBase) {
 func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceManager) {
 	app.OnRecordAfterCreateSuccess("users").BindFunc(hooks.CreateUserHandler(client))
 	app.OnRecordAfterUpdateSuccess("users").BindFunc(hooks.UpdateUserHandler(client))
-	app.OnRecordRequestEmailChangeRequest("users").BindFunc(hooks.ChangeUserEmailHandler())
 
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client))
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client))
@@ -155,6 +154,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/health", routes.Health)
 
 	se.Router.POST("/auth/token", routes.AuthToken)
+	se.Router.POST("/user/email", routes.UserEmailChange)
 	se.Router.POST("/waypoint/cluster", routes.WaypointCluster)
 
 	se.Router.POST("/trail-merge/suggest", routes.TrailMergeSuggest)
