@@ -87,17 +87,6 @@ func UpdateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 	}
 }
 
-func ChangeUserEmailHandler() func(e *core.RecordRequestEmailChangeRequestEvent) error {
-	return func(e *core.RecordRequestEmailChangeRequestEvent) error {
-
-		e.Record.Set("email", e.NewEmail)
-		if err := e.App.Save(e.Record); err != nil {
-			return err
-		}
-		return nil
-	}
-}
-
 func createDefaultUserSettings(app core.App, userId string) error {
 	collection, err := app.FindCollectionByNameOrId("settings")
 	if err != nil {

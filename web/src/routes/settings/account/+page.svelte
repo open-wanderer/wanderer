@@ -18,6 +18,7 @@
         logout,
         users_delete,
         users_update,
+        users_update_email,
     } from "$lib/stores/user_store";
     import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
@@ -52,9 +53,9 @@
         goto("/");
     }
 
-    async function updateEmail(email: string) {
+    async function updateEmail(email: string, currentPassword: string) {
         try {
-            await users_update({ ...$currentUser!, email: email });
+            await users_update_email($currentUser!.id!, email, currentPassword);
             show_toast({
                 text: $_("email-updated"),
                 icon: "check",
