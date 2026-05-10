@@ -60,6 +60,19 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 		return err
 	}
 
+	reqInfo, err := e.RequestInfo()
+	if err != nil {
+		return err
+	}
+
+	filteredRecords := []*core.Record{}
+	for _, record := range records {
+		canAccess, _ := e.App.CanAccessRecord(record, reqInfo, record.Collection().ListRule)
+		if canAccess {
+			filteredRecords = append(filteredRecords, record)
+		}
+	}
+
 	// 3. Get total count for pagination metadata
 	var totalItems int
 	err = e.App.DB().
@@ -73,7 +86,7 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 
 	// 4. Handle Expand
 	if expandQuery != "" {
-		errs := e.App.ExpandRecords(records, strings.Split(expandQuery, ","), nil)
+		errs := e.App.ExpandRecords(filteredRecords, strings.Split(expandQuery, ","), nil)
 		if len(errs) > 0 {
 			fmt.Printf("Expand errors: %v\n", errs)
 		}
@@ -85,7 +98,7 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 		"perPage":    perPage,
 		"totalItems": totalItems,
 		"totalPages": (totalItems + perPage - 1) / perPage,
-		"items":      records,
+		"items":      filteredRecords,
 	})
 }
 
@@ -170,17 +183,4 @@ func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 		}
 		return nil
 	})
-}
-
-func expandAndReturnList(e *core.RequestEvent, records []*core.Record, query string) error {
-	if query != "" {
-		expandPaths := strings.Split(query, ",")
-
-		errs := e.App.ExpandRecords(records, expandPaths, nil)
-		if len(errs) > 0 {
-			fmt.Printf("Expand errors: %v\n", errs)
-		}
-	}
-
-	return e.JSON(http.StatusOK, records)
 }

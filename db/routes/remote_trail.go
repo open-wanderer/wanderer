@@ -73,6 +73,17 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 		}
 	}
 
+	reqInfo, err := e.RequestInfo()
+	if err != nil {
+		return err
+	}
+
+	canAccess, err := e.App.CanAccessRecord(record, reqInfo, record.Collection().ViewRule)
+
+	if err != nil || !canAccess {
+		return e.ForbiddenError("forbidden", err)
+	}
+
 	return expandAndReturn(e, record, expandQuery)
 }
 
