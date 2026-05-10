@@ -9,6 +9,7 @@ import 'package:wanderer/routes/map_screen.dart';
 import 'package:wanderer/routes/profile_screen.dart';
 import 'package:wanderer/routes/register_screen.dart';
 import 'package:wanderer/routes/server_selection_screen.dart';
+import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
 import 'package:wanderer/routes/trail_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
@@ -86,6 +87,13 @@ class Router extends _$Router {
             GoRoute(
               path: '/trail/filter',
               builder: (context, state) => const TrailFilterScreen(),
+            ),
+            GoRoute(
+              path: '/trail/:id',
+              builder: (context, state) {
+                final trailId = state.pathParameters['id']!;
+                return TrailDetailScreen(id: trailId);
+              },
             ),
             GoRoute(path: '/map', builder: (context, state) => MapScreen()),
             GoRoute(

@@ -16,10 +16,10 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    Future<Style> _readStyle() =>
+    Future<Style> readStyle() =>
         StyleReader(uri: 'https://demo.wanderer.to/styles/ofm.json').read();
 
-    _readStyle().then((style) {
+    readStyle().then((style) {
       this.style = style;
       setState(() {});
     });

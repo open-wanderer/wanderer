@@ -46,6 +46,7 @@ abstract class TrailExpand with _$TrailExpand {
 abstract class Trail with _$Trail {
   const factory Trail({
     String? id,
+    @Default('trails') String collectionId,
     required String name,
     String? location,
     String? date,
@@ -72,6 +73,8 @@ abstract class Trail with _$Trail {
     @Default("") String description,
     @Default("000000000000000") String author,
   }) = _Trail;
+
+  const Trail._();
 
   factory Trail.fromJson(Map<String, dynamic> json) => _$TrailFromJson(json);
 }

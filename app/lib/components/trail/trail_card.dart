@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/util/format_util.dart';
 
 class TrailCard extends ConsumerWidget {
   final TrailSearchResult trail;
@@ -295,8 +296,8 @@ class _StatsGrid extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _StatIcon(
-            icon: FontAwesomeIcons.leftRight,
-            value: "${(trail.distance / 1000).toStringAsFixed(2)} km",
+            icon: FontAwesomeIcons.ruler,
+            value: formatDistance(trail.distance),
           ),
           _StatIcon(
             icon: FontAwesomeIcons.clock,
@@ -306,11 +307,11 @@ class _StatsGrid extends StatelessWidget {
           ),
           _StatIcon(
             icon: FontAwesomeIcons.arrowTrendUp,
-            value: "${trail.elevationGain.toInt()} m",
+            value: formatElevation(trail.elevationGain),
           ),
           _StatIcon(
             icon: FontAwesomeIcons.arrowTrendDown,
-            value: "${trail.elevationLoss.toInt()} m",
+            value: formatElevation(trail.elevationLoss),
           ),
           // _StatIcon(
           //   icon: FontAwesomeIcons.gaugeHigh,

@@ -15,9 +15,7 @@ _Waypoint _$WaypointFromJson(Map<String, dynamic> json) => _Waypoint(
   distanceFromStart: (json['distanceFromStart'] as num?)?.toDouble(),
   icon: json['icon'] == null
       ? FontAwesomeIcons.circle
-      : const FaIconDataConverter().fromJson(
-          json['icon'] as Map<String, dynamic>,
-        ),
+      : const FaIconDataConverter().fromJson(json['icon'] as String),
   photos:
       (json['photos'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],

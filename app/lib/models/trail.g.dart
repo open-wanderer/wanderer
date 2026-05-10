@@ -49,6 +49,7 @@ Map<String, dynamic> _$TrailExpandToJson(_TrailExpand instance) =>
 
 _Trail _$TrailFromJson(Map<String, dynamic> json) => _Trail(
   id: json['id'] as String?,
+  collectionId: json['collectionId'] as String? ?? 'trails',
   name: json['name'] as String,
   location: json['location'] as String?,
   date: json['date'] as String?,
@@ -86,6 +87,7 @@ _Trail _$TrailFromJson(Map<String, dynamic> json) => _Trail(
 
 Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
   'id': instance.id,
+  'collectionId': instance.collectionId,
   'name': instance.name,
   'location': instance.location,
   'date': instance.date,

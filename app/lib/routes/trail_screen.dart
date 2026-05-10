@@ -82,7 +82,11 @@ class _TrailScreenState extends ConsumerState<TrailScreen> {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final trail = state.trails[index];
-                    return TrailCard(trail: trail);
+                    return TrailCard(
+                      trail: trail,
+                      onTrailSelect: () =>
+                          router.push("/trail/${trail.id}", extra: trail),
+                    );
                   }, childCount: state.trails.length),
                 ),
               ),

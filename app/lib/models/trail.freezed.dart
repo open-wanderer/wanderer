@@ -401,7 +401,7 @@ $ActorCopyWith<$Res>? get author {
 /// @nodoc
 mixin _$Trail {
 
- String? get id; String get name; String? get location; String? get date; bool get public; double get distance;@JsonKey(name: 'elevation_gain') double get elevationGain;@JsonKey(name: 'elevation_loss') double get elevationLoss; double get duration; TrailDifficulty get difficulty; double? get lat; double? get lon; int get thumbnail; List<String> get photos; String? get gpx; String? get created; String? get updated; String? get category; List<String> get tags; String? get polyline; String? get domain; String? get iri;@JsonKey(name: 'like_count') int get likeCount; TrailExpand? get expand; String get description; String get author;
+ String? get id; String get collectionId; String get name; String? get location; String? get date; bool get public; double get distance;@JsonKey(name: 'elevation_gain') double get elevationGain;@JsonKey(name: 'elevation_loss') double get elevationLoss; double get duration; TrailDifficulty get difficulty; double? get lat; double? get lon; int get thumbnail; List<String> get photos; String? get gpx; String? get created; String? get updated; String? get category; List<String> get tags; String? get polyline; String? get domain; String? get iri;@JsonKey(name: 'like_count') int get likeCount; TrailExpand? get expand; String get description; String get author;
 /// Create a copy of Trail
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -414,16 +414,16 @@ $TrailCopyWith<Trail> get copyWith => _$TrailCopyWithImpl<Trail>(this as Trail, 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Trail&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.location, location) || other.location == location)&&(identical(other.date, date) || other.date == date)&&(identical(other.public, public) || other.public == public)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.difficulty, difficulty) || other.difficulty == difficulty)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&const DeepCollectionEquality().equals(other.photos, photos)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.tags, tags)&&(identical(other.polyline, polyline) || other.polyline == polyline)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.likeCount, likeCount) || other.likeCount == likeCount)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.description, description) || other.description == description)&&(identical(other.author, author) || other.author == author));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Trail&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.location, location) || other.location == location)&&(identical(other.date, date) || other.date == date)&&(identical(other.public, public) || other.public == public)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.difficulty, difficulty) || other.difficulty == difficulty)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&const DeepCollectionEquality().equals(other.photos, photos)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.tags, tags)&&(identical(other.polyline, polyline) || other.polyline == polyline)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.likeCount, likeCount) || other.likeCount == likeCount)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.description, description) || other.description == description)&&(identical(other.author, author) || other.author == author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,name,location,date,public,distance,elevationGain,elevationLoss,duration,difficulty,lat,lon,thumbnail,const DeepCollectionEquality().hash(photos),gpx,created,updated,category,const DeepCollectionEquality().hash(tags),polyline,domain,iri,likeCount,expand,description,author]);
+int get hashCode => Object.hashAll([runtimeType,id,collectionId,name,location,date,public,distance,elevationGain,elevationLoss,duration,difficulty,lat,lon,thumbnail,const DeepCollectionEquality().hash(photos),gpx,created,updated,category,const DeepCollectionEquality().hash(tags),polyline,domain,iri,likeCount,expand,description,author]);
 
 @override
 String toString() {
-  return 'Trail(id: $id, name: $name, location: $location, date: $date, public: $public, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, difficulty: $difficulty, lat: $lat, lon: $lon, thumbnail: $thumbnail, photos: $photos, gpx: $gpx, created: $created, updated: $updated, category: $category, tags: $tags, polyline: $polyline, domain: $domain, iri: $iri, likeCount: $likeCount, expand: $expand, description: $description, author: $author)';
+  return 'Trail(id: $id, collectionId: $collectionId, name: $name, location: $location, date: $date, public: $public, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, difficulty: $difficulty, lat: $lat, lon: $lon, thumbnail: $thumbnail, photos: $photos, gpx: $gpx, created: $created, updated: $updated, category: $category, tags: $tags, polyline: $polyline, domain: $domain, iri: $iri, likeCount: $likeCount, expand: $expand, description: $description, author: $author)';
 }
 
 
@@ -434,7 +434,7 @@ abstract mixin class $TrailCopyWith<$Res>  {
   factory $TrailCopyWith(Trail value, $Res Function(Trail) _then) = _$TrailCopyWithImpl;
 @useResult
 $Res call({
- String? id, String name, String? location, String? date, bool public, double distance,@JsonKey(name: 'elevation_gain') double elevationGain,@JsonKey(name: 'elevation_loss') double elevationLoss, double duration, TrailDifficulty difficulty, double? lat, double? lon, int thumbnail, List<String> photos, String? gpx, String? created, String? updated, String? category, List<String> tags, String? polyline, String? domain, String? iri,@JsonKey(name: 'like_count') int likeCount, TrailExpand? expand, String description, String author
+ String? id, String collectionId, String name, String? location, String? date, bool public, double distance,@JsonKey(name: 'elevation_gain') double elevationGain,@JsonKey(name: 'elevation_loss') double elevationLoss, double duration, TrailDifficulty difficulty, double? lat, double? lon, int thumbnail, List<String> photos, String? gpx, String? created, String? updated, String? category, List<String> tags, String? polyline, String? domain, String? iri,@JsonKey(name: 'like_count') int likeCount, TrailExpand? expand, String description, String author
 });
 
 
@@ -451,10 +451,11 @@ class _$TrailCopyWithImpl<$Res>
 
 /// Create a copy of Trail
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? name = null,Object? location = freezed,Object? date = freezed,Object? public = null,Object? distance = null,Object? elevationGain = null,Object? elevationLoss = null,Object? duration = null,Object? difficulty = null,Object? lat = freezed,Object? lon = freezed,Object? thumbnail = null,Object? photos = null,Object? gpx = freezed,Object? created = freezed,Object? updated = freezed,Object? category = freezed,Object? tags = null,Object? polyline = freezed,Object? domain = freezed,Object? iri = freezed,Object? likeCount = null,Object? expand = freezed,Object? description = null,Object? author = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? collectionId = null,Object? name = null,Object? location = freezed,Object? date = freezed,Object? public = null,Object? distance = null,Object? elevationGain = null,Object? elevationLoss = null,Object? duration = null,Object? difficulty = null,Object? lat = freezed,Object? lon = freezed,Object? thumbnail = null,Object? photos = null,Object? gpx = freezed,Object? created = freezed,Object? updated = freezed,Object? category = freezed,Object? tags = null,Object? polyline = freezed,Object? domain = freezed,Object? iri = freezed,Object? likeCount = null,Object? expand = freezed,Object? description = null,Object? author = null,}) {
   return _then(_self.copyWith(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String?,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String?,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,location: freezed == location ? _self.location : location // ignore: cast_nullable_to_non_nullable
 as String?,date: freezed == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
 as String?,public: null == public ? _self.public : public // ignore: cast_nullable_to_non_nullable
@@ -576,10 +577,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String name,  String? location,  String? date,  bool public,  double distance, @JsonKey(name: 'elevation_gain')  double elevationGain, @JsonKey(name: 'elevation_loss')  double elevationLoss,  double duration,  TrailDifficulty difficulty,  double? lat,  double? lon,  int thumbnail,  List<String> photos,  String? gpx,  String? created,  String? updated,  String? category,  List<String> tags,  String? polyline,  String? domain,  String? iri, @JsonKey(name: 'like_count')  int likeCount,  TrailExpand? expand,  String description,  String author)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String collectionId,  String name,  String? location,  String? date,  bool public,  double distance, @JsonKey(name: 'elevation_gain')  double elevationGain, @JsonKey(name: 'elevation_loss')  double elevationLoss,  double duration,  TrailDifficulty difficulty,  double? lat,  double? lon,  int thumbnail,  List<String> photos,  String? gpx,  String? created,  String? updated,  String? category,  List<String> tags,  String? polyline,  String? domain,  String? iri, @JsonKey(name: 'like_count')  int likeCount,  TrailExpand? expand,  String description,  String author)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Trail() when $default != null:
-return $default(_that.id,_that.name,_that.location,_that.date,_that.public,_that.distance,_that.elevationGain,_that.elevationLoss,_that.duration,_that.difficulty,_that.lat,_that.lon,_that.thumbnail,_that.photos,_that.gpx,_that.created,_that.updated,_that.category,_that.tags,_that.polyline,_that.domain,_that.iri,_that.likeCount,_that.expand,_that.description,_that.author);case _:
+return $default(_that.id,_that.collectionId,_that.name,_that.location,_that.date,_that.public,_that.distance,_that.elevationGain,_that.elevationLoss,_that.duration,_that.difficulty,_that.lat,_that.lon,_that.thumbnail,_that.photos,_that.gpx,_that.created,_that.updated,_that.category,_that.tags,_that.polyline,_that.domain,_that.iri,_that.likeCount,_that.expand,_that.description,_that.author);case _:
   return orElse();
 
 }
@@ -597,10 +598,10 @@ return $default(_that.id,_that.name,_that.location,_that.date,_that.public,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String name,  String? location,  String? date,  bool public,  double distance, @JsonKey(name: 'elevation_gain')  double elevationGain, @JsonKey(name: 'elevation_loss')  double elevationLoss,  double duration,  TrailDifficulty difficulty,  double? lat,  double? lon,  int thumbnail,  List<String> photos,  String? gpx,  String? created,  String? updated,  String? category,  List<String> tags,  String? polyline,  String? domain,  String? iri, @JsonKey(name: 'like_count')  int likeCount,  TrailExpand? expand,  String description,  String author)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String collectionId,  String name,  String? location,  String? date,  bool public,  double distance, @JsonKey(name: 'elevation_gain')  double elevationGain, @JsonKey(name: 'elevation_loss')  double elevationLoss,  double duration,  TrailDifficulty difficulty,  double? lat,  double? lon,  int thumbnail,  List<String> photos,  String? gpx,  String? created,  String? updated,  String? category,  List<String> tags,  String? polyline,  String? domain,  String? iri, @JsonKey(name: 'like_count')  int likeCount,  TrailExpand? expand,  String description,  String author)  $default,) {final _that = this;
 switch (_that) {
 case _Trail():
-return $default(_that.id,_that.name,_that.location,_that.date,_that.public,_that.distance,_that.elevationGain,_that.elevationLoss,_that.duration,_that.difficulty,_that.lat,_that.lon,_that.thumbnail,_that.photos,_that.gpx,_that.created,_that.updated,_that.category,_that.tags,_that.polyline,_that.domain,_that.iri,_that.likeCount,_that.expand,_that.description,_that.author);case _:
+return $default(_that.id,_that.collectionId,_that.name,_that.location,_that.date,_that.public,_that.distance,_that.elevationGain,_that.elevationLoss,_that.duration,_that.difficulty,_that.lat,_that.lon,_that.thumbnail,_that.photos,_that.gpx,_that.created,_that.updated,_that.category,_that.tags,_that.polyline,_that.domain,_that.iri,_that.likeCount,_that.expand,_that.description,_that.author);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -617,10 +618,10 @@ return $default(_that.id,_that.name,_that.location,_that.date,_that.public,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String name,  String? location,  String? date,  bool public,  double distance, @JsonKey(name: 'elevation_gain')  double elevationGain, @JsonKey(name: 'elevation_loss')  double elevationLoss,  double duration,  TrailDifficulty difficulty,  double? lat,  double? lon,  int thumbnail,  List<String> photos,  String? gpx,  String? created,  String? updated,  String? category,  List<String> tags,  String? polyline,  String? domain,  String? iri, @JsonKey(name: 'like_count')  int likeCount,  TrailExpand? expand,  String description,  String author)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String collectionId,  String name,  String? location,  String? date,  bool public,  double distance, @JsonKey(name: 'elevation_gain')  double elevationGain, @JsonKey(name: 'elevation_loss')  double elevationLoss,  double duration,  TrailDifficulty difficulty,  double? lat,  double? lon,  int thumbnail,  List<String> photos,  String? gpx,  String? created,  String? updated,  String? category,  List<String> tags,  String? polyline,  String? domain,  String? iri, @JsonKey(name: 'like_count')  int likeCount,  TrailExpand? expand,  String description,  String author)?  $default,) {final _that = this;
 switch (_that) {
 case _Trail() when $default != null:
-return $default(_that.id,_that.name,_that.location,_that.date,_that.public,_that.distance,_that.elevationGain,_that.elevationLoss,_that.duration,_that.difficulty,_that.lat,_that.lon,_that.thumbnail,_that.photos,_that.gpx,_that.created,_that.updated,_that.category,_that.tags,_that.polyline,_that.domain,_that.iri,_that.likeCount,_that.expand,_that.description,_that.author);case _:
+return $default(_that.id,_that.collectionId,_that.name,_that.location,_that.date,_that.public,_that.distance,_that.elevationGain,_that.elevationLoss,_that.duration,_that.difficulty,_that.lat,_that.lon,_that.thumbnail,_that.photos,_that.gpx,_that.created,_that.updated,_that.category,_that.tags,_that.polyline,_that.domain,_that.iri,_that.likeCount,_that.expand,_that.description,_that.author);case _:
   return null;
 
 }
@@ -631,11 +632,12 @@ return $default(_that.id,_that.name,_that.location,_that.date,_that.public,_that
 /// @nodoc
 @JsonSerializable()
 
-class _Trail implements Trail {
-  const _Trail({this.id, required this.name, this.location, this.date, this.public = false, this.distance = 0, @JsonKey(name: 'elevation_gain') this.elevationGain = 0, @JsonKey(name: 'elevation_loss') this.elevationLoss = 0, this.duration = 0, this.difficulty = TrailDifficulty.easy, this.lat, this.lon, this.thumbnail = 0, final  List<String> photos = const [], this.gpx, this.created, this.updated, this.category, final  List<String> tags = const [], this.polyline, this.domain, this.iri, @JsonKey(name: 'like_count') this.likeCount = 0, this.expand, this.description = "", this.author = "000000000000000"}): _photos = photos,_tags = tags;
+class _Trail extends Trail {
+  const _Trail({this.id, this.collectionId = 'trails', required this.name, this.location, this.date, this.public = false, this.distance = 0, @JsonKey(name: 'elevation_gain') this.elevationGain = 0, @JsonKey(name: 'elevation_loss') this.elevationLoss = 0, this.duration = 0, this.difficulty = TrailDifficulty.easy, this.lat, this.lon, this.thumbnail = 0, final  List<String> photos = const [], this.gpx, this.created, this.updated, this.category, final  List<String> tags = const [], this.polyline, this.domain, this.iri, @JsonKey(name: 'like_count') this.likeCount = 0, this.expand, this.description = "", this.author = "000000000000000"}): _photos = photos,_tags = tags,super._();
   factory _Trail.fromJson(Map<String, dynamic> json) => _$TrailFromJson(json);
 
 @override final  String? id;
+@override@JsonKey() final  String collectionId;
 @override final  String name;
 @override final  String? location;
 @override final  String? date;
@@ -687,16 +689,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Trail&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.location, location) || other.location == location)&&(identical(other.date, date) || other.date == date)&&(identical(other.public, public) || other.public == public)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.difficulty, difficulty) || other.difficulty == difficulty)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&const DeepCollectionEquality().equals(other._photos, _photos)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other._tags, _tags)&&(identical(other.polyline, polyline) || other.polyline == polyline)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.likeCount, likeCount) || other.likeCount == likeCount)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.description, description) || other.description == description)&&(identical(other.author, author) || other.author == author));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Trail&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.location, location) || other.location == location)&&(identical(other.date, date) || other.date == date)&&(identical(other.public, public) || other.public == public)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.difficulty, difficulty) || other.difficulty == difficulty)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&const DeepCollectionEquality().equals(other._photos, _photos)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other._tags, _tags)&&(identical(other.polyline, polyline) || other.polyline == polyline)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.likeCount, likeCount) || other.likeCount == likeCount)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.description, description) || other.description == description)&&(identical(other.author, author) || other.author == author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,name,location,date,public,distance,elevationGain,elevationLoss,duration,difficulty,lat,lon,thumbnail,const DeepCollectionEquality().hash(_photos),gpx,created,updated,category,const DeepCollectionEquality().hash(_tags),polyline,domain,iri,likeCount,expand,description,author]);
+int get hashCode => Object.hashAll([runtimeType,id,collectionId,name,location,date,public,distance,elevationGain,elevationLoss,duration,difficulty,lat,lon,thumbnail,const DeepCollectionEquality().hash(_photos),gpx,created,updated,category,const DeepCollectionEquality().hash(_tags),polyline,domain,iri,likeCount,expand,description,author]);
 
 @override
 String toString() {
-  return 'Trail(id: $id, name: $name, location: $location, date: $date, public: $public, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, difficulty: $difficulty, lat: $lat, lon: $lon, thumbnail: $thumbnail, photos: $photos, gpx: $gpx, created: $created, updated: $updated, category: $category, tags: $tags, polyline: $polyline, domain: $domain, iri: $iri, likeCount: $likeCount, expand: $expand, description: $description, author: $author)';
+  return 'Trail(id: $id, collectionId: $collectionId, name: $name, location: $location, date: $date, public: $public, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, difficulty: $difficulty, lat: $lat, lon: $lon, thumbnail: $thumbnail, photos: $photos, gpx: $gpx, created: $created, updated: $updated, category: $category, tags: $tags, polyline: $polyline, domain: $domain, iri: $iri, likeCount: $likeCount, expand: $expand, description: $description, author: $author)';
 }
 
 
@@ -707,7 +709,7 @@ abstract mixin class _$TrailCopyWith<$Res> implements $TrailCopyWith<$Res> {
   factory _$TrailCopyWith(_Trail value, $Res Function(_Trail) _then) = __$TrailCopyWithImpl;
 @override @useResult
 $Res call({
- String? id, String name, String? location, String? date, bool public, double distance,@JsonKey(name: 'elevation_gain') double elevationGain,@JsonKey(name: 'elevation_loss') double elevationLoss, double duration, TrailDifficulty difficulty, double? lat, double? lon, int thumbnail, List<String> photos, String? gpx, String? created, String? updated, String? category, List<String> tags, String? polyline, String? domain, String? iri,@JsonKey(name: 'like_count') int likeCount, TrailExpand? expand, String description, String author
+ String? id, String collectionId, String name, String? location, String? date, bool public, double distance,@JsonKey(name: 'elevation_gain') double elevationGain,@JsonKey(name: 'elevation_loss') double elevationLoss, double duration, TrailDifficulty difficulty, double? lat, double? lon, int thumbnail, List<String> photos, String? gpx, String? created, String? updated, String? category, List<String> tags, String? polyline, String? domain, String? iri,@JsonKey(name: 'like_count') int likeCount, TrailExpand? expand, String description, String author
 });
 
 
@@ -724,10 +726,11 @@ class __$TrailCopyWithImpl<$Res>
 
 /// Create a copy of Trail
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? name = null,Object? location = freezed,Object? date = freezed,Object? public = null,Object? distance = null,Object? elevationGain = null,Object? elevationLoss = null,Object? duration = null,Object? difficulty = null,Object? lat = freezed,Object? lon = freezed,Object? thumbnail = null,Object? photos = null,Object? gpx = freezed,Object? created = freezed,Object? updated = freezed,Object? category = freezed,Object? tags = null,Object? polyline = freezed,Object? domain = freezed,Object? iri = freezed,Object? likeCount = null,Object? expand = freezed,Object? description = null,Object? author = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? collectionId = null,Object? name = null,Object? location = freezed,Object? date = freezed,Object? public = null,Object? distance = null,Object? elevationGain = null,Object? elevationLoss = null,Object? duration = null,Object? difficulty = null,Object? lat = freezed,Object? lon = freezed,Object? thumbnail = null,Object? photos = null,Object? gpx = freezed,Object? created = freezed,Object? updated = freezed,Object? category = freezed,Object? tags = null,Object? polyline = freezed,Object? domain = freezed,Object? iri = freezed,Object? likeCount = null,Object? expand = freezed,Object? description = null,Object? author = null,}) {
   return _then(_Trail(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String?,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String?,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,location: freezed == location ? _self.location : location // ignore: cast_nullable_to_non_nullable
 as String?,date: freezed == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
 as String?,public: null == public ? _self.public : public // ignore: cast_nullable_to_non_nullable

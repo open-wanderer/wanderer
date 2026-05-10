@@ -15,7 +15,7 @@ class CategoryNotifier extends _$CategoryNotifier {
       final response = await api.get('/category');
 
       if (response.data == null) {
-        throw Exception('No category date received from server');
+        throw Exception('No category data received from server');
       }
 
       ListResult<Category> categoryListResult = ListResult.fromJson(
@@ -25,7 +25,7 @@ class CategoryNotifier extends _$CategoryNotifier {
 
       return categoryListResult.items;
     } catch (e) {
-      throw Exception('Failed to fetch trail filters: $e');
+      throw Exception('Failed to fetch categories: $e');
     }
   }
 }
