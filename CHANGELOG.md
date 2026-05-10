@@ -1,12 +1,7 @@
 # v0.19.0
 
 ## Breaking Changes
-- Bulk uploads no longer use `UPLOAD_USER` / `UPLOAD_PASSWORD` authentication. Uploads now require an API token; files must be placed in a subfolder of the upload directory named after the respective API token (PR #886):
-  ```
-  upload-dir/
-    <api-token>/
-      tour.gpx
-  ```
+- Bulk uploads no longer use `UPLOAD_USER` / `UPLOAD_PASSWORD` authentication. Uploads now require an API token; files must be placed in a subfolder of the upload directory named after the respective API token. For more information checkout the [documentation](https://wanderer.to/use/import-export/) (PR #886).
 - Bulk uploads now run via a file watcher rather than on a cron schedule. Files placed in the upload folder while the container is not running will not be processed automatically. (PR #886)
 - External service URLs have been moved from public frontend variables to server-side variables: `VALHALLA_URL`, `NOMINATIM_URL`, `OVERPASS_API_URL`. The old `PUBLIC_*` variables remain as a fallback but should be migrated. (PR #697)
 - The waypoint data model has been extended for federation: waypoints now have an `iri` and reference their author via an ActivityPub actor. This only affects clients that access PocketBase collections directly, not the standard UI. (PR #930)
@@ -15,7 +10,6 @@
 
 ## Security
 - HTML content in descriptions, comments, summit logs, waypoints, and profile bios is now sanitised on the server to reduce the risk of cross-site scripting (XSS). Some custom HTML may be stripped on save. (PR #930)
-- API tokens have been added so that external tools and automations can interact with Wanderer. (PR #848)
 - Anonymous user API endpoints have been removed. This only affects third-party applications that accessed user data without authentication. Regular users and the standard UI are unaffected. (PR #927)
 - Additional CSRF/SSRF protections and rate limiting have been implemented for ActivityPub and outbound network calls. (PR #930)
 
@@ -33,6 +27,8 @@
 - Frontpage performance has been improved. (PR #929)
 - 3D terrain rendering has been improved. (PR #881)
 - Improved saving of public lists. (PR #554)
+- Multiple trails can now be merged into one trail with multiple summit logs. This feature is also available as an automatic option when importing trails via an integration (PR #627)
+- API tokens have been added so that external tools and automations can interact with Wanderer. (PR #848)
 
 ## Bug Fixes
 - Fixed broken WebFinger requests. (PR #966)
@@ -44,6 +40,7 @@
 - Fixed avatar updates. (PR #870)
 - List descriptions in the selection modal are now fixed. (PR #869)
 - Fixed double GPX upload when creating a trail. (PR #969)
+- Fixed authentication issues after email change (PR #973)
 - Fixed help links. (PR #938)
 - Fixed a MapLibre layer manager issue that could prevent existing map layers from being tracked correctly after data updates. (PR #960, thanks @palhaland)
 - Fixed search endpoints returning invalid errors in some failure cases. (PR #961, thanks @palhaland)
