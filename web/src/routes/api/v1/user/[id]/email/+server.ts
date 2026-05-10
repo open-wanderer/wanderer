@@ -24,6 +24,8 @@ export async function POST(event: RequestEvent) {
         });
         event.locals.pb.authStore.save(emailChange.token, emailChange.record);
 
+        emailChange.record.email = email;
+
         return json(emailChange.record);
     } catch (e: any) {
         return handleError(e);
