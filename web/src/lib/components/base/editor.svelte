@@ -43,7 +43,7 @@
         error = "",
         placeholder = "",
         extraClasses = "",
-        searchListPosition = "absolute"
+        searchListPosition = "absolute",
     }: Props = $props();
 
     const fontSizes: SelectItem[] = [
@@ -87,7 +87,9 @@
                         return [
                             "a",
                             mergeAttributes(
-                                { href: `/profile/@${options.HTMLAttributes["data-label"]}` },
+                                {
+                                    href: `/profile/@${options.HTMLAttributes["data-label"]}`,
+                                },
                                 options.HTMLAttributes,
                             ),
                             options.renderText?.({
@@ -141,8 +143,9 @@
                                 if (!box) {
                                     return;
                                 }
-                                
-                                searchListElement.style.position = searchListPosition;
+
+                                searchListElement.style.position =
+                                    searchListPosition;
                                 searchListElement.style.top = `${box.bottom + window.scrollY + 4}px`;
                                 searchListElement.style.left = `${box.left + window.scrollX}px`;
                                 searchListElement.style.zIndex = "1001";
@@ -179,12 +182,12 @@
 
                                 onKeyDown(props) {
                                     if (props.event.key === "Escape") {
-                                        this.onExit?.({} as unknown as any)
+                                        this.onExit?.({} as unknown as any);
 
                                         return true;
                                     }
 
-                                    return false
+                                    return false;
                                 },
                                 onExit() {
                                     unmount(component);
@@ -315,7 +318,7 @@
                 })
                 .run();
 
-                modal.closeModal();
+            modal.closeModal();
         } catch (e) {
             if (
                 e instanceof ZodError &&

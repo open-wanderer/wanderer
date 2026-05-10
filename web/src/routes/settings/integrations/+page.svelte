@@ -105,6 +105,7 @@
                 routes: integration.strava.routes,
                 activities: integration.strava.activities,
                 privacy: integration.strava.privacy,
+                merge: integration.strava.merge,
                 accessToken: undefined,
                 refreshToken: undefined,
                 expiresAt: undefined,

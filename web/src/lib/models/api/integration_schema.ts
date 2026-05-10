@@ -1,6 +1,10 @@
 import { z, ZodType } from "zod";
 import type { Integration } from "../integration";
 
+const IntegrationMergeSchema = z.object({
+    enabled: z.boolean(),
+})
+
 const StravaSchema = z.object({
     clientId: z.number({ coerce: true }).int().nonnegative(),
     clientSecret: z.string().length(40).optional().or(z.literal('')),
@@ -8,7 +12,8 @@ const StravaSchema = z.object({
     activities: z.boolean(),
     active: z.boolean(),
     after: z.string().date().optional(),
-    privacy: z.enum(["original", "settings"])
+    privacy: z.enum(["original", "settings"]),
+    merge: IntegrationMergeSchema,
 })
 
 const KomootSchema = z.object({
@@ -17,7 +22,8 @@ const KomootSchema = z.object({
     completed: z.boolean(),
     planned: z.boolean(),
     active: z.boolean(),
-    privacy: z.enum(["original", "settings"])
+    privacy: z.enum(["original", "settings"]),
+    merge: IntegrationMergeSchema,
 })
 
 const HammerheadSchema = z.object({
@@ -27,6 +33,7 @@ const HammerheadSchema = z.object({
     planned: z.boolean(),
     active: z.boolean(),
     after: z.string().date().optional(),
+    merge: IntegrationMergeSchema,
 })
 
 const IntegrationCreateSchema = z.object({

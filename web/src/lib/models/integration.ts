@@ -3,6 +3,10 @@ export interface BaseIntegration {
     active: boolean
 }
 
+export interface IntegrationMergeSettings {
+    enabled: boolean;
+}
+
 export interface StravaIntegration extends BaseIntegration {
     clientId: string | number;
     clientSecret?: string;
@@ -13,6 +17,7 @@ export interface StravaIntegration extends BaseIntegration {
     expiresAt?: number;
     after?: string
     privacy: "original" | "settings"
+    merge: IntegrationMergeSettings;
 }
 
 export interface KomootIntegration extends BaseIntegration {
@@ -21,6 +26,7 @@ export interface KomootIntegration extends BaseIntegration {
     completed: boolean,
     planned: boolean
     privacy: "original" | "settings"
+    merge: IntegrationMergeSettings;
 }
 
 export interface HammerheadIntegration extends BaseIntegration {
@@ -29,6 +35,7 @@ export interface HammerheadIntegration extends BaseIntegration {
     completed: boolean,
     planned: boolean,
     after?: string
+    merge: IntegrationMergeSettings;
 }
 
 

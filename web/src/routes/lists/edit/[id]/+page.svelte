@@ -51,7 +51,7 @@
     let loading: boolean = $state(false);
 
     let newShares: TrailShare[] = [];
-    let publicList: boolean = $state(data.list?.public);
+    let publicList: boolean = $state(untrack(() => data.list?.public));
 
     let shareConfirmModal: ConfirmModal;
     let publishConfirmModal: ConfirmModal;
