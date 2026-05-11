@@ -15,8 +15,8 @@ class TrailLayer extends StatelessWidget {
   TrailLayer({
     super.key,
     required this.trail,
-    this.routeColor = Colors.red,
-    this.strokeWidth = 3.0,
+    this.routeColor = Colors.blue,
+    this.strokeWidth = 6.0,
     this.showWaypoints = true,
   }) : assert(
          trail.expand?.gpx != null,

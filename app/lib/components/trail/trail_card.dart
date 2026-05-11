@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
@@ -295,23 +296,23 @@ class _StatsGrid extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _StatIcon(
+          StatChip(
             icon: FontAwesomeIcons.ruler,
-            value: formatDistance(trail.distance),
+            label: formatDistance(trail.distance),
           ),
-          _StatIcon(
+          StatChip(
             icon: FontAwesomeIcons.clock,
-            value: Duration(
+            label: Duration(
               seconds: trail.duration.toInt(),
             ).pretty(abbreviated: true, tersity: DurationTersity.minute),
           ),
-          _StatIcon(
+          StatChip(
             icon: FontAwesomeIcons.arrowTrendUp,
-            value: formatElevation(trail.elevationGain),
+            label: formatElevation(trail.elevationGain),
           ),
-          _StatIcon(
+          StatChip(
             icon: FontAwesomeIcons.arrowTrendDown,
-            value: formatElevation(trail.elevationLoss),
+            label: formatElevation(trail.elevationLoss),
           ),
           // _StatIcon(
           //   icon: FontAwesomeIcons.gaugeHigh,
@@ -336,23 +337,6 @@ class _CategoryIcon extends StatelessWidget {
         FaIcon(icon, size: 16),
         const SizedBox(width: 6),
         Text(value, style: TextStyle(fontSize: 16)),
-      ],
-    );
-  }
-}
-
-class _StatIcon extends StatelessWidget {
-  final FaIconData icon;
-  final String value;
-  const _StatIcon({required this.icon, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        FaIcon(icon, size: 12, color: Colors.grey[600]),
-        const SizedBox(width: 6),
-        Text(value, style: TextStyle(fontSize: 12, color: Colors.grey[800])),
       ],
     );
   }

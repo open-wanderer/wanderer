@@ -6,6 +6,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
+import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
@@ -146,34 +147,29 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    _buildStatChip(
-                      context,
-                      FontAwesomeIcons.ruler,
-                      formatDistance(trail.distance),
+                    StatChip(
+                      icon: FontAwesomeIcons.ruler,
+                      label: formatDistance(trail.distance),
                     ),
-                    _buildStatChip(
-                      context,
-                      FontAwesomeIcons.clock,
-                      Duration(seconds: trail.duration.toInt()).pretty(
+                    StatChip(
+                      icon: FontAwesomeIcons.clock,
+                      label: Duration(seconds: trail.duration.toInt()).pretty(
                         abbreviated: true,
                         tersity: DurationTersity.minute,
                       ),
                     ),
-                    _buildStatChip(
-                      context,
-                      FontAwesomeIcons.arrowTrendUp,
-                      formatElevation(trail.elevationGain),
+                    StatChip(
+                      icon: FontAwesomeIcons.arrowTrendUp,
+                      label: formatElevation(trail.elevationGain),
                     ),
-                    _buildStatChip(
-                      context,
-                      FontAwesomeIcons.arrowTrendDown,
-                      formatElevation(trail.elevationLoss),
+                    StatChip(
+                      icon: FontAwesomeIcons.arrowTrendDown,
+                      label: formatElevation(trail.elevationLoss),
                     ),
                     if (trail.expand?.category != null)
-                      _buildStatChip(
-                        context,
-                        FontAwesomeIcons.route,
-                        trail.expand!.category!.name,
+                      StatChip(
+                        icon: FontAwesomeIcons.route,
+                        label: trail.expand!.category!.name,
                       ),
                   ],
                 ),
@@ -199,24 +195,6 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatChip(BuildContext context, FaIconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.grey.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FaIcon(icon, size: 16, color: Colors.blueGrey),
-          const SizedBox(width: 8),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );
