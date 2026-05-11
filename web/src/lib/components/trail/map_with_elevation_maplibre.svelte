@@ -547,16 +547,19 @@
         clusterPopup.on("close", () => {
             unHighlightCluster(false);
         });
-        map.on("mousemove", unHighlightClusterDistanceNotifier)
+        map.on("mousemove", unHighlightClusterDistanceNotifier);
     }
 
     function unHighlightClusterDistanceNotifier(e: M.MapMouseEvent) {
         if (!clusterPopup || !map) {
-            return
+            return;
         }
-        if (map.project(clusterPopup.getLngLat()).dist(map.project(e.lngLat)) > 60) {
+        if (
+            map.project(clusterPopup.getLngLat()).dist(map.project(e.lngLat)) >
+            60
+        ) {
             clusterPopup.remove();
-            map.off("mousemove", unHighlightClusterDistanceNotifier)
+            map.off("mousemove", unHighlightClusterDistanceNotifier);
         }
     }
 

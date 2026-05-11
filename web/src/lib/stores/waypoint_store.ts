@@ -12,7 +12,7 @@ export async function waypoints_create(waypoint: Waypoint, f: (url: RequestInfo 
         throw Error("Unauthenticated")
     }
 
-    waypoint.author = user.id
+    waypoint.author = user.actor
 
     let r = await f('/api/v1/waypoint', {
         method: 'PUT',

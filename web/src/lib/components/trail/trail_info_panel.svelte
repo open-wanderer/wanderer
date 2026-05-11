@@ -129,9 +129,8 @@
 
     async function fetchComments() {
         commentsLoading = true;
-        const trailId = trail.iri ? trail.iri : trail.id!;
         try {
-            await comments_index(trailId, handle);
+            await comments_index(trail.id!);
         } catch (e) {
             show_toast({
                 type: "error",

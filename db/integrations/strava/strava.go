@@ -2,6 +2,7 @@ package strava
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +20,7 @@ import (
 	"github.com/tkrajina/gpxgo/gpx"
 	"github.com/twpayne/go-polyline"
 
-	"pocketbase/trailmerge"
+	"pocketbase/services/trailmerge"
 	"pocketbase/util"
 )
 
@@ -47,6 +48,12 @@ func SyncStrava(app core.App, client meilisearch.ServiceManager) error {
 			app.Logger().Warn(warning)
 			continue
 		}
+
+		ctx, err := util.GetSafeActorContext(nil, actor)
+		if err != nil {
+			continue
+		}
+
 		stravaString := i.GetString("strava")
 		var stravaIntegration StravaIntegration
 		err = json.Unmarshal([]byte(stravaString), &stravaIntegration)
@@ -104,7 +111,7 @@ func SyncStrava(app core.App, client meilisearch.ServiceManager) error {
 					app.Logger().Warn(warning)
 					break
 				}
-				err = syncTrailsWithRoutes(app, client, stravaIntegration, r.AccessToken, userId, actor, routes)
+				err = syncTrailsWithRoutes(app, client, ctx, stravaIntegration, r.AccessToken, userId, actor, routes)
 				if err != nil {
 					warning := fmt.Sprintf("error syncing strava routes with trails: %v\n", err)
 					fmt.Print(warning)
@@ -136,7 +143,7 @@ func SyncStrava(app core.App, client meilisearch.ServiceManager) error {
 					app.Logger().Warn(warning)
 					break
 				}
-				err = syncTrailsWithActivities(app, client, stravaIntegration, r.AccessToken, userId, actor, activities)
+				err = syncTrailsWithActivities(app, client, ctx, stravaIntegration, r.AccessToken, userId, actor, activities)
 
 				if err != nil {
 					warning := fmt.Sprintf("error syncing strava activities with trails: %v", err)
@@ -250,7 +257,7 @@ func fetchStravaActivities(accessToken string, page int, after int64) ([]StravaA
 	return activities, nil
 }
 
-func syncTrailsWithRoutes(app core.App, client meilisearch.ServiceManager, i StravaIntegration, accessToken string, user string, actor *core.Record, routes []StravaRoute) error {
+func syncTrailsWithRoutes(app core.App, client meilisearch.ServiceManager, ctx context.Context, i StravaIntegration, accessToken string, user string, actor *core.Record, routes []StravaRoute) error {
 	for _, route := range routes {
 		existingTrail, err := util.FindTrailByExternalReference(app, "strava", route.IDStr)
 		if err != nil {
@@ -274,7 +281,7 @@ func syncTrailsWithRoutes(app core.App, client meilisearch.ServiceManager, i Str
 			app.Logger().Warn(fmt.Sprintf("Unable to create waypoints for route '%s': %v", route.Name, err))
 			continue
 		}
-		if err := trailmerge.TryAutoMergeImportedTrail(app, client, actor, trailid, i.Merge); err != nil {
+		if err := trailmerge.TryAutoMergeImportedTrail(app, client, ctx, actor, trailid, i.Merge); err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to auto-merge imported Strava route '%s': %v", route.Name, err))
 		}
 	}
@@ -426,7 +433,7 @@ func createWaypointsFromRoute(app core.App, route StravaRoute, user string, trai
 	return nil
 }
 
-func syncTrailsWithActivities(app core.App, client meilisearch.ServiceManager, i StravaIntegration, accessToken string, user string, actor *core.Record, activities []StravaActivity) error {
+func syncTrailsWithActivities(app core.App, client meilisearch.ServiceManager, ctx context.Context, i StravaIntegration, accessToken string, user string, actor *core.Record, activities []StravaActivity) error {
 	for _, activity := range activities {
 		existingTrail, err := util.FindTrailByExternalReference(app, "strava", strconv.Itoa(int(activity.ID)))
 		if err != nil {
@@ -450,7 +457,7 @@ func syncTrailsWithActivities(app core.App, client meilisearch.ServiceManager, i
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail from activity '%s': %v", activity.Name, err))
 			continue
 		}
-		if err := trailmerge.TryAutoMergeImportedTrail(app, client, actor, trailID, i.Merge); err != nil {
+		if err := trailmerge.TryAutoMergeImportedTrail(app, client, ctx, actor, trailID, i.Merge); err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to auto-merge imported Strava activity '%s': %v", activity.Name, err))
 		}
 	}

@@ -1,6 +1,7 @@
 package komoot
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -19,7 +20,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/tkrajina/gpxgo/gpx"
 
-	"pocketbase/trailmerge"
+	"pocketbase/services/trailmerge"
 	"pocketbase/util"
 )
 
@@ -43,6 +44,12 @@ func SyncKomoot(app core.App, client meilisearch.ServiceManager) error {
 			app.Logger().Warn(warning)
 			continue
 		}
+
+		ctx, err := util.GetSafeActorContext(nil, actor)
+		if err != nil {
+			continue
+		}
+
 		komootString := i.GetString("komoot")
 		komootIntegration := KomootIntegration{
 			Planned:   true,
@@ -82,7 +89,7 @@ func SyncKomoot(app core.App, client meilisearch.ServiceManager) error {
 			}
 			totalPages = tp
 
-			allAlreadySynced, err := syncTrailWithTours(app, client, k, komootIntegration, userId, actor, tours)
+			allAlreadySynced, err := syncTrailWithTours(app, client, ctx, k, komootIntegration, userId, actor, tours)
 			if err != nil {
 				warning := fmt.Sprintf("error syncing komoot tours with trails: %v\n", err)
 				fmt.Print(warning)
@@ -191,7 +198,7 @@ func (k *KomootApi) fetchDetailedTour(tour KomootTour) (*DetailedKomootTour, err
 // when every tour on this page was already imported, so the caller can stop paginating
 // early during incremental syncs. Tours skipped due to type filters do NOT count as
 // synced - only tours already present in the DB do.
-func syncTrailWithTours(app core.App, client meilisearch.ServiceManager, k *KomootApi, i KomootIntegration, user string, actor *core.Record, tours []KomootTour) (bool, error) {
+func syncTrailWithTours(app core.App, client meilisearch.ServiceManager, ctx context.Context, k *KomootApi, i KomootIntegration, user string, actor *core.Record, tours []KomootTour) (bool, error) {
 	allAlreadySynced := true
 	for _, tour := range tours {
 		existingTrail, err := util.FindTrailByExternalReference(app, "komoot", strconv.Itoa(int(tour.ID)))
@@ -226,7 +233,7 @@ func syncTrailWithTours(app core.App, client meilisearch.ServiceManager, k *Komo
 			app.Logger().Warn(fmt.Sprintf("Unable to create waypoints for tour '%s': %v", tour.Name, err))
 			continue
 		}
-		if err := trailmerge.TryAutoMergeImportedTrail(app, client, actor, trailid, i.Merge); err != nil {
+		if err := trailmerge.TryAutoMergeImportedTrail(app, client, ctx, actor, trailid, i.Merge); err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to auto-merge imported komoot tour '%s': %v", tour.Name, err))
 		}
 

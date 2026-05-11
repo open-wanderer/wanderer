@@ -15,7 +15,10 @@ import (
 )
 
 func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
-
+	if !r.GetBool("public") {
+		// only broadcast the trail if it is public
+		return nil
+	}
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")

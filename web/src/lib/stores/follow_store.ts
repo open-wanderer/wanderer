@@ -5,11 +5,9 @@ import { type ListResult } from "pocketbase";
 
 let follows: Actor[] = [];
 
-export async function follows_index(data: { username: string, type: "followers" | "following" }, page: number = 1, perPage: number = 10, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+export async function follows_index(page: number = 1, perPage: number = 10, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
 
     const r = await f(`/api/v1/follow?` + new URLSearchParams({
-        handle: data.username,
-        type: data.type,
         page: page.toString(),
         perPage: perPage.toString(),
     }), {
@@ -25,7 +23,7 @@ export async function follows_index(data: { username: string, type: "followers" 
 
     const result = page > 1 ? [...follows, ...fetchedFollows.items] : fetchedFollows.items
 
-    follows = result;  
+    follows = result;
 
     return { ...fetchedFollows, items: result };
 }

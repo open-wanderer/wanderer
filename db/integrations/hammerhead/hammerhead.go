@@ -2,6 +2,7 @@ package hammerhead
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -24,7 +25,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/tkrajina/gpxgo/gpx"
 
-	"pocketbase/trailmerge"
+	"pocketbase/services/trailmerge"
 	"pocketbase/util"
 )
 
@@ -48,6 +49,12 @@ func SyncHammerhead(app core.App, client meilisearch.ServiceManager) error {
 			app.Logger().Warn(warning)
 			continue
 		}
+
+		ctx, err := util.GetSafeActorContext(nil, actor)
+		if err != nil {
+			continue
+		}
+
 		hammerheadString := i.GetString("hammerhead")
 		hammerheadIntegration := HammerheadIntegration{
 			Planned:   true,
@@ -111,7 +118,7 @@ func SyncHammerhead(app core.App, client meilisearch.ServiceManager) error {
 					totalPages = curTotalPages
 				}
 
-				err, stopped = syncTrailWithTours(app, client, h, actor, hammerheadIntegration, tours, after)
+				err, stopped = syncTrailWithTours(app, client, ctx, h, actor, hammerheadIntegration, tours, after)
 				if err != nil {
 					warning := fmt.Sprintf("error syncing Hammerhead tours with trails: %v\n", err)
 					fmt.Print(warning)
@@ -142,7 +149,7 @@ func SyncHammerhead(app core.App, client meilisearch.ServiceManager) error {
 					totalPages = curTotalPages
 				}
 
-				err, stopped = syncTrailWithActivities(app, client, h, actor, hammerheadIntegration, tours, after)
+				err, stopped = syncTrailWithActivities(app, client, ctx, h, actor, hammerheadIntegration, tours, after)
 				if err != nil {
 					warning := fmt.Sprintf("error syncing Hammerhead tours with trails: %v\n", err)
 					fmt.Print(warning)
@@ -409,7 +416,7 @@ func (h *HammerheadApi) fetchDetailedTour(tour HammerheadTourResponse) (*Hammerh
 	return data, nil
 }
 
-func syncTrailWithTours(app core.App, client meilisearch.ServiceManager, k *HammerheadApi, actor *core.Record, integration HammerheadIntegration, tours []HammerheadTourResponse, after int64) (error, bool) {
+func syncTrailWithTours(app core.App, client meilisearch.ServiceManager, ctx context.Context, k *HammerheadApi, actor *core.Record, integration HammerheadIntegration, tours []HammerheadTourResponse, after int64) (error, bool) {
 	for _, tour := range tours {
 		existingTrail, err := util.FindTrailByExternalReference(app, "hammerhead", tour.ID)
 		if err != nil {
@@ -445,7 +452,7 @@ func syncTrailWithTours(app core.App, client meilisearch.ServiceManager, k *Hamm
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for tour '%s': %v", tour.Name, err))
 			continue
 		}
-		if err := trailmerge.TryAutoMergeImportedTrail(app, client, actor, trailID, integration.Merge); err != nil {
+		if err := trailmerge.TryAutoMergeImportedTrail(app, client, ctx, actor, trailID, integration.Merge); err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to auto-merge imported Hammerhead tour '%s': %v", tour.Name, err))
 		}
 	}
@@ -453,7 +460,7 @@ func syncTrailWithTours(app core.App, client meilisearch.ServiceManager, k *Hamm
 	return nil, false
 }
 
-func syncTrailWithActivities(app core.App, client meilisearch.ServiceManager, k *HammerheadApi, actor *core.Record, integration HammerheadIntegration, tours []HammerheadActivityResponse, after int64) (error, bool) {
+func syncTrailWithActivities(app core.App, client meilisearch.ServiceManager, ctx context.Context, k *HammerheadApi, actor *core.Record, integration HammerheadIntegration, tours []HammerheadActivityResponse, after int64) (error, bool) {
 	for _, tour := range tours {
 		existingTrail, err := util.FindTrailByExternalReference(app, "hammerhead", tour.ID)
 		if err != nil {
@@ -490,7 +497,7 @@ func syncTrailWithActivities(app core.App, client meilisearch.ServiceManager, k 
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for tour '%s': %v", tour.Name, err))
 			continue
 		}
-		if err := trailmerge.TryAutoMergeImportedTrail(app, client, actor, trailID, integration.Merge); err != nil {
+		if err := trailmerge.TryAutoMergeImportedTrail(app, client, ctx, actor, trailID, integration.Merge); err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to auto-merge imported Hammerhead activity '%s': %v", tour.Name, err))
 		}
 	}

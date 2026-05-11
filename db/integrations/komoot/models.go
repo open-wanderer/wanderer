@@ -3,7 +3,7 @@ package komoot
 import (
 	"time"
 
-	"pocketbase/trailmerge"
+	"pocketbase/services/trailmerge"
 )
 
 type KomootIntegration struct {
