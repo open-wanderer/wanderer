@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { generateSpec, writeSpec } from '../node_modules/sveltekit-openapi-generator/dist/generator.js';
-import { openapiOptions } from '../openapi.config.mjs';
+import { openapiOptions } from '../openapi.config.js';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webDir = resolve(scriptDir, '..');

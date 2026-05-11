@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import fs from 'fs';
 import openapiPlugin from 'sveltekit-openapi-generator';
 import { defineConfig } from 'vitest/config';
-import { openapiOptions } from './openapi.config.mjs';
+import { openapiOptions } from './openapi.config.js';
 
 const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
 

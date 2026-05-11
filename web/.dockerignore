@@ -1,6 +1,5 @@
 *
 !*.js
-!*.mjs
 !*.ts
 !package-lock.json*
 !package.json
