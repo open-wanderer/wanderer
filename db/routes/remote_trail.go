@@ -45,6 +45,9 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 		// Construct the IRI first to see if we already know this trail.
 		record, err = findLocalTrailByRemoteInfo(e, ctx, handle, trailID)
 		if err != nil {
+			if errors.Is(err, federation.ErrProfilePrivate) {
+				return e.NotFoundError("profile is private", err)
+			}
 			return e.InternalServerError("Failed to resolve trail", err)
 		}
 
