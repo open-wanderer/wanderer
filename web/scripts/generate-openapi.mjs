@@ -3,21 +3,16 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { generateSpec, writeSpec } from '../node_modules/sveltekit-openapi-generator/dist/generator.js';
+import { openapiOptions } from '../openapi.config.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webDir = resolve(scriptDir, '..');
 const packageJson = JSON.parse(readFileSync(resolve(webDir, 'package.json'), 'utf-8'));
+const { outputPath, ...generatorOptions } = openapiOptions(packageJson.version);
 
 const spec = generateSpec({
   rootDir: webDir,
-  info: {
-    title: 'Wanderer API',
-    version: `${packageJson.version}`,
-    description: 'API documentation for wanderer backend',
-  },
-  outputPath: 'static/docs/api/wanderer.openapi.json',
-  include: ['src/routes/api/v1/**/*.{js,ts}'],
-  baseSchemasPath: 'src/lib/models/api/openapi_schemas.ts',
+  ...generatorOptions,
 });
 
-writeSpec(spec, resolve(webDir, 'static/docs/api/wanderer.openapi.json'));
+writeSpec(spec, resolve(webDir, outputPath));
