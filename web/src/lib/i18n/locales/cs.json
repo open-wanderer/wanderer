@@ -301,6 +301,7 @@
   "no-data": "Žádná data",
   "no-description-for-now": "Zatím bez popisu",
   "no-gps-data-in-image": "Obrázek neobsahuje GPS data",
+  "waypoint-cluster-error": "Could not create waypoint clusters",
   "no-grid": "Bez mřížky",
   "no-notifications": "Žádná upozornění",
   "no-photos-here": "Zde nejsou žádné fotky ani videa",

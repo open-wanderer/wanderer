@@ -4,21 +4,21 @@ go 1.25.0
 
 require (
 	github.com/go-ap/jsonld v0.0.0-20250905102310-8480b0fe24d9
-	github.com/meilisearch/meilisearch-go v0.36.1
+	github.com/meilisearch/meilisearch-go v0.36.2
 	github.com/pocketbase/dbx v1.12.0
-	github.com/pocketbase/pocketbase v0.36.5
+	github.com/pocketbase/pocketbase v0.38.0
 	github.com/tkrajina/gpxgo v1.4.0
 )
 
 require (
 	git.sr.ht/~mariusor/go-xsd-duration v0.0.0-20220703122237-02e73435a078 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-ap/errors v0.0.0-20250905102357-4480b47a00c4 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
-	github.com/valyala/fastjson v1.6.4 // indirect
-	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
+	github.com/valyala/fastjson v1.6.10 // indirect
 )
 
 require (
@@ -27,7 +27,7 @@ require (
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/domodwyer/mailyak/v3 v3.6.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/fatih/color v1.18.0 // indirect
+	github.com/fatih/color v1.19.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/ganigeorgiev/fexpr v0.5.0 // indirect
 	github.com/go-ap/activitypub v0.0.0-20250905102448-e9df599e4528
@@ -36,7 +36,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
@@ -45,14 +45,14 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/twpayne/go-polyline v1.1.1
 	golang.org/x/crypto v0.50.0 // indirect
-	golang.org/x/image v0.38.0 // indirect
+	golang.org/x/image v0.39.0 // indirect
 	golang.org/x/net v0.53.0
-	golang.org/x/oauth2 v0.35.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
-	modernc.org/libc v1.67.6 // indirect
+	modernc.org/libc v1.72.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.46.1 // indirect
+	modernc.org/sqlite v1.50.0 // indirect
 )

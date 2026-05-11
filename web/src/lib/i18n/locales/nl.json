@@ -301,6 +301,7 @@
   "no-data": "Geen data",
   "no-description-for-now": "Voorlopig geen beschrijving",
   "no-gps-data-in-image": "Geen GPS data in afbeelding",
+  "waypoint-cluster-error": "Could not create waypoint clusters",
   "no-grid": "Geen raster",
   "no-notifications": "Geen meldingen",
   "no-photos-here": "No photos here",

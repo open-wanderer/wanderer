@@ -7,8 +7,8 @@ export interface Actor {
     domain?: string;
     summary?: string;
     published?: string;
-    followerCount?: number,
-    followingCount?: number,
+    follower_count?: number,
+    following_count?: number,
     iri: string;
     inbox: string;
     outbox?: string;

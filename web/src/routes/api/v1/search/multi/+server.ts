@@ -42,6 +42,7 @@ export async function POST(event: RequestEvent) {
         });
         return json(r);
     } catch (e: any) {
-        throw error(e.httpStatus, e)
+        console.error(e);
+        throw error(e.httpStatus || 500, e)
     }
 }

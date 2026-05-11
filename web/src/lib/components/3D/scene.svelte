@@ -1,5 +1,6 @@
 <script lang="ts">
     import { theme } from "$lib/stores/theme_store";
+    import { untrack } from "svelte";
     import { T, useTask } from "@threlte/core";
     import { backInOut } from "svelte/easing";
     import { Tween } from "svelte/motion";
@@ -56,7 +57,7 @@
         rotation += delta / 2;
     });
 
-    const sunZPosition = new Tween($theme == "light" ? sunUpPosition : 0, {
+    const sunZPosition = new Tween(untrack(() => ($theme == "light" ? sunUpPosition : 0)), {
         duration: 1000,
         easing: backInOut,
     });
@@ -71,7 +72,7 @@
         sunLightIntensity.set($theme == "light" ? 4 : 0);
     });
 
-    const moonZPosition = new Tween($theme == "dark" ? sunUpPosition : 0, {
+    const moonZPosition = new Tween(untrack(() => ($theme == "dark" ? sunUpPosition : 0)), {
         duration: 1000,
         easing: backInOut,
     });

@@ -301,6 +301,7 @@
   "no-data": "No datos",
   "no-description-for-now": "Ninguna descripción de momento",
   "no-gps-data-in-image": "Sin datos GPS en la imagen",
+  "waypoint-cluster-error": "Could not create waypoint clusters",
   "no-grid": "Ninguna cuadrícula",
   "no-notifications": "No notificaciones",
   "no-photos-here": "No fotos aquí",
