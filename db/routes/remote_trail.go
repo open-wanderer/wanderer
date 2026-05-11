@@ -190,15 +190,65 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 		}
 	}
 
+	// Resolve Tags
+	localTagIds := resolveAndSyncTags(app, data)
+	if len(localTagIds) > 0 {
+		record.Set("tags", localTagIds)
+	}
+
 	// Clean protected/complex fields before bulk load
 	delete(data, "id")
 	delete(data, "photos")
 	delete(data, "gpx")
 	delete(data, "author")
 	delete(data, "category")
+	delete(data, "tags")
 	delete(data, "iri")
 
 	record.Load(data)
+}
+
+func resolveAndSyncTags(app core.App, data map[string]any) []string {
+	var localTagIds []string
+
+	expand, ok := data["expand"].(map[string]any)
+	if !ok {
+		return localTagIds
+	}
+
+	remoteTags, ok := expand["tags"].([]any)
+	if !ok {
+		return localTagIds
+	}
+
+	tagCol, _ := app.FindCollectionByNameOrId("tags")
+
+	for _, t := range remoteTags {
+		tagMap, ok := t.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		tagName, _ := tagMap["name"].(string)
+		if tagName == "" {
+			continue
+		}
+
+		localTag, _ := app.FindFirstRecordByData("tags", "name", tagName)
+
+		if localTag == nil {
+			localTag = core.NewRecord(tagCol)
+			localTag.Set("name", tagName)
+
+			if err := app.Save(localTag); err != nil {
+				continue
+			}
+		}
+
+		localTagIds = append(localTagIds, localTag.Id)
+	}
+
+	return localTagIds
 }
 
 func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, origin string, waypoints []any) error {
