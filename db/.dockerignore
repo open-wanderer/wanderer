@@ -1,9 +1,12 @@
 *
 !commands
 !federation
+!hooks
 !go.*
 !integrations
 !main.go
 !migrations
+!routes
 !templates
+!services
 !util

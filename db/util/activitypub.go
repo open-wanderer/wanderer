@@ -19,6 +19,7 @@ import (
 	"time"
 
 	pub "github.com/go-ap/activitypub"
+	"github.com/go-fed/httpsig"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
@@ -110,53 +111,6 @@ func generateKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	return priv, pub, nil
 }
 
-func SyncOutbox(app core.App, actor *core.Record) error {
-	return fetchOutboxPage(app, actor, actor.GetString("outbox")+"?page=1")
-}
-
-func fetchOutboxPage(app core.App, actor *core.Record, pageURL string) error {
-	client := &http.Client{}
-
-	req, err := http.NewRequest(http.MethodGet, pageURL, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Add("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	var page pub.OrderedCollectionPage
-	err = json.Unmarshal(body, &page)
-	if err != nil {
-		return err
-	}
-
-	for _, item := range page.OrderedItems {
-		activity, err := pub.ToActivity(item)
-		if err != nil {
-			return err
-		}
-		if activity.Type != pub.CreateType {
-			continue
-		}
-	}
-
-	if page.Next != nil {
-		return fetchOutboxPage(app, actor, page.Next.GetID().String())
-	}
-
-	return nil
-}
-
 func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
 	t, err := pub.ToObject(activity.Object)
 	if err != nil {
@@ -191,7 +145,13 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		}
 	} else {
 		// this trail exists already
-		// nothing more to do
+		// ensure that it is fully synced to catch waypoint/summit log updates
+
+		record.Set("needs_full_sync", true)
+		err = app.Save(record)
+		if err != nil {
+			return nil, err
+		}
 
 		return record, nil
 	}
@@ -264,6 +224,7 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	record.Set("public", true)
 	record.Set("iri", t.ID.String())
 	record.Set("author", actor.Id)
+	record.Set("needs_full_sync", true)
 
 	categoryRecord, err := app.FindFirstRecordByData("categories", "name", category)
 	if err == nil {
@@ -473,7 +434,9 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 		}
 	} else {
 		// this list exists already
-		// nothing more to do
+		// ensure that it is fully synced to catch trail updates
+
+		record.Set("needs_full_sync", true)
 
 		return record, nil
 	}
@@ -483,6 +446,7 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 	record.Set("public", true)
 	record.Set("iri", iri)
 	record.Set("author", actor.Id)
+	record.Set("needs_full_sync", true)
 
 	if l.Attachment != nil {
 
@@ -601,7 +565,7 @@ func ObjectFromComment(app core.App, comment *core.Record, mentions *pub.ItemCol
 func TrailObjectFromIRI(iri string) (*pub.Object, error) {
 	fetchURL := strings.Replace(iri, "api/v1/trail", "api/v1/activitypub/trail", 1)
 
-	client := &http.Client{}
+	client := SafeHTTPClient()
 
 	req, err := http.NewRequest(http.MethodGet, fetchURL, nil)
 	if err != nil {
@@ -626,4 +590,69 @@ func TrailObjectFromIRI(iri string) (*pub.Object, error) {
 	}
 
 	return &object, nil
+}
+
+func VerifySignature(app core.App, req *http.Request, publicKeyPem string) (bool, error) {
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return false, fmt.Errorf("ORIGIN not set")
+	}
+	block, _ := pem.Decode([]byte(publicKeyPem))
+	if block == nil || block.Type != "PUBLIC KEY" {
+		return false, fmt.Errorf("could not decode publicKeyPem to PUBLIC KEY pem block type")
+	}
+
+	req.URL = &url.URL{
+		Path: req.Header.Get("X-Forwarded-Path"),
+	}
+
+	url, err := url.Parse(origin)
+	if err != nil {
+		return false, err
+	}
+
+	req.Header.Set("Host", url.Host)
+	req.Host = url.Host
+
+	app.Logger().Info(req.Header.Get("signature"))
+
+	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return false, err
+	}
+
+	v, err := httpsig.NewVerifier(req)
+	if err != nil {
+		return false, err
+	}
+
+	err = v.Verify(publicKey, httpsig.RSA_SHA256)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func SplitHandle(handle string) (string, string) {
+
+	cleaned := strings.TrimPrefix(handle, "@")
+	cleaned = strings.TrimSpace(cleaned)
+
+	if !strings.Contains(cleaned, "@") {
+		return cleaned, ""
+	}
+
+	parts := strings.SplitN(cleaned, "@", 2)
+	user := parts[0]
+	domain := parts[1]
+
+	return user, domain
+}
+
+func ItemID(item pub.Item) string {
+	if item == nil || item.GetID() == "" {
+		return ""
+	}
+	return item.GetID().String()
 }

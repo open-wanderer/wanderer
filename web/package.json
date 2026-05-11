@@ -1,6 +1,6 @@
 {
   "name": "wanderer",
-  "version": "0.18.5",
+  "version": "0.19.0",
   "private": true,
   "scripts": {
     "dev": "vite dev",
@@ -70,7 +70,7 @@
     "jszip": "^3.10.1",
     "maplibre-gl": "^4.7.1",
     "marked": "^17.0.4",
-    "meilisearch": "^0.55.0",
+    "meilisearch": "^0.57.0",
     "ngeohash": "^0.6.3",
     "nouislider": "^15.7.1",
     "pdfkit": "^0.17.2",

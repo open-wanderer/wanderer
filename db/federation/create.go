@@ -21,7 +21,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, typ pub.ActivityVocabularyType) error {
+func CreateTrailActivity(app core.App, ctx context.Context, trail *core.Record, typ pub.ActivityVocabularyType) error {
 	if !trail.GetBool("public") {
 		// only broadcast the trail if it is public
 		return nil
@@ -46,7 +46,7 @@ func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, t
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
 
-	mentionedActors, err := ActorsFromMentions(app, actor, trail.GetString("description"))
+	mentionedActors, err := ActorsFromMentions(app, ctx, trail.GetString("description"))
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, t
 	return PostActivity(app, trailAuthor, activity, recipients)
 }
 
-func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Record, typ pub.ActivityVocabularyType) error {
+func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Record, typ pub.ActivityVocabularyType) error {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
@@ -134,7 +134,7 @@ func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Recor
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, activityRecordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
 
-	mentionedActors, err := ActorsFromMentions(app, actor, comment.GetString("text"))
+	mentionedActors, err := ActorsFromMentions(app, ctx, comment.GetString("text"))
 	if err != nil {
 		return err
 	}
@@ -193,7 +193,7 @@ func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Recor
 
 }
 
-func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.Record, typ pub.ActivityVocabularyType) error {
+func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.Record, typ pub.ActivityVocabularyType) error {
 
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -245,7 +245,7 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 		to.Append(pub.IRI(summitLogTrailAuthor.GetString("iri")))
 	}
 
-	mentionedActors, err := ActorsFromMentions(app, actor, summitLog.GetString("text"))
+	mentionedActors, err := ActorsFromMentions(app, ctx, summitLog.GetString("text"))
 	if err != nil {
 		return err
 	}
@@ -807,7 +807,7 @@ func processCreateOrUpdateListActivity(activity pub.Activity, app core.App, acto
 	return err
 }
 
-func ActorsFromMentions(app core.App, actor *core.Record, htmlStr string) ([]*core.Record, error) {
+func ActorsFromMentions(app core.App, ctx context.Context, htmlStr string) ([]*core.Record, error) {
 	doc, err := html.Parse(strings.NewReader(htmlStr))
 	if err != nil {
 		return nil, err
@@ -842,7 +842,7 @@ func ActorsFromMentions(app core.App, actor *core.Record, htmlStr string) ([]*co
 	f(doc)
 
 	for _, h := range handles {
-		actor, err := GetActorByHandle(app, actor, h, false)
+		actor, err := GetActorByHandle(app, ctx, h, false)
 		if err != nil {
 			continue
 		}

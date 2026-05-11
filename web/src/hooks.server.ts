@@ -6,7 +6,7 @@ import PocketBase from 'pocketbase'
 import { isRouteProtected } from '$lib/util/authorization_util'
 import { error, json, redirect, text, type Handle } from '@sveltejs/kit'
 import { sequence } from '@sveltejs/kit/hooks'
-import { MeiliSearch } from 'meilisearch'
+import { Meilisearch } from 'meilisearch'
 import { locale } from 'svelte-i18n'
 import type { Actor } from '$lib/models/activitypub/actor'
 import { normalizeLocale } from '$lib/i18n/locales'
@@ -149,7 +149,7 @@ const auth: Handle = async ({ event, resolve }) => {
   if (!meiliHost) {
     throw error(500, "Missing MEILI_URL");
   }
-  const ms = new MeiliSearch({ host: meiliHost, apiKey: meilisearchToken });
+  const ms = new Meilisearch({ host: meiliHost, apiKey: meilisearchToken });
 
   event.locals.ms = ms
   event.locals.pb = pb

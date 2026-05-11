@@ -1,14 +1,19 @@
 package komoot
 
-import "time"
+import (
+	"time"
+
+	"pocketbase/services/trailmerge"
+)
 
 type KomootIntegration struct {
-	Active    bool   `json:"active"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	Planned   bool   `json:"planned"`
-	Completed bool   `json:"completed"`
-	Privacy   string `json:"privacy"`
+	Active    bool                                    `json:"active"`
+	Email     string                                  `json:"email"`
+	Password  string                                  `json:"password"`
+	Planned   bool                                    `json:"planned"`
+	Completed bool                                    `json:"completed"`
+	Privacy   string                                  `json:"privacy"`
+	Merge     trailmerge.IntegrationAutoMergeSettings `json:"merge"`
 }
 
 type LoginResponse struct {

@@ -9,9 +9,10 @@ import { searchResultToLists } from "./list_store";
 import type { ListSearchResult } from "./search_store";
 import { buildFilterText } from "./summit_log_store";
 import { searchResultToTrailList } from "./trail_store";
+import type { Actor } from "$lib/models/activitypub/actor";
 
 let feed: FeedItem[] = []
-
+let follows: Actor[] = [];
 
 export async function profile_show(handle: string, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     let r = await f('/api/v1/profile/' + handle, {
@@ -132,4 +133,26 @@ export async function profile_stats_index(handle: string, filter: SummitLogFilte
 
     return result;
 
+}
+
+export async function profile_follows_index(handle: string, type: "followers" | "following", page: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+    const r = await f(`/api/v1/profile/${handle}/follows?` + new URLSearchParams({
+        type,
+        page: page.toString(),
+    }), {
+        method: 'GET',
+    })
+
+    if (!r.ok) {
+        const response = await r.json();
+        throw new APIError(r.status, response.message, response.detail)
+    }
+
+    const fetchedFollows: ListResult<Actor> = await r.json();
+
+    const result = page > 1 ? [...follows, ...fetchedFollows.items] : fetchedFollows.items
+
+    follows = result;
+
+    return { ...fetchedFollows, items: result };
 }

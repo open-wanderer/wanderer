@@ -301,6 +301,7 @@
   "no-data": "无数据",
   "no-description-for-now": "暂无描述",
   "no-gps-data-in-image": "图像中没有GPS数据",
+  "waypoint-cluster-error": "Could not create waypoint clusters",
   "no-grid": "无网格",
   "no-notifications": "没有通知",
   "no-photos-here": "No photos here",

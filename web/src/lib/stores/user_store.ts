@@ -78,9 +78,10 @@ export async function logout() {
 }
 
 export async function users_update(user: User | { [K in keyof User]?: User[K] }, avatar?: File) {
+    const { email: _email, ...payload } = user as any;
     let r = await fetch('/api/v1/user/' + user.id, {
         method: 'POST',
-        body: JSON.stringify(user)
+        body: JSON.stringify(payload)
     })
 
     if (!r.ok) {
@@ -119,6 +120,22 @@ export async function users_update(user: User | { [K in keyof User]?: User[K] },
     }
 
     currentUser.set(merged);
+}
+
+export async function users_update_email(userId: string, email: string, currentPassword: string) {
+    const r = await fetch(`/api/v1/user/${userId}/email`, {
+        method: 'POST',
+        body: JSON.stringify({ email, currentPassword }),
+    });
+
+    if (!r.ok) {
+        const response = await r.json();
+        throw new APIError(r.status, response.message, response.detail);
+    }
+
+    const model: User = await r.json();
+    const existing = get(currentUser);
+    currentUser.set({ ...(existing ?? {}), ...model } as User);
 }
 
 export async function users_delete(user: User) {

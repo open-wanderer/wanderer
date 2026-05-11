@@ -56,6 +56,10 @@ export default defineConfig({
           link: '/use/summit-logs/'
         },
         {
+          label: 'Merge trails',
+          link: '/use/merge-trails/'
+        },
+        {
           label: 'Interact with the community',
           link: '/use/community-interaction/'
         },
