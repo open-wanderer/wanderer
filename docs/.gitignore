@@ -3,6 +3,9 @@ dist/
 # generated types
 .astro/
 
+# generated OpenAPI schema
+wanderer.openapi.json
+
 # dependencies
 node_modules/
 

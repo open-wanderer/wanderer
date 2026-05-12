@@ -4,20 +4,12 @@ import tailwindcss from '@tailwindcss/vite';
 import fs from 'fs';
 import openapiPlugin from 'sveltekit-openapi-generator';
 import { defineConfig } from 'vitest/config';
+import { openapiOptions } from './openapi.config.js';
 
 const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
 
 export default defineConfig({
-	plugins: [enhancedImages(), openapiPlugin({
-		info: {
-			title: 'Wanderer API',
-			version: `${packageJson.version}`,
-			description: 'API documentation for wanderer backend',
-		},
-		outputPath: 'static/docs/api/wanderer.openapi.json',
-		include: ['src/routes/api/v1/**/*.{js,ts}'],
-		baseSchemasPath: 'src/lib/models/api/openapi_schemas.ts',
-	}), tailwindcss(), sveltekit()],
+	plugins: [enhancedImages(), openapiPlugin(openapiOptions(packageJson.version)), tailwindcss(), sveltekit()],
 	test: { include: ['src/**/*.{test,spec}.{js,ts}'] },
 	ssr: { noExternal: ['three'] },
 	...(process.env.WANDERER_ENV == "dev" ? {

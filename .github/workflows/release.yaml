@@ -62,6 +62,8 @@ jobs:
           VERSION: ${{ needs.publish.outputs.version }}
         run: |
           docker buildx build db/ --no-cache -t flomp/wanderer-db:$VERSION -t flomp/wanderer-db:latest --platform=linux/amd64,linux/arm64 --push
+          npm --prefix web ci
+          npm --prefix web run openapi:generate
           docker buildx build web/ --no-cache -t flomp/wanderer-web:$VERSION -t flomp/wanderer-web:latest --platform=linux/amd64,linux/arm64 --push
           npm --prefix docs ci
           npm --prefix docs run build

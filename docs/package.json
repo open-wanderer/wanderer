@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro check && astro build",
+    "sync-openapi": "node scripts/sync-openapi.js",
+    "build": "npm run sync-openapi && astro check && astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
