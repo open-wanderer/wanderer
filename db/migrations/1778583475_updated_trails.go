@@ -17,8 +17,8 @@ func init() {
 		// update collection data
 		if err := json.Unmarshal([]byte(`{
 			"indexes": [
-				"CREATE UNIQUE INDEX ` + "`" + `idx_6tD5RqfVk2` + "`" + ` ON ` + "`" + `trails` + "`" + ` (` + "`" + `iri` + "`" + `) WHERE iri IS NOT NULL AND iri != \"\";",
-				"CREATE INDEX ` + "`" + `idx_q2th4tvqqa` + "`" + ` ON ` + "`" + `trails` + "`" + ` (` + "`" + `author` + "`" + `)",
+				"CREATE UNIQUE INDEX `+"`"+`idx_6tD5RqfVk2`+"`"+` ON `+"`"+`trails`+"`"+` (`+"`"+`iri`+"`"+`) WHERE iri IS NOT NULL AND iri != \"\";",
+				"CREATE INDEX `+"`"+`idx_q2th4tvqqa`+"`"+` ON `+"`"+`trails`+"`"+` (`+"`"+`author`+"`"+`)",
 				"CREATE INDEX idx_trails_public ON trails (public) WHERE public = true;"
 			]
 		}`), &collection); err != nil {
@@ -35,7 +35,7 @@ func init() {
 		// update collection data
 		if err := json.Unmarshal([]byte(`{
 			"indexes": [
-				"CREATE UNIQUE INDEX ` + "`" + `idx_6tD5RqfVk2` + "`" + ` ON ` + "`" + `trails` + "`" + ` (` + "`" + `iri` + "`" + `) WHERE iri IS NOT NULL AND iri != \"\";"
+				"CREATE UNIQUE INDEX `+"`"+`idx_6tD5RqfVk2`+"`"+` ON `+"`"+`trails`+"`"+` (`+"`"+`iri`+"`"+`) WHERE iri IS NOT NULL AND iri != \"\";"
 			]
 		}`), &collection); err != nil {
 			return err

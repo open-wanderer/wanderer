@@ -18,7 +18,7 @@ func init() {
 		if err := json.Unmarshal([]byte(`{
 			"indexes": [
 				"CREATE INDEX idx_trail_share_actor ON trail_share (actor);",
-				"CREATE INDEX ` + "`" + `idx_wd9il80bpf` + "`" + ` ON ` + "`" + `trail_share` + "`" + ` (` + "`" + `trail` + "`" + `)"
+				"CREATE INDEX `+"`"+`idx_wd9il80bpf`+"`"+` ON `+"`"+`trail_share`+"`"+` (`+"`"+`trail`+"`"+`)"
 			]
 		}`), &collection); err != nil {
 			return err

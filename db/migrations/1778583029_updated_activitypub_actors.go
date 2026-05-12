@@ -17,10 +17,10 @@ func init() {
 		// update collection data
 		if err := json.Unmarshal([]byte(`{
 			"indexes": [
-				"CREATE UNIQUE INDEX ` + "`" + `idx_rpT7QJwWTm` + "`" + ` ON ` + "`" + `activitypub_actors` + "`" + ` (` + "`" + `iri` + "`" + `)",
-				"CREATE UNIQUE INDEX ` + "`" + `idx_actors_username_domain` + "`" + ` ON ` + "`" + `activitypub_actors` + "`" + ` (\n  ` + "`" + `preferred_username` + "`" + `,\n  ` + "`" + `domain` + "`" + `\n)",
+				"CREATE UNIQUE INDEX `+"`"+`idx_rpT7QJwWTm`+"`"+` ON `+"`"+`activitypub_actors`+"`"+` (`+"`"+`iri`+"`"+`)",
+				"CREATE UNIQUE INDEX `+"`"+`idx_actors_username_domain`+"`"+` ON `+"`"+`activitypub_actors`+"`"+` (\n  `+"`"+`preferred_username`+"`"+`,\n  `+"`"+`domain`+"`"+`\n)",
 				"CREATE INDEX idx_activitypub_actors_user ON activitypub_actors(user) WHERE user IS NOT null;",
-				"CREATE INDEX ` + "`" + `idx_x8xyfe8q8y` + "`" + ` ON ` + "`" + `activitypub_actors` + "`" + ` (` + "`" + `inbox` + "`" + `)"
+				"CREATE INDEX `+"`"+`idx_x8xyfe8q8y`+"`"+` ON `+"`"+`activitypub_actors`+"`"+` (`+"`"+`inbox`+"`"+`)"
 			]
 		}`), &collection); err != nil {
 			return err
@@ -36,7 +36,7 @@ func init() {
 		// update collection data
 		if err := json.Unmarshal([]byte(`{
 			"indexes": [
-				"CREATE UNIQUE INDEX ` + "`" + `idx_rpT7QJwWTm` + "`" + ` ON ` + "`" + `activitypub_actors` + "`" + ` (` + "`" + `iri` + "`" + `)",
+				"CREATE UNIQUE INDEX `+"`"+`idx_rpT7QJwWTm`+"`"+` ON `+"`"+`activitypub_actors`+"`"+` (`+"`"+`iri`+"`"+`)",
 				"CREATE INDEX idx_actors_username_domain\nON activitypub_actors(preferred_username, domain);",
 				"CREATE INDEX idx_activitypub_actors_user ON activitypub_actors(user);"
 			]
