@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "openapi:generate": "node scripts/generate-openapi.js",
     "start": "node watcher.js & node build",
     "preview": "vite preview",
     "test": "npm run test:integration && npm run test:unit",
