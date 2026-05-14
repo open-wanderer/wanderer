@@ -3005,3 +3005,7 @@ const Map<String, FaIconData> fontAwesomeIconsMap = <String, FaIconData>{
   "z": FontAwesomeIcons.z,
   "zhihu": FontAwesomeIcons.zhihu,
 };
+
+final fontAwesomeIconsMapReversed = fontAwesomeIconsMap.map(
+  (k, v) => MapEntry(v, k),
+);

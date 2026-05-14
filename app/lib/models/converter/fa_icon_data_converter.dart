@@ -12,11 +12,6 @@ class FaIconDataConverter implements JsonConverter<FaIconData, String> {
 
   @override
   String toJson(FaIconData object) {
-    return fontAwesomeIconsMap.entries
-        .firstWhere(
-          (element) => element.value == object,
-          orElse: () => const MapEntry('circle', FontAwesomeIcons.circle),
-        )
-        .key;
+    return fontAwesomeIconsMapReversed[object] ?? "circle";
   }
 }

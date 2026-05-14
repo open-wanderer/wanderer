@@ -48,11 +48,11 @@ Map<String, dynamic> _$TrailExpandToJson(_TrailExpand instance) =>
     };
 
 _Trail _$TrailFromJson(Map<String, dynamic> json) => _Trail(
-  id: json['id'] as String?,
+  id: json['id'] as String,
   collectionId: json['collectionId'] as String? ?? 'trails',
   name: json['name'] as String,
   location: json['location'] as String?,
-  date: json['date'] as String?,
+  date: json['date'] == null ? null : DateTime.parse(json['date'] as String),
   public: json['public'] as bool? ?? false,
   distance: (json['distance'] as num?)?.toDouble() ?? 0,
   elevationGain: (json['elevation_gain'] as num?)?.toDouble() ?? 0,
@@ -83,6 +83,12 @@ _Trail _$TrailFromJson(Map<String, dynamic> json) => _Trail(
       : TrailExpand.fromJson(json['expand'] as Map<String, dynamic>),
   description: json['description'] as String? ?? "",
   author: json['author'] as String? ?? "000000000000000",
+  isOffline: json['isOffline'] as bool? ?? false,
+  localPhotos:
+      (json['localPhotos'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
@@ -90,7 +96,7 @@ Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
   'collectionId': instance.collectionId,
   'name': instance.name,
   'location': instance.location,
-  'date': instance.date,
+  'date': instance.date?.toIso8601String(),
   'public': instance.public,
   'distance': instance.distance,
   'elevation_gain': instance.elevationGain,
@@ -113,6 +119,8 @@ Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
   'expand': instance.expand,
   'description': instance.description,
   'author': instance.author,
+  'isOffline': instance.isOffline,
+  'localPhotos': instance.localPhotos,
 };
 
 const _$TrailDifficultyEnumMap = {

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,12 +8,12 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
-import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 
 class TrailCard extends ConsumerWidget {
-  final TrailSearchResult trail;
+  final TrailSummary trail;
   final bool fullWidth;
   final bool selected;
   final VoidCallback? onTrailSelect;
@@ -26,14 +28,32 @@ class TrailCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final trailIsShared = trail.shares?.isNotEmpty ?? false;
+    final trailIsShared = trail.summaryShares?.isNotEmpty ?? false;
     final user = ref.watch(authProvider).value!;
 
-    final thumbnail = trail.getFileUrl(
-      user.serverUrl,
-      trail.thumbnail,
-      thumb: "600x0",
-    );
+    final String? localPath = trail.localPhotos.isNotEmpty
+        ? trail.localPhotos.first
+        : null;
+
+    ImageProvider? imageProvider;
+
+    if (trail.isOffline && localPath != null) {
+      final file = File(localPath);
+      if (file.existsSync()) {
+        imageProvider = FileImage(file);
+      }
+    }
+
+    if (imageProvider == null && trail.summaryThumbnail.isNotEmpty) {
+      final networkUrl = trail.getFileUrl(
+        user.serverUrl,
+        trail.summaryThumbnail,
+        thumb: "600x0",
+      );
+      if (networkUrl != null) {
+        imageProvider = NetworkImage(networkUrl);
+      }
+    }
 
     final String locale = Localizations.localeOf(context).toString();
 
@@ -71,15 +91,23 @@ class TrailCard extends ConsumerWidget {
                   ),
                   child: AspectRatio(
                     aspectRatio: 16 / 9,
-                    child: thumbnail != null
-                        ? Image.network(thumbnail, fit: BoxFit.cover)
-                        : SvgPicture.asset(
-                            "assets/svgs/empty_state_trail_${Brightness.light.name}.svg",
-                            semanticsLabel: 'wanderer logo',
-                            height: 80,
-                          ),
+                    child: ClipRRect(
+                      // Good practice to keep the corners rounded
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                      child: imageProvider != null
+                          ? Image(
+                              image: imageProvider,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _buildPlaceholder(context),
+                            )
+                          : _buildPlaceholder(context),
+                    ),
                   ),
                 ),
+
                 if (selected)
                   Positioned(
                     top: 12,
@@ -129,13 +157,11 @@ class TrailCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-
-                  Text(
-                    DateFormat.yMMMMd(locale).format(
-                      DateTime.fromMillisecondsSinceEpoch(trail.date * 1000),
+                  if (trail.summaryDate != null)
+                    Text(
+                      DateFormat.yMMMMd(locale).format(trail.summaryDate!),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
 
                   const SizedBox(height: 4),
 
@@ -155,16 +181,16 @@ class TrailCard extends ConsumerWidget {
                             radius: 12,
                             backgroundColor: Colors.grey.shade300,
                             backgroundImage: NetworkImage(
-                              trail.authorAvatar.isNotEmpty
-                                  ? trail.authorAvatar
-                                  : "https://api.dicebear.com/7.x/initials/png?seed=${trail.authorName}&backgroundType=gradientLinear",
+                              trail.summaryAuthorAvatar.isNotEmpty
+                                  ? trail.summaryAuthorAvatar
+                                  : "https://api.dicebear.com/7.x/initials/png?seed=${trail.summaryAuthorName}&backgroundType=gradientLinear",
                             ),
                             onBackgroundImageError: (_, _) =>
                                 FaIcon(FontAwesomeIcons.user),
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            "${trail.authorName}${(trail.domain?.isNotEmpty ?? false) ? "@${trail.domain}" : ""}",
+                            "${trail.summaryAuthorName}${(trail.domain?.isNotEmpty ?? false) ? "@${trail.domain}" : ""}",
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 12,
@@ -180,13 +206,13 @@ class TrailCard extends ConsumerWidget {
                     spacing: 16,
                     runSpacing: 8,
                     children: [
-                      if (trail.category.isNotEmpty)
+                      if (trail.summaryCategory.isNotEmpty)
                         _CategoryIcon(
                           icon: FontAwesomeIcons.shapes,
-                          value: trail.category,
+                          value: trail.summaryCategory,
                         ),
 
-                      if (trail.location.isNotEmpty)
+                      if (trail.location != null && trail.location!.isNotEmpty)
                         Text.rich(
                           TextSpan(
                             children: [
@@ -207,18 +233,22 @@ class TrailCard extends ConsumerWidget {
                         ),
                       _CategoryIcon(
                         icon: FontAwesomeIcons.gauge,
-                        value: _getDifficultyLabel(context, trail.difficulty),
+                        value: _getDifficultyLabel(
+                          context,
+                          trail.summaryDifficulty,
+                        ),
                       ),
                     ],
                   ),
 
-                  if (trail.tags != null && trail.tags!.isNotEmpty)
+                  if (trail.summaryTags != null &&
+                      trail.summaryTags!.isNotEmpty)
                     Column(
                       children: [
                         const SizedBox(height: 16),
                         Wrap(
                           spacing: 6,
-                          children: trail.tags!
+                          children: trail.summaryTags!
                               .take(3)
                               .map((tag) => _Chip(text: tag))
                               .toList(),
@@ -245,6 +275,14 @@ class TrailCard extends ConsumerWidget {
         : difficulty == 1
         ? l10n.moderate
         : l10n.difficult;
+  }
+
+  Widget _buildPlaceholder(BuildContext context) {
+    return SvgPicture.asset(
+      "assets/svgs/empty_state_trail_${Brightness.light.name}.svg",
+      semanticsLabel: 'wanderer logo',
+      height: 80,
+    );
   }
 }
 
@@ -286,15 +324,16 @@ class _Chip extends StatelessWidget {
 }
 
 class _StatsGrid extends StatelessWidget {
-  final TrailSearchResult trail;
+  final TrailSummary trail;
   const _StatsGrid({required this.trail});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.only(top: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
         children: [
           StatChip(
             icon: FontAwesomeIcons.ruler,

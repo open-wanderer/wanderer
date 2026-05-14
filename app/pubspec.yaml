@@ -14,6 +14,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_form_builder: ^10.3.0+2
+  flutter_html: ^3.0.0
   flutter_localizations:
     sdk: flutter
   flutter_map: ^8.3.0

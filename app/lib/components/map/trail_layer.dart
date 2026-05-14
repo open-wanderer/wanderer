@@ -16,7 +16,7 @@ class TrailLayer extends StatelessWidget {
     super.key,
     required this.trail,
     this.routeColor = Colors.blue,
-    this.strokeWidth = 6.0,
+    this.strokeWidth = 5.0,
     this.showWaypoints = true,
   }) : assert(
          trail.expand?.gpx != null,
@@ -91,9 +91,12 @@ class TrailLayer extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(wp.name, style: Theme.of(context).textTheme.headlineSmall),
+            Text(
+              wp.name ?? "",
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             const SizedBox(height: 8),
-            Text(wp.description),
+            if (wp.description != null) Text(wp.description!),
           ],
         ),
       ),

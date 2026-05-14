@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/models/server_instance.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/welcome/server_selection_provider.dart'; // Your custom button
@@ -164,8 +165,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) =>
-                  Center(child: Text("Couldn't load directory: $err")),
+              error: (err, stack) => WandererError(err: err, stack: stack),
             ),
           ),
         ],

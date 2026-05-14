@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:wanderer/components/toast_overlay.dart';
+import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 
@@ -22,6 +23,8 @@ void main() async {
 
   final dbPath = p.join(appDocDir.path, "objectbox");
   final store = await openStore(directory: dbPath);
+
+  store.box<TrailEntity>().removeAll();
 
   final cookiePath = p.join(appDocDir.path, ".cookies");
   final cookieDir = Directory(cookiePath);

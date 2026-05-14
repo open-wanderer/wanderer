@@ -1,17 +1,17 @@
-import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
+import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
-import 'package:wanderer/components/trail/stat_chip.dart';
+import 'package:wanderer/components/trail/trail_panel.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
-import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/vendor/vector_map_tiles/local_first_tile_provider.dart';
 
 class TrailDetailScreen extends ConsumerStatefulWidget {
   final String id;
@@ -27,14 +27,49 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
   @override
   void initState() {
     super.initState();
-    final serverUrl = ref.read(authProvider).requireValue!.serverUrl;
-    Future<Style> readStyle() =>
-        StyleReader(uri: '$serverUrl/styles/ofm.json').read();
+    _initializeStyle();
+  }
 
-    readStyle().then((style) {
-      this.style = style;
-      setState(() {});
-    });
+  Future<void> _initializeStyle() async {
+    final auth = ref.read(authProvider).requireValue!;
+    final serverUrl = auth.serverUrl;
+
+    final appDir = await getApplicationDocumentsDirectory();
+
+    final originalStyle = await StyleReader(
+      uri: '$serverUrl/styles/ofm.json',
+    ).read();
+
+    final Map<String, VectorTileProvider> patchedProviders = {};
+
+    for (var entry in originalStyle.providers.tileProviderBySource.entries) {
+      final sourceId = entry.key;
+      final originalProvider = entry.value;
+
+      if (originalProvider is NetworkVectorTileProvider) {
+        patchedProviders[sourceId] = LocalFirstTileProvider(
+          urlTemplate:
+              "https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf",
+          trailId: widget.id,
+          baseAppPath: appDir.path,
+        );
+      } else {
+        patchedProviders[sourceId] = originalProvider;
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        style = Style(
+          theme: originalStyle.theme,
+          providers: TileProviders(patchedProviders),
+          sprites: originalStyle.sprites,
+          center: originalStyle.center,
+          name: originalStyle.name,
+          zoom: originalStyle.zoom,
+        );
+      });
+    }
   }
 
   @override
@@ -46,7 +81,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         child: trailAsync.when(
           data: (trail) => buildMap(trailAsync.requireValue),
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(child: Text('Error: $err')),
+          error: (err, stack) => WandererError(err: err, stack: stack),
         ),
       ),
     );
@@ -100,103 +135,14 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
                 ],
               ),
               // The extracted content function
-              child: _buildPanelContent(context, trail, scrollController),
+              child: TrailPanel(
+                trail: trail,
+                scrollController: scrollController,
+              ),
             );
           },
         ),
       ],
-    );
-  }
-
-  Widget _buildPanelContent(
-    BuildContext context,
-    Trail trail,
-    ScrollController scrollController,
-  ) {
-    return SingleChildScrollView(
-      controller: scrollController,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 5,
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  trail.name,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    StatChip(
-                      icon: FontAwesomeIcons.ruler,
-                      label: formatDistance(trail.distance),
-                    ),
-                    StatChip(
-                      icon: FontAwesomeIcons.clock,
-                      label: Duration(seconds: trail.duration.toInt()).pretty(
-                        abbreviated: true,
-                        tersity: DurationTersity.minute,
-                      ),
-                    ),
-                    StatChip(
-                      icon: FontAwesomeIcons.arrowTrendUp,
-                      label: formatElevation(trail.elevationGain),
-                    ),
-                    StatChip(
-                      icon: FontAwesomeIcons.arrowTrendDown,
-                      label: formatElevation(trail.elevationLoss),
-                    ),
-                    if (trail.expand?.category != null)
-                      StatChip(
-                        icon: FontAwesomeIcons.route,
-                        label: trail.expand!.category!.name,
-                      ),
-                  ],
-                ),
-
-                const Divider(height: 32),
-
-                Text(
-                  "Description",
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  trail.description.isNotEmpty
-                      ? trail.description
-                      : "No description provided for this trail.",
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.black87,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

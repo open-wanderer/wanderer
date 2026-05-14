@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Waypoint {
 
- String? get id; String get name; String get description; double get lat; double get lon; double? get distanceFromStart;@FaIconDataConverter() FaIconData get icon; List<String> get photos; String get author; String? get trail;// Non-serializable local fields
+ String? get id; String? get name; String? get description; double get lat; double get lon; double? get distanceFromStart;@FaIconDataConverter() FaIconData get icon; List<String> get photos; String get author; String? get trail;// Non-serializable local fields
 @JsonKey(includeFromJson: false, includeToJson: false) dynamic get marker;@JsonKey(includeFromJson: false, includeToJson: false) List<dynamic> get localPhotos;
 /// Create a copy of Waypoint
 /// with the given fields replaced by the non-null parameter values.
@@ -49,7 +49,7 @@ abstract mixin class $WaypointCopyWith<$Res>  {
   factory $WaypointCopyWith(Waypoint value, $Res Function(Waypoint) _then) = _$WaypointCopyWithImpl;
 @useResult
 $Res call({
- String? id, String name, String description, double lat, double lon, double? distanceFromStart,@FaIconDataConverter() FaIconData icon, List<String> photos, String author, String? trail,@JsonKey(includeFromJson: false, includeToJson: false) dynamic marker,@JsonKey(includeFromJson: false, includeToJson: false) List<dynamic> localPhotos
+ String? id, String? name, String? description, double lat, double lon, double? distanceFromStart,@FaIconDataConverter() FaIconData icon, List<String> photos, String author, String? trail,@JsonKey(includeFromJson: false, includeToJson: false) dynamic marker,@JsonKey(includeFromJson: false, includeToJson: false) List<dynamic> localPhotos
 });
 
 
@@ -66,12 +66,12 @@ class _$WaypointCopyWithImpl<$Res>
 
 /// Create a copy of Waypoint
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? name = null,Object? description = null,Object? lat = null,Object? lon = null,Object? distanceFromStart = freezed,Object? icon = null,Object? photos = null,Object? author = null,Object? trail = freezed,Object? marker = freezed,Object? localPhotos = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? name = freezed,Object? description = freezed,Object? lat = null,Object? lon = null,Object? distanceFromStart = freezed,Object? icon = null,Object? photos = null,Object? author = null,Object? trail = freezed,Object? marker = freezed,Object? localPhotos = null,}) {
   return _then(_self.copyWith(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String?,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,description: null == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
-as String,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
+as String?,name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String?,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
+as String?,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double,lon: null == lon ? _self.lon : lon // ignore: cast_nullable_to_non_nullable
 as double,distanceFromStart: freezed == distanceFromStart ? _self.distanceFromStart : distanceFromStart // ignore: cast_nullable_to_non_nullable
 as double?,icon: null == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
@@ -165,7 +165,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String name,  String description,  double lat,  double lon,  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<dynamic> localPhotos)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String? name,  String? description,  double lat,  double lon,  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<dynamic> localPhotos)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Waypoint() when $default != null:
 return $default(_that.id,_that.name,_that.description,_that.lat,_that.lon,_that.distanceFromStart,_that.icon,_that.photos,_that.author,_that.trail,_that.marker,_that.localPhotos);case _:
@@ -186,7 +186,7 @@ return $default(_that.id,_that.name,_that.description,_that.lat,_that.lon,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String name,  String description,  double lat,  double lon,  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<dynamic> localPhotos)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String? name,  String? description,  double lat,  double lon,  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<dynamic> localPhotos)  $default,) {final _that = this;
 switch (_that) {
 case _Waypoint():
 return $default(_that.id,_that.name,_that.description,_that.lat,_that.lon,_that.distanceFromStart,_that.icon,_that.photos,_that.author,_that.trail,_that.marker,_that.localPhotos);case _:
@@ -206,7 +206,7 @@ return $default(_that.id,_that.name,_that.description,_that.lat,_that.lon,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String name,  String description,  double lat,  double lon,  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<dynamic> localPhotos)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String? name,  String? description,  double lat,  double lon,  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<dynamic> localPhotos)?  $default,) {final _that = this;
 switch (_that) {
 case _Waypoint() when $default != null:
 return $default(_that.id,_that.name,_that.description,_that.lat,_that.lon,_that.distanceFromStart,_that.icon,_that.photos,_that.author,_that.trail,_that.marker,_that.localPhotos);case _:
@@ -225,8 +225,8 @@ class _Waypoint implements Waypoint {
   factory _Waypoint.fromJson(Map<String, dynamic> json) => _$WaypointFromJson(json);
 
 @override final  String? id;
-@override@JsonKey() final  String name;
-@override@JsonKey() final  String description;
+@override@JsonKey() final  String? name;
+@override@JsonKey() final  String? description;
 @override final  double lat;
 @override final  double lon;
 @override final  double? distanceFromStart;
@@ -283,7 +283,7 @@ abstract mixin class _$WaypointCopyWith<$Res> implements $WaypointCopyWith<$Res>
   factory _$WaypointCopyWith(_Waypoint value, $Res Function(_Waypoint) _then) = __$WaypointCopyWithImpl;
 @override @useResult
 $Res call({
- String? id, String name, String description, double lat, double lon, double? distanceFromStart,@FaIconDataConverter() FaIconData icon, List<String> photos, String author, String? trail,@JsonKey(includeFromJson: false, includeToJson: false) dynamic marker,@JsonKey(includeFromJson: false, includeToJson: false) List<dynamic> localPhotos
+ String? id, String? name, String? description, double lat, double lon, double? distanceFromStart,@FaIconDataConverter() FaIconData icon, List<String> photos, String author, String? trail,@JsonKey(includeFromJson: false, includeToJson: false) dynamic marker,@JsonKey(includeFromJson: false, includeToJson: false) List<dynamic> localPhotos
 });
 
 
@@ -300,12 +300,12 @@ class __$WaypointCopyWithImpl<$Res>
 
 /// Create a copy of Waypoint
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? name = null,Object? description = null,Object? lat = null,Object? lon = null,Object? distanceFromStart = freezed,Object? icon = null,Object? photos = null,Object? author = null,Object? trail = freezed,Object? marker = freezed,Object? localPhotos = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? name = freezed,Object? description = freezed,Object? lat = null,Object? lon = null,Object? distanceFromStart = freezed,Object? icon = null,Object? photos = null,Object? author = null,Object? trail = freezed,Object? marker = freezed,Object? localPhotos = null,}) {
   return _then(_Waypoint(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String?,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
-as String,description: null == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
-as String,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
+as String?,name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String?,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
+as String?,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double,lon: null == lon ? _self.lon : lon // ignore: cast_nullable_to_non_nullable
 as double,distanceFromStart: freezed == distanceFromStart ? _self.distanceFromStart : distanceFromStart // ignore: cast_nullable_to_non_nullable
 as double?,icon: null == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable

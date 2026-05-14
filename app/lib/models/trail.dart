@@ -1,14 +1,16 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:wanderer/models/record.dart';
-import 'tag.dart';
-import 'category.dart';
-import 'waypoint.dart';
-import 'summit_log.dart';
-import 'actor.dart';
-import 'comment.dart';
-import 'trail_share.dart';
-import 'trail_like.dart';
 import 'package:gpx/gpx.dart';
+import 'package:wanderer/models/record.dart';
+import 'package:wanderer/models/trail_summary.dart';
+
+import 'actor.dart';
+import 'category.dart';
+import 'comment.dart';
+import 'summit_log.dart';
+import 'tag.dart';
+import 'trail_like.dart';
+import 'trail_share.dart';
+import 'waypoint.dart';
 
 part 'trail.freezed.dart';
 part 'trail.g.dart';
@@ -43,13 +45,13 @@ abstract class TrailExpand with _$TrailExpand {
 }
 
 @freezed
-abstract class Trail with _$Trail {
+abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
   const factory Trail({
-    String? id,
+    required String id,
     @Default('trails') String collectionId,
     required String name,
     String? location,
-    String? date,
+    DateTime? date,
     @Default(false) bool public,
     @Default(0) double distance,
     @JsonKey(name: 'elevation_gain') @Default(0) double elevationGain,
@@ -72,9 +74,37 @@ abstract class Trail with _$Trail {
     TrailExpand? expand,
     @Default("") String description,
     @Default("000000000000000") String author,
+
+    @Default(false) bool isOffline,
+    @Default([]) List<String> localPhotos,
   }) = _Trail;
 
   const Trail._();
+
+  @override
+  String get summaryAuthorName => expand?.author?.username ?? "Unknown";
+
+  @override
+  int get summaryDifficulty => difficulty.index;
+
+  @override
+  String get summaryAuthorAvatar => expand?.author?.icon ?? "";
+
+  @override
+  DateTime? get summaryDate => date;
+
+  @override
+  String get summaryThumbnail => photos[0];
+
+  @override
+  String get summaryCategory => expand?.category?.name ?? "";
+
+  @override
+  List<String>? get summaryTags => expand?.tags?.map((t) => t.name).toList();
+
+  @override
+  List<String>? get summaryShares =>
+      expand?.trailShareViaTrail?.map((s) => s.actor).toList();
 
   factory Trail.fromJson(Map<String, dynamic> json) => _$TrailFromJson(json);
 }
@@ -89,7 +119,9 @@ abstract class GeoLocation with _$GeoLocation {
 }
 
 @freezed
-abstract class TrailSearchResult with _$TrailSearchResult, RecordFunctions {
+abstract class TrailSearchResult
+    with _$TrailSearchResult, RecordFunctions
+    implements TrailSummary {
   const factory TrailSearchResult({
     required String id,
     @Default('trails') String collectionId,
@@ -122,6 +154,36 @@ abstract class TrailSearchResult with _$TrailSearchResult, RecordFunctions {
   }) = _TrailSearchResult;
 
   const TrailSearchResult._();
+
+  @override
+  String get summaryAuthorName => authorName;
+
+  @override
+  String get summaryAuthorAvatar => authorAvatar;
+
+  @override
+  DateTime? get summaryDate => DateTime.fromMillisecondsSinceEpoch(date * 1000);
+
+  @override
+  int get summaryDifficulty => difficulty;
+
+  @override
+  String get summaryThumbnail => thumbnail;
+
+  @override
+  String get summaryCategory => category;
+
+  @override
+  List<String>? get summaryTags => tags;
+
+  @override
+  List<String>? get summaryShares => shares;
+
+  @override
+  bool get isOffline => false;
+
+  @override
+  List<String> get localPhotos => [];
 
   factory TrailSearchResult.fromJson(Map<String, dynamic> json) =>
       _$TrailSearchResultFromJson(json);

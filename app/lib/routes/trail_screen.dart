@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -91,20 +92,10 @@ class _TrailScreenState extends ConsumerState<TrailScreen> {
                 ),
               ),
               loading: () => SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(color: Colors.grey[400]),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               ),
               error: (err, stack) => SliverFillRemaining(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Text(
-                      'Error loading trails: $err',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
+                child: WandererError(err: err, stack: stack),
               ),
             ),
           ],

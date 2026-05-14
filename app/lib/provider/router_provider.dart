@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/components/base/wanderer_layout.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/routes/library_screen.dart';
 import 'package:wanderer/routes/home_screen.dart';
 import 'package:wanderer/routes/login_screen.dart';
 import 'package:wanderer/routes/map_screen.dart';
@@ -51,57 +52,36 @@ class Router extends _$Router {
         if (authState.isLoading && !authState.hasValue) {
           return null;
         }
+
         final user = authState.value;
-
         final bool loggedIn = user != null;
+        final String location = state.matchedLocation;
 
-        final unprotectedRoutes = [
-          '/',
-          '/welcome',
+        final authRoutes = [
           '/login',
           '/register',
+          '/welcome',
           '/select-server',
         ];
+        final isAtSplash = location == '/';
+        final isAtAuthRoute = authRoutes.contains(location);
 
-        if (!loggedIn && !unprotectedRoutes.contains(state.matchedLocation)) {
-          return '/welcome';
+        if (!loggedIn) {
+          if (isAtSplash || !isAtAuthRoute) {
+            return '/welcome';
+          }
+          return null; // Stay on login/register/etc.
         }
 
-        if (loggedIn && unprotectedRoutes.contains(state.matchedLocation)) {
+        if (loggedIn && (isAtSplash || isAtAuthRoute)) {
           return '/trail';
         }
 
         return null;
       },
       routes: [
-        ShellRoute(
-          builder: (BuildContext context, GoRouterState state, Widget child) {
-            return WandererLayout(child: child);
-          },
-          routes: [
-            GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
-            GoRoute(
-              path: '/trail',
-              builder: (context, state) => const TrailScreen(),
-            ),
-            GoRoute(
-              path: '/trail/filter',
-              builder: (context, state) => const TrailFilterScreen(),
-            ),
-            GoRoute(
-              path: '/trail/:id',
-              builder: (context, state) {
-                final trailId = state.pathParameters['id']!;
-                return TrailDetailScreen(id: trailId);
-              },
-            ),
-            GoRoute(path: '/map', builder: (context, state) => MapScreen()),
-            GoRoute(
-              path: '/profile',
-              builder: (context, state) => ProfileScreen(),
-            ),
-          ],
-        ),
+        GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+
         GoRoute(path: '/welcome', builder: (context, state) => WelcomeScreen()),
         GoRoute(
           path: '/select-server',
@@ -111,6 +91,41 @@ class Router extends _$Router {
         GoRoute(
           path: '/register',
           builder: (context, state) => RegisterScreen(),
+        ),
+
+        ShellRoute(
+          builder: (BuildContext context, GoRouterState state, Widget child) {
+            return WandererLayout(child: child);
+          },
+          routes: [
+            GoRoute(
+              path: '/trail',
+              builder: (context, state) => const TrailScreen(),
+              routes: [
+                // Sub-routes keep the /trail prefix but stay inside the Shell
+                GoRoute(
+                  path: 'filter',
+                  builder: (context, state) => const TrailFilterScreen(),
+                ),
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) {
+                    final trailId = state.pathParameters['id']!;
+                    return TrailDetailScreen(id: trailId);
+                  },
+                ),
+              ],
+            ),
+            GoRoute(path: '/map', builder: (context, state) => MapScreen()),
+            GoRoute(
+              path: '/profile',
+              builder: (context, state) => ProfileScreen(),
+            ),
+            GoRoute(
+              path: '/library',
+              builder: (context, state) => LibraryScreen(),
+            ),
+          ],
         ),
       ],
     );

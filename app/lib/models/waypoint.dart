@@ -9,8 +9,8 @@ part 'waypoint.g.dart';
 abstract class Waypoint with _$Waypoint {
   const factory Waypoint({
     String? id,
-    @Default("") String name,
-    @Default("") String description,
+    @Default("") String? name,
+    @Default("") String? description,
     required double lat,
     required double lon,
     double? distanceFromStart,

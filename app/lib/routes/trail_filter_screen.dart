@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:textfield_tags/textfield_tags.dart';
 import 'package:wanderer/components/base/wanderer_autocomplete.dart';
 import 'package:wanderer/components/base/wanderer_date_picker.dart';
+import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/base/wanderer_filter_chip.dart';
 import 'package:wanderer/components/base/wanderer_radio_group.dart';
 import 'package:wanderer/components/base/wanderer_searchbar.dart';
@@ -353,7 +354,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
           );
         },
         loading: () => Center(child: CircularProgressIndicator()),
-        error: (e, trace) => Text(e.toString()),
+        error: (err, stack) => WandererError(err: err, stack: stack),
       ),
     );
   }
