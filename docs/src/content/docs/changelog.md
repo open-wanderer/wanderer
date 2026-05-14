@@ -4,6 +4,9 @@ description: What changed in the last patch?
 ---
 ## v0.19.1
 
+### Features
+- Speed improvements for various database queries
+
 ### Security
 - Remote lists, remote trails, and remote trail comments now respect the visibility settings and shares of the respective list or trail. (PR #980)
 
