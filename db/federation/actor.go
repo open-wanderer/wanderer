@@ -198,7 +198,8 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		result := make(map[string]interface{})
 		json.Unmarshal([]byte(privacy), &result)
 
-		private = result["account"] == "private"
+		// check that it's not our own profile
+		private = result["account"] == "private" && dbActor.Id != strings.TrimPrefix(ctx.Value("actor").(string), "actor:")
 
 	} else {
 
