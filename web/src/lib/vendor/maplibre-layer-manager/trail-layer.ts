@@ -9,8 +9,6 @@ export class TrailLayer implements BaseLayer {
     markers: Record<string, Marker> = {};
 
     constructor(id: string, geojson: GeoJSON.FeatureCollection, color: string, options?: {
-        minZoom?: number,
-        maxZoom?: number,
         listeners?: { onMouseUp?: (e: MapMouseEvent) => void; onMouseDown?: (e: MapMouseEvent) => void; onEnter?: (e: MapMouseEvent) => void; onLeave?: (e: MapMouseEvent) => void; onMouseMove?: (e: MapMouseEvent) => void; }
     }) {
         const layer: M.LineLayerSpecification = {
@@ -23,8 +21,6 @@ export class TrailLayer implements BaseLayer {
             },
         };
         
-        if (options?.maxZoom !== undefined) layer.maxzoom = options.maxZoom;
-
         this.spec = {
             version: 8,
             name: id,

@@ -56,8 +56,6 @@ services:
       OVERPASS_API_URL: https://overpass-api.de
       VALHALLA_URL: https://valhalla1.openstreetmap.de
       NOMINATIM_URL: https://nominatim.openstreetmap.org
-      PUBLIC_MAP_LOW_ZOOM_THRESHOLD: 8
-      PUBLIC_MAP_MEDIUM_ZOOM_THRESHOLD: 10
       PUBLIC_MAP_MAX_POLYLINES: 100
     volumes:
       - uploads:/app/uploads

@@ -4,10 +4,6 @@
     import directionCaret from "$lib/assets/svgs/caret-right-solid.svg";
     import GPX from "$lib/models/gpx/gpx";
     import type { Trail } from "$lib/models/trail";
-    import {
-        MAP_LOW_ZOOM_THRESHOLD,
-        MAP_MEDIUM_ZOOM_THRESHOLD,
-    } from "$lib/stores/trail_store";
     import type { Waypoint } from "$lib/models/waypoint";
     import { theme } from "$lib/stores/theme_store";
     import { findStartAndEndPoints } from "$lib/util/geojson_util";
@@ -55,7 +51,6 @@
         mapOptions?: Partial<M.MapOptions> | undefined;
         activeTrail?: number | null;
         clusterTrails?: boolean;
-        clusterMinZoom?: number;
         onsegmentdragend?: (data: {
             segment: number;
             event: M.MapMouseEvent;
@@ -96,7 +91,6 @@
         mapOptions = undefined,
         activeTrail = $bindable(0),
         clusterTrails = false,
-        clusterMinZoom = 10,
         onmarkerdragend,
         onsegmentdragend,
         onsegmentclick,
@@ -156,7 +150,6 @@
             clusterFeatures: clusterData.features.length,
             mapLoaded: mapLoaded,
             zoom: map?.getZoom(),
-            clusterMinZoom
         });
 
         if (map && mapLoaded) {
@@ -450,7 +443,6 @@
                     : index % trailColors.length
             ],
             {
-                minZoom: clusterTrails ? clusterMinZoom : undefined,
                 listeners: {
                     onEnter: (e) =>
                         highlightTrail(id, trails[activeTrail ?? -1]?.id == id),
@@ -478,7 +470,7 @@
         }
         layerManager.addLayer(
             "clusters",
-            new ClusterLayer(map, geojson, clusterMinZoom),
+            new ClusterLayer(map, geojson),
         );
     }
 
@@ -488,7 +480,7 @@
         }
         layerManager.addLayer(
             "preview",
-            new PreviewLayer(map, geojson, clusterMinZoom, {
+            new PreviewLayer(map, geojson, {
                 listeners: {
                     preview: {
                         onEnter: (e) => {

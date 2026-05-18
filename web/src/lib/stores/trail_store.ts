@@ -89,9 +89,6 @@ export async function trails_search_filter(filter: TrailFilter, page: number = 1
 
 }
 
-export const MAP_LOW_ZOOM_THRESHOLD = Number(env.PUBLIC_MAP_LOW_ZOOM_THRESHOLD || 8);
-export const MAP_MEDIUM_ZOOM_THRESHOLD = Number(env.PUBLIC_MAP_MEDIUM_ZOOM_THRESHOLD || 10);
-
 export const MAP_MAX_POLYLINES = Number(env.PUBLIC_MAP_MAX_POLYLINES || 100);
 
 let trails: Trail[] = []

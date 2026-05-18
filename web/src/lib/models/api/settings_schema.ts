@@ -24,7 +24,6 @@ const SettingsCreateSchema = z.object({
     notifications: z.record(z.enum(Object.values(NotificationType) as [string, ...string[]]), z.object({ web: z.boolean(), email: z.boolean() })).optional().nullable(),
     behavior: z.object({
         allowAutoGeolocate: z.boolean(),
-        mapClusterMinZoom: z.coerce.number().optional()
     }).optional().nullable(),
 }) satisfies ZodType<Settings>
 

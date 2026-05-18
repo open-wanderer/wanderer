@@ -79,8 +79,6 @@
         },
     };
 
-    const clusterMinZoom = settings?.behavior?.mapClusterMinZoom ?? Number(env.PUBLIC_MAP_HIGH_ZOOM_THRESHOLD || 12);
-
     async function search(q: string) {
         const r = await searchMulti({
             queries: [
@@ -443,7 +441,6 @@
             activeTrail={-1}
             fitBounds="off"
             clusterTrails={true}
-            clusterMinZoom={clusterMinZoom}
             bind:map
 
             bind:this={mapWithElevation}

@@ -57,7 +57,6 @@ class Settings {
 
 export type Behavior = {
     allowAutoGeolocate: boolean;
-    mapClusterMinZoom?: number;
 }
 
 

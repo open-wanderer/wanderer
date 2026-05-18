@@ -25,14 +25,10 @@
     let allowAutoGeolocate = $state(
         page.data.settings.behavior?.allowAutoGeolocate ?? false,
     );
-    let mapClusterMinZoom = $state(
-        page.data.settings.behavior?.mapClusterMinZoom ?? 10,
-    );
 
     $effect(() => {
         if (settings?.behavior) {
             allowAutoGeolocate = settings.behavior.allowAutoGeolocate ?? false;
-            mapClusterMinZoom = settings.behavior.mapClusterMinZoom ?? 10;
         }
     });
 
@@ -46,7 +42,6 @@
                 ...settings,
                 behavior: {
                     allowAutoGeolocate: allowAutoGeolocate,
-                    mapClusterMinZoom: Number(mapClusterMinZoom),
                 },
             };
 
@@ -189,19 +184,6 @@
                             bind:value={allowAutoGeolocate}
                             onchange={handleBehaviorChange}
                         ></Toggle>
-                    </div>
-                </div>
-                <div
-                    class="grid gap-4 items-center"
-                    style="grid-template-columns: 1fr 100px ;"
-                >
-                    <p>{$_("map-cluster-zoom-level")}</p>
-                    <div>
-                        <TextField
-                            bind:value={mapClusterMinZoom}
-                            type="number"
-                            onchange={handleBehaviorChange}
-                        ></TextField>
                     </div>
                 </div>
             </div>
