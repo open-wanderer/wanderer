@@ -1,35 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:wanderer/components/base/wanderer_error.dart';
-import 'package:wanderer/components/base/wanderer_map.dart';
-import 'package:wanderer/components/trail/trail_dropdown.dart';
+import 'package:wanderer/components/base/wanderer_offline_map.dart';
 import 'package:wanderer/components/trail/trail_panel.dart';
-import 'package:wanderer/models/trail.dart';
-import 'package:wanderer/provider/trail/trail_provider.dart';
+import 'package:wanderer/provider/trail/trail_library_provider.dart';
 
-class TrailDetailScreen extends ConsumerWidget {
+class LibraryDetailScreen extends ConsumerWidget {
   final String id;
-  const TrailDetailScreen({super.key, required this.id});
+
+  const LibraryDetailScreen({super.key, required this.id});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final trailAsync = ref.watch(trailProvider(id));
+    final trail = ref.watch(trailLibraryProvider).firstWhere((t) => t.id == id);
 
-    return Scaffold(
-      body: SafeArea(
-        child: trailAsync.when(
-          data: (trail) => buildMap(trailAsync.requireValue),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => WandererError(err: err, stack: stack),
-        ),
-      ),
-    );
-  }
-
-  Widget buildMap(Trail trail) {
     return Stack(
       children: [
-        WandererMap(trail: trail),
+        WandererOfflineMap(trail: trail),
         DraggableScrollableSheet(
           initialChildSize: 0.3,
           minChildSize: 0.15,
@@ -52,7 +38,6 @@ class TrailDetailScreen extends ConsumerWidget {
               child: TrailPanel(
                 trail: trail,
                 scrollController: scrollController,
-                actionMenu: TrailDropdown(trail: trail),
               ),
             );
           },

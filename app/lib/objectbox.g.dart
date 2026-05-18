@@ -113,137 +113,6 @@ final _entities = <obx_int.ModelEntity>[
     backlinks: <obx_int.ModelBacklink>[],
   ),
   obx_int.ModelEntity(
-    id: const obx_int.IdUid(2, 1110440324073703466),
-    name: 'TrailEntity',
-    lastPropertyId: const obx_int.IdUid(20, 35962998092108439),
-    flags: 0,
-    properties: <obx_int.ModelProperty>[
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(1, 6214998589720119333),
-        name: 'obxId',
-        type: 6,
-        flags: 1,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(2, 615976205296825514),
-        name: 'id',
-        type: 9,
-        flags: 34848,
-        indexId: const obx_int.IdUid(2, 5600412177381680909),
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(3, 7371414356684518277),
-        name: 'name',
-        type: 9,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(4, 5197995161268917610),
-        name: 'location',
-        type: 9,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(5, 6187814042941586665),
-        name: 'date',
-        type: 10,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(6, 6840342277843594327),
-        name: 'public',
-        type: 1,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(7, 1812807332952068626),
-        name: 'distance',
-        type: 8,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(8, 9136991032941775518),
-        name: 'elevationGain',
-        type: 8,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(9, 7794410368169499342),
-        name: 'elevationLoss',
-        type: 8,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(10, 2819114294463030087),
-        name: 'duration',
-        type: 8,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(11, 996220570439739060),
-        name: 'lat',
-        type: 8,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(12, 5060847788006779689),
-        name: 'lon',
-        type: 8,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(13, 5742765872032684371),
-        name: 'gpxData',
-        type: 9,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(14, 6863795329558654133),
-        name: 'description',
-        type: 9,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(16, 6424477110698723980),
-        name: 'dbDifficulty',
-        type: 6,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(18, 1547099082488576745),
-        name: 'authorId',
-        type: 11,
-        flags: 520,
-        indexId: const obx_int.IdUid(7, 7140671121665087170),
-        relationField: 'author',
-        relationTarget: 'ActorEntity',
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(19, 3333678685559283574),
-        name: 'photos',
-        type: 30,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(20, 35962998092108439),
-        name: 'categoryId',
-        type: 11,
-        flags: 520,
-        indexId: const obx_int.IdUid(9, 8240950106624739510),
-        relationField: 'category',
-        relationTarget: 'CategoryEntity',
-      ),
-    ],
-    relations: <obx_int.ModelRelation>[],
-    backlinks: <obx_int.ModelBacklink>[
-      obx_int.ModelBacklink(
-        name: 'waypoints',
-        srcEntity: 'WaypointEntity',
-        srcField: 'trail',
-      ),
-    ],
-  ),
-  obx_int.ModelEntity(
     id: const obx_int.IdUid(3, 7655646596805638170),
     name: 'WaypointEntity',
     lastPropertyId: const obx_int.IdUid(11, 22872960591460866),
@@ -501,6 +370,143 @@ final _entities = <obx_int.ModelEntity>[
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
   ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(6, 5034082009762803572),
+    name: 'TrailEntity',
+    lastPropertyId: const obx_int.IdUid(19, 4064924508174561242),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 5299149535511830048),
+        name: 'obxId',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 1914946022853974202),
+        name: 'id',
+        type: 9,
+        flags: 34848,
+        indexId: const obx_int.IdUid(10, 3880445053260492764),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 8344740337131913),
+        name: 'name',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 5784639934898213221),
+        name: 'location',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 4096671256270162003),
+        name: 'date',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 3957560846555925683),
+        name: 'public',
+        type: 1,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 1897717487670717671),
+        name: 'distance',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(8, 4636004336896989343),
+        name: 'elevationGain',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(9, 1761544284657008361),
+        name: 'elevationLoss',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 3962346293653741731),
+        name: 'duration',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 6483951435407375913),
+        name: 'lat',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 2339857249057538093),
+        name: 'lon',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 7674082864376685614),
+        name: 'gpxData',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 4258327538739854949),
+        name: 'description',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(15, 8667416806123970136),
+        name: 'photos',
+        type: 30,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(16, 1531949722887503626),
+        name: 'pmTiles',
+        type: 30,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(17, 8096833450792418458),
+        name: 'dbDifficulty',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(18, 624875987550753326),
+        name: 'authorId',
+        type: 11,
+        flags: 520,
+        indexId: const obx_int.IdUid(11, 8331567837012043270),
+        relationField: 'author',
+        relationTarget: 'ActorEntity',
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(19, 4064924508174561242),
+        name: 'categoryId',
+        type: 11,
+        flags: 520,
+        indexId: const obx_int.IdUid(12, 5788203279492778612),
+        relationField: 'category',
+        relationTarget: 'CategoryEntity',
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[
+      obx_int.ModelBacklink(
+        name: 'waypoints',
+        srcEntity: 'WaypointEntity',
+        srcField: 'trail',
+      ),
+    ],
+  ),
 ];
 
 /// Shortcut for [obx.Store.new] that passes [getObjectBoxModel] and for Flutter
@@ -546,11 +552,11 @@ obx_int.ModelDefinition getObjectBoxModel() {
     // Typically, this is done with `dart run build_runner build`.
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
-    lastEntityId: const obx_int.IdUid(5, 686829528950894660),
-    lastIndexId: const obx_int.IdUid(9, 8240950106624739510),
+    lastEntityId: const obx_int.IdUid(6, 5034082009762803572),
+    lastIndexId: const obx_int.IdUid(12, 5788203279492778612),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
-    retiredEntityUids: const [],
+    retiredEntityUids: const [1110440324073703466],
     retiredIndexUids: const [3377491348144337262],
     retiredPropertyUids: const [
       1147012112998304753,
@@ -566,6 +572,25 @@ obx_int.ModelDefinition getObjectBoxModel() {
       4411460958579875322,
       253743785267331821,
       8552668431786485534,
+      6214998589720119333,
+      615976205296825514,
+      7371414356684518277,
+      5197995161268917610,
+      6187814042941586665,
+      6840342277843594327,
+      1812807332952068626,
+      9136991032941775518,
+      7794410368169499342,
+      2819114294463030087,
+      996220570439739060,
+      5060847788006779689,
+      5742765872032684371,
+      6863795329558654133,
+      6424477110698723980,
+      1547099082488576745,
+      3333678685559283574,
+      35962998092108439,
+      3550785788891250678,
     ],
     retiredRelationUids: const [],
     modelVersion: 5,
@@ -673,179 +698,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         return object;
       },
     ),
-    TrailEntity: obx_int.EntityDefinition<TrailEntity>(
-      model: _entities[1],
-      toOneRelations: (TrailEntity object) => [object.author, object.category],
-      toManyRelations: (TrailEntity object) => {
-        obx_int.RelInfo<WaypointEntity>.toOneBacklink(
-          10,
-          object.obxId,
-          (WaypointEntity srcObject) => srcObject.trail,
-        ): object.waypoints,
-      },
-      getId: (TrailEntity object) => object.obxId,
-      setId: (TrailEntity object, int id) {
-        object.obxId = id;
-      },
-      objectToFB: (TrailEntity object, fb.Builder fbb) {
-        final idOffset = fbb.writeString(object.id);
-        final nameOffset = fbb.writeString(object.name);
-        final locationOffset = object.location == null
-            ? null
-            : fbb.writeString(object.location!);
-        final gpxDataOffset = object.gpxData == null
-            ? null
-            : fbb.writeString(object.gpxData!);
-        final descriptionOffset = object.description == null
-            ? null
-            : fbb.writeString(object.description!);
-        final photosOffset = fbb.writeList(
-          object.photos.map(fbb.writeString).toList(growable: false),
-        );
-        fbb.startTable(21);
-        fbb.addInt64(0, object.obxId);
-        fbb.addOffset(1, idOffset);
-        fbb.addOffset(2, nameOffset);
-        fbb.addOffset(3, locationOffset);
-        fbb.addInt64(4, object.date?.millisecondsSinceEpoch);
-        fbb.addBool(5, object.public);
-        fbb.addFloat64(6, object.distance);
-        fbb.addFloat64(7, object.elevationGain);
-        fbb.addFloat64(8, object.elevationLoss);
-        fbb.addFloat64(9, object.duration);
-        fbb.addFloat64(10, object.lat);
-        fbb.addFloat64(11, object.lon);
-        fbb.addOffset(12, gpxDataOffset);
-        fbb.addOffset(13, descriptionOffset);
-        fbb.addInt64(15, object.dbDifficulty);
-        fbb.addInt64(17, object.author.targetId);
-        fbb.addOffset(18, photosOffset);
-        fbb.addInt64(19, object.category.targetId);
-        fbb.finish(fbb.endTable());
-        return object.obxId;
-      },
-      objectFromFB: (obx.Store store, ByteData fbData) {
-        final buffer = fb.BufferContext(fbData);
-        final rootOffset = buffer.derefObject(0);
-        final dateValue = const fb.Int64Reader().vTableGetNullable(
-          buffer,
-          rootOffset,
-          12,
-        );
-        final idParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGet(buffer, rootOffset, 6, '');
-        final nameParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGet(buffer, rootOffset, 8, '');
-        final locationParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGetNullable(buffer, rootOffset, 10);
-        final dateParam = dateValue == null
-            ? null
-            : DateTime.fromMillisecondsSinceEpoch(dateValue, isUtc: true);
-        final publicParam = const fb.BoolReader().vTableGet(
-          buffer,
-          rootOffset,
-          14,
-          false,
-        );
-        final distanceParam = const fb.Float64Reader().vTableGetNullable(
-          buffer,
-          rootOffset,
-          16,
-        );
-        final elevationGainParam = const fb.Float64Reader().vTableGetNullable(
-          buffer,
-          rootOffset,
-          18,
-        );
-        final elevationLossParam = const fb.Float64Reader().vTableGetNullable(
-          buffer,
-          rootOffset,
-          20,
-        );
-        final durationParam = const fb.Float64Reader().vTableGetNullable(
-          buffer,
-          rootOffset,
-          22,
-        );
-        final latParam = const fb.Float64Reader().vTableGetNullable(
-          buffer,
-          rootOffset,
-          24,
-        );
-        final lonParam = const fb.Float64Reader().vTableGetNullable(
-          buffer,
-          rootOffset,
-          26,
-        );
-        final gpxDataParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGetNullable(buffer, rootOffset, 28);
-        final descriptionParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGetNullable(buffer, rootOffset, 30);
-        final object =
-            TrailEntity(
-                id: idParam,
-                name: nameParam,
-                location: locationParam,
-                date: dateParam,
-                public: publicParam,
-                distance: distanceParam,
-                elevationGain: elevationGainParam,
-                elevationLoss: elevationLossParam,
-                duration: durationParam,
-                lat: latParam,
-                lon: lonParam,
-                gpxData: gpxDataParam,
-                description: descriptionParam,
-              )
-              ..obxId = const fb.Int64Reader().vTableGet(
-                buffer,
-                rootOffset,
-                4,
-                0,
-              )
-              ..dbDifficulty = const fb.Int64Reader().vTableGet(
-                buffer,
-                rootOffset,
-                34,
-                0,
-              )
-              ..photos = const fb.ListReader<String>(
-                fb.StringReader(asciiOptimization: true),
-                lazy: false,
-              ).vTableGet(buffer, rootOffset, 40, []);
-        object.author.targetId = const fb.Int64Reader().vTableGet(
-          buffer,
-          rootOffset,
-          38,
-          0,
-        );
-        object.author.attach(store);
-        object.category.targetId = const fb.Int64Reader().vTableGet(
-          buffer,
-          rootOffset,
-          42,
-          0,
-        );
-        object.category.attach(store);
-        obx_int.InternalToManyAccess.setRelInfo<TrailEntity>(
-          object.waypoints,
-          store,
-          obx_int.RelInfo<WaypointEntity>.toOneBacklink(
-            10,
-            object.obxId,
-            (WaypointEntity srcObject) => srcObject.trail,
-          ),
-        );
-        return object;
-      },
-    ),
     WaypointEntity: obx_int.EntityDefinition<WaypointEntity>(
-      model: _entities[2],
+      model: _entities[1],
       toOneRelations: (WaypointEntity object) => [object.trail],
       toManyRelations: (WaypointEntity object) => {},
       getId: (WaypointEntity object) => object.obxId,
@@ -940,7 +794,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
       },
     ),
     ActorEntity: obx_int.EntityDefinition<ActorEntity>(
-      model: _entities[3],
+      model: _entities[2],
       toOneRelations: (ActorEntity object) => [],
       toManyRelations: (ActorEntity object) => {},
       getId: (ActorEntity object) => object.obxId,
@@ -1115,7 +969,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
       },
     ),
     CategoryEntity: obx_int.EntityDefinition<CategoryEntity>(
-      model: _entities[4],
+      model: _entities[3],
       toOneRelations: (CategoryEntity object) => [],
       toManyRelations: (CategoryEntity object) => {},
       getId: (CategoryEntity object) => object.obxId,
@@ -1144,6 +998,185 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final object = CategoryEntity(id: idParam, name: nameParam)
           ..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
+        return object;
+      },
+    ),
+    TrailEntity: obx_int.EntityDefinition<TrailEntity>(
+      model: _entities[4],
+      toOneRelations: (TrailEntity object) => [object.author, object.category],
+      toManyRelations: (TrailEntity object) => {
+        obx_int.RelInfo<WaypointEntity>.toOneBacklink(
+          10,
+          object.obxId,
+          (WaypointEntity srcObject) => srcObject.trail,
+        ): object.waypoints,
+      },
+      getId: (TrailEntity object) => object.obxId,
+      setId: (TrailEntity object, int id) {
+        object.obxId = id;
+      },
+      objectToFB: (TrailEntity object, fb.Builder fbb) {
+        final idOffset = fbb.writeString(object.id);
+        final nameOffset = fbb.writeString(object.name);
+        final locationOffset = object.location == null
+            ? null
+            : fbb.writeString(object.location!);
+        final gpxDataOffset = object.gpxData == null
+            ? null
+            : fbb.writeString(object.gpxData!);
+        final descriptionOffset = object.description == null
+            ? null
+            : fbb.writeString(object.description!);
+        final photosOffset = fbb.writeList(
+          object.photos.map(fbb.writeString).toList(growable: false),
+        );
+        final pmTilesOffset = fbb.writeList(
+          object.pmTiles.map(fbb.writeString).toList(growable: false),
+        );
+        fbb.startTable(20);
+        fbb.addInt64(0, object.obxId);
+        fbb.addOffset(1, idOffset);
+        fbb.addOffset(2, nameOffset);
+        fbb.addOffset(3, locationOffset);
+        fbb.addInt64(4, object.date?.millisecondsSinceEpoch);
+        fbb.addBool(5, object.public);
+        fbb.addFloat64(6, object.distance);
+        fbb.addFloat64(7, object.elevationGain);
+        fbb.addFloat64(8, object.elevationLoss);
+        fbb.addFloat64(9, object.duration);
+        fbb.addFloat64(10, object.lat);
+        fbb.addFloat64(11, object.lon);
+        fbb.addOffset(12, gpxDataOffset);
+        fbb.addOffset(13, descriptionOffset);
+        fbb.addOffset(14, photosOffset);
+        fbb.addOffset(15, pmTilesOffset);
+        fbb.addInt64(16, object.dbDifficulty);
+        fbb.addInt64(17, object.author.targetId);
+        fbb.addInt64(18, object.category.targetId);
+        fbb.finish(fbb.endTable());
+        return object.obxId;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final dateValue = const fb.Int64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          12,
+        );
+        final idParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 6, '');
+        final nameParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 8, '');
+        final locationParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 10);
+        final dateParam = dateValue == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(dateValue, isUtc: true);
+        final publicParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          14,
+          false,
+        );
+        final distanceParam = const fb.Float64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          16,
+        );
+        final elevationGainParam = const fb.Float64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          18,
+        );
+        final elevationLossParam = const fb.Float64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          20,
+        );
+        final durationParam = const fb.Float64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          22,
+        );
+        final latParam = const fb.Float64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          24,
+        );
+        final lonParam = const fb.Float64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          26,
+        );
+        final gpxDataParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 28);
+        final descriptionParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 30);
+        final object =
+            TrailEntity(
+                id: idParam,
+                name: nameParam,
+                location: locationParam,
+                date: dateParam,
+                public: publicParam,
+                distance: distanceParam,
+                elevationGain: elevationGainParam,
+                elevationLoss: elevationLossParam,
+                duration: durationParam,
+                lat: latParam,
+                lon: lonParam,
+                gpxData: gpxDataParam,
+                description: descriptionParam,
+              )
+              ..obxId = const fb.Int64Reader().vTableGet(
+                buffer,
+                rootOffset,
+                4,
+                0,
+              )
+              ..photos = const fb.ListReader<String>(
+                fb.StringReader(asciiOptimization: true),
+                lazy: false,
+              ).vTableGet(buffer, rootOffset, 32, [])
+              ..pmTiles = const fb.ListReader<String>(
+                fb.StringReader(asciiOptimization: true),
+                lazy: false,
+              ).vTableGet(buffer, rootOffset, 34, [])
+              ..dbDifficulty = const fb.Int64Reader().vTableGet(
+                buffer,
+                rootOffset,
+                36,
+                0,
+              );
+        object.author.targetId = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          38,
+          0,
+        );
+        object.author.attach(store);
+        object.category.targetId = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          40,
+          0,
+        );
+        object.category.attach(store);
+        obx_int.InternalToManyAccess.setRelInfo<TrailEntity>(
+          object.waypoints,
+          store,
+          obx_int.RelInfo<WaypointEntity>.toOneBacklink(
+            10,
+            object.obxId,
+            (WaypointEntity srcObject) => srcObject.trail,
+          ),
+        );
         return object;
       },
     ),
@@ -1220,159 +1253,61 @@ class UserEntity_ {
   );
 }
 
-/// [TrailEntity] entity fields to define ObjectBox queries.
-class TrailEntity_ {
-  /// See [TrailEntity.obxId].
-  static final obxId = obx.QueryIntegerProperty<TrailEntity>(
-    _entities[1].properties[0],
-  );
-
-  /// See [TrailEntity.id].
-  static final id = obx.QueryStringProperty<TrailEntity>(
-    _entities[1].properties[1],
-  );
-
-  /// See [TrailEntity.name].
-  static final name = obx.QueryStringProperty<TrailEntity>(
-    _entities[1].properties[2],
-  );
-
-  /// See [TrailEntity.location].
-  static final location = obx.QueryStringProperty<TrailEntity>(
-    _entities[1].properties[3],
-  );
-
-  /// See [TrailEntity.date].
-  static final date = obx.QueryDateProperty<TrailEntity>(
-    _entities[1].properties[4],
-  );
-
-  /// See [TrailEntity.public].
-  static final public = obx.QueryBooleanProperty<TrailEntity>(
-    _entities[1].properties[5],
-  );
-
-  /// See [TrailEntity.distance].
-  static final distance = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[1].properties[6],
-  );
-
-  /// See [TrailEntity.elevationGain].
-  static final elevationGain = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[1].properties[7],
-  );
-
-  /// See [TrailEntity.elevationLoss].
-  static final elevationLoss = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[1].properties[8],
-  );
-
-  /// See [TrailEntity.duration].
-  static final duration = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[1].properties[9],
-  );
-
-  /// See [TrailEntity.lat].
-  static final lat = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[1].properties[10],
-  );
-
-  /// See [TrailEntity.lon].
-  static final lon = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[1].properties[11],
-  );
-
-  /// See [TrailEntity.gpxData].
-  static final gpxData = obx.QueryStringProperty<TrailEntity>(
-    _entities[1].properties[12],
-  );
-
-  /// See [TrailEntity.description].
-  static final description = obx.QueryStringProperty<TrailEntity>(
-    _entities[1].properties[13],
-  );
-
-  /// See [TrailEntity.dbDifficulty].
-  static final dbDifficulty = obx.QueryIntegerProperty<TrailEntity>(
-    _entities[1].properties[14],
-  );
-
-  /// See [TrailEntity.author].
-  static final author = obx.QueryRelationToOne<TrailEntity, ActorEntity>(
-    _entities[1].properties[15],
-  );
-
-  /// See [TrailEntity.photos].
-  static final photos = obx.QueryStringVectorProperty<TrailEntity>(
-    _entities[1].properties[16],
-  );
-
-  /// See [TrailEntity.category].
-  static final category = obx.QueryRelationToOne<TrailEntity, CategoryEntity>(
-    _entities[1].properties[17],
-  );
-
-  /// see [TrailEntity.waypoints]
-  static final waypoints = obx.QueryBacklinkToMany<WaypointEntity, TrailEntity>(
-    WaypointEntity_.trail,
-  );
-}
-
 /// [WaypointEntity] entity fields to define ObjectBox queries.
 class WaypointEntity_ {
   /// See [WaypointEntity.obxId].
   static final obxId = obx.QueryIntegerProperty<WaypointEntity>(
-    _entities[2].properties[0],
+    _entities[1].properties[0],
   );
 
   /// See [WaypointEntity.id].
   static final id = obx.QueryStringProperty<WaypointEntity>(
-    _entities[2].properties[1],
+    _entities[1].properties[1],
   );
 
   /// See [WaypointEntity.name].
   static final name = obx.QueryStringProperty<WaypointEntity>(
-    _entities[2].properties[2],
+    _entities[1].properties[2],
   );
 
   /// See [WaypointEntity.description].
   static final description = obx.QueryStringProperty<WaypointEntity>(
-    _entities[2].properties[3],
+    _entities[1].properties[3],
   );
 
   /// See [WaypointEntity.lat].
   static final lat = obx.QueryDoubleProperty<WaypointEntity>(
-    _entities[2].properties[4],
+    _entities[1].properties[4],
   );
 
   /// See [WaypointEntity.lon].
   static final lon = obx.QueryDoubleProperty<WaypointEntity>(
-    _entities[2].properties[5],
+    _entities[1].properties[5],
   );
 
   /// See [WaypointEntity.distanceFromStart].
   static final distanceFromStart = obx.QueryDoubleProperty<WaypointEntity>(
-    _entities[2].properties[6],
+    _entities[1].properties[6],
   );
 
   /// See [WaypointEntity.author].
   static final author = obx.QueryStringProperty<WaypointEntity>(
-    _entities[2].properties[7],
+    _entities[1].properties[7],
   );
 
   /// See [WaypointEntity.photos].
   static final photos = obx.QueryStringVectorProperty<WaypointEntity>(
-    _entities[2].properties[8],
+    _entities[1].properties[8],
   );
 
   /// See [WaypointEntity.trail].
   static final trail = obx.QueryRelationToOne<WaypointEntity, TrailEntity>(
-    _entities[2].properties[9],
+    _entities[1].properties[9],
   );
 
   /// See [WaypointEntity.icon].
   static final icon = obx.QueryStringProperty<WaypointEntity>(
-    _entities[2].properties[10],
+    _entities[1].properties[10],
   );
 }
 
@@ -1380,117 +1315,117 @@ class WaypointEntity_ {
 class ActorEntity_ {
   /// See [ActorEntity.obxId].
   static final obxId = obx.QueryIntegerProperty<ActorEntity>(
-    _entities[3].properties[0],
+    _entities[2].properties[0],
   );
 
   /// See [ActorEntity.id].
   static final id = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[1],
+    _entities[2].properties[1],
   );
 
   /// See [ActorEntity.icon].
   static final icon = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[2],
+    _entities[2].properties[2],
   );
 
   /// See [ActorEntity.collectionId].
   static final collectionId = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[3],
+    _entities[2].properties[3],
   );
 
   /// See [ActorEntity.collectionName].
   static final collectionName = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[4],
+    _entities[2].properties[4],
   );
 
   /// See [ActorEntity.created].
   static final created = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[5],
+    _entities[2].properties[5],
   );
 
   /// See [ActorEntity.updated].
   static final updated = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[6],
+    _entities[2].properties[6],
   );
 
   /// See [ActorEntity.username].
   static final username = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[7],
+    _entities[2].properties[7],
   );
 
   /// See [ActorEntity.preferredUsername].
   static final preferredUsername = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[8],
+    _entities[2].properties[8],
   );
 
   /// See [ActorEntity.domain].
   static final domain = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[9],
+    _entities[2].properties[9],
   );
 
   /// See [ActorEntity.summary].
   static final summary = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[10],
+    _entities[2].properties[10],
   );
 
   /// See [ActorEntity.published].
   static final published = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[11],
+    _entities[2].properties[11],
   );
 
   /// See [ActorEntity.followerCount].
   static final followerCount = obx.QueryIntegerProperty<ActorEntity>(
-    _entities[3].properties[12],
+    _entities[2].properties[12],
   );
 
   /// See [ActorEntity.followingCount].
   static final followingCount = obx.QueryIntegerProperty<ActorEntity>(
-    _entities[3].properties[13],
+    _entities[2].properties[13],
   );
 
   /// See [ActorEntity.iri].
   static final iri = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[14],
+    _entities[2].properties[14],
   );
 
   /// See [ActorEntity.inbox].
   static final inbox = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[15],
+    _entities[2].properties[15],
   );
 
   /// See [ActorEntity.outbox].
   static final outbox = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[16],
+    _entities[2].properties[16],
   );
 
   /// See [ActorEntity.followers].
   static final followers = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[17],
+    _entities[2].properties[17],
   );
 
   /// See [ActorEntity.following].
   static final following = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[18],
+    _entities[2].properties[18],
   );
 
   /// See [ActorEntity.isLocal].
   static final isLocal = obx.QueryBooleanProperty<ActorEntity>(
-    _entities[3].properties[19],
+    _entities[2].properties[19],
   );
 
   /// See [ActorEntity.publicKey].
   static final publicKey = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[20],
+    _entities[2].properties[20],
   );
 
   /// See [ActorEntity.lastFetched].
   static final lastFetched = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[21],
+    _entities[2].properties[21],
   );
 
   /// See [ActorEntity.user].
   static final user = obx.QueryStringProperty<ActorEntity>(
-    _entities[3].properties[22],
+    _entities[2].properties[22],
   );
 }
 
@@ -1498,16 +1433,119 @@ class ActorEntity_ {
 class CategoryEntity_ {
   /// See [CategoryEntity.obxId].
   static final obxId = obx.QueryIntegerProperty<CategoryEntity>(
-    _entities[4].properties[0],
+    _entities[3].properties[0],
   );
 
   /// See [CategoryEntity.id].
   static final id = obx.QueryStringProperty<CategoryEntity>(
-    _entities[4].properties[1],
+    _entities[3].properties[1],
   );
 
   /// See [CategoryEntity.name].
   static final name = obx.QueryStringProperty<CategoryEntity>(
+    _entities[3].properties[2],
+  );
+}
+
+/// [TrailEntity] entity fields to define ObjectBox queries.
+class TrailEntity_ {
+  /// See [TrailEntity.obxId].
+  static final obxId = obx.QueryIntegerProperty<TrailEntity>(
+    _entities[4].properties[0],
+  );
+
+  /// See [TrailEntity.id].
+  static final id = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[1],
+  );
+
+  /// See [TrailEntity.name].
+  static final name = obx.QueryStringProperty<TrailEntity>(
     _entities[4].properties[2],
+  );
+
+  /// See [TrailEntity.location].
+  static final location = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[3],
+  );
+
+  /// See [TrailEntity.date].
+  static final date = obx.QueryDateProperty<TrailEntity>(
+    _entities[4].properties[4],
+  );
+
+  /// See [TrailEntity.public].
+  static final public = obx.QueryBooleanProperty<TrailEntity>(
+    _entities[4].properties[5],
+  );
+
+  /// See [TrailEntity.distance].
+  static final distance = obx.QueryDoubleProperty<TrailEntity>(
+    _entities[4].properties[6],
+  );
+
+  /// See [TrailEntity.elevationGain].
+  static final elevationGain = obx.QueryDoubleProperty<TrailEntity>(
+    _entities[4].properties[7],
+  );
+
+  /// See [TrailEntity.elevationLoss].
+  static final elevationLoss = obx.QueryDoubleProperty<TrailEntity>(
+    _entities[4].properties[8],
+  );
+
+  /// See [TrailEntity.duration].
+  static final duration = obx.QueryDoubleProperty<TrailEntity>(
+    _entities[4].properties[9],
+  );
+
+  /// See [TrailEntity.lat].
+  static final lat = obx.QueryDoubleProperty<TrailEntity>(
+    _entities[4].properties[10],
+  );
+
+  /// See [TrailEntity.lon].
+  static final lon = obx.QueryDoubleProperty<TrailEntity>(
+    _entities[4].properties[11],
+  );
+
+  /// See [TrailEntity.gpxData].
+  static final gpxData = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[12],
+  );
+
+  /// See [TrailEntity.description].
+  static final description = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[13],
+  );
+
+  /// See [TrailEntity.photos].
+  static final photos = obx.QueryStringVectorProperty<TrailEntity>(
+    _entities[4].properties[14],
+  );
+
+  /// See [TrailEntity.pmTiles].
+  static final pmTiles = obx.QueryStringVectorProperty<TrailEntity>(
+    _entities[4].properties[15],
+  );
+
+  /// See [TrailEntity.dbDifficulty].
+  static final dbDifficulty = obx.QueryIntegerProperty<TrailEntity>(
+    _entities[4].properties[16],
+  );
+
+  /// See [TrailEntity.author].
+  static final author = obx.QueryRelationToOne<TrailEntity, ActorEntity>(
+    _entities[4].properties[17],
+  );
+
+  /// See [TrailEntity.category].
+  static final category = obx.QueryRelationToOne<TrailEntity, CategoryEntity>(
+    _entities[4].properties[18],
+  );
+
+  /// see [TrailEntity.waypoints]
+  static final waypoints = obx.QueryBacklinkToMany<WaypointEntity, TrailEntity>(
+    WaypointEntity_.trail,
   );
 }

@@ -89,6 +89,9 @@ _Trail _$TrailFromJson(Map<String, dynamic> json) => _Trail(
           ?.map((e) => e as String)
           .toList() ??
       const [],
+  pmTiles:
+      (json['pmTiles'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
@@ -121,6 +124,7 @@ Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
   'author': instance.author,
   'isOffline': instance.isOffline,
   'localPhotos': instance.localPhotos,
+  'pmTiles': instance.pmTiles,
 };
 
 const _$TrailDifficultyEnumMap = {

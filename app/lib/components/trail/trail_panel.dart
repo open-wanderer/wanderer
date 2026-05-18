@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart' as html;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
-import 'package:wanderer/components/trail/trail_dropdown.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/format_util.dart';
@@ -13,10 +12,12 @@ class TrailPanel extends StatelessWidget {
     super.key,
     required this.trail,
     required this.scrollController,
+    this.actionMenu,
   });
 
   final Trail trail;
   final ScrollController scrollController;
+  final Widget? actionMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +52,7 @@ class TrailPanel extends StatelessWidget {
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
-                    TrailDropdown(trail: trail),
+                    ?actionMenu,
                   ],
                 ),
                 const SizedBox(height: 12),

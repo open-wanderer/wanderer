@@ -34,7 +34,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
     }
 
     ref.read(serverSelectionProvider.notifier).setSelectedServer(server);
-    ref.read(apiProvider.notifier).updateBaseUrl(url);
+    ref.read(apiProvider.notifier).updateBaseUrl("http://localhost:5173");
 
     context.pop();
   }

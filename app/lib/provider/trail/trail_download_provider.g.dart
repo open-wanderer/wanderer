@@ -43,7 +43,7 @@ final class TrailDownloadServiceNotifierProvider
 }
 
 String _$trailDownloadServiceNotifierHash() =>
-    r'28b89ddb1f81feb84a58340012e14ff4dc73f1bf';
+    r'd18d06e5687889f7e25dba38c653a8dcd2d97e52';
 
 abstract class _$TrailDownloadServiceNotifier
     extends $Notifier<TrailDownloadService> {

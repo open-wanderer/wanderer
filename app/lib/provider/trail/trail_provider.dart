@@ -35,7 +35,10 @@ class TrailNotifier extends _$TrailNotifier {
       final parsedGpx = GpxReader().fromString(gpxResponse.data);
 
       trail = trail.copyWith(
-        expand: (trail.expand ?? const TrailExpand()).copyWith(gpx: parsedGpx),
+        expand: (trail.expand ?? const TrailExpand()).copyWith(
+          gpx: parsedGpx,
+          gpxData: gpxResponse.data,
+        ),
       );
     }
 

@@ -24,7 +24,7 @@ export function bbox(
             result[3] = coord[1];
         }
     });
-
+    console.log(result);
     return result;
 }
 

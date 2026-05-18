@@ -180,6 +180,14 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 	se.Router.GET("/remote/profile/{handle}/follows", routes.RemoteProfileFollowsList)
 
+	g := se.Router.Group("/map/cells")
+	// g.Bind(apis.RequireAuth())
+
+	g.GET("", routes.MapCellsList)
+	g.GET("/{cellKey}", routes.MapCellsGet)
+	g.GET("/{cellKey}/status", routes.MapCellsStatus)
+	g.GET("/{cellKey}/download", routes.MapCellsDownload)
+
 }
 
 func registerCronJobs(app core.App, client meilisearch.ServiceManager) {

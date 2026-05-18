@@ -77,6 +77,7 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
 
     @Default(false) bool isOffline,
     @Default([]) List<String> localPhotos,
+    @Default([]) List<String> pmTiles,
   }) = _Trail;
 
   const Trail._();
@@ -94,7 +95,7 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
   DateTime? get summaryDate => date;
 
   @override
-  String get summaryThumbnail => photos[0];
+  String get summaryThumbnail => photos.isNotEmpty ? photos[0] : "";
 
   @override
   String get summaryCategory => expand?.category?.name ?? "";

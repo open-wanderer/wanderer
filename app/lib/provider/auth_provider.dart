@@ -25,7 +25,7 @@ class Auth extends _$Auth {
       return null;
     }
 
-    ref.read(apiProvider.notifier).updateBaseUrl(savedUserEntity.serverUrl);
+    ref.read(apiProvider.notifier).updateBaseUrl("http://localhost:5173");
 
     final jar = ref.watch(cookieJarProvider);
 

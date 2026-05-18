@@ -1,25 +1,27 @@
 import 'dart:io';
-import 'dart:math' as math;
-
 import 'package:dio/dio.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:gpx/gpx.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:wanderer/entities/trail_entity.dart';
+import 'package:wanderer/models/map_cell.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
 class TrailDownloadService {
   final Store _store;
-  final Dio _dio;
-  final String _serverUrl;
+  final Dio _api;
 
-  TrailDownloadService(this._store, this._dio, this._serverUrl);
+  static const _pollInterval = Duration(seconds: 3);
+  static const _pollTimeout = Duration(minutes: 3);
+
+  TrailDownloadService(this._store, this._api);
 
   Future<void> downloadTrail(Trail trail) async {
     final box = _store.box<TrailEntity>();
     final trailId = trail.id;
-
     final appDir = await getApplicationDocumentsDirectory();
     final trailDir = Directory('${appDir.path}/library/$trailId');
 
@@ -28,18 +30,124 @@ class TrailDownloadService {
     }
 
     final List<String> localPaths = await _downloadPhotos(
-      trail.photos.map((p) => trail.getFileUrl(_serverUrl, p)!).toList(),
+      trail.photos
+          .map((p) => trail.getFileUrl(_api.options.baseUrl, p)!)
+          .toList(),
       trailDir,
     );
 
-    await _downloadMapTiles(trail, trailDir);
+    final cellPaths = await _downloadMapTiles(trail, trailDir);
 
     final entity = TrailEntity.fromModel(trail);
     entity.photos = localPaths;
-
+    entity.pmTiles = cellPaths;
     _store.runInTransaction(TxMode.write, () {
       box.put(entity);
     });
+  }
+
+  Future<List<String>> _downloadMapTiles(
+    Trail trail,
+    Directory trailDir,
+  ) async {
+    final LatLngBounds bounds;
+
+    if (trail.expand?.gpx != null) {
+      final b = trail.expand!.gpx!.getBounds();
+      if (b == null) {
+        throw Exception('GPX for trail ${trail.id} has no track points');
+      }
+      bounds = b;
+    } else if (trail.expand?.gpxData != null) {
+      final b = GpxReader().fromString(trail.expand!.gpxData!).getBounds();
+      if (b == null) {
+        throw Exception('GPX data for trail ${trail.id} has no track points');
+      }
+      bounds = b;
+    } else {
+      throw Exception(
+        'Trail ${trail.id} has no GPX data in expand. '
+        'Make sure gpx_data or gpx is included in the expand when calling downloadTrail.',
+      );
+    }
+
+    final bbox =
+        '${bounds.west},${bounds.south},${bounds.east},${bounds.north}';
+
+    final infoList = await _fetchCellList(bbox);
+    if (infoList.cells.isEmpty) return [];
+
+    final tilesDir = Directory('${trailDir.path}/tiles');
+    if (!await tilesDir.exists()) {
+      await tilesDir.create(recursive: true);
+    }
+
+    final savedPaths = <String>[];
+
+    for (final cell in infoList.cells) {
+      final key = cell.key;
+      final localPath = '${tilesDir.path}/$key.pmtiles';
+
+      if (await File(localPath).exists()) {
+        savedPaths.add(localPath);
+        continue;
+      }
+
+      try {
+        final requestUrl = cell.url;
+        final requestRes = await _api.get(requestUrl);
+        final initialCell = MapCellStatusResponse.fromJson(requestRes.data!);
+        final initialStatus = initialCell.status;
+
+        MapCellStatusResponse readyCell;
+        if (initialStatus != MapCellStatus.ready) {
+          final statusUrl = initialCell.statusUrl!;
+          readyCell = await _pollUntilReady(statusUrl, key);
+        } else {
+          readyCell = initialCell;
+        }
+
+        final downloadUrl = readyCell.downloadUrl!;
+        await _api.download(downloadUrl, localPath);
+        savedPaths.add(localPath);
+      } catch (e) {
+        print('Failed to download map cell $key: $e');
+      }
+    }
+
+    return savedPaths;
+  }
+
+  Future<MapCellInfoList> _fetchCellList(String bbox) async {
+    final res = await _api.get('/map/cells', queryParameters: {'bbox': bbox});
+    return MapCellInfoList.fromJson(res.data!);
+  }
+
+  Future<MapCellStatusResponse> _pollUntilReady(
+    String statusUrl,
+    String cellKey,
+  ) async {
+    final deadline = DateTime.now().add(_pollTimeout);
+
+    while (DateTime.now().isBefore(deadline)) {
+      await Future.delayed(_pollInterval);
+
+      final res = await _api.get(statusUrl);
+      final data = MapCellStatusResponse.fromJson(res.data!);
+
+      switch (data.status) {
+        case MapCellStatus.ready:
+          return data;
+        case MapCellStatus.error:
+          throw Exception(
+            'Map cell $cellKey generation failed: ${data.error ?? 'unknown error'}',
+          );
+        case MapCellStatus.pending:
+        case MapCellStatus.isNew:
+          continue;
+      }
+    }
+    throw Exception('Timed out waiting for map cell $cellKey');
   }
 
   Future<List<String>> _downloadPhotos(
@@ -47,7 +155,6 @@ class TrailDownloadService {
     Directory trailDir,
   ) async {
     final photoDir = Directory('${trailDir.path}/photos');
-
     if (!await photoDir.exists()) {
       await photoDir.create(recursive: true);
     }
@@ -56,76 +163,23 @@ class TrailDownloadService {
       try {
         final fileName = p.basename(Uri.parse(url).path);
         final savePath = '${photoDir.path}/$fileName';
-
-        await _dio.download(
+        await _api.download(
           url,
           savePath,
           onReceiveProgress: (received, total) {
             if (total != -1) {
-              // You could pipe this to a progress notifier/stream
               // print("Download $fileName: ${(received / total * 100).toStringAsFixed(0)}%");
             }
           },
         );
-
         return savePath;
       } catch (e) {
-        // Log error but don't stop the entire process
-        print("Failed to download photo $url: $e");
+        print('Failed to download photo $url: $e');
         return null;
       }
     }).toList();
 
     final results = await Future.wait(downloadTasks);
     return results.whereType<String>().toList();
-  }
-
-  int _getTileX(double lon, int zoom) {
-    return ((lon + 180) / 360 * math.pow(2, zoom)).floor();
-  }
-
-  int _getTileY(double lat, int zoom) {
-    var latRad = lat * math.pi / 180;
-    return ((1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) /
-            2 *
-            math.pow(2, zoom))
-        .floor();
-  }
-
-  Future<void> _downloadMapTiles(Trail trail, Directory trailDir) async {
-    const minZoom = 0;
-    const maxZoom = 14;
-
-    final bounds = trail.expand?.gpx?.getBounds();
-    if (bounds == null) return;
-
-    final mapDir = Directory('${trailDir.path}/map');
-    if (!await mapDir.exists()) await mapDir.create(recursive: true);
-
-    const baseUrl = "https://tiles.openfreemap.org/planet/latest";
-
-    for (int z = minZoom; z <= maxZoom; z++) {
-      final xMin = _getTileX(bounds.west, z);
-      final xMax = _getTileX(bounds.east, z);
-      final yMin = _getTileY(bounds.north, z);
-      final yMax = _getTileY(bounds.south, z);
-
-      for (int x = xMin; x <= xMax; x++) {
-        for (int y = yMin; y <= yMax; y++) {
-          final url = "$baseUrl/$z/$x/$y.pbf";
-          final savePath = '${mapDir.path}/$z/$x/$y.pbf';
-          final file = File(savePath);
-
-          if (!await file.exists()) {
-            await file.create(recursive: true);
-            try {
-              await _dio.download(url, savePath);
-            } catch (e) {
-              print("Skipping tile $z/$x/$y: $e");
-            }
-          }
-        }
-      }
-    }
   }
 }

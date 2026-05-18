@@ -834,6 +834,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  pmtiles:
+    dependency: "direct main"
+    description:
+      name: pmtiles
+      sha256: "9acb9e330e029c2c4eb6faafd53fc1f439dd9c61a0e080778026b2d2d5975944"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
   pointycastle:
     dependency: transitive
     description:
@@ -1178,10 +1186,11 @@ packages:
   vector_map_tiles:
     dependency: "direct main"
     description:
-      name: vector_map_tiles
-      sha256: abdfd5a134dbe3b7d5ab31c6f0408794eaa41bac3298843679261c11064f1ef4
-      url: "https://pub.dev"
-    source: hosted
+      path: "."
+      ref: main
+      resolved-ref: "36c77c024d653b60351adf788d6c22a297833a94"
+      url: "https://github.com/flomp/flutter-vector-map-tiles"
+    source: git
     version: "10.0.0-beta.2"
   vector_math:
     dependency: transitive
@@ -1200,13 +1209,14 @@ packages:
     source: hosted
     version: "2.0.1"
   vector_tile_renderer:
-    dependency: transitive
+    dependency: "direct main"
     description:
-      name: vector_tile_renderer
-      sha256: "0e9a2497925be4741211ff7b44b5bee0ae60fe0a225c5d6eb48963f62b65bd64"
-      url: "https://pub.dev"
-    source: hosted
-    version: "7.0.0-beta.1"
+      path: "."
+      ref: main
+      resolved-ref: dc310c79ee291e7e9aab7953619a1d3189108edd
+      url: "https://github.com/flomp/dart-vector-tile-renderer"
+    source: git
+    version: "7.0.0-beta.2"
   vm_service:
     dependency: transitive
     description:

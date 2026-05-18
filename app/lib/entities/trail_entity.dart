@@ -1,3 +1,4 @@
+import 'package:gpx/gpx.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/entities/actor_entity.dart';
 import 'package:wanderer/entities/category_entity.dart';
@@ -27,6 +28,7 @@ class TrailEntity {
   String? gpxData;
   String? description;
   List<String> photos = [];
+  List<String> pmTiles = [];
 
   @Transient()
   TrailDifficulty difficulty = TrailDifficulty.easy;
@@ -125,10 +127,12 @@ extension TrailEntityMapping on TrailEntity {
       description: description ?? "",
       isOffline: true,
       localPhotos: photos,
+      pmTiles: pmTiles,
       expand: TrailExpand(
         author: author.target?.toModel(),
         category: category.target?.toModel(),
         gpxData: gpxData,
+        gpx: gpxData != null ? GpxReader().fromString(gpxData!) : null,
         waypointsViaTrail: waypoints.map((w) => w.toModel()).toList(),
       ),
     );

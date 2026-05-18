@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/components/base/wanderer_layout.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/routes/library_detail_screen.dart';
 import 'package:wanderer/routes/library_screen.dart';
 import 'package:wanderer/routes/home_screen.dart';
 import 'package:wanderer/routes/login_screen.dart';
@@ -124,6 +125,15 @@ class Router extends _$Router {
             GoRoute(
               path: '/library',
               builder: (context, state) => LibraryScreen(),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) {
+                    final trailId = state.pathParameters['id']!;
+                    return LibraryDetailScreen(id: trailId);
+                  },
+                ),
+              ],
             ),
           ],
         ),
