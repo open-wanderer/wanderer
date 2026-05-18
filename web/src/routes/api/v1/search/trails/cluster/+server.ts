@@ -1,6 +1,6 @@
 import { error, json, type RequestEvent } from "@sveltejs/kit";
 import Supercluster from "supercluster";
-import { MAP_HIGH_ZOOM_DIAGONAL_LIMIT, MAP_LOW_ZOOM_DIAGONAL_LIMIT, MAP_LOW_ZOOM_THRESHOLD, MAP_MEDIUM_ZOOM_DIAGONAL_LIMIT, MAP_MEDIUM_ZOOM_THRESHOLD } from "$lib/stores/trail_store";
+import { MAP_MAX_POLYLINES } from "$lib/stores/trail_store";
 
 export async function POST(event: RequestEvent) {
     const data = await event.request.json()
@@ -17,16 +17,6 @@ export async function POST(event: RequestEvent) {
         }
     
         const geoFilter = `max_lat >= ${southWest.lat} AND min_lat <= ${northEast.lat} AND ${lonFilter}`;
-    
-        // Determine the diagonal filter for visibility (polylines)
-        let minDiagonal = 0;
-        if (zoom < MAP_LOW_ZOOM_THRESHOLD) {
-            minDiagonal = MAP_LOW_ZOOM_DIAGONAL_LIMIT;
-        } else if (zoom < MAP_MEDIUM_ZOOM_THRESHOLD) {
-            minDiagonal = MAP_MEDIUM_ZOOM_DIAGONAL_LIMIT;
-        } else if (zoom < 12) {
-            minDiagonal = MAP_HIGH_ZOOM_DIAGONAL_LIMIT;
-        }
         
         const summaryQuery = {
             indexUid: "trails",
@@ -42,9 +32,11 @@ export async function POST(event: RequestEvent) {
 
         const hits = r.results[0].hits;
         
-        // Step 1: Separate "large" trails (polylines) from "small" trails (clusters)
-        const largeHits = hits.filter((h: any) => (h.bounding_box_diagonal ?? 0) > minDiagonal);
-        const smallHits = hits.filter((h: any) => (h.bounding_box_diagonal ?? 0) <= minDiagonal);
+        // Dynamic Threshold: Sort by diagonal and pick top N for polylines
+        const sortedHits = [...hits].sort((a: any, b: any) => (b.bounding_box_diagonal ?? 0) - (a.bounding_box_diagonal ?? 0));
+        
+        const largeHits = sortedHits.slice(0, MAP_MAX_POLYLINES);
+        const smallHits = sortedHits.slice(MAP_MAX_POLYLINES);
 
         const smallFeatures: GeoJSON.Feature<GeoJSON.Point, any>[] = smallHits.map((h: any) => ({
             type: "Feature",

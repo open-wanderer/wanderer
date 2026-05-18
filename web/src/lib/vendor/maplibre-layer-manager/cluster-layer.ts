@@ -22,32 +22,11 @@ export class ClusterLayer implements BaseLayer {
         }
     };
 
-    constructor(map: M.Map, geojson: GeoJSON.FeatureCollection, maxZoom: number = 10, tiers?: { thresholds: number[], limits: number[] }, listeners?: Record<string, { onMouseUp?: (e: MapMouseEvent) => void; onMouseDown?: (e: MapMouseEvent) => void; onEnter?: (e: MapMouseEvent) => void; onLeave?: (e: MapMouseEvent) => void; onMouseMove?: (e: MapMouseEvent) => void; }>) {
+    constructor(map: M.Map, geojson: GeoJSON.FeatureCollection, maxZoom: number = 10, listeners?: Record<string, { onMouseUp?: (e: MapMouseEvent) => void; onMouseDown?: (e: MapMouseEvent) => void; onEnter?: (e: MapMouseEvent) => void; onLeave?: (e: MapMouseEvent) => void; onMouseMove?: (e: MapMouseEvent) => void; }>) {
         this.map = map;
         this.listeners = {
             "clusters": { ...this.listeners["clusters"], ...listeners?.["clusters"] },
             "unclustered-point": { ...this.listeners["unclustered-point"], ...listeners?.["unclustered-point"] }
-        }
-
-        const pairs = (tiers?.thresholds || [8, 10, 12]).map((t, i) => ({
-            threshold: t,
-            limit: (tiers?.limits || [25000, 10000, 5000])[i]
-        })).sort((a, b) => a.threshold - b.threshold);
-
-        const thresholds: number[] = [];
-        const limits: number[] = [];
-        let lastT = -1;
-        for (const p of pairs) {
-            if (p.threshold > lastT) {
-                thresholds.push(p.threshold);
-                limits.push(p.limit);
-                lastT = p.threshold;
-            }
-        }
-
-        const stepExpr: any[] = ["step", ["zoom"], limits[0]];
-        for (let i = 0; i < thresholds.length; i++) {
-            stepExpr.push(thresholds[i], limits[i + 1] ?? 0);
         }
 
         this.spec = {

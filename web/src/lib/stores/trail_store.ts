@@ -92,9 +92,7 @@ export async function trails_search_filter(filter: TrailFilter, page: number = 1
 export const MAP_LOW_ZOOM_THRESHOLD = Number(env.PUBLIC_MAP_LOW_ZOOM_THRESHOLD || 8);
 export const MAP_MEDIUM_ZOOM_THRESHOLD = Number(env.PUBLIC_MAP_MEDIUM_ZOOM_THRESHOLD || 10);
 
-export const MAP_LOW_ZOOM_DIAGONAL_LIMIT = Number(env.PUBLIC_MAP_LOW_ZOOM_DIAGONAL_LIMIT || 25000);
-export const MAP_MEDIUM_ZOOM_DIAGONAL_LIMIT = Number(env.PUBLIC_MAP_MEDIUM_ZOOM_DIAGONAL_LIMIT || 10000);
-export const MAP_HIGH_ZOOM_DIAGONAL_LIMIT = Number(env.PUBLIC_MAP_HIGH_ZOOM_DIAGONAL_LIMIT || 5000);
+export const MAP_MAX_POLYLINES = Number(env.PUBLIC_MAP_MAX_POLYLINES || 100);
 
 let trails: Trail[] = []
 const detailedCache = new Map<string, Trail>();
@@ -103,7 +101,7 @@ export const trail: Writable<Trail> = writable(new Trail(""));
 
 export const editTrail: Writable<Trail> = writable(new Trail(""));
 
-export async function trails_search_bounding_box(northEast: M.LngLat, southWest: M.LngLat, filter: TrailFilter, page: number = 1, zoom: number = 11, polylineMinZoom: number = 12) {
+export async function trails_search_bounding_box(northEast: M.LngLat, southWest: M.LngLat, filter: TrailFilter, page: number = 1, zoom: number = 11) {
     const user = get(currentUser)
 
     let filterText: string = "";
@@ -112,24 +110,12 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
         filterText = buildFilterText(user, filter, false);
     }
 
-    const includePolyline = zoom >= polylineMinZoom;
-
     let lonFilter = `max_lon >= ${southWest.lng} AND min_lon <= ${northEast.lng}`;
     if (southWest.lng > northEast.lng) {
         lonFilter = `(max_lon >= ${southWest.lng} OR min_lon <= ${northEast.lng})`;
     }
 
     const geoFilter = `max_lat >= ${southWest.lat} AND min_lat <= ${northEast.lat} AND ${lonFilter}`;
-
-    // Determine the diagonal filter for visibility
-    let minDiagonal = 0;
-    if (zoom < MAP_LOW_ZOOM_THRESHOLD) {
-        minDiagonal = MAP_LOW_ZOOM_DIAGONAL_LIMIT;
-    } else if (zoom < MAP_MEDIUM_ZOOM_THRESHOLD) {
-        minDiagonal = MAP_MEDIUM_ZOOM_DIAGONAL_LIMIT;
-    } else if (zoom < polylineMinZoom) {
-        minDiagonal = MAP_HIGH_ZOOM_DIAGONAL_LIMIT;
-    }
 
     // Step 1: Fetch server-side clusters and unclustered points
     let cr = await fetch("/api/v1/search/trails/cluster", {
@@ -167,7 +153,7 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
                 indexUid: "trails",
                 q: "",
                 filter: [`id IN [${batch.map((id: string) => `'${id}'`).join(",")}]`],
-                attributesToRetrieve: [...defaultTrailSearchAttributes, includePolyline ? "polyline" : ""].filter(Boolean),
+                attributesToRetrieve: [...defaultTrailSearchAttributes, "polyline"],
                 hitsPerPage: batchSize,
             };
 

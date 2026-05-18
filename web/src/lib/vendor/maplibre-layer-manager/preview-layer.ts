@@ -18,45 +18,13 @@ export class PreviewLayer implements BaseLayer {
         }
     };
 
-    constructor(map: M.Map, geojson: GeoJSON.FeatureCollection, minZoom: number = 10, options?: { tiers?: { thresholds: number[], limits: number[] }, listeners?: Record<string, { onMouseUp?: (e: MapMouseEvent) => void; onMouseDown?: (e: MapMouseEvent) => void; onEnter?: (e: MapMouseEvent) => void; onLeave?: (e: MapMouseEvent) => void; onMouseMove?: (e: MapMouseEvent) => void; }> }) {
+    constructor(map: M.Map, geojson: GeoJSON.FeatureCollection, minZoom: number = 10, options?: { listeners?: Record<string, { onMouseUp?: (e: MapMouseEvent) => void; onMouseDown?: (e: MapMouseEvent) => void; onEnter?: (e: MapMouseEvent) => void; onLeave?: (e: MapMouseEvent) => void; onMouseMove?: (e: MapMouseEvent) => void; }> }) {
 
         this.map = map;
         const listeners = options?.listeners;
         this.listeners = {
             "preview": { ...this.listeners["preview"], ...listeners?.["preview"] },
             "preview-start-points": { ...this.listeners["preview-start-points"], ...listeners?.["preview-start-points"] }
-        }
-
-        const tiers = options?.tiers;
-        let lineFilter: M.FilterSpecification | undefined = undefined;
-
-        if (tiers) {
-            const pairs = tiers.thresholds.map((t, i) => ({
-                threshold: t,
-                limit: tiers.limits[i]
-            })).sort((a, b) => a.threshold - b.threshold);
-
-            const thresholds: number[] = [];
-            const limits: number[] = [];
-            let lastT = -1;
-            for (const p of pairs) {
-                if (p.threshold > lastT) {
-                    thresholds.push(p.threshold);
-                    limits.push(p.limit);
-                    lastT = p.threshold;
-                }
-            }
-
-            const stepExpr: any[] = ["step", ["zoom"], limits[0]];
-            for (let i = 0; i < thresholds.length; i++) {
-                stepExpr.push(thresholds[i], limits[i + 1] ?? 0);
-            }
-
-            lineFilter = [
-                ">",
-                ["get", "bounding_box_diagonal"],
-                stepExpr as any
-            ];
         }
 
         const startPoints: GeoJSON.FeatureCollection = {
@@ -92,7 +60,6 @@ export class PreviewLayer implements BaseLayer {
                     id: "preview",
                     type: "line",
                     source: "preview",
-                    filter: lineFilter,
                     paint: {
                         "line-color": ["get", "color"],
                         "line-width": 5,

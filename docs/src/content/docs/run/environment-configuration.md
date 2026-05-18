@@ -43,12 +43,9 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | PUBLIC_POCKETBASE_URL   | IP or hostname (including the port) of your pocketbase instance                  | http://db:8090                      |
 | PUBLIC_DISABLE_SIGNUP   | Disables signup option for new users                                             | false                               |
 | PUBLIC_PRIVATE_INSTANCE | Setting this to true will block visitors from viewing content without an account | false                               |
-| PUBLIC_MAP_LOW_ZOOM_THRESHOLD | Zoom level below which small trails are clustered and only very large trails are shown | 8 |
-| PUBLIC_MAP_LOW_ZOOM_DIAGONAL_LIMIT | Minimum diagonal distance (meters) for a trail to be shown as a path below the low zoom threshold | 25000 |
-| PUBLIC_MAP_MEDIUM_ZOOM_THRESHOLD | Zoom level below which medium-sized trails are clustered | 10 |
-| PUBLIC_MAP_MEDIUM_ZOOM_DIAGONAL_LIMIT | Minimum diagonal distance (meters) for a trail to be shown as a path below the medium zoom threshold | 10000 |
-| PUBLIC_MAP_HIGH_ZOOM_THRESHOLD | Zoom level below which small trails are clustered | 12 |
-| PUBLIC_MAP_HIGH_ZOOM_DIAGONAL_LIMIT | Minimum diagonal distance (meters) for a trail to be shown as a path below the high zoom threshold | 5000 |
+| PUBLIC_MAP_LOW_ZOOM_THRESHOLD | Zoom level below which low zoom clustering rules apply | 8 |
+| PUBLIC_MAP_MEDIUM_ZOOM_THRESHOLD | Zoom level below which medium zoom clustering rules apply | 10 |
+| PUBLIC_MAP_MAX_POLYLINES | Maximum number of polylines (route previews) to show simultaneously on the map, based on result density | 100 |
 | UPLOAD_FOLDER           | Folder from which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                                   | /app/uploads                        |
 | UPLOAD_USER             | Username for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
 | UPLOAD_PASSWORD         | Password for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |

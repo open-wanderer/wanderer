@@ -5,10 +5,7 @@
     import GPX from "$lib/models/gpx/gpx";
     import type { Trail } from "$lib/models/trail";
     import {
-        MAP_HIGH_ZOOM_DIAGONAL_LIMIT,
-        MAP_LOW_ZOOM_DIAGONAL_LIMIT,
         MAP_LOW_ZOOM_THRESHOLD,
-        MAP_MEDIUM_ZOOM_DIAGONAL_LIMIT,
         MAP_MEDIUM_ZOOM_THRESHOLD,
     } from "$lib/stores/trail_store";
     import type { Waypoint } from "$lib/models/waypoint";
@@ -454,20 +451,6 @@
             ],
             {
                 minZoom: clusterTrails ? clusterMinZoom : undefined,
-                tiers: clusterTrails
-                    ? {
-                          thresholds: [
-                              MAP_LOW_ZOOM_THRESHOLD,
-                              MAP_MEDIUM_ZOOM_THRESHOLD,
-                              clusterMinZoom,
-                          ],
-                          limits: [
-                              MAP_LOW_ZOOM_DIAGONAL_LIMIT,
-                              MAP_MEDIUM_ZOOM_DIAGONAL_LIMIT,
-                              MAP_HIGH_ZOOM_DIAGONAL_LIMIT,
-                          ],
-                      }
-                    : undefined,
                 listeners: {
                     onEnter: (e) =>
                         highlightTrail(id, trails[activeTrail ?? -1]?.id == id),
@@ -495,18 +478,7 @@
         }
         layerManager.addLayer(
             "clusters",
-            new ClusterLayer(map, geojson, clusterMinZoom, {
-                thresholds: [
-                    MAP_LOW_ZOOM_THRESHOLD,
-                    MAP_MEDIUM_ZOOM_THRESHOLD,
-                    clusterMinZoom,
-                ],
-                limits: [
-                    MAP_LOW_ZOOM_DIAGONAL_LIMIT,
-                    MAP_MEDIUM_ZOOM_DIAGONAL_LIMIT,
-                    MAP_HIGH_ZOOM_DIAGONAL_LIMIT,
-                ],
-            }),
+            new ClusterLayer(map, geojson, clusterMinZoom),
         );
     }
 
@@ -517,18 +489,6 @@
         layerManager.addLayer(
             "preview",
             new PreviewLayer(map, geojson, clusterMinZoom, {
-                tiers: {
-                    thresholds: [
-                        MAP_LOW_ZOOM_THRESHOLD,
-                        MAP_MEDIUM_ZOOM_THRESHOLD,
-                        clusterMinZoom,
-                    ],
-                    limits: [
-                        MAP_LOW_ZOOM_DIAGONAL_LIMIT,
-                        MAP_MEDIUM_ZOOM_DIAGONAL_LIMIT,
-                        MAP_HIGH_ZOOM_DIAGONAL_LIMIT,
-                    ],
-                },
                 listeners: {
                     preview: {
                         onEnter: (e) => {

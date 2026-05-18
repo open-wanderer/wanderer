@@ -151,9 +151,9 @@
             southWest,
             filter,
             pagination.page,
-            map?.getZoom() ?? 0,
-            clusterMinZoom,
+            map?.getZoom(),
         );
+
         pagination.totalPages = trailsInBox.totalPages;
         trails = trailsInBox.trails;
         clusters = trailsInBox.clusters;
