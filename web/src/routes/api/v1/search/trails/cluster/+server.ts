@@ -57,8 +57,12 @@ export async function POST(event: RequestEvent) {
 
         index.load(smallFeatures);
 
+        const bbox: [number, number, number, number] = southWest.lng > northEast.lng
+            ? [-180, southWest.lat, 180, northEast.lat]
+            : [southWest.lng, southWest.lat, northEast.lng, northEast.lat];
+
         const clusters = index.getClusters(
-            [southWest.lng, southWest.lat, northEast.lng, northEast.lat],
+            bbox,
             Math.floor(zoom)
         );
 

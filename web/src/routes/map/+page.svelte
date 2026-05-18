@@ -49,8 +49,6 @@
     const maxBoundingBox: TrailBoundingBox = page.data.boundingBox;
     const settings: Settings = page.data.settings;
 
-    const MIN_ZOOM = 10;
-
     let loading: boolean = $state(true);
     let loadingNextPage: boolean = false;
 
@@ -204,26 +202,36 @@
         clearTimeout(moveTimeout);
         moveTimeout = setTimeout(async () => {
             const bounds = map!.getBounds();
+            const west = bounds.getWest();
+            const east = bounds.getEast();
+            const north = bounds.getNorth();
+            const south = bounds.getSouth();
 
-            const normalizedBounds = {
-                southWest: new M.LngLat(
-                    ((((bounds.getSouthWest().lng + 180) % 360) + 360) % 360) - 180,
-                    bounds.getSouthWest().lat,
-                ),
-                northEast: new M.LngLat(
-                    ((((bounds.getNorthEast().lng + 180) % 360) + 360) % 360) - 180,
-                    bounds.getNorthEast().lat,
-                ),
-            };
-            await searchTrails(
-                normalizedBounds.northEast,
-                normalizedBounds.southWest,
-            );
+            let normalizedSW: M.LngLat;
+            let normalizedNE: M.LngLat;
 
-            page.url.searchParams.set("tl_lat", bounds.getNorth().toString());
-            page.url.searchParams.set("tl_lon", bounds.getEast().toString());
-            page.url.searchParams.set("br_lat", bounds.getSouth().toString());
-            page.url.searchParams.set("br_lon", bounds.getWest().toString());
+            if (east - west >= 360) {
+                // Global view
+                normalizedSW = new M.LngLat(-180, south);
+                normalizedNE = new M.LngLat(180, north);
+            } else {
+                // Handle wrap-around wrap-around
+                normalizedSW = new M.LngLat(
+                    ((((west + 180) % 360) + 360) % 360) - 180,
+                    south,
+                );
+                normalizedNE = new M.LngLat(
+                    ((((east + 180) % 360) + 360) % 360) - 180,
+                    north,
+                );
+            }
+
+            await searchTrails(normalizedNE, normalizedSW);
+
+            page.url.searchParams.set("tl_lat", north.toString());
+            page.url.searchParams.set("tl_lon", east.toString());
+            page.url.searchParams.set("br_lat", south.toString());
+            page.url.searchParams.set("br_lon", west.toString());
 
             goto(`?${page.url.searchParams.toString()}`, {
                 replaceState: true,

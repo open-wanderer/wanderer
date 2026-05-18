@@ -1,7 +1,7 @@
 # [Unreleased]
 
 ## Features
-- Tiered map clustering and polyline filtering: The world map now uses zoom-dependent thresholds to manage performance while maintaining transparency. Small trails are automatically clustered at lower zoom levels, while larger routes are shown as detailed polylines. These thresholds and visibility limits are fully configurable via new environment variables (`PUBLIC_MAP_*_ZOOM_THRESHOLD` and `PUBLIC_MAP_*_DIAGONAL_LIMIT`).
+- Tiered map clustering and polyline filtering: The world map now uses a density-based clustering strategy to manage performance. Smaller trails are automatically clustered, while the largest routes in the current view are shown as detailed polylines. The maximum number of visible polylines is fully configurable via the `PUBLIC_MAP_MAX_POLYLINES` environment variable.
 
 # v0.19.0
 
