@@ -2,6 +2,19 @@
 title: Changelog
 description: What changed in the last patch?
 ---
+## v0.19.1
+
+### Features
+- Speed improvements for various database queries
+
+### Security
+- Remote lists, remote trails, and remote trail comments now respect the visibility settings and shares of the respective list or trail. (PR #980)
+
+### Bug Fixes
+- Federated remote trails now sync tags and create missing local tags when needed. (PR #987)
+- Private profiles no longer prevent access to a user's own trails; inaccessible private profiles now return a proper `404`. (PR #986)
+- Comment access rules now correctly check the linked comment author via `author.user`. (PR #984)
+
 ## v0.19.0
 
 ### Breaking Changes
