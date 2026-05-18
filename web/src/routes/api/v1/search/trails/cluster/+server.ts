@@ -97,8 +97,6 @@ export async function POST(event: RequestEvent) {
             }
         }));
 
-        console.log(`Clustering at zoom ${zoom.toFixed(1)}: ${hits.length} hits (${largeHits.length} large) -> ${normalizedSmallFeatures.length} clusters/small points, ${largeFeatures.length} large markers`);
-
         return json({
             type: "FeatureCollection",
             features: [...normalizedSmallFeatures, ...largeFeatures],

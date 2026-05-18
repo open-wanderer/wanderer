@@ -144,14 +144,6 @@
         // Track dependencies for Svelte 5
         mapData;
         
-        console.log("Map Debug:", {
-            trailsLen: trails.length,
-            previewFeatures: previewData.features.length,
-            clusterFeatures: clusterData.features.length,
-            mapLoaded: mapLoaded,
-            zoom: map?.getZoom(),
-        });
-
         if (map && mapLoaded) {
             untrack(() => initMap(map?.loaded() ?? false));
         }
@@ -210,7 +202,6 @@
         FeatureCollection,
         FeatureCollection,
     ] {
-        console.log("getData called", { trailsLen: trails.length, hasServerClusters: !!serverClusters });
         let clusterData: FeatureCollection = serverClusters ?? {
             type: "FeatureCollection",
             features: [],
