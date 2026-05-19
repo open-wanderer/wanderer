@@ -9,7 +9,6 @@ export class CaretLayer implements BaseLayer {
         this.spec = {
             version: 8,
             name: "direction-carets",
-            glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
             sources: {
                 caret: source
             },

@@ -1,7 +1,6 @@
 <script lang="ts">
     import { browser } from "$app/environment";
     import { goto } from "$app/navigation";
-    import { env } from '$env/dynamic/public';
     import { page } from "$app/state";
     import Search, {
         type SearchItem,

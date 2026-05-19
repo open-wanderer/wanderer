@@ -1,6 +1,5 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import { env } from '$env/dynamic/public';
     import directionCaret from "$lib/assets/svgs/caret-right-solid.svg";
     import GPX from "$lib/models/gpx/gpx";
     import type { Trail } from "$lib/models/trail";
@@ -294,10 +293,6 @@
             const layerId = t.id!;
             addTrailLayer(t, layerId, 0, gpxDataMap[layerId]);
         });
-        if (clusterTrails) {
-            addClusterLayer(clusterData);
-            addPreviewLayer(previewData);
-        }
 
         Object.entries(layerManager.layers).forEach(([id, layer]) => {
             if (!(layer instanceof TrailLayer)) {
@@ -309,6 +304,11 @@
                 removeTrailLayer(id);
             }
         });
+
+        if (clusterTrails) {
+            addPreviewLayer(previewData);
+            addClusterLayer(clusterData);
+        }
 
         if (!drawing && fitBounds !== "off") {
             const currentBboxes = Object.values(gpxDataMap)
@@ -864,13 +864,6 @@
         };
         map = new M.Map(finalMapOptions);
         (window as any).map = map;
-
-        // Ensure we always have glyphs for symbol layers (like cluster counts)
-        map.on("styledata", () => {
-            if (map && !map.getStyle().glyphs) {
-                map.setGlyphs("https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf");
-            }
-        });
 
         layerManager = new LayerManager(map);
 

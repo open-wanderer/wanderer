@@ -628,7 +628,7 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
     }
 
     if (filter.author?.length) {
-        filterText += ` AND author = '${filter.author}'`
+        filterText += ` AND author = ${filter.author}`
     }
 
     if (filter.public !== undefined || filter.private !== undefined || filter.shared !== undefined) {
@@ -640,21 +640,21 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
 
         if (showPublic === true) {
             filterText += "(public = TRUE";
-            if (showPrivate === true && user?.actor && (!filter.author?.length || filter.author == user?.actor)) {
-                filterText += ` OR author = '${user?.actor}'`;
+            if (showPrivate === true && (!filter.author?.length || filter.author == user?.actor)) {
+                filterText += ` OR author = ${user?.actor}`;
             }
             filterText += ")";
         }
-        else if (user?.actor && (!filter.author?.length || filter.author == user?.actor)) {
+        else if (!filter.author?.length || filter.author == user?.actor) {
             filterText += "public = FALSE";
-            filterText += ` AND author = '${user?.actor}'`;
+            filterText += ` AND author = ${user?.actor}`;
         }
 
-        if (filter.shared !== undefined && user?.actor) {
+        if (filter.shared !== undefined) {
             if (filter.shared === true) {
-                filterText += ` OR shares = '${user?.actor}'`
+                filterText += ` OR shares = ${user?.actor}`
             } else {
-                filterText += ` AND NOT shares = '${user?.actor}'`
+                filterText += ` AND NOT shares = ${user?.actor}`
 
             }
         }
