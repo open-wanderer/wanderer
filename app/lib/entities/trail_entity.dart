@@ -27,6 +27,10 @@ class TrailEntity {
   double? lon;
   String? gpxData;
   String? description;
+  @Property(type: PropertyType.dateUtc)
+  DateTime created;
+  @Property(type: PropertyType.dateUtc)
+  DateTime updated;
   List<String> photos = [];
   List<String> pmTiles = [];
 
@@ -54,6 +58,8 @@ class TrailEntity {
   TrailEntity({
     required this.id,
     required this.name,
+    required this.created,
+    required this.updated,
     this.location,
     this.date,
     this.public = false,
@@ -83,6 +89,8 @@ class TrailEntity {
       lon: trail.lon,
       gpxData: trail.expand?.gpxData,
       description: trail.description,
+      updated: trail.updated,
+      created: trail.created,
     );
 
     entity.dbDifficulty = trail.difficulty.index;
@@ -128,6 +136,8 @@ extension TrailEntityMapping on TrailEntity {
       isOffline: true,
       localPhotos: photos,
       pmTiles: pmTiles,
+      updated: updated,
+      created: created,
       expand: TrailExpand(
         author: author.target?.toModel(),
         category: category.target?.toModel(),

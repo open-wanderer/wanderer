@@ -57,211 +57,220 @@ class TrailCard extends ConsumerWidget {
 
     final String locale = Localizations.localeOf(context).toString();
 
-    return InkWell(
-      onTap: onTrailSelect,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        width: fullWidth ? double.infinity : 288,
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected
-                ? Theme.of(context).primaryColor
-                : Colors.grey.withValues(alpha: 0.2),
-            width: selected ? 2 : 1,
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      width: fullWidth ? double.infinity : 288,
+      child: Material(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        elevation: selected ? 4 : 0,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected
+                  ? Theme.of(context).primaryColor
+                  : Colors.grey.withValues(alpha: 0.2),
+              width: selected ? 2 : 1,
+            ),
+            boxShadow: [
+              if (selected)
+                BoxShadow(
+                  color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  spreadRadius: 2,
+                ),
+            ],
           ),
-          boxShadow: [
-            if (selected)
-              BoxShadow(
-                color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                blurRadius: 8,
-                spreadRadius: 2,
-              ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
+          child: InkWell(
+            onTap: onTrailSelect,
+            borderRadius: BorderRadius.circular(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
-                  ),
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: ClipRRect(
-                      // Good practice to keep the corners rounded
+                Stack(
+                  children: [
+                    ClipRRect(
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(20),
                       ),
-                      child: imageProvider != null
-                          ? Image(
-                              image: imageProvider,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  _buildPlaceholder(context),
-                            )
-                          : _buildPlaceholder(context),
-                    ),
-                  ),
-                ),
-
-                if (selected)
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: _BadgeWrapper(
-                      child: Icon(
-                        Icons.check_circle,
-                        color: Theme.of(context).primaryColor,
-                        size: 24,
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: imageProvider != null
+                            ? Image(
+                                image: imageProvider,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    _buildPlaceholder(context),
+                              )
+                            : _buildPlaceholder(context),
                       ),
                     ),
-                  ),
 
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Row(
+                    if (selected)
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: _BadgeWrapper(
+                          child: Icon(
+                            Icons.check_circle,
+                            color: Theme.of(context).primaryColor,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Row(
+                        children: [
+                          if (trail.public == true)
+                            const _BadgeWrapper(
+                              child: FaIcon(FontAwesomeIcons.globe, size: 16),
+                            ),
+                          if (trailIsShared == true) ...[
+                            const SizedBox(width: 4),
+                            const _BadgeWrapper(
+                              child: FaIcon(
+                                FontAwesomeIcons.shareNodes,
+                                size: 16,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (trail.public == true)
-                        const _BadgeWrapper(
-                          child: FaIcon(FontAwesomeIcons.globe, size: 16),
+                      Text(
+                        trail.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
                         ),
-                      if (trailIsShared == true) ...[
-                        const SizedBox(width: 4),
-                        const _BadgeWrapper(
-                          child: FaIcon(FontAwesomeIcons.shareNodes, size: 16),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      if (trail.summaryDate != null)
+                        Text(
+                          DateFormat.yMMMMd(locale).format(trail.summaryDate!),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
                         ),
-                      ],
+
+                      const SizedBox(height: 4),
+
+                      Column(
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                AppLocalizations.of(context)?.by ?? "by",
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              CircleAvatar(
+                                radius: 12,
+                                backgroundColor: Colors.grey.shade300,
+                                backgroundImage: NetworkImage(
+                                  trail.summaryAuthorAvatar.isNotEmpty
+                                      ? trail.summaryAuthorAvatar
+                                      : "https://api.dicebear.com/7.x/initials/png?seed=${trail.summaryAuthorName}&backgroundType=gradientLinear",
+                                ),
+                                onBackgroundImageError: (_, _) =>
+                                    FaIcon(FontAwesomeIcons.user),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                "${trail.summaryAuthorName}${(trail.domain?.isNotEmpty ?? false) ? "@${trail.domain}" : ""}",
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                      ),
+
+                      Wrap(
+                        spacing: 16,
+                        runSpacing: 8,
+                        children: [
+                          if (trail.summaryCategory.isNotEmpty)
+                            _CategoryIcon(
+                              icon: FontAwesomeIcons.shapes,
+                              value: trail.summaryCategory,
+                            ),
+
+                          if (trail.location != null &&
+                              trail.location!.isNotEmpty)
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  WidgetSpan(
+                                    child: FaIcon(
+                                      FontAwesomeIcons.locationDot,
+                                      size: 16,
+                                    ),
+                                    alignment: PlaceholderAlignment.middle,
+                                  ),
+                                  const TextSpan(text: "   "),
+                                  TextSpan(
+                                    text: trail.location,
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          _CategoryIcon(
+                            icon: FontAwesomeIcons.gauge,
+                            value: _getDifficultyLabel(
+                              context,
+                              trail.summaryDifficulty,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (trail.summaryTags != null &&
+                          trail.summaryTags!.isNotEmpty)
+                        Column(
+                          children: [
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 6,
+                              children: trail.summaryTags!
+                                  .take(3)
+                                  .map((tag) => _Chip(text: tag))
+                                  .toList(),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                        ),
+
+                      _StatsGrid(trail: trail),
                     ],
                   ),
                 ),
               ],
             ),
-
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    trail.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 17,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  if (trail.summaryDate != null)
-                    Text(
-                      DateFormat.yMMMMd(locale).format(trail.summaryDate!),
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-
-                  const SizedBox(height: 4),
-
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            AppLocalizations.of(context)?.by ?? "by",
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          CircleAvatar(
-                            radius: 12,
-                            backgroundColor: Colors.grey.shade300,
-                            backgroundImage: NetworkImage(
-                              trail.summaryAuthorAvatar.isNotEmpty
-                                  ? trail.summaryAuthorAvatar
-                                  : "https://api.dicebear.com/7.x/initials/png?seed=${trail.summaryAuthorName}&backgroundType=gradientLinear",
-                            ),
-                            onBackgroundImageError: (_, _) =>
-                                FaIcon(FontAwesomeIcons.user),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            "${trail.summaryAuthorName}${(trail.domain?.isNotEmpty ?? false) ? "@${trail.domain}" : ""}",
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                  ),
-
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 8,
-                    children: [
-                      if (trail.summaryCategory.isNotEmpty)
-                        _CategoryIcon(
-                          icon: FontAwesomeIcons.shapes,
-                          value: trail.summaryCategory,
-                        ),
-
-                      if (trail.location != null && trail.location!.isNotEmpty)
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              WidgetSpan(
-                                child: FaIcon(
-                                  FontAwesomeIcons.locationDot,
-                                  size: 16,
-                                ),
-                                alignment: PlaceholderAlignment.middle,
-                              ),
-                              const TextSpan(text: "   "),
-                              TextSpan(
-                                text: trail.location,
-                                style: const TextStyle(fontSize: 16),
-                              ),
-                            ],
-                          ),
-                        ),
-                      _CategoryIcon(
-                        icon: FontAwesomeIcons.gauge,
-                        value: _getDifficultyLabel(
-                          context,
-                          trail.summaryDifficulty,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  if (trail.summaryTags != null &&
-                      trail.summaryTags!.isNotEmpty)
-                    Column(
-                      children: [
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 6,
-                          children: trail.summaryTags!
-                              .take(3)
-                              .map((tag) => _Chip(text: tag))
-                              .toList(),
-                        ),
-                        const SizedBox(height: 6),
-                      ],
-                    ),
-
-                  _StatsGrid(trail: trail),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

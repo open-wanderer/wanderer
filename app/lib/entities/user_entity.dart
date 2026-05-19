@@ -15,9 +15,11 @@ class UserEntity with RecordFunctions implements IRecord {
   @override
   final String collectionName;
   @override
-  final String created;
+  @Property(type: PropertyType.dateUtc)
+  final DateTime created;
   @override
-  final String updated;
+  @Property(type: PropertyType.dateUtc)
+  final DateTime updated;
   final String actorId;
   final String username;
   final String preferredUsername;

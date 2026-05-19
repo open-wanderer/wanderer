@@ -2,8 +2,8 @@ abstract class IRecord {
   String get id;
   String get collectionId;
   String get collectionName;
-  String get created;
-  String get updated;
+  DateTime get created;
+  DateTime get updated;
 }
 
 mixin RecordFunctions {

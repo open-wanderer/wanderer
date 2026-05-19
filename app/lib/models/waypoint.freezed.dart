@@ -15,8 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Waypoint {
 
- String? get id; String? get name; String? get description; double get lat; double get lon; double? get distanceFromStart;@FaIconDataConverter() FaIconData get icon; List<String> get photos; String get author; String? get trail;// Non-serializable local fields
-@JsonKey(includeFromJson: false, includeToJson: false) dynamic get marker;@JsonKey(includeFromJson: false, includeToJson: false) List<dynamic> get localPhotos;
+ String get id; String get collectionId; String get collectionName; String? get name; String? get description; double get lat; double get lon;@JsonKey(name: 'distance_from_start') double? get distanceFromStart;@FaIconDataConverter() FaIconData get icon; List<String> get photos; String get author; String? get trail; DateTime get created; DateTime get updated;// Non-serializable local fields
+@JsonKey(includeFromJson: false, includeToJson: false) dynamic get marker;@JsonKey(includeFromJson: false, includeToJson: false) List<String> get localPhotos;
 /// Create a copy of Waypoint
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $WaypointCopyWith<Waypoint> get copyWith => _$WaypointCopyWithImpl<Waypoint>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Waypoint&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.distanceFromStart, distanceFromStart) || other.distanceFromStart == distanceFromStart)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other.photos, photos)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&const DeepCollectionEquality().equals(other.marker, marker)&&const DeepCollectionEquality().equals(other.localPhotos, localPhotos));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Waypoint&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.distanceFromStart, distanceFromStart) || other.distanceFromStart == distanceFromStart)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other.photos, photos)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&const DeepCollectionEquality().equals(other.marker, marker)&&const DeepCollectionEquality().equals(other.localPhotos, localPhotos));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,description,lat,lon,distanceFromStart,icon,const DeepCollectionEquality().hash(photos),author,trail,const DeepCollectionEquality().hash(marker),const DeepCollectionEquality().hash(localPhotos));
+int get hashCode => Object.hash(runtimeType,id,collectionId,collectionName,name,description,lat,lon,distanceFromStart,icon,const DeepCollectionEquality().hash(photos),author,trail,created,updated,const DeepCollectionEquality().hash(marker),const DeepCollectionEquality().hash(localPhotos));
 
 @override
 String toString() {
-  return 'Waypoint(id: $id, name: $name, description: $description, lat: $lat, lon: $lon, distanceFromStart: $distanceFromStart, icon: $icon, photos: $photos, author: $author, trail: $trail, marker: $marker, localPhotos: $localPhotos)';
+  return 'Waypoint(id: $id, collectionId: $collectionId, collectionName: $collectionName, name: $name, description: $description, lat: $lat, lon: $lon, distanceFromStart: $distanceFromStart, icon: $icon, photos: $photos, author: $author, trail: $trail, created: $created, updated: $updated, marker: $marker, localPhotos: $localPhotos)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $WaypointCopyWith<$Res>  {
   factory $WaypointCopyWith(Waypoint value, $Res Function(Waypoint) _then) = _$WaypointCopyWithImpl;
 @useResult
 $Res call({
- String? id, String? name, String? description, double lat, double lon, double? distanceFromStart,@FaIconDataConverter() FaIconData icon, List<String> photos, String author, String? trail,@JsonKey(includeFromJson: false, includeToJson: false) dynamic marker,@JsonKey(includeFromJson: false, includeToJson: false) List<dynamic> localPhotos
+ String id, String collectionId, String collectionName, String? name, String? description, double lat, double lon,@JsonKey(name: 'distance_from_start') double? distanceFromStart,@FaIconDataConverter() FaIconData icon, List<String> photos, String author, String? trail, DateTime created, DateTime updated,@JsonKey(includeFromJson: false, includeToJson: false) dynamic marker,@JsonKey(includeFromJson: false, includeToJson: false) List<String> localPhotos
 });
 
 
@@ -66,10 +66,12 @@ class _$WaypointCopyWithImpl<$Res>
 
 /// Create a copy of Waypoint
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? name = freezed,Object? description = freezed,Object? lat = null,Object? lon = null,Object? distanceFromStart = freezed,Object? icon = null,Object? photos = null,Object? author = null,Object? trail = freezed,Object? marker = freezed,Object? localPhotos = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? collectionId = null,Object? collectionName = null,Object? name = freezed,Object? description = freezed,Object? lat = null,Object? lon = null,Object? distanceFromStart = freezed,Object? icon = null,Object? photos = null,Object? author = null,Object? trail = freezed,Object? created = null,Object? updated = null,Object? marker = freezed,Object? localPhotos = null,}) {
   return _then(_self.copyWith(
-id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String?,name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
+as String,collectionName: null == collectionName ? _self.collectionName : collectionName // ignore: cast_nullable_to_non_nullable
+as String,name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String?,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double,lon: null == lon ? _self.lon : lon // ignore: cast_nullable_to_non_nullable
@@ -78,9 +80,11 @@ as double?,icon: null == icon ? _self.icon : icon // ignore: cast_nullable_to_no
 as FaIconData,photos: null == photos ? _self.photos : photos // ignore: cast_nullable_to_non_nullable
 as List<String>,author: null == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
 as String,trail: freezed == trail ? _self.trail : trail // ignore: cast_nullable_to_non_nullable
-as String?,marker: freezed == marker ? _self.marker : marker // ignore: cast_nullable_to_non_nullable
+as String?,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
+as DateTime,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
+as DateTime,marker: freezed == marker ? _self.marker : marker // ignore: cast_nullable_to_non_nullable
 as dynamic,localPhotos: null == localPhotos ? _self.localPhotos : localPhotos // ignore: cast_nullable_to_non_nullable
-as List<dynamic>,
+as List<String>,
   ));
 }
 
@@ -165,10 +169,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String? name,  String? description,  double lat,  double lon,  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<dynamic> localPhotos)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  String? name,  String? description,  double lat,  double lon, @JsonKey(name: 'distance_from_start')  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail,  DateTime created,  DateTime updated, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<String> localPhotos)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Waypoint() when $default != null:
-return $default(_that.id,_that.name,_that.description,_that.lat,_that.lon,_that.distanceFromStart,_that.icon,_that.photos,_that.author,_that.trail,_that.marker,_that.localPhotos);case _:
+return $default(_that.id,_that.collectionId,_that.collectionName,_that.name,_that.description,_that.lat,_that.lon,_that.distanceFromStart,_that.icon,_that.photos,_that.author,_that.trail,_that.created,_that.updated,_that.marker,_that.localPhotos);case _:
   return orElse();
 
 }
@@ -186,10 +190,10 @@ return $default(_that.id,_that.name,_that.description,_that.lat,_that.lon,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String? name,  String? description,  double lat,  double lon,  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<dynamic> localPhotos)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  String? name,  String? description,  double lat,  double lon, @JsonKey(name: 'distance_from_start')  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail,  DateTime created,  DateTime updated, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<String> localPhotos)  $default,) {final _that = this;
 switch (_that) {
 case _Waypoint():
-return $default(_that.id,_that.name,_that.description,_that.lat,_that.lon,_that.distanceFromStart,_that.icon,_that.photos,_that.author,_that.trail,_that.marker,_that.localPhotos);case _:
+return $default(_that.id,_that.collectionId,_that.collectionName,_that.name,_that.description,_that.lat,_that.lon,_that.distanceFromStart,_that.icon,_that.photos,_that.author,_that.trail,_that.created,_that.updated,_that.marker,_that.localPhotos);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -206,10 +210,10 @@ return $default(_that.id,_that.name,_that.description,_that.lat,_that.lon,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String? name,  String? description,  double lat,  double lon,  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<dynamic> localPhotos)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String collectionId,  String collectionName,  String? name,  String? description,  double lat,  double lon, @JsonKey(name: 'distance_from_start')  double? distanceFromStart, @FaIconDataConverter()  FaIconData icon,  List<String> photos,  String author,  String? trail,  DateTime created,  DateTime updated, @JsonKey(includeFromJson: false, includeToJson: false)  dynamic marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<String> localPhotos)?  $default,) {final _that = this;
 switch (_that) {
 case _Waypoint() when $default != null:
-return $default(_that.id,_that.name,_that.description,_that.lat,_that.lon,_that.distanceFromStart,_that.icon,_that.photos,_that.author,_that.trail,_that.marker,_that.localPhotos);case _:
+return $default(_that.id,_that.collectionId,_that.collectionName,_that.name,_that.description,_that.lat,_that.lon,_that.distanceFromStart,_that.icon,_that.photos,_that.author,_that.trail,_that.created,_that.updated,_that.marker,_that.localPhotos);case _:
   return null;
 
 }
@@ -220,16 +224,18 @@ return $default(_that.id,_that.name,_that.description,_that.lat,_that.lon,_that.
 /// @nodoc
 @JsonSerializable()
 
-class _Waypoint implements Waypoint {
-  const _Waypoint({this.id, this.name = "", this.description = "", required this.lat, required this.lon, this.distanceFromStart, @FaIconDataConverter() this.icon = FontAwesomeIcons.circle, final  List<String> photos = const [], this.author = "000000000000000", this.trail, @JsonKey(includeFromJson: false, includeToJson: false) this.marker, @JsonKey(includeFromJson: false, includeToJson: false) final  List<dynamic> localPhotos = const []}): _photos = photos,_localPhotos = localPhotos;
+class _Waypoint extends Waypoint {
+  const _Waypoint({required this.id, this.collectionId = 'waypoints', this.collectionName = 'waypoints', this.name = "", this.description = "", required this.lat, required this.lon, @JsonKey(name: 'distance_from_start') this.distanceFromStart, @FaIconDataConverter() this.icon = FontAwesomeIcons.circle, final  List<String> photos = const [], this.author = "000000000000000", this.trail, required this.created, required this.updated, @JsonKey(includeFromJson: false, includeToJson: false) this.marker, @JsonKey(includeFromJson: false, includeToJson: false) final  List<String> localPhotos = const []}): _photos = photos,_localPhotos = localPhotos,super._();
   factory _Waypoint.fromJson(Map<String, dynamic> json) => _$WaypointFromJson(json);
 
-@override final  String? id;
+@override final  String id;
+@override@JsonKey() final  String collectionId;
+@override@JsonKey() final  String collectionName;
 @override@JsonKey() final  String? name;
 @override@JsonKey() final  String? description;
 @override final  double lat;
 @override final  double lon;
-@override final  double? distanceFromStart;
+@override@JsonKey(name: 'distance_from_start') final  double? distanceFromStart;
 @override@JsonKey()@FaIconDataConverter() final  FaIconData icon;
  final  List<String> _photos;
 @override@JsonKey() List<String> get photos {
@@ -240,10 +246,12 @@ class _Waypoint implements Waypoint {
 
 @override@JsonKey() final  String author;
 @override final  String? trail;
+@override final  DateTime created;
+@override final  DateTime updated;
 // Non-serializable local fields
 @override@JsonKey(includeFromJson: false, includeToJson: false) final  dynamic marker;
- final  List<dynamic> _localPhotos;
-@override@JsonKey(includeFromJson: false, includeToJson: false) List<dynamic> get localPhotos {
+ final  List<String> _localPhotos;
+@override@JsonKey(includeFromJson: false, includeToJson: false) List<String> get localPhotos {
   if (_localPhotos is EqualUnmodifiableListView) return _localPhotos;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_localPhotos);
@@ -263,16 +271,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Waypoint&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.distanceFromStart, distanceFromStart) || other.distanceFromStart == distanceFromStart)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other._photos, _photos)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&const DeepCollectionEquality().equals(other.marker, marker)&&const DeepCollectionEquality().equals(other._localPhotos, _localPhotos));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Waypoint&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.distanceFromStart, distanceFromStart) || other.distanceFromStart == distanceFromStart)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other._photos, _photos)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&const DeepCollectionEquality().equals(other.marker, marker)&&const DeepCollectionEquality().equals(other._localPhotos, _localPhotos));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,description,lat,lon,distanceFromStart,icon,const DeepCollectionEquality().hash(_photos),author,trail,const DeepCollectionEquality().hash(marker),const DeepCollectionEquality().hash(_localPhotos));
+int get hashCode => Object.hash(runtimeType,id,collectionId,collectionName,name,description,lat,lon,distanceFromStart,icon,const DeepCollectionEquality().hash(_photos),author,trail,created,updated,const DeepCollectionEquality().hash(marker),const DeepCollectionEquality().hash(_localPhotos));
 
 @override
 String toString() {
-  return 'Waypoint(id: $id, name: $name, description: $description, lat: $lat, lon: $lon, distanceFromStart: $distanceFromStart, icon: $icon, photos: $photos, author: $author, trail: $trail, marker: $marker, localPhotos: $localPhotos)';
+  return 'Waypoint(id: $id, collectionId: $collectionId, collectionName: $collectionName, name: $name, description: $description, lat: $lat, lon: $lon, distanceFromStart: $distanceFromStart, icon: $icon, photos: $photos, author: $author, trail: $trail, created: $created, updated: $updated, marker: $marker, localPhotos: $localPhotos)';
 }
 
 
@@ -283,7 +291,7 @@ abstract mixin class _$WaypointCopyWith<$Res> implements $WaypointCopyWith<$Res>
   factory _$WaypointCopyWith(_Waypoint value, $Res Function(_Waypoint) _then) = __$WaypointCopyWithImpl;
 @override @useResult
 $Res call({
- String? id, String? name, String? description, double lat, double lon, double? distanceFromStart,@FaIconDataConverter() FaIconData icon, List<String> photos, String author, String? trail,@JsonKey(includeFromJson: false, includeToJson: false) dynamic marker,@JsonKey(includeFromJson: false, includeToJson: false) List<dynamic> localPhotos
+ String id, String collectionId, String collectionName, String? name, String? description, double lat, double lon,@JsonKey(name: 'distance_from_start') double? distanceFromStart,@FaIconDataConverter() FaIconData icon, List<String> photos, String author, String? trail, DateTime created, DateTime updated,@JsonKey(includeFromJson: false, includeToJson: false) dynamic marker,@JsonKey(includeFromJson: false, includeToJson: false) List<String> localPhotos
 });
 
 
@@ -300,10 +308,12 @@ class __$WaypointCopyWithImpl<$Res>
 
 /// Create a copy of Waypoint
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? name = freezed,Object? description = freezed,Object? lat = null,Object? lon = null,Object? distanceFromStart = freezed,Object? icon = null,Object? photos = null,Object? author = null,Object? trail = freezed,Object? marker = freezed,Object? localPhotos = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? collectionId = null,Object? collectionName = null,Object? name = freezed,Object? description = freezed,Object? lat = null,Object? lon = null,Object? distanceFromStart = freezed,Object? icon = null,Object? photos = null,Object? author = null,Object? trail = freezed,Object? created = null,Object? updated = null,Object? marker = freezed,Object? localPhotos = null,}) {
   return _then(_Waypoint(
-id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String?,name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
+as String,collectionName: null == collectionName ? _self.collectionName : collectionName // ignore: cast_nullable_to_non_nullable
+as String,name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String?,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String?,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double,lon: null == lon ? _self.lon : lon // ignore: cast_nullable_to_non_nullable
@@ -312,9 +322,11 @@ as double?,icon: null == icon ? _self.icon : icon // ignore: cast_nullable_to_no
 as FaIconData,photos: null == photos ? _self._photos : photos // ignore: cast_nullable_to_non_nullable
 as List<String>,author: null == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
 as String,trail: freezed == trail ? _self.trail : trail // ignore: cast_nullable_to_non_nullable
-as String?,marker: freezed == marker ? _self.marker : marker // ignore: cast_nullable_to_non_nullable
+as String?,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
+as DateTime,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
+as DateTime,marker: freezed == marker ? _self.marker : marker // ignore: cast_nullable_to_non_nullable
 as dynamic,localPhotos: null == localPhotos ? _self._localPhotos : localPhotos // ignore: cast_nullable_to_non_nullable
-as List<dynamic>,
+as List<String>,
   ));
 }
 

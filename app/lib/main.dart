@@ -24,7 +24,7 @@ void main() async {
   final dbPath = p.join(appDocDir.path, "objectbox");
   final store = await openStore(directory: dbPath);
 
-  store.box<TrailEntity>().removeAll();
+  // store.box<TrailEntity>().removeAll();
 
   final cookiePath = p.join(appDocDir.path, ".cookies");
   final cookieDir = Directory(cookiePath);

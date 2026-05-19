@@ -57,13 +57,13 @@ final _entities = <obx_int.ModelEntity>[
       obx_int.ModelProperty(
         id: const obx_int.IdUid(7, 4115797788444623288),
         name: 'created',
-        type: 9,
+        type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
         id: const obx_int.IdUid(8, 8205764523610310818),
         name: 'updated',
-        type: 9,
+        type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
@@ -115,7 +115,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(3, 7655646596805638170),
     name: 'WaypointEntity',
-    lastPropertyId: const obx_int.IdUid(11, 22872960591460866),
+    lastPropertyId: const obx_int.IdUid(13, 56903946369053220),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -188,6 +188,18 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 3800566134727195611),
+        name: 'created',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 56903946369053220),
+        name: 'updated',
+        type: 10,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -232,13 +244,13 @@ final _entities = <obx_int.ModelEntity>[
       obx_int.ModelProperty(
         id: const obx_int.IdUid(14, 2326955019160268030),
         name: 'created',
-        type: 9,
+        type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
         id: const obx_int.IdUid(15, 2553217175820669249),
         name: 'updated',
-        type: 9,
+        type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
@@ -373,7 +385,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(6, 5034082009762803572),
     name: 'TrailEntity',
-    lastPropertyId: const obx_int.IdUid(19, 4064924508174561242),
+    lastPropertyId: const obx_int.IdUid(21, 3743255950615280682),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -497,6 +509,18 @@ final _entities = <obx_int.ModelEntity>[
         relationField: 'category',
         relationTarget: 'CategoryEntity',
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(20, 8911311424169059426),
+        name: 'created',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(21, 3743255950615280682),
+        name: 'updated',
+        type: 10,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[
@@ -611,8 +635,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final idOffset = fbb.writeString(object.id);
         final usernameOffset = fbb.writeString(object.username);
         final emailOffset = fbb.writeString(object.email);
-        final createdOffset = fbb.writeString(object.created);
-        final updatedOffset = fbb.writeString(object.updated);
         final avatarOffset = object.avatar == null
             ? null
             : fbb.writeString(object.avatar!);
@@ -629,8 +651,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, usernameOffset);
         fbb.addOffset(3, emailOffset);
-        fbb.addOffset(6, createdOffset);
-        fbb.addOffset(7, updatedOffset);
+        fbb.addInt64(6, object.created.millisecondsSinceEpoch);
+        fbb.addInt64(7, object.updated.millisecondsSinceEpoch);
         fbb.addOffset(8, avatarOffset);
         fbb.addOffset(9, iriOffset);
         fbb.addOffset(10, preferredUsernameOffset);
@@ -671,12 +693,14 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final serverUrlParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 28, '');
-        final createdParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGet(buffer, rootOffset, 16, '');
-        final updatedParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGet(buffer, rootOffset, 18, '');
+        final createdParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 16, 0),
+          isUtc: true,
+        );
+        final updatedParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 18, 0),
+          isUtc: true,
+        );
         final avatarParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 20);
@@ -721,7 +745,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final iconOffset = object.icon == null
             ? null
             : fbb.writeString(object.icon!);
-        fbb.startTable(12);
+        fbb.startTable(14);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -733,6 +757,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(8, photosOffset);
         fbb.addInt64(9, object.trail.targetId);
         fbb.addOffset(10, iconOffset);
+        fbb.addInt64(11, object.created.millisecondsSinceEpoch);
+        fbb.addInt64(12, object.updated.millisecondsSinceEpoch);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -742,6 +768,14 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final idParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 6, '');
+        final createdParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 26, 0),
+          isUtc: true,
+        );
+        final updatedParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 28, 0),
+          isUtc: true,
+        );
         final nameParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 8);
@@ -774,6 +808,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         ).vTableGet(buffer, rootOffset, 20, []);
         final object = WaypointEntity(
           id: idParam,
+          created: createdParam,
+          updated: updatedParam,
           name: nameParam,
           description: descriptionParam,
           lat: latParam,
@@ -808,8 +844,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
             : fbb.writeString(object.icon!);
         final collectionIdOffset = fbb.writeString(object.collectionId);
         final collectionNameOffset = fbb.writeString(object.collectionName);
-        final createdOffset = fbb.writeString(object.created);
-        final updatedOffset = fbb.writeString(object.updated);
         final usernameOffset = fbb.writeString(object.username);
         final preferredUsernameOffset = fbb.writeString(
           object.preferredUsername,
@@ -843,8 +877,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(8, iconOffset);
         fbb.addOffset(11, collectionIdOffset);
         fbb.addOffset(12, collectionNameOffset);
-        fbb.addOffset(13, createdOffset);
-        fbb.addOffset(14, updatedOffset);
+        fbb.addInt64(13, object.created.millisecondsSinceEpoch);
+        fbb.addInt64(14, object.updated.millisecondsSinceEpoch);
         fbb.addOffset(15, usernameOffset);
         fbb.addOffset(16, preferredUsernameOffset);
         fbb.addOffset(17, domainOffset);
@@ -876,12 +910,14 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final collectionNameParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 28, '');
-        final createdParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGet(buffer, rootOffset, 30, '');
-        final updatedParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGet(buffer, rootOffset, 32, '');
+        final createdParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 30, 0),
+          isUtc: true,
+        );
+        final updatedParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 32, 0),
+          isUtc: true,
+        );
         final usernameParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 34, '');
@@ -1033,7 +1069,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final pmTilesOffset = fbb.writeList(
           object.pmTiles.map(fbb.writeString).toList(growable: false),
         );
-        fbb.startTable(20);
+        fbb.startTable(22);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1053,6 +1089,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addInt64(16, object.dbDifficulty);
         fbb.addInt64(17, object.author.targetId);
         fbb.addInt64(18, object.category.targetId);
+        fbb.addInt64(19, object.created.millisecondsSinceEpoch);
+        fbb.addInt64(20, object.updated.millisecondsSinceEpoch);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1070,6 +1108,14 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final nameParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 8, '');
+        final createdParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 42, 0),
+          isUtc: true,
+        );
+        final updatedParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 44, 0),
+          isUtc: true,
+        );
         final locationParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 10);
@@ -1122,6 +1168,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
             TrailEntity(
                 id: idParam,
                 name: nameParam,
+                created: createdParam,
+                updated: updatedParam,
                 location: locationParam,
                 date: dateParam,
                 public: publicParam,
@@ -1208,12 +1256,12 @@ class UserEntity_ {
   );
 
   /// See [UserEntity.created].
-  static final created = obx.QueryStringProperty<UserEntity>(
+  static final created = obx.QueryDateProperty<UserEntity>(
     _entities[0].properties[4],
   );
 
   /// See [UserEntity.updated].
-  static final updated = obx.QueryStringProperty<UserEntity>(
+  static final updated = obx.QueryDateProperty<UserEntity>(
     _entities[0].properties[5],
   );
 
@@ -1309,6 +1357,16 @@ class WaypointEntity_ {
   static final icon = obx.QueryStringProperty<WaypointEntity>(
     _entities[1].properties[10],
   );
+
+  /// See [WaypointEntity.created].
+  static final created = obx.QueryDateProperty<WaypointEntity>(
+    _entities[1].properties[11],
+  );
+
+  /// See [WaypointEntity.updated].
+  static final updated = obx.QueryDateProperty<WaypointEntity>(
+    _entities[1].properties[12],
+  );
 }
 
 /// [ActorEntity] entity fields to define ObjectBox queries.
@@ -1339,12 +1397,12 @@ class ActorEntity_ {
   );
 
   /// See [ActorEntity.created].
-  static final created = obx.QueryStringProperty<ActorEntity>(
+  static final created = obx.QueryDateProperty<ActorEntity>(
     _entities[2].properties[5],
   );
 
   /// See [ActorEntity.updated].
-  static final updated = obx.QueryStringProperty<ActorEntity>(
+  static final updated = obx.QueryDateProperty<ActorEntity>(
     _entities[2].properties[6],
   );
 
@@ -1542,6 +1600,16 @@ class TrailEntity_ {
   /// See [TrailEntity.category].
   static final category = obx.QueryRelationToOne<TrailEntity, CategoryEntity>(
     _entities[4].properties[18],
+  );
+
+  /// See [TrailEntity.created].
+  static final created = obx.QueryDateProperty<TrailEntity>(
+    _entities[4].properties[19],
+  );
+
+  /// See [TrailEntity.updated].
+  static final updated = obx.QueryDateProperty<TrailEntity>(
+    _entities[4].properties[20],
   );
 
   /// see [TrailEntity.waypoints]

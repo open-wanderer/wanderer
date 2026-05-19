@@ -29,8 +29,8 @@ class _WandererMapState extends ConsumerState<WandererMap> {
     final auth = ref.read(authProvider).requireValue!;
     final serverUrl = auth.serverUrl;
 
-    final originalStyle = await StyleReader(
-      uri: 'http://localhost:5173/styles/ofm.json',
+    final originalStyle = await StyleReader.asset(
+      'assets/styles/ofm.json',
     ).read();
 
     if (mounted) {

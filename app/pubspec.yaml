@@ -11,6 +11,7 @@ dependencies:
   dio: ^5.9.2
   dio_cookie_manager: ^3.4.0
   duration: ^4.0.3
+  fl_chart: ^1.2.0
   flutter:
     sdk: flutter
   flutter_form_builder: ^10.3.0+2
@@ -64,6 +65,7 @@ flutter:
   generate: true
   assets:
     - assets/svgs/
+    - assets/styles/
   fonts:
     - family: IBMPlexSans
       fonts:

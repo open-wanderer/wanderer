@@ -305,6 +305,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
+  fl_chart:
+    dependency: "direct main"
+    description:
+      name: fl_chart
+      sha256: b938f77d042cbcd822936a7a359a7235bad8bd72070de1f827efc2cc297ac888
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
   flat_buffers:
     dependency: transitive
     description:
@@ -1188,7 +1196,7 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: "36c77c024d653b60351adf788d6c22a297833a94"
+      resolved-ref: "6ba8a99f08ca98e80f2e45c0c41a02e9a9f6d86c"
       url: "https://github.com/flomp/flutter-vector-map-tiles"
     source: git
     version: "10.0.0-beta.2"

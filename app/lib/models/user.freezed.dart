@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$User {
 
- String get id; String get collectionId; String get collectionName; String get created; String get updated; String get username; String get email; bool get emailVisibility; bool get verified; String? get avatar; UserExpand? get expand;
+ String get id; String get collectionId; String get collectionName; DateTime get created; DateTime get updated; String get username; String get email; bool get emailVisibility; bool get verified; String? get avatar; UserExpand? get expand;
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $UserCopyWith<$Res>  {
   factory $UserCopyWith(User value, $Res Function(User) _then) = _$UserCopyWithImpl;
 @useResult
 $Res call({
- String id, String collectionId, String collectionName, String created, String updated, String username, String email, bool emailVisibility, bool verified, String? avatar, UserExpand? expand
+ String id, String collectionId, String collectionName, DateTime created, DateTime updated, String username, String email, bool emailVisibility, bool verified, String? avatar, UserExpand? expand
 });
 
 
@@ -71,8 +71,8 @@ id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,collectionName: null == collectionName ? _self.collectionName : collectionName // ignore: cast_nullable_to_non_nullable
 as String,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
-as String,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
-as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
+as DateTime,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
+as DateTime,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
 as String,emailVisibility: null == emailVisibility ? _self.emailVisibility : emailVisibility // ignore: cast_nullable_to_non_nullable
 as bool,verified: null == verified ? _self.verified : verified // ignore: cast_nullable_to_non_nullable
@@ -175,7 +175,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  String created,  String updated,  String username,  String email,  bool emailVisibility,  bool verified,  String? avatar,  UserExpand? expand)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username,  String email,  bool emailVisibility,  bool verified,  String? avatar,  UserExpand? expand)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
 return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.email,_that.emailVisibility,_that.verified,_that.avatar,_that.expand);case _:
@@ -196,7 +196,7 @@ return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  String created,  String updated,  String username,  String email,  bool emailVisibility,  bool verified,  String? avatar,  UserExpand? expand)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username,  String email,  bool emailVisibility,  bool verified,  String? avatar,  UserExpand? expand)  $default,) {final _that = this;
 switch (_that) {
 case _User():
 return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.email,_that.emailVisibility,_that.verified,_that.avatar,_that.expand);case _:
@@ -216,7 +216,7 @@ return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String collectionId,  String collectionName,  String created,  String updated,  String username,  String email,  bool emailVisibility,  bool verified,  String? avatar,  UserExpand? expand)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username,  String email,  bool emailVisibility,  bool verified,  String? avatar,  UserExpand? expand)?  $default,) {final _that = this;
 switch (_that) {
 case _User() when $default != null:
 return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.email,_that.emailVisibility,_that.verified,_that.avatar,_that.expand);case _:
@@ -237,8 +237,8 @@ class _User extends User {
 @override final  String id;
 @override final  String collectionId;
 @override final  String collectionName;
-@override final  String created;
-@override final  String updated;
+@override final  DateTime created;
+@override final  DateTime updated;
 @override final  String username;
 @override final  String email;
 @override final  bool emailVisibility;
@@ -279,7 +279,7 @@ abstract mixin class _$UserCopyWith<$Res> implements $UserCopyWith<$Res> {
   factory _$UserCopyWith(_User value, $Res Function(_User) _then) = __$UserCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String collectionId, String collectionName, String created, String updated, String username, String email, bool emailVisibility, bool verified, String? avatar, UserExpand? expand
+ String id, String collectionId, String collectionName, DateTime created, DateTime updated, String username, String email, bool emailVisibility, bool verified, String? avatar, UserExpand? expand
 });
 
 
@@ -302,8 +302,8 @@ id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,collectionName: null == collectionName ? _self.collectionName : collectionName // ignore: cast_nullable_to_non_nullable
 as String,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
-as String,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
-as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
+as DateTime,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
+as DateTime,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
 as String,emailVisibility: null == emailVisibility ? _self.emailVisibility : emailVisibility // ignore: cast_nullable_to_non_nullable
 as bool,verified: null == verified ? _self.verified : verified // ignore: cast_nullable_to_non_nullable

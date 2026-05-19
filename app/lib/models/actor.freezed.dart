@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Actor {
 
- String get id; String get collectionId; String get collectionName; String get created; String get updated; String get username;@JsonKey(name: 'preferred_username') String get preferredUsername; String? get domain; String? get summary; String? get published; int? get followerCount; int? get followingCount; String get iri; String get inbox; String? get outbox; String? get icon; String? get followers; String? get following; bool get isLocal;@JsonKey(name: 'public_key') String get publicKey;@JsonKey(name: 'last_fetched') String get lastFetched; String get user;
+ String get id; String get collectionId; String get collectionName; DateTime get created; DateTime get updated; String get username;@JsonKey(name: 'preferred_username') String get preferredUsername; String? get domain; String? get summary; String? get published; int? get followerCount; int? get followingCount; String get iri; String get inbox; String? get outbox; String? get icon; String? get followers; String? get following; bool get isLocal;@JsonKey(name: 'public_key') String get publicKey;@JsonKey(name: 'last_fetched') String get lastFetched; String get user;
 /// Create a copy of Actor
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $ActorCopyWith<$Res>  {
   factory $ActorCopyWith(Actor value, $Res Function(Actor) _then) = _$ActorCopyWithImpl;
 @useResult
 $Res call({
- String id, String collectionId, String collectionName, String created, String updated, String username,@JsonKey(name: 'preferred_username') String preferredUsername, String? domain, String? summary, String? published, int? followerCount, int? followingCount, String iri, String inbox, String? outbox, String? icon, String? followers, String? following, bool isLocal,@JsonKey(name: 'public_key') String publicKey,@JsonKey(name: 'last_fetched') String lastFetched, String user
+ String id, String collectionId, String collectionName, DateTime created, DateTime updated, String username,@JsonKey(name: 'preferred_username') String preferredUsername, String? domain, String? summary, String? published, int? followerCount, int? followingCount, String iri, String inbox, String? outbox, String? icon, String? followers, String? following, bool isLocal,@JsonKey(name: 'public_key') String publicKey,@JsonKey(name: 'last_fetched') String lastFetched, String user
 });
 
 
@@ -71,8 +71,8 @@ id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,collectionName: null == collectionName ? _self.collectionName : collectionName // ignore: cast_nullable_to_non_nullable
 as String,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
-as String,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
-as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
+as DateTime,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
+as DateTime,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
 as String,preferredUsername: null == preferredUsername ? _self.preferredUsername : preferredUsername // ignore: cast_nullable_to_non_nullable
 as String,domain: freezed == domain ? _self.domain : domain // ignore: cast_nullable_to_non_nullable
 as String?,summary: freezed == summary ? _self.summary : summary // ignore: cast_nullable_to_non_nullable
@@ -174,7 +174,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  String created,  String updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published,  int? followerCount,  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published,  int? followerCount,  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Actor() when $default != null:
 return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.preferredUsername,_that.domain,_that.summary,_that.published,_that.followerCount,_that.followingCount,_that.iri,_that.inbox,_that.outbox,_that.icon,_that.followers,_that.following,_that.isLocal,_that.publicKey,_that.lastFetched,_that.user);case _:
@@ -195,7 +195,7 @@ return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  String created,  String updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published,  int? followerCount,  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published,  int? followerCount,  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)  $default,) {final _that = this;
 switch (_that) {
 case _Actor():
 return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.preferredUsername,_that.domain,_that.summary,_that.published,_that.followerCount,_that.followingCount,_that.iri,_that.inbox,_that.outbox,_that.icon,_that.followers,_that.following,_that.isLocal,_that.publicKey,_that.lastFetched,_that.user);case _:
@@ -215,7 +215,7 @@ return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String collectionId,  String collectionName,  String created,  String updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published,  int? followerCount,  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published,  int? followerCount,  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)?  $default,) {final _that = this;
 switch (_that) {
 case _Actor() when $default != null:
 return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.preferredUsername,_that.domain,_that.summary,_that.published,_that.followerCount,_that.followingCount,_that.iri,_that.inbox,_that.outbox,_that.icon,_that.followers,_that.following,_that.isLocal,_that.publicKey,_that.lastFetched,_that.user);case _:
@@ -236,8 +236,8 @@ class _Actor extends Actor {
 @override final  String id;
 @override final  String collectionId;
 @override final  String collectionName;
-@override final  String created;
-@override final  String updated;
+@override final  DateTime created;
+@override final  DateTime updated;
 @override final  String username;
 @override@JsonKey(name: 'preferred_username') final  String preferredUsername;
 @override final  String? domain;
@@ -289,7 +289,7 @@ abstract mixin class _$ActorCopyWith<$Res> implements $ActorCopyWith<$Res> {
   factory _$ActorCopyWith(_Actor value, $Res Function(_Actor) _then) = __$ActorCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String collectionId, String collectionName, String created, String updated, String username,@JsonKey(name: 'preferred_username') String preferredUsername, String? domain, String? summary, String? published, int? followerCount, int? followingCount, String iri, String inbox, String? outbox, String? icon, String? followers, String? following, bool isLocal,@JsonKey(name: 'public_key') String publicKey,@JsonKey(name: 'last_fetched') String lastFetched, String user
+ String id, String collectionId, String collectionName, DateTime created, DateTime updated, String username,@JsonKey(name: 'preferred_username') String preferredUsername, String? domain, String? summary, String? published, int? followerCount, int? followingCount, String iri, String inbox, String? outbox, String? icon, String? followers, String? following, bool isLocal,@JsonKey(name: 'public_key') String publicKey,@JsonKey(name: 'last_fetched') String lastFetched, String user
 });
 
 
@@ -312,8 +312,8 @@ id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,collectionName: null == collectionName ? _self.collectionName : collectionName // ignore: cast_nullable_to_non_nullable
 as String,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
-as String,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
-as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
+as DateTime,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
+as DateTime,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
 as String,preferredUsername: null == preferredUsername ? _self.preferredUsername : preferredUsername // ignore: cast_nullable_to_non_nullable
 as String,domain: freezed == domain ? _self.domain : domain // ignore: cast_nullable_to_non_nullable
 as String?,summary: freezed == summary ? _self.summary : summary // ignore: cast_nullable_to_non_nullable

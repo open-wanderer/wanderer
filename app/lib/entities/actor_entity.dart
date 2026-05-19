@@ -12,8 +12,10 @@ class ActorEntity {
 
   String collectionId;
   String collectionName;
-  String created;
-  String updated;
+  @Property(type: PropertyType.dateUtc)
+  DateTime created;
+  @Property(type: PropertyType.dateUtc)
+  DateTime updated;
   String username;
   String preferredUsername;
   String? domain;

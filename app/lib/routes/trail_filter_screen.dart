@@ -306,7 +306,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 CheckboxListTile(
                   dense: true,
                   value: filter.value?.liked,
-                  title: Text(l18n.private),
+                  title: Text(l18n.liked),
                   onChanged: (value) => ref
                       .read(trailFilterProvider.notifier)
                       .updateFilter((filter) => filter.copyWith(liked: value)),

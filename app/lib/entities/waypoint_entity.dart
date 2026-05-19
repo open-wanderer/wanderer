@@ -22,10 +22,17 @@ class WaypointEntity {
 
   List<String> photos;
 
+  @Property(type: PropertyType.dateUtc)
+  DateTime created;
+  @Property(type: PropertyType.dateUtc)
+  DateTime updated;
+
   final trail = ToOne<TrailEntity>();
 
   WaypointEntity({
     required this.id,
+    required this.created,
+    required this.updated,
     this.name,
     this.description,
     required this.lat,
@@ -37,11 +44,8 @@ class WaypointEntity {
   });
 
   factory WaypointEntity.fromModel(Waypoint w) {
-    if (w.id == null) {
-      throw Exception("waypoint requires id");
-    }
     return WaypointEntity(
-      id: w.id!,
+      id: w.id,
       name: w.name,
       description: w.description,
       lat: w.lat,
@@ -50,6 +54,8 @@ class WaypointEntity {
       author: w.author,
       photos: w.photos,
       icon: fontAwesomeIconsMapReversed[w.icon],
+      created: w.created,
+      updated: w.updated,
     );
   }
 }
@@ -66,6 +72,8 @@ extension WaypointEntityMapping on WaypointEntity {
       author: author,
       photos: photos,
       icon: fontAwesomeIconsMap[icon] ?? FontAwesomeIcons.circle,
+      updated: updated,
+      created: created,
     );
   }
 }
