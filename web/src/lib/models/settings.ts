@@ -57,6 +57,8 @@ class Settings {
 
 export type Behavior = {
     allowAutoGeolocate: boolean;
+    mapClusteringMaxZoom?: number;
+    showTrailStartMarker?: boolean;
 }
 
 

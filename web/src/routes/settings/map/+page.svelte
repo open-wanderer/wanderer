@@ -15,7 +15,7 @@
     import { settings_update } from "$lib/stores/settings_store";
     import { currentUser } from "$lib/stores/user_store";
     import { getIconForLocation } from "$lib/util/icon_util";
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
     import Toggle from "$lib/components/base/toggle.svelte";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
@@ -25,10 +25,21 @@
     let allowAutoGeolocate = $state(
         page.data.settings.behavior?.allowAutoGeolocate ?? false,
     );
+    let mapClusteringMaxZoom = $state(
+        page.data.settings.behavior?.mapClusteringMaxZoom ?? 11,
+    );
+    let showTrailStartMarker = $state(
+        page.data.settings.behavior?.showTrailStartMarker ?? false,
+    );
 
     $effect(() => {
-        if (settings?.behavior) {
-            allowAutoGeolocate = settings.behavior.allowAutoGeolocate ?? false;
+        const b = page.data.settings?.behavior;
+        if (b) {
+            untrack(() => {
+                allowAutoGeolocate = b.allowAutoGeolocate ?? false;
+                mapClusteringMaxZoom = b.mapClusteringMaxZoom ?? 11;
+                showTrailStartMarker = b.showTrailStartMarker ?? false;
+            });
         }
     });
 
@@ -42,6 +53,8 @@
                 ...settings,
                 behavior: {
                     allowAutoGeolocate: allowAutoGeolocate,
+                    mapClusteringMaxZoom: Number(mapClusteringMaxZoom),
+                    showTrailStartMarker: showTrailStartMarker,
                 },
             };
 
@@ -182,6 +195,31 @@
                     <div>
                         <Toggle
                             bind:value={allowAutoGeolocate}
+                            onchange={handleBehaviorChange}
+                        ></Toggle>
+                    </div>
+                </div>
+                <div
+                    class="grid gap-4 items-center"
+                    style="grid-template-columns: 1fr min-content ;"
+                >
+                    <p>{$_("map-cluster-zoom-level")}</p>
+                    <div class="w-20">
+                        <TextField
+                            type="number"
+                            bind:value={mapClusteringMaxZoom}
+                            onchange={handleBehaviorChange}
+                        ></TextField>
+                    </div>
+                </div>
+                <div
+                    class="grid gap-4 items-center"
+                    style="grid-template-columns: 1fr min-content ;"
+                >
+                    <p>{$_("show-trail-start-marker")}</p>
+                    <div>
+                        <Toggle
+                            bind:value={showTrailStartMarker}
                             onchange={handleBehaviorChange}
                         ></Toggle>
                     </div>

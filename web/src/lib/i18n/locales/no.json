@@ -264,6 +264,8 @@
   "make-one": "Lag en!",
   "make-thumbnail": "Lag miniatyrbilde",
   "map": "Kart",
+  "map-cluster-zoom-level": "Zoomnivå for gruppering av spor (0-22)",
+  "show-trail-start-marker": "Vis markør ved starten av stien",
   "map-style": "Kartstil",
   "mark-trail-as-completed": "",
   "mark-trail-as-completed-modal-text": "",

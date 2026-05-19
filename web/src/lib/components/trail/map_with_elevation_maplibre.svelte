@@ -472,6 +472,7 @@
         layerManager.addLayer(
             "preview",
             new PreviewLayer(map, geojson, {
+                showStartMarker: page.data.settings?.behavior?.showTrailStartMarker ?? false,
                 listeners: {
                     preview: {
                         onEnter: (e) => {

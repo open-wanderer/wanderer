@@ -32,11 +32,14 @@ export async function POST(event: RequestEvent) {
 
         const hits = r.results[0].hits;
         
+        const clusteringMaxZoom = event.locals.settings?.behavior?.mapClusteringMaxZoom ?? 11;
+        const forceClustering = zoom < clusteringMaxZoom;
+
         // Dynamic Threshold: Sort by diagonal and pick top N for polylines
         const sortedHits = [...hits].sort((a: any, b: any) => (b.bounding_box_diagonal ?? 0) - (a.bounding_box_diagonal ?? 0));
         
-        const largeHits = sortedHits.slice(0, MAP_MAX_POLYLINES);
-        const smallHits = sortedHits.slice(MAP_MAX_POLYLINES);
+        const largeHits = forceClustering ? [] : sortedHits.slice(0, MAP_MAX_POLYLINES);
+        const smallHits = forceClustering ? sortedHits : sortedHits.slice(MAP_MAX_POLYLINES);
 
         const smallFeatures: GeoJSON.Feature<GeoJSON.Point, any>[] = smallHits.map((h: any) => ({
             type: "Feature",
