@@ -24,6 +24,8 @@
     import { SummitLog } from "$lib/models/summit_log";
     import { Trail } from "$lib/models/trail";
     import type { RoutingOptions, ValhallaAnchor } from "$lib/models/valhalla";
+    import type { OverpassPopupActionFactory } from "$lib/vendor/maplibre-layer-manager/overpass-layer";
+    import { type OverpassPopupAction } from "$lib/util/maplibre_util";
     import { Waypoint } from "$lib/models/waypoint";
     import { categories } from "$lib/stores/category_store";
     import {
@@ -1387,6 +1389,24 @@
         selectedSearchLocation = null;
     }
 
+    const buildPoiAnchorAction: OverpassPopupActionFactory = (
+        _feature,
+        coordinates,
+    ) => {
+        const [lon, lat] = coordinates;
+        if (typeof lat !== "number" || typeof lon !== "number") {
+            return null;
+        }
+        if (!drawingActive) {
+            return null;
+        }
+        return {
+            label: $_("add-as-endpoint"),
+            icon: "fa fa-flag-checkered",
+            onClick: () => addAnchorAndRecalculate(lat, lon),
+        } satisfies OverpassPopupAction;
+    };
+
     async function addSelectedLocationAsEndpoint() {
         if (!selectedSearchLocation) {
             return;
@@ -1995,6 +2015,7 @@
                 onsegmentclick={(data) => handleSegmentClick(data)}
                 onsegmentdragend={(data) => handleSegmentDragEnd(data)}
                 mapOptions={{ preserveDrawingBuffer: true }}
+                {buildPoiAnchorAction}
             ></MapWithElevationMaplibre>
         </div>
     </div>
