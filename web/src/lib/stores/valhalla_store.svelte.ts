@@ -16,8 +16,8 @@ const emtpyTrack = new Track({ trkseg: [] })
 class ValhallaStore {
     route: GPX = $state(new GPX({ trk: [emtpyTrack] }));
     anchors: ValhallaAnchor[] = $state([]);
-    undoStack: { delta: Changeset, reverseDelta: Changeset }[] = $state([]);
-    redoStack: { delta: Changeset, reverseDelta: Changeset }[] = $state([]);
+    undoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[] }[] = $state([]);
+    redoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[] }[] = $state([]);
 }
 
 export const valhallaStore = new ValhallaStore();
@@ -235,8 +235,8 @@ export async function splitSegment(index: number, pos: LngLat) {
     const firstSegmentPoints = [...points.slice(0, bestSplitIndex), intersectionPoint];
     const secondSegmentPoints = [intersectionPoint, ...points.slice(bestSplitIndex)];
 
-    editRoute(index, firstSegmentPoints)
-    insertIntoRoute(secondSegmentPoints, index + 1)
+    await editRoute(index, firstSegmentPoints)
+    await insertIntoRoute(secondSegmentPoints, index + 1)
 
 }
 
@@ -263,10 +263,18 @@ export function normalizeRouteTime() {
 export function undo() {
     const historyItem = valhallaStore.undoStack.pop()
     if (!historyItem) {
-        return
+        return undefined
     }
     valhallaStore.redoStack.push(historyItem)
 
+    valhallaStore.route = applyChangeset(valhallaStore.route, historyItem.reverseDelta);
+    valhallaStore.route.features = valhallaStore.route.getTotals();
+    return historyItem;
+}
+
+export function revertRouteChange() {
+    const historyItem = valhallaStore.undoStack.pop();
+    if (!historyItem) return;
     valhallaStore.route = applyChangeset(valhallaStore.route, historyItem.reverseDelta);
     valhallaStore.route.features = valhallaStore.route.getTotals();
 }
@@ -274,10 +282,11 @@ export function undo() {
 export function redo() {
     const historyItem = valhallaStore.redoStack.pop()
     if (!historyItem) {
-        return
+        return undefined
     }
     valhallaStore.undoStack.push(historyItem)
 
     valhallaStore.route = applyChangeset(valhallaStore.route, historyItem.delta);
     valhallaStore.route.features = valhallaStore.route.getTotals();
+    return historyItem;
 }

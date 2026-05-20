@@ -128,20 +128,30 @@ export async function searchLocations(q: string, limit?: number, f: (url: Reques
     }))
 }
 
-async function fetchGeocoding(path: string, params: URLSearchParams, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<Response> {
+async function fetchGeocoding(path: string, params: URLSearchParams, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch, signal?: AbortSignal): Promise<Response> {
     const query = params.toString();
     const url = query.length ? `/api/v1/geocoding/${path}?${query}` : `/api/v1/geocoding/${path}`;
-    return await f(url);
+    return await f(url, signal ? { signal } : undefined);
 }
 
-export async function searchLocationReverse(lat: number, lon: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+type ReverseGeocodingOptions = {
+    includeRoad?: boolean;
+    signal?: AbortSignal;
+}
+
+export type FetchFunction = (url: RequestInfo | URL, config?: RequestInit) => Promise<Response>;
+
+export async function searchLocationReverse(
+    lat: number,
+    lon: number,
+    options: ReverseGeocodingOptions = {},
+    f: FetchFunction = fetch,
+) {
     const params = new URLSearchParams({
-            lat: String(lat),
-            lon: String(lon),
-            format: "geojson",
-            addressdetails: "1",
-        });
-    const r = await fetchGeocoding("reverse", params, f);
+        lat: String(lat),
+        lon: String(lon),
+    });
+    const r = await fetchGeocoding("reverse", params, f, options.signal);
     if (!r.ok) {
         const response = await r.json();
         throw new APIError(r.status, response.message, response.detail)
@@ -149,12 +159,15 @@ export async function searchLocationReverse(lat: number, lon: number, f: (url: R
     const response: NominatimResponse = await r.json();
 
     if (response.features?.at(0)?.properties.address) {
-        return getLocationDescription(response.features[0].properties.address)
+        return getLocationDescription(
+            response.features[0].properties.address,
+            options,
+        )
     }
     return ""
 }
 
-function getLocationDescription(address: Address) {
+function getLocationDescription(address: Address, options: ReverseGeocodingOptions = {}) {
     let description = ""
 
     if (address.country) {
@@ -171,6 +184,9 @@ function getLocationDescription(address: Address) {
         description = `${address.hamlet}, ` + description
     } else if (address.village) {
         description = `${address.village}, ` + description
+    }
+    if (options.includeRoad && address.road) {
+        description = `${address.road}, ` + description;
     }
     return description;
 }

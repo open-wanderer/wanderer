@@ -9,6 +9,7 @@
     import SummitLogModal from "$lib/components/summit_log/summit_log_modal.svelte";
     import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
     import PhotoPicker from "$lib/components/trail/photo_picker.svelte";
+    import TrailAnchorList from "$lib/components/trail/trail_anchor_list.svelte";
     import WaypointCard from "$lib/components/waypoint/waypoint_card.svelte";
     import WaypointMergeModal, {
         type WaypointMergeOptions,
@@ -52,6 +53,7 @@
         splitSegment,
         undo,
         redo,
+        revertRouteChange,
         clearUndoRedoStack,
     } from "$lib/stores/valhalla_store.svelte.js";
     import { waypoint } from "$lib/stores/waypoint_store";
@@ -172,6 +174,8 @@
         autoRouting: true,
         modeOfTransport: "pedestrian",
     });
+    let routeAnchorListUpdating = $state(false);
+    let routeSegments = $state<TrackSegment[]>([]);
 
     let savedAtLeastOnce = $state(false);
 
@@ -757,8 +761,7 @@
             return;
         }
         drawingActive = true;
-        if (!valhallaStore.route.trk?.at(0)?.trkseg?.at(0)?.trkpt?.length) {
-        }
+        routeSegments = [...(valhallaStore.route.trk?.at(0)?.trkseg ?? [])];
         for (const anchor of valhallaStore.anchors) {
             anchor.marker?.addTo(map);
         }
@@ -834,9 +837,9 @@
                 lon,
                 routingOptions,
             );
-            insertIntoRoute(routeWaypoints);
-            updateTrailWithRouteData();
+            await insertIntoRoute(routeWaypoints);
             normalizeRouteTime();
+            updateTrailWithRouteData();
         } catch (e) {
             console.error(e);
             show_toast({
@@ -933,26 +936,27 @@
         markerIcon.textContent = index;
     }
 
+    function refreshAnchorLabels(startIndex: number = 0) {
+        for (let i = startIndex; i < valhallaStore.anchors.length; i++) {
+            const anchor = valhallaStore.anchors[i];
+            const markerIcon = anchor.marker?.getElement();
+            if (markerIcon) {
+                markerIcon.textContent = `${i + 1}`;
+                anchor
+                    .marker!.getPopup()
+                    ._content.getElementsByTagName("h5")[0].textContent =
+                    $_("route-point") + " #" + (i + 1);
+            }
+        }
+    }
+
     async function removeAnchor(anchorIndex: number) {
         if (!drawingActive) {
             return;
         }
         valhallaStore.anchors[anchorIndex]?.marker?.remove();
         valhallaStore.anchors.splice(anchorIndex, 1);
-        for (let i = anchorIndex; i < valhallaStore.anchors.length; i++) {
-            const anchor = valhallaStore.anchors[i];
-            const markerIcon = anchor.marker?.getElement();
-            if (markerIcon) {
-                const markerText = markerIcon.textContent ?? "0";
-                const markerIndex = parseInt(markerText);
-                const newIndex = markerIndex - 1;
-                markerIcon.textContent = newIndex + "";
-                anchor
-                    .marker!.getPopup()
-                    ._content.getElementsByTagName("h5")[0].textContent =
-                    $_("route-point") + " #" + newIndex;
-            }
-        }
+        refreshAnchorLabels(anchorIndex);
         if (anchorIndex == 0) {
             deleteFromRoute(anchorIndex);
             if ($formData.expand?.gpx_data) {
@@ -964,6 +968,113 @@
         } else {
             deleteFromRoute(anchorIndex - 1);
             await recalculateRoute(anchorIndex);
+        }
+    }
+
+    async function recalculateRouteFromAnchors(fromIndex: number, toIndex: number) {
+        const anchors = valhallaStore.anchors;
+        const N = anchors.length;
+
+        if (N < 2) {
+            setRoute(new GPX({ trk: [new Track({ trkseg: [] })] }), true);
+            updateTrailWithRouteData();
+            return;
+        }
+
+        // Segments not touching the moved anchor are reused (shifted by ±1); only the 2–3 boundary segments are recalculated.
+        const oldSegments = valhallaStore.route.trk?.at(0)?.trkseg ?? [];
+        const newSegments: (TrackSegment | null)[] = new Array(N - 1).fill(null);
+        const toRecalc: number[] = [];
+
+        if (fromIndex < toIndex) {
+            for (let i = 0; i < fromIndex - 1; i++) newSegments[i] = oldSegments[i] ?? null;
+            for (let i = fromIndex; i <= toIndex - 2; i++) newSegments[i] = oldSegments[i + 1] ?? null;
+            for (let i = toIndex + 1; i < N - 1; i++) newSegments[i] = oldSegments[i] ?? null;
+            if (fromIndex > 0) toRecalc.push(fromIndex - 1);
+            toRecalc.push(toIndex - 1);
+            if (toIndex < N - 1) toRecalc.push(toIndex);
+        } else {
+            for (let i = 0; i < toIndex - 1; i++) newSegments[i] = oldSegments[i] ?? null;
+            for (let i = toIndex + 1; i <= fromIndex - 1; i++) newSegments[i] = oldSegments[i - 1] ?? null;
+            for (let i = fromIndex + 1; i < N - 1; i++) newSegments[i] = oldSegments[i] ?? null;
+            if (toIndex > 0) toRecalc.push(toIndex - 1);
+            toRecalc.push(toIndex);
+            if (fromIndex < N - 1) toRecalc.push(fromIndex);
+        }
+
+        const markerTexts = anchors.map((anchor) => startAnchorLoading(anchor));
+        try {
+            const recalcResults = await Promise.all(
+                toRecalc.map((i) =>
+                    calculateRouteBetween(
+                        anchors[i].lat,
+                        anchors[i].lon,
+                        anchors[i + 1].lat,
+                        anchors[i + 1].lon,
+                        routingOptions,
+                    ).then((pts) => ({ i, segment: new TrackSegment({ trkpt: pts }) })),
+                ),
+            );
+
+            for (const { i, segment } of recalcResults) {
+                newSegments[i] = segment;
+            }
+
+            setRoute(
+                new GPX({ trk: [new Track({ trkseg: newSegments.filter((s): s is TrackSegment => s !== null) })] }),
+                true,
+            );
+            normalizeRouteTime();
+            updateTrailWithRouteData();
+        } finally {
+            for (let i = 0; i < anchors.length; i++) {
+                stopAnchorLoading(anchors[i], markerTexts[i]);
+            }
+        }
+    }
+
+    async function moveAnchor(fromIndex: number, toIndex: number) {
+        if (
+            routeAnchorListUpdating ||
+            !drawingActive ||
+            fromIndex === toIndex ||
+            fromIndex < 0 ||
+            toIndex < 0 ||
+            fromIndex >= valhallaStore.anchors.length ||
+            toIndex >= valhallaStore.anchors.length
+        ) {
+            return;
+        }
+
+        const previousAnchors = [...valhallaStore.anchors];
+        const previousUndoStackLength = valhallaStore.undoStack.length;
+        const [anchor] = valhallaStore.anchors.splice(fromIndex, 1);
+        valhallaStore.anchors.splice(toIndex, 0, anchor);
+        refreshAnchorLabels(Math.min(fromIndex, toIndex));
+
+        routeAnchorListUpdating = true;
+        try {
+            await recalculateRouteFromAnchors(fromIndex, toIndex);
+            const lastEntry = valhallaStore.undoStack.at(-1);
+            if (lastEntry && valhallaStore.undoStack.length > previousUndoStackLength) {
+                lastEntry.anchorsBefore = previousAnchors;
+                lastEntry.anchorsAfter = [...valhallaStore.anchors];
+            }
+        } catch (e) {
+            while (valhallaStore.undoStack.length > previousUndoStackLength) {
+                revertRouteChange();
+            }
+            routeSegments = [...(valhallaStore.route.trk?.at(0)?.trkseg ?? [])];
+            valhallaStore.anchors = previousAnchors;
+            refreshAnchorLabels(Math.min(fromIndex, toIndex));
+            console.error(e);
+            show_toast({
+                text: routeCalculationErrorText(e),
+                icon: "close",
+                type: "error",
+            });
+        } finally {
+            routeAnchorListUpdating = false;
         }
     }
 
@@ -1002,13 +1113,13 @@
             }
 
             if (nextRouteSegment) {
-                editRoute(anchorIndex, nextRouteSegment);
+                await editRoute(anchorIndex, nextRouteSegment);
             }
             if (previousRouteSegment) {
-                editRoute(anchorIndex - 1, previousRouteSegment);
+                await editRoute(anchorIndex - 1, previousRouteSegment);
             }
-            updateTrailWithRouteData();
             normalizeRouteTime();
+            updateTrailWithRouteData();
         } catch (e) {
             console.error(e);
             show_toast({
@@ -1055,8 +1166,8 @@
                 routingOptions,
             );
 
-            editRoute(data.segment, previousRouteSegment);
-            insertIntoRoute(nextRouteSegment, data.segment + 1);
+            await editRoute(data.segment, previousRouteSegment);
+            await insertIntoRoute(nextRouteSegment, data.segment + 1);
             normalizeRouteTime();
             updateTrailWithRouteData();
         } catch (e) {
@@ -1098,7 +1209,7 @@
             data.segment + 1,
         );
 
-        splitSegment(data.segment, data.event.lngLat);
+        await splitSegment(data.segment, data.event.lngLat);
         updateFollowingAnchors(data.segment);
         updateTrailWithRouteData();
     }
@@ -1236,6 +1347,7 @@
 
     function updateTrailWithRouteData() {
         overwriteGPX = true;
+        routeSegments = [...(valhallaStore.route.trk?.at(0)?.trkseg ?? [])];
         updateTotals(valhallaStore.route);
 
         if (!$formData.id) {
@@ -1444,16 +1556,26 @@
     }
 
     function undoRouteEdit() {
-        undo();
-        clearAnchors();
-        initRouteAnchors(valhallaStore.route, true);
+        const entry = undo();
+        if (entry?.anchorsBefore) {
+            valhallaStore.anchors = entry.anchorsBefore;
+            refreshAnchorLabels();
+        } else {
+            clearAnchors();
+            initRouteAnchors(valhallaStore.route, true);
+        }
         updateTrailWithRouteData();
     }
 
     function redoRouteEdit() {
-        redo();
-        clearAnchors();
-        initRouteAnchors(valhallaStore.route, true);
+        const entry = redo();
+        if (entry?.anchorsAfter) {
+            valhallaStore.anchors = entry.anchorsAfter;
+            refreshAnchorLabels();
+        } else {
+            clearAnchors();
+            initRouteAnchors(valhallaStore.route, true);
+        }
         updateTrailWithRouteData();
     }
 
@@ -1484,20 +1606,6 @@
         ></Search>
         <hr class="border-input-border" />
         <h3 class="text-xl font-semibold">{$_("pick-a-trail")}</h3>
-        <Button
-            primary={true}
-            type="button"
-            disabled={drawingActive}
-            onclick={openFileBrowser}
-            >{$formData.expand?.gpx_data
-                ? $_("upload-new-file")
-                : $_("upload-file")}</Button
-        >
-        <div class="flex gap-4 items-center w-full">
-            <hr class="basis-full border-input-border" />
-            <span class="text-gray-500 uppercase">{$_("or")}</span>
-            <hr class="basis-full border-input-border" />
-        </div>
         <button
             class="btn-primary"
             type="button"
@@ -1517,6 +1625,30 @@
                     ? $_("stop-drawing")
                     : $_("draw-a-route")}</button
         >
+        {#if drawingActive && valhallaStore.anchors.length}
+            <TrailAnchorList
+                anchors={valhallaStore.anchors}
+                segments={routeSegments}
+                disabled={routeAnchorListUpdating}
+                onMove={moveAnchor}
+                onDelete={removeAnchor}
+            ></TrailAnchorList>
+        {/if}
+        {#if !drawingActive}
+        <div class="flex gap-4 items-center w-full">
+            <hr class="basis-full border-input-border" />
+            <span class="text-gray-500 uppercase">{$_("or")}</span>
+            <hr class="basis-full border-input-border" />
+        </div>
+        <Button
+            primary={true}
+            type="button"
+            onclick={openFileBrowser}
+            >{$formData.expand?.gpx_data
+                ? $_("upload-new-file")
+                : $_("upload-file")}</Button
+        >
+        {/if}
         <input
             type="file"
             name="gpx"
