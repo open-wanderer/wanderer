@@ -145,6 +145,7 @@
         | undefined = $state();
 
     let searchDropdownItems: SearchItem[] = $state([]);
+    let selectedSearchLocation: SearchItem | null = $state(null);
 
     let cropStartMarker: FontawesomeMarker;
     let cropEndMarker: FontawesomeMarker;
@@ -1379,6 +1380,24 @@
             zoom: 13,
             animate: false,
         });
+        selectedSearchLocation = item;
+    }
+
+    function clearSelectedSearchLocation() {
+        selectedSearchLocation = null;
+    }
+
+    async function addSelectedLocationAsEndpoint() {
+        if (!selectedSearchLocation) {
+            return;
+        }
+        const { lat, lon } = selectedSearchLocation.value;
+        if (valhallaStore.anchors.length === 0) {
+            addAnchor(lat, lon, 0);
+        } else {
+            await addAnchorAndRecalculate(lat, lon);
+        }
+        selectedSearchLocation = null;
     }
 
     async function searchCities(q: string) {
@@ -1604,6 +1623,41 @@
             placeholder="{$_('search-places')}..."
             items={searchDropdownItems}
         ></Search>
+        {#if selectedSearchLocation && drawingActive}
+            <div
+                class="rounded-xl border border-input-border bg-menu-item-background px-4 py-3 flex flex-col gap-3"
+            >
+                <div class="flex items-start gap-3">
+                    <button
+                        type="button"
+                        class="flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-full p-0 text-xl text-content hover:bg-secondary-hover"
+                        aria-label={$_("add-as-endpoint")}
+                        title={$_("add-as-endpoint")}
+                        onclick={addSelectedLocationAsEndpoint}
+                    >
+                        <i class="fa fa-flag-checkered"></i>
+                    </button>
+                    <div class="flex-1">
+                        <p class="font-semibold">
+                            {selectedSearchLocation.text}
+                        </p>
+                        {#if selectedSearchLocation.description}
+                            <p class="text-sm text-gray-500">
+                                {selectedSearchLocation.description}
+                            </p>
+                        {/if}
+                    </div>
+                    <button
+                        type="button"
+                        class="btn-icon"
+                        aria-label={$_("clear-all")}
+                        onclick={clearSelectedSearchLocation}
+                    >
+                        <i class="fa fa-close text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        {/if}
         <hr class="border-input-border" />
         <h3 class="text-xl font-semibold">{$_("pick-a-trail")}</h3>
         <button

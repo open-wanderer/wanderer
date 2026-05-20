@@ -398,6 +398,7 @@
   "road": "Straße",
   "route": "{n, plural, =1 {Route} other {Routen}}",
   "route-point": "Punkt auf Route",
+  "add-as-endpoint": "Als Endpunkt hinzufügen",
   "russian": "Russisch",
   "save": "Speichern",
   "save-list": "Liste speichern",

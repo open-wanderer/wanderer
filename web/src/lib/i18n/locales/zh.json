@@ -373,6 +373,7 @@
   "road": "道路",
   "route": "{n, plural, =1 {Route} other {Routes}}",
   "route-point": "路线点",
+  "add-as-endpoint": "Add as endpoint",
   "russian": "Russian",
   "save": "保存",
   "save-list": "保存列表",

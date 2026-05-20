@@ -373,6 +373,7 @@
   "road": "Road",
   "route": "{n, plural, =1 {Route} other {Routes}}",
   "route-point": "Route Point",
+  "add-as-endpoint": "Add as endpoint",
   "russian": "Russian",
   "save": "Mentés",
   "save-list": "Save List",

@@ -373,6 +373,7 @@
   "road": "Vei",
   "route": "{n, plural, =1 {Rute} other {Ruter}}",
   "route-point": "Rutepunkt",
+  "add-as-endpoint": "Add as endpoint",
   "russian": "Russisk",
   "save": "Lagre",
   "save-list": "Lagre liste",
