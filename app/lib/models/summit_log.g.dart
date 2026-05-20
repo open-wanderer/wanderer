@@ -7,8 +7,10 @@ part of 'summit_log.dart';
 // **************************************************************************
 
 _SummitLog _$SummitLogFromJson(Map<String, dynamic> json) => _SummitLog(
-  id: json['id'] as String?,
+  id: json['id'] as String,
   date: json['date'] as String,
+  collectionId: json['collectionId'] as String,
+  collectionName: json['collectionName'] as String,
   text: json['text'] as String? ?? "",
   gpx: json['gpx'] as String?,
   photos:
@@ -21,7 +23,8 @@ _SummitLog _$SummitLogFromJson(Map<String, dynamic> json) => _SummitLog(
   author: json['author'] as String? ?? "000000000000000",
   trail: json['trail'] as String?,
   iri: json['iri'] as String?,
-  created: json['created'] as String?,
+  created: DateTime.parse(json['created'] as String),
+  updated: DateTime.parse(json['updated'] as String),
   expand: json['expand'] == null
       ? null
       : SummitLogExpand.fromJson(json['expand'] as Map<String, dynamic>),
@@ -31,6 +34,8 @@ Map<String, dynamic> _$SummitLogToJson(_SummitLog instance) =>
     <String, dynamic>{
       'id': instance.id,
       'date': instance.date,
+      'collectionId': instance.collectionId,
+      'collectionName': instance.collectionName,
       'text': instance.text,
       'gpx': instance.gpx,
       'photos': instance.photos,
@@ -41,7 +46,8 @@ Map<String, dynamic> _$SummitLogToJson(_SummitLog instance) =>
       'author': instance.author,
       'trail': instance.trail,
       'iri': instance.iri,
-      'created': instance.created,
+      'created': instance.created.toIso8601String(),
+      'updated': instance.updated.toIso8601String(),
       'expand': instance.expand,
     };
 

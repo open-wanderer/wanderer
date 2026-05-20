@@ -15,7 +15,7 @@ class TrailNotifier extends _$TrailNotifier {
       "/trail/$id",
       queryParameters: {
         "expand":
-            "category,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
+            "category,waypoints_via_trail,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
       },
     );
 

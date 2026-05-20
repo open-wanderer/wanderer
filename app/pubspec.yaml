@@ -36,6 +36,7 @@ dependencies:
   pmtiles: ^1.2.0
   riverpod_annotation: ^4.0.2
   textfield_tags: ^3.0.1
+  timeago: ^3.7.1
   vector_map_tiles: ^10.0.0-beta.2
   vector_tile_renderer: ^7.0.0-beta.1
 

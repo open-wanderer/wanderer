@@ -15,12 +15,12 @@ abstract class CommentExpand with _$CommentExpand {
 @freezed
 abstract class Comment with _$Comment {
   const factory Comment({
-    String? id,
+    required String id,
     required String text,
     required String author,
     required String trail,
-    String? created,
-    String? updated,
+    required DateTime created,
+    required DateTime updated,
     String? iri,
     CommentExpand? expand,
   }) = _Comment;

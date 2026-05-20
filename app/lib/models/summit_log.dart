@@ -1,15 +1,19 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:wanderer/models/actor.dart';
+import 'package:wanderer/models/record.dart';
 import 'package:wanderer/models/trail.dart';
 
 part 'summit_log.freezed.dart';
 part 'summit_log.g.dart';
 
 @freezed
-abstract class SummitLog with _$SummitLog {
+abstract class SummitLog with _$SummitLog, RecordFunctions implements IRecord {
   const factory SummitLog({
-    String? id,
+    required String id,
     required String date,
+    required String collectionId,
+    required String collectionName,
+
     @Default("") String text,
     String? gpx,
     @Default([]) List<String> photos,
@@ -20,9 +24,12 @@ abstract class SummitLog with _$SummitLog {
     @Default("000000000000000") String author,
     String? trail,
     String? iri,
-    String? created,
+    required DateTime created,
+    required DateTime updated,
     SummitLogExpand? expand,
   }) = _SummitLog;
+
+  const SummitLog._();
 
   factory SummitLog.fromJson(Map<String, dynamic> json) =>
       _$SummitLogFromJson(json);

@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart' as html;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:wanderer/components/trail/comment_list.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/photo_collage.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
+import 'package:wanderer/components/trail/summit_log_list.dart';
 import 'package:wanderer/components/trail/trail_timeline.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
@@ -34,6 +36,8 @@ class TrailPanel extends ConsumerWidget {
         .toList();
 
     final totals = trail.expand?.gpx?.getTotals();
+
+    final l18n = AppLocalizations.of(context)!;
 
     return DefaultTabController(
       length: 3,
@@ -118,9 +122,9 @@ class TrailPanel extends ConsumerWidget {
               unselectedLabelStyle: Theme.of(context).textTheme.labelLarge,
               dividerHeight: 0,
               tabs: [
-                Tab(text: AppLocalizations.of(context)!.about),
-                Tab(text: AppLocalizations.of(context)!.summit_book),
-                Tab(text: AppLocalizations.of(context)!.comment(2)),
+                Tab(text: l18n.about),
+                Tab(text: l18n.summit_book),
+                Tab(text: l18n.comment(2)),
               ],
             ),
 
@@ -132,7 +136,7 @@ class TrailPanel extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        AppLocalizations.of(context)!.description,
+                        l18n.description,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
@@ -141,12 +145,12 @@ class TrailPanel extends ConsumerWidget {
                         html.Html(data: trail.description),
                       if (trail.description.isEmpty)
                         Text(
-                          AppLocalizations.of(context)!.no_description_for_now,
+                          l18n.no_description_for_now,
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                       SizedBox(height: 16),
                       Text(
-                        AppLocalizations.of(context)!.route(1),
+                        l18n.route(1),
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
@@ -162,9 +166,9 @@ class TrailPanel extends ConsumerWidget {
                   ),
                 ),
 
-                const SizedBox.shrink(),
+                SummitLogList(trail: trail),
 
-                const SizedBox.shrink(),
+                CommentList(trail: trail),
               ],
             ),
           ],
@@ -202,10 +206,6 @@ class _TabContentState extends State<_TabContent> {
 
   @override
   Widget build(BuildContext context) {
-    return IndexedStack(
-      index: _index,
-      sizing: StackFit.passthrough,
-      children: widget.children,
-    );
+    return widget.children[_index];
   }
 }

@@ -31,7 +31,7 @@ class TrailDetailScreen extends ConsumerWidget {
       children: [
         WandererMap(trail: trail),
         DraggableScrollableSheet(
-          initialChildSize: 0.3,
+          initialChildSize: 0.4,
           minChildSize: 0.15,
           maxChildSize: 0.9,
           builder: (context, scrollController) {

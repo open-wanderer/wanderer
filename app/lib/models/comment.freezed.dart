@@ -296,7 +296,7 @@ $ActorCopyWith<$Res> get author {
 /// @nodoc
 mixin _$Comment {
 
- String? get id; String get text; String get author; String get trail; String? get created; String? get updated; String? get iri; CommentExpand? get expand;
+ String get id; String get text; String get author; String get trail; DateTime get created; DateTime get updated; String? get iri; CommentExpand? get expand;
 /// Create a copy of Comment
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -329,7 +329,7 @@ abstract mixin class $CommentCopyWith<$Res>  {
   factory $CommentCopyWith(Comment value, $Res Function(Comment) _then) = _$CommentCopyWithImpl;
 @useResult
 $Res call({
- String? id, String text, String author, String trail, String? created, String? updated, String? iri, CommentExpand? expand
+ String id, String text, String author, String trail, DateTime created, DateTime updated, String? iri, CommentExpand? expand
 });
 
 
@@ -346,15 +346,15 @@ class _$CommentCopyWithImpl<$Res>
 
 /// Create a copy of Comment
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? text = null,Object? author = null,Object? trail = null,Object? created = freezed,Object? updated = freezed,Object? iri = freezed,Object? expand = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? text = null,Object? author = null,Object? trail = null,Object? created = null,Object? updated = null,Object? iri = freezed,Object? expand = freezed,}) {
   return _then(_self.copyWith(
-id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String?,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,author: null == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
 as String,trail: null == trail ? _self.trail : trail // ignore: cast_nullable_to_non_nullable
-as String,created: freezed == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
-as String?,updated: freezed == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
-as String?,iri: freezed == iri ? _self.iri : iri // ignore: cast_nullable_to_non_nullable
+as String,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
+as DateTime,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
+as DateTime,iri: freezed == iri ? _self.iri : iri // ignore: cast_nullable_to_non_nullable
 as String?,expand: freezed == expand ? _self.expand : expand // ignore: cast_nullable_to_non_nullable
 as CommentExpand?,
   ));
@@ -453,7 +453,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String text,  String author,  String trail,  String? created,  String? updated,  String? iri,  CommentExpand? expand)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String text,  String author,  String trail,  DateTime created,  DateTime updated,  String? iri,  CommentExpand? expand)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Comment() when $default != null:
 return $default(_that.id,_that.text,_that.author,_that.trail,_that.created,_that.updated,_that.iri,_that.expand);case _:
@@ -474,7 +474,7 @@ return $default(_that.id,_that.text,_that.author,_that.trail,_that.created,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String text,  String author,  String trail,  String? created,  String? updated,  String? iri,  CommentExpand? expand)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String text,  String author,  String trail,  DateTime created,  DateTime updated,  String? iri,  CommentExpand? expand)  $default,) {final _that = this;
 switch (_that) {
 case _Comment():
 return $default(_that.id,_that.text,_that.author,_that.trail,_that.created,_that.updated,_that.iri,_that.expand);case _:
@@ -494,7 +494,7 @@ return $default(_that.id,_that.text,_that.author,_that.trail,_that.created,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String text,  String author,  String trail,  String? created,  String? updated,  String? iri,  CommentExpand? expand)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String text,  String author,  String trail,  DateTime created,  DateTime updated,  String? iri,  CommentExpand? expand)?  $default,) {final _that = this;
 switch (_that) {
 case _Comment() when $default != null:
 return $default(_that.id,_that.text,_that.author,_that.trail,_that.created,_that.updated,_that.iri,_that.expand);case _:
@@ -509,15 +509,15 @@ return $default(_that.id,_that.text,_that.author,_that.trail,_that.created,_that
 @JsonSerializable()
 
 class _Comment implements Comment {
-  const _Comment({this.id, required this.text, required this.author, required this.trail, this.created, this.updated, this.iri, this.expand});
+  const _Comment({required this.id, required this.text, required this.author, required this.trail, required this.created, required this.updated, this.iri, this.expand});
   factory _Comment.fromJson(Map<String, dynamic> json) => _$CommentFromJson(json);
 
-@override final  String? id;
+@override final  String id;
 @override final  String text;
 @override final  String author;
 @override final  String trail;
-@override final  String? created;
-@override final  String? updated;
+@override final  DateTime created;
+@override final  DateTime updated;
 @override final  String? iri;
 @override final  CommentExpand? expand;
 
@@ -554,7 +554,7 @@ abstract mixin class _$CommentCopyWith<$Res> implements $CommentCopyWith<$Res> {
   factory _$CommentCopyWith(_Comment value, $Res Function(_Comment) _then) = __$CommentCopyWithImpl;
 @override @useResult
 $Res call({
- String? id, String text, String author, String trail, String? created, String? updated, String? iri, CommentExpand? expand
+ String id, String text, String author, String trail, DateTime created, DateTime updated, String? iri, CommentExpand? expand
 });
 
 
@@ -571,15 +571,15 @@ class __$CommentCopyWithImpl<$Res>
 
 /// Create a copy of Comment
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? text = null,Object? author = null,Object? trail = null,Object? created = freezed,Object? updated = freezed,Object? iri = freezed,Object? expand = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? text = null,Object? author = null,Object? trail = null,Object? created = null,Object? updated = null,Object? iri = freezed,Object? expand = freezed,}) {
   return _then(_Comment(
-id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String?,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,author: null == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
 as String,trail: null == trail ? _self.trail : trail // ignore: cast_nullable_to_non_nullable
-as String,created: freezed == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
-as String?,updated: freezed == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
-as String?,iri: freezed == iri ? _self.iri : iri // ignore: cast_nullable_to_non_nullable
+as String,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
+as DateTime,updated: null == updated ? _self.updated : updated // ignore: cast_nullable_to_non_nullable
+as DateTime,iri: freezed == iri ? _self.iri : iri // ignore: cast_nullable_to_non_nullable
 as String?,expand: freezed == expand ? _self.expand : expand // ignore: cast_nullable_to_non_nullable
 as CommentExpand?,
   ));
