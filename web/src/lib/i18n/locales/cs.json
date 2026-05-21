@@ -264,7 +264,7 @@
   "make-one": "Vytvořte si vlastní!",
   "make-thumbnail": "Vytvořit náhled",
   "map": "Mapa",
-  "map-cluster-zoom-level": "Úroveň přiblížení pro seskupování tras (0-22)",
+  "map-cluster-zoom-level": "Zobrazit náhledy tras od úrovně přiblížení (0-22)",
   "show-trail-start-marker": "",
   "map-style": "Styl mapy",
   "mark-trail-as-completed": "",

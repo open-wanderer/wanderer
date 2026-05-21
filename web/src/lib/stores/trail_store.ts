@@ -132,10 +132,13 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
 
     const clusterResult = await cr.json();
     const clusterFeatureCollection = clusterResult;
-    
+
+    const unclusteredFeatures = clusterFeatureCollection.features
+        .filter((f: any) => !f.properties.cluster);
+
     // Extract IDs of visible unclustered points that are large enough to show details for
-    const unclusteredIds = clusterFeatureCollection.features
-        .filter((f: any) => !f.properties.cluster && f.properties.is_large)
+    const unclusteredIds = unclusteredFeatures
+        .filter((f: any) => f.properties.is_large)
         .map((f: any) => f.properties.id);
 
     // Step 2: Identify which visible trails are MISSING from the local cache
@@ -171,8 +174,7 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
     }
 
     // Step 4: Convert unclustered hits to lightweight Trail objects
-    const summaryTrails: Trail[] = clusterFeatureCollection.features
-        .filter((f: any) => !f.properties.cluster)
+    const summaryTrails: Trail[] = unclusteredFeatures
         .map((f: any) => {
         const s = f.properties;
         const lat = f.geometry.coordinates[1];
@@ -180,11 +182,13 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
 
         if (detailedCache.has(s.id)) {
             const cached = detailedCache.get(s.id)!;
-            // CRITICAL: Ensure cached object has fresh coordinates for clustering
-            cached.lat = lat;
-            cached.lon = lng;
-            cached.bounding_box_diagonal = s.bounding_box_diagonal ?? cached.bounding_box_diagonal;
-            return cached;
+            return {
+                ...cached,
+                lat,
+                lon: lng,
+                bounding_box_diagonal: s.bounding_box_diagonal ?? cached.bounding_box_diagonal,
+                polyline: s.is_large ? cached.polyline : undefined,
+            };
         }
 
         // Lightweight fallback for map markers

@@ -12,6 +12,9 @@
         icon?: string;
         extraClasses?: string;
         type?: "text" | "password" | "search" | "number";
+        min?: string | number;
+        max?: string | number;
+        step?: string | number;
         autocomplete?: "on" | "off";
         onchange?: ChangeEventHandler<HTMLInputElement>;
         oninput?: FormEventHandler<HTMLInputElement>;
@@ -29,6 +32,9 @@
         icon = "",
         extraClasses = "",
         type = "text",
+        min = undefined,
+        max = undefined,
+        step = undefined,
         autocomplete = "on",
         onchange,
         oninput,
@@ -60,6 +66,9 @@
             class:text-gray-500={disabled}
             {disabled}
             {autocomplete}
+            {min}
+            {max}
+            {step}
             use:typeAction
             bind:value
             {onchange}
@@ -81,5 +90,9 @@
     :global(input[type="search"]::-webkit-search-cancel-button) {
         -webkit-appearance: none;
         appearance: none;
+    }
+
+    :global(input.number-input-spaced[type="number"]::-webkit-inner-spin-button) {
+        margin-left: 0.5rem;
     }
 </style>

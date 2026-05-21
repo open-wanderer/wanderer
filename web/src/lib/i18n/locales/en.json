@@ -284,7 +284,7 @@
   "make-one": "Make one!",
   "make-thumbnail": "Make thumbnail",
   "map": "Map",
-  "map-cluster-zoom-level": "Zoom level to start grouping tracks (0-22)",
+  "map-cluster-zoom-level": "Show trail previews from zoom level (0-22)",
   "show-trail-start-marker": "Show marker at start of trail",
   "map-style": "Map style",
   "mark-trail-as-completed": "Mark trail as completed",

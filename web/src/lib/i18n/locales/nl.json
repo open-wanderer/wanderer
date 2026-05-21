@@ -264,7 +264,7 @@
   "make-one": "Maak er een aan!",
   "make-thumbnail": "Miniatuur maken",
   "map": "Kaart",
-  "map-cluster-zoom-level": "Zoomniveau voor het groeperen van sporen (0-22)",
+  "map-cluster-zoom-level": "Routevoorbeelden tonen vanaf zoomniveau (0-22)",
   "show-trail-start-marker": "",
   "map-style": "Kaartstijl",
   "mark-trail-as-completed": "",

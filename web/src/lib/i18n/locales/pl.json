@@ -264,7 +264,7 @@
   "make-one": "Stwórz ją!",
   "make-thumbnail": "Zrób miniaturkę",
   "map": "Mapa",
-  "map-cluster-zoom-level": "Poziom powiększenia dla grupowania śladów (0-22)",
+  "map-cluster-zoom-level": "Pokazuj podglądy tras od poziomu powiększenia (0-22)",
   "show-trail-start-marker": "",
   "map-style": "Map style",
   "mark-trail-as-completed": "",

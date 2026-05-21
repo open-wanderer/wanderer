@@ -48,12 +48,18 @@
             return;
         }
 
+        const normalizedMapClusteringMaxZoom = Math.min(
+            22,
+            Math.max(0, Number(mapClusteringMaxZoom)),
+        );
+        mapClusteringMaxZoom = normalizedMapClusteringMaxZoom;
+
         try {
             const updatedSettings = {
                 ...settings,
                 behavior: {
                     allowAutoGeolocate: allowAutoGeolocate,
-                    mapClusteringMaxZoom: Number(mapClusteringMaxZoom),
+                    mapClusteringMaxZoom: normalizedMapClusteringMaxZoom,
                     showTrailStartMarker: showTrailStartMarker,
                 },
             };
@@ -207,6 +213,10 @@
                     <div class="w-20">
                         <TextField
                             type="number"
+                            min={0}
+                            max={22}
+                            step={1}
+                            extraClasses="text-right number-input-spaced"
                             bind:value={mapClusteringMaxZoom}
                             onchange={handleBehaviorChange}
                         ></TextField>

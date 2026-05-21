@@ -284,7 +284,7 @@
   "make-one": "Neues erstellen!",
   "make-thumbnail": "Thumbnail festlegen",
   "map": "Karte",
-  "map-cluster-zoom-level": "Zoomstufe für die Gruppierung von Spuren (0-22)",
+  "map-cluster-zoom-level": "Routenlinien anzeigen ab Zoomstufe (0-22)",
   "show-trail-start-marker": "",
   "map-style": "Kartenstil",
   "mark-trail-as-completed": "Route als abgeschlossen markieren",
