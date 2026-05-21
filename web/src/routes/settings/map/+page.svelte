@@ -49,18 +49,12 @@
             return;
         }
 
-        const normalizedMapClusteringMaxZoom = Math.min(
-            22,
-            Math.max(0, Number(mapClusteringMaxZoom)),
-        );
-        mapClusteringMaxZoom = normalizedMapClusteringMaxZoom;
-
         try {
             const updatedSettings = {
                 ...settings,
                 behavior: {
                     allowAutoGeolocate: allowAutoGeolocate,
-                    mapClusteringMaxZoom: normalizedMapClusteringMaxZoom,
+                    mapClusteringMaxZoom: Number(mapClusteringMaxZoom),
                     showTrailStartMarker: showTrailStartMarker,
                 },
             };
