@@ -7,6 +7,7 @@
         type SelectItem,
     } from "$lib/components/base/select.svelte";
 
+    import Slider from "$lib/components/base/slider.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import {
         searchLocations,
@@ -209,17 +210,20 @@
                     class="grid gap-4 items-center"
                     style="grid-template-columns: 1fr min-content ;"
                 >
-                    <p>{$_("map-cluster-zoom-level")}</p>
-                    <div class="w-20">
-                        <TextField
-                            type="number"
-                            min={0}
-                            max={22}
-                            step={1}
-                            extraClasses="text-right number-input-spaced"
-                            bind:value={mapClusteringMaxZoom}
-                            onchange={handleBehaviorChange}
-                        ></TextField>
+                    <p>{$_("map-trail-preview-zoom-level")}</p>
+                    <div class="flex items-center gap-4 w-56">
+                        <span class="w-8 text-right tabular-nums">
+                            {Math.round(Number(mapClusteringMaxZoom))}
+                        </span>
+                        <div class="w-44">
+                            <Slider
+                                minValue={0}
+                                maxValue={22}
+                                step={1}
+                                bind:currentValue={mapClusteringMaxZoom}
+                                onset={handleBehaviorChange}
+                            ></Slider>
+                        </div>
                     </div>
                 </div>
                 <div

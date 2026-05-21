@@ -264,7 +264,7 @@
   "make-one": "Создайте!",
   "make-thumbnail": "Сделать миниатюру",
   "map": "Карта",
-  "map-cluster-zoom-level": "Показывать предпросмотр маршрутов с уровня масштабирования (0-22)",
+  "map-trail-preview-zoom-level": "Показывать предпросмотр маршрутов с уровня масштабирования",
   "show-trail-start-marker": "",
   "map-style": "Стиль карты",
   "mark-trail-as-completed": "",

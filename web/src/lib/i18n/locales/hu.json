@@ -264,7 +264,7 @@
   "make-one": "Készítsen egyet!",
   "make-thumbnail": "Készítsen miniatűrképet",
   "map": "Térkép",
-  "map-cluster-zoom-level": "Útvonal-előnézetek megjelenítése ettől a nagyítási szinttől (0-22)",
+  "map-trail-preview-zoom-level": "Útvonal-előnézetek megjelenítése ettől a nagyítási szinttől",
   "show-trail-start-marker": "",
   "map-style": "Map style",
   "mark-trail-as-completed": "",

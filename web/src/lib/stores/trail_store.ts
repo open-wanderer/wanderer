@@ -182,11 +182,13 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
 
         if (detailedCache.has(s.id)) {
             const cached = detailedCache.get(s.id)!;
+            // CRITICAL: Ensure returned object has fresh coordinates for clustering
             return {
                 ...cached,
                 lat,
                 lon: lng,
                 bounding_box_diagonal: s.bounding_box_diagonal ?? cached.bounding_box_diagonal,
+                // Strip polyline for small trails so they don't linger as lines when zoomed out
                 polyline: s.is_large ? cached.polyline : undefined,
             };
         }

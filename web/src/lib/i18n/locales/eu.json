@@ -264,7 +264,7 @@
   "make-one": "Egin bat!",
   "make-thumbnail": "Egin iruditxoa",
   "map": "Mapa",
-  "map-cluster-zoom-level": "Erakutsi ibilbideen aurrebistak zoom-mailatik aurrera (0-22)",
+  "map-trail-preview-zoom-level": "Erakutsi ibilbideen aurrebistak zoom-mailatik aurrera",
   "show-trail-start-marker": "",
   "map-style": "Maparen estiloa",
   "mark-trail-as-completed": "",
