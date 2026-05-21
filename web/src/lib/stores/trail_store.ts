@@ -90,15 +90,50 @@ export async function trails_search_filter(filter: TrailFilter, page: number = 1
 }
 
 export const MAP_MAX_POLYLINES = Number(env.PUBLIC_MAP_MAX_POLYLINES || 100);
+const DETAILED_CACHE_MAX_SIZE = Math.max(200, MAP_MAX_POLYLINES * 10);
 
 let trails: Trail[] = []
 const detailedCache = new Map<string, Trail>();
+let detailedCacheKey = "";
+
+function getDetailedCache(id: string): Trail | undefined {
+    const cached = detailedCache.get(id);
+    if (!cached) {
+        return undefined;
+    }
+
+    detailedCache.delete(id);
+    // Reinsert the entry so Map iteration order tracks recent usage for LRU eviction.
+    detailedCache.set(id, cached);
+    return cached;
+}
+
+function setDetailedCache(id: string, trail: Trail) {
+    detailedCache.delete(id);
+    detailedCache.set(id, trail);
+
+    while (detailedCache.size > DETAILED_CACHE_MAX_SIZE) {
+        const oldestKey = detailedCache.keys().next().value;
+        if (!oldestKey) {
+            break;
+        }
+        detailedCache.delete(oldestKey);
+    }
+}
 
 export const trail: Writable<Trail> = writable(new Trail(""));
 
 export const editTrail: Writable<Trail> = writable(new Trail(""));
 
-export async function trails_search_bounding_box(northEast: M.LngLat, southWest: M.LngLat, filter: TrailFilter, page: number = 1, zoom: number = 11) {
+export async function trails_search_bounding_box(
+    northEast: M.LngLat,
+    southWest: M.LngLat,
+    filter: TrailFilter,
+    page: number = 1,
+    zoom: number = 11,
+    perPage: number = 50,
+    loadMapData: boolean = true
+) {
     const user = get(currentUser)
 
     let filterText: string = "";
@@ -113,14 +148,64 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
     }
 
     const geoFilter = `max_lat >= ${southWest.lat} AND min_lat <= ${northEast.lat} AND ${lonFilter}`;
+    const listFilter = [filterText, geoFilter].filter(Boolean).join(" AND ");
+    const cacheKey = JSON.stringify({
+        q: filter.q,
+        filterText,
+        sort: filter.sort,
+        sortOrder: filter.sortOrder,
+    });
+    if (cacheKey !== detailedCacheKey) {
+        detailedCache.clear();
+        detailedCacheKey = cacheKey;
+    }
 
-    // Step 1: Fetch server-side clusters and unclustered points
+    // Step 1: Fetch paginated trails for the side list.
+    const listResponse = await fetch("/api/v1/search/trails", {
+        method: "POST",
+        body: JSON.stringify({
+            q: filter.q,
+            options: {
+                filter: listFilter,
+                attributesToRetrieve: defaultTrailSearchAttributes,
+                sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`],
+                hitsPerPage: perPage,
+                page,
+            },
+        }),
+    });
+
+    if (!listResponse.ok) {
+        const response = await listResponse.json();
+        throw new APIError(listResponse.status, response.message, response.detail)
+    }
+
+    const listResult: { page: number, totalPages: number, totalHits?: number, estimatedTotalHits?: number, hits: Hits<TrailSearchResult> } = await listResponse.json();
+    const listTrails = listResult.hits.length > 0
+        ? await searchResultToTrailList(listResult.hits)
+        : [];
+
+    trails = page > 1 ? trails.concat(listTrails) : listTrails;
+
+    if (!loadMapData) {
+        return {
+            trails,
+            mapTrails: [],
+            clusters: undefined,
+            estimatedTotalHits: listResult.estimatedTotalHits,
+            totalHits: listResult.totalHits ?? listResult.estimatedTotalHits,
+            totalPages: listResult.totalPages
+        };
+    }
+
+    // Step 2: Fetch server-side clusters and unclustered points for the map.
     let cr = await fetch("/api/v1/search/trails/cluster", {
         method: "POST",
         body: JSON.stringify({
             southWest: { lat: southWest.lat, lng: southWest.lng },
             northEast: { lat: northEast.lat, lng: northEast.lng },
             zoom,
+            q: filter.q,
             filterText
         })
     });
@@ -141,10 +226,10 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
         .filter((f: any) => f.properties.is_large)
         .map((f: any) => f.properties.id);
 
-    // Step 2: Identify which visible trails are MISSING from the local cache
+    // Step 3: Identify which visible trails are MISSING from the local cache
     const missingIds = unclusteredIds.filter((id: string) => !detailedCache.has(id));
 
-    // Step 3: Only fetch details for missing trails
+    // Step 4: Only fetch details for missing trails
     if (missingIds.length > 0) {
         const batchSize = 100; // Meilisearch filter length safety
         for (let i = 0; i < missingIds.length; i += batchSize) {
@@ -167,22 +252,21 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
                 const newTrails = await searchResultToTrailList(detailResult.results[0].hits);
                 // Populate cache
                 newTrails.forEach(t => {
-                    if (t.id) detailedCache.set(t.id, t)
+                    if (t.id) setDetailedCache(t.id, t)
                 });
             }
         }
     }
 
-    // Step 4: Convert unclustered hits to lightweight Trail objects
-    const summaryTrails: Trail[] = unclusteredFeatures
+    // Step 5: Convert unclustered hits to lightweight Trail objects for map popups/previews.
+    const mapTrails: Trail[] = unclusteredFeatures
         .map((f: any) => {
         const s = f.properties;
         const lat = f.geometry.coordinates[1];
         const lng = f.geometry.coordinates[0];
 
-        if (detailedCache.has(s.id)) {
-            const cached = detailedCache.get(s.id)!;
-            // CRITICAL: Ensure returned object has fresh coordinates for clustering
+        const cached = getDetailedCache(s.id);
+        if (cached) {
             return {
                 ...cached,
                 lat,
@@ -226,9 +310,14 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
         return t;
     });
 
-    trails = page > 1 ? trails.concat(summaryTrails) : summaryTrails
-
-    return { trails, clusters: clusterFeatureCollection, estimatedTotalHits: clusterResult.totalHits, totalHits: clusterResult.totalHits, totalPages: 1 };
+    return {
+        trails,
+        mapTrails,
+        clusters: clusterFeatureCollection,
+        estimatedTotalHits: listResult.estimatedTotalHits ?? clusterResult.totalHits,
+        totalHits: listResult.totalHits ?? listResult.estimatedTotalHits ?? clusterResult.totalHits,
+        totalPages: listResult.totalPages
+    };
 }
 
 export async function trails_show(id: string, handle?: string, share?: string, loadGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {

@@ -142,7 +142,7 @@
     $effect(() => {
         // Track dependencies for Svelte 5
         mapData;
-        
+
         if (map && mapLoaded) {
             untrack(() => initMap(map?.loaded() ?? false));
         }
@@ -492,9 +492,6 @@
                             );
                             if (!trail) return;
                             highlightCluster(trail, e.lngLat);
-                        },
-                        onLeave: (e) => {
-                            // unHighlightCluster();
                         },
                     },
                 },
@@ -873,7 +870,6 @@
             ...mapOptions,
         };
         map = new M.Map(finalMapOptions);
-        (window as any).map = map;
 
         layerManager = new LayerManager(map);
 

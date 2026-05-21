@@ -35,6 +35,7 @@
     import { slide } from "svelte/transition";
 
     let trails: Trail[] = $state([]);
+    let mapTrails: Trail[] = $state([]);
     let clusters: FeatureCollection | undefined = $state();
 
     let map: M.Map | undefined = $state();
@@ -135,6 +136,7 @@
         northEast: M.LngLat,
         southWest: M.LngLat,
         reset: boolean = true,
+        loadMapData: boolean = true,
     ) {
         if (reset) {
             pagination.page = 1;
@@ -147,11 +149,16 @@
             filter,
             pagination.page,
             map?.getZoom(),
+            50,
+            loadMapData,
         );
 
         pagination.totalPages = trailsInBox.totalPages;
         trails = trailsInBox.trails;
-        clusters = trailsInBox.clusters;
+        if (loadMapData) {
+            mapTrails = trailsInBox.mapTrails;
+            clusters = trailsInBox.clusters;
+        }
         loading = false;
     }
 
@@ -335,7 +342,7 @@
         }
         pagination.page += 1;
         const bounds = map.getBounds();
-        await searchTrails(bounds.getNorthEast(), bounds.getSouthWest(), false);
+        await searchTrails(bounds.getNorthEast(), bounds.getSouthWest(), false, false);
     }
 </script>
 
@@ -440,7 +447,7 @@
         <MapWithElevationMaplibre
             onmoveend={handleMapMove}
             oninit={handleMapInit}
-            {trails}
+            trails={mapTrails}
             serverClusters={clusters}
             showElevation={false}
             showTerrain={true}

@@ -4,7 +4,7 @@ import { MAP_MAX_POLYLINES } from "$lib/stores/trail_store";
 
 export async function POST(event: RequestEvent) {
     const data = await event.request.json()
-    const { southWest, northEast, zoom, filterText } = data;
+    const { southWest, northEast, zoom, filterText, q = "" } = data;
 
     if (!southWest || !northEast || zoom === undefined) {
         throw error(400, "Missing required parameters: southWest, northEast, zoom");
@@ -20,7 +20,7 @@ export async function POST(event: RequestEvent) {
         
         const summaryQuery = {
             indexUid: "trails",
-            q: "",
+            q,
             filter: [geoFilter, filterText].filter(f => f && f !== ""),
             attributesToRetrieve: ["id", "_geo", "bounding_box_diagonal"],
             limit: 10000, 
