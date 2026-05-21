@@ -44,7 +44,7 @@ export class ClusterLayer implements BaseLayer {
                     id: "clusters",
                     type: "circle",
                     source: "cluster-trails",
-                    filter: ["!", ["has", "is_large"]],
+                    filter: ["all", ["!=", ["get", "is_large"], true], [">", ["get", "point_count"], 1]],
                     paint: {
                         "circle-color": "#242734",
                         "circle-radius": [
@@ -67,10 +67,22 @@ export class ClusterLayer implements BaseLayer {
                     },
                 },
                 {
+                    id: "unclustered-point",
+                    type: "circle",
+                    source: "cluster-trails",
+                    filter: ["all", ["!=", ["get", "is_large"], true], ["==", ["get", "point_count"], 1]],
+                    paint: {
+                        "circle-color": "#242734",
+                        "circle-radius": 5,
+                        "circle-stroke-width": 2,
+                        "circle-stroke-color": "#fff",
+                    },
+                },
+                {
                     id: "cluster-count",
                     type: "symbol",
                     source: "cluster-trails",
-                    filter: ["all", ["!", ["has", "is_large"]], [">", ["get", "point_count"], 1]],
+                    filter: ["all", ["!=", ["get", "is_large"], true], [">", ["get", "point_count"], 1]],
                     layout: {
                         "text-field": ["get", "point_count_abbreviated"],
                         "text-font": ["Noto Sans Regular"],

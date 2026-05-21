@@ -461,7 +461,16 @@
         }
         layerManager.addLayer(
             "clusters",
-            new ClusterLayer(map, geojson),
+            new ClusterLayer(map, geojson, {
+                "unclustered-point": {
+                    onEnter: (e) => {
+                        const id = (e as any).features[0].properties.id;
+                        const trail = trails.find((t) => t.id === id);
+                        if (!trail) return;
+                        highlightCluster(trail, e.lngLat);
+                    },
+                },
+            }),
         );
     }
 
