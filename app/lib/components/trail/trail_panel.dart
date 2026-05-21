@@ -57,7 +57,11 @@ class TrailPanel extends ConsumerWidget {
                 ),
               ),
             ),
-            PhotoCollage(webPhotos: webPhotos, localPhotos: trail.localPhotos),
+            if (trail.localPhotos.isNotEmpty || webPhotos.isNotEmpty)
+              PhotoCollage(
+                webPhotos: webPhotos,
+                localPhotos: trail.localPhotos,
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Column(
