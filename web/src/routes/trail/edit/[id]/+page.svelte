@@ -997,7 +997,7 @@
             updateTrailWithRouteData();
         } else {
             deleteFromRoute(anchorIndex - 1);
-            await recalculateRoute(anchorIndex);
+            await recalculateRoute(anchorIndex, [anchorIndex - 1, anchorIndex]);
         }
     }
 
@@ -1111,17 +1111,27 @@
         }
     }
 
-    async function recalculateRoute(anchorIndex: number) {
+    async function recalculateRoute(anchorIndex: number, loadingAnchorIndexes = [anchorIndex]) {
         const anchor = valhallaStore.anchors[anchorIndex];
         if (!anchor) {
             return;
         }
-        startAnchorLoading(anchor);
+        const anchors = valhallaStore.anchors;
+        const loadingAnchors = [
+            ...new Set(
+                loadingAnchorIndexes
+                    .map((index) => anchors[index])
+                    .filter((anchor): anchor is ValhallaAnchor => Boolean(anchor)),
+            ),
+        ];
+        for (const loadingAnchor of loadingAnchors) {
+            startAnchorLoading(loadingAnchor);
+        }
         let nextRouteSegment;
         let previousRouteSegment;
         try {
-            if (anchorIndex < valhallaStore.anchors.length - 1) {
-                const nextAnchor = valhallaStore.anchors[anchorIndex + 1];
+            if (anchorIndex < anchors.length - 1) {
+                const nextAnchor = anchors[anchorIndex + 1];
 
                 nextRouteSegment = await calculateRouteBetween(
                     anchor.lat,
@@ -1132,7 +1142,7 @@
                 );
             }
             if (anchorIndex > 0) {
-                const previousAnchor = valhallaStore.anchors[anchorIndex - 1];
+                const previousAnchor = anchors[anchorIndex - 1];
                 previousRouteSegment = await calculateRouteBetween(
                     previousAnchor.lat,
                     previousAnchor.lon,
@@ -1158,7 +1168,9 @@
                 type: "error",
             });
         } finally {
-            stopAnchorLoading(anchor);
+            for (const loadingAnchor of loadingAnchors) {
+                stopAnchorLoading(loadingAnchor);
+            }
         }
     }
 
