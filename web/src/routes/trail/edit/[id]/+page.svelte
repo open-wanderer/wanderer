@@ -1032,7 +1032,10 @@
             if (fromIndex < N - 1) toRecalc.push(fromIndex);
         }
 
-        anchors.forEach((anchor) => startAnchorLoading(anchor));
+        const loadingAnchorIndexes = [...new Set(toRecalc.flatMap((i) => [i, i + 1]))];
+        for (const index of loadingAnchorIndexes) {
+            startAnchorLoading(anchors[index]);
+        }
         try {
             const recalcResults = await Promise.all(
                 toRecalc.map((i) =>
@@ -1057,8 +1060,8 @@
             normalizeRouteTime();
             updateTrailWithRouteData();
         } finally {
-            for (let i = 0; i < anchors.length; i++) {
-                stopAnchorLoading(anchors[i]);
+            for (const index of loadingAnchorIndexes) {
+                stopAnchorLoading(anchors[index]);
             }
         }
     }
