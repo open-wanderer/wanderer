@@ -96,6 +96,10 @@
         createEditTrailMapPopup,
         FontawesomeMarker,
     } from "$lib/util/maplibre_util";
+    import {
+        renderValhallaAnchorMarker,
+        valhallaAnchorTitle,
+    } from "$lib/util/valhalla_anchor_util";
     import EXIF from "$lib/vendor/exif-js/exif.js";
     import { validator } from "@felte/validator-zod";
     import cryptoRandomString from "crypto-random-string";
@@ -831,7 +835,7 @@
         const previousAnchor =
             valhallaStore.anchors[valhallaStore.anchors.length - 1];
         const anchor = addAnchor(lat, lon, valhallaStore.anchors.length);
-        const markerText = startAnchorLoading(anchor);
+        startAnchorLoading(anchor);
         try {
             const routeWaypoints = await calculateRouteBetween(
                 previousAnchor.lat,
@@ -851,7 +855,7 @@
                 type: "error",
             });
         } finally {
-            stopAnchorLoading(anchor, markerText);
+            stopAnchorLoading(anchor);
         }
     }
 
@@ -869,7 +873,6 @@
         const marker = createAnchorMarker(
             lat,
             lon,
-            index + 1,
             () => {
                 removeAnchor(
                     valhallaStore.anchors.findIndex((a) => a.id == anchor.id),
@@ -910,6 +913,7 @@
         }
         anchor.marker = marker;
         valhallaStore.anchors.splice(index, 0, anchor);
+        refreshAnchorLabels(Math.max(0, index - 1));
 
         return anchor;
     }
@@ -917,18 +921,15 @@
     function startAnchorLoading(anchor: ValhallaAnchor) {
         const markerIcon = anchor.marker?.getElement();
         if (!markerIcon) {
-            return null;
+            return;
         }
         markerIcon.classList.add("spinner", "spinner-light", "spinner-small");
-        const savedMarkerNumber = markerIcon.textContent;
-        markerIcon.textContent = "";
-
-        return savedMarkerNumber;
+        markerIcon.replaceChildren();
     }
 
-    function stopAnchorLoading(anchor: ValhallaAnchor, index: string | null) {
+    function stopAnchorLoading(anchor: ValhallaAnchor) {
         const markerIcon = anchor.marker?.getElement();
-        if (!markerIcon || !index) {
+        if (!markerIcon) {
             return;
         }
         markerIcon.classList.remove(
@@ -936,21 +937,47 @@
             "spinner-light",
             "spinner-small",
         );
-        markerIcon.textContent = index;
+        refreshAnchorLabel(valhallaStore.anchors.findIndex((a) => a.id === anchor.id));
+    }
+
+    function refreshAnchorLabel(index: number) {
+        if (index < 0) {
+            return;
+        }
+
+        const anchor = valhallaStore.anchors[index];
+        const markerIcon = anchor.marker?.getElement();
+        if (markerIcon) {
+            renderValhallaAnchorMarker(
+                markerIcon,
+                index,
+                valhallaStore.anchors.length,
+            );
+            anchor
+                .marker!.getPopup()
+                ._content.getElementsByTagName("h5")[0].textContent =
+                valhallaAnchorTitle(index, valhallaStore.anchors.length, $_);
+        }
     }
 
     function refreshAnchorLabels(startIndex: number = 0) {
         for (let i = startIndex; i < valhallaStore.anchors.length; i++) {
-            const anchor = valhallaStore.anchors[i];
-            const markerIcon = anchor.marker?.getElement();
-            if (markerIcon) {
-                markerIcon.textContent = `${i + 1}`;
-                anchor
-                    .marker!.getPopup()
-                    ._content.getElementsByTagName("h5")[0].textContent =
-                    $_("route-point") + " #" + (i + 1);
-            }
+            refreshAnchorLabel(i);
         }
+    }
+
+    function highlightAnchorMarker(index: number | null) {
+        for (const anchor of valhallaStore.anchors) {
+            anchor.marker?.getElement().classList.remove("anchor-list-highlight");
+        }
+
+        if (index === null) {
+            return;
+        }
+
+        valhallaStore.anchors[index]?.marker
+            ?.getElement()
+            .classList.add("anchor-list-highlight");
     }
 
     async function removeAnchor(anchorIndex: number) {
@@ -1005,7 +1032,7 @@
             if (fromIndex < N - 1) toRecalc.push(fromIndex);
         }
 
-        const markerTexts = anchors.map((anchor) => startAnchorLoading(anchor));
+        anchors.forEach((anchor) => startAnchorLoading(anchor));
         try {
             const recalcResults = await Promise.all(
                 toRecalc.map((i) =>
@@ -1031,7 +1058,7 @@
             updateTrailWithRouteData();
         } finally {
             for (let i = 0; i < anchors.length; i++) {
-                stopAnchorLoading(anchors[i], markerTexts[i]);
+                stopAnchorLoading(anchors[i]);
             }
         }
     }
@@ -1082,14 +1109,11 @@
     }
 
     async function recalculateRoute(anchorIndex: number) {
-        const markerText = startAnchorLoading(
-            valhallaStore.anchors[anchorIndex],
-        );
-
         const anchor = valhallaStore.anchors[anchorIndex];
         if (!anchor) {
             return;
         }
+        startAnchorLoading(anchor);
         let nextRouteSegment;
         let previousRouteSegment;
         try {
@@ -1131,7 +1155,7 @@
                 type: "error",
             });
         } finally {
-            stopAnchorLoading(valhallaStore.anchors[anchorIndex], markerText);
+            stopAnchorLoading(anchor);
         }
     }
 
@@ -1147,8 +1171,7 @@
             data.event.lngLat.lng,
             data.segment + 1,
         );
-        const markerText = startAnchorLoading(anchor);
-        updateFollowingAnchors(data.segment);
+        startAnchorLoading(anchor);
 
         const previousAnchor = valhallaStore.anchors[data.segment];
         const nextAnchor = valhallaStore.anchors[data.segment + 2];
@@ -1181,24 +1204,7 @@
                 type: "error",
             });
         } finally {
-            stopAnchorLoading(anchor, markerText);
-        }
-    }
-
-    function updateFollowingAnchors(segment: number) {
-        for (let i = segment + 2; i < valhallaStore.anchors.length; i++) {
-            const anchor = valhallaStore.anchors[i];
-            const markerIcon = anchor.marker?.getElement();
-            if (markerIcon) {
-                const markerText = markerIcon.textContent ?? "0";
-                const markerIndex = parseInt(markerText);
-                const newIndex = markerIndex + 1;
-                markerIcon.textContent = newIndex + "";
-                anchor
-                    .marker!.getPopup()
-                    ._content.getElementsByTagName("h5")[0].textContent =
-                    $_("route-point") + " #" + newIndex;
-            }
+            stopAnchorLoading(anchor);
         }
     }
 
@@ -1213,7 +1219,6 @@
         );
 
         await splitSegment(data.segment, data.event.lngLat);
-        updateFollowingAnchors(data.segment);
         updateTrailWithRouteData();
     }
 
@@ -1706,6 +1711,7 @@
                 disabled={routeAnchorListUpdating}
                 onMove={moveAnchor}
                 onDelete={removeAnchor}
+                onHover={highlightAnchorMarker}
             ></TrailAnchorList>
         {/if}
         {#if !drawingActive}
@@ -2054,5 +2060,13 @@
         form {
             height: calc(100vh - 124px);
         }
+    }
+
+    :global(.route-anchor.anchor-list-highlight) {
+        border-color: rgb(255 255 255);
+        box-shadow:
+            0 0 0 4px rgba(var(--primary), 0.35),
+            0 0 0 8px rgba(var(--primary), 0.16);
+        z-index: 1;
     }
 </style>

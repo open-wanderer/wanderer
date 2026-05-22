@@ -139,6 +139,12 @@ type ReverseGeocodingOptions = {
     signal?: AbortSignal;
 }
 
+export type ReverseLocationResult = {
+    label: string;
+    fullLabel: string;
+    country: string;
+}
+
 export type FetchFunction = (url: RequestInfo | URL, config?: RequestInit) => Promise<Response>;
 
 export async function searchLocationReverse(
@@ -147,6 +153,16 @@ export async function searchLocationReverse(
     options: ReverseGeocodingOptions = {},
     f: FetchFunction = fetch,
 ) {
+    const location = await searchLocationReverseStructured(lat, lon, options, f);
+    return location?.fullLabel ?? "";
+}
+
+export async function searchLocationReverseStructured(
+    lat: number,
+    lon: number,
+    options: ReverseGeocodingOptions = {},
+    f: FetchFunction = fetch,
+): Promise<ReverseLocationResult | null> {
     const params = new URLSearchParams({
         lat: String(lat),
         lon: String(lon),
@@ -159,36 +175,52 @@ export async function searchLocationReverse(
     const response: NominatimResponse = await r.json();
 
     if (response.features?.at(0)?.properties.address) {
-        return getLocationDescription(
-            response.features[0].properties.address,
-            options,
-        )
+        return getReverseLocationResult(response.features[0].properties.address, options);
     }
-    return ""
+    return null
 }
 
-function getLocationDescription(address: Address, options: ReverseGeocodingOptions = {}) {
-    let description = ""
+function getReverseLocationResult(
+    address: Address,
+    options: ReverseGeocodingOptions = {},
+): ReverseLocationResult {
+    const country = address.country ?? "";
+    const label = getLocationDescription(address, { ...options, includeCountry: false });
+    const fullLabel = getLocationDescription(address, options);
 
-    if (address.country) {
-        description += address.country;
-    }
-    if (address.state) {
-        description = `${address.state}, ` + description
+    return {
+        label: label || fullLabel,
+        fullLabel,
+        country,
+    };
+}
+
+function getLocationDescription(
+    address: Address,
+    options: ReverseGeocodingOptions & { includeCountry?: boolean } = {},
+) {
+    const parts = [];
+
+    if (options.includeRoad && address.road) {
+        parts.push(address.road);
     }
     if (address.city) {
-        description = `${address.city}, ` + description
+        parts.push(address.city);
     } else if (address.town) {
-        description = `${address.town}, ` + description
+        parts.push(address.town);
     } else if (address.hamlet) {
-        description = `${address.hamlet}, ` + description
+        parts.push(address.hamlet);
     } else if (address.village) {
-        description = `${address.village}, ` + description
+        parts.push(address.village);
     }
-    if (options.includeRoad && address.road) {
-        description = `${address.road}, ` + description;
+    if (address.state) {
+        parts.push(address.state);
     }
-    return description;
+    if (options.includeCountry !== false && address.country) {
+        parts.push(address.country);
+    }
+
+    return parts.join(", ");
 }
 
 export async function searchMulti(options: MultiSearchParams): Promise<MultiSearchResult<any>[]> {

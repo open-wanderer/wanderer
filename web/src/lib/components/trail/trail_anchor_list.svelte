@@ -4,11 +4,15 @@
     import GpxMetricsComputation from "$lib/models/gpx/gpx-metrics-computation";
     import type TrackSegment from "$lib/models/gpx/track-segment";
     import type { ValhallaAnchor } from "$lib/models/valhalla";
-    import { searchLocationReverse } from "$lib/stores/search_store";
+    import {
+        searchLocationReverseStructured,
+        type ReverseLocationResult,
+    } from "$lib/stores/search_store";
     import {
         formatDistance,
         formatElevation,
     } from "$lib/util/format_util";
+    import { valhallaAnchorDisplay, valhallaAnchorTitle } from "$lib/util/valhalla_anchor_util";
 
     interface Props {
         anchors: ValhallaAnchor[];
@@ -16,6 +20,7 @@
         disabled?: boolean;
         onMove: (fromIndex: number, toIndex: number) => void | Promise<void>;
         onDelete: (index: number) => void;
+        onHover?: (index: number | null) => void;
     }
 
     let {
@@ -24,25 +29,33 @@
         disabled = false,
         onMove,
         onDelete,
+        onHover,
     }: Props = $props();
 
     const anchorCoordinates = (anchor: ValhallaAnchor) =>
         `${anchor.lat.toFixed(4)}, ${anchor.lon.toFixed(4)}`;
 
     function fallbackAnchorTitle(index: number) {
-        if (index === 0) {
-            return $_("start");
-        }
-        if (index === anchors.length - 1) {
-            return $_("finish");
-        }
-        return `${$_("route-point")} #${index + 1}`;
+        return valhallaAnchorTitle(index, anchors.length, $_);
     }
 
-    const locationCache = new Map<string, string>();
+    const locationCache = new Map<string, ReverseLocationResult>();
     const pendingLocationRequests = new Set<string>();
-    let locationNames = $state<Record<string, string>>({});
+    let locations = $state<Record<string, ReverseLocationResult>>({});
     let locationAbortController: AbortController | null = null;
+
+    const commonAnchorCountry = $derived.by(() => {
+        const countries = anchors
+            .map((anchor) => locations[locationCacheKey(anchor)]?.country)
+            .filter((country): country is string => Boolean(country));
+
+        if (countries.length < 2) {
+            return null;
+        }
+
+        const [country] = countries;
+        return countries.every((nextCountry) => nextCountry === country) ? country : null;
+    });
 
     function locationCacheKey(anchor: ValhallaAnchor) {
         return `${anchor.lat.toFixed(5)},${anchor.lon.toFixed(5)}`;
@@ -50,25 +63,25 @@
 
     async function loadAnchorLocation(anchor: ValhallaAnchor, signal: AbortSignal) {
         const key = locationCacheKey(anchor);
-        if (locationNames[key] || pendingLocationRequests.has(key)) {
+        if (locations[key] || pendingLocationRequests.has(key)) {
             return;
         }
 
         const cached = locationCache.get(key);
         if (cached) {
-            locationNames = { ...locationNames, [key]: cached };
+            locations = { ...locations, [key]: cached };
             return;
         }
 
         pendingLocationRequests.add(key);
         try {
-            const locationName = await searchLocationReverse(anchor.lat, anchor.lon, {
+            const location = await searchLocationReverseStructured(anchor.lat, anchor.lon, {
                 includeRoad: true,
                 signal,
             });
-            if (locationName) {
-                locationCache.set(key, locationName);
-                locationNames = { ...locationNames, [key]: locationName };
+            if (location) {
+                locationCache.set(key, location);
+                locations = { ...locations, [key]: location };
             }
         } catch (error) {
             if (!(error instanceof DOMException && error.name === "AbortError")) {
@@ -96,14 +109,48 @@
     });
 
     function anchorTitle(anchor: ValhallaAnchor, index: number) {
-        return locationNames[locationCacheKey(anchor)] || fallbackAnchorTitle(index);
+        const location = locations[locationCacheKey(anchor)];
+        if (!location) {
+            return fallbackAnchorTitle(index);
+        }
+
+        return commonAnchorCountry && location.country === commonAnchorCountry
+            ? location.label
+            : location.fullLabel;
     }
 
-    function handleItemMouseEnter(e: MouseEvent) {
+    function updateOverflowingStats(element: HTMLElement) {
+        requestAnimationFrame(() => {
+            const stats = element.querySelectorAll<HTMLElement>(".stats-viewport");
+            for (const stat of stats) {
+                const content = stat.querySelector<HTMLElement>(".stats-content");
+                if (!content) {
+                    continue;
+                }
+
+                const overflow = Math.max(0, content.scrollWidth - stat.clientWidth);
+                if (overflow <= 0) {
+                    stat.classList.remove("is-overflowing");
+                    stat.style.removeProperty("--stats-scroll-distance");
+                    stat.style.removeProperty("--stats-scroll-duration");
+                    continue;
+                }
+
+                const duration = Math.min(5, Math.max(1.6, overflow / 28));
+                stat.style.setProperty("--stats-scroll-distance", `-${overflow}px`);
+                stat.style.setProperty("--stats-scroll-duration", `${duration}s`);
+                stat.classList.add("is-overflowing");
+            }
+        });
+    }
+
+    function handleItemMouseEnter(e: MouseEvent, index: number) {
+        onHover?.(index);
         const element = e.currentTarget as HTMLElement;
         const title = element.querySelector<HTMLElement>(".anchor-title-viewport");
         const text = element.querySelector<HTMLElement>(".anchor-title-text");
         if (!title || !text) {
+            updateOverflowingStats(element);
             return;
         }
 
@@ -121,6 +168,7 @@
             title.classList.remove("is-overflowing");
             title.style.removeProperty("--title-scroll-distance");
             title.style.removeProperty("--title-scroll-duration");
+            updateOverflowingStats(element);
             return;
         }
 
@@ -129,10 +177,20 @@
         title.style.setProperty("--title-scroll-distance", `-${overflow}px`);
         title.style.setProperty("--title-scroll-duration", `${duration}s`);
         title.classList.add("is-overflowing");
+        updateOverflowingStats(element);
     }
 
-    function handleItemMouseLeave(e: MouseEvent) {
-        const title = (e.currentTarget as HTMLElement).querySelector<HTMLElement>(
+    function clearItemHoverState(e: Event) {
+        onHover?.(null);
+        const element = e.currentTarget as HTMLElement;
+        const stats = element.querySelectorAll<HTMLElement>(".stats-viewport");
+        for (const stat of stats) {
+            stat.classList.remove("is-overflowing");
+            stat.style.removeProperty("--stats-scroll-distance");
+            stat.style.removeProperty("--stats-scroll-duration");
+        }
+
+        const title = element.querySelector<HTMLElement>(
             ".anchor-title-viewport",
         );
         if (!title) {
@@ -144,14 +202,12 @@
         title.style.removeProperty("--title-scroll-duration");
     }
 
+    function handleItemMouseLeave(e: MouseEvent) {
+        clearItemHoverState(e);
+    }
+
     function anchorIcon(index: number) {
-        if (index === 0) {
-            return "fa-bullseye";
-        }
-        if (index === anchors.length - 1) {
-            return "fa-flag-checkered";
-        }
-        return "fa-location-dot";
+        return valhallaAnchorDisplay(index, anchors.length).icon;
     }
 
     interface SegmentMetrics {
@@ -160,12 +216,7 @@
         elevationLoss: number;
     }
 
-    function computeSegmentMetrics(segment: TrackSegment): SegmentMetrics {
-        const metrics = new GpxMetricsComputation(5, 5);
-        for (const point of segment.trkpt ?? []) {
-            metrics.addAndFilter(point);
-        }
-
+    function snapshotMetrics(metrics: GpxMetricsComputation): SegmentMetrics {
         return {
             distance: metrics.totalDistance,
             elevationGain: metrics.totalElevationGainSmoothed,
@@ -173,23 +224,40 @@
         };
     }
 
-    const allSegmentMetrics = $derived(segments.map(computeSegmentMetrics));
+    function subtractMetrics(metrics: SegmentMetrics, previous: SegmentMetrics): SegmentMetrics {
+        return {
+            distance: metrics.distance - previous.distance,
+            elevationGain: metrics.elevationGain - previous.elevationGain,
+            elevationLoss: metrics.elevationLoss - previous.elevationLoss,
+        };
+    }
 
-    const allCumulativeMetrics = $derived(
-        allSegmentMetrics.reduce<SegmentMetrics[]>((totals, metrics) => {
-            const previous = totals[totals.length - 1] ?? {
-                distance: 0,
-                elevationGain: 0,
-                elevationLoss: 0,
-            };
-            totals.push({
-                distance: previous.distance + metrics.distance,
-                elevationGain: previous.elevationGain + metrics.elevationGain,
-                elevationLoss: previous.elevationLoss + metrics.elevationLoss,
-            });
-            return totals;
-        }, []),
-    );
+    const routeMetrics = $derived.by(() => {
+        const metrics = new GpxMetricsComputation(5, 5);
+        const segmentMetrics: SegmentMetrics[] = [];
+        const cumulativeMetrics: SegmentMetrics[] = [];
+        let previous = snapshotMetrics(metrics);
+
+        for (const segment of segments) {
+            const points = segment.trkpt ?? [];
+            for (let i = 1; i < points.length; i++) {
+                metrics.addAndFilter(points[i]);
+            }
+
+            const cumulative = snapshotMetrics(metrics);
+            cumulativeMetrics.push(cumulative);
+            segmentMetrics.push(subtractMetrics(cumulative, previous));
+            previous = cumulative;
+        }
+
+        return {
+            segmentMetrics,
+            cumulativeMetrics,
+        };
+    });
+
+    const allSegmentMetrics = $derived(routeMetrics.segmentMetrics);
+    const allCumulativeMetrics = $derived(routeMetrics.cumulativeMetrics);
 
     function segmentMetrics(index: number) {
         if (index === 0) return null;
@@ -202,9 +270,36 @@
     }
 
     let listElement: HTMLOListElement;
+    let hasVerticalOverflow = $state(false);
     let dragIndex = $state<number | null>(null);
     let insertBefore = $state<number | null>(null);
     let pointerId: number | null = null;
+
+    function updateListOverflow() {
+        if (!listElement) {
+            hasVerticalOverflow = false;
+            return;
+        }
+
+        hasVerticalOverflow = listElement.scrollHeight > listElement.clientHeight + 1;
+    }
+
+    $effect(() => {
+        anchors.length;
+        segments.length;
+        void tick().then(updateListOverflow);
+    });
+
+    $effect(() => {
+        const element = listElement;
+        if (!element || typeof ResizeObserver === "undefined") {
+            return;
+        }
+
+        const observer = new ResizeObserver(updateListOverflow);
+        observer.observe(element);
+        return () => observer.disconnect();
+    });
 
     function isValidInsert(pos: number): boolean {
         return (
@@ -295,7 +390,9 @@
 
 <ol
     bind:this={listElement}
-    class="flex max-h-96 shrink-0 flex-col gap-2 overflow-y-auto py-2"
+    class="anchor-list flex max-h-96 shrink-0 flex-col gap-2 overflow-y-auto py-2"
+    class:has-scrollbar={hasVerticalOverflow}
+    class:pr-3={hasVerticalOverflow}
 >
     {#each anchors as anchor, i (anchor.id)}
         {@const metrics = segmentMetrics(i)}
@@ -312,12 +409,17 @@
             class:opacity-50={dragIndex === i}
             class:drop-above={isValidInsert(i)}
             class:drop-below={i === anchors.length - 1 && isValidInsert(anchors.length)}
-            onmouseenter={handleItemMouseEnter}
+            onmouseenter={(e) => handleItemMouseEnter(e, i)}
             onmouseleave={handleItemMouseLeave}
+            onfocusin={(e) => {
+                onHover?.(i);
+                updateOverflowingStats(e.currentTarget as HTMLElement);
+            }}
+            onfocusout={clearItemHoverState}
         >
-            <div class="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-3 gap-y-1">
+            <div class="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2 gap-y-1">
                 <button
-                    class="drag-handle relative row-start-1 flex h-9 w-9 items-center justify-center self-start rounded-full p-0 text-xl text-content hover:bg-secondary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                    class="drag-handle relative row-start-1 flex h-8 w-8 -translate-x-0.5 items-center justify-center self-start rounded-full p-0 text-xl text-content hover:bg-secondary-hover disabled:cursor-not-allowed disabled:opacity-50"
                     type="button"
                     disabled={disabled}
                     aria-label={$_("move-route-point")}
@@ -334,7 +436,7 @@
                         <span
                             class="absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-background px-1 text-[0.65rem] font-semibold leading-none text-gray-500"
                         >
-                            {i + 1}
+                            {i}
                         </span>
                     {/if}
                 </button>
@@ -366,30 +468,34 @@
                     {/if}
                     <div class="col-start-2 row-start-2 min-w-0">
                         <div
-                            class="segment-stats flex h-5 min-w-0 items-center gap-x-3 overflow-hidden text-sm leading-5 text-gray-500"
+                            class="segment-stats stats-viewport h-5 min-w-0 overflow-hidden text-sm leading-5 text-gray-500"
                         >
-                            <span class="flex shrink-0 items-center whitespace-nowrap">
-                                <i class="fa fa-left-right mr-1 w-4 text-center"></i>{formatDistance(metrics.distance, { compact: true })}
-                            </span>
-                            <span class="flex shrink-0 items-center whitespace-nowrap">
-                                <i class="fa fa-arrow-trend-up mr-1 w-4 text-center"></i>{formatElevation(metrics.elevationGain)}
-                            </span>
-                            <span class="flex shrink-0 items-center whitespace-nowrap">
-                                <i class="fa fa-arrow-trend-down mr-1 w-4 text-center"></i>{formatElevation(metrics.elevationLoss)}
+                            <span class="stats-content flex w-max items-center gap-x-3">
+                                <span class="flex shrink-0 items-center whitespace-nowrap">
+                                    <i class="fa fa-left-right mr-1 w-4 text-center"></i>{formatDistance(metrics.distance, { compact: true })}
+                                </span>
+                                <span class="flex shrink-0 items-center whitespace-nowrap">
+                                    <i class="fa fa-arrow-trend-up mr-1 w-4 text-center"></i>{formatElevation(metrics.elevationGain)}
+                                </span>
+                                <span class="flex shrink-0 items-center whitespace-nowrap">
+                                    <i class="fa fa-arrow-trend-down mr-1 w-4 text-center"></i>{formatElevation(metrics.elevationLoss)}
+                                </span>
                             </span>
                         </div>
                         {#if showCumulative}
                             <div
-                                class="cumulative-stats flex h-5 min-w-0 items-center gap-x-3 overflow-hidden text-sm leading-5 text-gray-500"
+                                class="cumulative-stats stats-viewport h-5 min-w-0 overflow-hidden text-sm leading-5 text-gray-500"
                             >
-                                <span class="flex shrink-0 items-center whitespace-nowrap">
-                                    <i class="fa fa-left-right mr-1 w-4 text-center"></i>{formatDistance(cumulative.distance, { compact: true })}
-                                </span>
-                                <span class="flex shrink-0 items-center whitespace-nowrap">
-                                    <i class="fa fa-arrow-trend-up mr-1 w-4 text-center"></i>{formatElevation(cumulative.elevationGain)}
-                                </span>
-                                <span class="flex shrink-0 items-center whitespace-nowrap">
-                                    <i class="fa fa-arrow-trend-down mr-1 w-4 text-center"></i>{formatElevation(cumulative.elevationLoss)}
+                                <span class="stats-content flex w-max items-center gap-x-3">
+                                    <span class="flex shrink-0 items-center whitespace-nowrap">
+                                        <i class="fa fa-left-right mr-1 w-4 text-center"></i>{formatDistance(cumulative.distance, { compact: true })}
+                                    </span>
+                                    <span class="flex shrink-0 items-center whitespace-nowrap">
+                                        <i class="fa fa-arrow-trend-up mr-1 w-4 text-center"></i>{formatElevation(cumulative.elevationGain)}
+                                    </span>
+                                    <span class="flex shrink-0 items-center whitespace-nowrap">
+                                        <i class="fa fa-arrow-trend-down mr-1 w-4 text-center"></i>{formatElevation(cumulative.elevationLoss)}
+                                    </span>
                                 </span>
                             </div>
                         {/if}
@@ -412,6 +518,10 @@
 </ol>
 
 <style>
+    .anchor-list.has-scrollbar {
+        scrollbar-gutter: stable;
+    }
+
     li {
         position: relative;
     }
@@ -507,7 +617,17 @@
         li.has-cumulative:focus-within .cumulative-indicator,
         li.has-cumulative:hover .cumulative-stats,
         li.has-cumulative:focus-within .cumulative-stats {
+            display: block;
+        }
+
+        li.has-cumulative:hover .cumulative-indicator,
+        li.has-cumulative:focus-within .cumulative-indicator {
             display: flex;
+        }
+
+        :global(.stats-viewport.is-overflowing) .stats-content {
+            animation: anchor-stats-marquee var(--stats-scroll-duration, 2.5s)
+                ease-in-out 0.15s infinite alternate;
         }
     }
 
@@ -520,8 +640,18 @@
         }
     }
 
+    @keyframes anchor-stats-marquee {
+        from {
+            transform: translateX(0);
+        }
+        to {
+            transform: translateX(var(--stats-scroll-distance, 0));
+        }
+    }
+
     @media (prefers-reduced-motion: reduce) {
-        :global(.anchor-title-viewport.is-overflowing) .anchor-title-text {
+        :global(.anchor-title-viewport.is-overflowing) .anchor-title-text,
+        :global(.stats-viewport.is-overflowing) .stats-content {
             animation: none;
         }
     }

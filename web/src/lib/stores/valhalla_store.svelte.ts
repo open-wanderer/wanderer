@@ -6,6 +6,7 @@ import Waypoint from "$lib/models/gpx/waypoint";
 import { type RoutingOptions, type ValhallaAnchor, type ValhallaHeightResponse, type ValhallaRouteResponse } from "$lib/models/valhalla";
 import { APIError } from "$lib/util/api_util";
 import { decodePolyline, encodePolyline } from "$lib/util/polyline_util";
+import { renderValhallaAnchorMarker, valhallaAnchorTitle } from "$lib/util/valhalla_anchor_util";
 import { applyChangeset, diff, revertChangeset, type Changeset } from 'json-diff-ts';
 import type { LngLat } from "maplibre-gl";
 import { _ } from "svelte-i18n";
@@ -179,14 +180,21 @@ export function reverseRoute() {
         if (!a.marker) {
             return;
         }
-        a.marker.getElement().textContent = "" + (i + 1);
+        renderValhallaAnchorMarker(
+            a.marker.getElement(),
+            i,
+            valhallaStore.anchors.length,
+        );
 
         const anchorPopupHeading = a.marker
             .getPopup()
             ._content.getElementsByTagName("h5")[0];
         if (anchorPopupHeading) {
-            anchorPopupHeading.textContent =
-                get(_)("route-point") + " #" + (i + 1);
+            anchorPopupHeading.textContent = valhallaAnchorTitle(
+                i,
+                valhallaStore.anchors.length,
+                get(_),
+            );
         }
     });
 }

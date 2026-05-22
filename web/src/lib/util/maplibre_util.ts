@@ -76,13 +76,12 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
     return marker;
 }
 
-export function createAnchorMarker(lat: number, lon: number, index: number,
+export function createAnchorMarker(lat: number, lon: number,
     onDeleteClick: () => void, onLoopClick: () => void,
     onDragStart: (event: Event) => void, onDragEnd: (event: Event) => void): FontawesomeMarker {
 
     const anchorElement = document.createElement("span")
-    anchorElement.className = "route-anchor cursor-pointer rounded-full w-6 h-6 border border-black text-center bg-primary text-white"
-    anchorElement.textContent = "" + index
+    anchorElement.className = "route-anchor cursor-pointer flex items-center justify-center rounded-full w-6 h-6 border border-black bg-primary text-white"
     const marker = new M.Marker(
         {
             draggable: true,
@@ -96,7 +95,7 @@ export function createAnchorMarker(lat: number, lon: number, index: number,
     popupContent.className = "py-3 pl-3"
     const anchorH = document.createElement("h5")
     anchorH.classList.add("text-base", "font-medium");
-    anchorH.textContent = get(_)("route-point") + " #" + index;
+    anchorH.textContent = get(_)("route-point");
 
     const deleteButton = document.createElement("button");
     deleteButton.className = "btn-secondary w-full mt-2 text-sm";
