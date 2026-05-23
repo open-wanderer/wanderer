@@ -12,8 +12,6 @@ import (
 
 func CreateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
-		userId := e.Record.Id
-
 		err := createDefaultUserSettings(e.App, e.Record.Id)
 		if err != nil {
 			return err
@@ -26,10 +24,10 @@ func CreateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 
 		searchRules := map[string]interface{}{
 			"lists": map[string]string{
-				"filter": "public = true OR author = " + actor.Id + " OR shares = " + userId,
+				"filter": "public = true OR author = " + actor.Id + " OR shares = " + actor.Id,
 			},
 			"trails": map[string]string{
-				"filter": "public = true OR author = " + actor.Id + " OR shares = " + userId,
+				"filter": "public = true OR author = " + actor.Id + " OR shares = " + actor.Id,
 			},
 		}
 
