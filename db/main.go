@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
@@ -213,8 +214,33 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 func initData(app core.App, client meilisearch.ServiceManager) error {
 	initCategories(app)
 	initMeilisearchConfig(client)
-	go initMeilisearchDocuments(app, client)
+	go func() {
+		backfillPolylines(app)
+		initMeilisearchDocuments(app, client)
+	}()
 	return nil
+}
+
+func backfillPolylines(app core.App) {
+	const pageSize int64 = 100
+	var page int64 = 0
+	for {
+		trails := []*core.Record{}
+		err := app.RecordQuery("trails").
+			AndWhere(dbx.NewExp("(polyline IS NULL OR polyline = '') AND gpx != ''")).
+			Limit(pageSize).
+			Offset(page * pageSize).
+			All(&trails)
+		if err != nil || len(trails) == 0 {
+			break
+		}
+		for _, r := range trails {
+			if err := util.SavePolyline(app, r); err != nil {
+				log.Printf("backfill polyline failed for trail %s: %v", r.Id, err)
+			}
+		}
+		page++
+	}
 }
 
 func initCategories(app core.App) error {
