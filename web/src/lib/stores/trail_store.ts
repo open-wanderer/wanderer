@@ -334,9 +334,11 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
     }
 
 
-    let r = await fetch(`/api/v1/trail/form/${newTrail.id}?` + new URLSearchParams({
+    const updateUrl = `/api/v1/trail/form/${newTrail.id}?` + new URLSearchParams({
         expand: "category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
-    }), {
+    });
+
+    let r = await fetch(updateUrl, {
         method: 'POST',
         body: formData,
     })
@@ -360,6 +362,54 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
     return model;
 }
 
+export async function trails_update_metadata(
+    currentTrail: Trail,
+    patch: Pick<Partial<Trail>, "name" | "description" | "tags"> & {
+        expand?: Pick<NonNullable<Trail["expand"]>, "tags">;
+    },
+) {
+    const tagIds: string[] | undefined = patch.expand?.tags
+        ? []
+        : patch.tags;
+
+    for (const tag of patch.expand?.tags ?? []) {
+        if (!tag.id) {
+            const model = await tags_create(tag);
+            tagIds!.push(model.id!);
+        } else {
+            tagIds!.push(tag.id);
+        }
+    }
+
+    const searchParams = new URLSearchParams(
+        tagIds !== undefined ? { expand: "tags" } : {},
+    );
+    const query = searchParams.toString();
+    const url = `/api/v1/trail/${currentTrail.id}${query ? `?${query}` : ""}`;
+    const payload = {
+        name: patch.name ?? currentTrail.name,
+        ...(patch.description !== undefined
+            ? { description: patch.description }
+            : {}),
+        ...(tagIds !== undefined ? { tags: tagIds } : {}),
+    };
+
+    const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+
+    if (!r.ok) {
+        const response = await r.json();
+        throw new APIError(r.status, response.message, response.detail);
+    }
+
+    const model: Trail = await r.json();
+    trail.set(model);
+
+    return model;
+}
 
 export async function trails_delete(trail: Trail) {
     const r = await fetch('/api/v1/trail/' + trail.id, {

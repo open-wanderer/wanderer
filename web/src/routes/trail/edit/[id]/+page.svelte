@@ -126,6 +126,7 @@
     let summitLogModal: SummitLogModal;
     let listSelectModal: ListSearchModal;
     let markTrailAsCompletedModal: ConfirmModal;
+    let replaceRouteModal: ConfirmModal;
 
     let loading = $state(false);
 
@@ -136,6 +137,8 @@
     let gpxFile: File | Blob | null = null;
 
     let drawingActive = $state(false);
+    let replacingRoute = $state(false);
+    let isNewTrail = $derived(page.params.id === "new");
 
     function routeCalculationErrorText(error: unknown) {
         if (error instanceof Error && error.message) {
@@ -320,9 +323,41 @@
                 initRouteAnchors(gpx);
 
                 updateTrailOnMap();
+
+                if (!isNewTrail) {
+                    startDrawing();
+                }
             }
         }
     });
+
+    function fitCurrentRoute(initializedMap: M.Map) {
+        const bounds = valhallaStore.route.toGeoJSON().bbox;
+        if (!bounds) {
+            return;
+        }
+
+        initializedMap.fitBounds(bounds as M.LngLatBoundsLike, {
+            animate: false,
+            padding: {
+                top: 16,
+                left: 16,
+                right: 16,
+                bottom: 16,
+            },
+        });
+    }
+
+    function handleMapInit(initializedMap: M.Map) {
+        if (drawingActive) {
+            for (const anchor of valhallaStore.anchors) {
+                anchor.marker?.addTo(initializedMap);
+            }
+        }
+        if (!isNewTrail) {
+            fitCurrentRoute(initializedMap);
+        }
+    }
 
     function openFileBrowser() {
         document.getElementById("fileInput")!.click();
@@ -337,7 +372,10 @@
             return;
         }
 
-        clearWaypoints();
+        const replaceExistingRoute = replacingRoute && !isNewTrail;
+        if (!replaceExistingRoute) {
+            clearWaypoints();
+        }
         clearAnchors();
         clearUndoRedoStack();
         clearRoute();
@@ -351,18 +389,29 @@
         try {
             const prevId = $formData.id;
             const parseResult = await gpx2trail(gpxData, selectedFile.name);
-            setFields(parseResult.trail);
+            if (replaceExistingRoute) {
+                setFields("lat", parseResult.trail.lat);
+                setFields("lon", parseResult.trail.lon);
+                setFields("distance", parseResult.trail.distance);
+                setFields("duration", parseResult.trail.duration);
+                setFields("elevation_gain", parseResult.trail.elevation_gain);
+                setFields("elevation_loss", parseResult.trail.elevation_loss);
+            } else {
+                setFields(parseResult.trail);
+            }
             $formData.id = prevId ?? cryptoRandomString({ length: 15 });
             $formData.expand!.gpx_data = gpxData;
 
-            setFields(
-                "category",
-                page.data.settings.category || $categories[0].id,
-            );
-            setFields(
-                "public",
-                page.data.settings?.privacy?.trails === "public",
-            );
+            if (!replaceExistingRoute) {
+                setFields(
+                    "category",
+                    page.data.settings.category || $categories[0].id,
+                );
+                setFields(
+                    "public",
+                    page.data.settings?.privacy?.trails === "public",
+                );
+            }
 
             // const log = new SummitLog(parseResult.trail.date as string, {
             //     distance: $formData.distance,
@@ -395,6 +444,13 @@
             }
             setRoute(parseResult.gpx);
             initRouteAnchors(parseResult.gpx);
+            replacingRoute = false;
+            if (!isNewTrail) {
+                startDrawing();
+                if (map) {
+                    fitCurrentRoute(map);
+                }
+            }
 
             updateTrailOnMap();
         } catch (e) {
@@ -764,14 +820,21 @@
     }
 
     function startDrawing() {
+        drawingActive = true;
+        routeSegments = [...(valhallaStore.route.trk?.at(0)?.trkseg ?? [])];
+
         if (!map) {
             return;
         }
-        drawingActive = true;
-        routeSegments = [...(valhallaStore.route.trk?.at(0)?.trkseg ?? [])];
+
         for (const anchor of valhallaStore.anchors) {
             anchor.marker?.addTo(map);
         }
+    }
+
+    function startReplacementDrawing() {
+        replacingRoute = false;
+        startDrawing();
     }
 
     async function stopDrawing() {
@@ -1249,6 +1312,22 @@
         updateTrailWithRouteData();
     }
 
+    function requestReplaceRoute() {
+        replaceRouteModal.openModal();
+    }
+
+    function replaceRoute() {
+        resetRoute();
+        clearUndoRedoStack();
+        gpxFile = null;
+        overwriteGPX = true;
+        replacingRoute = true;
+        drawingActive = false;
+        routeSegments = [];
+        $formData.expand!.gpx_data = undefined;
+        updateTrailWithRouteData();
+    }
+
     async function recalculateElevationData() {
         await recalculateHeight();
 
@@ -1699,26 +1778,30 @@
             </div>
         {/if}
         <hr class="border-input-border" />
-        <h3 class="text-xl font-semibold">{$_("pick-a-trail")}</h3>
-        <button
-            class="btn-primary"
-            type="button"
-            onclick={async () => {
-                if (drawingActive) {
-                    await stopDrawing();
-                } else {
-                    startDrawing();
-                }
-            }}
-        >
-            {$formData.expand?.gpx_data
-                ? drawingActive
-                    ? $_("stop-editing")
-                    : $_("edit-route")
-                : drawingActive
-                    ? $_("stop-drawing")
-                    : $_("draw-a-route")}</button
-        >
+        {#if isNewTrail || replacingRoute}
+            <h3 class="text-xl font-semibold">{$_("pick-a-trail")}</h3>
+            <button
+                class="btn-primary"
+                type="button"
+                onclick={async () => {
+                    if (drawingActive) {
+                        await stopDrawing();
+                    } else if (replacingRoute) {
+                        startReplacementDrawing();
+                    } else {
+                        startDrawing();
+                    }
+                }}
+            >
+                {$formData.expand?.gpx_data
+                    ? drawingActive
+                        ? $_("stop-editing")
+                        : $_("edit-route")
+                    : drawingActive
+                        ? $_("stop-drawing")
+                        : $_("draw-a-route")}</button
+            >
+        {/if}
         {#if drawingActive && valhallaStore.anchors.length}
             <TrailAnchorList
                 anchors={valhallaStore.anchors}
@@ -1729,7 +1812,7 @@
                 onHover={highlightAnchorMarker}
             ></TrailAnchorList>
         {/if}
-        {#if !drawingActive}
+        {#if !drawingActive && (isNewTrail || replacingRoute)}
         <div class="flex gap-4 items-center w-full">
             <hr class="basis-full border-input-border" />
             <span class="text-gray-500 uppercase">{$_("or")}</span>
@@ -2012,7 +2095,9 @@
                 <RouteEditor
                     bind:options={routingOptions}
                     onReverse={reverseTrail}
-                    onReset={resetTrail}
+                    onReset={isNewTrail ? resetTrail : requestReplaceRoute}
+                    resetLabel="reset-route"
+                    resetAriaLabel="reset-route"
                     onCropToggle={toggleCropMarkers}
                     onCrop={confirmCrop}
                     onUpdateCropRange={updateCropMarkers}
@@ -2032,6 +2117,7 @@
                 onmarkerdragend={moveMarker}
                 activeTrail={0}
                 bind:map
+                oninit={handleMapInit}
                 onclick={(target) => handleMapClick(target)}
                 onsegmentclick={(data) => handleSegmentClick(data)}
                 onsegmentdragend={(data) => handleSegmentDragEnd(data)}
@@ -2064,6 +2150,15 @@
     deny={$_("no")}
     bind:this={markTrailAsCompletedModal}
     onconfirm={markTrailAsCompleted}
+></ConfirmModal>
+<ConfirmModal
+    id="replace-route-modal"
+    title={$_("reset-route")}
+    text={$_("reset-route-confirm")}
+    action="reset-route"
+    deny="cancel"
+    bind:this={replaceRouteModal}
+    onconfirm={replaceRoute}
 ></ConfirmModal>
 
 <style>
