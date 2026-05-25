@@ -76,7 +76,7 @@
     } from "$lib/components/base/search.svelte";
     import RouteEditor from "$lib/components/trail/route_editor.svelte";
     import { TagCreateSchema } from "$lib/models/api/tag_schema.js";
-    import { convertDMSToDD } from "$lib/models/gpx/utils.js";
+    import { gpsFromPhoto } from "$lib/models/gpx/utils.js";
     import { getPb } from "$lib/pocketbase";
     import { Tag } from "$lib/models/tag.js";
     import {
@@ -92,7 +92,6 @@
         createEditTrailMapPopup,
         FontawesomeMarker,
     } from "$lib/util/maplibre_util";
-    import EXIF from "$lib/vendor/exif-js/exif.js";
     import { validator } from "@felte/validator-zod";
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
@@ -1337,27 +1336,9 @@
         const photoCoords: GPXCoord[] = [];
 
         for (const [index, file] of Array.from(files).entries()) {
-            const coords = await new Promise<GPXCoord | undefined>((resolve) => {
-                EXIF.getData(file, function (p) {
-                    const lat = EXIF.getTag(p, "GPSLatitude");
-                    const latDir = EXIF.getTag(p, "GPSLatitudeRef");
-                    const lon = EXIF.getTag(p, "GPSLongitude");
-                    const lonDir = EXIF.getTag(p, "GPSLongitudeRef");
+            const gps = await gpsFromPhoto(file);
 
-                    if (lat && lon) {
-                        resolve({
-                            id: index.toString(),
-                            latitude: convertDMSToDD(lat, latDir),
-                            longitude: convertDMSToDD(lon, lonDir),
-                            file,
-                        });
-                    } else {
-                        resolve(undefined);
-                    }
-                });
-            });
-
-            if (!coords) {
+            if (!gps) {
                 show_toast(
                     {
                         type: "warning",
@@ -1369,7 +1350,12 @@
                 continue;
             }
 
-            photoCoords.push(coords);
+            photoCoords.push({
+                id: index.toString(),
+                latitude: gps.lat,
+                longitude: gps.lon,
+                file,
+            });
         }
 
         let clusterResponse: WaypointPhotoClusterResponse;

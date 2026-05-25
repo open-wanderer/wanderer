@@ -41,6 +41,8 @@
     import ShareInfo from "../share_info.svelte";
     import SummitLogTable from "../summit_log/summit_log_table.svelte";
     import MapWithElevationMaplibre from "./map_with_elevation_maplibre.svelte";
+    import MetricCharts from "./metric_charts.svelte";
+    import GPX from "$lib/models/gpx/gpx";
     import TrailTimeline from "./trail_timeline.svelte";
     import {
         summit_logs_create,
@@ -80,6 +82,20 @@
     let markTrailAsCompletedModal: ConfirmModal;
 
     let trail = $state(untrack(() => initTrail));
+
+    let metricGeoJSON = $derived.by(() => {
+        try {
+            if (trail.expand?.gpx) {
+                return trail.expand.gpx.toGeoJSON();
+            }
+            if (trail.expand?.gpx_data) {
+                return GPX.parse(trail.expand.gpx_data).toGeoJSON();
+            }
+        } catch (e) {
+            // Malformed GPX -> simply render no metric charts.
+        }
+        return undefined;
+    });
 
     const tabs = [
         $_("summit-book"),
@@ -549,6 +565,10 @@
                         class="relative border border-input-border rounded-xl p-2 mb-6 text-xs"
                         id="epc-container"
                     ></div>
+                    <MetricCharts
+                        geojson={metricGeoJSON}
+                        unit={page.data.settings?.unit ?? "metric"}
+                    ></MetricCharts>
                 {/if}
                 <TrailTimeline
                     {trail}

@@ -1,9 +1,13 @@
 package util
 
 import (
+	"regexp"
+
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/pocketbase/pocketbase/core"
 )
+
+var targetBlankPattern = regexp.MustCompile(`^_blank$`)
 
 func SanitizeHTML() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
@@ -28,7 +32,10 @@ func SanitizeHTML() func(e *core.RecordRequestEvent) error {
 		p.AllowElements("br", "div", "hr", "p", "span", "wbr")
 		p.AllowElements("b", "strong", "em", "u", "blockquote", "a")
 		p.AllowAttrs("href").OnElements("a")
-		p.AllowAttrs("target").OnElements("a")
+		// AllowStandardURLs (above) already limits href schemes to
+		// http/https/mailto, so javascript: URLs are stripped. Constrain target
+		// to _blank only, instead of allowing arbitrary frame targets.
+		p.AllowAttrs("target").Matching(targetBlankPattern).OnElements("a")
 		p.AllowAttrs("class").OnElements("a")
 
 		for _, field := range fields {

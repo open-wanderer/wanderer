@@ -43,6 +43,41 @@
         untrack(() => data.integration?.hammerhead?.active ?? false),
     );
 
+    let syncing: boolean = $state(false);
+
+    async function syncNow() {
+        syncing = true;
+        try {
+            const r = await fetch("/api/v1/integration/sync", {
+                method: "POST",
+            });
+            if (r.status === 409) {
+                show_toast({
+                    text: $_("sync-already-running"),
+                    icon: "close",
+                    type: "error",
+                });
+                return;
+            }
+            if (!r.ok) {
+                throw new Error();
+            }
+            show_toast({
+                text: $_("sync-started"),
+                icon: "check",
+                type: "success",
+            });
+        } catch (e) {
+            show_toast({
+                text: $_("error-starting-sync"),
+                icon: "close",
+                type: "error",
+            });
+        } finally {
+            syncing = false;
+        }
+    }
+
     async function onSettingsSave(
         form: StravaIntegration | KomootIntegration | HammerheadIntegration,
         key: "strava" | "komoot" | "hammerhead",
@@ -226,7 +261,14 @@
     <title>{$_("settings")} | wanderer</title>
 </svelte:head>
 
-<h3 class="text-2xl font-semibold">{$_("integrations")}</h3>
+<div class="flex items-center justify-between gap-4">
+    <h3 class="text-2xl font-semibold">{$_("integrations")}</h3>
+    <button class="btn-primary" onclick={syncNow} disabled={syncing}>
+        <i class="fa fa-arrows-rotate mr-2 {syncing ? 'fa-spin' : ''}"></i>{$_(
+            "sync-now",
+        )}
+    </button>
+</div>
 <hr class="mt-4 mb-6 border-input-border" />
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

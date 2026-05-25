@@ -50,6 +50,30 @@ function isFormContentType(request: Request) {
   );
 }
 
+// Cheaply checks whether Meilisearch still accepts the given (tenant) token.
+// Returns false only when Meilisearch explicitly rejects it (401/403) - e.g.
+// after a reinstall or master-key rotation that invalidated previously issued
+// tokens. On success, network errors or a missing host it returns true, so a
+// working token is never discarded needlessly.
+async function isMeilisearchTokenValid(host: string | undefined, token: string): Promise<boolean> {
+  if (!host) {
+    return true;
+  }
+  try {
+    const res = await fetch(`${host}/indexes/trails/search`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ limit: 0 }),
+    });
+    return res.status !== 401 && res.status !== 403;
+  } catch {
+    return true;
+  }
+}
+
 const auth: Handle = async ({ event, resolve }) => {
   const pb = new PocketBase(envPub.PUBLIC_POCKETBASE_URL)
   const url = new URL(event.request.url);
@@ -93,6 +117,15 @@ const auth: Handle = async ({ event, resolve }) => {
       // Identity mismatch (e.g. just logged in/out)
       event.cookies.delete('meilisearch_token', { path: '/' });
     }
+  }
+
+  // A cookie-sourced token may have been signed against a previous Meilisearch
+  // instance (after a reinstall or key rotation). If Meilisearch rejects it,
+  // drop it so a fresh, valid token is fetched below - otherwise every search
+  // would keep returning 403 until the cookie expires.
+  if (meilisearchToken && !(await isMeilisearchTokenValid(env.MEILI_URL, meilisearchToken))) {
+    meilisearchToken = undefined;
+    event.cookies.delete('meilisearch_token', { path: '/' });
   }
 
   if (!meilisearchToken) {

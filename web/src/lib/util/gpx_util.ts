@@ -7,6 +7,7 @@ import { browser } from "$app/environment";
 import Track from "$lib/models/gpx/track";
 import TrackSegment from "$lib/models/gpx/track-segment";
 import GPXWaypoint from "$lib/models/gpx/waypoint";
+import { buildExtensionsObject, type PointMetrics } from "$lib/models/gpx/extensions";
 import { Waypoint } from "$lib/models/waypoint";
 import { trails_show } from "$lib/stores/trail_store";
 import FitParser from "$lib/vendor/fit-parser/fit_parser";
@@ -221,7 +222,13 @@ export async function fromFIT(fitData: ArrayBuffer) {
                             return (d.position_lat && d.position_long) ? new GPXWaypoint({
                                 $: { lat: d.position_lat, lon: d.position_long },
                                 time: d.timestamp,
-                                ele: d.altitude ?? d.enhanced_altitude
+                                ele: d.altitude ?? d.enhanced_altitude,
+                                extensions: buildExtensionsObject({
+                                    heartRate: d.heart_rate,
+                                    cadence: d.cadence,
+                                    power: d.power,
+                                    temperature: d.temperature,
+                                })
 
                             }) : []
                         }))
@@ -263,18 +270,39 @@ export function fromGeoJSON(geoJson: Feature | FeatureCollection) {
         addSupportedPropertiesFromObject(trk, supports, properties);
         return trk;
     }
-    function createPt(position: Position, properties?: GeoJsonProperties) {
+    function metricAtIndex(properties: GeoJsonProperties, i: number): PointMetrics {
+        if (!properties) {
+            return {};
+        }
+        const props = properties as Record<string, any>;
+        const cp = (props.coordinateProperties ?? {}) as Record<string, any>;
+        const at = (arr: unknown): number | undefined =>
+            Array.isArray(arr) && typeof arr[i] === "number" ? arr[i] : undefined;
+        return {
+            heartRate: at(cp.heart ?? cp.heartRates ?? props.heartRates),
+            cadence: at(props.cadences),
+            power: at(props.watts),
+            temperature: at(cp.atemp ?? props.temperatures),
+        };
+    }
+    function createPt(position: Position, properties?: GeoJsonProperties, metrics?: PointMetrics) {
         const pt = new GPXWaypoint({ $: { lat: position[1], lon: position[0] }, ele: position[2], time: position[3] as any });
         const supports = ['name', 'desc', 'src', 'type'];
         if (properties) {
             addSupportedPropertiesFromObject(pt, supports, properties);
         }
+        if (metrics) {
+            const ext = buildExtensionsObject(metrics);
+            if (ext) {
+                pt.extensions = ext;
+            }
+        }
         return pt;
     }
-    function createTrkSeg(coordinates: Position[]) {
+    function createTrkSeg(coordinates: Position[], properties?: GeoJsonProperties) {
         var trkSeg = new TrackSegment({ trkpt: [] });
-        coordinates.forEach(function (point) {
-            trkSeg.trkpt!.push(createPt(point));
+        coordinates.forEach(function (point, i) {
+            trkSeg.trkpt!.push(createPt(point, undefined, metricAtIndex(properties ?? null, i)));
         });
         return trkSeg;
     }
@@ -300,7 +328,7 @@ export function fromGeoJSON(geoJson: Feature | FeatureCollection) {
             }
             case 'LineString': {
                 var lineTrk = createTrk(properties);
-                var trkseg = createTrkSeg(geometry.coordinates);
+                var trkseg = createTrkSeg(geometry.coordinates, properties);
                 lineTrk.trkseg!.push(trkseg);
                 gpx.trk!.push(lineTrk);
                 break;

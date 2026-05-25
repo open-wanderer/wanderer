@@ -14,9 +14,7 @@ import (
 
 	"pocketbase/commands"
 	"pocketbase/hooks"
-	"pocketbase/integrations/hammerhead"
-	"pocketbase/integrations/komoot"
-	"pocketbase/integrations/strava"
+	"pocketbase/integrations"
 	"pocketbase/routes"
 
 	_ "pocketbase/migrations"
@@ -166,12 +164,16 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/integration/hammerhead/upload", routes.IntegrationHammerheadUpload)
 	se.Router.GET("/integration/hammerhead/login", routes.IntegrationHammerheadLogin)
 	se.Router.GET("/integration/komoot/login", routes.IntegrationKommotLogin)
+	se.Router.POST("/integration/sync", routes.IntegrationSync(client))
 
+	// The signature-verified inbox (POST) is left unthrottled so legitimate
+	// federation delivery bursts are never dropped; the public read endpoints
+	// below are rate-limited per client IP against scraping/flooding.
 	se.Router.POST("/activitypub/activity/process", routes.ActivitypubActivityProcess)
-	se.Router.GET("/activitypub/actor", routes.ActivitypubActor)
-	se.Router.GET("/activitypub/actor/{id}/{follow}", routes.ActivitypubActorFollow)
-	se.Router.GET("/activitypub/trail/{id}", routes.ActivitypubTrail)
-	se.Router.GET("/activitypub/comment/{id}", routes.ActivitypubComment)
+	se.Router.GET("/activitypub/actor", routes.ActivitypubActor).BindFunc(util.ActivityPubRateLimit)
+	se.Router.GET("/activitypub/actor/{id}/{follow}", routes.ActivitypubActorFollow).BindFunc(util.ActivityPubRateLimit)
+	se.Router.GET("/activitypub/trail/{id}", routes.ActivitypubTrail).BindFunc(util.ActivityPubRateLimit)
+	se.Router.GET("/activitypub/comment/{id}", routes.ActivitypubComment).BindFunc(util.ActivityPubRateLimit)
 
 	se.Router.GET("/remote/trail/{id}", routes.RemoteTrailGet)
 	se.Router.GET("/remote/trail/{id}/comments", routes.RemoteTrailCommentsList)
@@ -189,23 +191,8 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 	}
 
 	app.Cron().MustAdd("integrations", schedule, func() {
-		err := strava.SyncStrava(app, client)
-		if err != nil {
-			warning := fmt.Sprintf("Error syncing with strava: %v", err)
-			fmt.Println(warning)
-			app.Logger().Error(warning)
-		}
-		err = komoot.SyncKomoot(app, client)
-		if err != nil {
-			warning := fmt.Sprintf("Error syncing with komoot: %v", err)
-			fmt.Println(warning)
-			app.Logger().Error(warning)
-		}
-		err = hammerhead.SyncHammerhead(app, client)
-		if err != nil {
-			warning := fmt.Sprintf("Error syncing with hammerhead: %v", err)
-			fmt.Println(warning)
-			app.Logger().Error(warning)
+		if err := integrations.RunAll(app, client); err != nil {
+			app.Logger().Warn(fmt.Sprintf("Scheduled integration sync skipped: %v", err))
 		}
 	})
 }
