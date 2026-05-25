@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -69,67 +70,77 @@ class RegisterScreen extends ConsumerWidget {
           child: FormBuilder(
             key: _formKey,
             autovalidateMode: AutovalidateMode.onUnfocus,
-            child: Column(
-              spacing: 12,
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SvgPicture.asset(
-                  "assets/svgs/logo_text_twoline_dark.svg",
-                  semanticsLabel: 'wanderer logo with text',
-                ),
-                Text(
-                  AppLocalizations.of(context)!.slogan,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                SizedBox(height: 12),
+            child: AutofillGroup(
+              child: SingleChildScrollView(
+                child: Column(
+                  spacing: 12,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SvgPicture.asset(
+                      "assets/svgs/logo_text_twoline_dark.svg",
+                      semanticsLabel: 'wanderer logo with text',
+                    ),
+                    Text(
+                      AppLocalizations.of(context)!.slogan,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    SizedBox(height: 12),
 
-                ServerSelector(icon: FontAwesomeIcons.pencil),
-                WandererTextField(
-                  name: 'username',
-                  label: AppLocalizations.of(context)!.username,
-                  validator: FormBuilderValidators.required(),
-                ),
-                WandererTextField(
-                  name: 'email',
-                  label: AppLocalizations.of(context)!.email,
-                  validator: FormBuilderValidators.compose([
-                    FormBuilderValidators.required(),
-                    FormBuilderValidators.email(),
-                  ]),
-                ),
-                WandererTextField(
-                  name: 'password',
-                  label: AppLocalizations.of(context)!.password,
-                  isPassword: true,
-                  validator: FormBuilderValidators.compose([
-                    FormBuilderValidators.required(),
-                    FormBuilderValidators.minLength(8),
-                  ]),
-                ),
+                    ServerSelector(icon: FontAwesomeIcons.pencil),
+                    WandererTextField(
+                      name: 'username',
+                      label: AppLocalizations.of(context)!.username,
+                      validator: FormBuilderValidators.required(),
+                      autofillHints: const [AutofillHints.newUsername],
+                    ),
+                    WandererTextField(
+                      name: 'email',
+                      label: AppLocalizations.of(context)!.email,
+                      validator: FormBuilderValidators.compose([
+                        FormBuilderValidators.required(),
+                        FormBuilderValidators.email(),
+                      ]),
+                      autofillHints: const [AutofillHints.email],
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    WandererTextField(
+                      name: 'password',
+                      label: AppLocalizations.of(context)!.password,
+                      isPassword: true,
+                      validator: FormBuilderValidators.compose([
+                        FormBuilderValidators.required(),
+                        FormBuilderValidators.minLength(8),
+                      ]),
+                      autofillHints: const [AutofillHints.newPassword],
+                    ),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: WandererButton(
-                    primary: true,
-                    large: true,
-                    loading: registerState.isLoading,
-                    child: Text(AppLocalizations.of(context)!.register),
-                    onPressed: () async {
-                      if (_formKey.currentState?.saveAndValidate() ?? false) {
-                        final data = _formKey.currentState!.value;
-                        ref
-                            .read(authProvider.notifier)
-                            .register(
-                              data['username'],
-                              data['email'],
-                              data['password'],
-                            );
-                      }
-                    },
-                  ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: WandererButton(
+                        primary: true,
+                        large: true,
+                        loading: registerState.isLoading,
+                        child: Text(AppLocalizations.of(context)!.register),
+                        onPressed: () async {
+                          if (_formKey.currentState?.saveAndValidate() ??
+                              false) {
+                            final data = _formKey.currentState!.value;
+                            TextInput.finishAutofillContext();
+                            ref
+                                .read(authProvider.notifier)
+                                .register(
+                                  data['username'],
+                                  data['email'],
+                                  data['password'],
+                                );
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

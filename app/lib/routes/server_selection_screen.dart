@@ -29,12 +29,22 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
     var url = server.url.trim();
     if (url.isEmpty) return;
 
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://$url';
-    }
+    // Clean up spaces which are often typed instead of dots on mobile keyboards
+    url = url.replaceAll(' ', '.').replaceAll(RegExp(r'\.+'), '.');
 
-    ref.read(serverSelectionProvider.notifier).setSelectedServer(server);
-    ref.read(apiProvider.notifier).updateBaseUrl(server.url);
+    // If we corrupted the http:// or https:// prefix, strip it so we can rebuild it cleanly
+    url = url.replaceFirst(RegExp(r'^https?:?/?/?\.?'), '');
+    url = url.replaceFirst(RegExp(r'^http?:?/?/?\.?'), '');
+
+    // Now determine the correct protocol
+    final bool isHttp = server.url.trim().startsWith('http://');
+    url = isHttp ? 'http://$url' : 'https://$url';
+
+    final selectedServer = server.copyWith(url: url);
+    ref
+        .read(serverSelectionProvider.notifier)
+        .setSelectedServer(selectedServer);
+    ref.read(apiProvider.notifier).updateBaseUrl(selectedServer.url);
 
     context.pop();
   }

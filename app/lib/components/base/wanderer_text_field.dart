@@ -8,6 +8,8 @@ class WandererTextField extends FormBuilderField<String> {
   final FaIconData? icon;
   final bool disabled;
   final bool isPassword;
+  final Iterable<String>? autofillHints;
+  final TextInputType? keyboardType;
 
   WandererTextField({
     super.key,
@@ -19,6 +21,8 @@ class WandererTextField extends FormBuilderField<String> {
     this.icon,
     this.disabled = false,
     this.isPassword = false,
+    this.autofillHints,
+    this.keyboardType,
   }) : super(
          builder: (FormFieldState<String?> field) {
            final theme = Theme.of(field.context);
@@ -61,6 +65,8 @@ class WandererTextField extends FormBuilderField<String> {
 
                    Expanded(
                      child: TextField(
+                       autofillHints: autofillHints,
+                       keyboardType: keyboardType,
                        controller: TextEditingController(text: field.value)
                          ..selection = TextSelection.fromPosition(
                            TextPosition(offset: (field.value ?? '').length),

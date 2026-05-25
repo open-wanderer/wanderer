@@ -26,7 +26,8 @@ class ServerSelectionNotifier extends _$ServerSelectionNotifier {
   }
 
   void setSelectedServer(ServerInstance server) {
-    final newState = ServerState(state.requireValue.availableServers, server);
+    final available = state.value?.availableServers ?? <ServerInstance>[];
+    final newState = ServerState(available, server);
     state = AsyncValue.data(newState);
   }
 }

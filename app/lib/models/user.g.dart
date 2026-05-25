@@ -37,12 +37,14 @@ Map<String, dynamic> _$UserToJson(_User instance) => <String, dynamic>{
 };
 
 _UserExpand _$UserExpandFromJson(Map<String, dynamic> json) => _UserExpand(
-  actor: json['activitypub_actors_via_user'] == null
-      ? null
-      : Actor.fromJson(
-          json['activitypub_actors_via_user'] as Map<String, dynamic>,
-        ),
+  actor: const ActorListConverter().fromJson(
+    json['activitypub_actors_via_user'],
+  ),
 );
 
 Map<String, dynamic> _$UserExpandToJson(_UserExpand instance) =>
-    <String, dynamic>{'activitypub_actors_via_user': instance.actor};
+    <String, dynamic>{
+      'activitypub_actors_via_user': const ActorListConverter().toJson(
+        instance.actor,
+      ),
+    };

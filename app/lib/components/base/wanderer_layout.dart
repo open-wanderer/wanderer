@@ -59,7 +59,7 @@ class WandererLayout extends ConsumerWidget {
               router.go('/map');
               break;
             case 2:
-              router.go('/list');
+              router.go('/library');
               break;
             case 3:
               router.go('/profile');
@@ -74,7 +74,7 @@ class WandererLayout extends ConsumerWidget {
 
   int _calculateSelectedIndex(String path) {
     if (path.startsWith('/map')) return 1;
-    if (path.startsWith('/list')) return 2;
+    if (path.startsWith('/library')) return 2;
     if (path.startsWith('/profile')) return 3;
     return 0;
   }

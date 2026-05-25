@@ -332,7 +332,7 @@ $UserExpandCopyWith<$Res>? get expand {
 /// @nodoc
 mixin _$UserExpand {
 
-@JsonKey(name: 'activitypub_actors_via_user') Actor? get actor;
+@JsonKey(name: 'activitypub_actors_via_user')@ActorListConverter() Actor? get actor;
 /// Create a copy of UserExpand
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -365,7 +365,7 @@ abstract mixin class $UserExpandCopyWith<$Res>  {
   factory $UserExpandCopyWith(UserExpand value, $Res Function(UserExpand) _then) = _$UserExpandCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'activitypub_actors_via_user') Actor? actor
+@JsonKey(name: 'activitypub_actors_via_user')@ActorListConverter() Actor? actor
 });
 
 
@@ -482,7 +482,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'activitypub_actors_via_user')  Actor? actor)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'activitypub_actors_via_user')@ActorListConverter()  Actor? actor)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserExpand() when $default != null:
 return $default(_that.actor);case _:
@@ -503,7 +503,7 @@ return $default(_that.actor);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'activitypub_actors_via_user')  Actor? actor)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'activitypub_actors_via_user')@ActorListConverter()  Actor? actor)  $default,) {final _that = this;
 switch (_that) {
 case _UserExpand():
 return $default(_that.actor);case _:
@@ -523,7 +523,7 @@ return $default(_that.actor);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'activitypub_actors_via_user')  Actor? actor)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'activitypub_actors_via_user')@ActorListConverter()  Actor? actor)?  $default,) {final _that = this;
 switch (_that) {
 case _UserExpand() when $default != null:
 return $default(_that.actor);case _:
@@ -538,10 +538,10 @@ return $default(_that.actor);case _:
 @JsonSerializable()
 
 class _UserExpand implements UserExpand {
-  const _UserExpand({@JsonKey(name: 'activitypub_actors_via_user') this.actor});
+  const _UserExpand({@JsonKey(name: 'activitypub_actors_via_user')@ActorListConverter() this.actor});
   factory _UserExpand.fromJson(Map<String, dynamic> json) => _$UserExpandFromJson(json);
 
-@override@JsonKey(name: 'activitypub_actors_via_user') final  Actor? actor;
+@override@JsonKey(name: 'activitypub_actors_via_user')@ActorListConverter() final  Actor? actor;
 
 /// Create a copy of UserExpand
 /// with the given fields replaced by the non-null parameter values.
@@ -576,7 +576,7 @@ abstract mixin class _$UserExpandCopyWith<$Res> implements $UserExpandCopyWith<$
   factory _$UserExpandCopyWith(_UserExpand value, $Res Function(_UserExpand) _then) = __$UserExpandCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'activitypub_actors_via_user') Actor? actor
+@JsonKey(name: 'activitypub_actors_via_user')@ActorListConverter() Actor? actor
 });
 
 
