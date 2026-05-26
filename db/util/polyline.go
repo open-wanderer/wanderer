@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -17,24 +18,25 @@ func ComputePolyline(app core.App, r *core.Record) (string, error) {
 
 	fsys, err := app.NewFilesystem()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("open filesystem: %w", err)
 	}
 	defer fsys.Close()
 
-	gpxFile, err := fsys.GetReader(r.BaseFilesPath() + "/" + gpxPath)
+	gpxFilePath := r.BaseFilesPath() + "/" + gpxPath
+	gpxFile, err := fsys.GetReader(gpxFilePath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("open gpx file %q: %w", gpxFilePath, err)
 	}
 	defer gpxFile.Close()
 
 	content := new(bytes.Buffer)
 	if _, err = io.Copy(content, gpxFile); err != nil {
-		return "", err
+		return "", fmt.Errorf("read gpx file %q: %w", gpxFilePath, err)
 	}
 
 	gpxData, err := gpx.Parse(content)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parse gpx file %q: %w", gpxFilePath, err)
 	}
 
 	gpxData.SimplifyTracks(50)
@@ -55,5 +57,8 @@ func SavePolyline(app core.App, r *core.Record) error {
 		return err
 	}
 	r.Set("polyline", encoded)
-	return app.UnsafeWithoutHooks().Save(r)
+	if err := app.UnsafeWithoutHooks().Save(r); err != nil {
+		return fmt.Errorf("save trail polyline: %w", err)
+	}
+	return nil
 }

@@ -55,9 +55,11 @@ func RemoteListGet(e *core.RequestEvent) error {
 			iri := record.GetString("iri")
 			if time.Now().UTC().Sub(updatedAt) > remoteSyncThreshold {
 				if _, alreadySyncing := listSyncing.LoadOrStore(iri, struct{}{}); !alreadySyncing {
+					urlCopy := *e.Request.URL
+					bgCtx := context.WithValue(context.Background(), "actor", ctx.Value("actor"))
 					go func() {
 						defer listSyncing.Delete(iri)
-						performFullListSync(e.App, ctx, e.Request.URL, record)
+						performFullListSync(e.App, bgCtx, &urlCopy, record)
 					}()
 				}
 			}

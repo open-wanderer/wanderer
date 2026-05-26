@@ -86,9 +86,11 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 			iri := record.GetString("iri")
 			if time.Now().UTC().Sub(updatedAt) > remoteSyncThreshold {
 				if _, alreadySyncing := trailSyncing.LoadOrStore(iri, struct{}{}); !alreadySyncing {
+					urlCopy := *e.Request.URL
+					bgCtx := context.WithValue(context.Background(), "actor", ctx.Value("actor"))
 					go func() {
 						defer trailSyncing.Delete(iri)
-						performFullSync(e.App, ctx, e.Request.URL, record)
+						performFullSync(e.App, bgCtx, &urlCopy, record)
 					}()
 				}
 			}
