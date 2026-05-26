@@ -167,11 +167,14 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/integration/hammerhead/login", routes.IntegrationHammerheadLogin)
 	se.Router.GET("/integration/komoot/login", routes.IntegrationKommotLogin)
 
+	// The signature-verified inbox (POST) is left unthrottled so legitimate
+	// federation delivery bursts are never dropped; the public read endpoints
+	// below are rate-limited per client IP against scraping/flooding.
 	se.Router.POST("/activitypub/activity/process", routes.ActivitypubActivityProcess)
-	se.Router.GET("/activitypub/actor", routes.ActivitypubActor)
-	se.Router.GET("/activitypub/actor/{id}/{follow}", routes.ActivitypubActorFollow)
-	se.Router.GET("/activitypub/trail/{id}", routes.ActivitypubTrail)
-	se.Router.GET("/activitypub/comment/{id}", routes.ActivitypubComment)
+	se.Router.GET("/activitypub/actor", routes.ActivitypubActor).BindFunc(util.ActivityPubRateLimit)
+	se.Router.GET("/activitypub/actor/{id}/{follow}", routes.ActivitypubActorFollow).BindFunc(util.ActivityPubRateLimit)
+	se.Router.GET("/activitypub/trail/{id}", routes.ActivitypubTrail).BindFunc(util.ActivityPubRateLimit)
+	se.Router.GET("/activitypub/comment/{id}", routes.ActivitypubComment).BindFunc(util.ActivityPubRateLimit)
 
 	se.Router.GET("/remote/trail/{id}", routes.RemoteTrailGet)
 	se.Router.GET("/remote/trail/{id}/comments", routes.RemoteTrailCommentsList)

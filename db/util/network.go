@@ -87,6 +87,27 @@ func (rl *RateLimiter) CheckRateLimit(identifier string, host string) error {
 
 var ActivityPubRateLimiter = NewRateLimiter(30, time.Minute)
 
+// ActivityPubInboundRateLimiter bounds how many requests a single client IP can
+// make to the public /activitypub/* read endpoints, protecting them from
+// scraping and flooding. The limit is intentionally generous so it never
+// throttles normal federation traffic. Behind a reverse proxy that does not
+// forward the real client IP it effectively becomes a global limit, which is
+// still a useful upper bound. Tune the numbers here if needed.
+var ActivityPubInboundRateLimiter = NewRateLimiter(200, time.Minute)
+
+// ActivityPubRateLimit is route middleware applying ActivityPubInboundRateLimiter,
+// keyed by the client IP.
+func ActivityPubRateLimit(e *core.RequestEvent) error {
+	ip := e.RealIP()
+	if ip == "" {
+		ip = e.Request.RemoteAddr
+	}
+	if err := ActivityPubInboundRateLimiter.CheckRateLimit(ip, "activitypub"); err != nil {
+		return e.TooManyRequestsError("Too many requests", err)
+	}
+	return e.Next()
+}
+
 type safeTransport struct {
 	transport http.RoundTripper
 }
