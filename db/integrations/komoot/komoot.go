@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -56,7 +55,12 @@ func SyncKomoot(app core.App, client meilisearch.ServiceManager) error {
 			Completed: true,
 			Merge:     trailmerge.DefaultIntegrationAutoMergeSettings(),
 		}
-		json.Unmarshal([]byte(komootString), &komootIntegration)
+		if err := json.Unmarshal([]byte(komootString), &komootIntegration); err != nil {
+			warning := fmt.Sprintf("unable to parse komoot integration for user %s: %v\n", userId, err)
+			fmt.Print(warning)
+			app.Logger().Warn(warning)
+			continue
+		}
 
 		if !komootIntegration.Active || komootIntegration.Email == "" || komootIntegration.Password == "" {
 			continue
@@ -128,28 +132,27 @@ func (k *KomootApi) buildHeader() *BasicAuthToken {
 }
 
 func sendRequest(url string, auth *BasicAuthToken) ([]byte, error) {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if auth != nil {
-		auth.Apply(req)
-	}
-
-	resp, err := client.Do(req)
+	resp, err := util.DoWithRetry(util.IntegrationHTTPClient, func() (*http.Request, error) {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+		if auth != nil {
+			auth.Apply(req)
+		}
+		return req, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := util.ReadAllLimited(resp.Body, util.MaxIntegrationDownloadBytes)
 		return nil, fmt.Errorf("error sending request to komoot (%d): %s", resp.StatusCode, string(body))
 	}
 
-	return io.ReadAll(resp.Body)
+	return util.ReadAllLimited(resp.Body, util.MaxIntegrationDownloadBytes)
 }
 
 func (k *KomootApi) Login(email, password string) error {
@@ -161,7 +164,9 @@ func (k *KomootApi) Login(email, password string) error {
 	}
 
 	var data LoginResponse
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return fmt.Errorf("unable to parse komoot login response: %w", err)
+	}
 
 	k.UserID = data.Username
 	k.Token = data.Password
@@ -177,7 +182,9 @@ func (k *KomootApi) fetchTours(page int) ([]KomootTour, int, error) {
 	}
 
 	var data KomootToursResponse
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, 0, fmt.Errorf("unable to parse komoot tours response: %w", err)
+	}
 
 	return data.Embedded.Tours, data.Page.TotalPages, nil
 }
@@ -190,7 +197,9 @@ func (k *KomootApi) fetchDetailedTour(tour KomootTour) (*DetailedKomootTour, err
 	}
 
 	var data *DetailedKomootTour
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, fmt.Errorf("unable to parse komoot tour details: %w", err)
+	}
 	return data, nil
 }
 

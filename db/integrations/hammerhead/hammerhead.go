@@ -92,11 +92,12 @@ func SyncHammerhead(app core.App, client meilisearch.ServiceManager) error {
 		if hammerheadIntegration.After != "" {
 			t, err := time.Parse("2006-01-02", hammerheadIntegration.After)
 			if err != nil {
-				return err
+				warning := fmt.Sprintf("invalid hammerhead 'after' date %q for user %s: %v\n", hammerheadIntegration.After, userId, err)
+				fmt.Print(warning)
+				app.Logger().Warn(warning)
+				continue
 			}
-			t = t.UTC()
-
-			after = t.Unix()
+			after = t.UTC().Unix()
 		}
 
 		if hammerheadIntegration.Planned {
@@ -187,29 +188,27 @@ func (h *HammerheadApi) buildHeader() *BasicAuthToken {
 }
 
 func getToken(uri string, auth *BasicAuthToken) ([]byte, error) {
-	client := &http.Client{}
+	jsonStr := []byte(`{"grant_type": "password", "username": "` + auth.Key + `", "password": "` + auth.Value + `"}`)
 
-	var jsonStr = []byte(`{"grant_type": "password", "username": "` + auth.Key + `", "password": "` + auth.Value + `"}`)
-
-	req, err := http.NewRequest("POST", uri, bytes.NewBuffer(jsonStr))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
+	resp, err := util.DoWithRetry(util.IntegrationHTTPClient, func() (*http.Request, error) {
+		req, err := http.NewRequest("POST", uri, bytes.NewReader(jsonStr))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		return req, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := util.ReadAllLimited(resp.Body, util.MaxIntegrationDownloadBytes)
 		return nil, fmt.Errorf("error retrieving auth token from Hammerhead (%d): %s", resp.StatusCode, string(body))
 	}
 
-	return io.ReadAll(resp.Body)
+	return util.ReadAllLimited(resp.Body, util.MaxIntegrationDownloadBytes)
 }
 
 func (h *HammerheadApi) UploadActivities(e *core.RequestEvent) error {
@@ -259,8 +258,11 @@ func (h *HammerheadApi) UploadActivities(e *core.RequestEvent) error {
 	return nil
 }
 
+// sendPostRequest uploads data to Hammerhead. It is deliberately NOT retried:
+// the only caller (UploadActivities) submits a user-provided file, and a blind
+// retry on a transient 5xx could create a duplicate route on Hammerhead's side.
+// It still uses the shared timeout client so an upload cannot hang forever.
 func sendPostRequest(url string, body io.Reader, contentType string, auth *BasicAuthToken) ([]byte, error) {
-	client := &http.Client{}
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
 		return nil, err
@@ -274,43 +276,42 @@ func sendPostRequest(url string, body io.Reader, contentType string, auth *Basic
 		auth.Apply(req)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := util.IntegrationHTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := util.ReadAllLimited(resp.Body, util.MaxIntegrationDownloadBytes)
 		return nil, fmt.Errorf("error sending request to Hammerhead (%d): %s", resp.StatusCode, string(body))
 	}
 
-	return io.ReadAll(resp.Body)
+	return util.ReadAllLimited(resp.Body, util.MaxIntegrationDownloadBytes)
 }
 
 func sendGetRequest(url string, auth *BasicAuthToken) ([]byte, error) {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if auth != nil {
-		auth.Apply(req)
-	}
-
-	resp, err := client.Do(req)
+	resp, err := util.DoWithRetry(util.IntegrationHTTPClient, func() (*http.Request, error) {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+		if auth != nil {
+			auth.Apply(req)
+		}
+		return req, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := util.ReadAllLimited(resp.Body, util.MaxIntegrationDownloadBytes)
 		return nil, fmt.Errorf("error sending request to Hammerhead (%d): %s", resp.StatusCode, string(body))
 	}
 
-	return io.ReadAll(resp.Body)
+	return util.ReadAllLimited(resp.Body, util.MaxIntegrationDownloadBytes)
 }
 
 func (h *HammerheadApi) Login(email, password string) error {
@@ -322,7 +323,9 @@ func (h *HammerheadApi) Login(email, password string) error {
 	}
 
 	var data LoginResponse
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return fmt.Errorf("unable to parse Hammerhead login response: %w", err)
+	}
 
 	h.Token = data.Token
 	derivedUserID, err := extractUserIDFromToken(data.Token)
@@ -367,7 +370,9 @@ func (h *HammerheadApi) fetchActivities(page int) ([]HammerheadActivityResponse,
 	}
 
 	var data HammerheadActivitiesResponse
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, 0, fmt.Errorf("unable to parse Hammerhead activities response: %w", err)
+	}
 
 	tours := data.Tours
 
@@ -383,7 +388,9 @@ func (h *HammerheadApi) fetchTours(page int) ([]HammerheadTourResponse, int, err
 	}
 
 	var data HammerheadToursResponse
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, 0, fmt.Errorf("unable to parse Hammerhead tours response: %w", err)
+	}
 
 	tours := data.Data
 
@@ -399,7 +406,9 @@ func (h *HammerheadApi) fetchDetailedActivity(tour HammerheadActivityResponse) (
 	}
 
 	var data *HammerheadActivity
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, fmt.Errorf("unable to parse Hammerhead activity details: %w", err)
+	}
 	return data, nil
 }
 
@@ -412,7 +421,9 @@ func (h *HammerheadApi) fetchDetailedTour(tour HammerheadTourResponse) (*Hammerh
 	}
 
 	var data *HammerheadTour
-	json.Unmarshal(body, &data)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, fmt.Errorf("unable to parse Hammerhead tour details: %w", err)
+	}
 	return data, nil
 }
 

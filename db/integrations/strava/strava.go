@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -27,6 +26,11 @@ import (
 type StravaApi struct {
 	AceessToken string
 }
+
+// stravaPerPage is the page size requested from Strava's list endpoints. A page
+// returning fewer items than this marks the last page, so we stop paginating
+// without an extra request for an empty page.
+const stravaPerPage = 50
 
 func SyncStrava(app core.App, client meilisearch.ServiceManager) error {
 	integrations, err := app.FindAllRecords("integrations", dbx.NewExp("true"))
@@ -67,12 +71,18 @@ func SyncStrava(app core.App, client meilisearch.ServiceManager) error {
 
 		decryptedSecret, err := security.Decrypt(stravaIntegration.ClientSecret, encryptionKey)
 		if err != nil {
-			return err
+			warning := fmt.Sprintf("unable to decrypt strava client secret for user %s: %v\n", userId, err)
+			fmt.Print(warning)
+			app.Logger().Warn(warning)
+			continue
 		}
 
 		decryptedRefreshToken, err := security.Decrypt(stravaIntegration.RefreshToken, encryptionKey)
 		if err != nil {
-			return err
+			warning := fmt.Sprintf("unable to decrypt strava refresh token for user %s: %v\n", userId, err)
+			fmt.Print(warning)
+			app.Logger().Warn(warning)
+			continue
 		}
 
 		request := RefreshTokenRequest{
@@ -99,70 +109,77 @@ func SyncStrava(app core.App, client meilisearch.ServiceManager) error {
 		}
 
 		if stravaIntegration.Routes {
-			page := 1
-			hasMore := true
-			for hasMore {
-				routes, err := fetchStravaRoutes(r.AccessToken, page)
-				hasMore = len(routes) > 0
-				page += 1
+			for page := 1; ; page++ {
+				routes, err := fetchStravaRoutes(r.AccessToken, page, stravaPerPage)
 				if err != nil {
 					warning := fmt.Sprintf("error fetching routes from strava: %v\n", err)
 					fmt.Print(warning)
 					app.Logger().Warn(warning)
 					break
 				}
-				err = syncTrailsWithRoutes(app, client, ctx, stravaIntegration, r.AccessToken, userId, actor, routes)
-				if err != nil {
+				if len(routes) == 0 {
+					break
+				}
+				if err := syncTrailsWithRoutes(app, client, ctx, stravaIntegration, r.AccessToken, userId, actor, routes); err != nil {
 					warning := fmt.Sprintf("error syncing strava routes with trails: %v\n", err)
-					fmt.Print(warning)
-					app.Logger().Warn(warning)
-					continue
-				}
-			}
-		}
-		if stravaIntegration.Activities {
-			page := 1
-			hasMore := true
-			for hasMore {
-				var after int64 = 0
-				if stravaIntegration.After != "" {
-					t, err := time.Parse("2006-01-02", stravaIntegration.After)
-					if err != nil {
-						return err
-					}
-					t = t.UTC()
-
-					after = t.Unix()
-				}
-				activities, err := fetchStravaActivities(r.AccessToken, page, after)
-				hasMore = len(activities) > 0
-				page += 1
-				if err != nil {
-					warning := fmt.Sprintf("error fetching activities from strava: %v", err)
 					fmt.Print(warning)
 					app.Logger().Warn(warning)
 					break
 				}
-				err = syncTrailsWithActivities(app, client, ctx, stravaIntegration, r.AccessToken, userId, actor, activities)
-
+				if len(routes) < stravaPerPage {
+					break
+				}
+			}
+		}
+		if stravaIntegration.Activities {
+			var after int64 = 0
+			if stravaIntegration.After != "" {
+				t, err := time.Parse("2006-01-02", stravaIntegration.After)
 				if err != nil {
-					warning := fmt.Sprintf("error syncing strava activities with trails: %v", err)
+					warning := fmt.Sprintf("invalid strava 'after' date %q for user %s: %v\n", stravaIntegration.After, userId, err)
 					fmt.Print(warning)
 					app.Logger().Warn(warning)
-					continue
+				} else {
+					after = t.UTC().Unix()
 				}
 			}
 
+			for page := 1; ; page++ {
+				activities, err := fetchStravaActivities(r.AccessToken, page, stravaPerPage, after)
+				if err != nil {
+					warning := fmt.Sprintf("error fetching activities from strava: %v\n", err)
+					fmt.Print(warning)
+					app.Logger().Warn(warning)
+					break
+				}
+				if len(activities) == 0 {
+					break
+				}
+				if err := syncTrailsWithActivities(app, client, ctx, stravaIntegration, r.AccessToken, userId, actor, activities); err != nil {
+					warning := fmt.Sprintf("error syncing strava activities with trails: %v\n", err)
+					fmt.Print(warning)
+					app.Logger().Warn(warning)
+					break
+				}
+				if len(activities) < stravaPerPage {
+					break
+				}
+			}
 		}
 
 		b, err := json.Marshal(stravaIntegration)
 		if err != nil {
-			return err
+			warning := fmt.Sprintf("unable to marshal strava integration for user %s: %v\n", userId, err)
+			fmt.Print(warning)
+			app.Logger().Warn(warning)
+			continue
 		}
 		i.Set("strava", string(b))
-		err = app.Save(i)
-		if err != nil {
-			return err
+		if err := app.Save(i); err != nil {
+			warning := fmt.Sprintf("unable to save strava integration for user %s: %v\n", userId, err)
+			fmt.Print(warning)
+			app.Logger().Warn(warning)
+			continue
 		}
 	}
 
@@ -177,14 +194,14 @@ func GetStravaToken(request any) (*RefreshTokenResponse, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", stravaTokenURL, bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := util.DoWithRetry(util.IntegrationHTTPClient, func() (*http.Request, error) {
+		req, err := http.NewRequest("POST", stravaTokenURL, bytes.NewReader(requestBody))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		return req, nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -202,17 +219,17 @@ func GetStravaToken(request any) (*RefreshTokenResponse, error) {
 	return &tokenResponse, nil
 }
 
-func fetchStravaRoutes(accessToken string, page int) ([]StravaRoute, error) {
-	stravaRoutesURL := fmt.Sprintf("https://www.strava.com/api/v3/athlete/routes?page=%d", page)
+func fetchStravaRoutes(accessToken string, page int, perPage int) ([]StravaRoute, error) {
+	stravaRoutesURL := fmt.Sprintf("https://www.strava.com/api/v3/athlete/routes?page=%d&per_page=%d", page, perPage)
 
-	req, err := http.NewRequest("GET", stravaRoutesURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := util.DoWithRetry(util.IntegrationHTTPClient, func() (*http.Request, error) {
+		req, err := http.NewRequest("GET", stravaRoutesURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		return req, nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -230,16 +247,17 @@ func fetchStravaRoutes(accessToken string, page int) ([]StravaRoute, error) {
 	return routes, nil
 }
 
-func fetchStravaActivities(accessToken string, page int, after int64) ([]StravaActivity, error) {
-	stravaRoutesURL := fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?page=%d&after=%d", page, after)
-	req, err := http.NewRequest("GET", stravaRoutesURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+func fetchStravaActivities(accessToken string, page int, perPage int, after int64) ([]StravaActivity, error) {
+	stravaRoutesURL := fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?page=%d&per_page=%d&after=%d", page, perPage, after)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := util.DoWithRetry(util.IntegrationHTTPClient, func() (*http.Request, error) {
+		req, err := http.NewRequest("GET", stravaRoutesURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		return req, nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -292,34 +310,29 @@ func syncTrailsWithRoutes(app core.App, client meilisearch.ServiceManager, ctx c
 func fetchRouteGPX(route StravaRoute, accessToken string) (*filesystem.File, error) {
 	url := fmt.Sprintf("https://www.strava.com/api/v3/routes/%s/export_gpx", route.IDStr)
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if resp.Body != nil {
-			resp.Body.Close()
+	resp, err := util.DoWithRetry(util.IntegrationHTTPClient, func() (*http.Request, error) {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
 		}
-	}()
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		return req, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch GPX: received status %d", resp.StatusCode)
 	}
 
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, resp.Body)
+	data, err := util.ReadAllLimited(resp.Body, util.MaxIntegrationDownloadBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	gpxFile, err := filesystem.NewFileFromBytes(buf.Bytes(), route.Name+".gpx")
+	gpxFile, err := filesystem.NewFileFromBytes(data, route.Name+".gpx")
 	if err != nil {
 		return nil, err
 	}
@@ -467,14 +480,15 @@ func syncTrailsWithActivities(app core.App, client meilisearch.ServiceManager, c
 
 func fetchDetailedActivity(activity StravaActivity, accessToken string) (*DetailedStravaActivity, error) {
 	url := fmt.Sprintf("https://www.strava.com/api/v3/activities/%d", activity.ID)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := util.DoWithRetry(util.IntegrationHTTPClient, func() (*http.Request, error) {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		return req, nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -608,13 +622,9 @@ func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx
 }
 
 func fetchActivityPhoto(activity *DetailedStravaActivity) (*filesystem.File, error) {
-	req, err := http.NewRequest("GET", activity.Photos.Primary.Urls.Num600, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := util.DoWithRetry(util.IntegrationHTTPClient, func() (*http.Request, error) {
+		return http.NewRequest("GET", activity.Photos.Primary.Urls.Num600, nil)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -624,13 +634,12 @@ func fetchActivityPhoto(activity *DetailedStravaActivity) (*filesystem.File, err
 		return nil, fmt.Errorf("failed to fetch photo: received status %d", resp.StatusCode)
 	}
 
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, resp.Body)
+	data, err := util.ReadAllLimited(resp.Body, util.MaxIntegrationDownloadBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	photo, err := filesystem.NewFileFromBytes(buf.Bytes(), "photo")
+	photo, err := filesystem.NewFileFromBytes(data, "photo")
 	if err != nil {
 		return nil, err
 	}
@@ -641,15 +650,14 @@ func fetchActivityPhoto(activity *DetailedStravaActivity) (*filesystem.File, err
 func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (*filesystem.File, error) {
 	url := fmt.Sprintf("https://www.strava.com/api/v3/activities/%d/streams?keys=latlng,time,altitude&key_by_type=true", activity.ID)
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	client := &http.Client{}
-
-	resp, err := client.Do(req)
+	resp, err := util.DoWithRetry(util.IntegrationHTTPClient, func() (*http.Request, error) {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		return req, nil
+	})
 	if err != nil {
 		return nil, err
 	}
