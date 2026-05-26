@@ -2,12 +2,11 @@
     import { type Snippet } from "svelte";
 
     import { WaypointCreateSchema } from "$lib/models/api/waypoint_schema";
-    import { convertDMSToDD } from "$lib/models/gpx/utils";
+    import { gpsFromPhoto } from "$lib/models/gpx/utils";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import { waypoint } from "$lib/stores/waypoint_store";
     import { cloneDeep } from "$lib/util/deep_util";
     import { icons } from "$lib/util/icon_util";
-    import EXIF from "$lib/vendor/exif-js/exif";
     import { validator } from "@felte/validator-zod";
     import { createForm } from "felte";
     import { _ } from "svelte-i18n";
@@ -82,24 +81,19 @@
             : [],
     );
 
-    function getCoordinatesFromPhoto(src: string) {
-        EXIF.getData({ src: src }, function (p) {
-            const lat = EXIF.getTag(p, "GPSLatitude");
-            const latDir = EXIF.getTag(p, "GPSLatitudeRef");
-            const lon = EXIF.getTag(p, "GPSLongitude");
-            const lonDir = EXIF.getTag(p, "GPSLongitudeRef");
+    async function getCoordinatesFromPhoto(src: string) {
+        const gps = await gpsFromPhoto(src);
 
-            if (lat && lon) {
-                setFields("lat", convertDMSToDD(lat, latDir));
-                setFields("lon", convertDMSToDD(lon, lonDir));
-            } else {
-                show_toast({
-                    text: $_('no-gps-data-in-image'),
-                    icon: "close",
-                    type: "error",
-                });
-            }
-        });
+        if (gps) {
+            setFields("lat", gps.lat);
+            setFields("lon", gps.lon);
+        } else {
+            show_toast({
+                text: $_('no-gps-data-in-image'),
+                icon: "close",
+                type: "error",
+            });
+        }
     }
 
     const children_render = $derived(children);
