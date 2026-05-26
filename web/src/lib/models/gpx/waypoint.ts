@@ -21,7 +21,9 @@ export default class Waypoint {
   pdop?: string;
   ageofdgpsdata?: string;
   dgpsid?: string;
-  extensions?: string;
+  // Parsed from / serialized to GPX <extensions>. xml2js produces a nested
+  // object here (not a string), and we also assign objects when importing FIT/TCX.
+  extensions?: any;
   link?: Link[];
   constructor(object: {
     lat?: number,
@@ -46,7 +48,7 @@ export default class Waypoint {
     pdop?: string,
     ageofdgpsdata?: string,
     dgpsid?: string,
-    extensions?: string,
+    extensions?: any,
     link?: Link[]
   }) {
     this.$ = {};

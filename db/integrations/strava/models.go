@@ -359,9 +359,13 @@ type HighlightedKudosers struct {
 }
 
 type ActivityStreamResponse struct {
-	LatLng   LatLngStream   `json:"latlng"`
-	Altitude AltitudeStream `json:"altitude"`
-	Time     TimeStream     `json:"time"`
+	LatLng    LatLngStream   `json:"latlng"`
+	Altitude  AltitudeStream `json:"altitude"`
+	Time      TimeStream     `json:"time"`
+	Heartrate IntStream      `json:"heartrate"`
+	Watts     IntStream      `json:"watts"`
+	Cadence   IntStream      `json:"cadence"`
+	Temp      IntStream      `json:"temp"`
 }
 
 type ActivityStream struct {
@@ -383,4 +387,12 @@ type LatLngStream struct {
 type AltitudeStream struct {
 	ActivityStream
 	Data []float64 `json:"data"`
+}
+
+// IntStream holds an integer sensor stream (heart rate, power, cadence,
+// temperature). Strava emits null for individual missing samples, so the values
+// are pointers.
+type IntStream struct {
+	ActivityStream
+	Data []*int `json:"data"`
 }

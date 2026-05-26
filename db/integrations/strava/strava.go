@@ -639,7 +639,7 @@ func fetchActivityPhoto(activity *DetailedStravaActivity) (*filesystem.File, err
 }
 
 func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (*filesystem.File, error) {
-	url := fmt.Sprintf("https://www.strava.com/api/v3/activities/%d/streams?keys=latlng,time,altitude&key_by_type=true", activity.ID)
+	url := fmt.Sprintf("https://www.strava.com/api/v3/activities/%d/streams?keys=latlng,time,altitude,heartrate,watts,cadence,temp&key_by_type=true", activity.ID)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -676,9 +676,17 @@ func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (
 		alt := altitudeStream.Data[i]
 		t := activity.StartDate.Unix() + int64(timeStream.Data[i])
 
-		points = append(points, gpx.GPXPoint{
+		point := gpx.GPXPoint{
 			Point:     gpx.Point{Latitude: lat, Longitude: lon, Elevation: *gpx.NewNullableFloat64(alt)},
-			Timestamp: time.Unix(t, 0)})
+			Timestamp: time.Unix(t, 0),
+		}
+		point.Extensions = buildTrackPointExtensions(
+			intStreamValue(streamResponse.Heartrate, i),
+			intStreamValue(streamResponse.Cadence, i),
+			intStreamValue(streamResponse.Temp, i),
+			intStreamValue(streamResponse.Watts, i),
+		)
+		points = append(points, point)
 	}
 
 	gpxData := &gpx.GPX{
@@ -706,4 +714,35 @@ func generateActivityGPX(activity *DetailedStravaActivity, accessToken string) (
 	}
 
 	return gpxFile, nil
+}
+
+func intStreamValue(s IntStream, i int) *int {
+	if i < len(s.Data) {
+		return s.Data[i]
+	}
+	return nil
+}
+
+// buildTrackPointExtensions writes the available sensor values into a GPX
+// <extensions> tree using the de-facto Garmin TrackPointExtension element names
+// (hr/cad/atemp) plus a plain <power> element. The names are emitted without a
+// namespace prefix; wanderer's frontend matches on the local element name.
+func buildTrackPointExtensions(hr, cad, temp, power *int) gpx.Extension {
+	var ext gpx.Extension
+	if hr != nil || cad != nil || temp != nil {
+		tpx := ext.GetOrCreateNode(gpx.NoNamespace, "TrackPointExtension")
+		if hr != nil {
+			tpx.GetOrCreateNode("hr").Data = strconv.Itoa(*hr)
+		}
+		if cad != nil {
+			tpx.GetOrCreateNode("cad").Data = strconv.Itoa(*cad)
+		}
+		if temp != nil {
+			tpx.GetOrCreateNode("atemp").Data = strconv.Itoa(*temp)
+		}
+	}
+	if power != nil {
+		ext.GetOrCreateNode(gpx.NoNamespace, "power").Data = strconv.Itoa(*power)
+	}
+	return ext
 }
