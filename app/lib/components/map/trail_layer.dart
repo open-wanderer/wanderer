@@ -118,31 +118,6 @@ class _TrailLayerState extends State<TrailLayer>
     final pathPoints = gpx.allPoints;
     final List<Marker> staticMarkers = [];
 
-    if (pathPoints.isNotEmpty) {
-      staticMarkers.add(
-        Marker(
-          point: pathPoints.first,
-          width: 28,
-          height: 28,
-          child: _buildCircularMarker(
-            FontAwesomeIcons.bullseye,
-            color: Colors.green,
-          ),
-        ),
-      );
-      staticMarkers.add(
-        Marker(
-          point: pathPoints.last,
-          width: 28,
-          height: 28,
-          child: _buildCircularMarker(
-            FontAwesomeIcons.flagCheckered,
-            color: Colors.red,
-          ),
-        ),
-      );
-    }
-
     if (widget.showWaypoints &&
         widget.trail.expand?.waypointsViaTrail != null) {
       for (var wp in widget.trail.expand!.waypointsViaTrail!) {
@@ -154,6 +129,31 @@ class _TrailLayerState extends State<TrailLayer>
             child: GestureDetector(
               onTap: () => widget.onWaypointTap?.call(wp),
               child: _buildCircularMarker(wp.icon),
+            ),
+          ),
+        );
+      }
+
+      if (pathPoints.isNotEmpty) {
+        staticMarkers.add(
+          Marker(
+            point: pathPoints.first,
+            width: 28,
+            height: 28,
+            child: _buildCircularMarker(
+              FontAwesomeIcons.bullseye,
+              color: Colors.greenAccent,
+            ),
+          ),
+        );
+        staticMarkers.add(
+          Marker(
+            point: pathPoints.last,
+            width: 28,
+            height: 28,
+            child: _buildCircularMarker(
+              FontAwesomeIcons.flagCheckered,
+              color: Colors.redAccent,
             ),
           ),
         );

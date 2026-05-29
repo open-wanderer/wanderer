@@ -32,6 +32,7 @@ class ElevationProfile extends StatefulWidget {
 
 class _ElevationProfileState extends State<ElevationProfile> {
   late List<_TrackPoint> _points;
+  int? _selectedIndex;
 
   @override
   void initState() {
@@ -45,6 +46,7 @@ class _ElevationProfileState extends State<ElevationProfile> {
     if (oldWidget.gpx != widget.gpx ||
         oldWidget.smoothingWindowSize != widget.smoothingWindowSize) {
       _points = _parseGpx(widget.gpx, widget.smoothingWindowSize);
+      _selectedIndex = null;
     }
   }
 
@@ -114,26 +116,55 @@ class _ElevationProfileState extends State<ElevationProfile> {
     final xInterval = _niceInterval(maxDist, 5);
     final yInterval = _niceInterval(yMax - yMin, 4);
 
+    final showScrubStats = _selectedIndex != null &&
+        _selectedIndex! > 0 &&
+        _selectedIndex! < _points.length;
+
+    final Widget statsHeader;
+    if (showScrubStats) {
+      final pt = _points[_selectedIndex!];
+      statsHeader = Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatText(
+            pt.duration.pretty(abbreviated: true, tersity: DurationTersity.minute),
+            FontAwesomeIcons.clock,
+          ),
+          _buildStatText(formatDistance(pt.distanceM), FontAwesomeIcons.ruler),
+          _buildStatText(
+            formatElevation(pt.elevationM),
+            FontAwesomeIcons.mountain,
+          ),
+          _buildStatText(
+            '${pt.gradient >= 0 ? '+' : ''}${pt.gradient.toStringAsFixed(1)}%',
+            pt.gradient >= 0 ? FontAwesomeIcons.arrowTrendUp : FontAwesomeIcons.arrowTrendDown,
+          ),
+        ],
+      );
+    } else {
+      statsHeader = Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatText(
+            maxDur.pretty(abbreviated: true, tersity: DurationTersity.minute),
+            FontAwesomeIcons.clock,
+          ),
+          _buildStatText(formatDistance(maxDist), FontAwesomeIcons.ruler),
+          _buildStatText(
+            formatElevation(widget.trail.elevationGain),
+            FontAwesomeIcons.arrowTrendUp,
+          ),
+          _buildStatText(
+            formatElevation(widget.trail.elevationLoss),
+            FontAwesomeIcons.arrowTrendDown,
+          ),
+        ],
+      );
+    }
+
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildStatText(
-              maxDur.pretty(abbreviated: true, tersity: DurationTersity.minute),
-              FontAwesomeIcons.clock,
-            ),
-            _buildStatText(formatDistance(maxDist), FontAwesomeIcons.ruler),
-            _buildStatText(
-              formatElevation(widget.trail.elevationGain),
-              FontAwesomeIcons.arrowTrendUp,
-            ),
-            _buildStatText(
-              formatDistance(widget.trail.elevationLoss),
-              FontAwesomeIcons.arrowTrendDown,
-            ),
-          ],
-        ),
+        statsHeader,
         SizedBox(
           height: widget.chartHeight,
           child: _buildChart(
@@ -182,6 +213,24 @@ class _ElevationProfileState extends State<ElevationProfile> {
       builder: (context, constraints) {
         final plotWidth = constraints.maxWidth - leftAxisWidth;
 
+        final spots = _points
+            .map((p) => FlSpot(p.distanceM, p.elevationM))
+            .toList();
+
+        final barData = LineChartBarData(
+          spots: spots,
+          isCurved: true,
+          curveSmoothness: 0.35,
+          barWidth: 2.5,
+          isStrokeCapRound: true,
+          dotData: const FlDotData(show: false),
+          gradient: _buildLineGradient(),
+          belowBarData: BarAreaData(
+            show: true,
+            gradient: _buildFillGradient(),
+          ),
+        );
+
         return Stack(
           clipBehavior: Clip.none,
           children: [
@@ -192,6 +241,19 @@ class _ElevationProfileState extends State<ElevationProfile> {
                 maxX: _points.last.distanceM,
                 minY: yMin,
                 maxY: yMax,
+                showingTooltipIndicators: _selectedIndex != null &&
+                        _selectedIndex! > 0 &&
+                        _selectedIndex! < spots.length
+                    ? [
+                        ShowingTooltipIndicators([
+                          LineBarSpot(
+                            barData,
+                            0,
+                            spots[_selectedIndex!],
+                          ),
+                        ]),
+                      ]
+                    : [],
                 clipData: const FlClipData.all(),
                 backgroundColor: Colors.transparent,
                 gridData: FlGridData(
@@ -257,15 +319,17 @@ class _ElevationProfileState extends State<ElevationProfile> {
                 lineTouchData: LineTouchData(
                   enabled: true,
                   touchCallback: (event, response) {
-                    setState(() {
-                      if (response?.lineBarSpots?.isNotEmpty == true) {
+                    if (response?.lineBarSpots?.isNotEmpty == true) {
+                      setState(() {
+                        final index = response!.lineBarSpots!.first.spotIndex;
+                        _selectedIndex = index;
                         widget.onLineTouch?.call(
-                          response!.lineBarSpots!.first.x,
+                          response.lineBarSpots!.first.x,
                           response.lineBarSpots!.first.x /
                               _points.last.distanceM,
                         );
-                      }
-                    });
+                      });
+                    }
                   },
                   getTouchedSpotIndicator: (barData, spotIndexes) {
                     return spotIndexes.map((i) {
@@ -295,49 +359,11 @@ class _ElevationProfileState extends State<ElevationProfile> {
                       Radius.circular(8),
                     ),
                     getTooltipItems: (spots) {
-                      return spots.map((spot) {
-                        final idx = spot.spotIndex;
-                        final pt = _points[idx];
-                        return LineTooltipItem(
-                          '${pt.elevationM.toStringAsFixed(0)} m\n',
-                          const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          children: [
-                            TextSpan(
-                              text:
-                                  '${formatDistance(pt.distanceM)} | ${pt.duration.pretty(abbreviated: true, tersity: DurationTersity.minute)} | ${pt.gradient >= 0 ? '+' : ''}${pt.gradient.toStringAsFixed(1)}%',
-                              style: TextStyle(
-                                color: pt.color.withValues(alpha: 0.9),
-                                fontSize: 11,
-                                fontWeight: FontWeight.normal,
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList();
+                      return spots.map((spot) => null).toList();
                     },
                   ),
                 ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: _points
-                        .map((p) => FlSpot(p.distanceM, p.elevationM))
-                        .toList(),
-                    isCurved: true,
-                    curveSmoothness: 0.35,
-                    barWidth: 2.5,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
-                    gradient: _buildLineGradient(),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      gradient: _buildFillGradient(),
-                    ),
-                  ),
-                ],
+                lineBarsData: [barData],
 
                 // ── Waypoint vertical lines ───────────────────────────────────
                 extraLinesData: ExtraLinesData(
