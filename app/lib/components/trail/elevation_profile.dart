@@ -16,7 +16,7 @@ class ElevationProfile extends StatefulWidget {
   final double chartHeight;
   final int smoothingWindowSize;
   final Function(double absolute, double relative)? onLineTouch;
-
+  final bool enableLineTouch;
   const ElevationProfile({
     super.key,
     required this.trail,
@@ -24,6 +24,7 @@ class ElevationProfile extends StatefulWidget {
     this.chartHeight = 150,
     this.smoothingWindowSize = 30,
     this.onLineTouch,
+    this.enableLineTouch = true,
   });
 
   @override
@@ -116,7 +117,8 @@ class _ElevationProfileState extends State<ElevationProfile> {
     final xInterval = _niceInterval(maxDist, 5);
     final yInterval = _niceInterval(yMax - yMin, 4);
 
-    final showScrubStats = _selectedIndex != null &&
+    final showScrubStats =
+        _selectedIndex != null &&
         _selectedIndex! > 0 &&
         _selectedIndex! < _points.length;
 
@@ -127,7 +129,10 @@ class _ElevationProfileState extends State<ElevationProfile> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatText(
-            pt.duration.pretty(abbreviated: true, tersity: DurationTersity.minute),
+            pt.duration.pretty(
+              abbreviated: true,
+              tersity: DurationTersity.minute,
+            ),
             FontAwesomeIcons.clock,
           ),
           _buildStatText(formatDistance(pt.distanceM), FontAwesomeIcons.ruler),
@@ -137,7 +142,9 @@ class _ElevationProfileState extends State<ElevationProfile> {
           ),
           _buildStatText(
             '${pt.gradient >= 0 ? '+' : ''}${pt.gradient.toStringAsFixed(1)}%',
-            pt.gradient >= 0 ? FontAwesomeIcons.arrowTrendUp : FontAwesomeIcons.arrowTrendDown,
+            pt.gradient >= 0
+                ? FontAwesomeIcons.arrowTrendUp
+                : FontAwesomeIcons.arrowTrendDown,
           ),
         ],
       );
@@ -225,10 +232,7 @@ class _ElevationProfileState extends State<ElevationProfile> {
           isStrokeCapRound: true,
           dotData: const FlDotData(show: false),
           gradient: _buildLineGradient(),
-          belowBarData: BarAreaData(
-            show: true,
-            gradient: _buildFillGradient(),
-          ),
+          belowBarData: BarAreaData(show: true, gradient: _buildFillGradient()),
         );
 
         return Stack(
@@ -241,16 +245,13 @@ class _ElevationProfileState extends State<ElevationProfile> {
                 maxX: _points.last.distanceM,
                 minY: yMin,
                 maxY: yMax,
-                showingTooltipIndicators: _selectedIndex != null &&
+                showingTooltipIndicators:
+                    _selectedIndex != null &&
                         _selectedIndex! > 0 &&
                         _selectedIndex! < spots.length
                     ? [
                         ShowingTooltipIndicators([
-                          LineBarSpot(
-                            barData,
-                            0,
-                            spots[_selectedIndex!],
-                          ),
+                          LineBarSpot(barData, 0, spots[_selectedIndex!]),
                         ]),
                       ]
                     : [],
@@ -317,7 +318,7 @@ class _ElevationProfileState extends State<ElevationProfile> {
                   ),
                 ),
                 lineTouchData: LineTouchData(
-                  enabled: true,
+                  enabled: widget.enableLineTouch,
                   touchCallback: (event, response) {
                     if (response?.lineBarSpots?.isNotEmpty == true) {
                       setState(() {

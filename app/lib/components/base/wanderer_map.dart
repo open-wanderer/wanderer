@@ -10,15 +10,25 @@ import 'package:wanderer/util/gpx_util.dart';
 
 class WandererMap extends ConsumerStatefulWidget {
   final Trail trail;
-  final TapCallback? onTap;
-  final Function(Waypoint wp)? onWaypointTap;
+  final MapController? mapController;
   final bool disabled;
+  final List<Widget>? controls;
+
+  final bool showTrail;
+
+  final TapCallback? onTap;
+  final Function(MapEvent)? onMapEvent;
+  final Function(Waypoint wp)? onWaypointTap;
   const WandererMap({
     super.key,
     required this.trail,
+    this.mapController,
     this.onTap,
     this.onWaypointTap,
+    this.onMapEvent,
     this.disabled = false,
+    this.controls = const [],
+    this.showTrail = true,
   });
 
   @override
@@ -27,11 +37,14 @@ class WandererMap extends ConsumerStatefulWidget {
 
 class _WandererMapState extends ConsumerState<WandererMap> {
   Style? style;
+  LatLngBounds? bounds;
 
   @override
   void initState() {
     super.initState();
     _initializeStyle();
+
+    bounds = widget.trail.expand?.gpx?.getBounds();
   }
 
   Future<void> _initializeStyle() async {
@@ -52,17 +65,17 @@ class _WandererMapState extends ConsumerState<WandererMap> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final bounds = widget.trail.expand?.gpx?.getBounds();
-
     return FlutterMap(
+      mapController: widget.mapController,
       options: MapOptions(
         onTap: widget.onTap,
+        onMapEvent: (e) => widget.onMapEvent,
         interactionOptions: widget.disabled
             ? const InteractionOptions(flags: InteractiveFlag.none)
             : const InteractionOptions(),
         initialCameraFit: bounds != null
             ? CameraFit.bounds(
-                bounds: bounds,
+                bounds: bounds!,
                 padding: const EdgeInsets.all(40),
               )
             : null,
@@ -75,8 +88,16 @@ class _WandererMapState extends ConsumerState<WandererMap> {
           theme: style!.theme,
           tileOffset: TileOffset.DEFAULT,
         ),
-        if (widget.trail.expand?.gpx != null)
+        if (widget.trail.expand?.gpx != null && widget.showTrail)
           TrailLayer(trail: widget.trail, onWaypointTap: widget.onWaypointTap),
+
+        Align(
+          alignment: Alignment.topRight,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: widget.controls!,
+          ),
+        ),
       ],
     );
   }

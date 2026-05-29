@@ -163,6 +163,7 @@ class TrailPanel extends ConsumerWidget {
                                 child: Material(
                                   child: WandererMap(
                                     trail: trail,
+                                    disabled: true,
                                     onTap: (_, _) =>
                                         context.push('/trail/${trail.id}/map'),
                                   ),
@@ -196,7 +197,11 @@ class TrailPanel extends ConsumerWidget {
                           ],
                         ),
                         SizedBox(height: 16),
-                        ElevationProfile(trail: trail, gpx: trail.expand!.gpx!),
+                        ElevationProfile(
+                          trail: trail,
+                          gpx: trail.expand!.gpx!,
+                          enableLineTouch: false,
+                        ),
                         SizedBox(height: 16),
                       },
                       TrailTimeline(

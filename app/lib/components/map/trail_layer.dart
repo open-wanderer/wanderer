@@ -128,7 +128,10 @@ class _TrailLayerState extends State<TrailLayer>
             height: 28,
             child: GestureDetector(
               onTap: () => widget.onWaypointTap?.call(wp),
-              child: _buildCircularMarker(wp.icon),
+              child: _buildCircularMarker(
+                wp.icon,
+                color: Theme.of(context).primaryColor,
+              ),
             ),
           ),
         );
