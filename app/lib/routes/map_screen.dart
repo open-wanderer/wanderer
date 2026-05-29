@@ -5,10 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
-import 'package:wanderer/components/trail/trail_card.dart';
+import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
+import 'package:wanderer/provider/trail/trail_filter_provider.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -78,9 +81,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             ],
           ),
-          child: const Center(
-            child: Icon(Icons.hiking, color: Colors.white, size: 18),
-          ),
+          child: Center(child: _getTrailIcon(trail)),
         ),
       );
     }).toList();
@@ -159,6 +160,44 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           ],
         ),
+
+        SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+
+              child: Material(
+                color: Colors.white,
+                elevation: 4,
+                shadowColor: Colors.black26,
+                borderRadius: BorderRadius.circular(30),
+                clipBehavior: Clip.antiAlias,
+
+                child: WandererSearchBar(
+                  onChanged: (value) {
+                    ref
+                        .read(trailFilterProvider.notifier)
+                        .updateFilter((f) => f.copyWith(q: value));
+                  },
+                  decoration: InputDecoration(
+                    hintText: AppLocalizations.of(context)!.search_trails,
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    prefixIcon: const Icon(Icons.search, color: Colors.black),
+                    suffixIcon: IconButton(
+                      onPressed: () => context.push('/trail/filter'),
+                      iconSize: 20,
+                      icon: const FaIcon(FontAwesomeIcons.filter),
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+
         if (searchResultAsync.isLoading)
           Positioned(
             top: 16,
@@ -204,5 +243,34 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ),
       ],
     );
+  }
+
+  Icon _getTrailIcon(TrailSearchResult trail) {
+    final category = trail.category;
+
+    switch (category) {
+      case "Hiking":
+        return FaIcon(
+          FontAwesomeIcons.personHiking,
+          color: Colors.white,
+          size: 18,
+        );
+      case "Biking":
+        return FaIcon(FontAwesomeIcons.bicycle, color: Colors.white, size: 18);
+      case "Walking":
+        return Icon(Icons.nordic_walking, color: Colors.white, size: 18);
+      case "Climbing":
+        return Icon(Icons.landscape, color: Colors.white, size: 18);
+      case "Skiing":
+        return FaIcon(
+          FontAwesomeIcons.personSkiing,
+          color: Colors.white,
+          size: 18,
+        );
+      case "Canoeing":
+        return Icon(Icons.kayaking, color: Colors.white, size: 18);
+      default:
+        return FaIcon(FontAwesomeIcons.route, color: Colors.white, size: 18);
+    }
   }
 }

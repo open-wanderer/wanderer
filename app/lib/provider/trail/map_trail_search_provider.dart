@@ -9,18 +9,35 @@ part 'map_trail_search_provider.g.dart';
 
 @riverpod
 class MapTrailSearch extends _$MapTrailSearch {
+  LatLngBounds? _lastBounds;
+
   @override
   FutureOr<List<TrailSearchResult>> build() async {
+    ref.listen(trailFilterProvider, (previous, next) {
+      if (_lastBounds != null && next.hasValue && !next.isLoading) {
+        final currentFilter = next.value;
+        if (currentFilter != null) {
+          searchInBounds(_lastBounds!, passedFilter: currentFilter);
+        }
+      }
+    });
+
     return [];
   }
 
-  Future<void> searchInBounds(LatLngBounds bounds) async {
+  Future<void> searchInBounds(
+    LatLngBounds bounds, {
+    TrailFilter? passedFilter,
+  }) async {
+    _lastBounds = bounds;
+
+    final TrailFilter filter =
+        passedFilter ?? await ref.read(trailFilterProvider.future);
+    final user = await ref.read(authProvider.future);
+    final api = ref.read(apiProvider);
+
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final api = ref.read(apiProvider);
-      final filter = await ref.read(trailFilterProvider.future);
-      final user = await ref.read(authProvider.future);
-
       final filterText = filter.toFilterText(
         actor: user?.actorId ?? "",
         includeGeo: false,

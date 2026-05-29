@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart' as html;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
+import 'package:wanderer/components/base/wanderer_map.dart';
 import 'package:wanderer/components/trail/comment_list.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/photo_collage.dart';
@@ -46,17 +48,6 @@ class TrailPanel extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
             if (trail.localPhotos.isNotEmpty || webPhotos.isNotEmpty)
               PhotoCollage(
                 webPhotos: webPhotos,
@@ -68,6 +59,7 @@ class TrailPanel extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: Text(
@@ -159,7 +151,52 @@ class TrailPanel extends ConsumerWidget {
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       if (trail.expand?.gpx != null) ...{
-                        ElevationProfile(gpx: trail.expand!.gpx!),
+                        SizedBox(height: 16),
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(16),
+                              ),
+                              child: SizedBox(
+                                height: 200,
+                                child: Material(
+                                  child: WandererMap(
+                                    trail: trail,
+                                    onTap: (_, _) =>
+                                        context.push('/trail/${trail.id}/map'),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.topRight,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: FloatingActionButton(
+                                  shape: const CircleBorder(),
+                                  mini: true,
+                                  elevation: 1,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).canvasColor,
+                                  child: FaIcon(
+                                    FontAwesomeIcons
+                                        .upRightAndDownLeftFromCenter,
+                                    size: 18,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
+                                  onPressed: () =>
+                                      context.push('/trail/${trail.id}/map'),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16),
+                        ElevationProfile(trail: trail, gpx: trail.expand!.gpx!),
                         SizedBox(height: 16),
                       },
                       TrailTimeline(

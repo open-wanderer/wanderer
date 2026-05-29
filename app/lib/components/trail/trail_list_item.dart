@@ -309,7 +309,12 @@ class _InlineIcon extends StatelessWidget {
       children: [
         FaIcon(icon, size: 12, color: Colors.grey[700]),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[800])),
+        Flexible(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+          ),
+        ),
       ],
     );
   }

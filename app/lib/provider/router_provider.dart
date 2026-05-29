@@ -11,6 +11,7 @@ import 'package:wanderer/routes/map_screen.dart';
 import 'package:wanderer/routes/profile_screen.dart';
 import 'package:wanderer/routes/register_screen.dart';
 import 'package:wanderer/routes/server_selection_screen.dart';
+import 'package:wanderer/routes/trail_detail_map_screen.dart';
 import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
 import 'package:wanderer/routes/trail_screen.dart';
@@ -104,17 +105,6 @@ class Router extends _$Router {
               builder: (context, state) => const TrailScreen(),
               routes: [
                 // Sub-routes keep the /trail prefix but stay inside the Shell
-                GoRoute(
-                  path: 'filter',
-                  builder: (context, state) => const TrailFilterScreen(),
-                ),
-                GoRoute(
-                  path: ':id',
-                  builder: (context, state) {
-                    final trailId = state.pathParameters['id']!;
-                    return TrailDetailScreen(id: trailId);
-                  },
-                ),
               ],
             ),
             GoRoute(path: '/map', builder: (context, state) => MapScreen()),
@@ -134,6 +124,26 @@ class Router extends _$Router {
                   },
                 ),
               ],
+            ),
+          ],
+        ),
+        GoRoute(
+          path: '/trail/filter',
+          builder: (context, state) => const TrailFilterScreen(),
+        ),
+        GoRoute(
+          path: '/trail/:id',
+          builder: (context, state) {
+            final trailId = state.pathParameters['id']!;
+            return TrailDetailScreen(id: trailId);
+          },
+          routes: [
+            GoRoute(
+              path: 'map',
+              builder: (context, state) {
+                final trailId = state.pathParameters['id']!;
+                return TrailDetailMapScreen(id: trailId);
+              },
             ),
           ],
         ),

@@ -59,6 +59,11 @@ class _TrailScreenState extends ConsumerState<TrailScreen> {
                               Icons.search,
                               color: Colors.black,
                             ),
+                            suffixIcon: IconButton(
+                              onPressed: () => router.push('/trail/filter'),
+                              iconSize: 20,
+                              icon: const FaIcon(FontAwesomeIcons.filter),
+                            ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 15,
@@ -66,11 +71,6 @@ class _TrailScreenState extends ConsumerState<TrailScreen> {
                           ),
                         ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: () => router.push('/trail/filter'),
-                      iconSize: 20,
-                      icon: const FaIcon(FontAwesomeIcons.filter),
                     ),
                   ],
                 ),

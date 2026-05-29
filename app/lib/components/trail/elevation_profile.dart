@@ -3,11 +3,14 @@ import 'dart:math';
 import 'package:duration/duration.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
+import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
 class ElevationProfile extends StatefulWidget {
+  final Trail trail;
   final Gpx gpx;
 
   final double chartHeight;
@@ -16,6 +19,7 @@ class ElevationProfile extends StatefulWidget {
 
   const ElevationProfile({
     super.key,
+    required this.trail,
     required this.gpx,
     this.chartHeight = 150,
     this.smoothingWindowSize = 30,
@@ -102,16 +106,57 @@ class _ElevationProfileState extends State<ElevationProfile> {
     final minElev = _points.map((p) => p.elevationM).reduce(min);
     final maxElev = _points.map((p) => p.elevationM).reduce(max);
     final maxDist = _points.last.distanceM;
+    final maxDur = _points.last.duration;
 
     final yMin = (minElev / 100).floor() * 100.0;
-    final yMax = ((maxElev + 100) / 100).ceil() * 100.0;
+    final yMax = ((maxElev + 100) / 50).ceil() * 50.0;
 
     final xInterval = _niceInterval(maxDist, 5);
     final yInterval = _niceInterval(yMax - yMin, 4);
 
-    return SizedBox(
-      height: widget.chartHeight,
-      child: _buildChart(minElev, yMin, yMax, maxDist, xInterval, yInterval),
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildStatText(
+              maxDur.pretty(abbreviated: true, tersity: DurationTersity.minute),
+              FontAwesomeIcons.clock,
+            ),
+            _buildStatText(formatDistance(maxDist), FontAwesomeIcons.ruler),
+            _buildStatText(
+              formatElevation(widget.trail.elevationGain),
+              FontAwesomeIcons.arrowTrendUp,
+            ),
+            _buildStatText(
+              formatDistance(widget.trail.elevationLoss),
+              FontAwesomeIcons.arrowTrendDown,
+            ),
+          ],
+        ),
+        SizedBox(
+          height: widget.chartHeight,
+          child: _buildChart(
+            minElev,
+            yMin,
+            yMax,
+            maxDist,
+            xInterval,
+            yInterval,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatText(String text, FaIconData icon) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        FaIcon(icon, size: 16),
+        SizedBox(width: 4),
+        Text(text, style: Theme.of(context).textTheme.labelLarge),
+      ],
     );
   }
 
@@ -123,162 +168,223 @@ class _ElevationProfileState extends State<ElevationProfile> {
     double xInterval,
     double yInterval,
   ) {
-    return LineChart(
-      LineChartData(
-        minX: 0,
-        maxX: _points.last.distanceM,
-        minY: yMin,
-        maxY: yMax,
-        clipData: const FlClipData.all(),
-        backgroundColor: Colors.transparent,
+    final waypoints = (widget.trail.expand?.waypointsViaTrail ?? [])
+        .where(
+          (w) => w.distanceFromStart != null && w.distanceFromStart! <= maxDist,
+        )
+        .toList();
 
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: 500,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: Colors.black.withValues(alpha: 0.1),
-            strokeWidth: 1,
-            dashArray: [6, 4],
-          ),
-        ),
+    // Must match leftTitles reservedSize so icon X positions align with the plot area
+    const leftAxisWidth = 36.0;
+    const iconSize = 14.0;
 
-        borderData: FlBorderData(show: false),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final plotWidth = constraints.maxWidth - leftAxisWidth;
 
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 36,
-              interval: yInterval,
-              getTitlesWidget: (value, meta) {
-                if (value == meta.min || value == meta.max) {
-                  return const SizedBox.shrink();
-                }
-                return Text(
-                  formatElevation(value),
-                  style: const TextStyle(
-                    color: Color(0xFF888899),
-                    fontSize: 10,
-                    fontFamily: 'monospace',
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // ── Chart ──────────────────────────────────────────────────────────
+            LineChart(
+              LineChartData(
+                minX: 0,
+                maxX: _points.last.distanceM,
+                minY: yMin,
+                maxY: yMax,
+                clipData: const FlClipData.all(),
+                backgroundColor: Colors.transparent,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: yInterval,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    strokeWidth: 1,
+                    dashArray: [6, 4],
                   ),
-                );
-              },
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 22,
-              interval: xInterval,
-              getTitlesWidget: (value, meta) {
-                if (value == meta.max) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    formatDistance(value),
-                    style: const TextStyle(
-                      color: Color(0xFF888899),
-                      fontSize: 10,
-                      fontFamily: 'monospace',
+                ),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: leftAxisWidth,
+                      interval: yInterval,
+                      getTitlesWidget: (value, meta) {
+                        if (value == meta.min || value == meta.max) {
+                          return const SizedBox.shrink();
+                        }
+                        return Text(
+                          formatElevation(value),
+                          style: const TextStyle(
+                            color: Color(0xFF888899),
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                          ),
+                        );
+                      },
                     ),
                   ),
-                );
-              },
-            ),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-
-        lineTouchData: LineTouchData(
-          enabled: true,
-          touchCallback: (event, response) {
-            setState(() {
-              if (response?.lineBarSpots?.isNotEmpty == true) {
-                widget.onLineTouch?.call(
-                  response!.lineBarSpots!.first.x,
-                  response.lineBarSpots!.first.x / _points.last.distanceM,
-                );
-              }
-            });
-          },
-          getTouchedSpotIndicator: (barData, spotIndexes) {
-            return spotIndexes.map((i) {
-              return TouchedSpotIndicatorData(
-                FlLine(
-                  color: Theme.of(context).primaryColor.withValues(alpha: 0.4),
-                  strokeWidth: 1,
-                  dashArray: [4, 4],
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 22,
+                      interval: xInterval,
+                      getTitlesWidget: (value, meta) {
+                        if (value == meta.max) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            formatDistance(value),
+                            style: const TextStyle(
+                              color: Color(0xFF888899),
+                              fontSize: 10,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
-                FlDotData(
-                  getDotPainter: (spot, percent, bar, index) =>
-                      FlDotCirclePainter(
-                        radius: 5,
-                        color: _gradientColor(_points[index].gradient),
-                        strokeColor: Colors.white,
-                        strokeWidth: 1.5,
-                      ),
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  touchCallback: (event, response) {
+                    setState(() {
+                      if (response?.lineBarSpots?.isNotEmpty == true) {
+                        widget.onLineTouch?.call(
+                          response!.lineBarSpots!.first.x,
+                          response.lineBarSpots!.first.x /
+                              _points.last.distanceM,
+                        );
+                      }
+                    });
+                  },
+                  getTouchedSpotIndicator: (barData, spotIndexes) {
+                    return spotIndexes.map((i) {
+                      return TouchedSpotIndicatorData(
+                        FlLine(
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.4),
+                          strokeWidth: 1,
+                          dashArray: [4, 4],
+                        ),
+                        FlDotData(
+                          getDotPainter: (spot, percent, bar, index) =>
+                              FlDotCirclePainter(
+                                radius: 5,
+                                color: _gradientColor(_points[index].gradient),
+                                strokeColor: Colors.white,
+                                strokeWidth: 1.5,
+                              ),
+                        ),
+                      );
+                    }).toList();
+                  },
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => Theme.of(context).primaryColor,
+                    tooltipBorderRadius: const BorderRadius.all(
+                      Radius.circular(8),
+                    ),
+                    getTooltipItems: (spots) {
+                      return spots.map((spot) {
+                        final idx = spot.spotIndex;
+                        final pt = _points[idx];
+                        return LineTooltipItem(
+                          '${pt.elevationM.toStringAsFixed(0)} m\n',
+                          const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          children: [
+                            TextSpan(
+                              text:
+                                  '${formatDistance(pt.distanceM)} | ${pt.duration.pretty(abbreviated: true, tersity: DurationTersity.minute)} | ${pt.gradient >= 0 ? '+' : ''}${pt.gradient.toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                color: pt.color.withValues(alpha: 0.9),
+                                fontSize: 11,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: _points
+                        .map((p) => FlSpot(p.distanceM, p.elevationM))
+                        .toList(),
+                    isCurved: true,
+                    curveSmoothness: 0.35,
+                    barWidth: 2.5,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    gradient: _buildLineGradient(),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: _buildFillGradient(),
+                    ),
+                  ),
+                ],
+
+                // ── Waypoint vertical lines ───────────────────────────────────
+                extraLinesData: ExtraLinesData(
+                  verticalLines: waypoints.map((w) {
+                    return VerticalLine(
+                      x: w.distanceFromStart!,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.2),
+                      strokeWidth: 1,
+                      dashArray: [4, 4],
+                    );
+                  }).toList(),
+                ),
+              ),
+              duration: const Duration(milliseconds: 0),
+            ),
+
+            // ── Waypoint icon markers ─────────────────────────────────────────
+            ...waypoints.map((w) {
+              final fraction = (w.distanceFromStart! / maxDist).clamp(0.0, 1.0);
+              final left =
+                  (leftAxisWidth + fraction * plotWidth - (iconSize + 8) / 2)
+                      .clamp(
+                        leftAxisWidth,
+                        constraints.maxWidth - (iconSize + 8),
+                      );
+              return Positioned(
+                left: left,
+                top: 4,
+                child: Container(
+                  padding: EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: BorderRadius.all(Radius.circular(16)),
+                  ),
+                  child: FaIcon(
+                    w.icon,
+                    size: iconSize,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
                 ),
               );
-            }).toList();
-          },
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => Theme.of(context).primaryColor,
-            tooltipBorderRadius: BorderRadius.all(Radius.circular(8)),
-            getTooltipItems: (spots) {
-              return spots.map((spot) {
-                final idx = spot.spotIndex;
-                final pt = _points[idx];
-                return LineTooltipItem(
-                  '${pt.elevationM.toStringAsFixed(0)} m\n',
-                  const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  children: [
-                    TextSpan(
-                      text:
-                          '${formatDistance(pt.distanceM)} | ${pt.duration.pretty(abbreviated: true, tersity: DurationTersity.minute)} | ${pt.gradient >= 0 ? '+' : ''}${pt.gradient.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        color: pt.color.withValues(alpha: 0.9),
-                        fontSize: 11,
-                        fontWeight: FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                );
-              }).toList();
-            },
-          ),
-        ),
-
-        lineBarsData: [
-          LineChartBarData(
-            spots: _points
-                .map((p) => FlSpot(p.distanceM, p.elevationM))
-                .toList(),
-            isCurved: true,
-            curveSmoothness: 0.35,
-            barWidth: 2.5,
-            isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
-            gradient: _buildLineGradient(),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: _buildFillGradient(),
-            ),
-          ),
-
-          // Coloured gradient line (rendered as per-segment colours)
-        ],
-      ),
-      duration: const Duration(milliseconds: 0),
+            }),
+          ],
+        );
+      },
     );
   }
 

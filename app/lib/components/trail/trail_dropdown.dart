@@ -21,23 +21,13 @@ class TrailDropdown extends ConsumerWidget {
       child: FloatingActionButton(
         onPressed: null,
         elevation: 0,
+        mini: true,
         child: FaIcon(
           FontAwesomeIcons.ellipsisVertical,
           color: Theme.of(context).colorScheme.onPrimaryContainer,
+          size: 18,
         ),
       ),
-      onSelected: (TrailAction action) {
-        switch (action) {
-          case TrailAction.edit:
-            break;
-          case TrailAction.share:
-            break;
-          case TrailAction.download:
-            break;
-          case TrailAction.delete:
-            break;
-        }
-      },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<TrailAction>>[
         PopupMenuItem<TrailAction>(
           value: TrailAction.edit,

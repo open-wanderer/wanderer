@@ -383,6 +383,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get elevation_loss => 'Höhenunterschied (abw.)';
 
   @override
+  String get elevation_profile => 'Höhenprofil';
+
+  @override
   String get email => 'Email';
 
   @override

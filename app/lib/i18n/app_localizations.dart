@@ -788,6 +788,12 @@ abstract class AppLocalizations {
   /// **'Elevation Loss'**
   String get elevation_loss;
 
+  /// No description provided for @elevation_profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Elevation Profile'**
+  String get elevation_profile;
+
   /// No description provided for @email.
   ///
   /// In en, this message translates to:

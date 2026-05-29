@@ -33,7 +33,7 @@ final class MapTrailSearchProvider
   MapTrailSearch create() => MapTrailSearch();
 }
 
-String _$mapTrailSearchHash() => r'a2575154dc3d11137e278bedb350e81e902fa50e';
+String _$mapTrailSearchHash() => r'4817842f28b36f3e10cb8fa6eade55d0bebf7f7f';
 
 abstract class _$MapTrailSearch
     extends $AsyncNotifier<List<TrailSearchResult>> {

@@ -115,6 +115,7 @@
   "edited": "edited",
   "elevation_gain": "Elevation Gain",
   "elevation_loss": "Elevation Loss",
+  "elevation_profile": "Elevation Profile",
   "email": "Email",
   "email_not_unique": "This email address is already in use.",
   "email_updated": "Email updated",

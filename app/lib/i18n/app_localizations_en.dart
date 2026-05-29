@@ -384,6 +384,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get elevation_loss => 'Elevation Loss';
 
   @override
+  String get elevation_profile => 'Elevation Profile';
+
+  @override
   String get email => 'Email';
 
   @override
