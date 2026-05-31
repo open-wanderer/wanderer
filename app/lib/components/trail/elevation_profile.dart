@@ -97,7 +97,7 @@ class _ElevationProfileState extends State<ElevationProfile> {
     }
     result[0].color = result.length > 1 ? result[1].color : _gradientColor(0);
 
-    return result;
+    return _simplifyTrackPoints(result, 250);
   }
 
   @override
@@ -486,6 +486,62 @@ class _ElevationProfileState extends State<ElevationProfile> {
       colors: colors,
       stops: stops,
     );
+  }
+
+  List<_TrackPoint> _simplifyTrackPoints(List<_TrackPoint> points, int targetCount) {
+    if (points.length <= targetCount) return points;
+
+    final numBuckets = targetCount ~/ 2;
+    final bucketSize = points.length / numBuckets;
+    final result = <_TrackPoint>[];
+
+    result.add(points.first);
+
+    for (int i = 0; i < numBuckets; i++) {
+      final start = max(1, (i * bucketSize).floor());
+      final end = min(points.length - 1, ((i + 1) * bucketSize).floor());
+      if (start >= end) continue;
+
+      int minIdx = start;
+      int maxIdx = start;
+      double minEle = points[start].elevationM;
+      double maxEle = points[start].elevationM;
+
+      for (int j = start + 1; j < end; j++) {
+        final ele = points[j].elevationM;
+        if (ele < minEle) {
+          minEle = ele;
+          minIdx = j;
+        }
+        if (ele > maxEle) {
+          maxEle = ele;
+          maxIdx = j;
+        }
+      }
+
+      if (minIdx == maxIdx) {
+        result.add(points[minIdx]);
+      } else if (minIdx < maxIdx) {
+        result.add(points[minIdx]);
+        result.add(points[maxIdx]);
+      } else {
+        result.add(points[maxIdx]);
+        result.add(points[minIdx]);
+      }
+    }
+
+    if (result.last != points.last) {
+      result.add(points.last);
+    }
+
+    final uniqueResult = <_TrackPoint>[];
+    for (final pt in result) {
+      if (uniqueResult.isEmpty || uniqueResult.last != pt) {
+        uniqueResult.add(pt);
+      }
+    }
+
+    return uniqueResult;
   }
 }
 
