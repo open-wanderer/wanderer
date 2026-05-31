@@ -17,26 +17,8 @@ func CreateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 			return err
 		}
 
-		actor, err := util.ActorFromUser(e.App, e.Record)
+		_, err = util.ActorFromUser(e.App, e.Record)
 		if err != nil {
-			return err
-		}
-
-		searchRules := map[string]interface{}{
-			"lists": map[string]string{
-				"filter": "public = true OR author = " + actor.Id + " OR shares = " + actor.Id,
-			},
-			"trails": map[string]string{
-				"filter": "public = true OR author = " + actor.Id + " OR shares = " + actor.Id,
-			},
-		}
-
-		token, err := util.GenerateMeilisearchToken(searchRules, client)
-		if err != nil {
-			return err
-		}
-		e.Record.Set("token", token)
-		if err := e.App.Save(e.Record); err != nil {
 			return err
 		}
 
