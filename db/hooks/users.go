@@ -12,33 +12,13 @@ import (
 
 func CreateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
-		userId := e.Record.Id
-
 		err := createDefaultUserSettings(e.App, e.Record.Id)
 		if err != nil {
 			return err
 		}
 
-		actor, err := util.ActorFromUser(e.App, e.Record)
+		_, err = util.ActorFromUser(e.App, e.Record)
 		if err != nil {
-			return err
-		}
-
-		searchRules := map[string]interface{}{
-			"lists": map[string]string{
-				"filter": "public = true OR author = " + actor.Id + " OR shares = " + userId,
-			},
-			"trails": map[string]string{
-				"filter": "public = true OR author = " + actor.Id + " OR shares = " + userId,
-			},
-		}
-
-		token, err := util.GenerateMeilisearchToken(searchRules, client)
-		if err != nil {
-			return err
-		}
-		e.Record.Set("token", token)
-		if err := e.App.Save(e.Record); err != nil {
 			return err
 		}
 
