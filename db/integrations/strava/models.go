@@ -351,6 +351,11 @@ type Photos struct {
 	Count           int     `json:"count"`
 }
 
+type StravaActivityPhoto struct {
+	UniqueID string `json:"unique_id"`
+	Urls     Urls   `json:"urls"`
+}
+
 type HighlightedKudosers struct {
 	DestinationURL string `json:"destination_url"`
 	DisplayName    string `json:"display_name"`

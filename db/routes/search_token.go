@@ -16,7 +16,6 @@ func SearchToken(client meilisearch.ServiceManager) func(e *core.RequestEvent) e
 		}
 
 		if e.Auth != nil {
-			userId := e.Auth.Id
 			userActor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
 			if err != nil {
 				return err
@@ -24,10 +23,10 @@ func SearchToken(client meilisearch.ServiceManager) func(e *core.RequestEvent) e
 
 			searchRules = map[string]any{
 				"lists": map[string]string{
-					"filter": "public = true OR author = " + userActor.Id + " OR shares = " + userId,
+					"filter": "public = true OR author = " + userActor.Id + " OR shares = " + userActor.Id,
 				},
 				"trails": map[string]string{
-					"filter": "public = true OR author = " + userActor.Id + " OR shares = " + userId,
+					"filter": "public = true OR author = " + userActor.Id + " OR shares = " + userActor.Id,
 				},
 			}
 		}
