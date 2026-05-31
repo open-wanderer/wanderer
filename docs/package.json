@@ -22,7 +22,7 @@
     "astro": "^6.3.2",
     "sharp": "^0.34.5",
     "starlight-openapi": "^0.25.0",
-    "svelte": "^5.55.5",
+    "svelte": "^5.56.0",
     "tailwindcss": "^4.1.10",
     "typescript": "^5.9.3"
   }
