@@ -497,10 +497,6 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
                     permission: "view",
                     trail: h.id,
                     actor: s,
-                })),
-                trail_like_via_trail: h.likes?.map(l => ({
-                    trail: h.id,
-                    actor: l,
                 }))
             }
         }

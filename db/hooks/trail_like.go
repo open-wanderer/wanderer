@@ -85,18 +85,24 @@ func DeleteTrailLikeHandler(client meilisearch.ServiceManager) func(e *core.Reco
 		} else if err != nil {
 			return err
 		}
-		likes, err := e.App.CountRecords("trail_like", dbx.NewExp("trail={:trail}", dbx.Params{"trail": trailId}))
+		likes, err := e.App.FindAllRecords("trail_like",
+			dbx.NewExp("trail={:trail}", dbx.Params{"trail": trailId}),
+		)
 		if err != nil {
 			return err
 		}
 
-		trail.Set("like_count", likes)
+		trail.Set("like_count", len(likes))
 		err = e.App.UnsafeWithoutHooks().Save(trail)
 		if err != nil {
 			return err
 		}
 
-		err = util.UpdateTrailLikes(trailId, []string{}, client)
+		actorIds := make([]string, len(likes))
+		for i, r := range likes {
+			actorIds[i] = r.GetString("actor")
+		}
+		err = util.UpdateTrailLikes(trailId, actorIds, client)
 		if err != nil {
 			return err
 		}
