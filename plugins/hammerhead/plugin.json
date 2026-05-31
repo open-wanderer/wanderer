@@ -1,0 +1,67 @@
+{
+  "manifestVersion": "1.0",
+  "id": "hammerhead",
+  "name": "Hammerhead",
+  "description": "Syncs Hammerhead routes and activities with wanderer and sends routes to Hammerhead devices.",
+  "version": "0.1.0",
+  "runtime": {
+    "type": "wasm",
+    "entrypoint": "plugin.wasm"
+  },
+  "capabilities": [
+    {
+      "name": "list_routes",
+      "version": "v1",
+      "export": "list_routes_v1"
+    },
+    {
+      "name": "list_activities",
+      "version": "v1",
+      "export": "list_activities_v1"
+    },
+    {
+      "name": "prepare_send_route",
+      "version": "v1",
+      "export": "prepare_send_route_v1"
+    }
+  ],
+  "auth": {
+    "contexts": {
+      "provider_session": {
+        "type": "session",
+        "fields": ["email", "password"],
+        "secretFields": ["password"],
+        "refresh": {
+          "mode": "plugin",
+          "function": "refresh_session_v1"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "network": {
+      "staticHosts": ["dashboard.hammerhead.io"]
+    },
+    "auth": ["provider_session"],
+    "uploads": {
+      "maxBytes": 25000000,
+      "contentTypes": ["multipart/form-data"]
+    },
+    "downloads": {
+      "maxBytes": 1048576,
+      "contentTypes": ["application/json"]
+    }
+  },
+  "configSchema": [
+    {
+      "key": "after",
+      "type": "date"
+    }
+  ],
+  "metadata": {
+    "icons": {
+      "light": "icon.svg",
+      "dark": "icon_dark.svg"
+    }
+  }
+}

@@ -83,8 +83,8 @@ export default defineConfig({
           link: '/use/import-export/'
         },
         {
-          label: 'Integrations',
-          link: '/use/integrations/'
+          label: 'Plugins',
+          link: '/use/plugins/'
         },
         ]
       },
@@ -136,6 +136,10 @@ export default defineConfig({
           {
             label: 'Federation',
             link: '/develop/federation/'
+          },
+          {
+            label: 'Plugin System',
+            link: '/develop/plugin-system/'
           },
         ]
       },

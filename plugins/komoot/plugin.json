@@ -1,0 +1,57 @@
+{
+  "manifestVersion": "1.0",
+  "id": "komoot",
+  "name": "Komoot",
+  "description": "Syncs planned and completed Komoot tours with wanderer.",
+  "version": "0.1.0",
+  "runtime": {
+    "type": "wasm",
+    "entrypoint": "plugin.wasm"
+  },
+  "capabilities": [
+    {
+      "name": "list_routes",
+      "version": "v1",
+      "export": "list_routes_v1"
+    },
+    {
+      "name": "list_activities",
+      "version": "v1",
+      "export": "list_activities_v1"
+    }
+  ],
+  "auth": {
+    "contexts": {
+      "provider_session": {
+        "type": "session",
+        "fields": ["email", "password"],
+        "secretFields": ["password"],
+        "refresh": {
+          "mode": "plugin",
+          "function": "refresh_session_v1"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "network": {
+      "staticHosts": ["api.komoot.de"]
+    },
+    "auth": ["provider_session"],
+    "downloads": {
+      "maxBytes": 1048576,
+      "contentTypes": ["application/json"]
+    }
+  },
+  "configSchema": [
+    {
+      "key": "after",
+      "type": "date"
+    }
+  ],
+  "metadata": {
+    "icons": {
+      "light": "icon.svg"
+    }
+  }
+}

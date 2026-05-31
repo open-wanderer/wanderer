@@ -1,0 +1,40 @@
+export interface PluginSystemCapability {
+    name: string;
+    version: string;
+    export: string;
+    requiredHostFunctions?: string[];
+    job?: string;
+}
+
+export interface PluginSystemManifest {
+    manifestVersion: string;
+    id: string;
+    name: string;
+    description?: string;
+    icon?: string;
+    iconDark?: string;
+    version: string;
+    runtime: {
+        type: string;
+        entrypoint: string;
+    };
+    capabilities: PluginSystemCapability[];
+    auth?: Record<string, unknown>;
+    permissions?: Record<string, unknown>;
+    configSchema?: unknown[];
+    metadata?: Record<string, unknown>;
+}
+
+export interface PluginSystemPlugin {
+    id: string;
+    name: string;
+    description?: string;
+    icon?: string;
+    iconDark?: string;
+    version: string;
+    runtime: string;
+    capabilities: string[];
+    status: "available" | "disabled" | "error";
+    error?: string;
+    manifest: PluginSystemManifest;
+}

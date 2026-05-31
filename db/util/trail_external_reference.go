@@ -7,24 +7,28 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-func FindTrailByExternalReference(app core.App, provider string, externalID string) (*core.Record, error) {
-	if provider == "" || externalID == "" {
+func FindTrailByExternalReferenceForUser(app core.App, userID string, provider string, externalID string) (*core.Record, error) {
+	if userID == "" || provider == "" || externalID == "" {
 		return nil, nil
 	}
 
 	refs, err := app.FindRecordsByFilter(
 		"trail_external_reference",
-		"provider={:provider} && external_id={:external_id}",
+		"user={:user} && provider={:provider} && external_id={:external_id}",
 		"+created",
 		1,
 		0,
 		dbx.Params{
+			"user":        userID,
 			"provider":    provider,
 			"external_id": externalID,
 		},
 	)
 	if err != nil || len(refs) == 0 {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
 	}
 
 	trailID := refs[0].GetString("trail")
@@ -39,14 +43,19 @@ func EnsureTrailExternalReference(app core.App, trailID string, provider string,
 	if trailID == "" || provider == "" || externalID == "" {
 		return nil
 	}
+	userID, err := externalReferenceUserID(app, trailID)
+	if err != nil {
+		return err
+	}
 
 	refs, err := app.FindRecordsByFilter(
 		"trail_external_reference",
-		"provider={:provider} && external_id={:external_id}",
+		"user={:user} && provider={:provider} && external_id={:external_id}",
 		"",
 		1,
 		0,
 		dbx.Params{
+			"user":        userID,
 			"provider":    provider,
 			"external_id": externalID,
 		},
@@ -69,11 +78,24 @@ func EnsureTrailExternalReference(app core.App, trailID string, provider string,
 	record := core.NewRecord(collection)
 	record.Load(map[string]any{
 		"trail":       trailID,
+		"user":        userID,
 		"provider":    provider,
 		"external_id": externalID,
 	})
 
 	return app.Save(record)
+}
+
+func externalReferenceUserID(app core.App, trailID string) (string, error) {
+	trail, err := app.FindRecordById("trails", trailID)
+	if err != nil {
+		return "", err
+	}
+	actor, err := app.FindRecordById("activitypub_actors", trail.GetString("author"))
+	if err != nil {
+		return "", err
+	}
+	return actor.GetString("user"), nil
 }
 
 func ReassignTrailExternalReferences(app core.App, sourceTrailID string, targetTrailID string) error {

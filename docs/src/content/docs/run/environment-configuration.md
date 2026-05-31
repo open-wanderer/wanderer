@@ -21,18 +21,24 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | MEILI_NO_ANALYTICS   | Disable meilisearch telemetry | true    |
 
 ## Pocketbase
-| Environment Variable          | Description                                                                                                       | Default               |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------- |
-| ORIGIN                        | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> frontend (must be the same as in the frontend config) | http://localhost:3000 |
-| POCKETBASE_ENCRYPTION_KEY     | Valid 32 character AES key. Used to encrypt secrets                                                               |                       |
-| POCKETBASE_CRON_SYNC_SCHEDULE | Valid cron expression. Sets how often trails are synced from 3rd party integrations                               | 0 2 * * *             |
-| POCKETBASE_SMTP_ENABLED       | Enables or disables SMTP functionality. Accepted values are true or false                                         | false                 |
+| Environment Variable           | Description                                                                                                       | Default               |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------- |
+| ORIGIN                         | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> frontend (must be the same as in the frontend config) | <http://localhost:3000> |
+| POCKETBASE_ENCRYPTION_KEY      | Valid 32 character AES key. Used to encrypt secrets                                                               |                       |
+| POCKETBASE_CRON_SYNC_SCHEDULE  | Valid cron expression. Sets how often installed plugins are synced                                                | 0 2 ** *             |
+| POCKETBASE_SMTP_ENABLED        | Enables or disables SMTP functionality. Accepted values are true or false                                         | false                 |
 | POCKETBASE_SMTP_SENDER_ADDRESS | The email address used as the "From" address in outgoing emails                                                   |                       |
-| POCKETBASE_SMTP_SENDER_NAME   | The display name shown as the sender in outgoing emails                                                           |                       |
-| POCKETBASE_SMTP_HOST          | The hostname or IP address of the SMTP server                                                                     |                       |
-| POCKETBASE_SMTP_PORT          | The port number used to connect to the SMTP server                                                                |                       |
-| POCKETBASE_SMTP_USERNAME      | The username used to authenticate with the SMTP server                                                            |                       |
-| POCKETBASE_SMTP_PASSWORD      | The password used to authenticate with the SMTP server                                                            |                       |
+| POCKETBASE_SMTP_SENDER_NAME    | The display name shown as the sender in outgoing emails                                                           |                       |
+| POCKETBASE_SMTP_HOST           | The hostname or IP address of the SMTP server                                                                     |                       |
+| POCKETBASE_SMTP_PORT           | The port number used to connect to the SMTP server                                                                |                       |
+| POCKETBASE_SMTP_USERNAME       | The username used to authenticate with the SMTP server                                                            |                       |
+| POCKETBASE_SMTP_PASSWORD       | The password used to authenticate with the SMTP server                                                            |                       |
+
+Plugins are not configured through an environment variable. The backend loads plugins from direct child directories of `data/plugins`. Each plugin must have its manifest at `data/plugins/<plugin-id>/plugin.json`.
+
+When running from a source checkout, first-party plugin source lives under `plugins/`, but runtime bundles should be copied to `data/plugins`. Run `make plugins-install-local` once after a fresh checkout to build and install the bundled plugins locally.
+
+Official Docker images do not include provider plugins. Download plugin bundles from the GitHub release assets and extract them into the mounted `./data/plugins` directory.
 
 ## Frontend
 

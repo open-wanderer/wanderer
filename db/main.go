@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -14,9 +15,7 @@ import (
 
 	"pocketbase/commands"
 	"pocketbase/hooks"
-	"pocketbase/integrations/hammerhead"
-	"pocketbase/integrations/komoot"
-	"pocketbase/integrations/strava"
+	"pocketbase/pluginsystem"
 	"pocketbase/routes"
 
 	_ "pocketbase/migrations"
@@ -117,11 +116,12 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordCreateRequest("follows").BindFunc(hooks.CreateFollowHandler())
 	app.OnRecordDeleteRequest("follows").BindFunc(hooks.DeleteFollowHandler())
 
-	app.OnRecordsListRequest("integrations").BindFunc(hooks.ListIntegrationHandler())
-	app.OnRecordCreate("integrations").BindFunc(hooks.CreateIntegrationHandler())
-	app.OnRecordAfterCreateSuccess("integrations").BindFunc(hooks.CreateUpdateIntegrationSuccessHandler())
-	app.OnRecordUpdate("integrations").BindFunc(hooks.UpdateIntegrationHandler())
-	app.OnRecordAfterUpdateSuccess("integrations").BindFunc(hooks.CreateUpdateIntegrationSuccessHandler())
+	app.OnRecordsListRequest("plugin_instances").BindFunc(hooks.ListPluginInstanceHandler())
+	app.OnRecordViewRequest("plugin_instances").BindFunc(hooks.ViewPluginInstanceHandler())
+	app.OnRecordCreate("plugin_instances").BindFunc(hooks.CreatePluginInstanceHandler())
+	app.OnRecordAfterCreateSuccess("plugin_instances").BindFunc(hooks.CreateUpdatePluginInstanceSuccessHandler())
+	app.OnRecordUpdate("plugin_instances").BindFunc(hooks.UpdatePluginInstanceHandler())
+	app.OnRecordAfterUpdateSuccess("plugin_instances").BindFunc(hooks.CreateUpdatePluginInstanceSuccessHandler())
 
 	app.OnRecordsListRequest("feed", "profile_feed").BindFunc(hooks.ListFeedHandler())
 
@@ -142,7 +142,7 @@ func setupCommands(app *pocketbase.PocketBase) {
 func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.ServeEvent) error {
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
-		registerCronJobs(se.App, client)
+		registerCronJobs(se.App)
 		initData(se.App, client)
 
 		return se.Next()
@@ -162,10 +162,12 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 	se.Router.GET("/search/token", routes.SearchToken(client))
 
-	se.Router.POST("/integration/strava/token", routes.IntegrationStravaToken)
-	se.Router.POST("/integration/hammerhead/upload", routes.IntegrationHammerheadUpload)
-	se.Router.GET("/integration/hammerhead/login", routes.IntegrationHammerheadLogin)
-	se.Router.GET("/integration/komoot/login", routes.IntegrationKommotLogin)
+	se.Router.GET("/plugins", routes.PluginSystemPluginsList)
+	se.Router.POST("/plugins/sync", routes.PluginSystemSync)
+	se.Router.POST("/plugins/send-route", routes.PluginSystemSendRoute)
+	se.Router.POST("/plugins/oauth/start", routes.PluginSystemOAuthStart)
+	se.Router.POST("/plugins/oauth/callback", routes.PluginSystemOAuthCallback)
+	se.Router.POST("/plugins/oauth/revoke", routes.PluginSystemOAuthRevoke)
 
 	se.Router.POST("/activitypub/activity/process", routes.ActivitypubActivityProcess)
 	se.Router.GET("/activitypub/actor", routes.ActivitypubActor)
@@ -182,28 +184,15 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 }
 
-func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
+func registerCronJobs(app core.App) {
 	schedule := os.Getenv("POCKETBASE_CRON_SYNC_SCHEDULE")
 	if len(schedule) == 0 {
 		schedule = "0 2 * * *"
 	}
 
-	app.Cron().MustAdd("integrations", schedule, func() {
-		err := strava.SyncStrava(app, client)
-		if err != nil {
-			warning := fmt.Sprintf("Error syncing with strava: %v", err)
-			fmt.Println(warning)
-			app.Logger().Error(warning)
-		}
-		err = komoot.SyncKomoot(app, client)
-		if err != nil {
-			warning := fmt.Sprintf("Error syncing with komoot: %v", err)
-			fmt.Println(warning)
-			app.Logger().Error(warning)
-		}
-		err = hammerhead.SyncHammerhead(app, client)
-		if err != nil {
-			warning := fmt.Sprintf("Error syncing with hammerhead: %v", err)
+	app.Cron().MustAdd("plugin-sync", schedule, func() {
+		if err := routes.PluginSystemSyncConfigured(context.Background(), app); err != nil {
+			warning := fmt.Sprintf("Error syncing with WASM plugins: %v", err)
 			fmt.Println(warning)
 			app.Logger().Error(warning)
 		}
@@ -212,9 +201,19 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 
 func initData(app core.App, client meilisearch.ServiceManager) error {
 	initCategories(app)
+	initPlugins(app)
 	initMeilisearchConfig(client)
 	go initMeilisearchDocuments(app, client)
 	return nil
+}
+
+func initPlugins(app core.App) {
+	manager := pluginsystem.NewManager(app, "")
+	if err := manager.SyncInstalledPlugins(context.Background()); err != nil {
+		warning := fmt.Sprintf("Error discovering WASM plugins: %v", err)
+		fmt.Println(warning)
+		app.Logger().Error(warning)
+	}
 }
 
 func initCategories(app core.App) error {

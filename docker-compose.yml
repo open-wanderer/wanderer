@@ -41,6 +41,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/pb_data:/pb_data
+      - ./data/plugins:/data/plugins
     healthcheck:
       test: ["CMD", "/curl", "--fail", "http://localhost:8090/health"]
       interval: 15s

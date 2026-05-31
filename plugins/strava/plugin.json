@@ -1,0 +1,66 @@
+{
+  "manifestVersion": "1.0",
+  "id": "strava",
+  "name": "Strava",
+  "description": "Syncs Strava routes and activities with wanderer.",
+  "version": "0.1.0",
+  "runtime": {
+    "type": "wasm",
+    "entrypoint": "plugin.wasm"
+  },
+  "capabilities": [
+    {
+      "name": "list_routes",
+      "version": "v1",
+      "export": "list_routes_v1"
+    },
+    {
+      "name": "list_activities",
+      "version": "v1",
+      "export": "list_activities_v1"
+    }
+  ],
+  "auth": {
+    "contexts": {
+      "oauth_access_token": {
+        "type": "oauth2",
+        "fields": ["clientId", "clientSecret"],
+        "secretFields": ["clientSecret", "accessToken", "refreshToken"],
+        "authorizationUrl": "https://www.strava.com/oauth/authorize",
+        "tokenUrl": "https://www.strava.com/oauth/token",
+        "scopes": ["read_all", "activity:read_all"],
+        "scopeSeparator": ",",
+        "tokenRequestFormat": "json",
+        "tokenAuth": "client_secret_post",
+        "authorizationParams": {
+          "approval_prompt": "auto"
+        },
+        "refresh": {
+          "mode": "host",
+          "grantType": "refresh_token"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "network": {
+      "staticHosts": ["www.strava.com"]
+    },
+    "auth": ["oauth_access_token"],
+    "downloads": {
+      "maxBytes": 1048576,
+      "contentTypes": ["application/json", "application/gpx+xml", "application/xml", "text/xml", "application/octet-stream"]
+    }
+  },
+  "configSchema": [
+    {
+      "key": "after",
+      "type": "date"
+    }
+  ],
+  "metadata": {
+    "icons": {
+      "light": "icon.svg"
+    }
+  }
+}
