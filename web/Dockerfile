@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build-env
+FROM node:26-alpine AS build-env
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY . .
 
 RUN npm run build
 
-FROM node:22-alpine
+FROM node:26-alpine
 
 WORKDIR /app/uploads
 WORKDIR /app
