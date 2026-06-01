@@ -1,4 +1,5 @@
 import type { Actor } from '$lib/models/activitypub/actor';
+import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { splitUsername } from '$lib/util/activitypub_util';
 import { handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
@@ -53,10 +54,10 @@ export async function GET(event: RequestEvent) {
             filter += `&& id != "${event.locals.pb.authStore.record.actor}"`
         }
 
-        const response = await event.locals.pb.collection("activitypub_actors").getList(1, 3, { filter: filter })
+        const response = await event.locals.pb.collection("activitypub_actors").getList<Actor>(1, 3, { filter: filter })
 
         try {
-            const { actor, error } = await event.locals.pb.send(`/activitypub/actor?resource=acct:${q}&follows=false`, { method: "GET", fetch: event.fetch, });
+            const { actor } = await getActorResponseForHandle(event, q!);
 
             if (!response.items.find(i => i.iri == actor.iri)) {
                 response.items.push(actor)

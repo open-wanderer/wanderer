@@ -9,7 +9,7 @@
 
     interface Props {
         email?: string;
-        onsave?: (email: string) => void;
+        onsave?: (email: string, currentPassword: string) => void;
     }
 
     let { email = "", onsave }: Props = $props();
@@ -18,24 +18,28 @@
 
     export function openModal() {
         setFields("email", email);
+        setFields("currentPassword", "");
         setErrors("email", []);
+        setErrors("currentPassword", []);
         modal.openModal();
     }
 
     const { form, errors, setFields, setErrors } = createForm<{
         email: string;
+        currentPassword: string;
     }>({
-        initialValues: { email: untrack(() => email) },
+        initialValues: { email: untrack(() => email), currentPassword: "" },
         extend: validator({
             schema: z.object({
                 email: z
                     .string()
                     .min(1, "required")
                     .email("not-a-valid-email-address"),
+                currentPassword: z.string().min(1, "required"),
             }),
         }),
         onSubmit: async (form) => {
-            onsave?.(form.email);
+            onsave?.(form.email, form.currentPassword);
             modal.closeModal!();
         },
     });
@@ -48,8 +52,9 @@
     bind:this={modal}
 >
     {#snippet content()}
-        <form id="email-form" use:form>
-            <TextField name="email" error={$errors.email}></TextField>
+        <form id="email-form" use:form class="flex flex-col gap-4">
+            <TextField name="email" label={$_("email")} error={$errors.email}></TextField>
+            <TextField name="currentPassword" type="password" label={$_("current-password")} error={$errors.currentPassword}></TextField>
         </form>
     {/snippet}
     {#snippet footer()}

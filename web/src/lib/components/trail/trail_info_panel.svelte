@@ -1,7 +1,8 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
+    import { page } from "$app/state";
     import Tabs from "$lib/components/base/tabs.svelte";
-    import TrailDropdown from "$lib/components/trail/trail_dropdown.svelte";
+    import TrailDropdown, { type MergeResult } from "$lib/components/trail/trail_dropdown.svelte";
     import { Comment } from "$lib/models/comment";
     import type { Trail } from "$lib/models/trail";
 
@@ -56,6 +57,7 @@
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
     import LikeButton from "./like_button.svelte";
     import Editor from "../base/editor.svelte";
+    import { trails_update } from "$lib/stores/trail_store";
 
     interface Props {
         initTrail: Trail;
@@ -75,6 +77,7 @@
 
     let summitLogModal: SummitLogModal;
     let confirmModal: ConfirmModal;
+    let markTrailAsCompletedModal: ConfirmModal;
 
     let trail = $state(untrack(() => initTrail));
 
@@ -126,9 +129,8 @@
 
     async function fetchComments() {
         commentsLoading = true;
-        const trailId = trail.iri ? trail.iri : trail.id!;
         try {
-            await comments_index(trailId, handle);
+            await comments_index(trail.id!);
         } catch (e) {
             show_toast({
                 type: "error",
@@ -243,6 +245,13 @@
             log.trail = trail.id;
             const newLog = await summit_logs_create(log);
             summitLogs.set([...$summitLogs, newLog]);
+            if (
+                $summitLogs.length == 1 &&
+                trail.author == $currentUser?.actor &&
+                !trail.completed
+            ) {
+                markTrailAsCompletedModal.openModal();
+            }
         }
         summitLogCreateLoading = false;
     }
@@ -258,6 +267,27 @@
             (l) => l.id !== $summitLog.id,
         );
         summitLogs.set(newSummitLogList);
+    }
+
+    function handleTrailMerge(result: MergeResult) {
+        if (!trail.id || !result.deletedTrailIds.includes(trail.id)) {
+            return;
+        }
+
+        const targetHandle = handleFromRecordWithIRI(result.targetTrail);
+        const targetPath =
+            mode === "map"
+                ? `/map/trail/${targetHandle}/${result.targetTrail.id}`
+                : `/trail/view/${targetHandle}/${result.targetTrail.id}`;
+
+        const search = page.url.searchParams.toString();
+        goto(search ? `${targetPath}?${search}` : targetPath);
+    }
+
+    async function markTrailAsCompleted() {
+        trail.completed = true;
+        const updatedTrail: Trail = { ...trail };
+        await trails_update(trail, updatedTrail);
     }
 </script>
 
@@ -280,7 +310,7 @@
                 </button>
             {/if}
             <div
-                class="grid gap-[1px] {headerPhotos.length > 1
+                class="grid gap-px {headerPhotos.length > 1
                     ? 'grid-cols-[8fr_5fr]'
                     : 'grid-cols-1'} h-80 rounded-t-3xl overflow-hidden cursor-pointer"
             >
@@ -391,9 +421,19 @@
                                 {trail.location}
                             </h3>
                         {/if}
-                        <h3 class="text-lg">
+                        <h3>
                             <i class="fa fa-gauge mr-2"></i>
                             {$_(trail.difficulty ?? "?")}
+                        </h3>
+                        <h3>
+                            <i
+                                class="fa {trail.completed
+                                    ? 'fa-flag-checkered'
+                                    : 'fa-compass-drafting'} mr-2"
+                            ></i>
+                            {$_(
+                                trail.completed ? "completed" : "not-completed",
+                            )}
                         </h3>
                     </div>
                 </div>
@@ -405,6 +445,7 @@
                         trails={new Set<Trail>([trail])}
                         onDelete={() =>
                             history.length ? history.back() : goto("/trails")}
+                        onMerge={handleTrailMerge}
                         {mode}
                     ></TrailDropdown>
                 </div>
@@ -674,6 +715,16 @@
 
 <SummitLogModal bind:this={summitLogModal} onsave={(log) => saveSummitLog(log)}
 ></SummitLogModal>
+
+<ConfirmModal
+    id="mark-trail-as-completed-modal"
+    title={$_("mark-trail-as-completed")}
+    text={$_("mark-trail-as-completed-modal-text")}
+    action={$_("yes")}
+    deny={$_("no")}
+    bind:this={markTrailAsCompletedModal}
+    onconfirm={markTrailAsCompleted}
+></ConfirmModal>
 
 <ConfirmModal
     id="confirm-summit-log-delete-modal"

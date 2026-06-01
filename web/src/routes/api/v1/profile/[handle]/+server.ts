@@ -46,8 +46,8 @@ export async function GET(event: RequestEvent) {
             createdAt: actor.published ?? "",
             bio: actor.summary ?? "",
             uri: actor.iri,
-            followers: actor.followerCount ?? 0,
-            following: actor.followingCount ?? 0,
+            followers: actor.follower_count ?? 0,
+            following: actor.following_count ?? 0,
             icon: actor.icon ?? "",
             error: actorError ?? undefined
         }

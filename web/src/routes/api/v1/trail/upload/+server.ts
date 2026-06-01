@@ -6,7 +6,7 @@ import { trails_create } from "$lib/stores/trail_store";
 import { handleError } from "$lib/util/api_util";
 import { fromFile, gpx2trail } from "$lib/util/gpx_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
-import type { Hits, MeiliSearch } from "meilisearch";
+import type { Hits, Meilisearch } from "meilisearch";
 import { ClientResponseError } from "pocketbase";
 
 /**
@@ -75,8 +75,12 @@ export async function PUT(event: RequestEvent) {
         }
 
         if (trail.lat && trail.lon) {
-            const location = await searchLocationReverse(trail.lat, trail.lon)
-            trail.location ??= location;
+            try {
+                const location = await searchLocationReverse(trail.lat, trail.lon, event.fetch)
+                trail.location ??= location;
+            } catch (e: any) {
+                console.warn("Reverse geocoding failed during upload", e);
+            }
         }
 
         trail.public = event.locals.settings.privacy?.trails == "public"
@@ -107,7 +111,7 @@ export async function PUT(event: RequestEvent) {
     }
 }
 
-async function findDuplicate(ms: MeiliSearch, t1: Trail) {
+async function findDuplicate(ms: Meilisearch, t1: Trail) {
     const response = await ms.index("trails").search("", {});
 
     const trails: TrailSearchResult[] = response.hits as Hits<TrailSearchResult>
