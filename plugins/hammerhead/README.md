@@ -2,8 +2,7 @@
 
 WASM/Extism version of the Hammerhead provider for wanderer.
 
-This plugin intentionally does not implement the old HTTP plugin protocol.
-It exports the new plugin-system ABI:
+This plugin exports the wanderer plugin-system ABI:
 
 - `list_routes_v1`
 - `list_activities_v1`

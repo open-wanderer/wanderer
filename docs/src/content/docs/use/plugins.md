@@ -23,6 +23,26 @@ complete the provider authorization flow, and then enable the plugin.
 
 ## Strava Plugin
 
+:::caution[A Strava subscription is required]
+With Strava's June 2026 Developer Program update, accessing the Strava API as a
+"Standard Tier" developer requires an active Strava subscription. Because each
+<span class="-tracking-[0.075em]">wanderer</span> user connects with their own
+Client ID and Client Secret, everyone using this plugin counts as a Standard
+Tier developer and is subject to this requirement.
+
+- **New developers:** subscription required since **June 1, 2026**.
+- **Existing developers:** subscription required from **June 30, 2026**.
+- Active developers without a subscription are granted **3 months free** to
+  transition — redeem the offer from your
+  [Strava API settings dashboard](https://www.strava.com/settings/api).
+
+Your personal data export and device/wearable integrations are **not** affected;
+only programmatic API access is. A free (non-subscriber) Strava account can no
+longer use this plugin once the transition period ends. For details see Strava's
+[Developer Program update](https://communityhub.strava.com/insider-journal-9/an-update-to-our-developer-program-13428)
+and [API FAQ](https://communityhub.strava.com/developers-knowledge-base-14/strava-api-faq-12906).
+:::
+
 ### Creating an App in Strava
 
 Before integrating Strava with <span class="-tracking-[0.075em]">wanderer</span>, you need to create an API application in Strava. Visit [Strava's API settings](https://www.strava.com/settings/api) and follow the steps to create a new API application. Your setup should resemble the following:
