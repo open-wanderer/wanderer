@@ -1,4 +1,4 @@
-FROM getmeili/meilisearch:v1.11.3
+FROM getmeili/meilisearch:v1.45.1
 
 COPY ./entrypoint.sh /entrypoint.sh
 
