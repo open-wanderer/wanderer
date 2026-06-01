@@ -13,8 +13,6 @@ import (
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/tkrajina/gpxgo/gpx"
-	"github.com/twpayne/go-polyline"
 )
 
 func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
@@ -39,11 +37,6 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 	trailCategory := r.ExpandedOne("category")
 	if trailCategory != nil {
 		category = trailCategory.GetString("name")
-	}
-
-	polyline, err := getPolyline(app, r)
-	if err != nil {
-		polyline = ""
 	}
 
 	domain := ""
@@ -72,7 +65,7 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 		"thumbnail":      thumbnail,
 		"gpx":            r.GetString("gpx"),
 		"tags":           tags,
-		"polyline":       polyline,
+		"polyline":       r.GetString("polyline"),
 		"domain":         domain,
 		"iri":            r.GetString("iri"),
 		"_geo": map[string]float64{
@@ -126,46 +119,6 @@ func difficultyToNumber(difficulty string) int32 {
 	}
 
 	return 0
-}
-
-func getPolyline(app core.App, r *core.Record) (string, error) {
-	gpxPath := r.GetString("gpx")
-	if len(gpxPath) == 0 {
-		return "", nil
-	}
-	avatarKey := r.BaseFilesPath() + "/" + gpxPath
-	fsys, err := app.NewFilesystem()
-	if err != nil {
-		return "", err
-	}
-	defer fsys.Close()
-
-	gpxFile, err := fsys.GetReader(avatarKey)
-	if err != nil {
-		return "", err
-	}
-	defer gpxFile.Close()
-
-	content := new(bytes.Buffer)
-	_, err = io.Copy(content, gpxFile)
-	if err != nil {
-		return "", err
-	}
-	gpxData, err := gpx.Parse(content)
-	if err != nil {
-		return "", err
-	}
-
-	gpxData.SimplifyTracks(50)
-	coordinates := make([][]float64, 4)
-	for _, trk := range gpxData.Tracks {
-		for _, seg := range trk.Segments {
-			for _, pt := range seg.Points {
-				coordinates = append(coordinates, []float64{pt.Latitude, pt.Longitude})
-			}
-		}
-	}
-	return string(polyline.EncodeCoords(coordinates)), nil
 }
 
 func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {
@@ -359,16 +312,8 @@ func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meili
 	}
 	documents := []map[string]interface{}{doc}
 
-	task, err := client.Index("trails").UpdateDocuments(documents, nil)
-
-	if err != nil {
+	if _, err = client.Index("trails").UpdateDocuments(documents, nil); err != nil {
 		return err
-	}
-
-	interval := 500 * time.Millisecond
-	_, err = client.WaitForTask(task.TaskUID, interval)
-	if err != nil {
-		return fmt.Errorf("meilisearch update trail: error waiting for task completion: %v", err)
 	}
 
 	return nil
