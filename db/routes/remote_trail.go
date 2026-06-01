@@ -8,16 +8,34 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"pocketbase/federation"
 	"pocketbase/util"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 )
+
+// remoteSyncThreshold is the minimum age of a remote record before a background sync is triggered.
+// Configurable via POCKETBASE_FEDERATION_SYNC_INTERVAL (minutes). Default: 60.
+var remoteSyncThreshold = func() time.Duration {
+	if v := os.Getenv("POCKETBASE_FEDERATION_SYNC_INTERVAL"); v != "" {
+		if minutes, err := strconv.Atoi(v); err == nil && minutes > 0 {
+			return time.Duration(minutes) * time.Minute
+		}
+	}
+	return 60 * time.Minute
+}()
+
+// trailSyncing and listSyncing track IRIs currently being synced to prevent concurrent duplicate syncs.
+var trailSyncing sync.Map
+var listSyncing sync.Map
 
 // --- Main Handler ---
 
@@ -64,8 +82,17 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 		} else {
 			// We already have it locally. Show and update background.
 			updatedAt := record.GetDateTime("updated").Time()
-			if time.Now().UTC().Sub(updatedAt) > 60*time.Minute {
-				go performFullSync(e.App, ctx, e.Request.URL, record)
+
+			iri := record.GetString("iri")
+			if time.Now().UTC().Sub(updatedAt) > remoteSyncThreshold {
+				if _, alreadySyncing := trailSyncing.LoadOrStore(iri, struct{}{}); !alreadySyncing {
+					urlCopy := *e.Request.URL
+					bgCtx := context.WithValue(context.Background(), "actor", ctx.Value("actor"))
+					go func() {
+						defer trailSyncing.Delete(iri)
+						performFullSync(e.App, bgCtx, &urlCopy, record)
+					}()
+				}
 			}
 		}
 	} else {
