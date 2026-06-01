@@ -13,6 +13,7 @@ class WandererMap extends ConsumerStatefulWidget {
   final MapController? mapController;
   final bool disabled;
   final List<Widget>? controls;
+  final LatLng? elevationMarkerPosition;
 
   final bool showTrail;
 
@@ -29,6 +30,7 @@ class WandererMap extends ConsumerStatefulWidget {
     this.disabled = false,
     this.controls = const [],
     this.showTrail = true,
+    this.elevationMarkerPosition,
   });
 
   @override
@@ -90,6 +92,31 @@ class _WandererMapState extends ConsumerState<WandererMap> {
         ),
         if (widget.trail.expand?.gpx != null && widget.showTrail)
           TrailLayer(trail: widget.trail, onWaypointTap: widget.onWaypointTap),
+
+        if (widget.elevationMarkerPosition != null)
+          MarkerLayer(
+            markers: [
+              Marker(
+                width: 12,
+                height: 12,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: .2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                    border: Border.all(color: Colors.black, width: 2),
+                  ),
+                ),
+                point: widget.elevationMarkerPosition!,
+              ),
+            ],
+          ),
 
         Align(
           alignment: Alignment.topRight,

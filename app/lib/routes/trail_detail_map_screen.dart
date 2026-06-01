@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/base/wanderer_map.dart';
 import 'package:wanderer/components/map/map_compass.dart';
@@ -28,6 +29,7 @@ class TrailDetailMapScreen extends ConsumerStatefulWidget {
 class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
   bool showElevationProfile = true;
   bool showTrail = true;
+  LatLng? elevationMarkerPosition;
   Waypoint? selectedWaypoint;
 
   final DraggableScrollableController _sheetController =
@@ -79,6 +81,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                   child: WandererMap(
                     trail: trail,
                     showTrail: showTrail,
+                    elevationMarkerPosition: elevationMarkerPosition,
                     onWaypointTap: _onWaypointSelected,
                     controls: [
                       _buildMapControls(context, trail),
@@ -135,6 +138,11 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                           ElevationProfile(
                             trail: trail,
                             gpx: trail.expand!.gpx!,
+                            onLineTouch: (p) {
+                              setState(
+                                () => elevationMarkerPosition = p?.latlng,
+                              );
+                            },
                           ),
                         ],
                       ),

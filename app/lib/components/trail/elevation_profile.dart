@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
@@ -15,7 +16,7 @@ class ElevationProfile extends StatefulWidget {
 
   final double chartHeight;
   final int smoothingWindowSize;
-  final Function(double absolute, double relative)? onLineTouch;
+  final Function(TrackPoint? point)? onLineTouch;
   final bool enableLineTouch;
   const ElevationProfile({
     super.key,
@@ -32,7 +33,7 @@ class ElevationProfile extends StatefulWidget {
 }
 
 class _ElevationProfileState extends State<ElevationProfile> {
-  late List<_TrackPoint> _points;
+  late List<TrackPoint> _points;
   int? _selectedIndex;
 
   @override
@@ -51,12 +52,12 @@ class _ElevationProfileState extends State<ElevationProfile> {
     }
   }
 
-  List<_TrackPoint> _parseGpx(Gpx gpx, int windowSize) {
+  List<TrackPoint> _parseGpx(Gpx gpx, int windowSize) {
     final rawPoints = gpx.allWaypoints;
 
     if (rawPoints.isEmpty) return [];
 
-    final result = <_TrackPoint>[];
+    final result = <TrackPoint>[];
     double cumDist = 0;
     Duration cumDuration = Duration.zero;
 
@@ -73,9 +74,10 @@ class _ElevationProfileState extends State<ElevationProfile> {
         }
       }
       result.add(
-        _TrackPoint(
+        TrackPoint(
           distanceM: cumDist,
           elevationM: wpt.ele ?? 0,
+          latlng: LatLng(wpt.lat ?? 0, wpt.lon ?? 0),
           duration: cumDuration,
           gradient: 0,
           color: Colors.white,
@@ -319,17 +321,23 @@ class _ElevationProfileState extends State<ElevationProfile> {
                 ),
                 lineTouchData: LineTouchData(
                   enabled: widget.enableLineTouch,
+                  handleBuiltInTouches: true,
+                  getTouchLineEnd: (_, _) {
+                    return yMax;
+                  },
                   touchCallback: (event, response) {
-                    if (response?.lineBarSpots?.isNotEmpty == true) {
+                    if (event is FlLongPressEnd || event is FlPanEndEvent) {
                       setState(() {
-                        final index = response!.lineBarSpots!.first.spotIndex;
-                        _selectedIndex = index;
-                        widget.onLineTouch?.call(
-                          response.lineBarSpots!.first.x,
-                          response.lineBarSpots!.first.x /
-                              _points.last.distanceM,
-                        );
+                        _selectedIndex = null;
                       });
+                      widget.onLineTouch?.call(null);
+                    } else if (response?.lineBarSpots?.isNotEmpty == true) {
+                      final index = response!.lineBarSpots!.first.spotIndex;
+                      setState(() {
+                        _selectedIndex = index;
+                      });
+                      final point = _points[index];
+                      widget.onLineTouch?.call(point);
                     }
                   },
                   getTouchedSpotIndicator: (barData, spotIndexes) {
@@ -340,7 +348,6 @@ class _ElevationProfileState extends State<ElevationProfile> {
                             context,
                           ).primaryColor.withValues(alpha: 0.4),
                           strokeWidth: 1,
-                          dashArray: [4, 4],
                         ),
                         FlDotData(
                           getDotPainter: (spot, percent, bar, index) =>
@@ -488,12 +495,15 @@ class _ElevationProfileState extends State<ElevationProfile> {
     );
   }
 
-  List<_TrackPoint> _simplifyTrackPoints(List<_TrackPoint> points, int targetCount) {
+  List<TrackPoint> _simplifyTrackPoints(
+    List<TrackPoint> points,
+    int targetCount,
+  ) {
     if (points.length <= targetCount) return points;
 
     final numBuckets = targetCount ~/ 2;
     final bucketSize = points.length / numBuckets;
-    final result = <_TrackPoint>[];
+    final result = <TrackPoint>[];
 
     result.add(points.first);
 
@@ -534,7 +544,7 @@ class _ElevationProfileState extends State<ElevationProfile> {
       result.add(points.last);
     }
 
-    final uniqueResult = <_TrackPoint>[];
+    final uniqueResult = <TrackPoint>[];
     for (final pt in result) {
       if (uniqueResult.isEmpty || uniqueResult.last != pt) {
         uniqueResult.add(pt);
@@ -545,23 +555,26 @@ class _ElevationProfileState extends State<ElevationProfile> {
   }
 }
 
-class _TrackPoint {
+class TrackPoint {
   final double distanceM;
   double elevationM;
   Duration duration;
   double gradient;
   Color color;
+  LatLng latlng;
 
-  _TrackPoint({
+  TrackPoint({
     required this.distanceM,
     required this.elevationM,
+    required this.latlng,
+
     this.duration = Duration.zero,
     this.gradient = 0,
     this.color = Colors.white,
   });
 }
 
-void _smoothElevations(List<_TrackPoint> points, {required int windowSize}) {
+void _smoothElevations(List<TrackPoint> points, {required int windowSize}) {
   if (windowSize < 1) windowSize = 1;
   if (windowSize == 1 || points.length < 2) return;
 
