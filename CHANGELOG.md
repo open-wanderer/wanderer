@@ -1,3 +1,14 @@
+# v0.19.2
+## Documentation
+-  Add CONTRIBUTING guidelines
+  
+## Bug Fixes
+- All photos from strava activities are now synced, instead of just the first one
+- Shared trails are now displayed correctly in search results
+- Fixes bug that caused trails to be indexed multiple times causing high server load
+- Remaining likes are no correctly calculated when unliking a trail
+- Fix waypoint creation from photos
+
 # v0.19.1
 
 ## Features
