@@ -45,7 +45,7 @@
     "auth": ["provider_session"],
     "uploads": {
       "maxBytes": 25000000,
-      "contentTypes": ["multipart/form-data"]
+      "contentTypes": ["application/json", "multipart/form-data"]
     },
     "downloads": {
       "maxBytes": 1048576,
@@ -55,9 +55,15 @@
   "configSchema": [
     {
       "key": "after",
-      "type": "date"
+      "type": "date",
+      "label": "Start date"
     }
   ],
+  "hostConfig": {
+    "categoryMapping": {
+      "biking": "Biking"
+    }
+  },
   "metadata": {
     "icons": {
       "light": "icon.svg",

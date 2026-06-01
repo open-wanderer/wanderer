@@ -87,6 +87,60 @@ func TestMetricsFromGPX(t *testing.T) {
 	}
 }
 
+func TestApplyProviderMetrics(t *testing.T) {
+	metrics := trailMetrics{
+		Distance:      1,
+		ElevationGain: 2,
+		ElevationLoss: 3,
+		Duration:      4,
+		StartLat:      46,
+		StartLon:      8,
+	}
+
+	applyProviderMetrics(&metrics, map[string]any{
+		"distance":      1234.5,
+		"elevationGain": 234.5,
+		"elevationLoss": 45.5,
+		"duration":      3600,
+	})
+
+	if metrics.Distance != 1234.5 {
+		t.Fatalf("distance = %v", metrics.Distance)
+	}
+	if metrics.ElevationGain != 234.5 {
+		t.Fatalf("elevation gain = %v", metrics.ElevationGain)
+	}
+	if metrics.ElevationLoss != 45.5 {
+		t.Fatalf("elevation loss = %v", metrics.ElevationLoss)
+	}
+	if metrics.Duration != 3600 {
+		t.Fatalf("duration = %v", metrics.Duration)
+	}
+	if metrics.StartLat != 46 || metrics.StartLon != 8 {
+		t.Fatalf("provider metadata must not override start point")
+	}
+}
+
+func TestApplyProviderMetricsIgnoresEmptyValues(t *testing.T) {
+	metrics := trailMetrics{
+		Distance:      1,
+		ElevationGain: 2,
+		ElevationLoss: 3,
+		Duration:      4,
+	}
+
+	applyProviderMetrics(&metrics, map[string]any{
+		"distance":      0,
+		"elevationGain": -1,
+		"elevationLoss": "",
+		"duration":      nil,
+	})
+
+	if metrics.Distance != 1 || metrics.ElevationGain != 2 || metrics.ElevationLoss != 3 || metrics.Duration != 4 {
+		t.Fatalf("unexpected metrics after empty metadata: %#v", metrics)
+	}
+}
+
 func TestPublicFromPrivacy(t *testing.T) {
 	public := "public"
 	private := "private"

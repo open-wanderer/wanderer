@@ -159,6 +159,7 @@ func (m *Manager) SyncInstalledPlugins(ctx context.Context) error {
 			return fmt.Errorf("encode installed plugin %s manifest: %w", plugin.Manifest.ID, err)
 		}
 		record.Set("manifest", manifestJSON)
+		record.Set("config", mergeDefaultConfig(defaultConfig(plugin.Manifest), JSONMapFromRecord(record, "config")))
 		if record.GetString("status") == "" {
 			record.Set("status", "available")
 		}
@@ -179,6 +180,34 @@ func marshalManifest(manifest Manifest) (map[string]any, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+func defaultConfig(manifest Manifest) map[string]any {
+	hostConfig, _ := CloneJSONValue(manifest.HostConfig).(map[string]any)
+	if hostConfig == nil {
+		hostConfig = map[string]any{}
+	}
+	config := map[string]any{
+		"host": hostConfig,
+	}
+	pluginConfig := map[string]any{}
+	for _, field := range manifest.ConfigSchema {
+		if field.Key == "" || field.Default == nil {
+			continue
+		}
+		pluginConfig[field.Key] = CloneJSONValue(field.Default)
+	}
+	config["plugin"] = pluginConfig
+	return config
+}
+
+func mergeDefaultConfig(defaults map[string]any, current map[string]any) map[string]any {
+	if len(defaults) == 0 {
+		return current
+	}
+	merged := CloneJSONMap(defaults)
+	DeepMergeConfig(merged, current)
+	return merged
 }
 
 func capabilityNames(capabilities []CapabilityManifest) []string {

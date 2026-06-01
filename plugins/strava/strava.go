@@ -7,18 +7,34 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/open-wanderer/wanderer/plugins/sdk"
 )
 
-const stravaAPIBase = "https://www.strava.com/api/v3"
+// Strava is migrating its API host: the new host "https://www.api-v3.strava.com"
+// is available from 2027-01-04 and the old one is retired on 2027-06-01 (June
+// 2026 Developer Program update). We cut over on 2027-03-01 — after the new host
+// has had time to stabilize, well before the old one disappears — so no manual
+// change or release is needed at the deadline.
+func stravaAPIBase() string {
+	return pickStravaAPIBase(time.Now())
+}
+
+func pickStravaAPIBase(now time.Time) string {
+	cutover := time.Date(2027, 3, 1, 0, 0, 0, 0, time.UTC)
+	if now.Before(cutover) {
+		return "https://www.strava.com/api/v3"
+	}
+	return "https://www.api-v3.strava.com"
+}
 
 type stravaClient struct {
 	accessToken string
 }
 
 func newClient(auth map[string]any) (*stravaClient, error) {
-	token := stringField(auth, "accessToken")
+	token := sdk.StringField(auth, "accessToken")
 	if token == "" {
 		return nil, fmt.Errorf("accessToken is required")
 	}
@@ -26,40 +42,40 @@ func newClient(auth map[string]any) (*stravaClient, error) {
 }
 
 func (c *stravaClient) routes(page int, perPage int) ([]route, error) {
-	endpoint := fmt.Sprintf("%s/athlete/routes?page=%d&per_page=%d", stravaAPIBase, page, perPage)
+	endpoint := fmt.Sprintf("%s/athlete/routes?page=%d&per_page=%d", stravaAPIBase(), page, perPage)
 	var routes []route
 	err := c.getJSON(endpoint, &routes)
 	return routes, err
 }
 
 func (c *stravaClient) routeGPX(id string) ([]byte, error) {
-	endpoint := fmt.Sprintf("%s/routes/%s/export_gpx", stravaAPIBase, url.PathEscape(id))
+	endpoint := fmt.Sprintf("%s/routes/%s/export_gpx", stravaAPIBase(), url.PathEscape(id))
 	return c.getBytes(endpoint)
 }
 
 func (c *stravaClient) activities(page int, perPage int, after int64) ([]activity, error) {
-	endpoint := fmt.Sprintf("%s/athlete/activities?page=%d&per_page=%d&after=%d", stravaAPIBase, page, perPage, after)
+	endpoint := fmt.Sprintf("%s/athlete/activities?page=%d&per_page=%d&after=%d", stravaAPIBase(), page, perPage, after)
 	var activities []activity
 	err := c.getJSON(endpoint, &activities)
 	return activities, err
 }
 
 func (c *stravaClient) activity(id int64) (*detailedActivity, error) {
-	endpoint := fmt.Sprintf("%s/activities/%d", stravaAPIBase, id)
+	endpoint := fmt.Sprintf("%s/activities/%d", stravaAPIBase(), id)
 	var activity detailedActivity
 	err := c.getJSON(endpoint, &activity)
 	return &activity, err
 }
 
 func (c *stravaClient) activityStreams(id int64) (*activityStreamResponse, error) {
-	endpoint := fmt.Sprintf("%s/activities/%d/streams?keys=latlng,time,altitude&key_by_type=true", stravaAPIBase, id)
+	endpoint := fmt.Sprintf("%s/activities/%d/streams?keys=latlng,time,altitude&key_by_type=true", stravaAPIBase(), id)
 	var streams activityStreamResponse
 	err := c.getJSON(endpoint, &streams)
 	return &streams, err
 }
 
 func (c *stravaClient) activityPhotos(id int64) ([]activityPhoto, error) {
-	endpoint := fmt.Sprintf("%s/activities/%d/photos?size=600", stravaAPIBase, id)
+	endpoint := fmt.Sprintf("%s/activities/%d/photos?size=600", stravaAPIBase(), id)
 	var photos []activityPhoto
 	err := c.getJSON(endpoint, &photos)
 	return photos, err
@@ -107,17 +123,17 @@ func (c *stravaClient) request(endpoint string, contentTypes []string) (sdk.Host
 }
 
 func syncRoutes(client *stravaClient, input listInput) (listOutput, error) {
-	page := intState(input.State, "page", 1)
+	page := sdk.IntState(input.State, "page", 1)
 	if page <= 0 {
 		page = 1
 	}
-	rows, err := client.routes(page, limit(input))
+	rows, err := client.routes(page, sdk.SyncLimit(input))
 	if err != nil {
 		return listOutput{}, err
 	}
-	known := knownIDs(input.RecentExternalIDs)
+	known := sdk.KnownIDs(input.RecentExternalIDs)
 	after := dateOption(input.Options, "after")
-	items := make([]trailImport, 0, limit(input))
+	items := make([]trailImport, 0, sdk.SyncLimit(input))
 	for _, row := range rows {
 		if known[row.IDStr] {
 			continue
@@ -133,29 +149,30 @@ func syncRoutes(client *stravaClient, input listInput) (listOutput, error) {
 		if err == nil {
 			items = append(items, item)
 		}
-		if len(items) >= limit(input) {
+		if len(items) >= sdk.SyncLimit(input) {
 			break
 		}
 	}
 	nextPage := page + 1
+	hasMore := len(rows) >= sdk.SyncLimit(input)
 	return listOutput{
 		Items:   items,
-		State:   map[string]any{"page": nextPage},
-		HasMore: len(rows) >= limit(input),
+		State:   sdk.NextPageState(nextPage, hasMore),
+		HasMore: hasMore,
 	}, nil
 }
 
 func syncActivities(client *stravaClient, input listInput) (listOutput, error) {
-	page := intState(input.State, "page", 1)
+	page := sdk.IntState(input.State, "page", 1)
 	if page <= 0 {
 		page = 1
 	}
-	rows, err := client.activities(page, limit(input), unixAfter(input.Options))
+	rows, err := client.activities(page, sdk.SyncLimit(input), unixAfter(input.Options))
 	if err != nil {
 		return listOutput{}, err
 	}
-	known := knownIDs(input.RecentExternalIDs)
-	items := make([]trailImport, 0, limit(input))
+	known := sdk.KnownIDs(input.RecentExternalIDs)
+	items := make([]trailImport, 0, sdk.SyncLimit(input))
 	for _, row := range rows {
 		externalID := strconv.FormatInt(row.ID, 10)
 		if known[externalID] {
@@ -177,14 +194,15 @@ func syncActivities(client *stravaClient, input listInput) (listOutput, error) {
 		if err == nil {
 			items = append(items, item)
 		}
-		if len(items) >= limit(input) {
+		if len(items) >= sdk.SyncLimit(input) {
 			break
 		}
 	}
 	nextPage := page + 1
+	hasMore := len(rows) >= sdk.SyncLimit(input)
 	return listOutput{
 		Items:   items,
-		State:   map[string]any{"page": nextPage},
-		HasMore: len(rows) >= limit(input),
+		State:   sdk.NextPageState(nextPage, hasMore),
+		HasMore: hasMore,
 	}, nil
 }

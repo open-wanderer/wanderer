@@ -41,6 +41,7 @@ type Waypoint struct {
 	Ele         *float64   `json:"ele,omitempty"`
 	Time        *time.Time `json:"time,omitempty"`
 	Icon        string     `json:"icon,omitempty"`
+	Photos      []Photo    `json:"photos,omitempty"`
 }
 
 type Photo struct {

@@ -55,9 +55,53 @@
   "configSchema": [
     {
       "key": "after",
-      "type": "date"
+      "type": "date",
+      "label": "Start date"
     }
   ],
+  "hostConfig": {
+    "categoryMapping": {
+      "route:1": "Biking",
+      "route:2": "Walking",
+      "AlpineSki": "Skiing",
+      "BackcountrySki": "Skiing",
+      "Canoeing": "Canoeing",
+      "Crossfit": "Workout",
+      "EBikeRide": "Biking",
+      "Elliptical": "Workout",
+      "Golf": "Other",
+      "Handcycle": "Biking",
+      "Hike": "Hiking",
+      "IceSkate": "Skiing",
+      "InlineSkate": "Walking",
+      "Kayaking": "Canoeing",
+      "Kitesurf": "Canoeing",
+      "NordicSki": "Skiing",
+      "Ride": "Biking",
+      "RockClimbing": "Climbing",
+      "RollerSki": "Skiing",
+      "Rowing": "Canoeing",
+      "Run": "Walking",
+      "Sail": "Canoeing",
+      "Skateboard": "Walking",
+      "Snowboard": "Skiing",
+      "Snowshoe": "Hiking",
+      "Soccer": "Other",
+      "StairStepper": "Workout",
+      "StandUpPaddling": "Canoeing",
+      "Surfing": "Canoeing",
+      "Swim": "Other",
+      "Velomobile": "Biking",
+      "VirtualRide": "Biking",
+      "VirtualRun": "Walking",
+      "Walk": "Walking",
+      "WeightTraining": "Workout",
+      "Wheelchair": "Walking",
+      "Windsurf": "Canoeing",
+      "Workout": "Workout",
+      "Yoga": "Workout"
+    }
+  },
   "metadata": {
     "icons": {
       "light": "icon.svg"

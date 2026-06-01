@@ -60,8 +60,8 @@ func refreshSessionV1() int32 {
 		return fail("invalid_request", "invalid refresh_session input: "+err.Error())
 	}
 
-	email := stringField(input.Auth, "email")
-	password := stringField(input.Auth, "password")
+	email := sdk.StringField(input.Auth, "email")
+	password := sdk.StringField(input.Auth, "password")
 	if email == "" || password == "" {
 		return fail("auth_failed", "email and password are required")
 	}
@@ -132,21 +132,16 @@ func fail(code string, message string) int32 {
 	return 1
 }
 
-func stringField(values map[string]any, key string) string {
-	value, _ := values[key].(string)
-	return value
-}
-
 func listRoutes(client hammerheadClient, input listInput) (listOutput, error) {
-	page := intState(input.State, "page", 0)
-	limit := syncLimit(input)
+	page := sdk.IntState(input.State, "page", 0)
+	limit := sdk.SyncLimit(input)
 	rows, totalPages, err := client.tours(page, limit)
 	if err != nil {
 		return listOutput{}, err
 	}
 
-	after := stringField(input.Options, "after")
-	known := knownIDs(input.RecentExternalIDs)
+	after := sdk.StringField(input.Options, "after")
+	known := sdk.KnownIDs(input.RecentExternalIDs)
 	items := make([]trailImport, 0, min(limit, len(rows)))
 	for _, row := range rows {
 		if known[row.ID] {
@@ -159,6 +154,9 @@ func listRoutes(client hammerheadClient, input listInput) (listOutput, error) {
 		if after != "" && detail.CreatedAt < after {
 			return listOutput{Items: items}, nil
 		}
+		if detail.Distance <= 0 {
+			continue
+		}
 		item, err := tourImport(detail)
 		if err == nil {
 			items = append(items, item)
@@ -169,23 +167,24 @@ func listRoutes(client hammerheadClient, input listInput) (listOutput, error) {
 	}
 
 	nextPage := page + 1
+	hasMore := nextPage <= totalPages
 	return listOutput{
 		Items:   items,
-		State:   map[string]any{"page": nextPage},
-		HasMore: nextPage <= totalPages,
+		State:   sdk.NextPageState(nextPage, hasMore),
+		HasMore: hasMore,
 	}, nil
 }
 
 func listActivities(client hammerheadClient, input listInput) (listOutput, error) {
-	page := intState(input.State, "page", 0)
-	limit := syncLimit(input)
+	page := sdk.IntState(input.State, "page", 0)
+	limit := sdk.SyncLimit(input)
 	rows, totalPages, err := client.activities(page, limit)
 	if err != nil {
 		return listOutput{}, err
 	}
 
-	after := stringField(input.Options, "after")
-	known := knownIDs(input.RecentExternalIDs)
+	after := sdk.StringField(input.Options, "after")
+	known := sdk.KnownIDs(input.RecentExternalIDs)
 	items := make([]trailImport, 0, min(limit, len(rows)))
 	for _, row := range rows {
 		if known[row.ID] {
@@ -198,6 +197,10 @@ func listActivities(client hammerheadClient, input listInput) (listOutput, error
 		if after != "" && detail.ActivityData.CreatedAt < after {
 			return listOutput{Items: items}, nil
 		}
+		distance, ok := activityInfoValue(detail, "TYPE_DISTANCE_ID")
+		if !ok || distance <= 0 {
+			continue
+		}
 		item, err := activityImport(detail)
 		if err == nil {
 			items = append(items, item)
@@ -208,10 +211,11 @@ func listActivities(client hammerheadClient, input listInput) (listOutput, error
 	}
 
 	nextPage := page + 1
+	hasMore := nextPage <= totalPages
 	return listOutput{
 		Items:   items,
-		State:   map[string]any{"page": nextPage},
-		HasMore: nextPage <= totalPages,
+		State:   sdk.NextPageState(nextPage, hasMore),
+		HasMore: hasMore,
 	}, nil
 }
 
@@ -220,6 +224,7 @@ func tourImport(tour *tour) (trailImport, error) {
 	if err != nil {
 		return trailImport{}, err
 	}
+	privacy := privacyFromPublic(tour.IsPublic)
 	return trailImport{
 		Source: trailImportSource{
 			Provider:   "hammerhead",
@@ -229,9 +234,16 @@ func tourImport(tour *tour) (trailImport, error) {
 		Name:         tour.Name,
 		StartedAt:    tour.CreatedAt,
 		ActivityType: "biking",
+		Privacy:      &privacy,
 		Track: track{
 			Format:        "gpx",
 			ContentBase64: base64.StdEncoding.EncodeToString(gpxData),
+		},
+		Metadata: map[string]any{
+			"distance":         tour.Distance,
+			"elevationGain":    tour.Elevation.Gain,
+			"elevationLoss":    tour.Elevation.Loss,
+			"providerCategory": "biking",
 		},
 	}, nil
 }
@@ -241,6 +253,7 @@ func activityImport(activity *activity) (trailImport, error) {
 	if err != nil {
 		return trailImport{}, err
 	}
+	privacy := "private"
 	return trailImport{
 		Source: trailImportSource{
 			Provider:   "hammerhead",
@@ -250,39 +263,52 @@ func activityImport(activity *activity) (trailImport, error) {
 		Name:         activity.ActivityData.Name,
 		StartedAt:    activity.ActivityData.CreatedAt,
 		ActivityType: "biking",
+		Privacy:      &privacy,
 		Track: track{
 			Format:        "gpx",
 			ContentBase64: base64.StdEncoding.EncodeToString(gpxData),
 		},
+		Metadata: map[string]any{
+			"distance":         infoValueOrZero(activity, "TYPE_DISTANCE_ID"),
+			"elevationGain":    infoValueOrZero(activity, "TYPE_ELEVATION_GAIN_ID"),
+			"elevationLoss":    infoValueOrZero(activity, "TYPE_ELEVATION_LOSS_ID"),
+			"duration":         activityDurationSeconds(activity),
+			"providerCategory": "biking",
+		},
 	}, nil
 }
 
-func syncLimit(input listInput) int {
-	if input.Limits.MaxItems > 0 {
-		return input.Limits.MaxItems
+func privacyFromPublic(public bool) string {
+	if public {
+		return "public"
 	}
-	return 10
+	return "private"
 }
 
-func intState(state map[string]any, key string, fallback int) int {
-	switch value := state[key].(type) {
-	case float64:
-		return int(value)
-	case int:
-		return value
-	case json.Number:
-		parsed, err := value.Int64()
-		if err == nil {
-			return int(parsed)
+func activityInfoValue(activity *activity, key string) (float64, bool) {
+	for _, info := range activity.ActivityData.ActivityInfo {
+		if info.Key == key {
+			return info.Value.Value, true
 		}
 	}
-	return fallback
+	return 0, false
 }
 
-func knownIDs(ids []string) map[string]bool {
-	known := make(map[string]bool, len(ids))
-	for _, id := range ids {
-		known[id] = true
+func infoValueOrZero(activity *activity, key string) float64 {
+	value, _ := activityInfoValue(activity, key)
+	return value
+}
+
+func activityDurationSeconds(activity *activity) float64 {
+	var total int
+	for _, lap := range activity.ActivityData.Laps {
+		total += lap.ActiveTime
 	}
-	return known
+	if total > 0 {
+		return float64(total) / 1000
+	}
+	if activity.ActivityData.Duration.ElapsedTime > 0 {
+		return float64(activity.ActivityData.Duration.ElapsedTime) / 1000
+	}
+	return 0
 }

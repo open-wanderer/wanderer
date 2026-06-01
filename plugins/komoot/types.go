@@ -2,90 +2,17 @@ package main
 
 import "github.com/open-wanderer/wanderer/plugins/sdk"
 
-type instanceRef struct {
-	ID       string `json:"id"`
-	PluginID string `json:"pluginId"`
-}
-
-type refreshSessionInput struct {
-	Instance instanceRef    `json:"instance"`
-	Auth     map[string]any `json:"auth,omitempty"`
-	Config   map[string]any `json:"config,omitempty"`
-}
-
-type refreshSessionOutput struct {
-	Token  string `json:"token"`
-	Scheme string `json:"scheme,omitempty"`
-}
-
-type listInput struct {
-	Instance          instanceRef    `json:"instance"`
-	Auth              map[string]any `json:"auth,omitempty"`
-	State             map[string]any `json:"state,omitempty"`
-	Options           map[string]any `json:"options,omitempty"`
-	Limits            syncLimits     `json:"limits,omitempty"`
-	RecentExternalIDs []string       `json:"recentExternalIds,omitempty"`
-}
-
-type syncLimits struct {
-	MaxItems int `json:"maxItems,omitempty"`
-}
-
-type listOutput struct {
-	Items   []trailImport  `json:"items"`
-	State   map[string]any `json:"state,omitempty"`
-	HasMore bool           `json:"hasMore"`
-	Error   *pluginError   `json:"error,omitempty"`
-}
-
-type trailImport struct {
-	Source       trailImportSource `json:"source"`
-	Kind         string            `json:"kind,omitempty"`
-	Name         string            `json:"name"`
-	Description  string            `json:"description,omitempty"`
-	StartedAt    string            `json:"startedAt,omitempty"`
-	ActivityType string            `json:"activityType,omitempty"`
-	Privacy      *string           `json:"privacy,omitempty"`
-	Track        track             `json:"track"`
-	Waypoints    []waypoint        `json:"waypoints,omitempty"`
-	Photos       []photo           `json:"photos,omitempty"`
-	Metadata     map[string]any    `json:"metadata,omitempty"`
-}
-
-type trailImportSource struct {
-	Provider   string `json:"provider"`
-	ExternalID string `json:"externalId"`
-	URL        string `json:"url,omitempty"`
-}
-
-type track struct {
-	Format        string `json:"format"`
-	ContentBase64 string `json:"contentBase64"`
-}
-
-type waypoint struct {
-	ExternalID  string   `json:"externalId,omitempty"`
-	Name        string   `json:"name,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Lat         float64  `json:"lat"`
-	Lon         float64  `json:"lon"`
-	Ele         *float64 `json:"ele,omitempty"`
-	Icon        string   `json:"icon,omitempty"`
-}
-
-type photo struct {
-	ExternalID  string      `json:"externalId,omitempty"`
-	Filename    string      `json:"filename,omitempty"`
-	ContentType string      `json:"contentType,omitempty"`
-	Lat         *float64    `json:"lat,omitempty"`
-	Lon         *float64    `json:"lon,omitempty"`
-	Source      mediaSource `json:"source"`
-}
-
-type mediaSource struct {
-	Type string `json:"type"`
-	URL  string `json:"url,omitempty"`
-}
+type instanceRef = sdk.InstanceRef
+type refreshSessionInput = sdk.RefreshSessionInput
+type refreshSessionOutput = sdk.RefreshSessionOutput
+type listInput = sdk.ListInput
+type listOutput = sdk.ListOutput
+type trailImport = sdk.TrailImport
+type trailImportSource = sdk.TrailImportSource
+type track = sdk.Track
+type waypoint = sdk.Waypoint
+type photo = sdk.Photo
+type mediaSource = sdk.MediaSource
 
 type pluginError = sdk.PluginError
 
@@ -118,16 +45,20 @@ type tour struct {
 }
 
 type detailedTour struct {
-	ID         int64                `json:"id"`
-	Type       string               `json:"type"`
-	Name       string               `json:"name"`
-	Status     string               `json:"status"`
-	Date       string               `json:"date"`
-	Sport      string               `json:"sport"`
-	MapImage   mapImage             `json:"map_image"`
-	Difficulty difficulty           `json:"difficulty"`
-	ChangedAt  string               `json:"changed_at"`
-	Embedded   detailedTourEmbedded `json:"_embedded"`
+	ID            int64                `json:"id"`
+	Type          string               `json:"type"`
+	Name          string               `json:"name"`
+	Status        string               `json:"status"`
+	Date          string               `json:"date"`
+	Sport         string               `json:"sport"`
+	Distance      float64              `json:"distance"`
+	Duration      int                  `json:"duration"`
+	ElevationUp   float64              `json:"elevation_up"`
+	ElevationDown float64              `json:"elevation_down"`
+	MapImage      mapImage             `json:"map_image"`
+	Difficulty    difficulty           `json:"difficulty"`
+	ChangedAt     string               `json:"changed_at"`
+	Embedded      detailedTourEmbedded `json:"_embedded"`
 }
 
 type difficulty struct {
@@ -185,7 +116,8 @@ type point struct {
 }
 
 type waypointSubEmbedded struct {
-	Tips tips `json:"tips"`
+	Tips   tips        `json:"tips"`
+	Images coverImages `json:"images"`
 }
 
 type tips struct {

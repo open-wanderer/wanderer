@@ -22,6 +22,7 @@ export interface PluginSystemManifest {
     auth?: Record<string, unknown>;
     permissions?: Record<string, unknown>;
     configSchema?: unknown[];
+    hostConfig?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
 }
 

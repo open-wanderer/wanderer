@@ -302,9 +302,13 @@ func migrateLegacyIntegrationsToPluginInstances(app core.App) error {
 		if raw := legacyJSONObject(record.GetString("strava")); legacyHasValue(raw["clientId"]) {
 			auth := legacyPick(raw, "clientId", "clientSecret", "accessToken", "refreshToken", "expiresAt", "tokenType", "scope")
 			legacyNormalizeStravaAuth(auth)
-			config := legacyPick(raw, "after", "privacy", "merge")
-			config["planned"] = legacyBool(raw["routes"])
-			config["completed"] = legacyBool(raw["activities"])
+			hostConfig := legacyPick(raw, "privacy", "merge")
+			hostConfig["planned"] = legacyBool(raw["routes"])
+			hostConfig["completed"] = legacyBool(raw["activities"])
+			config := legacyNamespacedPluginConfig(
+				legacyPick(raw, "after"),
+				hostConfig,
+			)
 			if err := saveLegacyMappedPluginInstance(app, userID, "strava", auth, config, raw); err != nil {
 				return err
 			}
@@ -312,7 +316,10 @@ func migrateLegacyIntegrationsToPluginInstances(app core.App) error {
 
 		if raw := legacyJSONObject(record.GetString("komoot")); legacyHasValue(raw["email"]) {
 			auth := legacyPick(raw, "email", "password")
-			config := legacyPick(raw, "planned", "completed", "after", "privacy", "merge")
+			config := legacyNamespacedPluginConfig(
+				legacyPick(raw, "after"),
+				legacyPick(raw, "planned", "completed", "privacy", "merge"),
+			)
 			if err := saveLegacyMappedPluginInstance(app, userID, "komoot", auth, config, raw); err != nil {
 				return err
 			}
@@ -320,13 +327,23 @@ func migrateLegacyIntegrationsToPluginInstances(app core.App) error {
 
 		if raw := legacyJSONObject(record.GetString("hammerhead")); legacyHasValue(raw["email"]) {
 			auth := legacyPick(raw, "email", "password")
-			config := legacyPick(raw, "planned", "completed", "after", "privacy", "merge")
+			config := legacyNamespacedPluginConfig(
+				legacyPick(raw, "after"),
+				legacyPick(raw, "planned", "completed", "privacy", "merge"),
+			)
 			if err := saveLegacyMappedPluginInstance(app, userID, "hammerhead", auth, config, raw); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+func legacyNamespacedPluginConfig(pluginConfig map[string]any, hostConfig map[string]any) map[string]any {
+	return map[string]any{
+		"plugin": nilMap(pluginConfig),
+		"host":   nilMap(hostConfig),
+	}
 }
 
 func saveLegacyMappedPluginInstance(app core.App, userID string, pluginID string, auth map[string]any, config map[string]any, raw map[string]any) error {

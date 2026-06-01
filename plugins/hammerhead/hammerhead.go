@@ -58,8 +58,8 @@ func login(email string, password string) (string, error) {
 }
 
 func loginClient(auth map[string]any) (hammerheadClient, error) {
-	email := stringField(auth, "email")
-	password := stringField(auth, "password")
+	email := sdk.StringField(auth, "email")
+	password := sdk.StringField(auth, "password")
 	if email == "" || password == "" {
 		return hammerheadClient{}, fmt.Errorf("email and password are required")
 	}
@@ -123,8 +123,8 @@ func (c hammerheadClient) tour(id string) (*tour, error) {
 func userIDForUpload(auth map[string]any) (string, error) {
 	token := string(pdk.GetVar("hammerhead_access_token"))
 	if token == "" {
-		email := stringField(auth, "email")
-		password := stringField(auth, "password")
+		email := sdk.StringField(auth, "email")
+		password := sdk.StringField(auth, "password")
 		if email == "" || password == "" {
 			return "", fmt.Errorf("email and password are required")
 		}

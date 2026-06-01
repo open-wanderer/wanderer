@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"mime"
 	"net"
@@ -25,6 +26,7 @@ type Options struct {
 	ActorID                     string
 	DefaultPublic               bool
 	CreateSummitLogForCompleted bool
+	CategoryMapping             map[string]string
 }
 
 // Result tells the sync loop whether a plugin item created a new trail or was
@@ -66,8 +68,9 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 
 	record := core.NewRecord(collection)
 	metrics := metricsFromGPX(parsedGPX)
+	applyProviderMetrics(&metrics, item.Metadata)
 	public := publicFromPrivacy(item.Privacy, opts.DefaultPublic)
-	categoryID := categoryIDForActivityType(app, item.ActivityType)
+	categoryID := categoryIDForImport(app, item, opts.CategoryMapping)
 	date := dateFromImport(item, metrics)
 	photos := photoFiles(ctx, app, item.Photos)
 
@@ -146,8 +149,8 @@ func decodeAndParseGPX(track pluginsystem.Track) ([]byte, *gpx.GPX, error) {
 	return content, parsed, nil
 }
 
-// metricsFromGPX derives wanderer trail fields from the GPX instead of trusting
-// provider/plugin metadata for distance, elevation, duration, and start point.
+// metricsFromGPX derives fallback trail fields from the GPX and always owns the
+// start point. Provider metadata may override summary metrics afterwards.
 func metricsFromGPX(gpxData *gpx.GPX) trailMetrics {
 	uphillDownhill := gpxData.UphillDownhill()
 	movingData := gpxData.MovingData()
@@ -173,6 +176,49 @@ func metricsFromGPX(gpxData *gpx.GPX) trailMetrics {
 	}
 
 	return metrics
+}
+
+// applyProviderMetrics lets plugins preserve provider-provided summary metrics
+// where those values are more authoritative than values recalculated from a
+// simplified/import GPX. GPX parsing remains mandatory and provides fallback
+// metrics plus the start coordinate.
+func applyProviderMetrics(metrics *trailMetrics, metadata map[string]any) {
+	if metrics == nil || len(metadata) == 0 {
+		return
+	}
+	if value, ok := positiveFloatMetadata(metadata, "distance"); ok {
+		metrics.Distance = value
+	}
+	if value, ok := positiveFloatMetadata(metadata, "elevationGain"); ok {
+		metrics.ElevationGain = value
+	}
+	if value, ok := positiveFloatMetadata(metadata, "elevationLoss"); ok {
+		metrics.ElevationLoss = value
+	}
+	if value, ok := positiveFloatMetadata(metadata, "duration"); ok {
+		metrics.Duration = value
+	}
+}
+
+func positiveFloatMetadata(metadata map[string]any, key string) (float64, bool) {
+	switch value := metadata[key].(type) {
+	case float64:
+		return value, value > 0
+	case float32:
+		floatValue := float64(value)
+		return floatValue, floatValue > 0
+	case int:
+		floatValue := float64(value)
+		return floatValue, floatValue > 0
+	case int64:
+		floatValue := float64(value)
+		return floatValue, floatValue > 0
+	case json.Number:
+		parsed, err := value.Float64()
+		return parsed, err == nil && parsed > 0
+	default:
+		return 0, false
+	}
 }
 
 // publicFromPrivacy respects explicit provider privacy when present and falls
@@ -217,6 +263,7 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 		if icon == "" {
 			icon = "circle"
 		}
+		photos := photoFiles(ctx, app, waypoint.Photos)
 		record.Load(map[string]any{
 			"name":                waypoint.Name,
 			"description":         waypoint.Description,
@@ -227,6 +274,9 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 			"distance_from_start": 0,
 			"trail":               trailID,
 		})
+		if len(photos) > 0 {
+			record.Set("photos", photos)
+		}
 		if err := app.Save(record); err != nil {
 			return err
 		}
@@ -346,6 +396,44 @@ func createSummitLog(app core.App, trailID string, actorID string, date time.Tim
 	})
 
 	return app.Save(record)
+}
+
+func categoryIDForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]string) string {
+	if category, matched := categoryFromProviderMapping(app, providerCategory(item), mapping); matched {
+		return category
+	}
+	return categoryIDForActivityType(app, item.ActivityType)
+}
+
+func providerCategory(item pluginsystem.TrailImport) string {
+	value, _ := item.Metadata["providerCategory"].(string)
+	if strings.TrimSpace(value) != "" {
+		return value
+	}
+	value, _ = item.Metadata["sourceSport"].(string)
+	return value
+}
+
+func categoryFromProviderMapping(app core.App, providerCategory string, mapping map[string]string) (string, bool) {
+	if strings.TrimSpace(providerCategory) == "" || len(mapping) == 0 {
+		return "", false
+	}
+	rawTarget, matched := mapping[providerCategory]
+	if !matched {
+		return "", false
+	}
+	target := strings.TrimSpace(rawTarget)
+	if target == "" {
+		return "", true
+	}
+	if category, err := app.FindRecordById("categories", target); err == nil && category != nil {
+		return category.Id, true
+	}
+	category, _ := app.FindFirstRecordByData("categories", "name", target)
+	if category == nil {
+		return "", false
+	}
+	return category.Id, true
 }
 
 // categoryIDForActivityType maps common provider activity labels to wanderer's

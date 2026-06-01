@@ -4,7 +4,9 @@ export interface ConfigFieldOption {
 
 export interface ConfigField {
     key: string;
-    type: "boolean" | "date" | "select" | "text" | "url";
+    type: "boolean" | "date" | "object" | "select" | "text" | "url";
+    label?: string;
+    description?: string;
     options?: ConfigFieldOption[];
     default?: unknown;
 }

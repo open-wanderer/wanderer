@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
 	"pocketbase/plugins/importer"
 	"pocketbase/pluginsystem"
+	"pocketbase/services/trailmerge"
 )
 
 const (
@@ -25,13 +27,11 @@ var syncCapabilityDescriptors = []syncCapabilityDescriptor{
 		OptionKey:      "planned",
 		CapabilityName: "list_routes",
 		Version:        "v1",
-		StateKey:       "list_routes.v1",
 	},
 	{
 		OptionKey:      "completed",
 		CapabilityName: "list_activities",
 		Version:        "v1",
-		StateKey:       "list_activities.v1",
 	},
 }
 
@@ -39,7 +39,6 @@ type syncCapabilityDescriptor struct {
 	OptionKey      string
 	CapabilityName string
 	Version        string
-	StateKey       string
 }
 
 type pluginSystemSyncRequest struct {
@@ -74,44 +73,46 @@ type pluginSystemSyncResult struct {
 
 // PluginSystemSync runs a manual sync for the authenticated user's enabled
 // instance of one plugin.
-func PluginSystemSync(e *core.RequestEvent) error {
-	if e.Auth == nil {
-		return apis.NewUnauthorizedError("authentication required", nil)
-	}
+func PluginSystemSync(client meilisearch.ServiceManager) func(e *core.RequestEvent) error {
+	return func(e *core.RequestEvent) error {
+		if e.Auth == nil {
+			return apis.NewUnauthorizedError("authentication required", nil)
+		}
 
-	var data pluginSystemSyncRequest
-	if err := e.BindBody(&data); err != nil {
-		return apis.NewBadRequestError("Failed to read request data", err)
-	}
-	if data.PluginID == "" {
-		return apis.NewBadRequestError("pluginId is required", nil)
-	}
+		var data pluginSystemSyncRequest
+		if err := e.BindBody(&data); err != nil {
+			return apis.NewBadRequestError("Failed to read request data", err)
+		}
+		if data.PluginID == "" {
+			return apis.NewBadRequestError("pluginId is required", nil)
+		}
 
-	instance, err := e.App.FindFirstRecordByFilter(
-		"plugin_instances",
-		"user={:user} && plugin_id={:plugin_id} && enabled=true",
-		dbx.Params{"user": e.Auth.Id, "plugin_id": data.PluginID},
-	)
-	if err != nil {
-		return apis.NewBadRequestError("no enabled plugin instance configured for this plugin", nil)
-	}
+		instance, err := e.App.FindFirstRecordByFilter(
+			"plugin_instances",
+			"user={:user} && plugin_id={:plugin_id} && enabled=true",
+			dbx.Params{"user": e.Auth.Id, "plugin_id": data.PluginID},
+		)
+		if err != nil {
+			return apis.NewBadRequestError("no enabled plugin instance configured for this plugin", nil)
+		}
 
-	plugin, err := localPlugin(e.App, data.PluginID)
-	if err != nil {
-		return err
-	}
-	result, err := syncPluginInstance(e.Request.Context(), e.App, plugin, instance)
-	if err != nil {
-		return err
-	}
+		plugin, err := localPlugin(e.App, data.PluginID)
+		if err != nil {
+			return err
+		}
+		result, err := syncPluginInstance(e.Request.Context(), e.App, client, plugin, instance)
+		if err != nil {
+			return err
+		}
 
-	return e.JSON(http.StatusOK, result)
+		return e.JSON(http.StatusOK, result)
+	}
 }
 
 // PluginSystemSyncConfigured is the cron entrypoint. It refreshes plugin
 // metadata, finds enabled instances, skips instances in backoff, and syncs each
 // configured import capability.
-func PluginSystemSyncConfigured(ctx context.Context, app core.App) error {
+func PluginSystemSyncConfigured(ctx context.Context, app core.App, client meilisearch.ServiceManager) error {
 	manager := pluginsystem.NewManager(app, "")
 	if err := manager.SyncInstalledPlugins(ctx); err != nil {
 		return err
@@ -137,7 +138,7 @@ func PluginSystemSyncConfigured(ctx context.Context, app core.App) error {
 			if shouldSkipPluginInstance(instance) {
 				continue
 			}
-			result, err := syncPluginInstance(ctx, app, plugin, instance)
+			result, err := syncPluginInstance(ctx, app, client, plugin, instance)
 			if err != nil {
 				app.Logger().Warn("plugin instance sync failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "error", err)
 				syncErr = err
@@ -163,7 +164,7 @@ func pluginInstances(app core.App, pluginID string) ([]*core.Record, error) {
 // syncPluginInstance prepares one plugin instance for import: it resolves the
 // actor, creates the runtime, decrypts/refreshes auth, and dispatches every
 // enabled sync capability.
-func syncPluginInstance(ctx context.Context, app core.App, plugin pluginsystem.LocalPlugin, instance *core.Record) (*pluginSystemSyncResult, error) {
+func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.ServiceManager, plugin pluginsystem.LocalPlugin, instance *core.Record) (*pluginSystemSyncResult, error) {
 	actor, err := app.FindFirstRecordByData("activitypub_actors", "user", instance.GetString("user"))
 	if err != nil {
 		setPluginInstanceStatus(app, instance, "error", "invalid_request", "activitypub actor not found")
@@ -184,10 +185,11 @@ func syncPluginInstance(ctx context.Context, app core.App, plugin pluginsystem.L
 		setPluginInstanceStatus(app, instance, "needs_reauth", "auth_failed", err.Error())
 		return nil, err
 	}
-	config := jsonMapFromRecord(instance, "config")
-	state := jsonMapFromRecord(instance, "state")
+	config := effectivePluginConfig(app, plugin.Manifest.ID, instance)
+	pluginConfig := pluginRuntimeConfig(config)
+	hostConfig := pluginHostConfig(config)
 	defaultPublic := userDefaultPublic(app, instance.GetString("user"))
-	createSummitLog := boolOption(config, "createSummitLogForCompleted", true)
+	createSummitLog := boolOption(hostConfig, "createSummitLogForCompleted", true)
 
 	instance.Set("status", "syncing")
 	if err := app.Save(instance); err != nil {
@@ -196,24 +198,23 @@ func syncPluginInstance(ctx context.Context, app core.App, plugin pluginsystem.L
 
 	result := &pluginSystemSyncResult{PluginID: plugin.Manifest.ID}
 	for _, descriptor := range syncCapabilityDescriptors {
-		if !boolOption(config, descriptor.OptionKey, true) || !pluginHasCapability(plugin, descriptor.CapabilityName, descriptor.Version) {
+		if !boolOption(hostConfig, descriptor.OptionKey, true) || !pluginHasCapability(plugin, descriptor.CapabilityName, descriptor.Version) {
 			continue
 		}
 		capability, err := pluginCapability(plugin, descriptor.CapabilityName, descriptor.Version)
 		if err != nil {
 			return nil, err
 		}
-		capResult, err := syncPluginCapability(ctx, app, runtime, plugin, capability, instance, actor, auth, config, stateForCapability(state, descriptor.StateKey), defaultPublic, createSummitLog)
+		capResult, err := syncPluginCapability(ctx, app, client, runtime, plugin, capability, instance, actor, auth, pluginConfig, hostConfig, defaultPublic, createSummitLog)
 		if err != nil {
 			setPluginInstanceStatusForError(app, instance, err)
 			return nil, err
 		}
 		result.Imported += capResult.Imported
 		result.Skipped += capResult.Skipped
-		state[descriptor.StateKey] = capResult.State
 	}
 
-	instance.Set("state", state)
+	instance.Set("state", map[string]any{})
 	instance.Set("last_sync_at", time.Now())
 	instance.Set("last_error", map[string]any{})
 	instance.Set("next_retry_at", "")
@@ -233,13 +234,14 @@ func shouldSkipPluginInstance(instance *core.Record) bool {
 type capabilitySyncResult struct {
 	Imported int
 	Skipped  int
-	State    map[string]any
 }
 
 // syncPluginCapability calls one plugin export such as list_routes_v1, imports
-// the returned trail items, and carries the capability cursor state forward.
-func syncPluginCapability(ctx context.Context, app core.App, runtime pluginsystem.Runtime, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, actor *core.Record, auth map[string]any, config map[string]any, state map[string]any, defaultPublic bool, createSummitLog bool) (*capabilitySyncResult, error) {
-	result := &capabilitySyncResult{State: state}
+// the returned trail items, and carries transient page state only within this
+// sync run. The page cursor is intentionally not persisted across runs.
+func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.ServiceManager, runtime pluginsystem.Runtime, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, actor *core.Record, auth map[string]any, pluginConfig map[string]any, hostConfig map[string]any, defaultPublic bool, createSummitLog bool) (*capabilitySyncResult, error) {
+	result := &capabilitySyncResult{}
+	state := map[string]any{}
 	recentIDs := recentExternalIDs(app, instance.GetString("plugin_id"), instance.GetString("user"))
 	hasMore := true
 	for batch := 0; hasMore && batch < defaultPluginSyncMaxBatches; batch++ {
@@ -249,8 +251,8 @@ func syncPluginCapability(ctx context.Context, app core.App, runtime pluginsyste
 				PluginID: instance.GetString("plugin_id"),
 			},
 			Auth:              pluginsystem.PluginInputAuth(plugin, auth),
-			State:             result.State,
-			Options:           config,
+			State:             state,
+			Options:           pluginConfig,
 			Limits:            pluginSystemSyncLimits{MaxItems: defaultPluginSyncBatchLimit},
 			RecentExternalIDs: recentIDs,
 		}
@@ -258,7 +260,7 @@ func syncPluginCapability(ctx context.Context, app core.App, runtime pluginsyste
 		if err != nil {
 			return nil, err
 		}
-		outputBytes, err := runtime.Call(ctx, plugin, capability.Export, inputBytes, pluginInstancePolicy(plugin, config))
+		outputBytes, err := runtime.Call(ctx, plugin, capability.Export, inputBytes, pluginInstancePolicy(plugin, pluginConfig))
 		if err != nil {
 			return nil, err
 		}
@@ -271,12 +273,13 @@ func syncPluginCapability(ctx context.Context, app core.App, runtime pluginsyste
 		}
 
 		for _, item := range output.Items {
-			applyImportPolicy(&item, config)
+			applyHostPolicy(&item, hostConfig)
 			imported, err := importer.ImportTrail(ctx, app, item, importer.Options{
 				UserID:                      instance.GetString("user"),
 				ActorID:                     actor.Id,
 				DefaultPublic:               defaultPublic,
 				CreateSummitLogForCompleted: createSummitLog,
+				CategoryMapping:             categoryMapping(hostConfig),
 			})
 			if err != nil {
 				return nil, err
@@ -284,36 +287,29 @@ func syncPluginCapability(ctx context.Context, app core.App, runtime pluginsyste
 			if imported.Created {
 				result.Imported++
 				app.Logger().Info("imported plugin trail", "provider", item.Source.Provider, "external_id", item.Source.ExternalID, "trail", imported.TrailID)
+				if autoMergeEnabled(hostConfig) {
+					settings := trailmerge.DefaultPluginAutoMergeSettings()
+					settings.Enabled = true
+					if err := trailmerge.TryAutoMergeImportedTrail(app, client, ctx, actor, imported.TrailID, settings); err != nil {
+						app.Logger().Warn("unable to auto-merge imported plugin trail", "provider", item.Source.Provider, "external_id", item.Source.ExternalID, "trail", imported.TrailID, "error", err)
+					}
+				}
 			}
 			if imported.Skipped {
 				result.Skipped++
 			}
 		}
 
-		result.State = output.State
+		state = output.State
+		if state == nil {
+			state = map[string]any{}
+		}
 		hasMore = output.HasMore
 	}
 	if hasMore {
 		return nil, fmt.Errorf("sync stopped after %d batches", defaultPluginSyncMaxBatches)
 	}
-	if result.State == nil {
-		result.State = map[string]any{}
-	}
 	return result, nil
-}
-
-// pluginCapability returns the manifest entry for a concrete capability/version
-// pair so the host can call the export declared by the plugin.
-func pluginCapability(plugin pluginsystem.LocalPlugin, name string, version string) (pluginsystem.CapabilityManifest, error) {
-	for _, capability := range plugin.Manifest.Capabilities {
-		if capability.Name == name && capability.Version == version {
-			return capability, nil
-		}
-	}
-	return pluginsystem.CapabilityManifest{}, apis.NewBadRequestError("plugin capability is not available", map[string]string{
-		"name":    name,
-		"version": version,
-	})
 }
 
 func pluginHasCapability(plugin pluginsystem.LocalPlugin, name string, version string) bool {
@@ -332,32 +328,6 @@ func pluginHasAnySyncCapability(plugin pluginsystem.LocalPlugin) bool {
 		}
 	}
 	return false
-}
-
-// localPlugin resolves an installed plugin from the cached installed_plugins
-// record, with disk manifest fallback handled inside pluginsystem.
-func localPlugin(app core.App, pluginID string) (pluginsystem.LocalPlugin, error) {
-	plugin, err := pluginsystem.LoadInstalledPlugin(app, "", pluginID)
-	if err != nil {
-		return pluginsystem.LocalPlugin{}, apis.NewBadRequestError("unknown plugin", err)
-	}
-	return plugin, nil
-}
-
-func stateForCapability(state map[string]any, capability string) map[string]any {
-	raw, ok := state[capability]
-	if !ok {
-		return map[string]any{}
-	}
-	data, err := json.Marshal(raw)
-	if err != nil {
-		return map[string]any{}
-	}
-	var result map[string]any
-	if err := json.Unmarshal(data, &result); err != nil || result == nil {
-		return map[string]any{}
-	}
-	return result
 }
 
 func setPluginInstanceStatus(app core.App, instance *core.Record, status string, code string, message string) {
@@ -389,10 +359,19 @@ func setPluginInstanceStatusForError(app core.App, instance *core.Record, err er
 	}
 }
 
-func applyImportPolicy(item *pluginsystem.TrailImport, config map[string]any) {
-	if stringOption(config, "privacy", "original") != "original" {
+func applyHostPolicy(item *pluginsystem.TrailImport, config map[string]any) {
+	privacyMode, ok := config["privacy"].(string)
+	if !ok || privacyMode == "" {
+		privacyMode = "original"
+	}
+	if privacyMode != "original" {
 		item.Privacy = nil
 	}
+}
+
+func autoMergeEnabled(config map[string]any) bool {
+	merge, ok := config["merge"].(map[string]any)
+	return ok && boolOption(merge, "enabled", false)
 }
 
 func boolOption(config map[string]any, key string, fallback bool) bool {
@@ -403,12 +382,19 @@ func boolOption(config map[string]any, key string, fallback bool) bool {
 	return value
 }
 
-func stringOption(config map[string]any, key string, fallback string) string {
-	value, ok := config[key].(string)
-	if !ok || value == "" {
-		return fallback
+func categoryMapping(config map[string]any) map[string]string {
+	raw, ok := config["categoryMapping"].(map[string]any)
+	if !ok || len(raw) == 0 {
+		return nil
 	}
-	return value
+	result := make(map[string]string, len(raw))
+	for key, value := range raw {
+		category, ok := value.(string)
+		if ok && category != "" {
+			result[key] = category
+		}
+	}
+	return result
 }
 
 func userDefaultPublic(app core.App, userID string) bool {

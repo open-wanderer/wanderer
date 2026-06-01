@@ -25,7 +25,6 @@
     let completed = $state(true);
     let mergeEnabled = $state(false);
     let privacy = $state("original");
-    let extraConfig: Record<string, any> = $state(initialExtraConfig());
     let authFields = $derived(plugin.auth.fields ?? []);
     let secretFields = $derived(new Set(plugin.auth.secretFields ?? plugin.auth.fields ?? []));
     let isOAuthPlugin = $derived(plugin.auth.type === "oauth2");
@@ -33,6 +32,7 @@
     let needsOAuthConnect = $derived(isOAuthPlugin && (!isConnected || authChanged()));
     let plugin_id = $derived(plugin.id);
     let configSchema = $derived(plugin.configSchema ?? []);
+    let extraConfig: Record<string, any> = $state(initialExtraConfig());
     let supportsPlanned = $derived(
         plugin.capabilities?.includes("list_routes.v1") ?? false,
     );
@@ -70,9 +70,10 @@
     }
 
     function initialExtraConfig(): Record<string, any> {
+        const config = pluginConfig();
         return Object.fromEntries(
-            (plugin.configSchema ?? []).map((field) => {
-                const saved = instance?.config?.[field.key];
+            configSchema.map((field) => {
+                const saved = config[field.key];
                 if (saved !== undefined) return [field.key, saved];
                 if (field.default !== undefined) return [field.key, String(field.default)];
                 if (field.type === "boolean") {
@@ -97,10 +98,16 @@
     }
 
     function fieldLabel(field: ConfigField): string {
+        if (field.label) {
+            return field.label;
+        }
         return $_(configLabels[field.key] ?? field.key);
     }
 
     function fieldHint(field: ConfigField): string | undefined {
+        if (field.description) {
+            return field.description;
+        }
         const hint = configHints[field.key];
         return hint ? $_(hint) : undefined;
     }
@@ -111,6 +118,22 @@
 
     function authFieldType(field: string): "password" | "text" {
         return secretFields.has(field) ? "password" : "text";
+    }
+
+    function configSection(key: string): Record<string, any> {
+        const section = instance?.config?.[key];
+        if (section && typeof section === "object" && !Array.isArray(section)) {
+            return section as Record<string, any>;
+        }
+        return {};
+    }
+
+    function pluginConfig(): Record<string, any> {
+        return configSection("plugin");
+    }
+
+    function hostConfig(): Record<string, any> {
+        return configSection("host");
     }
 
     function authChanged() {
@@ -131,10 +154,11 @@
 
     export function openModal() {
         auth = initialAuth();
-        planned = (instance?.config?.planned as boolean | undefined) ?? true;
-        completed = (instance?.config?.completed as boolean | undefined) ?? true;
-        mergeEnabled = Boolean((instance?.config?.merge as any)?.enabled);
-        privacy = (instance?.config?.privacy as string | undefined) ?? "original";
+        const config = hostConfig();
+        planned = (config.planned as boolean | undefined) ?? true;
+        completed = (config.completed as boolean | undefined) ?? true;
+        mergeEnabled = Boolean((config.merge as any)?.enabled);
+        privacy = (config.privacy as string | undefined) ?? "original";
         extraConfig = initialExtraConfig();
         modal.openModal();
     }
@@ -145,23 +169,30 @@
             submittedAuth[field] = auth[field] ?? "";
         }
 
-        const config: Record<string, unknown> = {};
+        const pluginRuntimeConfig: Record<string, unknown> = { ...pluginConfig() };
+        const pluginHostConfig: Record<string, unknown> = { ...hostConfig() };
         if (supportsPlanned) {
-            config.planned = planned;
+            pluginHostConfig.planned = planned;
         }
         if (supportsCompleted) {
-            config.completed = completed;
+            pluginHostConfig.completed = completed;
         }
         if (supportsSourcePrivacy) {
-            config.privacy = privacy;
+            pluginHostConfig.privacy = privacy;
         }
-        config.merge = { enabled: mergeEnabled };
+        pluginHostConfig.merge = { enabled: mergeEnabled };
         for (const field of configSchema) {
             const val = extraConfig[field.key];
             if (val !== undefined && val !== "") {
-                config[field.key] = val;
+                pluginRuntimeConfig[field.key] = val;
+            } else {
+                delete pluginRuntimeConfig[field.key];
             }
         }
+        const config: Record<string, unknown> = {
+            plugin: pluginRuntimeConfig,
+            host: pluginHostConfig,
+        };
 
         const status = isOAuthPlugin
             ? !instance?.id

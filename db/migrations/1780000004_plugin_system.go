@@ -123,6 +123,16 @@ func createInstalledPluginsCollection(app core.App) error {
 			},
 			{
 				"hidden": false,
+				"id": "jsonplgincfg",
+				"maxSize": 2000000,
+				"name": "config",
+				"presentable": false,
+				"required": false,
+				"system": false,
+				"type": "json"
+			},
+			{
+				"hidden": false,
 				"id": "selectplginst",
 				"maxSelect": 1,
 				"name": "status",

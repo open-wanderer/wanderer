@@ -46,9 +46,40 @@
   "configSchema": [
     {
       "key": "after",
-      "type": "date"
+      "type": "date",
+      "label": "Start date"
     }
   ],
+  "hostConfig": {
+    "categoryMapping": {
+      "hike": "Hiking",
+      "mountaineering": "Hiking",
+      "racebike": "Biking",
+      "e_racebike": "Biking",
+      "touringbicycle": "Biking",
+      "e_touringbicycle": "Biking",
+      "mtb": "Biking",
+      "e_mtb": "Biking",
+      "mtb_easy": "Biking",
+      "e_mtb_easy": "Biking",
+      "mtb_advanced": "Biking",
+      "e_mtb_advanced": "Biking",
+      "downhillbike": "Biking",
+      "unicycle": "Biking",
+      "citybike": "Biking",
+      "jogging": "Walking",
+      "nordicwalking": "Walking",
+      "skaten": "Walking",
+      "other": "Walking",
+      "climbing": "Climbing",
+      "nordic": "Skiing",
+      "skialpin": "Skiing",
+      "skitour": "Skiing",
+      "sled": "Skiing",
+      "snowboard": "Skiing",
+      "snowshoe": "Skiing"
+    }
+  },
   "metadata": {
     "icons": {
       "light": "icon.svg"

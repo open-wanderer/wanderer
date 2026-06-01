@@ -57,6 +57,30 @@ Manager.SyncInstalledPlugins
   -> save installed_plugins record
 ```
 
+Manifest `configSchema` defines plugin-owned settings that are passed to plugin
+exports. Host-owned settings are documented by the host and are not passed to
+plugins. A manifest may only suggest host defaults via `hostConfig`; the current
+host fields are:
+
+| Field | Purpose |
+| --- | --- |
+| `planned` | Enables `list_routes.v1` sync. |
+| `completed` | Enables `list_activities.v1` sync. |
+| `privacy` | Chooses provider visibility or local user privacy settings. |
+| `merge.enabled` | Runs auto-merge after trail import. |
+| `createSummitLogForCompleted` | Creates summit logs for completed imports. |
+| `categoryMapping` | Maps `metadata.providerCategory` to local category IDs or names. |
+
+Trail import plugins should keep provider-specific category values in
+`metadata.providerCategory`. They may also provide provider summary metrics in
+`metadata.distance`, `metadata.elevationGain`, `metadata.elevationLoss`, and
+`metadata.duration`; the host uses those positive values instead of GPX-derived
+summary metrics and falls back to GPX when a value is missing.
+
+Photo descriptors may be returned either on the imported trail or on individual
+waypoints. The host downloads those media files and stores them on the
+corresponding PocketBase records.
+
 ### List plugins
 
 Used by the settings UI to show locally available plugins, their metadata,

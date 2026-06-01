@@ -49,8 +49,8 @@ func login(email string, password string) (*komootClient, error) {
 }
 
 func loginClient(auth map[string]any) (*komootClient, error) {
-	email := stringField(auth, "email")
-	password := stringField(auth, "password")
+	email := sdk.StringField(auth, "email")
+	password := sdk.StringField(auth, "password")
 	if email == "" || password == "" {
 		return nil, fmt.Errorf("email and password are required")
 	}
@@ -93,10 +93,17 @@ func (c *komootClient) detailedTour(id int64) (*detailedTour, error) {
 	return &data, err
 }
 
+func (c *komootClient) coverImages(id int64) ([]imageItem, error) {
+	endpoint := fmt.Sprintf("https://api.komoot.de/v007/tours/%d/cover_images/", id)
+	var data coverImages
+	err := c.get(endpoint, &data)
+	return data.Embedded.Items, err
+}
+
 func syncTours(client *komootClient, input listInput, wantKind string) (listOutput, error) {
-	page := intState(input.State, "page", 0)
-	known := knownIDs(input.RecentExternalIDs)
-	maxItems := limit(input)
+	page := sdk.IntState(input.State, "page", 0)
+	known := sdk.KnownIDs(input.RecentExternalIDs)
+	maxItems := sdk.SyncLimit(input)
 	rows, totalPages, err := client.tours(page, maxItems)
 	if err != nil {
 		return listOutput{}, err
@@ -108,7 +115,7 @@ func syncTours(client *komootClient, input listInput, wantKind string) (listOutp
 		if known[externalID] {
 			continue
 		}
-		if !changedAfter(row.ChangedAt, stringOption(input.Options, "after")) {
+		if !changedAfter(row.ChangedAt, sdk.StringOption(input.Options, "after")) {
 			continue
 		}
 		if wantKind == "planned" && row.Type != "tour_planned" {
@@ -122,7 +129,11 @@ func syncTours(client *komootClient, input listInput, wantKind string) (listOutp
 		if err != nil {
 			continue
 		}
-		item, err := tourImport(detail)
+		var routeImages []imageItem
+		if len(detail.Embedded.CoverImages.Embedded.Items) > 0 {
+			routeImages, _ = client.coverImages(detail.ID)
+		}
+		item, err := tourImport(detail, routeImages)
 		if err == nil {
 			items = append(items, item)
 		}
@@ -132,10 +143,11 @@ func syncTours(client *komootClient, input listInput, wantKind string) (listOutp
 	}
 
 	nextPage := page + 1
+	hasMore := nextPage < totalPages
 	return listOutput{
 		Items:   items,
-		State:   map[string]any{"page": nextPage},
-		HasMore: nextPage < totalPages,
+		State:   sdk.NextPageState(nextPage, hasMore),
+		HasMore: hasMore,
 	}, nil
 }
 

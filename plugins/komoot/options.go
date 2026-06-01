@@ -3,50 +3,8 @@
 package main
 
 import (
-	"strconv"
-	"strings"
 	"time"
 )
-
-func stringField(values map[string]any, key string) string {
-	value, _ := values[key].(string)
-	return strings.TrimSpace(value)
-}
-
-func stringOption(options map[string]any, key string) string {
-	value, _ := options[key].(string)
-	return strings.TrimSpace(value)
-}
-
-func intState(state map[string]any, key string, fallback int) int {
-	switch value := state[key].(type) {
-	case float64:
-		return int(value)
-	case int:
-		return value
-	case string:
-		parsed, err := strconv.Atoi(value)
-		if err == nil {
-			return parsed
-		}
-	}
-	return fallback
-}
-
-func knownIDs(ids []string) map[string]bool {
-	known := make(map[string]bool, len(ids))
-	for _, id := range ids {
-		known[id] = true
-	}
-	return known
-}
-
-func limit(input listInput) int {
-	if input.Limits.MaxItems > 0 {
-		return input.Limits.MaxItems
-	}
-	return 10
-}
 
 func changedAfter(changedAt string, after string) bool {
 	if after == "" {

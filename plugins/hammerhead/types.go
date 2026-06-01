@@ -2,77 +2,16 @@ package main
 
 import "github.com/open-wanderer/wanderer/plugins/sdk"
 
-type instanceRef struct {
-	ID       string `json:"id"`
-	PluginID string `json:"pluginId"`
-}
-
-type refreshSessionInput struct {
-	Instance instanceRef    `json:"instance"`
-	Auth     map[string]any `json:"auth,omitempty"`
-	Config   map[string]any `json:"config,omitempty"`
-}
-
-type refreshSessionOutput struct {
-	Token     string `json:"token"`
-	Scheme    string `json:"scheme,omitempty"`
-	ExpiresAt string `json:"expiresAt,omitempty"`
-}
-
-type sendRouteInput struct {
-	Instance instanceRef    `json:"instance"`
-	Auth     map[string]any `json:"auth,omitempty"`
-	Config   map[string]any `json:"config,omitempty"`
-	Name     string         `json:"name,omitempty"`
-	Route    track          `json:"route"`
-}
-
-type listInput struct {
-	Instance          instanceRef    `json:"instance"`
-	Auth              map[string]any `json:"auth,omitempty"`
-	State             map[string]any `json:"state,omitempty"`
-	Options           map[string]any `json:"options,omitempty"`
-	Limits            syncLimits     `json:"limits,omitempty"`
-	RecentExternalIDs []string       `json:"recentExternalIds,omitempty"`
-}
-
-type syncLimits struct {
-	MaxItems int `json:"maxItems,omitempty"`
-}
-
-type listOutput struct {
-	Items   []trailImport  `json:"items"`
-	State   map[string]any `json:"state,omitempty"`
-	HasMore bool           `json:"hasMore"`
-	Error   *pluginError   `json:"error,omitempty"`
-}
-
-type trailImport struct {
-	Source       trailImportSource `json:"source"`
-	Kind         string            `json:"kind,omitempty"`
-	Name         string            `json:"name"`
-	Description  string            `json:"description,omitempty"`
-	StartedAt    string            `json:"startedAt,omitempty"`
-	ActivityType string            `json:"activityType,omitempty"`
-	Privacy      *string           `json:"privacy,omitempty"`
-	Track        track             `json:"track"`
-	Metadata     map[string]any    `json:"metadata,omitempty"`
-}
-
-type trailImportSource struct {
-	Provider   string `json:"provider"`
-	ExternalID string `json:"externalId"`
-	URL        string `json:"url,omitempty"`
-}
-
-type track struct {
-	Format        string `json:"format"`
-	ContentBase64 string `json:"contentBase64"`
-}
-
-type uploadPlan struct {
-	Request sdk.HostRequestSpec `json:"request"`
-}
+type instanceRef = sdk.InstanceRef
+type refreshSessionInput = sdk.RefreshSessionInput
+type refreshSessionOutput = sdk.RefreshSessionOutput
+type sendRouteInput = sdk.SendRouteInput
+type listInput = sdk.ListInput
+type listOutput = sdk.ListOutput
+type trailImport = sdk.TrailImport
+type trailImportSource = sdk.TrailImportSource
+type track = sdk.Track
+type uploadPlan = sdk.UploadPlan
 
 type loginResponse struct {
 	Token string `json:"access_token"`
@@ -131,9 +70,14 @@ type activityData struct {
 	ID           string      `json:"id"`
 	Name         string      `json:"name"`
 	CreatedAt    string      `json:"createdAt"`
+	Duration     duration    `json:"duration"`
 	ActivityInfo []info      `json:"activityInfo"`
 	Laps         []lapDetail `json:"laps"`
 	ActivityType string      `json:"activityType"`
+}
+
+type duration struct {
+	ElapsedTime int `json:"elapsedTime"`
 }
 
 type info struct {

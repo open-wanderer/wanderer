@@ -37,6 +37,7 @@ type Manifest struct {
 	Auth            AuthManifest         `json:"auth,omitempty"`
 	Permissions     PermissionManifest   `json:"permissions,omitempty"`
 	ConfigSchema    []ConfigField        `json:"configSchema,omitempty"`
+	HostConfig      map[string]any       `json:"hostConfig,omitempty"`
 	Metadata        map[string]any       `json:"metadata,omitempty"`
 }
 
@@ -54,10 +55,12 @@ type CapabilityManifest struct {
 }
 
 type ConfigField struct {
-	Key     string              `json:"key"`
-	Type    string              `json:"type"`
-	Options []ConfigFieldOption `json:"options,omitempty"`
-	Default any                 `json:"default,omitempty"`
+	Key         string              `json:"key"`
+	Type        string              `json:"type"`
+	Label       string              `json:"label,omitempty"`
+	Description string              `json:"description,omitempty"`
+	Options     []ConfigFieldOption `json:"options,omitempty"`
+	Default     any                 `json:"default,omitempty"`
 }
 
 type ConfigFieldOption struct {

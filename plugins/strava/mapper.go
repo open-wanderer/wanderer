@@ -4,11 +4,12 @@ package main
 
 import (
 	"encoding/base64"
-	"encoding/xml"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	sdkgpx "github.com/open-wanderer/wanderer/plugins/sdk/gpx"
 )
 
 func routeImport(route route, gpxData []byte) (trailImport, error) {
@@ -34,6 +35,10 @@ func routeImport(route route, gpxData []byte) (trailImport, error) {
 		},
 		Waypoints: routeWaypoints(route),
 		Metadata: map[string]any{
+			"distance":            route.Distance,
+			"elevationGain":       route.ElevationGain,
+			"duration":            route.EstimatedMovingTime,
+			"providerCategory":    routeCategory(route.Type),
 			"estimatedMovingTime": route.EstimatedMovingTime,
 		},
 	}, nil
@@ -64,6 +69,12 @@ func activityImport(activity *detailedActivity, streams *activityStreamResponse,
 			ContentBase64: base64.StdEncoding.EncodeToString(gpxData),
 		},
 		Photos: activityPhotos(activity, photos),
+		Metadata: map[string]any{
+			"distance":         activity.Distance,
+			"elevationGain":    activity.TotalElevationGain,
+			"duration":         activity.ElapsedTime,
+			"providerCategory": providerActivityType(activity),
+		},
 	}, nil
 }
 
@@ -144,13 +155,7 @@ func activityGPX(activity *detailedActivity, streams *activityStreamResponse) ([
 	}
 	startedAt, _ := time.Parse(time.RFC3339, activity.StartDate)
 
-	var builder strings.Builder
-	builder.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
-	builder.WriteString(`<gpx version="1.1" creator="wanderer Strava plugin" xmlns="http://www.topografix.com/GPX/1/1">` + "\n")
-	builder.WriteString("<trk><name>")
-	writeEscaped(&builder, activity.Name)
-	builder.WriteString("</name><trkseg>\n")
-
+	points := make([]sdkgpx.Point, 0, len(streams.LatLng.Data))
 	for i, latlng := range streams.LatLng.Data {
 		if len(latlng) < 2 || i >= len(streams.Time.Data) {
 			continue
@@ -159,22 +164,18 @@ func activityGPX(activity *detailedActivity, streams *activityStreamResponse) ([
 		if i < len(streams.Altitude.Data) {
 			elevation = streams.Altitude.Data[i]
 		}
-		builder.WriteString(fmt.Sprintf(`<trkpt lat="%.8f" lon="%.8f"><ele>%.2f</ele>`, latlng[0], latlng[1], elevation))
-		if !startedAt.IsZero() {
-			builder.WriteString("<time>")
-			builder.WriteString(startedAt.Add(time.Duration(streams.Time.Data[i]) * time.Second).UTC().Format(time.RFC3339))
-			builder.WriteString("</time>")
+		point := sdkgpx.Point{
+			Lat:       latlng[0],
+			Lon:       latlng[1],
+			Elevation: &elevation,
 		}
-		builder.WriteString("</trkpt>\n")
+		if !startedAt.IsZero() {
+			pointTime := startedAt.Add(time.Duration(streams.Time.Data[i]) * time.Second).UTC()
+			point.Time = &pointTime
+		}
+		points = append(points, point)
 	}
-	builder.WriteString("</trkseg></trk></gpx>\n")
-	return []byte(builder.String()), nil
-}
-
-func writeEscaped(builder *strings.Builder, value string) {
-	var escaped strings.Builder
-	_ = xml.EscapeText(&escaped, []byte(value))
-	builder.WriteString(escaped.String())
+	return sdkgpx.Track("wanderer Strava plugin", activity.Name, points)
 }
 
 func privacyFromPrivate(private bool) string {
@@ -185,17 +186,29 @@ func privacyFromPrivate(private bool) string {
 }
 
 func activityTypeForRoute(routeType int) string {
-	if routeType == 2 {
+	switch routeType {
+	case 1:
+		return "biking"
+	case 2:
 		return "walking"
+	default:
+		return ""
 	}
-	return "biking"
+}
+
+func routeCategory(routeType int) string {
+	return fmt.Sprintf("route:%d", routeType)
+}
+
+func providerActivityType(activity *detailedActivity) string {
+	if activity.SportType != "" {
+		return activity.SportType
+	}
+	return activity.Type
 }
 
 func activityType(activity *detailedActivity) string {
-	value := activity.SportType
-	if value == "" {
-		value = activity.Type
-	}
+	value := providerActivityType(activity)
 	switch value {
 	case "AlpineSki", "BackcountrySki", "IceSkate", "NordicSki", "RollerSki", "Snowboard":
 		return "skiing"

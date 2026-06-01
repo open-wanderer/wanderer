@@ -4,14 +4,15 @@ package main
 
 import (
 	"encoding/base64"
-	"encoding/xml"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	sdkgpx "github.com/open-wanderer/wanderer/plugins/sdk/gpx"
 )
 
-func tourImport(tour *detailedTour) (trailImport, error) {
+func tourImport(tour *detailedTour, routeImages []imageItem) (trailImport, error) {
 	gpxData, err := tourGPX(tour)
 	if err != nil {
 		return trailImport{}, err
@@ -33,44 +34,37 @@ func tourImport(tour *detailedTour) (trailImport, error) {
 			ContentBase64: base64.StdEncoding.EncodeToString(gpxData),
 		},
 		Waypoints: waypoints(tour),
-		Photos:    photos(tour),
+		Photos:    photos(tour, routeImages),
 		Metadata: map[string]any{
-			"sourceSport": tour.Sport,
-			"difficulty":  tour.Difficulty.Grade,
+			"distance":         tour.Distance,
+			"elevationGain":    tour.ElevationUp,
+			"elevationLoss":    tour.ElevationDown,
+			"duration":         tour.Duration,
+			"providerCategory": tour.Sport,
+			"sourceSport":      tour.Sport,
+			"difficulty":       tour.Difficulty.Grade,
 		},
 	}, nil
 }
 
 func tourGPX(tour *detailedTour) ([]byte, error) {
-	points := tour.Embedded.Coordinates.Items
-	if len(points) == 0 {
-		return nil, fmt.Errorf("track has no points")
-	}
-
-	var builder strings.Builder
-	builder.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
-	builder.WriteString(`<gpx version="1.1" creator="wanderer Komoot plugin" xmlns="http://www.topografix.com/GPX/1/1">` + "\n")
-	builder.WriteString("<trk><name>")
-	writeEscaped(&builder, tour.Name)
-	builder.WriteString("</name><trkseg>\n")
+	items := tour.Embedded.Coordinates.Items
+	points := make([]sdkgpx.Point, 0, len(items))
 	startedAt, _ := time.Parse(time.RFC3339, tour.Date)
-	for _, point := range points {
-		builder.WriteString(fmt.Sprintf(`<trkpt lat="%.8f" lon="%.8f"><ele>%.2f</ele>`, point.Lat, point.Lng, point.Alt))
-		if !startedAt.IsZero() {
-			builder.WriteString("<time>")
-			builder.WriteString(startedAt.Add(time.Duration(point.T) * time.Millisecond).UTC().Format(time.RFC3339))
-			builder.WriteString("</time>")
+	for _, item := range items {
+		elevation := item.Alt
+		point := sdkgpx.Point{
+			Lat:       item.Lat,
+			Lon:       item.Lng,
+			Elevation: &elevation,
 		}
-		builder.WriteString("</trkpt>\n")
+		if !startedAt.IsZero() {
+			pointTime := startedAt.Add(time.Duration(item.T) * time.Millisecond).UTC()
+			point.Time = &pointTime
+		}
+		points = append(points, point)
 	}
-	builder.WriteString("</trkseg></trk></gpx>\n")
-	return []byte(builder.String()), nil
-}
-
-func writeEscaped(builder *strings.Builder, value string) {
-	var escaped strings.Builder
-	_ = xml.EscapeText(&escaped, []byte(value))
-	builder.WriteString(escaped.String())
+	return sdkgpx.Track("wanderer Komoot plugin", tour.Name, points)
 }
 
 func waypoints(tour *detailedTour) []waypoint {
@@ -94,17 +88,28 @@ func waypoints(tour *detailedTour) []waypoint {
 			Lon:         ref.StartPoint.Lng,
 			Ele:         &ele,
 			Icon:        "circle",
+			Photos:      waypointPhotos(item),
 		})
 	}
 	return result
 }
 
-func photos(tour *detailedTour) []photo {
-	images := tour.Embedded.CoverImages.Embedded.Items
+func photos(tour *detailedTour, routeImages []imageItem) []photo {
+	images := routeImages
+	if len(images) == 0 {
+		images = tour.Embedded.CoverImages.Embedded.Items
+	}
 	if len(images) == 0 && tour.MapImage.Src != "" {
 		images = []imageItem{{Src: tour.MapImage.Src, Type: "image/jpeg"}}
 	}
+	return photosFromImages(images, "komoot-photo.jpg")
+}
 
+func waypointPhotos(item timelineItem) []photo {
+	return photosFromImages(item.Embedded.Reference.Embedded.Images.Embedded.Items, "komoot-waypoint-photo.jpg")
+}
+
+func photosFromImages(images []imageItem, fallbackFilename string) []photo {
 	result := make([]photo, 0, len(images))
 	for _, image := range images {
 		source := expandImageURL(image.Src)
@@ -113,7 +118,7 @@ func photos(tour *detailedTour) []photo {
 		}
 		result = append(result, photo{
 			ExternalID:  strconv.FormatInt(image.ID, 10),
-			Filename:    filenameForImage(image.ID),
+			Filename:    filenameForImage(image.ID, fallbackFilename),
 			ContentType: contentType(image.Type),
 			Lat:         optionalCoordinate(image.Location.Lat),
 			Lon:         optionalCoordinate(image.Location.Lng),
@@ -133,9 +138,9 @@ func expandImageURL(source string) string {
 	return source
 }
 
-func filenameForImage(id int64) string {
+func filenameForImage(id int64, fallback string) string {
 	if id <= 0 {
-		return "komoot-photo.jpg"
+		return fallback
 	}
 	return fmt.Sprintf("komoot-%d.jpg", id)
 }

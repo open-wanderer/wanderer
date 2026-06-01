@@ -225,8 +225,6 @@ manifest, for example:
   "auth": {},
   "state": {},
   "options": {
-    "planned": true,
-    "completed": true,
     "after": "2026-01-01"
   },
   "limits": {
@@ -274,6 +272,30 @@ Sync capabilities return imported trails plus capability-local state:
       "track": {
         "format": "gpx",
         "contentBase64": "..."
+      },
+      "waypoints": [
+        {
+          "name": "Viewpoint",
+          "lat": 47.3769,
+          "lon": 8.5417,
+          "photos": [
+            {
+              "filename": "viewpoint.jpg",
+              "contentType": "image/jpeg",
+              "source": {
+                "type": "url",
+                "url": "https://provider.example/photo.jpg"
+              }
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "distance": 12345.6,
+        "elevationGain": 320.5,
+        "elevationLoss": 318.1,
+        "duration": 4567,
+        "providerCategory": "Ride"
       }
     }
   ],
@@ -286,6 +308,64 @@ Sync capabilities return imported trails plus capability-local state:
 
 The host imports the trails, writes PocketBase records, applies visibility
 rules, deduplicates by provider/external ID, and stores the returned state.
+Trail photos are attached to the imported trail. Waypoint photos are attached to
+the corresponding waypoint records.
+
+State returned by a plugin is first fed back into the next batch of the same
+sync run. Only persistent provider cursors belong in `plugin_instances.state`.
+Transient batch cursors such as `page` are not stored in the database.
+
+Plugins should return GPX as the canonical track. If the provider exposes
+authoritative summary metrics, the plugin may additionally return them in
+`metadata`:
+
+| Metadata key | Unit | Meaning |
+| --- | --- | --- |
+| `distance` | meters | Provider-reported trail distance. |
+| `elevationGain` | meters | Provider-reported positive elevation gain. |
+| `elevationLoss` | meters | Provider-reported negative elevation loss. |
+| `duration` | seconds | Provider-reported elapsed duration. |
+| `providerCategory` | string | Raw provider activity/category value used by host category mapping. |
+
+The host uses positive provider metrics when present and falls back to GPX
+derived metrics otherwise. Start location still comes from the GPX. Plugins
+should not map `providerCategory` to local category IDs; the host owns that
+mapping.
+
+## Host config
+
+Plugin manifests may suggest defaults for host-owned settings with
+`hostConfig`. These values are stored in `installed_plugins.config.host` and can
+be overridden per plugin instance with `plugin_instances.config.host`. Host
+config is never passed to plugin exports.
+
+Supported host fields:
+
+| Field | Type | Used by | Meaning |
+| --- | --- | --- | --- |
+| `planned` | boolean | `list_routes.v1` | Enables planned route sync for the instance. |
+| `completed` | boolean | `list_activities.v1` | Enables completed activity sync for the instance. |
+| `privacy` | string | Trail import | `original` keeps provider visibility; `settings` uses the local user trail privacy setting. |
+| `merge.enabled` | boolean | Trail import | Runs auto-merge after creating imported trails. |
+| `createSummitLogForCompleted` | boolean | Trail import | Creates summit logs for completed imported trails. Defaults to `true`. |
+| `categoryMapping` | object | Trail import | Maps plugin-provided `metadata.providerCategory` values to local category IDs or category names. |
+
+Example:
+
+```json
+{
+  "hostConfig": {
+    "categoryMapping": {
+      "Ride": "Biking",
+      "Hike": "Hiking"
+    }
+  }
+}
+```
+
+The host defines the semantics of these fields. Plugins only provide defaults
+or hints; custom plugin settings belong in `configSchema` and are passed to the
+plugin under `options`.
 
 Plugin errors should use the structured error format:
 
@@ -514,12 +594,19 @@ plugin_instances
   next_retry_at
 ```
 
-`auth` is encrypted by PocketBase hooks. `config` stores user settings such as
-enabled sync modes or an `after` date. `state` stores per-capability cursors.
+`auth` is encrypted by PocketBase hooks. `config.plugin` stores settings passed
+to the plugin, such as an `after` date. `config.host` stores host-owned settings
+such as enabled capabilities, privacy handling, merge settings, and category
+mapping. `state` stores per-capability provider cursors. It should only contain
+values that remain valid across separate sync runs, such as provider sync tokens
+or delta cursors. Batch-local cursors such as `page` are discarded before the
+instance is saved.
 
 The host also caches discovered plugin manifests in `installed_plugins`.
-Installed plugins and user plugin instances are intentionally separate: a user
-configuration can exist even if the plugin bundle is not currently installed.
+Installed plugins and user plugin instances are intentionally separate:
+`installed_plugins.config` stores admin defaults, while
+`plugin_instances.config` stores per-instance overrides. A user configuration
+can exist even if the plugin bundle is not currently installed.
 
 ## Release and installation
 
@@ -547,4 +634,3 @@ services:
     volumes:
       - ./data/plugins:/data/plugins
 ```
-

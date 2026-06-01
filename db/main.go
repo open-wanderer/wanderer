@@ -142,7 +142,7 @@ func setupCommands(app *pocketbase.PocketBase) {
 func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.ServeEvent) error {
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
-		registerCronJobs(se.App)
+		registerCronJobs(se.App, client)
 		initData(se.App, client)
 
 		return se.Next()
@@ -163,7 +163,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/search/token", routes.SearchToken(client))
 
 	se.Router.GET("/plugins", routes.PluginSystemPluginsList)
-	se.Router.POST("/plugins/sync", routes.PluginSystemSync)
+	se.Router.POST("/plugins/sync", routes.PluginSystemSync(client))
 	se.Router.POST("/plugins/send-route", routes.PluginSystemSendRoute)
 	se.Router.POST("/plugins/oauth/start", routes.PluginSystemOAuthStart)
 	se.Router.POST("/plugins/oauth/callback", routes.PluginSystemOAuthCallback)
@@ -184,14 +184,14 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 }
 
-func registerCronJobs(app core.App) {
+func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 	schedule := os.Getenv("POCKETBASE_CRON_SYNC_SCHEDULE")
 	if len(schedule) == 0 {
 		schedule = "0 2 * * *"
 	}
 
 	app.Cron().MustAdd("plugin-sync", schedule, func() {
-		if err := routes.PluginSystemSyncConfigured(context.Background(), app); err != nil {
+		if err := routes.PluginSystemSyncConfigured(context.Background(), app, client); err != nil {
 			warning := fmt.Sprintf("Error syncing with WASM plugins: %v", err)
 			fmt.Println(warning)
 			app.Logger().Error(warning)
@@ -226,7 +226,7 @@ func initCategories(app core.App) error {
 	if len(records) == 0 {
 		collection, _ := app.FindCollectionByNameOrId("categories")
 
-		categories := []string{"Hiking", "Walking", "Climbing", "Skiing", "Canoeing", "Biking"}
+		categories := []string{"Hiking", "Walking", "Climbing", "Skiing", "Canoeing", "Biking", "Other"}
 		for _, element := range categories {
 			record := core.NewRecord(collection)
 			record.Set("name", element)

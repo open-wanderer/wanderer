@@ -3,6 +3,9 @@ package main
 import (
 	"strings"
 	"testing"
+
+	sdkgpx "github.com/open-wanderer/wanderer/plugins/sdk/gpx"
+	"github.com/open-wanderer/wanderer/plugins/sdk/polyline"
 )
 
 func TestUserIDFromJWT(t *testing.T) {
@@ -23,7 +26,7 @@ func TestUserIDFromJWTRejectsInvalidToken(t *testing.T) {
 }
 
 func TestDecodePolyline(t *testing.T) {
-	points, err := decodePolyline("_p~iF~ps|U_ulLnnqC_mqNvxq`@")
+	points, err := polyline.Decode("_p~iF~ps|U_ulLnnqC_mqNvxq`@", 1e5)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -35,8 +38,37 @@ func TestDecodePolyline(t *testing.T) {
 	}
 }
 
+func TestDecodePolylineNormalizesOutOfRangeScale(t *testing.T) {
+	points, err := polyline.Decode("_p~iF~ps|U", 1e5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	points[0][0] *= 10
+	points[0][1] *= 10
+	polyline.NormalizeCoordinateScale(points)
+	if points[0][0] != 38.5 || points[0][1] != -120.2 {
+		t.Fatalf("expected normalized point, got %#v", points[0])
+	}
+}
+
+func TestShouldSwapCoordinates(t *testing.T) {
+	coords := [][2]float64{{120.2, 38.5}, {121.0, 39.0}}
+	if !polyline.ShouldSwapCoordinates(coords) {
+		t.Fatal("expected coordinates to be detected as swapped")
+	}
+}
+
+func TestProportionalIndex(t *testing.T) {
+	if got := polyline.ProportionalIndex(2, 5, 3); got != 1 {
+		t.Fatalf("got %d, want 1", got)
+	}
+	if got := polyline.ProportionalIndex(4, 5, 3); got != 2 {
+		t.Fatalf("got %d, want 2", got)
+	}
+}
+
 func TestGPXBytesEscapesTrackName(t *testing.T) {
-	data, err := gpxBytes("A & B", []gpxPoint{{Lat: 46.1, Lon: 8.2}})
+	data, err := sdkgpx.Track("wanderer Hammerhead plugin", "A & B", []sdkgpx.Point{{Lat: 46.1, Lon: 8.2}})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -44,7 +76,7 @@ func TestGPXBytesEscapesTrackName(t *testing.T) {
 	if !strings.Contains(gpx, "<name>A &amp; B</name>") {
 		t.Fatalf("expected escaped name, got %s", gpx)
 	}
-	if !strings.Contains(gpx, `lat="46.1000000" lon="8.2000000"`) {
+	if !strings.Contains(gpx, `lat="46.10000000" lon="8.20000000"`) {
 		t.Fatalf("expected track point, got %s", gpx)
 	}
 }

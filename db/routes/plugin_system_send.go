@@ -95,7 +95,7 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 			ContentBase64: base64.StdEncoding.EncodeToString(gpx),
 		},
 	}
-	config := jsonMapFromRecord(instance, "config")
+	config := pluginRuntimeConfig(effectivePluginConfig(e.App, plugin.Manifest.ID, instance))
 	policy := pluginInstancePolicy(plugin, config)
 	input.Config = config
 	inputBytes, err := json.Marshal(input)
@@ -142,21 +142,6 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 	return e.JSON(http.StatusOK, map[string]any{"ok": true})
 }
 
-// localPluginCapability resolves an installed plugin and verifies that it
-// declares the capability needed by this route.
-func localPluginCapability(app core.App, pluginID string, name string, version string) (pluginsystem.LocalPlugin, pluginsystem.CapabilityManifest, error) {
-	plugin, err := localPlugin(app, pluginID)
-	if err != nil {
-		return pluginsystem.LocalPlugin{}, pluginsystem.CapabilityManifest{}, err
-	}
-	for _, capability := range plugin.Manifest.Capabilities {
-		if capability.Name == name && capability.Version == version {
-			return plugin, capability, nil
-		}
-	}
-	return pluginsystem.LocalPlugin{}, pluginsystem.CapabilityManifest{}, apis.NewBadRequestError("plugin does not support sending routes", nil)
-}
-
 // executeHostRequest runs a plugin upload plan through the shared host request
 // executor and maps provider failures to API errors.
 func executeHostRequest(ctx context.Context, manifest pluginsystem.Manifest, policy pluginsystem.RequestPolicyContext, spec pluginsystem.HostRequestSpec, gpx []byte) error {
@@ -201,7 +186,7 @@ func readTrailGPX(app core.App, trail *core.Record) ([]byte, error) {
 // decryptedInstanceAuth returns auth fields in the shape expected by host-side
 // auth injection and plugin input preparation.
 func decryptedInstanceAuth(instance *core.Record) (map[string]any, error) {
-	auth := jsonMapFromRecord(instance, "auth")
+	auth := pluginsystem.JSONMapFromRecord(instance, "auth")
 	if len(auth) == 0 {
 		return map[string]any{}, nil
 	}
@@ -221,19 +206,4 @@ func decryptedInstanceAuth(instance *core.Record) (map[string]any, error) {
 		auth[key] = string(decrypted)
 	}
 	return auth, nil
-}
-
-func jsonMapFromRecord(record *core.Record, field string) map[string]any {
-	value := record.GetString(field)
-	if value == "" {
-		return map[string]any{}
-	}
-	var result map[string]any
-	if err := json.Unmarshal([]byte(value), &result); err != nil {
-		return map[string]any{}
-	}
-	if result == nil {
-		return map[string]any{}
-	}
-	return result
 }
