@@ -98,13 +98,13 @@ func (c hammerheadClient) get(path string, out any) error {
 
 func (c hammerheadClient) activities(page int, perPage int) ([]activityResponse, int, error) {
 	var data activitiesResponse
-	err := c.get(fmt.Sprintf("/activities?perPage=%d&page=%d&search=&orderBy=NEWEST&ascending=true", perPage, page), &data)
+	err := c.get(fmt.Sprintf("/activities?page=%d&perPage=%d&orderBy=NEWEST&ascending=true", page, perPage), &data)
 	return data.Data, data.TotalPages, err
 }
 
 func (c hammerheadClient) tours(page int, perPage int) ([]tourResponse, int, error) {
 	var data toursResponse
-	err := c.get(fmt.Sprintf("/routes?perPage=%d&page=%d&search=&orderBy=NEWEST&ascending=true&exclude=archive", perPage, page), &data)
+	err := c.get(fmt.Sprintf("/routes?page=%d&perPage=%d&orderBy=NEWEST&ascending=true", page, perPage), &data)
 	return data.Data, data.TotalPages, err
 }
 

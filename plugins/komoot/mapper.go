@@ -26,6 +26,7 @@ func tourImport(tour *detailedTour, routeImages []imageItem) (trailImport, error
 		},
 		Kind:         kindFromType(tour.Type),
 		Name:         tour.Name,
+		Description:  tour.Description,
 		StartedAt:    tour.Date,
 		ActivityType: activityType(tour.Sport),
 		Privacy:      &privacy,
@@ -81,7 +82,7 @@ func waypoints(tour *detailedTour) []waypoint {
 		}
 		ele := ref.StartPoint.Alt
 		result = append(result, waypoint{
-			ExternalID:  strconv.FormatInt(ref.ID, 10),
+			ExternalID:  ref.ID.String(),
 			Name:        ref.Name,
 			Description: description,
 			Lat:         ref.StartPoint.Lat,
@@ -117,7 +118,7 @@ func photosFromImages(images []imageItem, fallbackFilename string) []photo {
 			continue
 		}
 		result = append(result, photo{
-			ExternalID:  strconv.FormatInt(image.ID, 10),
+			ExternalID:  image.ID.String(),
 			Filename:    filenameForImage(image.ID, fallbackFilename),
 			ContentType: contentType(image.Type),
 			Lat:         optionalCoordinate(image.Location.Lat),
@@ -138,11 +139,11 @@ func expandImageURL(source string) string {
 	return source
 }
 
-func filenameForImage(id int64, fallback string) string {
-	if id <= 0 {
+func filenameForImage(id flexibleID, fallback string) string {
+	if id.String() == "" {
 		return fallback
 	}
-	return fmt.Sprintf("komoot-%d.jpg", id)
+	return fmt.Sprintf("komoot-%s.jpg", id.String())
 }
 
 func contentType(value string) string {

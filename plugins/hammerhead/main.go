@@ -53,6 +53,16 @@ func listActivitiesV1() int32 {
 	return 0
 }
 
+//export get_route_detail_v1
+func getRouteDetailV1() int32 {
+	return getTrailDetail("planned")
+}
+
+//export get_activity_detail_v1
+func getActivityDetailV1() int32 {
+	return getTrailDetail("completed")
+}
+
 //export refresh_session_v1
 func refreshSessionV1() int32 {
 	var input refreshSessionInput
@@ -75,6 +85,44 @@ func refreshSessionV1() int32 {
 		Token:  token,
 		Scheme: sdk.AuthSchemeBearer,
 	}); err != nil {
+		return fail("internal_error", err.Error())
+	}
+	return 0
+}
+
+func getTrailDetail(kind string) int32 {
+	var input detailInput
+	if err := pdk.InputJSON(&input); err != nil {
+		return fail("invalid_request", "invalid detail input: "+err.Error())
+	}
+	client, err := loginClient(input.Auth)
+	if err != nil {
+		return fail("auth_failed", err.Error())
+	}
+	var item trailImport
+	switch kind {
+	case "planned":
+		detail, err := client.tour(input.Summary.Source.ExternalID)
+		if err != nil {
+			return fail("provider_unavailable", err.Error())
+		}
+		item, err = tourImport(detail)
+		if err != nil {
+			return fail("provider_unavailable", err.Error())
+		}
+	case "completed":
+		detail, err := client.activity(input.Summary.Source.ExternalID)
+		if err != nil {
+			return fail("provider_unavailable", err.Error())
+		}
+		item, err = activityImport(detail)
+		if err != nil {
+			return fail("provider_unavailable", err.Error())
+		}
+	default:
+		return fail("invalid_request", "unsupported detail kind")
+	}
+	if err := pdk.OutputJSON(detailOutput{Item: item}); err != nil {
 		return fail("internal_error", err.Error())
 	}
 	return 0
@@ -133,7 +181,10 @@ func fail(code string, message string) int32 {
 }
 
 func listRoutes(client hammerheadClient, input listInput) (listOutput, error) {
-	page := sdk.IntState(input.State, "page", 0)
+	page := sdk.IntState(input.State, "page", 1)
+	if page <= 0 {
+		page = 1
+	}
 	limit := sdk.SyncLimit(input)
 	rows, totalPages, err := client.tours(page, limit)
 	if err != nil {
@@ -141,26 +192,15 @@ func listRoutes(client hammerheadClient, input listInput) (listOutput, error) {
 	}
 
 	after := sdk.StringField(input.Options, "after")
-	known := sdk.KnownIDs(input.RecentExternalIDs)
-	items := make([]trailImport, 0, min(limit, len(rows)))
+	items := make([]trailSummary, 0, min(limit, len(rows)))
 	for _, row := range rows {
-		if known[row.ID] {
-			continue
-		}
-		detail, err := client.tour(row.ID)
-		if err != nil {
-			continue
-		}
-		if after != "" && detail.CreatedAt < after {
+		if after != "" && row.CreatedAt < after {
 			return listOutput{Items: items}, nil
 		}
-		if detail.Distance <= 0 {
-			continue
-		}
-		item, err := tourImport(detail)
-		if err == nil {
-			items = append(items, item)
-		}
+		items = append(items, trailSummary{
+			Source: trailImportSource{Provider: "hammerhead", ExternalID: row.ID},
+			Kind:   "planned",
+		})
 		if len(items) >= limit {
 			break
 		}
@@ -176,7 +216,10 @@ func listRoutes(client hammerheadClient, input listInput) (listOutput, error) {
 }
 
 func listActivities(client hammerheadClient, input listInput) (listOutput, error) {
-	page := sdk.IntState(input.State, "page", 0)
+	page := sdk.IntState(input.State, "page", 1)
+	if page <= 0 {
+		page = 1
+	}
 	limit := sdk.SyncLimit(input)
 	rows, totalPages, err := client.activities(page, limit)
 	if err != nil {
@@ -184,27 +227,15 @@ func listActivities(client hammerheadClient, input listInput) (listOutput, error
 	}
 
 	after := sdk.StringField(input.Options, "after")
-	known := sdk.KnownIDs(input.RecentExternalIDs)
-	items := make([]trailImport, 0, min(limit, len(rows)))
+	items := make([]trailSummary, 0, min(limit, len(rows)))
 	for _, row := range rows {
-		if known[row.ID] {
-			continue
-		}
-		detail, err := client.activity(row.ID)
-		if err != nil {
-			continue
-		}
-		if after != "" && detail.ActivityData.CreatedAt < after {
+		if after != "" && row.CreatedAt < after {
 			return listOutput{Items: items}, nil
 		}
-		distance, ok := activityInfoValue(detail, "TYPE_DISTANCE_ID")
-		if !ok || distance <= 0 {
-			continue
-		}
-		item, err := activityImport(detail)
-		if err == nil {
-			items = append(items, item)
-		}
+		items = append(items, trailSummary{
+			Source: trailImportSource{Provider: "hammerhead", ExternalID: row.ID},
+			Kind:   "completed",
+		})
 		if len(items) >= limit {
 			break
 		}

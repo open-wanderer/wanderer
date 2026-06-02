@@ -15,9 +15,19 @@
       "export": "list_routes_v1"
     },
     {
+      "name": "get_route_detail",
+      "version": "v1",
+      "export": "get_route_detail_v1"
+    },
+    {
       "name": "list_activities",
       "version": "v1",
       "export": "list_activities_v1"
+    },
+    {
+      "name": "get_activity_detail",
+      "version": "v1",
+      "export": "get_activity_detail_v1"
     },
     {
       "name": "prepare_send_route",

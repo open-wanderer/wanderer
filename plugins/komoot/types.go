@@ -1,12 +1,19 @@
 package main
 
-import "github.com/open-wanderer/wanderer/plugins/sdk"
+import (
+	"encoding/json"
+
+	"github.com/open-wanderer/wanderer/plugins/sdk"
+)
 
 type instanceRef = sdk.InstanceRef
 type refreshSessionInput = sdk.RefreshSessionInput
 type refreshSessionOutput = sdk.RefreshSessionOutput
 type listInput = sdk.ListInput
 type listOutput = sdk.ListOutput
+type detailInput = sdk.DetailInput
+type detailOutput = sdk.DetailOutput
+type trailSummary = sdk.TrailSummary
 type trailImport = sdk.TrailImport
 type trailImportSource = sdk.TrailImportSource
 type track = sdk.Track
@@ -15,6 +22,26 @@ type photo = sdk.Photo
 type mediaSource = sdk.MediaSource
 
 type pluginError = sdk.PluginError
+
+type flexibleID string
+
+func (id *flexibleID) UnmarshalJSON(data []byte) error {
+	var stringValue string
+	if err := json.Unmarshal(data, &stringValue); err == nil {
+		*id = flexibleID(stringValue)
+		return nil
+	}
+	var numberValue json.Number
+	if err := json.Unmarshal(data, &numberValue); err != nil {
+		return err
+	}
+	*id = flexibleID(numberValue.String())
+	return nil
+}
+
+func (id flexibleID) String() string {
+	return string(id)
+}
 
 type loginResponse struct {
 	Password string `json:"password"`
@@ -35,19 +62,21 @@ type page struct {
 }
 
 type tour struct {
-	ID        int64  `json:"id"`
-	Type      string `json:"type"`
-	Name      string `json:"name"`
-	Status    string `json:"status"`
-	Date      string `json:"date"`
-	Sport     string `json:"sport"`
-	ChangedAt string `json:"changed_at"`
+	ID          int64  `json:"id"`
+	Type        string `json:"type"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
+	Date        string `json:"date"`
+	Sport       string `json:"sport"`
+	ChangedAt   string `json:"changed_at"`
 }
 
 type detailedTour struct {
 	ID            int64                `json:"id"`
 	Type          string               `json:"type"`
 	Name          string               `json:"name"`
+	Description   string               `json:"description"`
 	Status        string               `json:"status"`
 	Date          string               `json:"date"`
 	Sport         string               `json:"sport"`
@@ -103,7 +132,7 @@ type timelineItemEmbedded struct {
 }
 
 type waypointReference struct {
-	ID         int64               `json:"id"`
+	ID         flexibleID          `json:"id"`
 	Name       string              `json:"name"`
 	StartPoint point               `json:"start_point"`
 	Embedded   waypointSubEmbedded `json:"_embedded"`
@@ -141,10 +170,10 @@ type imagesEmbedded struct {
 }
 
 type imageItem struct {
-	ID       int64    `json:"id"`
-	Src      string   `json:"src"`
-	Location location `json:"location"`
-	Type     string   `json:"type"`
+	ID       flexibleID `json:"id"`
+	Src      string     `json:"src"`
+	Location location   `json:"location"`
+	Type     string     `json:"type"`
 }
 
 type location struct {

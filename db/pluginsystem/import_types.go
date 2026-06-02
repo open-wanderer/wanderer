@@ -21,6 +21,11 @@ type TrailImport struct {
 	Metadata     map[string]any    `json:"metadata,omitempty"`
 }
 
+type TrailSummary struct {
+	Source TrailImportSource `json:"source"`
+	Kind   string            `json:"kind,omitempty"`
+}
+
 type TrailImportSource struct {
 	Provider   string `json:"provider"`
 	ExternalID string `json:"externalId"`

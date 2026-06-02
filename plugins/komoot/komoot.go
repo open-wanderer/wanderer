@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -17,6 +18,12 @@ type komootClient struct {
 	token  string
 }
 
+const komootJSONMaxBytes int64 = 16 * 1024 * 1024
+
+var komootJSONContentTypes = []string{"application/json", "application/hal+json"}
+
+var errTourKindMismatch = errors.New("tour kind mismatch")
+
 func login(email string, password string) (*komootClient, error) {
 	endpoint := "https://api.komoot.de/v006/account/email/" + url.PathEscape(email) + "/"
 	response, body, err := sdk.HostRequest(sdk.HostRequestSpec{
@@ -24,11 +31,11 @@ func login(email string, password string) (*komootClient, error) {
 		URL:    endpoint,
 		Headers: map[string]string{
 			sdk.AuthHeaderAuthorization: basicAuth(email, password),
-			"Accept":                    "application/json",
+			"Accept":                    "application/hal+json",
 		},
 		Expect: sdk.ResponseExpect{
-			ContentTypes: []string{"application/json"},
-			MaxBytes:     1048576,
+			ContentTypes: komootJSONContentTypes,
+			MaxBytes:     komootJSONMaxBytes,
 		},
 	})
 	if err != nil {
@@ -63,11 +70,11 @@ func (c *komootClient) get(endpoint string, out any) error {
 		URL:    endpoint,
 		Headers: map[string]string{
 			sdk.AuthHeaderAuthorization: basicAuth(c.userID, c.token),
-			"Accept":                    "application/json",
+			"Accept":                    "application/hal+json",
 		},
 		Expect: sdk.ResponseExpect{
-			ContentTypes: []string{"application/json"},
-			MaxBytes:     1048576,
+			ContentTypes: komootJSONContentTypes,
+			MaxBytes:     komootJSONMaxBytes,
 		},
 	})
 	if err != nil {
@@ -102,19 +109,14 @@ func (c *komootClient) coverImages(id int64) ([]imageItem, error) {
 
 func syncTours(client *komootClient, input listInput, wantKind string) (listOutput, error) {
 	page := sdk.IntState(input.State, "page", 0)
-	known := sdk.KnownIDs(input.RecentExternalIDs)
 	maxItems := sdk.SyncLimit(input)
 	rows, totalPages, err := client.tours(page, maxItems)
 	if err != nil {
 		return listOutput{}, err
 	}
 
-	items := make([]trailImport, 0, maxItems)
+	items := make([]trailSummary, 0, maxItems)
 	for _, row := range rows {
-		externalID := strconv.FormatInt(row.ID, 10)
-		if known[externalID] {
-			continue
-		}
 		if !changedAfter(row.ChangedAt, sdk.StringOption(input.Options, "after")) {
 			continue
 		}
@@ -125,18 +127,10 @@ func syncTours(client *komootClient, input listInput, wantKind string) (listOutp
 			continue
 		}
 
-		detail, err := client.detailedTour(row.ID)
-		if err != nil {
-			continue
-		}
-		var routeImages []imageItem
-		if len(detail.Embedded.CoverImages.Embedded.Items) > 0 {
-			routeImages, _ = client.coverImages(detail.ID)
-		}
-		item, err := tourImport(detail, routeImages)
-		if err == nil {
-			items = append(items, item)
-		}
+		items = append(items, trailSummary{
+			Source: trailImportSource{Provider: "komoot", ExternalID: strconv.FormatInt(row.ID, 10)},
+			Kind:   kindFromType(row.Type),
+		})
 		if len(items) >= maxItems {
 			break
 		}
@@ -149,6 +143,32 @@ func syncTours(client *komootClient, input listInput, wantKind string) (listOutp
 		State:   sdk.NextPageState(nextPage, hasMore),
 		HasMore: hasMore,
 	}, nil
+}
+
+func tourDetail(client *komootClient, externalID string, wantKind string) (trailImport, error) {
+	id, err := strconv.ParseInt(externalID, 10, 64)
+	if err != nil {
+		return trailImport{}, fmt.Errorf("invalid tour external id")
+	}
+	detail, err := client.detailedTour(id)
+	if err != nil {
+		return trailImport{}, fmt.Errorf("fetch tour %d details: %w", id, err)
+	}
+	if wantKind == "planned" && detail.Type != "tour_planned" {
+		return trailImport{}, fmt.Errorf("%w: tour %d is not planned", errTourKindMismatch, id)
+	}
+	if wantKind == "completed" && detail.Type != "tour_recorded" {
+		return trailImport{}, fmt.Errorf("%w: tour %d is not completed", errTourKindMismatch, id)
+	}
+	var routeImages []imageItem
+	if len(detail.Embedded.CoverImages.Embedded.Items) > 0 {
+		routeImages, _ = client.coverImages(detail.ID)
+	}
+	item, err := tourImport(detail, routeImages)
+	if err != nil {
+		return trailImport{}, fmt.Errorf("map tour %d: %w", id, err)
+	}
+	return item, nil
 }
 
 func basicAuth(username string, password string) string {

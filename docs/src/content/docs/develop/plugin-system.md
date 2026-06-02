@@ -159,6 +159,11 @@ Minimal shape:
       "name": "list_routes",
       "version": "v1",
       "export": "list_routes_v1"
+    },
+    {
+      "name": "get_route_detail",
+      "version": "v1",
+      "export": "get_route_detail_v1"
     }
   ],
   "permissions": {
@@ -187,9 +192,18 @@ Implemented sync/send capabilities:
 
 | Capability | Export Example | Purpose |
 | --- | --- | --- |
-| `list_routes.v1` | `list_routes_v1` | Import planned routes |
-| `list_activities.v1` | `list_activities_v1` | Import completed activities |
+| `list_routes.v1` | `list_routes_v1` | List planned route IDs |
+| `get_route_detail.v1` | `get_route_detail_v1` | Return one planned route import |
+| `list_activities.v1` | `list_activities_v1` | List completed activity IDs |
+| `get_activity_detail.v1` | `get_activity_detail_v1` | Return one completed activity import |
 | `prepare_send_route.v1` | `prepare_send_route_v1` | Prepare an outbound route upload |
+
+Import sync is a two-step protocol. A plugin that declares `list_routes.v1`
+must also declare `get_route_detail.v1`; a plugin that declares
+`list_activities.v1` must also declare `get_activity_detail.v1`. If the matching
+detail capability is missing, the host skips that list capability and logs a
+warning. This is a breaking change from older one-step sync plugins whose
+`list_*` exports returned full trail imports.
 
 Session-based plugins may also export an auth refresh function declared by the
 manifest, for example:
@@ -228,9 +242,8 @@ manifest, for example:
     "after": "2026-01-01"
   },
   "limits": {
-    "maxItems": 10
-  },
-  "recentExternalIds": ["123", "456"]
+    "maxItems": 50
+  }
 }
 ```
 
@@ -254,9 +267,11 @@ or, for session-based providers:
 }
 ```
 
-## Sync output
+## List output
 
-Sync capabilities return imported trails plus capability-local state:
+List capabilities return lightweight summaries plus capability-local state. The
+host uses `source.provider` and `source.externalId` for deduplication and calls
+the matching detail capability only for new items.
 
 ```json
 {
@@ -267,7 +282,58 @@ Sync capabilities return imported trails plus capability-local state:
         "externalId": "123",
         "url": "https://provider.example/routes/123"
       },
-      "kind": "route",
+      "kind": "planned"
+    }
+  ],
+  "state": {
+    "page": 2
+  },
+  "hasMore": true
+}
+```
+
+State returned by a plugin is first fed back into the next batch of the same
+sync run. Only persistent provider cursors belong in `plugin_instances.state`.
+Transient batch cursors such as `page` are not stored in the database.
+
+## Detail input
+
+`get_route_detail_v1` and `get_activity_detail_v1` receive the summary selected
+by the host:
+
+```json
+{
+  "instance": {
+    "id": "abc123",
+    "pluginId": "strava"
+  },
+  "auth": {},
+  "options": {
+    "after": "2026-01-01"
+  },
+  "summary": {
+    "source": {
+      "provider": "strava",
+      "externalId": "123"
+    },
+    "kind": "planned"
+  }
+}
+```
+
+## Detail output
+
+Detail capabilities return the full trail import:
+
+```json
+{
+  "item": {
+    "source": {
+      "provider": "strava",
+      "externalId": "123",
+      "url": "https://provider.example/routes/123"
+    },
+    "kind": "planned",
       "name": "Morning Ride",
       "track": {
         "format": "gpx",
@@ -298,11 +364,7 @@ Sync capabilities return imported trails plus capability-local state:
         "providerCategory": "Ride"
       }
     }
-  ],
-  "state": {
-    "page": 2
-  },
-  "hasMore": true
+  }
 }
 ```
 
@@ -310,10 +372,6 @@ The host imports the trails, writes PocketBase records, applies visibility
 rules, deduplicates by provider/external ID, and stores the returned state.
 Trail photos are attached to the imported trail. Waypoint photos are attached to
 the corresponding waypoint records.
-
-State returned by a plugin is first fed back into the next batch of the same
-sync run. Only persistent provider cursors belong in `plugin_instances.state`.
-Transient batch cursors such as `page` are not stored in the database.
 
 Plugins should return GPX as the canonical track. If the provider exposes
 authoritative summary metrics, the plugin may additionally return them in

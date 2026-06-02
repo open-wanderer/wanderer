@@ -180,11 +180,13 @@ Used for one concrete import capability such as `list_routes.v1` or
 
 ```text
 syncPluginCapability
-  -> recentExternalIDs
-  -> runtime.Call(export)
+  -> runtime.Call(list export)
   -> ExtismRuntime.Call
   -> extismHostFunctions
-  -> plugin export returns TrailImport[]
+  -> plugin export returns TrailSummary[]
+  -> host filters already imported external ids
+  -> runtime.Call(detail export) for new summaries
+  -> plugin detail export returns TrailImport
   -> importer.ImportTrail
   -> update capability state and counters
 ```

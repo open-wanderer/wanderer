@@ -71,19 +71,35 @@ type SyncLimits struct {
 }
 
 type ListInput struct {
-	Instance          InstanceRef    `json:"instance"`
-	Auth              map[string]any `json:"auth,omitempty"`
-	State             map[string]any `json:"state,omitempty"`
-	Options           map[string]any `json:"options,omitempty"`
-	Limits            SyncLimits     `json:"limits,omitempty"`
-	RecentExternalIDs []string       `json:"recentExternalIds,omitempty"`
+	Instance InstanceRef    `json:"instance"`
+	Auth     map[string]any `json:"auth,omitempty"`
+	State    map[string]any `json:"state,omitempty"`
+	Options  map[string]any `json:"options,omitempty"`
+	Limits   SyncLimits     `json:"limits,omitempty"`
 }
 
 type ListOutput struct {
-	Items   []TrailImport  `json:"items"`
+	Items   []TrailSummary `json:"items"`
 	State   map[string]any `json:"state,omitempty"`
 	HasMore bool           `json:"hasMore"`
 	Error   *PluginError   `json:"error,omitempty"`
+}
+
+type DetailInput struct {
+	Instance InstanceRef    `json:"instance"`
+	Auth     map[string]any `json:"auth,omitempty"`
+	Options  map[string]any `json:"options,omitempty"`
+	Summary  TrailSummary   `json:"summary"`
+}
+
+type DetailOutput struct {
+	Item  TrailImport  `json:"item"`
+	Error *PluginError `json:"error,omitempty"`
+}
+
+type TrailSummary struct {
+	Source TrailImportSource `json:"source"`
+	Kind   string            `json:"kind,omitempty"`
 }
 
 type TrailImport struct {

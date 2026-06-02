@@ -48,6 +48,13 @@ func (c *stravaClient) routes(page int, perPage int) ([]route, error) {
 	return routes, err
 }
 
+func (c *stravaClient) route(id string) (*route, error) {
+	endpoint := fmt.Sprintf("%s/routes/%s", stravaAPIBase(), url.PathEscape(id))
+	var route route
+	err := c.getJSON(endpoint, &route)
+	return &route, err
+}
+
 func (c *stravaClient) routeGPX(id string) ([]byte, error) {
 	endpoint := fmt.Sprintf("%s/routes/%s/export_gpx", stravaAPIBase(), url.PathEscape(id))
 	return c.getBytes(endpoint)
@@ -131,24 +138,16 @@ func syncRoutes(client *stravaClient, input listInput) (listOutput, error) {
 	if err != nil {
 		return listOutput{}, err
 	}
-	known := sdk.KnownIDs(input.RecentExternalIDs)
 	after := dateOption(input.Options, "after")
-	items := make([]trailImport, 0, sdk.SyncLimit(input))
+	items := make([]trailSummary, 0, sdk.SyncLimit(input))
 	for _, row := range rows {
-		if known[row.IDStr] {
-			continue
-		}
 		if !timeAfterDate(row.CreatedAt, after) {
 			continue
 		}
-		gpxData, err := client.routeGPX(row.IDStr)
-		if err != nil {
-			continue
-		}
-		item, err := routeImport(row, gpxData)
-		if err == nil {
-			items = append(items, item)
-		}
+		items = append(items, trailSummary{
+			Source: trailImportSource{Provider: "strava", ExternalID: row.IDStr},
+			Kind:   "planned",
+		})
 		if len(items) >= sdk.SyncLimit(input) {
 			break
 		}
@@ -171,29 +170,13 @@ func syncActivities(client *stravaClient, input listInput) (listOutput, error) {
 	if err != nil {
 		return listOutput{}, err
 	}
-	known := sdk.KnownIDs(input.RecentExternalIDs)
-	items := make([]trailImport, 0, sdk.SyncLimit(input))
+	items := make([]trailSummary, 0, sdk.SyncLimit(input))
 	for _, row := range rows {
 		externalID := strconv.FormatInt(row.ID, 10)
-		if known[externalID] {
-			continue
-		}
-		detail, err := client.activity(row.ID)
-		if err != nil {
-			continue
-		}
-		var photos []activityPhoto
-		if detail.Photos.Count > 0 {
-			photos, _ = client.activityPhotos(row.ID)
-		}
-		streams, err := client.activityStreams(row.ID)
-		if err != nil {
-			continue
-		}
-		item, err := activityImport(detail, streams, photos)
-		if err == nil {
-			items = append(items, item)
-		}
+		items = append(items, trailSummary{
+			Source: trailImportSource{Provider: "strava", ExternalID: externalID},
+			Kind:   "completed",
+		})
 		if len(items) >= sdk.SyncLimit(input) {
 			break
 		}

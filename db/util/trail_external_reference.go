@@ -1,7 +1,10 @@
 package util
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
@@ -36,7 +39,82 @@ func FindTrailByExternalReferenceForUser(app core.App, userID string, provider s
 		return nil, nil
 	}
 
-	return app.FindRecordById("trails", trailID)
+	trail, err := app.FindRecordById("trails", trailID)
+	if err == nil {
+		return trail, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	if deleteErr := app.Delete(refs[0]); deleteErr != nil {
+		return nil, fmt.Errorf("delete orphaned trail external reference: %w", deleteErr)
+	}
+	app.Logger().Warn("deleted orphaned trail external reference", "provider", provider, "external_id", externalID, "trail", trailID)
+	return nil, nil
+}
+
+func FindExistingExternalReferenceIDsForUser(app core.App, userID string, provider string, externalIDs []string) (map[string]bool, error) {
+	existingIDs := map[string]bool{}
+	if userID == "" || provider == "" || len(externalIDs) == 0 {
+		return existingIDs, nil
+	}
+
+	params := dbx.Params{
+		"user":     userID,
+		"provider": provider,
+	}
+	seen := map[string]bool{}
+	idFilters := make([]string, 0, len(externalIDs))
+	for _, externalID := range externalIDs {
+		if externalID == "" || seen[externalID] {
+			continue
+		}
+		seen[externalID] = true
+		paramName := fmt.Sprintf("external_id_%d", len(idFilters))
+		params[paramName] = externalID
+		idFilters = append(idFilters, "external_id={:"+paramName+"}")
+	}
+	if len(idFilters) == 0 {
+		return existingIDs, nil
+	}
+
+	filter := "user={:user} && provider={:provider} && (" + strings.Join(idFilters, " || ") + ")"
+	refs, err := app.FindRecordsByFilter("trail_external_reference", filter, "", len(idFilters), 0, params)
+	if err != nil || len(refs) == 0 {
+		return existingIDs, err
+	}
+
+	trailIDs := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if trailID := ref.GetString("trail"); trailID != "" {
+			trailIDs = append(trailIDs, trailID)
+		}
+	}
+	var trails []*core.Record
+	if len(trailIDs) > 0 {
+		trails, err = app.FindRecordsByIds("trails", trailIDs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	trailsByID := make(map[string]bool, len(trails))
+	for _, trail := range trails {
+		trailsByID[trail.Id] = true
+	}
+
+	for _, ref := range refs {
+		trailID := ref.GetString("trail")
+		if trailID != "" && trailsByID[trailID] {
+			existingIDs[ref.GetString("external_id")] = true
+			continue
+		}
+		if deleteErr := app.Delete(ref); deleteErr != nil {
+			return nil, fmt.Errorf("delete orphaned trail external reference: %w", deleteErr)
+		}
+		app.Logger().Warn("deleted orphaned trail external reference", "provider", provider, "external_id", ref.GetString("external_id"), "trail", trailID)
+	}
+	return existingIDs, nil
 }
 
 func EnsureTrailExternalReference(app core.App, trailID string, provider string, externalID string) error {

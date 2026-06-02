@@ -15,10 +15,11 @@ import (
 	"pocketbase/plugins/importer"
 	"pocketbase/pluginsystem"
 	"pocketbase/services/trailmerge"
+	"pocketbase/util"
 )
 
 const (
-	defaultPluginSyncBatchLimit = 10
+	defaultPluginSyncBatchLimit = 50
 	defaultPluginSyncMaxBatches = 100
 )
 
@@ -26,11 +27,13 @@ var syncCapabilityDescriptors = []syncCapabilityDescriptor{
 	{
 		OptionKey:      "planned",
 		CapabilityName: "list_routes",
+		DetailName:     "get_route_detail",
 		Version:        "v1",
 	},
 	{
 		OptionKey:      "completed",
 		CapabilityName: "list_activities",
+		DetailName:     "get_activity_detail",
 		Version:        "v1",
 	},
 }
@@ -38,6 +41,7 @@ var syncCapabilityDescriptors = []syncCapabilityDescriptor{
 type syncCapabilityDescriptor struct {
 	OptionKey      string
 	CapabilityName string
+	DetailName     string
 	Version        string
 }
 
@@ -46,12 +50,11 @@ type pluginSystemSyncRequest struct {
 }
 
 type pluginSystemListInput struct {
-	Instance          pluginsystem.InstanceRef `json:"instance"`
-	Auth              map[string]any           `json:"auth,omitempty"`
-	State             map[string]any           `json:"state,omitempty"`
-	Options           map[string]any           `json:"options,omitempty"`
-	Limits            pluginSystemSyncLimits   `json:"limits,omitempty"`
-	RecentExternalIDs []string                 `json:"recentExternalIds,omitempty"`
+	Instance pluginsystem.InstanceRef `json:"instance"`
+	Auth     map[string]any           `json:"auth,omitempty"`
+	State    map[string]any           `json:"state,omitempty"`
+	Options  map[string]any           `json:"options,omitempty"`
+	Limits   pluginSystemSyncLimits   `json:"limits,omitempty"`
 }
 
 type pluginSystemSyncLimits struct {
@@ -59,10 +62,22 @@ type pluginSystemSyncLimits struct {
 }
 
 type pluginSystemListOutput struct {
-	Items   []pluginsystem.TrailImport `json:"items"`
-	State   map[string]any             `json:"state,omitempty"`
-	HasMore bool                       `json:"hasMore"`
-	Error   *pluginsystem.PluginError  `json:"error,omitempty"`
+	Items   []pluginsystem.TrailSummary `json:"items"`
+	State   map[string]any              `json:"state,omitempty"`
+	HasMore bool                        `json:"hasMore"`
+	Error   *pluginsystem.PluginError   `json:"error,omitempty"`
+}
+
+type pluginSystemDetailInput struct {
+	Instance pluginsystem.InstanceRef  `json:"instance"`
+	Auth     map[string]any            `json:"auth,omitempty"`
+	Options  map[string]any            `json:"options,omitempty"`
+	Summary  pluginsystem.TrailSummary `json:"summary"`
+}
+
+type pluginSystemDetailOutput struct {
+	Item  pluginsystem.TrailImport  `json:"item"`
+	Error *pluginsystem.PluginError `json:"error,omitempty"`
 }
 
 type pluginSystemSyncResult struct {
@@ -113,6 +128,7 @@ func PluginSystemSync(client meilisearch.ServiceManager) func(e *core.RequestEve
 // metadata, finds enabled instances, skips instances in backoff, and syncs each
 // configured import capability.
 func PluginSystemSyncConfigured(ctx context.Context, app core.App, client meilisearch.ServiceManager) error {
+	app.Logger().Info("plugin sync cron started")
 	manager := pluginsystem.NewManager(app, "")
 	if err := manager.SyncInstalledPlugins(ctx); err != nil {
 		return err
@@ -121,23 +137,28 @@ func PluginSystemSyncConfigured(ctx context.Context, app core.App, client meilis
 	if err != nil {
 		return err
 	}
+	app.Logger().Info("plugin sync discovered installed plugins", "count", len(plugins))
 
 	var syncErr error
 	for _, plugin := range plugins {
 		if !pluginHasAnySyncCapability(plugin) {
+			app.Logger().Info("plugin sync skipping plugin without sync capability", "plugin", plugin.Manifest.ID)
 			continue
 		}
 		instances, err := pluginInstances(app, plugin.Manifest.ID)
 		if err != nil {
 			return err
 		}
+		app.Logger().Info("plugin sync found enabled instances", "plugin", plugin.Manifest.ID, "count", len(instances))
 		for _, instance := range instances {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
 			if shouldSkipPluginInstance(instance) {
+				app.Logger().Info("plugin sync skipping instance due to retry backoff", "plugin", plugin.Manifest.ID, "instance", instance.Id, "next_retry_at", instance.GetString("next_retry_at"))
 				continue
 			}
+			app.Logger().Info("plugin instance sync started", "plugin", plugin.Manifest.ID, "instance", instance.Id)
 			result, err := syncPluginInstance(ctx, app, client, plugin, instance)
 			if err != nil {
 				app.Logger().Warn("plugin instance sync failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "error", err)
@@ -147,6 +168,7 @@ func PluginSystemSyncConfigured(ctx context.Context, app core.App, client meilis
 			app.Logger().Info("plugin instance sync completed", "plugin", result.PluginID, "instance", instance.Id, "imported", result.Imported, "skipped", result.Skipped)
 		}
 	}
+	app.Logger().Info("plugin sync cron completed")
 	return syncErr
 }
 
@@ -198,18 +220,33 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 
 	result := &pluginSystemSyncResult{PluginID: plugin.Manifest.ID}
 	for _, descriptor := range syncCapabilityDescriptors {
-		if !boolOption(hostConfig, descriptor.OptionKey, true) || !pluginHasCapability(plugin, descriptor.CapabilityName, descriptor.Version) {
+		if !boolOption(hostConfig, descriptor.OptionKey, true) {
+			app.Logger().Info("plugin sync skipping disabled capability", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", descriptor.CapabilityName, "option", descriptor.OptionKey)
+			continue
+		}
+		if !pluginHasCapability(plugin, descriptor.CapabilityName, descriptor.Version) {
+			app.Logger().Info("plugin sync skipping unavailable capability", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", descriptor.CapabilityName, "version", descriptor.Version)
+			continue
+		}
+		if !pluginHasCapability(plugin, descriptor.DetailName, descriptor.Version) {
+			app.Logger().Warn("plugin sync skipping list capability because matching detail capability is unavailable", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", descriptor.CapabilityName, "detail_capability", descriptor.DetailName, "version", descriptor.Version)
 			continue
 		}
 		capability, err := pluginCapability(plugin, descriptor.CapabilityName, descriptor.Version)
 		if err != nil {
 			return nil, err
 		}
-		capResult, err := syncPluginCapability(ctx, app, client, runtime, plugin, capability, instance, actor, auth, pluginConfig, hostConfig, defaultPublic, createSummitLog)
+		detailCapability, err := pluginCapability(plugin, descriptor.DetailName, descriptor.Version)
+		if err != nil {
+			return nil, err
+		}
+		app.Logger().Info("plugin capability sync started", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "version", capability.Version, "export", capability.Export)
+		capResult, err := syncPluginCapability(ctx, app, client, runtime, plugin, capability, detailCapability, instance, actor, auth, pluginConfig, hostConfig, defaultPublic, createSummitLog)
 		if err != nil {
 			setPluginInstanceStatusForError(app, instance, err)
 			return nil, err
 		}
+		app.Logger().Info("plugin capability sync completed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "imported", capResult.Imported, "skipped", capResult.Skipped)
 		result.Imported += capResult.Imported
 		result.Skipped += capResult.Skipped
 	}
@@ -239,10 +276,9 @@ type capabilitySyncResult struct {
 // syncPluginCapability calls one plugin export such as list_routes_v1, imports
 // the returned trail items, and carries transient page state only within this
 // sync run. The page cursor is intentionally not persisted across runs.
-func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.ServiceManager, runtime pluginsystem.Runtime, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, actor *core.Record, auth map[string]any, pluginConfig map[string]any, hostConfig map[string]any, defaultPublic bool, createSummitLog bool) (*capabilitySyncResult, error) {
+func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.ServiceManager, runtime pluginsystem.Runtime, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, detailCapability pluginsystem.CapabilityManifest, instance *core.Record, actor *core.Record, auth map[string]any, pluginConfig map[string]any, hostConfig map[string]any, defaultPublic bool, createSummitLog bool) (*capabilitySyncResult, error) {
 	result := &capabilitySyncResult{}
 	state := map[string]any{}
-	recentIDs := recentExternalIDs(app, instance.GetString("plugin_id"), instance.GetString("user"))
 	hasMore := true
 	for batch := 0; hasMore && batch < defaultPluginSyncMaxBatches; batch++ {
 		input := pluginSystemListInput{
@@ -250,11 +286,10 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				ID:       instance.Id,
 				PluginID: instance.GetString("plugin_id"),
 			},
-			Auth:              pluginsystem.PluginInputAuth(plugin, auth),
-			State:             state,
-			Options:           pluginConfig,
-			Limits:            pluginSystemSyncLimits{MaxItems: defaultPluginSyncBatchLimit},
-			RecentExternalIDs: recentIDs,
+			Auth:    pluginsystem.PluginInputAuth(plugin, auth),
+			State:   state,
+			Options: pluginConfig,
+			Limits:  pluginSystemSyncLimits{MaxItems: defaultPluginSyncBatchLimit},
 		}
 		inputBytes, err := json.Marshal(input)
 		if err != nil {
@@ -271,8 +306,42 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		if output.Error != nil {
 			return nil, pluginsystem.PluginCapabilityError{Err: output.Error}
 		}
+		app.Logger().Info("plugin capability batch returned items", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "batch", batch, "items", len(output.Items), "has_more", output.HasMore)
 
-		for _, item := range output.Items {
+		summaries := output.Items
+		externalIDsByProvider := map[string][]string{}
+		for i := range summaries {
+			if summaries[i].Source.Provider == "" {
+				summaries[i].Source.Provider = plugin.Manifest.ID
+			}
+			if summaries[i].Source.ExternalID == "" {
+				continue
+			}
+			externalIDsByProvider[summaries[i].Source.Provider] = append(externalIDsByProvider[summaries[i].Source.Provider], summaries[i].Source.ExternalID)
+		}
+		existingIDsByProvider := map[string]map[string]bool{}
+		for provider, externalIDs := range externalIDsByProvider {
+			existingIDs, err := util.FindExistingExternalReferenceIDsForUser(app, instance.GetString("user"), provider, externalIDs)
+			if err != nil {
+				return nil, err
+			}
+			existingIDsByProvider[provider] = existingIDs
+		}
+
+		for _, summary := range summaries {
+			if summary.Source.ExternalID == "" {
+				continue
+			}
+			if existingIDsByProvider[summary.Source.Provider][summary.Source.ExternalID] {
+				result.Skipped++
+				continue
+			}
+			item, err := pluginDetail(ctx, runtime, plugin, detailCapability, instance, auth, pluginConfig, summary)
+			if err != nil {
+				result.Skipped++
+				app.Logger().Warn("skipping plugin item after detail fetch failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "provider", summary.Source.Provider, "external_id", summary.Source.ExternalID, "error", err)
+				continue
+			}
 			applyHostPolicy(&item, hostConfig)
 			imported, err := importer.ImportTrail(ctx, app, item, importer.Options{
 				UserID:                      instance.GetString("user"),
@@ -310,6 +379,34 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		return nil, fmt.Errorf("sync stopped after %d batches", defaultPluginSyncMaxBatches)
 	}
 	return result, nil
+}
+
+func pluginDetail(ctx context.Context, runtime pluginsystem.Runtime, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, pluginConfig map[string]any, summary pluginsystem.TrailSummary) (pluginsystem.TrailImport, error) {
+	input := pluginSystemDetailInput{
+		Instance: pluginsystem.InstanceRef{
+			ID:       instance.Id,
+			PluginID: instance.GetString("plugin_id"),
+		},
+		Auth:    pluginsystem.PluginInputAuth(plugin, auth),
+		Options: pluginConfig,
+		Summary: summary,
+	}
+	inputBytes, err := json.Marshal(input)
+	if err != nil {
+		return pluginsystem.TrailImport{}, err
+	}
+	outputBytes, err := runtime.Call(ctx, plugin, capability.Export, inputBytes, pluginInstancePolicy(plugin, pluginConfig))
+	if err != nil {
+		return pluginsystem.TrailImport{}, err
+	}
+	var output pluginSystemDetailOutput
+	if err := json.Unmarshal(outputBytes, &output); err != nil {
+		return pluginsystem.TrailImport{}, fmt.Errorf("plugin returned invalid %s output: %w", capability.Export, err)
+	}
+	if output.Error != nil {
+		return pluginsystem.TrailImport{}, pluginsystem.PluginCapabilityError{Err: output.Error}
+	}
+	return output.Item, nil
 }
 
 func pluginHasCapability(plugin pluginsystem.LocalPlugin, name string, version string) bool {
@@ -411,26 +508,4 @@ func userDefaultPublic(app core.App, userID string) bool {
 	}
 
 	return privacySettings.Trails == "public"
-}
-
-func recentExternalIDs(app core.App, provider string, userID string) []string {
-	refs, err := app.FindRecordsByFilter(
-		"trail_external_reference",
-		"provider={:provider} && trail.author.user={:user}",
-		"-created",
-		100,
-		0,
-		dbx.Params{"provider": provider, "user": userID},
-	)
-	if err != nil {
-		return nil
-	}
-
-	ids := make([]string, 0, len(refs))
-	for _, ref := range refs {
-		if externalID := ref.GetString("external_id"); externalID != "" {
-			ids = append(ids, externalID)
-		}
-	}
-	return ids
 }

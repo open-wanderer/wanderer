@@ -5,6 +5,9 @@ import "github.com/open-wanderer/wanderer/plugins/sdk"
 type instanceRef = sdk.InstanceRef
 type listInput = sdk.ListInput
 type listOutput = sdk.ListOutput
+type detailInput = sdk.DetailInput
+type detailOutput = sdk.DetailOutput
+type trailSummary = sdk.TrailSummary
 type trailImport = sdk.TrailImport
 type trailImportSource = sdk.TrailImportSource
 type track = sdk.Track
