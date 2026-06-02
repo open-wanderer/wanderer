@@ -83,6 +83,12 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                     showTrail: showTrail,
                     elevationMarkerPosition: elevationMarkerPosition,
                     onWaypointTap: _onWaypointSelected,
+                    initialCameraFitPadding: EdgeInsets.only(
+                      bottom: 300,
+                      left: 40,
+                      right: 40,
+                      top: 40,
+                    ),
                     controls: [
                       _buildMapControls(context, trail),
 
@@ -217,7 +223,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                                       children: [
                                         const SizedBox(width: 40),
                                         Container(
-                                          width: 20,
+                                          width: 30,
                                           height: 5,
                                           decoration: BoxDecoration(
                                             color: Colors.grey[300],
@@ -376,11 +382,17 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                 icon: FaIcon(FontAwesomeIcons.expand, size: 18),
                 visualDensity: VisualDensity.compact,
                 onPressed: () {
+                  final padding =
+                      !showElevationProfile && selectedWaypoint == null
+                      ? EdgeInsets.all(40)
+                      : EdgeInsets.only(
+                          bottom: 300,
+                          left: 40,
+                          right: 40,
+                          top: 40,
+                        );
                   _mapController.fitCamera(
-                    CameraFit.bounds(
-                      bounds: bounds,
-                      padding: EdgeInsets.all(40),
-                    ),
+                    CameraFit.bounds(bounds: bounds, padding: padding),
                   );
                 },
               ),

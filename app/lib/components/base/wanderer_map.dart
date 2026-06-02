@@ -14,6 +14,7 @@ class WandererMap extends ConsumerStatefulWidget {
   final bool disabled;
   final List<Widget>? controls;
   final LatLng? elevationMarkerPosition;
+  final EdgeInsets initialCameraFitPadding;
 
   final bool showTrail;
 
@@ -31,6 +32,7 @@ class WandererMap extends ConsumerStatefulWidget {
     this.controls = const [],
     this.showTrail = true,
     this.elevationMarkerPosition,
+    this.initialCameraFitPadding = const EdgeInsets.all(40),
   });
 
   @override
@@ -78,7 +80,7 @@ class _WandererMapState extends ConsumerState<WandererMap> {
         initialCameraFit: bounds != null
             ? CameraFit.bounds(
                 bounds: bounds!,
-                padding: const EdgeInsets.all(40),
+                padding: widget.initialCameraFitPadding,
               )
             : null,
         initialCenter: LatLng(widget.trail.lat ?? 0, widget.trail.lon ?? 0),

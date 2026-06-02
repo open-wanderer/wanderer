@@ -48,11 +48,26 @@ class TrailPanel extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (trail.localPhotos.isNotEmpty || webPhotos.isNotEmpty)
-              PhotoCollage(
-                webPhotos: webPhotos,
-                localPhotos: trail.localPhotos,
-              ),
+            Stack(
+              children: [
+                if (trail.localPhotos.isNotEmpty || webPhotos.isNotEmpty)
+                  PhotoCollage(
+                    webPhotos: webPhotos,
+                    localPhotos: trail.localPhotos,
+                  ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: IconButton(
+                    icon: FaIcon(FontAwesomeIcons.arrowLeft, size: 20),
+                    onPressed: () => context.pop(),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Theme.of(context).canvasColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Column(

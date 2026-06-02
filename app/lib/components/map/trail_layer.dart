@@ -136,31 +136,30 @@ class _TrailLayerState extends State<TrailLayer>
           ),
         );
       }
-
-      if (pathPoints.isNotEmpty) {
-        staticMarkers.add(
-          Marker(
-            point: pathPoints.first,
-            width: 28,
-            height: 28,
-            child: _buildCircularMarker(
-              FontAwesomeIcons.bullseye,
-              color: Colors.greenAccent,
-            ),
+    }
+    if (pathPoints.isNotEmpty) {
+      staticMarkers.add(
+        Marker(
+          point: pathPoints.first,
+          width: 28,
+          height: 28,
+          child: _buildCircularMarker(
+            FontAwesomeIcons.bullseye,
+            color: Colors.greenAccent,
           ),
-        );
-        staticMarkers.add(
-          Marker(
-            point: pathPoints.last,
-            width: 28,
-            height: 28,
-            child: _buildCircularMarker(
-              FontAwesomeIcons.flagCheckered,
-              color: Colors.redAccent,
-            ),
+        ),
+      );
+      staticMarkers.add(
+        Marker(
+          point: pathPoints.last,
+          width: 28,
+          height: 28,
+          child: _buildCircularMarker(
+            FontAwesomeIcons.flagCheckered,
+            color: Colors.redAccent,
           ),
-        );
-      }
+        ),
+      );
     }
 
     double arrowSpacingMeters = 100.0;
@@ -185,13 +184,10 @@ class _TrailLayerState extends State<TrailLayer>
           polylines: [
             Polyline(
               points: pathPoints,
-              color: Colors.white,
-              strokeWidth: widget.strokeWidth + 2,
-            ),
-            Polyline(
-              points: pathPoints,
               color: widget.routeColor,
               strokeWidth: widget.strokeWidth,
+              borderColor: Colors.white,
+              borderStrokeWidth: 2,
             ),
           ],
         ),
