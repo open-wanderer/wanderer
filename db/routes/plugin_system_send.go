@@ -107,7 +107,14 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 	if err != nil {
 		return err
 	}
-	output, err := runtime.Call(e.Request.Context(), plugin, capability.Export, inputBytes, policy.WithHostAuth(auth))
+	session, err := runtime.OpenSession(e.Request.Context(), plugin, policy.WithHostAuth(auth))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = session.Close(context.Background())
+	}()
+	output, err := session.Call(e.Request.Context(), capability.Export, inputBytes)
 	if err != nil {
 		return err
 	}
@@ -126,6 +133,7 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 	if err := pluginsystem.InjectHostRequestAuth(e.Request.Context(), pluginsystem.AuthInjectionInput{
 		App:      e.App,
 		Runtime:  runtime,
+		Session:  session,
 		Plugin:   plugin,
 		Instance: instance,
 		Auth:     auth,

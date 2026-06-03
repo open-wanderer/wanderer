@@ -193,10 +193,6 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 		return nil, err
 	}
 
-	runtime, err := pluginsystem.NewRuntimeRegistry().RuntimeFor(plugin)
-	if err != nil {
-		return nil, err
-	}
 	auth, err := decryptedInstanceAuth(instance)
 	if err != nil {
 		setPluginInstanceStatus(app, instance, "needs_reauth", "auth_failed", err.Error())
@@ -212,6 +208,21 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	hostConfig := pluginHostConfig(config)
 	defaultPublic := userDefaultPublic(app, instance.GetString("user"))
 	createSummitLog := boolOption(hostConfig, "createSummitLogForCompleted", true)
+	runtime, err := pluginsystem.NewRuntimeRegistry().RuntimeFor(plugin)
+	if err != nil {
+		return nil, err
+	}
+	sessions := &pluginSyncRuntimeSession{
+		runtime: runtime,
+		plugin:  plugin,
+		policy:  pluginInstancePolicy(plugin, pluginConfig).WithHostAuth(auth),
+	}
+	if err := sessions.open(ctx); err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = sessions.close(context.Background())
+	}()
 
 	instance.Set("status", "syncing")
 	if err := app.Save(instance); err != nil {
@@ -241,7 +252,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 			return nil, err
 		}
 		app.Logger().Info("plugin capability sync started", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "version", capability.Version, "export", capability.Export)
-		capResult, err := syncPluginCapability(ctx, app, client, runtime, plugin, capability, detailCapability, instance, actor, auth, pluginConfig, hostConfig, defaultPublic, createSummitLog)
+		capResult, err := syncPluginCapability(ctx, app, client, sessions, plugin, capability, detailCapability, instance, actor, auth, pluginConfig, hostConfig, defaultPublic, createSummitLog)
 		if err != nil {
 			setPluginInstanceStatusForError(app, instance, err)
 			return nil, err
@@ -273,10 +284,40 @@ type capabilitySyncResult struct {
 	Skipped  int
 }
 
+type pluginSyncRuntimeSession struct {
+	runtime pluginsystem.Runtime
+	plugin  pluginsystem.LocalPlugin
+	policy  pluginsystem.RequestPolicyContext
+	session pluginsystem.RuntimeSession
+}
+
+func (s *pluginSyncRuntimeSession) open(ctx context.Context) error {
+	session, err := s.runtime.OpenSession(ctx, s.plugin, s.policy)
+	if err != nil {
+		return err
+	}
+	s.session = session
+	return nil
+}
+
+func (s *pluginSyncRuntimeSession) reopen(ctx context.Context) error {
+	_ = s.close(context.Background())
+	return s.open(ctx)
+}
+
+func (s *pluginSyncRuntimeSession) close(ctx context.Context) error {
+	if s.session == nil {
+		return nil
+	}
+	err := s.session.Close(ctx)
+	s.session = nil
+	return err
+}
+
 // syncPluginCapability calls one plugin export such as list_routes_v1, imports
 // the returned trail items, and carries transient page state only within this
 // sync run. The page cursor is intentionally not persisted across runs.
-func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.ServiceManager, runtime pluginsystem.Runtime, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, detailCapability pluginsystem.CapabilityManifest, instance *core.Record, actor *core.Record, auth map[string]any, pluginConfig map[string]any, hostConfig map[string]any, defaultPublic bool, createSummitLog bool) (*capabilitySyncResult, error) {
+func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.ServiceManager, sessions *pluginSyncRuntimeSession, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, detailCapability pluginsystem.CapabilityManifest, instance *core.Record, actor *core.Record, auth map[string]any, pluginConfig map[string]any, hostConfig map[string]any, defaultPublic bool, createSummitLog bool) (*capabilitySyncResult, error) {
 	result := &capabilitySyncResult{}
 	state := map[string]any{}
 	hasMore := true
@@ -296,7 +337,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		if err != nil {
 			return nil, err
 		}
-		outputBytes, err := runtime.Call(ctx, plugin, capability.Export, inputBytes, policy.WithHostAuth(auth))
+		outputBytes, err := sessions.session.Call(ctx, capability.Export, inputBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -337,10 +378,15 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				result.Skipped++
 				continue
 			}
-			item, err := pluginDetail(ctx, runtime, plugin, detailCapability, instance, auth, pluginConfig, summary)
+			item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, summary)
 			if err != nil {
 				result.Skipped++
 				app.Logger().Warn("skipping plugin item after detail fetch failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "provider", summary.Source.Provider, "external_id", summary.Source.ExternalID, "error", err)
+				if pluginsystem.IsRuntimeSessionFatalError(err) {
+					if reopenErr := sessions.reopen(ctx); reopenErr != nil {
+						return nil, reopenErr
+					}
+				}
 				continue
 			}
 			applyHostPolicy(&item, hostConfig)
@@ -385,7 +431,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 	return result, nil
 }
 
-func pluginDetail(ctx context.Context, runtime pluginsystem.Runtime, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, pluginConfig map[string]any, summary pluginsystem.TrailSummary) (pluginsystem.TrailImport, error) {
+func pluginDetail(ctx context.Context, session pluginsystem.RuntimeSession, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, pluginConfig map[string]any, summary pluginsystem.TrailSummary) (pluginsystem.TrailImport, error) {
 	input := pluginSystemDetailInput{
 		Instance: pluginsystem.InstanceRef{
 			ID:       instance.Id,
@@ -399,7 +445,7 @@ func pluginDetail(ctx context.Context, runtime pluginsystem.Runtime, plugin plug
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}
-	outputBytes, err := runtime.Call(ctx, plugin, capability.Export, inputBytes, pluginInstancePolicy(plugin, pluginConfig).WithHostAuth(auth))
+	outputBytes, err := session.Call(ctx, capability.Export, inputBytes)
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}

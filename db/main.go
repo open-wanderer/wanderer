@@ -55,6 +55,9 @@ func verifySettings(app core.App) {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "plugin-worker" {
+		os.Exit(pluginsystem.RunPluginWorker(context.Background(), os.Stdin, os.Stdout, os.Stderr))
+	}
 
 	app := pocketbase.New()
 	client := initializeMeilisearch()

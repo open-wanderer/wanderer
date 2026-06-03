@@ -13,6 +13,12 @@ var ErrRuntimeUnavailable = errors.New("plugin runtime is not available")
 
 type Runtime interface {
 	Call(ctx context.Context, plugin LocalPlugin, export string, input []byte, policy RequestPolicyContext) ([]byte, error)
+	OpenSession(ctx context.Context, plugin LocalPlugin, policy RequestPolicyContext) (RuntimeSession, error)
+}
+
+type RuntimeSession interface {
+	Call(ctx context.Context, export string, input []byte) ([]byte, error)
+	Close(ctx context.Context) error
 }
 
 type RuntimeRegistry struct {
@@ -23,7 +29,7 @@ type RuntimeRegistry struct {
 // Runtime interface.
 func NewRuntimeRegistry() *RuntimeRegistry {
 	return &RuntimeRegistry{
-		wasm: ExtismRuntime{},
+		wasm: NewWorkerRuntime(),
 	}
 }
 
@@ -40,6 +46,10 @@ func (r *RuntimeRegistry) RuntimeFor(plugin LocalPlugin) (Runtime, error) {
 type UnavailableRuntime struct{}
 
 func (UnavailableRuntime) Call(context.Context, LocalPlugin, string, []byte, RequestPolicyContext) ([]byte, error) {
+	return nil, ErrRuntimeUnavailable
+}
+
+func (UnavailableRuntime) OpenSession(context.Context, LocalPlugin, RequestPolicyContext) (RuntimeSession, error) {
 	return nil, ErrRuntimeUnavailable
 }
 
@@ -61,6 +71,17 @@ func (e PluginCallError) Error() string {
 // Call loads the plugin WASM module, attaches wanderer host functions, invokes
 // the requested export, and converts plugin-reported JSON errors into Go errors.
 func (ExtismRuntime) Call(ctx context.Context, plugin LocalPlugin, export string, input []byte, policy RequestPolicyContext) ([]byte, error) {
+	session, err := ExtismRuntime{}.OpenSession(ctx, plugin, policy)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = session.Close(ctx)
+	}()
+	return session.Call(ctx, export, input)
+}
+
+func (ExtismRuntime) OpenSession(ctx context.Context, plugin LocalPlugin, policy RequestPolicyContext) (RuntimeSession, error) {
 	manifest := extism.Manifest{
 		Wasm: []extism.Wasm{
 			extism.WasmFile{Path: plugin.WASMPath},
@@ -72,23 +93,38 @@ func (ExtismRuntime) Call(ctx context.Context, plugin LocalPlugin, export string
 	if err != nil {
 		return nil, fmt.Errorf("create wasm plugin %s: %w", plugin.Manifest.ID, err)
 	}
-	defer func() {
-		_ = instance.Close(ctx)
-	}()
+	return &extismRuntimeSession{plugin: plugin, policy: policy, instance: instance}, nil
+}
 
-	code, output, err := instance.CallWithContext(ctx, export, input)
+type extismRuntimeSession struct {
+	plugin   LocalPlugin
+	policy   RequestPolicyContext
+	instance *extism.Plugin
+}
+
+func (s *extismRuntimeSession) Call(ctx context.Context, export string, input []byte) ([]byte, error) {
+	code, output, err := s.instance.CallWithContext(ctx, export, input)
 	if err != nil {
-		return nil, fmt.Errorf("call %s.%s: %w", plugin.Manifest.ID, export, err)
+		return nil, fmt.Errorf("call %s.%s: %w", s.plugin.Manifest.ID, export, err)
 	}
 	if code != 0 {
-		if pluginErr := instance.GetErrorWithContext(ctx); pluginErr != "" {
+		if pluginErr := s.instance.GetErrorWithContext(ctx); pluginErr != "" {
 			var parsed PluginError
 			if err := json.Unmarshal([]byte(pluginErr), &parsed); err == nil && parsed.Code != "" {
-				return nil, PluginCallError{PluginID: plugin.Manifest.ID, Export: export, PluginError: parsed}
+				return nil, PluginCallError{PluginID: s.plugin.Manifest.ID, Export: export, PluginError: parsed}
 			}
-			return nil, fmt.Errorf("call %s.%s failed with code %d: %s", plugin.Manifest.ID, export, code, pluginErr)
+			return nil, fmt.Errorf("call %s.%s failed with code %d: %s", s.plugin.Manifest.ID, export, code, pluginErr)
 		}
-		return nil, fmt.Errorf("call %s.%s failed with code %d", plugin.Manifest.ID, export, code)
+		return nil, fmt.Errorf("call %s.%s failed with code %d", s.plugin.Manifest.ID, export, code)
 	}
 	return output, nil
+}
+
+func (s *extismRuntimeSession) Close(ctx context.Context) error {
+	if s.instance == nil {
+		return nil
+	}
+	err := s.instance.Close(ctx)
+	s.instance = nil
+	return err
 }

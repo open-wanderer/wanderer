@@ -14,6 +14,7 @@ import (
 type AuthInjectionInput struct {
 	App      core.App
 	Runtime  Runtime
+	Session  RuntimeSession
 	Plugin   LocalPlugin
 	Instance *core.Record
 	Auth     map[string]any
@@ -253,7 +254,12 @@ func injectSessionAuth(ctx context.Context, input AuthInjectionInput, authContex
 	if err != nil {
 		return err
 	}
-	output, err := input.Runtime.Call(ctx, input.Plugin, authContext.Refresh.Function, inputBytes, input.Policy)
+	var output []byte
+	if input.Session != nil {
+		output, err = input.Session.Call(ctx, authContext.Refresh.Function, inputBytes)
+	} else {
+		output, err = input.Runtime.Call(ctx, input.Plugin, authContext.Refresh.Function, inputBytes, input.Policy)
+	}
 	if err != nil {
 		return err
 	}
