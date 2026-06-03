@@ -102,6 +102,9 @@ func tlsConfig(raw map[string]any, customAllowed bool) pluginsystem.ConnectorTLS
 	if mode == "" {
 		mode = pluginsystem.TLSModeSystem
 	}
+	if mode != pluginsystem.TLSModeSystem && mode != pluginsystem.TLSModeCustomCA {
+		mode = pluginsystem.TLSModeSystem
+	}
 	if !customAllowed && mode != pluginsystem.TLSModeSystem {
 		mode = pluginsystem.TLSModeSystem
 	}

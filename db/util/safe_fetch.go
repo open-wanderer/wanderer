@@ -146,8 +146,6 @@ func connectorTLSConfig(mode string, caBundle []byte) (*tls.Config, error) {
 			return nil, fmt.Errorf("connector customCA bundle is invalid")
 		}
 		return &tls.Config{RootCAs: roots}, nil
-	case "insecure":
-		return &tls.Config{InsecureSkipVerify: true}, nil
 	default:
 		return nil, fmt.Errorf("unsupported connector TLS mode %q", mode)
 	}

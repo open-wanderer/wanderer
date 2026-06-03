@@ -37,6 +37,12 @@ func TestReadBoundedForPlugin(t *testing.T) {
 	}
 }
 
+func TestConnectorTLSConfigRejectsInsecureMode(t *testing.T) {
+	if _, err := connectorTLSConfig("insecure", nil); err == nil {
+		t.Fatal("expected insecure TLS mode to be rejected")
+	}
+}
+
 func TestConnectorIPAllowed(t *testing.T) {
 	tests := []struct {
 		ip           string

@@ -272,7 +272,7 @@ type ResolvedConnectorTarget struct {
 }
 
 type ConnectorTLSConfig struct {
-    Mode     string   // "system" | "customCA" | "insecure"
+    Mode     string   // "system" | "customCA"
     CABundle []byte
 }
 
@@ -326,8 +326,8 @@ Therefore the connector model must include these baseline capabilities before fi
 - connector targets must define TLS behavior
 - default mode is normal system trust verification
 - admin-owned `customCA` mode allows a connector-specific CA bundle
-- admin-owned `insecure` mode may be allowed only as an explicit, high-friction setting for self-hosted deployments
-- plugin manifests and plugin output must not enable insecure TLS
+- certificate verification must not be disabled in production connector traffic
+- plugin manifests and plugin output must not enable TLS trust changes
 
 4. Declared storage redirect origins
 
@@ -784,11 +784,10 @@ TLS policy:
 
 - `tls.mode=="system"` uses normal system trust and hostname verification
 - `tls.mode=="customCA"` uses a host/admin-provided CA bundle in addition to or instead of system trust
-- `tls.mode=="insecure"` skips certificate verification only for the concrete connector target and only when explicitly configured by an admin
-- `tls.mode=="insecure"` must be visible in admin UI and logs because it changes the connector trust boundary
+- `tls.mode=="insecure"` is not supported; connector transport must not disable certificate or hostname verification
 - plugin manifests may declare that a connector supports custom TLS configuration, but they must not select the mode
 - `customCA` does not fix hostname mismatch; `https://192.168.1.50:2283` still requires a certificate with a matching IP subject alternative name
-- self-signed certificates with only a CN or the wrong hostname will still fail under `customCA`; the practical choices are fixing the certificate or using admin-only `insecure`
+- self-signed certificates with only a CN or the wrong hostname will still fail under `customCA`; the practical fix is issuing a certificate with a matching subject alternative name and trusting its CA
 
 Storage-origin policy:
 
@@ -1162,7 +1161,7 @@ This section turns the design into concrete implementation work items.
 - [Phase 1] make `FetchPublicURL(...)` reject redirects from `https` to `http`
 - [Phase 1] keep the helper API small enough to replace the underlying transport later if required tests fail
 - [Phase 2] add a connector-scoped transport/client path for host-owned connector requests
-- [Phase 2] support connector TLS modes `system`, `customCA`, and admin-only `insecure`
+- [Phase 2] support connector TLS modes `system` and `customCA`; reject `insecure`
 - [Phase 2] ensure TLS settings are scoped to the concrete connector target or storage origin
 - [Phase 2] allow private IPs only when `allowPrivate` is true for the resolved connector target
 - [Phase 2] allow RFC1918 / IPv6 ULA targets when `allowPrivate=true`, while continuing to reject loopback, link-local, multicast, and unspecified addresses
@@ -1185,7 +1184,7 @@ This section turns the design into concrete implementation work items.
 - [Phase 1] add tests for redirects to private/special-purpose targets
 - [Phase 1] add tests for exact-limit and limit-plus-one response bodies
 - [Phase 1] add tests that oversized responses fail even when `Content-Length` is absent or misleading
-- [Phase 2] add connector transport tests for `system`, `customCA`, and admin-only `insecure` TLS modes
+- [Phase 2] add connector transport tests for `system`, `customCA`, and rejection of `insecure` TLS mode
 - [Phase 2] add tests that custom TLS settings do not leak between connectors
 - [Phase 2] add tests for allowed and rejected storage-origin redirects
 - [Phase 2] add tests that storage-origin redirects are media-only unless a future provider explicitly expands that scope
@@ -1272,7 +1271,7 @@ This section turns the design into concrete implementation work items.
 - [Phase 2] resolve configured storage origins from `config.host.connectors.<configKey>.storageOrigins`
 - [Phase 2] construct the runtime `RequestPolicyContext` from resolved connector entries rather than `UserConfiguredOrigins`
 - [Phase 2] keep host-only ownership of `allowPrivate`
-- [Phase 2] keep host-only ownership of TLS mode, custom CA bundles, insecure TLS, and storage origins
+- [Phase 2] keep host-only ownership of TLS mode, custom CA bundles, and storage origins
 
 ### `db/routes/plugin_system_config.go`
 

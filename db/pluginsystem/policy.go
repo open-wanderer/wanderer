@@ -13,7 +13,6 @@ const (
 	ConnectorTypeConfigured = "configured"
 	TLSModeSystem           = "system"
 	TLSModeCustomCA         = "customCA"
-	TLSModeInsecure         = "insecure"
 )
 
 type RequestPolicyContext struct {
