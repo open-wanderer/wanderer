@@ -242,6 +242,11 @@ func TestSafeMediaFileName(t *testing.T) {
 			t.Fatalf("got %q", got)
 		}
 	})
+	t.Run("rejects dotdot candidate", func(t *testing.T) {
+		if got := safeMediaFileName(".."); got != "photo.jpg" {
+			t.Fatalf("got %q", got)
+		}
+	})
 }
 
 func TestExtensionFromContentTypes(t *testing.T) {

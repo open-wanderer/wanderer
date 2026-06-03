@@ -95,9 +95,10 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 			ContentBase64: base64.StdEncoding.EncodeToString(gpx),
 		},
 	}
-	config := pluginRuntimeConfig(effectivePluginConfig(e.App, plugin.Manifest.ID, instance))
+	config := effectivePluginConfig(e.App, plugin.Manifest.ID, instance)
+	pluginConfig := pluginRuntimeConfig(config)
 	policy := pluginInstancePolicy(plugin, config)
-	input.Config = config
+	input.Config = pluginConfig
 	inputBytes, err := json.Marshal(input)
 	if err != nil {
 		return err
@@ -137,7 +138,7 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 		Plugin:   plugin,
 		Instance: instance,
 		Auth:     auth,
-		Config:   config,
+		Config:   pluginConfig,
 		Spec:     &plan.Request,
 		Policy:   policy,
 	}); err != nil {

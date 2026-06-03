@@ -170,6 +170,7 @@ type MediaRef struct {
 	Auth      string       `json:"auth,omitempty"`
 	Path      string       `json:"path,omitempty"`
 	Query     []QueryParam `json:"query,omitempty"`
+	AssetID   string       `json:"assetId,omitempty"`
 }
 
 type SendRouteInput struct {

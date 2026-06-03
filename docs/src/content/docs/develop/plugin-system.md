@@ -604,6 +604,8 @@ storage, and refresh:
 
 The plugin may receive the short-lived access token in normal capability input.
 It does not receive refresh tokens or client secrets during normal sync.
+OAuth token endpoints must be covered by a fixed `public_api` connector in the
+manifest. Token exchange does not use user-configured connector origins.
 
 ### Session
 

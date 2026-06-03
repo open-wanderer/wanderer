@@ -94,6 +94,61 @@ func TestExecuteHostRequestAllowsErrorResponseWithoutContentType(t *testing.T) {
 	}
 }
 
+func TestExecuteHostRequestInjectsAPIKeyQueryBeforeBuildingURL(t *testing.T) {
+	useUnsafeTestHTTPClient(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("api_key"); got != "host-secret" {
+			t.Fatalf("api_key = %q, want host-secret; raw query %q", got, r.URL.RawQuery)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	manifest := testHostManifest(t, server.URL)
+	manifest.Auth = AuthManifest{Contexts: map[string]AuthContext{
+		"account": {
+			Type:        AuthTypeAPIKey,
+			SecretField: "apiKey",
+			Placement:   AuthPlacementQuery,
+			Name:        "api_key",
+		},
+	}}
+	manifest.Permissions.Auth = []string{"account"}
+	manifest.Permissions.Network.Connectors[0].Auth = []string{"account"}
+	policy := testHostPolicy(t, server.URL).WithHostAuth(map[string]any{"apiKey": "host-secret"})
+	policy.Connectors["api"] = ResolvedConnectorTarget{
+		Name:                "api",
+		Type:                ConnectorTypePublicAPI,
+		BaseURL:             policy.Connectors["api"].BaseURL,
+		BasePath:            "/",
+		AllowPrivate:        true,
+		AllowedPathPrefixes: []string{"/v1"},
+		Auth:                []string{"account"},
+	}
+
+	resp, err := ExecuteHostRequest(context.Background(), manifest, policy, HostRequestSpec{
+		Method: "GET",
+		Auth:   "account",
+		Target: RequestTarget{
+			Type:      "connector",
+			Connector: "api",
+			Path:      "/v1",
+			Query:     []QueryParam{{Name: "existing", Value: "1"}},
+		},
+		Expect: ResponseExpect{
+			ContentTypes: []string{"application/json"},
+			MaxBytes:     1024,
+		},
+	}, HostRequestOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Status != http.StatusOK {
+		t.Fatalf("unexpected status %d", resp.Status)
+	}
+}
+
 func TestExecuteHostRequestBuildsMultipartRouteUpload(t *testing.T) {
 	useUnsafeTestHTTPClient(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

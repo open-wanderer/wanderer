@@ -106,13 +106,10 @@ func writeHostHTTPResponse(ctx context.Context, plugin *extism.CurrentPlugin, st
 // upload/response limits, follows only permitted redirects, and returns the
 // bounded provider response.
 func ExecuteHostRequest(ctx context.Context, manifest Manifest, policy RequestPolicyContext, spec HostRequestSpec, options HostRequestOptions) (HostResponse, error) {
-	if err := ValidateHostRequestSpec(manifest, spec, policy); err != nil {
-		return HostResponse{}, err
-	}
 	if err := InjectHostRequestAuthFromPolicy(manifest, policy.HostAuth, &spec); err != nil {
 		return HostResponse{}, err
 	}
-	resolved, err := ResolveRequestTarget(manifest, spec.Target, policy)
+	resolved, err := ValidateAndResolveHostRequestSpec(manifest, spec, policy)
 	if err != nil {
 		return HostResponse{}, err
 	}

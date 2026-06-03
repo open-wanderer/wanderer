@@ -159,6 +159,28 @@ func TestInjectHostRequestAuthFromPolicyFailsWithEmptyAuth(t *testing.T) {
 	}
 }
 
+func TestInjectHostRequestAuthFromPolicyRejectsSessionAuth(t *testing.T) {
+	spec := HostRequestSpec{Auth: "account"}
+	manifest := Manifest{
+		Auth: AuthManifest{Contexts: map[string]AuthContext{
+			"account": {
+				Type:         AuthTypeSession,
+				SecretFields: []string{"password"},
+				Refresh:      &AuthRefresh{Mode: AuthRefreshModePlugin, Function: "refresh_session_v1"},
+			},
+		}},
+		Permissions: PermissionManifest{Auth: []string{"account"}},
+	}
+
+	err := InjectHostRequestAuthFromPolicy(manifest, map[string]any{"password": "secret"}, &spec)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != "session auth requires route-managed injection" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestInjectHostRequestAuthFromPolicyWithAPIKeyQuery(t *testing.T) {
 	spec := HostRequestSpec{
 		Auth: "account",

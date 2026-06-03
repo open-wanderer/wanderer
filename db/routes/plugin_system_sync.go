@@ -216,7 +216,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	sessions := &pluginSyncRuntimeSession{
 		runtime: runtime,
 		plugin:  plugin,
-		policy:  pluginInstancePolicy(plugin, pluginConfig).WithHostAuth(auth),
+		policy:  pluginInstancePolicy(plugin, config).WithHostAuth(auth),
 	}
 	if err := sessions.open(ctx); err != nil {
 		setPluginInstanceStatusForError(app, instance, err)
@@ -323,7 +323,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 	result := &capabilitySyncResult{}
 	state := map[string]any{}
 	hasMore := true
-	policy := pluginInstancePolicy(plugin, pluginConfig)
+	policy := sessions.policy
 	for batch := 0; hasMore && batch < defaultPluginSyncMaxBatches; batch++ {
 		input := pluginSystemListInput{
 			Instance: pluginsystem.InstanceRef{

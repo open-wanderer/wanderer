@@ -338,10 +338,6 @@ func photoFiles(ctx context.Context, app core.App, photos []pluginsystem.Photo, 
 			app.Logger().Warn("skipping plugin photo", "external_id", photo.ExternalID, "error", err)
 			continue
 		}
-		if budget.bytes+bytesRead > util.DefaultPluginMaxImportMediaBytes {
-			app.Logger().Warn("skipping plugin photo because aggregate media byte limit was reached", "external_id", photo.ExternalID, "limit", util.DefaultPluginMaxImportMediaBytes)
-			continue
-		}
 		if file != nil {
 			files = append(files, file)
 			budget.items++
@@ -699,6 +695,10 @@ func safeMediaFileName(candidates ...string) string {
 		if candidate == "" || strings.Contains(candidate, "/") {
 			continue
 		}
+		base := filepath.Base(candidate)
+		if base == "." || base == ".." {
+			continue
+		}
 		filename = candidate
 		break
 	}
@@ -714,7 +714,7 @@ func safeMediaFileName(candidates ...string) string {
 			return r
 		}
 	}, filename)
-	if filepath.Ext(filename) == "" {
+	if ext := filepath.Ext(filename); ext == "" || ext == "." {
 		filename += extensionFromContentTypes(candidates...)
 	}
 	return filename

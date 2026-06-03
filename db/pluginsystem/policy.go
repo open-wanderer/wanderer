@@ -62,25 +62,30 @@ type ResolvedRequestTarget struct {
 // performs any plugin-controlled HTTP request. Provider traffic must use a
 // connector target; plugins no longer hand the host absolute API URLs.
 func ValidateHostRequestSpec(manifest Manifest, spec HostRequestSpec, policy RequestPolicyContext) error {
+	_, err := ValidateAndResolveHostRequestSpec(manifest, spec, policy)
+	return err
+}
+
+func ValidateAndResolveHostRequestSpec(manifest Manifest, spec HostRequestSpec, policy RequestPolicyContext) (*ResolvedRequestTarget, error) {
 	if strings.TrimSpace(spec.Method) == "" {
-		return fmt.Errorf("method is required")
+		return nil, fmt.Errorf("method is required")
 	}
 	resolved, err := ResolveRequestTarget(manifest, spec.Target, policy)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if spec.Auth != "" {
 		if err := ValidateAuthReference(manifest, spec.Auth); err != nil {
-			return err
+			return nil, err
 		}
 		if len(resolved.Connector.Auth) > 0 && !slices.Contains(resolved.Connector.Auth, spec.Auth) {
-			return fmt.Errorf("auth context %q is not permitted for connector %q", spec.Auth, resolved.Connector.Name)
+			return nil, fmt.Errorf("auth context %q is not permitted for connector %q", spec.Auth, resolved.Connector.Name)
 		}
 	}
 	if err := validateExpectedResponse(spec.Expect, manifest.Permissions.Downloads); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return resolved, nil
 }
 
 func ValidateAuthReference(manifest Manifest, auth string) error {
