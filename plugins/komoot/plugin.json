@@ -45,7 +45,14 @@
   },
   "permissions": {
     "network": {
-      "staticHosts": ["api.komoot.de"]
+      "connectors": [
+        {
+          "name": "api",
+          "type": "public_api",
+          "fixedBaseURL": "https://api.komoot.de",
+          "allowedPathPrefixes": ["/v006", "/v007"]
+        }
+      ]
     },
     "auth": ["provider_session"],
     "downloads": {

@@ -16,6 +16,11 @@ Common protocol types:
 - `SendRouteInput`, `UploadPlan`
 - `HostRequestSpec`, `HostResponse`, `PluginError`
 
+Provider HTTP requests use connector targets. Plugins provide a connector name,
+a relative path, and ordered query parameters; the host owns the final base URL,
+path scope, redirects, TLS, and private-network policy. Public external media
+URLs remain available only through `MediaSource{Type: "url"}`.
+
 Small sync helpers are included for the repeated mechanics that every provider
 needs:
 

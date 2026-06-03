@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"mime"
-	"net"
+	"net/http"
 	"net/url"
+	urlpath "path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -27,6 +29,9 @@ type Options struct {
 	DefaultPublic               bool
 	CreateSummitLogForCompleted bool
 	CategoryMapping             map[string]string
+	Manifest                    pluginsystem.Manifest
+	Policy                      pluginsystem.RequestPolicyContext
+	Auth                        map[string]any
 }
 
 // Result tells the sync loop whether a plugin item created a new trail or was
@@ -72,7 +77,8 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 	public := publicFromPrivacy(item.Privacy, opts.DefaultPublic)
 	categoryID := categoryIDForImport(app, item, opts.CategoryMapping)
 	date := dateFromImport(item, metrics)
-	photos := photoFiles(ctx, app, item.Photos)
+	mediaBudget := &pluginMediaBudget{}
+	photos := photoFiles(ctx, app, item.Photos, opts, mediaBudget)
 
 	record.Load(map[string]any{
 		"name":           fallbackName(item.Name),
@@ -103,7 +109,7 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		return nil, err
 	}
 
-	if err := createWaypoints(ctx, app, item.Waypoints, opts.ActorID, record.Id); err != nil {
+	if err := createWaypoints(ctx, app, item.Waypoints, opts, mediaBudget, record.Id); err != nil {
 		return nil, err
 	}
 
@@ -244,7 +250,7 @@ func dateFromImport(item pluginsystem.TrailImport, metrics trailMetrics) time.Ti
 
 // createWaypoints persists plugin-provided waypoints after the trail exists so
 // they can reference the imported trail record.
-func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem.Waypoint, actorID string, trailID string) error {
+func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem.Waypoint, opts Options, mediaBudget *pluginMediaBudget, trailID string) error {
 	if len(waypoints) == 0 {
 		return nil
 	}
@@ -263,14 +269,14 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 		if icon == "" {
 			icon = "circle"
 		}
-		photos := photoFiles(ctx, app, waypoint.Photos)
+		photos := photoFiles(ctx, app, waypoint.Photos, opts, mediaBudget)
 		record.Load(map[string]any{
 			"name":                waypoint.Name,
 			"description":         waypoint.Description,
 			"lat":                 waypoint.Lat,
 			"lon":                 waypoint.Lon,
 			"icon":                icon,
-			"author":              actorID,
+			"author":              opts.ActorID,
 			"distance_from_start": 0,
 			"trail":               trailID,
 		})
@@ -288,7 +294,20 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 // photoFiles converts plugin photo descriptors into PocketBase file objects.
 // Individual photo failures are logged and skipped so one broken media URL does
 // not fail the whole trail import.
-func photoFiles(ctx context.Context, app core.App, photos []pluginsystem.Photo) []*filesystem.File {
+type pluginMediaBudget struct {
+	items int
+	bytes int64
+}
+
+func (b *pluginMediaBudget) remainingBytes() int64 {
+	remaining := util.DefaultPluginMaxImportMediaBytes - b.bytes
+	if remaining < util.DefaultPluginMediaMaxBytes {
+		return remaining
+	}
+	return util.DefaultPluginMediaMaxBytes
+}
+
+func photoFiles(ctx context.Context, app core.App, photos []pluginsystem.Photo, opts Options, budget *pluginMediaBudget) []*filesystem.File {
 	if len(photos) == 0 {
 		return nil
 	}
@@ -296,6 +315,10 @@ func photoFiles(ctx context.Context, app core.App, photos []pluginsystem.Photo) 
 	files := make([]*filesystem.File, 0, len(photos))
 	now := time.Now()
 	for _, photo := range photos {
+		if budget.items >= util.DefaultPluginMaxImportMediaItems {
+			app.Logger().Warn("skipping plugin photo because media item limit was reached", "limit", util.DefaultPluginMaxImportMediaItems)
+			continue
+		}
 		if err := ctx.Err(); err != nil {
 			app.Logger().Warn("skipping plugin photo because import context was cancelled", "error", err)
 			return files
@@ -304,14 +327,25 @@ func photoFiles(ctx context.Context, app core.App, photos []pluginsystem.Photo) 
 			app.Logger().Warn("skipping expired plugin photo", "external_id", photo.ExternalID)
 			continue
 		}
+		maxBytes := budget.remainingBytes()
+		if maxBytes <= 0 {
+			app.Logger().Warn("skipping plugin photo because aggregate media byte limit was reached", "external_id", photo.ExternalID, "limit", util.DefaultPluginMaxImportMediaBytes)
+			continue
+		}
 
-		file, err := photoFile(ctx, photo)
+		file, bytesRead, err := photoFile(ctx, photo, opts, maxBytes)
 		if err != nil {
 			app.Logger().Warn("skipping plugin photo", "external_id", photo.ExternalID, "error", err)
 			continue
 		}
+		if budget.bytes+bytesRead > util.DefaultPluginMaxImportMediaBytes {
+			app.Logger().Warn("skipping plugin photo because aggregate media byte limit was reached", "external_id", photo.ExternalID, "limit", util.DefaultPluginMaxImportMediaBytes)
+			continue
+		}
 		if file != nil {
 			files = append(files, file)
+			budget.items++
+			budget.bytes += bytesRead
 		}
 	}
 
@@ -320,27 +354,180 @@ func photoFiles(ctx context.Context, app core.App, photos []pluginsystem.Photo) 
 
 // photoFile fetches one plugin-provided photo source. URL sources are validated
 // before PocketBase performs the server-side download.
-func photoFile(ctx context.Context, photo pluginsystem.Photo) (*filesystem.File, error) {
+func photoFile(ctx context.Context, photo pluginsystem.Photo, opts Options, maxBytes int64) (*filesystem.File, int64, error) {
 	switch photo.Source.Type {
 	case "url":
 		if photo.Source.URL == "" {
-			return nil, fmt.Errorf("photo URL is empty")
+			return nil, 0, fmt.Errorf("photo URL is empty")
 		}
-		if err := validateRemoteMediaURL(ctx, photo.Source.URL); err != nil {
-			return nil, err
+		if err := validateRemoteMediaURLSyntax(photo.Source.URL); err != nil {
+			return nil, 0, err
 		}
-		return filesystem.NewFileFromURL(ctx, photo.Source.URL)
+		fetched, err := util.FetchPublicURL(ctx, photo.Source.URL, maxBytes)
+		if err != nil {
+			return nil, 0, err
+		}
+		file, err := filesystem.NewFileFromBytes(fetched.Body, safeMediaFileName(photo.Filename, urlPathBase(fetched.FinalURL), fetched.ContentType, photo.ContentType))
+		return file, int64(len(fetched.Body)), err
+	case "connector":
+		fetched, err := fetchConnectorMedia(ctx, photo, opts, maxBytes)
+		if err != nil {
+			return nil, 0, err
+		}
+		file, err := filesystem.NewFileFromBytes(fetched.Body, safeMediaFileName(photo.Filename, urlPathBase(fetched.FinalURL), fetched.ContentType, photo.ContentType))
+		return file, int64(len(fetched.Body)), err
 	default:
-		return nil, fmt.Errorf("unsupported photo source type %q", photo.Source.Type)
+		return nil, 0, fmt.Errorf("unsupported photo source type %q", photo.Source.Type)
 	}
 }
 
-// validateRemoteMediaURL is a best-effort SSRF guard for plugin-provided media
-// URLs that wanderer fetches server-side. It only allows http(s) and rejects
-// hosts resolving to loopback, private, link-local or other non-public
-// addresses. This is defense-in-depth (plugins are admin-configured/trusted) and
-// not fully robust against DNS rebinding, since the actual fetch re-resolves.
-func validateRemoteMediaURL(ctx context.Context, rawURL string) error {
+func fetchConnectorMedia(ctx context.Context, photo pluginsystem.Photo, opts Options, maxBytes int64) (*util.SafeFetchResult, error) {
+	if photo.Source.MediaRef == nil {
+		return nil, fmt.Errorf("connector mediaRef is required")
+	}
+	ref := *photo.Source.MediaRef
+	if ref.AssetID != "" && ref.Path == "" {
+		return nil, fmt.Errorf("mediaRef.assetId is metadata only; path is required")
+	}
+	target := pluginsystem.RequestTarget{
+		Type:      "connector",
+		Connector: ref.Connector,
+		Path:      ref.Path,
+		Query:     ref.Query,
+	}
+	resolved, err := pluginsystem.ResolveRequestTarget(opts.Manifest, target, opts.Policy)
+	if err != nil {
+		return nil, err
+	}
+	if ref.Auth != "" {
+		if !resolved.Connector.SupportsMediaAuth {
+			return nil, fmt.Errorf("connector %q does not support media auth", ref.Connector)
+		}
+		if len(resolved.Connector.Auth) > 0 && !slices.Contains(resolved.Connector.Auth, ref.Auth) {
+			return nil, fmt.Errorf("auth context %q is not permitted for connector %q", ref.Auth, ref.Connector)
+		}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, resolved.URL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := pluginsystem.InjectRequestAuthForContext(opts.Manifest, opts.Auth, ref.Auth, req); err != nil {
+		return nil, err
+	}
+	var storageRedirect *storageRedirectTarget
+	client, err := util.ConnectorHTTPClient(util.ConnectorHTTPPolicy{
+		BaseURL:      resolved.Connector.BaseURL,
+		AllowPrivate: resolved.Connector.AllowPrivate,
+		TLSMode:      resolved.Connector.TLS.Mode,
+		TLSCABundle:  resolved.Connector.TLS.CABundle,
+	}, func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return fmt.Errorf("too many redirects")
+		}
+		previous := resolved.URL
+		if len(via) > 0 {
+			previous = via[len(via)-1].URL
+		}
+		if err := pluginsystem.ValidateConnectorRedirect(resolved.Connector, previous, req.URL); err == nil {
+			return nil
+		}
+		origin, err := pluginsystem.ConnectorStorageRedirectOrigin(resolved.Connector, previous, req.URL)
+		if err != nil {
+			return err
+		}
+		stripConnectorAuth(req, opts.Manifest, ref.Auth)
+		storageRedirect = &storageRedirectTarget{
+			URL:    req.URL.String(),
+			Origin: origin,
+		}
+		return http.ErrUseLastResponse
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if storageRedirect != nil && resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		return fetchStorageRedirectMedia(ctx, *storageRedirect, maxBytes)
+	}
+	body, err := util.ReadBoundedForPlugin(resp.Body, maxBytes)
+	if err != nil {
+		return nil, err
+	}
+	return &util.SafeFetchResult{Body: body, ContentType: resp.Header.Get("Content-Type"), FinalURL: resp.Request.URL.String()}, nil
+}
+
+type storageRedirectTarget struct {
+	URL    string
+	Origin pluginsystem.ResolvedConnectorOrigin
+}
+
+func fetchStorageRedirectMedia(ctx context.Context, redirect storageRedirectTarget, maxBytes int64) (*util.SafeFetchResult, error) {
+	storageConnector := pluginsystem.ResolvedConnectorTarget{
+		Name:                redirect.Origin.Name,
+		BaseURL:             redirect.Origin.BaseURL,
+		BasePath:            redirect.Origin.BasePath,
+		AllowPrivate:        redirect.Origin.AllowPrivate,
+		TLS:                 redirect.Origin.TLS,
+		AllowedPathPrefixes: []string{"/"},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, redirect.URL, nil)
+	if err != nil {
+		return nil, err
+	}
+	client, err := util.ConnectorHTTPClient(util.ConnectorHTTPPolicy{
+		BaseURL:      redirect.Origin.BaseURL,
+		AllowPrivate: redirect.Origin.AllowPrivate,
+		TLSMode:      redirect.Origin.TLS.Mode,
+		TLSCABundle:  redirect.Origin.TLS.CABundle,
+	}, func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return fmt.Errorf("too many redirects")
+		}
+		previous := req.URL
+		if len(via) > 0 {
+			previous = via[len(via)-1].URL
+		}
+		return pluginsystem.ValidateConnectorRedirect(storageConnector, previous, req.URL)
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := util.ReadBoundedForPlugin(resp.Body, maxBytes)
+	if err != nil {
+		return nil, err
+	}
+	return &util.SafeFetchResult{Body: body, ContentType: resp.Header.Get("Content-Type"), FinalURL: resp.Request.URL.String()}, nil
+}
+
+func stripConnectorAuth(req *http.Request, manifest pluginsystem.Manifest, authName string) {
+	req.Header.Del(pluginsystem.AuthHeaderAuthorization)
+	if authName == "" {
+		return
+	}
+	authContext, ok := manifest.Auth.Contexts[authName]
+	if !ok {
+		return
+	}
+	if authContext.Name != "" {
+		req.Header.Del(authContext.Name)
+		req.URL.RawQuery = removeRawQueryParamOrdered(req.URL.RawQuery, authContext.Name)
+	}
+	if authContext.SecretField != "" {
+		req.Header.Del(authContext.SecretField)
+		req.URL.RawQuery = removeRawQueryParamOrdered(req.URL.RawQuery, authContext.SecretField)
+	}
+}
+
+func validateRemoteMediaURLSyntax(rawURL string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("invalid media URL: %w", err)
@@ -352,28 +539,38 @@ func validateRemoteMediaURL(ctx context.Context, rawURL string) error {
 	if host == "" {
 		return fmt.Errorf("media URL has no host")
 	}
-
-	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
-	if err != nil {
-		return fmt.Errorf("resolve media URL host: %w", err)
-	}
-	for _, addr := range addrs {
-		if !isPublicIP(addr.IP) {
-			return fmt.Errorf("media URL host resolves to a non-public address")
-		}
-	}
-
 	return nil
 }
 
-// isPublicIP rejects address ranges that should never be reachable through
-// plugin-provided media URLs.
-func isPublicIP(ip net.IP) bool {
-	if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() ||
-		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() {
-		return false
+func urlPathBase(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
 	}
-	return true
+	return urlpath.Base(parsed.Path)
+}
+
+func removeRawQueryParamOrdered(rawQuery string, name string) string {
+	if rawQuery == "" || name == "" {
+		return rawQuery
+	}
+	parts := strings.Split(rawQuery, "&")
+	kept := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		rawName := part
+		if idx := strings.Index(rawName, "="); idx >= 0 {
+			rawName = rawName[:idx]
+		}
+		decodedName, err := url.QueryUnescape(rawName)
+		if err == nil && decodedName == name {
+			continue
+		}
+		kept = append(kept, part)
+	}
+	return strings.Join(kept, "&")
 }
 
 // createSummitLog mirrors completed imported trails into summit_logs when the

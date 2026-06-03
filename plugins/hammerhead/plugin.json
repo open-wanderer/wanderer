@@ -50,7 +50,15 @@
   },
   "permissions": {
     "network": {
-      "staticHosts": ["dashboard.hammerhead.io"]
+      "connectors": [
+        {
+          "name": "api",
+          "type": "public_api",
+          "fixedBaseURL": "https://dashboard.hammerhead.io",
+          "allowedPathPrefixes": ["/v1"],
+          "auth": ["provider_session"]
+        }
+      ]
     },
     "auth": ["provider_session"],
     "uploads": {

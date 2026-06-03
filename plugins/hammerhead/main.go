@@ -146,8 +146,12 @@ func prepareSendRouteV1() int32 {
 	plan := uploadPlan{
 		Request: sdk.HostRequestSpec{
 			Method: "POST",
-			URL:    fmt.Sprintf("https://dashboard.hammerhead.io/v1/users/%s/routes/import/file", userID),
-			Auth:   "provider_session",
+			Target: sdk.RequestTarget{
+				Type:      "connector",
+				Connector: "api",
+				Path:      fmt.Sprintf("/v1/users/%s/routes/import/file", userID),
+			},
+			Auth: "provider_session",
 			Body: &sdk.HostRequestBody{
 				Type: sdk.HostRequestBodyTypeMultipart,
 				Parts: []sdk.MultipartPart{

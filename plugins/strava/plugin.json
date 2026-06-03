@@ -54,7 +54,28 @@
   },
   "permissions": {
     "network": {
-      "staticHosts": ["www.strava.com"]
+      "connectors": [
+        {
+          "name": "api",
+          "type": "public_api",
+          "fixedBaseURL": "https://www.strava.com/api/v3",
+          "allowedPathPrefixes": ["/"],
+          "auth": ["oauth_access_token"]
+        },
+        {
+          "name": "api_next",
+          "type": "public_api",
+          "fixedBaseURL": "https://www.api-v3.strava.com",
+          "allowedPathPrefixes": ["/"],
+          "auth": ["oauth_access_token"]
+        },
+        {
+          "name": "oauth",
+          "type": "public_api",
+          "fixedBaseURL": "https://www.strava.com/oauth",
+          "allowedPathPrefixes": ["/"]
+        }
+      ]
     },
     "auth": ["oauth_access_token"],
     "downloads": {

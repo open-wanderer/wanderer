@@ -12,11 +12,23 @@ const (
 
 type HostRequestSpec struct {
 	Method  string            `json:"method"`
-	URL     string            `json:"url"`
+	Target  RequestTarget     `json:"target"`
 	Auth    string            `json:"auth,omitempty"`
 	Headers map[string]string `json:"headers,omitempty"`
 	Body    *HostRequestBody  `json:"body,omitempty"`
 	Expect  ResponseExpect    `json:"expect,omitempty"`
+}
+
+type RequestTarget struct {
+	Type      string       `json:"type"`
+	Connector string       `json:"connector,omitempty"`
+	Path      string       `json:"path,omitempty"`
+	Query     []QueryParam `json:"query,omitempty"`
+}
+
+type QueryParam struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type HostRequestBody struct {
@@ -148,8 +160,16 @@ type Photo struct {
 }
 
 type MediaSource struct {
-	Type string `json:"type"`
-	URL  string `json:"url,omitempty"`
+	Type     string    `json:"type"`
+	URL      string    `json:"url,omitempty"`
+	MediaRef *MediaRef `json:"mediaRef,omitempty"`
+}
+
+type MediaRef struct {
+	Connector string       `json:"connector"`
+	Auth      string       `json:"auth,omitempty"`
+	Path      string       `json:"path,omitempty"`
+	Query     []QueryParam `json:"query,omitempty"`
 }
 
 type SendRouteInput struct {

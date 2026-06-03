@@ -5,12 +5,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/extism/go-pdk"
 	"github.com/open-wanderer/wanderer/plugins/sdk"
 )
-
-const tokenURL = "https://dashboard.hammerhead.io/v1/auth/token"
 
 type hammerheadClient struct {
 	userID string
@@ -20,7 +19,11 @@ type hammerheadClient struct {
 func login(email string, password string) (string, error) {
 	spec := sdk.HostRequestSpec{
 		Method: "POST",
-		URL:    tokenURL,
+		Target: sdk.RequestTarget{
+			Type:      "connector",
+			Connector: "api",
+			Path:      "/v1/auth/token",
+		},
 		Headers: map[string]string{
 			"Accept": "application/json",
 		},
@@ -74,10 +77,15 @@ func loginClient(auth map[string]any) (hammerheadClient, error) {
 	return hammerheadClient{userID: userID, token: token}, nil
 }
 
-func (c hammerheadClient) get(path string, out any) error {
+func (c hammerheadClient) get(path string, query []sdk.QueryParam, out any) error {
 	response, body, err := sdk.HostRequest(sdk.HostRequestSpec{
 		Method: "GET",
-		URL:    "https://dashboard.hammerhead.io/v1/users/" + c.userID + path,
+		Target: sdk.RequestTarget{
+			Type:      "connector",
+			Connector: "api",
+			Path:      "/v1/users/" + c.userID + path,
+			Query:     query,
+		},
 		Headers: map[string]string{
 			sdk.AuthHeaderAuthorization: sdk.AuthSchemeBearer + " " + c.token,
 			"Accept":                    "application/json",
@@ -98,26 +106,35 @@ func (c hammerheadClient) get(path string, out any) error {
 
 func (c hammerheadClient) activities(page int, perPage int) ([]activityResponse, int, error) {
 	var data activitiesResponse
-	err := c.get(fmt.Sprintf("/activities?page=%d&perPage=%d&orderBy=NEWEST&ascending=true", page, perPage), &data)
+	err := c.get("/activities", hammerheadListQuery(page, perPage), &data)
 	return data.Data, data.TotalPages, err
 }
 
 func (c hammerheadClient) tours(page int, perPage int) ([]tourResponse, int, error) {
 	var data toursResponse
-	err := c.get(fmt.Sprintf("/routes?page=%d&perPage=%d&orderBy=NEWEST&ascending=true", page, perPage), &data)
+	err := c.get("/routes", hammerheadListQuery(page, perPage), &data)
 	return data.Data, data.TotalPages, err
 }
 
 func (c hammerheadClient) activity(id string) (*activity, error) {
 	var data activity
-	err := c.get("/activities/"+id+"/details", &data)
+	err := c.get("/activities/"+id+"/details", nil, &data)
 	return &data, err
 }
 
 func (c hammerheadClient) tour(id string) (*tour, error) {
 	var data tour
-	err := c.get("/routes/"+id, &data)
+	err := c.get("/routes/"+id, nil, &data)
 	return &data, err
+}
+
+func hammerheadListQuery(page int, perPage int) []sdk.QueryParam {
+	return []sdk.QueryParam{
+		{Name: "page", Value: strconv.Itoa(page)},
+		{Name: "perPage", Value: strconv.Itoa(perPage)},
+		{Name: "orderBy", Value: "NEWEST"},
+		{Name: "ascending", Value: "true"},
+	}
 }
 
 func userIDForUpload(auth map[string]any) (string, error) {

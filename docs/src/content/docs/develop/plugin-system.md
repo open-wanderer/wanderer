@@ -458,7 +458,14 @@ The request shape is `HostRequestSpec`:
 ```json
 {
   "method": "GET",
-  "url": "https://api.example.com/routes",
+  "target": {
+    "type": "connector",
+    "connector": "api",
+    "path": "/routes",
+    "query": [
+      { "name": "page", "value": "1" }
+    ]
+  },
   "auth": "oauth_access_token",
   "headers": {
     "accept": "application/json"
@@ -472,19 +479,24 @@ The request shape is `HostRequestSpec`:
 
 The host validates:
 
-- URL scheme and host
+- connector identity, scheme, host, effective port, base path, and path scope
 - auth context reference
 - manifest network permissions
 - response content type
 - response size
-- redirect target host
+- redirect target scope
 
 The shared Go SDK wraps this host function:
 
 ```go
 response, body, err := sdk.HostRequest(sdk.HostRequestSpec{
     Method: "GET",
-    URL:    "https://api.example.com/routes",
+    Target: sdk.RequestTarget{
+        Type:      "connector",
+        Connector: "api",
+        Path:      "/routes",
+        Query:     []sdk.QueryParam{{Name: "page", Value: "1"}},
+    },
     Expect: sdk.ResponseExpect{
         ContentTypes: []string{"application/json"},
         MaxBytes:     1048576,
@@ -526,7 +538,11 @@ Output:
 {
   "request": {
     "method": "POST",
-    "url": "https://provider.example/routes",
+    "target": {
+      "type": "connector",
+      "connector": "api",
+      "path": "/routes"
+    },
     "auth": "provider_session",
     "body": {
       "type": "multipart",

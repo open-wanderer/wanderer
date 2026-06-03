@@ -2,6 +2,7 @@ package pluginsystem
 
 import (
 	"context"
+	"net/http"
 	"testing"
 )
 
@@ -79,8 +80,13 @@ func TestInjectHostRequestAuthWithBearer(t *testing.T) {
 
 func TestInjectHostRequestAuthWithAPIKeyQuery(t *testing.T) {
 	spec := HostRequestSpec{
-		URL:  "https://example.com/upload?existing=true",
 		Auth: "account",
+		Target: RequestTarget{
+			Type:      "connector",
+			Connector: "api",
+			Path:      "/upload",
+			Query:     []QueryParam{{Name: "existing", Value: "true"}},
+		},
 	}
 
 	err := InjectHostRequestAuth(context.Background(), AuthInjectionInput{
@@ -101,8 +107,85 @@ func TestInjectHostRequestAuthWithAPIKeyQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if spec.URL != "https://example.com/upload?existing=true&key=secret" {
-		t.Fatalf("unexpected url: %q", spec.URL)
+	if len(spec.Target.Query) != 2 || spec.Target.Query[1].Name != "key" || spec.Target.Query[1].Value != "secret" {
+		t.Fatalf("unexpected query: %#v", spec.Target.Query)
+	}
+}
+
+func TestInjectHostRequestAuthFromPolicyWithBearer(t *testing.T) {
+	spec := HostRequestSpec{
+		Auth:    "account",
+		Headers: map[string]string{AuthHeaderAuthorization: "plugin supplied"},
+	}
+	manifest := Manifest{
+		Auth: AuthManifest{Contexts: map[string]AuthContext{
+			"account": {Type: AuthTypeBearer, SecretField: "token"},
+		}},
+		Permissions: PermissionManifest{Auth: []string{"account"}},
+	}
+
+	err := InjectHostRequestAuthFromPolicy(manifest, map[string]any{"token": "host-secret"}, &spec)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := spec.Headers[AuthHeaderAuthorization]; got != AuthSchemeBearer+" host-secret" {
+		t.Fatalf("unexpected authorization header: %q", got)
+	}
+}
+
+func TestInjectHostRequestAuthFromPolicyWithAPIKeyQuery(t *testing.T) {
+	spec := HostRequestSpec{
+		Auth: "account",
+		Target: RequestTarget{
+			Type:  "connector",
+			Path:  "/assets",
+			Query: []QueryParam{{Name: "api_key", Value: "plugin"}},
+		},
+	}
+	manifest := Manifest{
+		Auth: AuthManifest{Contexts: map[string]AuthContext{
+			"account": {
+				Type:        AuthTypeAPIKey,
+				SecretField: "apiKey",
+				Placement:   AuthPlacementQuery,
+				Name:        "api_key",
+			},
+		}},
+		Permissions: PermissionManifest{Auth: []string{"account"}},
+	}
+
+	err := InjectHostRequestAuthFromPolicy(manifest, map[string]any{"apiKey": "host-secret"}, &spec)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(spec.Target.Query) != 1 || spec.Target.Query[0].Value != "host-secret" {
+		t.Fatalf("unexpected query: %#v", spec.Target.Query)
+	}
+}
+
+func TestInjectRequestAuthForContextPreservesQueryOrder(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "https://example.test/media?z=last&api_key=plugin&a=first", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := Manifest{
+		Auth: AuthManifest{Contexts: map[string]AuthContext{
+			"account": {
+				Type:        AuthTypeAPIKey,
+				SecretField: "apiKey",
+				Placement:   AuthPlacementQuery,
+				Name:        "api_key",
+			},
+		}},
+		Permissions: PermissionManifest{Auth: []string{"account"}},
+	}
+
+	err = InjectRequestAuthForContext(manifest, map[string]any{"apiKey": "host-secret"}, "account", req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if req.URL.RawQuery != "z=last&a=first&api_key=host-secret" {
+		t.Fatalf("unexpected raw query: %q", req.URL.RawQuery)
 	}
 }
 

@@ -62,5 +62,14 @@ type Photo struct {
 type MediaSource struct {
 	Type      string     `json:"type"`
 	URL       string     `json:"url,omitempty"`
+	MediaRef  *MediaRef  `json:"mediaRef,omitempty"`
 	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+}
+
+type MediaRef struct {
+	Connector string       `json:"connector"`
+	Auth      string       `json:"auth,omitempty"`
+	Path      string       `json:"path,omitempty"`
+	Query     []QueryParam `json:"query,omitempty"`
+	AssetID   string       `json:"assetId,omitempty"`
 }

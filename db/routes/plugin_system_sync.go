@@ -280,6 +280,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 	result := &capabilitySyncResult{}
 	state := map[string]any{}
 	hasMore := true
+	policy := pluginInstancePolicy(plugin, pluginConfig)
 	for batch := 0; hasMore && batch < defaultPluginSyncMaxBatches; batch++ {
 		input := pluginSystemListInput{
 			Instance: pluginsystem.InstanceRef{
@@ -295,7 +296,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		if err != nil {
 			return nil, err
 		}
-		outputBytes, err := runtime.Call(ctx, plugin, capability.Export, inputBytes, pluginInstancePolicy(plugin, pluginConfig))
+		outputBytes, err := runtime.Call(ctx, plugin, capability.Export, inputBytes, policy.WithHostAuth(auth))
 		if err != nil {
 			return nil, err
 		}
@@ -349,6 +350,9 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				DefaultPublic:               defaultPublic,
 				CreateSummitLogForCompleted: createSummitLog,
 				CategoryMapping:             categoryMapping(hostConfig),
+				Manifest:                    plugin.Manifest,
+				Policy:                      policy,
+				Auth:                        auth,
 			})
 			if err != nil {
 				return nil, err
@@ -395,7 +399,7 @@ func pluginDetail(ctx context.Context, runtime pluginsystem.Runtime, plugin plug
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}
-	outputBytes, err := runtime.Call(ctx, plugin, capability.Export, inputBytes, pluginInstancePolicy(plugin, pluginConfig))
+	outputBytes, err := runtime.Call(ctx, plugin, capability.Export, inputBytes, pluginInstancePolicy(plugin, pluginConfig).WithHostAuth(auth))
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}

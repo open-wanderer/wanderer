@@ -103,9 +103,20 @@ type PermissionManifest struct {
 }
 
 type NetworkPermissions struct {
-	StaticHosts           []string            `json:"staticHosts,omitempty"`
-	UserConfiguredOrigins []string            `json:"userConfiguredOrigins,omitempty"`
-	Redirects             RedirectPermissions `json:"redirects,omitempty"`
+	Connectors []ConnectorTargetPermission `json:"connectors,omitempty"`
+	Redirects  RedirectPermissions         `json:"redirects,omitempty"`
+}
+
+type ConnectorTargetPermission struct {
+	Name                     string   `json:"name"`
+	Type                     string   `json:"type"`
+	FixedBaseURL             string   `json:"fixedBaseURL,omitempty"`
+	ConfigKey                string   `json:"configKey,omitempty"`
+	AllowedPathPrefixes      []string `json:"allowedPathPrefixes,omitempty"`
+	Auth                     []string `json:"auth,omitempty"`
+	SupportsMediaAuth        bool     `json:"supportsMediaAuth,omitempty"`
+	SupportsStorageRedirects bool     `json:"supportsStorageRedirects,omitempty"`
+	SupportsCustomTLS        bool     `json:"supportsCustomTLS,omitempty"`
 }
 
 type RedirectPermissions struct {
@@ -125,11 +136,23 @@ type UploadPermissions struct {
 
 type HostRequestSpec struct {
 	Method  string            `json:"method"`
-	URL     string            `json:"url"`
+	Target  RequestTarget     `json:"target"`
 	Auth    string            `json:"auth,omitempty"`
 	Headers map[string]string `json:"headers,omitempty"`
 	Body    *HostRequestBody  `json:"body,omitempty"`
 	Expect  ResponseExpect    `json:"expect,omitempty"`
+}
+
+type RequestTarget struct {
+	Type      string       `json:"type"`
+	Connector string       `json:"connector,omitempty"`
+	Path      string       `json:"path,omitempty"`
+	Query     []QueryParam `json:"query,omitempty"`
+}
+
+type QueryParam struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type HostRequestBody struct {

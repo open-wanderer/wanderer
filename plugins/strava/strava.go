@@ -17,16 +17,16 @@ import (
 // 2026 Developer Program update). We cut over on 2027-03-01 — after the new host
 // has had time to stabilize, well before the old one disappears — so no manual
 // change or release is needed at the deadline.
-func stravaAPIBase() string {
-	return pickStravaAPIBase(time.Now())
+func stravaConnector() string {
+	return pickStravaConnector(time.Now())
 }
 
-func pickStravaAPIBase(now time.Time) string {
+func pickStravaConnector(now time.Time) string {
 	cutover := time.Date(2027, 3, 1, 0, 0, 0, 0, time.UTC)
 	if now.Before(cutover) {
-		return "https://www.strava.com/api/v3"
+		return "api"
 	}
-	return "https://www.api-v3.strava.com"
+	return "api_next"
 }
 
 type stravaClient struct {
@@ -42,54 +42,57 @@ func newClient(auth map[string]any) (*stravaClient, error) {
 }
 
 func (c *stravaClient) routes(page int, perPage int) ([]route, error) {
-	endpoint := fmt.Sprintf("%s/athlete/routes?page=%d&per_page=%d", stravaAPIBase(), page, perPage)
 	var routes []route
-	err := c.getJSON(endpoint, &routes)
+	err := c.getJSON("/athlete/routes", []sdk.QueryParam{
+		{Name: "page", Value: strconv.Itoa(page)},
+		{Name: "per_page", Value: strconv.Itoa(perPage)},
+	}, &routes)
 	return routes, err
 }
 
 func (c *stravaClient) route(id string) (*route, error) {
-	endpoint := fmt.Sprintf("%s/routes/%s", stravaAPIBase(), url.PathEscape(id))
 	var route route
-	err := c.getJSON(endpoint, &route)
+	err := c.getJSON("/routes/"+url.PathEscape(id), nil, &route)
 	return &route, err
 }
 
 func (c *stravaClient) routeGPX(id string) ([]byte, error) {
-	endpoint := fmt.Sprintf("%s/routes/%s/export_gpx", stravaAPIBase(), url.PathEscape(id))
-	return c.getBytes(endpoint)
+	return c.getBytes("/routes/" + url.PathEscape(id) + "/export_gpx")
 }
 
 func (c *stravaClient) activities(page int, perPage int, after int64) ([]activity, error) {
-	endpoint := fmt.Sprintf("%s/athlete/activities?page=%d&per_page=%d&after=%d", stravaAPIBase(), page, perPage, after)
 	var activities []activity
-	err := c.getJSON(endpoint, &activities)
+	err := c.getJSON("/athlete/activities", []sdk.QueryParam{
+		{Name: "page", Value: strconv.Itoa(page)},
+		{Name: "per_page", Value: strconv.Itoa(perPage)},
+		{Name: "after", Value: strconv.FormatInt(after, 10)},
+	}, &activities)
 	return activities, err
 }
 
 func (c *stravaClient) activity(id int64) (*detailedActivity, error) {
-	endpoint := fmt.Sprintf("%s/activities/%d", stravaAPIBase(), id)
 	var activity detailedActivity
-	err := c.getJSON(endpoint, &activity)
+	err := c.getJSON(fmt.Sprintf("/activities/%d", id), nil, &activity)
 	return &activity, err
 }
 
 func (c *stravaClient) activityStreams(id int64) (*activityStreamResponse, error) {
-	endpoint := fmt.Sprintf("%s/activities/%d/streams?keys=latlng,time,altitude&key_by_type=true", stravaAPIBase(), id)
 	var streams activityStreamResponse
-	err := c.getJSON(endpoint, &streams)
+	err := c.getJSON(fmt.Sprintf("/activities/%d/streams", id), []sdk.QueryParam{
+		{Name: "keys", Value: "latlng,time,altitude"},
+		{Name: "key_by_type", Value: "true"},
+	}, &streams)
 	return &streams, err
 }
 
 func (c *stravaClient) activityPhotos(id int64) ([]activityPhoto, error) {
-	endpoint := fmt.Sprintf("%s/activities/%d/photos?size=600", stravaAPIBase(), id)
 	var photos []activityPhoto
-	err := c.getJSON(endpoint, &photos)
+	err := c.getJSON(fmt.Sprintf("/activities/%d/photos", id), []sdk.QueryParam{{Name: "size", Value: "600"}}, &photos)
 	return photos, err
 }
 
-func (c *stravaClient) getJSON(endpoint string, out any) error {
-	response, body, err := c.request(endpoint, []string{"application/json"})
+func (c *stravaClient) getJSON(path string, query []sdk.QueryParam, out any) error {
+	response, body, err := c.request(path, query, []string{"application/json"})
 	if err != nil {
 		return err
 	}
@@ -99,8 +102,8 @@ func (c *stravaClient) getJSON(endpoint string, out any) error {
 	return json.Unmarshal(body, out)
 }
 
-func (c *stravaClient) getBytes(endpoint string) ([]byte, error) {
-	response, body, err := c.request(endpoint, []string{"application/gpx+xml", "application/octet-stream", "text/xml", "application/xml"})
+func (c *stravaClient) getBytes(path string) ([]byte, error) {
+	response, body, err := c.request(path, nil, []string{"application/gpx+xml", "application/octet-stream", "text/xml", "application/xml"})
 	if err != nil {
 		return nil, err
 	}
@@ -110,14 +113,19 @@ func (c *stravaClient) getBytes(endpoint string) ([]byte, error) {
 	return body, nil
 }
 
-func (c *stravaClient) request(endpoint string, contentTypes []string) (sdk.HostResponse, []byte, error) {
+func (c *stravaClient) request(path string, query []sdk.QueryParam, contentTypes []string) (sdk.HostResponse, []byte, error) {
 	accept := "application/json"
 	if len(contentTypes) > 0 {
 		accept = contentTypes[0]
 	}
 	return sdk.HostRequest(sdk.HostRequestSpec{
 		Method: "GET",
-		URL:    endpoint,
+		Target: sdk.RequestTarget{
+			Type:      "connector",
+			Connector: stravaConnector(),
+			Path:      path,
+			Query:     query,
+		},
 		Headers: map[string]string{
 			sdk.AuthHeaderAuthorization: sdk.AuthSchemeBearer + " " + c.accessToken,
 			"Accept":                    accept,

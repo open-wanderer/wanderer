@@ -106,7 +106,7 @@ func ExchangeOAuthToken(ctx context.Context, manifest Manifest, authContext Auth
 	if tokenURL.Scheme != "http" && tokenURL.Scheme != "https" {
 		return nil, fmt.Errorf("oauth token url scheme must be http or https")
 	}
-	if !NetworkURLAllowed(tokenURL, manifest.Permissions.Network, RequestPolicyContext{}) {
+	if !OAuthTokenURLAllowed(manifest, tokenURL) {
 		return nil, fmt.Errorf("oauth token host %q is not allowed by manifest permissions", tokenURL.Hostname())
 	}
 
@@ -182,6 +182,29 @@ func ExchangeOAuthToken(ctx context.Context, manifest Manifest, authContext Auth
 		return nil, fmt.Errorf("oauth token response has no access_token")
 	}
 	return &token, nil
+}
+
+func OAuthTokenURLAllowed(manifest Manifest, tokenURL *url.URL) bool {
+	for _, connector := range manifest.Permissions.Network.Connectors {
+		if connector.Type != ConnectorTypePublicAPI {
+			continue
+		}
+		baseURL, basePath, err := NormalizeConnectorBase(connector.FixedBaseURL, "")
+		if err != nil {
+			continue
+		}
+		target := ResolvedConnectorTarget{
+			Name:                connector.Name,
+			Type:                connector.Type,
+			BaseURL:             baseURL,
+			BasePath:            basePath,
+			AllowedPathPrefixes: connector.AllowedPathPrefixes,
+		}
+		if err := ValidateConnectorURL(target, tokenURL); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // RefreshOAuthToken uses the stored refresh token, persists the refreshed auth

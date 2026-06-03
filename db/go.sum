@@ -17,6 +17,8 @@ github.com/disintegration/imaging v1.6.2 h1:w1LecBlG2Lnp8B3jk5zSuNqd7b4DXhcjwek1
 github.com/disintegration/imaging v1.6.2/go.mod h1:44/5580QXChDfwIclfc/PCwrr44amcmDAg8hxG0Ewe4=
 github.com/domodwyer/mailyak/v3 v3.6.2 h1:x3tGMsyFhTCaxp6ycgR0FE/bu5QiNp+hetUuCOBXMn8=
 github.com/domodwyer/mailyak/v3 v3.6.2/go.mod h1:lOm/u9CyCVWHeaAmHIdF4RiKVxKUT/H5XX10lIKAL6c=
+github.com/doyensec/safeurl v0.2.3 h1:KJZHxTUMI17yUSy5umKmDLtzYBUxN6MkdSIyRI81DvY=
+github.com/doyensec/safeurl v0.2.3/go.mod h1:3H0cgRpPYPSpgxRRn5yGD35Ns/LgGX/BVWSBbzUqXtY=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/dvyukov/go-fuzz v0.0.0-20200318091601-be3528f3a813/go.mod h1:11Gm+ccJnvAhCNLlf5+cS9KjtbaD5I5zaZpFMsTHWTw=

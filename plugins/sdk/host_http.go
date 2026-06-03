@@ -39,19 +39,33 @@ func HostRequest(spec HostRequestSpec) (HostResponse, []byte, error) {
 	return response, body, nil
 }
 
-func Get(url string, headers map[string]string, expect ResponseExpect) (HostResponse, []byte, error) {
+func ConnectorRequest(method string, connector string, path string, query []QueryParam, headers map[string]string, expect ResponseExpect) (HostResponse, []byte, error) {
 	return HostRequest(HostRequestSpec{
-		Method:  "GET",
-		URL:     url,
+		Method: method,
+		Target: RequestTarget{
+			Type:      "connector",
+			Connector: connector,
+			Path:      path,
+			Query:     query,
+		},
 		Headers: headers,
 		Expect:  expect,
 	})
 }
 
-func PostJSON(url string, headers map[string]string, body any, expect ResponseExpect) (HostResponse, []byte, error) {
+func Get(connector string, path string, query []QueryParam, headers map[string]string, expect ResponseExpect) (HostResponse, []byte, error) {
+	return ConnectorRequest("GET", connector, path, query, headers, expect)
+}
+
+func PostJSON(connector string, path string, query []QueryParam, headers map[string]string, body any, expect ResponseExpect) (HostResponse, []byte, error) {
 	return HostRequest(HostRequestSpec{
-		Method:  "POST",
-		URL:     url,
+		Method: "POST",
+		Target: RequestTarget{
+			Type:      "connector",
+			Connector: connector,
+			Path:      path,
+			Query:     query,
+		},
 		Headers: headers,
 		Body: &HostRequestBody{
 			Type: HostRequestBodyTypeJSON,

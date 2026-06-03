@@ -3,6 +3,7 @@ module pocketbase
 go 1.25.0
 
 require (
+	github.com/doyensec/safeurl v0.2.3
 	github.com/extism/go-sdk v1.7.1
 	github.com/go-ap/jsonld v0.0.0-20250905102310-8480b0fe24d9
 	github.com/meilisearch/meilisearch-go v0.36.2

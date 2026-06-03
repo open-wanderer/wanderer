@@ -194,10 +194,8 @@ func validatePermissions(permissions PermissionManifest, auth AuthManifest) erro
 			return fmt.Errorf("permission references unknown auth context %q", authRef)
 		}
 	}
-	for _, host := range append([]string{}, permissions.Network.StaticHosts...) {
-		if err := validateHost(host); err != nil {
-			return err
-		}
+	if err := validateConnectors(permissions.Network.Connectors, authContexts); err != nil {
+		return err
 	}
 	for _, host := range permissions.Network.Redirects.Hosts {
 		if err := validateHost(host); err != nil {
@@ -209,6 +207,51 @@ func validatePermissions(permissions PermissionManifest, auth AuthManifest) erro
 	}
 	if permissions.Downloads.MaxBytes < 0 || permissions.Uploads.MaxBytes < 0 {
 		return fmt.Errorf("maxBytes must not be negative")
+	}
+	return nil
+}
+
+func validateConnectors(connectors []ConnectorTargetPermission, authContexts map[string]bool) error {
+	seen := map[string]bool{}
+	for _, connector := range connectors {
+		if strings.TrimSpace(connector.Name) == "" {
+			return fmt.Errorf("connector name is required")
+		}
+		if seen[connector.Name] {
+			return fmt.Errorf("duplicate connector %q", connector.Name)
+		}
+		seen[connector.Name] = true
+		switch connector.Type {
+		case ConnectorTypePublicAPI:
+			if strings.TrimSpace(connector.FixedBaseURL) == "" {
+				return fmt.Errorf("public_api connector %q requires fixedBaseURL", connector.Name)
+			}
+			if strings.TrimSpace(connector.ConfigKey) != "" {
+				return fmt.Errorf("public_api connector %q must not declare configKey", connector.Name)
+			}
+			if _, _, err := NormalizeConnectorBase(connector.FixedBaseURL, ""); err != nil {
+				return fmt.Errorf("connector %q fixedBaseURL: %w", connector.Name, err)
+			}
+		case ConnectorTypeConfigured:
+			if strings.TrimSpace(connector.ConfigKey) == "" {
+				return fmt.Errorf("configured connector %q requires configKey", connector.Name)
+			}
+			if strings.TrimSpace(connector.FixedBaseURL) != "" {
+				return fmt.Errorf("configured connector %q must not declare fixedBaseURL", connector.Name)
+			}
+		default:
+			return fmt.Errorf("connector %q has unsupported type %q", connector.Name, connector.Type)
+		}
+		for _, authRef := range connector.Auth {
+			if !authContexts[authRef] {
+				return fmt.Errorf("connector %q references unknown auth context %q", connector.Name, authRef)
+			}
+		}
+		for _, prefix := range connector.AllowedPathPrefixes {
+			if _, err := CanonicalURLPath(prefix); err != nil {
+				return fmt.Errorf("connector %q path prefix %q: %w", connector.Name, prefix, err)
+			}
+		}
 	}
 	return nil
 }

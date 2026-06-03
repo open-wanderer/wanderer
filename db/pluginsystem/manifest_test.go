@@ -97,7 +97,13 @@ func hammerheadManifestForTest() Manifest {
 		},
 		Permissions: PermissionManifest{
 			Network: NetworkPermissions{
-				StaticHosts: []string{"dashboard.hammerhead.io"},
+				Connectors: []ConnectorTargetPermission{{
+					Name:                "api",
+					Type:                ConnectorTypePublicAPI,
+					FixedBaseURL:        "https://dashboard.hammerhead.io",
+					AllowedPathPrefixes: []string{"/v1"},
+					Auth:                []string{"provider_session"},
+				}},
 			},
 			Auth: []string{"provider_session"},
 			Uploads: UploadPermissions{

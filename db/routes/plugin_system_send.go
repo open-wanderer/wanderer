@@ -107,7 +107,7 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 	if err != nil {
 		return err
 	}
-	output, err := runtime.Call(e.Request.Context(), plugin, capability.Export, inputBytes, policy)
+	output, err := runtime.Call(e.Request.Context(), plugin, capability.Export, inputBytes, policy.WithHostAuth(auth))
 	if err != nil {
 		return err
 	}

@@ -11,7 +11,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
-	"time"
+
+	"pocketbase/util"
 
 	extism "github.com/extism/go-sdk"
 )
@@ -32,6 +33,8 @@ type HostResponse struct {
 	Headers map[string]string
 	Body    []byte
 }
+
+var newConnectorHTTPClient = util.ConnectorHTTPClient
 
 // extismHostFunctions exposes the host APIs that WASM plugins may call. Each
 // function must delegate to the same policy-controlled host implementation that
@@ -103,6 +106,13 @@ func ExecuteHostRequest(ctx context.Context, manifest Manifest, policy RequestPo
 	if err := ValidateHostRequestSpec(manifest, spec, policy); err != nil {
 		return HostResponse{}, err
 	}
+	if err := InjectHostRequestAuthFromPolicy(manifest, policy.HostAuth, &spec); err != nil {
+		return HostResponse{}, err
+	}
+	resolved, err := ResolveRequestTarget(manifest, spec.Target, policy)
+	if err != nil {
+		return HostResponse{}, err
+	}
 
 	body, contentType, bodySize, err := hostRequestBody(spec, options)
 	if err != nil {
@@ -111,7 +121,7 @@ func ExecuteHostRequest(ctx context.Context, manifest Manifest, policy RequestPo
 	if err := validateHostRequestUpload(manifest, spec, contentType, bodySize); err != nil {
 		return HostResponse{}, err
 	}
-	req, err := http.NewRequestWithContext(ctx, spec.Method, spec.URL, body)
+	req, err := http.NewRequestWithContext(ctx, spec.Method, resolved.URL.String(), body)
 	if err != nil {
 		return HostResponse{}, err
 	}
@@ -125,13 +135,23 @@ func ExecuteHostRequest(ctx context.Context, manifest Manifest, policy RequestPo
 		req.Header.Set("Accept", "application/json")
 	}
 
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			redirected := spec
-			redirected.URL = req.URL.String()
-			return ValidateHostRequestSpec(manifest, redirected, policy)
-		},
+	client, err := newConnectorHTTPClient(util.ConnectorHTTPPolicy{
+		BaseURL:      resolved.Connector.BaseURL,
+		AllowPrivate: resolved.Connector.AllowPrivate,
+		TLSMode:      resolved.Connector.TLS.Mode,
+		TLSCABundle:  resolved.Connector.TLS.CABundle,
+	}, func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return fmt.Errorf("too many redirects")
+		}
+		previous := resolved.URL
+		if len(via) > 0 {
+			previous = via[len(via)-1].URL
+		}
+		return ValidateConnectorRedirect(resolved.Connector, previous, req.URL)
+	})
+	if err != nil {
+		return HostResponse{}, err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -242,7 +262,7 @@ func validateHostRequestUpload(manifest Manifest, spec HostRequestSpec, contentT
 
 func validateHostHTTPResponse(manifest Manifest, spec HostRequestSpec, resp *http.Response) error {
 	allowedContentTypes := effectiveResponseContentTypes(manifest, spec)
-	if len(allowedContentTypes) > 0 {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 && len(allowedContentTypes) > 0 {
 		contentType := resp.Header.Get("Content-Type")
 		mediaType, _, err := mime.ParseMediaType(contentType)
 		if err != nil || mediaType == "" {

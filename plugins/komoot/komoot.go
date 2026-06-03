@@ -25,10 +25,13 @@ var komootJSONContentTypes = []string{"application/json", "application/hal+json"
 var errTourKindMismatch = errors.New("tour kind mismatch")
 
 func login(email string, password string) (*komootClient, error) {
-	endpoint := "https://api.komoot.de/v006/account/email/" + url.PathEscape(email) + "/"
 	response, body, err := sdk.HostRequest(sdk.HostRequestSpec{
 		Method: "GET",
-		URL:    endpoint,
+		Target: sdk.RequestTarget{
+			Type:      "connector",
+			Connector: "api",
+			Path:      "/v006/account/email/" + url.PathEscape(email) + "/",
+		},
 		Headers: map[string]string{
 			sdk.AuthHeaderAuthorization: basicAuth(email, password),
 			"Accept":                    "application/hal+json",
@@ -64,10 +67,15 @@ func loginClient(auth map[string]any) (*komootClient, error) {
 	return login(email, password)
 }
 
-func (c *komootClient) get(endpoint string, out any) error {
+func (c *komootClient) get(path string, query []sdk.QueryParam, out any) error {
 	response, body, err := sdk.HostRequest(sdk.HostRequestSpec{
 		Method: "GET",
-		URL:    endpoint,
+		Target: sdk.RequestTarget{
+			Type:      "connector",
+			Connector: "api",
+			Path:      path,
+			Query:     query,
+		},
 		Headers: map[string]string{
 			sdk.AuthHeaderAuthorization: basicAuth(c.userID, c.token),
 			"Accept":                    "application/hal+json",
@@ -87,23 +95,32 @@ func (c *komootClient) get(endpoint string, out any) error {
 }
 
 func (c *komootClient) tours(page int, limit int) ([]tour, int, error) {
-	endpoint := fmt.Sprintf("https://api.komoot.de/v007/users/%s/tours/?page=%d&sort_field=date&sort_direction=desc&limit=%d", url.PathEscape(c.userID), page, limit)
 	var data toursResponse
-	err := c.get(endpoint, &data)
+	err := c.get("/v007/users/"+url.PathEscape(c.userID)+"/tours/", []sdk.QueryParam{
+		{Name: "page", Value: strconv.Itoa(page)},
+		{Name: "sort_field", Value: "date"},
+		{Name: "sort_direction", Value: "desc"},
+		{Name: "limit", Value: strconv.Itoa(limit)},
+	}, &data)
 	return data.Embedded.Tours, data.Page.TotalPages, err
 }
 
 func (c *komootClient) detailedTour(id int64) (*detailedTour, error) {
-	endpoint := fmt.Sprintf("https://api.komoot.de/v007/tours/%d?_embedded=coordinates,way_types,surfaces,directions,participants,timeline,cover_images&directions=v2&fields=timeline&format=coordinate_array&timeline_highlights_fields=tips,recommenders&page=2", id)
 	var data detailedTour
-	err := c.get(endpoint, &data)
+	err := c.get(fmt.Sprintf("/v007/tours/%d", id), []sdk.QueryParam{
+		{Name: "_embedded", Value: "coordinates,way_types,surfaces,directions,participants,timeline,cover_images"},
+		{Name: "directions", Value: "v2"},
+		{Name: "fields", Value: "timeline"},
+		{Name: "format", Value: "coordinate_array"},
+		{Name: "timeline_highlights_fields", Value: "tips,recommenders"},
+		{Name: "page", Value: "2"},
+	}, &data)
 	return &data, err
 }
 
 func (c *komootClient) coverImages(id int64) ([]imageItem, error) {
-	endpoint := fmt.Sprintf("https://api.komoot.de/v007/tours/%d/cover_images/", id)
 	var data coverImages
-	err := c.get(endpoint, &data)
+	err := c.get(fmt.Sprintf("/v007/tours/%d/cover_images/", id), nil, &data)
 	return data.Embedded.Items, err
 }
 

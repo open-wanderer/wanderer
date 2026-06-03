@@ -3,12 +3,12 @@ package importer
 import (
 	"context"
 	"encoding/base64"
-	"net"
 	"strings"
 	"testing"
 	"time"
 
 	pluginsystem "pocketbase/pluginsystem"
+	"pocketbase/util"
 )
 
 const sampleGPX = `<?xml version="1.0" encoding="UTF-8"?>
@@ -253,50 +253,19 @@ func TestExtensionFromContentTypes(t *testing.T) {
 	}
 }
 
-func TestIsPublicIP(t *testing.T) {
-	cases := map[string]bool{
-		"8.8.8.8":     true,
-		"1.1.1.1":     true,
-		"127.0.0.1":   false,
-		"10.0.0.1":    false,
-		"192.168.1.1": false,
-		"169.254.1.1": false,
-		"0.0.0.0":     false,
-		"224.0.0.1":   false,
-		"::1":         false,
-	}
-	for ip, want := range cases {
-		if got := isPublicIP(net.ParseIP(ip)); got != want {
-			t.Fatalf("isPublicIP(%s) = %v, want %v", ip, got, want)
-		}
-	}
-}
-
-func TestValidateRemoteMediaURL(t *testing.T) {
-	ctx := context.Background()
-
+func TestValidateRemoteMediaURLSyntax(t *testing.T) {
 	t.Run("rejects non-http scheme", func(t *testing.T) {
-		if err := validateRemoteMediaURL(ctx, "ftp://example.com/x"); err == nil {
+		if err := validateRemoteMediaURLSyntax("ftp://example.com/x"); err == nil {
 			t.Fatal("expected error for ftp scheme")
 		}
 	})
 	t.Run("rejects missing host", func(t *testing.T) {
-		if err := validateRemoteMediaURL(ctx, "http://"); err == nil {
+		if err := validateRemoteMediaURLSyntax("http://"); err == nil {
 			t.Fatal("expected error for missing host")
 		}
 	})
-	t.Run("rejects loopback", func(t *testing.T) {
-		if err := validateRemoteMediaURL(ctx, "http://127.0.0.1/photo.jpg"); err == nil {
-			t.Fatal("expected error for loopback host")
-		}
-	})
-	t.Run("rejects private", func(t *testing.T) {
-		if err := validateRemoteMediaURL(ctx, "http://10.0.0.5/photo.jpg"); err == nil {
-			t.Fatal("expected error for private host")
-		}
-	})
-	t.Run("allows public literal ip", func(t *testing.T) {
-		if err := validateRemoteMediaURL(ctx, "https://8.8.8.8/photo.jpg"); err != nil {
+	t.Run("allows http syntax", func(t *testing.T) {
+		if err := validateRemoteMediaURLSyntax("https://8.8.8.8/photo.jpg"); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -307,15 +276,37 @@ func TestPhotoFile(t *testing.T) {
 
 	t.Run("empty url", func(t *testing.T) {
 		photo := pluginsystem.Photo{Source: pluginsystem.MediaSource{Type: "url"}}
-		if _, err := photoFile(ctx, photo); err == nil {
+		if _, _, err := photoFile(ctx, photo, Options{}, 1024); err == nil {
 			t.Fatal("expected error for empty url")
 		}
 	})
 
 	t.Run("unsupported type", func(t *testing.T) {
-		photo := pluginsystem.Photo{Source: pluginsystem.MediaSource{Type: "carrier-pigeon"}}
-		if _, err := photoFile(ctx, photo); err == nil {
+		photo := pluginsystem.Photo{Source: pluginsystem.MediaSource{Type: "carrier"}}
+		if _, _, err := photoFile(ctx, photo, Options{}, 1024); err == nil {
 			t.Fatal("expected error for unsupported source type")
 		}
 	})
+}
+
+func TestPluginMediaBudgetRemainingBytes(t *testing.T) {
+	budget := &pluginMediaBudget{}
+	if got := budget.remainingBytes(); got != util.DefaultPluginMediaMaxBytes {
+		t.Fatalf("got %d, want per-file limit %d", got, util.DefaultPluginMediaMaxBytes)
+	}
+	budget.bytes = util.DefaultPluginMaxImportMediaBytes - 10
+	if got := budget.remainingBytes(); got != 10 {
+		t.Fatalf("got %d, want remaining aggregate budget", got)
+	}
+	budget.bytes = util.DefaultPluginMaxImportMediaBytes
+	if got := budget.remainingBytes(); got != 0 {
+		t.Fatalf("got %d, want exhausted budget", got)
+	}
+}
+
+func TestRemoveRawQueryParamOrdered(t *testing.T) {
+	raw := "z=last&api_key=secret&a=first&api_key=second"
+	if got := removeRawQueryParamOrdered(raw, "api_key"); got != "z=last&a=first" {
+		t.Fatalf("unexpected query: %q", got)
+	}
 }
