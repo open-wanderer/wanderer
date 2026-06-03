@@ -181,8 +181,9 @@ Used for one concrete import capability such as `list_routes.v1` or
 ```text
 syncPluginCapability
   -> runtime.Call(list export)
-  -> ExtismRuntime.Call
-  -> extismHostFunctions
+  -> WorkerRuntime.Call
+  -> plugin-worker process
+  -> worker host-function RPC bridge
   -> plugin export returns TrailSummary[]
   -> host filters already imported external ids
   -> runtime.Call(detail export) for new summaries

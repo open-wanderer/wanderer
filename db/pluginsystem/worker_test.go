@@ -3,12 +3,15 @@ package pluginsystem
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
+	extism "github.com/extism/go-sdk"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -73,6 +76,132 @@ func TestPluginWorkerExitsOnStdinEOF(t *testing.T) {
 	}
 }
 
+func TestPluginWorkerTruncatedFrameReturnsError(t *testing.T) {
+	var header [4]byte
+	binary.BigEndian.PutUint32(header[:], 100)
+	stdin := bytes.NewReader(append(header[:], []byte("partial")...))
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := RunPluginWorker(context.Background(), stdin, &stdout, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code for truncated frame")
+	}
+	if stderr.Len() == 0 {
+		t.Fatal("expected truncated frame error on stderr")
+	}
+}
+
+func TestPluginWorkerUnexpectedMessageTypeFails(t *testing.T) {
+	msg, err := workerMessageWithData(workerMessageHostHTTPResponse, workerHostHTTPResponse{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdin bytes.Buffer
+	if err := writeWorkerMessage(&stdin, defaultWorkerRequestMaxBytes, msg); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := RunPluginWorker(context.Background(), &stdin, &stdout, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code for unexpected message type")
+	}
+	reply, err := readWorkerMessage(&stdout, defaultWorkerResponseMaxBytes)
+	if err != nil {
+		t.Fatalf("read worker reply: %v", err)
+	}
+	if reply.Type != workerMessageError {
+		t.Fatalf("expected error reply, got %q", reply.Type)
+	}
+}
+
+func TestHandleCallExportRejectsWasmPathSwitch(t *testing.T) {
+	worker := &pluginWorkerProcess{
+		ctx:      context.Background(),
+		instance: &extism.Plugin{},
+		wasmPath: "/plugins/a.wasm",
+	}
+	msg, err := workerMessageWithData(workerMessageCallExport, workerCallExport{
+		WASMPath:  "/plugins/b.wasm",
+		Export:    "list_routes_v1",
+		SessionID: "sess-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = worker.handleCallExport(msg)
+	if err == nil {
+		t.Fatal("expected error when switching wasm path")
+	}
+	for _, want := range []string{"sess-1", "list_routes_v1", "/plugins/a.wasm", "/plugins/b.wasm"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q missing %q", err.Error(), want)
+		}
+	}
+}
+
+func TestHandleCallExportRejectsInvalidInput(t *testing.T) {
+	worker := &pluginWorkerProcess{
+		ctx:      context.Background(),
+		instance: &extism.Plugin{},
+		wasmPath: "/plugins/a.wasm",
+	}
+	msg, err := workerMessageWithData(workerMessageCallExport, workerCallExport{
+		WASMPath:    "/plugins/a.wasm",
+		Export:      "list_routes_v1",
+		InputBase64: "!!!not-base64!!!",
+		SessionID:   "sess-2",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = worker.handleCallExport(msg)
+	if err == nil {
+		t.Fatal("expected error for invalid input base64")
+	}
+	if !strings.Contains(err.Error(), "sess-2") || !strings.Contains(err.Error(), "decode call input") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPluginErrorForCode(t *testing.T) {
+	t.Run("falls back when raw error is empty", func(t *testing.T) {
+		got := pluginErrorForCode("list_routes_v1", 7, "")
+		if got.Code != "plugin_error" || !strings.Contains(got.Message, "code 7") {
+			t.Fatalf("unexpected fallback error: %#v", got)
+		}
+	})
+	t.Run("falls back when raw error is malformed", func(t *testing.T) {
+		got := pluginErrorForCode("list_routes_v1", 1, "{not json")
+		if got.Code != "plugin_error" {
+			t.Fatalf("expected fallback for malformed json, got %#v", got)
+		}
+	})
+	t.Run("falls back when code is empty", func(t *testing.T) {
+		got := pluginErrorForCode("list_routes_v1", 1, `{"message":"boom"}`)
+		if got.Code != "plugin_error" {
+			t.Fatalf("expected fallback for missing code, got %#v", got)
+		}
+	})
+	t.Run("passes through structured error", func(t *testing.T) {
+		got := pluginErrorForCode("list_routes_v1", 1, `{"code":"rate_limited","message":"slow down"}`)
+		if got.Code != "rate_limited" || got.Message != "slow down" {
+			t.Fatalf("expected structured error, got %#v", got)
+		}
+	})
+}
+
+func TestExecuteHostHTTPRequestRejectsInvalidPayload(t *testing.T) {
+	response := executeHostHTTPRequest(context.Background(), Manifest{}, RequestPolicyContext{}, []byte("not json"))
+	if response.Error == nil || response.Error.Code != "invalid_request" {
+		t.Fatalf("expected invalid_request error, got %#v", response)
+	}
+}
+
 func TestPluginWorkerHostRPCFatalSetsClearError(t *testing.T) {
 	worker := &pluginWorkerProcess{}
 	stack := []uint64{123}
@@ -127,6 +256,7 @@ func TestInjectHostRequestAuthUsesExistingSessionForRefresh(t *testing.T) {
 					Refresh:      &AuthRefresh{Mode: AuthRefreshModePlugin, Function: "refresh_session_v1"},
 				},
 			}},
+			Permissions: PermissionManifest{Auth: []string{"session"}},
 		}},
 		Instance: testPluginInstance("inst1", "plugin.test"),
 		Auth:     map[string]any{"email": "user@example.com", "password": "secret"},
@@ -188,6 +318,7 @@ func TestInjectHostRequestAuthDoesNotRequireRuntimeWhenSessionProvided(t *testin
 					Refresh:      &AuthRefresh{Mode: AuthRefreshModePlugin, Function: "refresh_session_v1"},
 				},
 			}},
+			Permissions: PermissionManifest{Auth: []string{"session"}},
 		}},
 		Instance: testPluginInstance("inst1", "plugin.test"),
 		Auth:     map[string]any{"email": "user@example.com"},

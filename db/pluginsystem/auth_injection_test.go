@@ -65,6 +65,7 @@ func TestInjectHostRequestAuthWithBearer(t *testing.T) {
 					SecretField: "token",
 				},
 			}},
+			Permissions: PermissionManifest{Auth: []string{"account"}},
 		}},
 		Auth: map[string]any{"token": "abc123"},
 		Spec: &spec,
@@ -99,6 +100,7 @@ func TestInjectHostRequestAuthWithAPIKeyQuery(t *testing.T) {
 					Name:        "key",
 				},
 			}},
+			Permissions: PermissionManifest{Auth: []string{"account"}},
 		}},
 		Auth: map[string]any{"apiKey": "secret"},
 		Spec: &spec,
@@ -133,6 +135,30 @@ func TestInjectHostRequestAuthFromPolicyWithBearer(t *testing.T) {
 	}
 }
 
+func TestInjectHostRequestAuthFromPolicyFailsWithEmptyAuth(t *testing.T) {
+	spec := HostRequestSpec{
+		Auth:    "account",
+		Headers: map[string]string{AuthHeaderAuthorization: "plugin supplied"},
+	}
+	manifest := Manifest{
+		Auth: AuthManifest{Contexts: map[string]AuthContext{
+			"account": {Type: AuthTypeBearer, SecretField: "token"},
+		}},
+		Permissions: PermissionManifest{Auth: []string{"account"}},
+	}
+
+	err := InjectHostRequestAuthFromPolicy(manifest, map[string]any{}, &spec)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != "bearer token is missing" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := spec.Headers[AuthHeaderAuthorization]; got != "plugin supplied" {
+		t.Fatalf("unexpected authorization header mutation: %q", got)
+	}
+}
+
 func TestInjectHostRequestAuthFromPolicyWithAPIKeyQuery(t *testing.T) {
 	spec := HostRequestSpec{
 		Auth: "account",
@@ -160,6 +186,35 @@ func TestInjectHostRequestAuthFromPolicyWithAPIKeyQuery(t *testing.T) {
 	}
 	if len(spec.Target.Query) != 1 || spec.Target.Query[0].Value != "host-secret" {
 		t.Fatalf("unexpected query: %#v", spec.Target.Query)
+	}
+}
+
+func TestInjectHostRequestAuthRequiresSpec(t *testing.T) {
+	err := InjectHostRequestAuth(context.Background(), AuthInjectionInput{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != "host request spec is required" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestInjectHostRequestAuthValidatesPermission(t *testing.T) {
+	spec := HostRequestSpec{Auth: "account"}
+	err := InjectHostRequestAuth(context.Background(), AuthInjectionInput{
+		Plugin: LocalPlugin{Manifest: Manifest{
+			Auth: AuthManifest{Contexts: map[string]AuthContext{
+				"account": {Type: AuthTypeBearer, SecretField: "token"},
+			}},
+		}},
+		Auth: map[string]any{"token": "abc123"},
+		Spec: &spec,
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != `auth context "account" is not permitted` {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

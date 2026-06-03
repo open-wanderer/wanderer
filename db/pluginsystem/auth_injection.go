@@ -72,7 +72,7 @@ func InjectRequestAuthForContext(manifest Manifest, auth map[string]any, context
 }
 
 func InjectHostRequestAuthFromPolicy(manifest Manifest, auth map[string]any, spec *HostRequestSpec) error {
-	if spec == nil || spec.Auth == "" || len(auth) == 0 {
+	if spec == nil || spec.Auth == "" {
 		return nil
 	}
 	if err := ValidateAuthReference(manifest, spec.Auth); err != nil {
@@ -148,8 +148,14 @@ func ValidateAuthContext(name string, context AuthContext) error {
 // InjectHostRequestAuth resolves the auth reference from a HostRequestSpec and
 // mutates the request with the provider-specific header/query/session token.
 func InjectHostRequestAuth(ctx context.Context, input AuthInjectionInput) error {
+	if input.Spec == nil {
+		return fmt.Errorf("host request spec is required")
+	}
 	if input.Spec.Auth == "" {
 		return nil
+	}
+	if err := ValidateAuthReference(input.Plugin.Manifest, input.Spec.Auth); err != nil {
+		return err
 	}
 	authContext, ok := input.Plugin.Manifest.Auth.Contexts[input.Spec.Auth]
 	if !ok {

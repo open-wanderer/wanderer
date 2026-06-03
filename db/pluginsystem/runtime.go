@@ -2,11 +2,8 @@ package pluginsystem
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-
-	extism "github.com/extism/go-sdk"
 )
 
 var ErrRuntimeUnavailable = errors.New("plugin runtime is not available")
@@ -53,8 +50,6 @@ func (UnavailableRuntime) OpenSession(context.Context, LocalPlugin, RequestPolic
 	return nil, ErrRuntimeUnavailable
 }
 
-type ExtismRuntime struct{}
-
 type PluginCallError struct {
 	PluginID    string
 	Export      string
@@ -66,65 +61,4 @@ func (e PluginCallError) Error() string {
 		return fmt.Sprintf("call %s.%s: %s", e.PluginID, e.Export, e.PluginError.Code)
 	}
 	return fmt.Sprintf("call %s.%s: %s: %s", e.PluginID, e.Export, e.PluginError.Code, e.PluginError.Message)
-}
-
-// Call loads the plugin WASM module, attaches wanderer host functions, invokes
-// the requested export, and converts plugin-reported JSON errors into Go errors.
-func (ExtismRuntime) Call(ctx context.Context, plugin LocalPlugin, export string, input []byte, policy RequestPolicyContext) ([]byte, error) {
-	session, err := ExtismRuntime{}.OpenSession(ctx, plugin, policy)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = session.Close(ctx)
-	}()
-	return session.Call(ctx, export, input)
-}
-
-func (ExtismRuntime) OpenSession(ctx context.Context, plugin LocalPlugin, policy RequestPolicyContext) (RuntimeSession, error) {
-	manifest := extism.Manifest{
-		Wasm: []extism.Wasm{
-			extism.WasmFile{Path: plugin.WASMPath},
-		},
-	}
-	instance, err := extism.NewPlugin(ctx, manifest, extism.PluginConfig{
-		EnableWasi: true,
-	}, extismHostFunctions(plugin.Manifest, policy))
-	if err != nil {
-		return nil, fmt.Errorf("create wasm plugin %s: %w", plugin.Manifest.ID, err)
-	}
-	return &extismRuntimeSession{plugin: plugin, policy: policy, instance: instance}, nil
-}
-
-type extismRuntimeSession struct {
-	plugin   LocalPlugin
-	policy   RequestPolicyContext
-	instance *extism.Plugin
-}
-
-func (s *extismRuntimeSession) Call(ctx context.Context, export string, input []byte) ([]byte, error) {
-	code, output, err := s.instance.CallWithContext(ctx, export, input)
-	if err != nil {
-		return nil, fmt.Errorf("call %s.%s: %w", s.plugin.Manifest.ID, export, err)
-	}
-	if code != 0 {
-		if pluginErr := s.instance.GetErrorWithContext(ctx); pluginErr != "" {
-			var parsed PluginError
-			if err := json.Unmarshal([]byte(pluginErr), &parsed); err == nil && parsed.Code != "" {
-				return nil, PluginCallError{PluginID: s.plugin.Manifest.ID, Export: export, PluginError: parsed}
-			}
-			return nil, fmt.Errorf("call %s.%s failed with code %d: %s", s.plugin.Manifest.ID, export, code, pluginErr)
-		}
-		return nil, fmt.Errorf("call %s.%s failed with code %d", s.plugin.Manifest.ID, export, code)
-	}
-	return output, nil
-}
-
-func (s *extismRuntimeSession) Close(ctx context.Context) error {
-	if s.instance == nil {
-		return nil
-	}
-	err := s.instance.Close(ctx)
-	s.instance = nil
-	return err
 }

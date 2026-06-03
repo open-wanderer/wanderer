@@ -20,9 +20,11 @@ const (
 	defaultWorkerResponseMaxBytes = 64 * 1024 * 1024
 )
 
+// workerMessage is one framed RPC message on the worker stdio protocol. The
+// protocol is strictly synchronous (one call_export in flight at a time, with
+// host HTTP RPC nested synchronously), so messages carry no correlation ID.
 type workerMessage struct {
 	Type string          `json:"type"`
-	ID   string          `json:"id,omitempty"`
 	Data json.RawMessage `json:"data,omitempty"`
 }
 

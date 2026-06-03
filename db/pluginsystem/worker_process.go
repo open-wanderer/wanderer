@@ -38,6 +38,7 @@ type pluginWorkerProcess struct {
 	requestMaxBytes  int
 	responseMaxBytes int
 	wasmPath         string
+	sessionID        string
 	instance         *extism.Plugin
 	fatalErr         error
 }
@@ -52,7 +53,11 @@ func (w *pluginWorkerProcess) run() error {
 	for {
 		msg, err := readWorkerMessage(w.stdin, w.requestMaxBytes)
 		if err != nil {
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
+			// A clean io.EOF means the parent closed stdin without a
+			// shutdown frame (e.g. it crashed); exit quietly. An
+			// io.ErrUnexpectedEOF means stdin was cut mid-frame, which is a
+			// truncated/corrupt frame and should surface as an error.
+			if err == io.EOF {
 				return nil
 			}
 			return err
@@ -82,38 +87,51 @@ func (w *pluginWorkerProcess) handleCallExport(msg workerMessage) error {
 	if call.WASMPath == "" || call.Export == "" {
 		return fmt.Errorf("call_export requires wasmPath and export")
 	}
+	// The session ID is set by the parent once per worker process and reused
+	// for every call. It carries no routing semantics here (a worker serves a
+	// single wasm path) but is threaded into errors so captured stderr can be
+	// tied back to a specific session during diagnosis.
+	w.sessionID = call.SessionID
 	if w.instance == nil {
 		if err := w.openPlugin(call.WASMPath); err != nil {
-			return err
+			return w.errCtx(call.Export, err)
 		}
 	} else if call.WASMPath != w.wasmPath {
-		return fmt.Errorf("worker session cannot switch wasm path")
+		return w.errCtx(call.Export, fmt.Errorf("worker session cannot switch wasm path (have %q, got %q)", w.wasmPath, call.WASMPath))
 	}
 
 	input, err := decodeWorkerBytes(call.InputBase64)
 	if err != nil {
-		return err
+		return w.errCtx(call.Export, fmt.Errorf("decode call input: %w", err))
 	}
 	w.fatalErr = nil
 	code, output, err := w.instance.CallWithContext(w.ctx, call.Export, input)
 	if w.fatalErr != nil {
-		return w.fatalErr
+		return w.errCtx(call.Export, w.fatalErr)
 	}
 	if err != nil {
-		return fmt.Errorf("call %s: %w", call.Export, err)
+		return w.errCtx(call.Export, fmt.Errorf("call %s: %w", call.Export, err))
 	}
 	if code != 0 {
-		pluginErr := w.instance.GetErrorWithContext(w.ctx)
-		var parsed PluginError
-		if pluginErr == "" || json.Unmarshal([]byte(pluginErr), &parsed) != nil || parsed.Code == "" {
-			return w.sendCallResult(workerCallResult{PluginError: &PluginError{
-				Code:    "plugin_error",
-				Message: fmt.Sprintf("call %s failed with code %d", call.Export, code),
-			}})
-		}
-		return w.sendCallResult(workerCallResult{PluginError: &parsed})
+		pluginErr := pluginErrorForCode(call.Export, code, w.instance.GetErrorWithContext(w.ctx))
+		return w.sendCallResult(workerCallResult{PluginError: &pluginErr})
 	}
 	return w.sendCallResult(workerCallResult{OutputBase64: encodeWorkerBytes(output)})
+}
+
+// pluginErrorForCode maps a non-zero export return code into the PluginError
+// reported to the parent. It prefers the structured error JSON the plugin set
+// via the host error API, and falls back to a generic plugin_error when that
+// payload is missing, malformed, or has no code.
+func pluginErrorForCode(export string, code uint32, rawErr string) PluginError {
+	var parsed PluginError
+	if rawErr == "" || json.Unmarshal([]byte(rawErr), &parsed) != nil || parsed.Code == "" {
+		return PluginError{
+			Code:    "plugin_error",
+			Message: fmt.Sprintf("call %s failed with code %d", export, code),
+		}
+	}
+	return parsed
 }
 
 func (w *pluginWorkerProcess) openPlugin(wasmPath string) error {
@@ -139,7 +157,7 @@ func (w *pluginWorkerProcess) hostFunctions() []extism.HostFunction {
 		func(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64) {
 			requestBytes, err := plugin.ReadBytes(stack[0])
 			if err != nil {
-				w.writeHostFunctionResponse(ctx, plugin, stack, hostHTTPResponse{
+				writeHostHTTPResponse(ctx, plugin, stack, hostHTTPResponse{
 					Error: &PluginError{Code: "invalid_request", Message: err.Error()},
 				})
 				return
@@ -148,7 +166,7 @@ func (w *pluginWorkerProcess) hostFunctions() []extism.HostFunction {
 				RequestBase64: encodeWorkerBytes(requestBytes),
 			})
 			if err != nil {
-				w.writeHostFunctionResponse(ctx, plugin, stack, hostHTTPResponse{
+				writeHostHTTPResponse(ctx, plugin, stack, hostHTTPResponse{
 					Error: &PluginError{Code: "internal_error", Message: err.Error()},
 				})
 				return
@@ -191,16 +209,32 @@ func (w *pluginWorkerProcess) hostFunctions() []extism.HostFunction {
 	return []extism.HostFunction{fn}
 }
 
-func (w *pluginWorkerProcess) writeHostFunctionResponse(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64, response hostHTTPResponse) {
-	_ = ctx
-	writeHostHTTPResponse(ctx, plugin, stack, response)
-}
-
 func (w *pluginWorkerProcess) failHostRPC(stack []uint64, err error) {
 	w.fatalErr = err
 	stack[0] = 0
 }
 
+// errCtx annotates a fatal worker error with the active session and export so
+// the message that the parent captures from stderr can be tied back to a
+// specific call during diagnosis.
+func (w *pluginWorkerProcess) errCtx(export string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("session %s export %s: %w", w.sessionID, export, err)
+}
+
+// Worker error channels follow a strict convention:
+//
+//   - sendCallResult with a PluginError reports a business-level rejection from
+//     the plugin (a bad call code). The session stays alive and reusable; the
+//     parent surfaces it as a PluginCallError.
+//   - sendError reports a broken protocol or runtime (corrupt frame, host RPC
+//     failure, unexpected message). The parent treats it as fatal and tears the
+//     session down.
+//
+// Keep new failure paths on the correct channel: recoverable plugin outcomes
+// use sendCallResult, anything that invalidates the session uses sendError.
 func (w *pluginWorkerProcess) sendCallResult(result workerCallResult) error {
 	msg, err := workerMessageWithData(workerMessageCallResult, result)
 	if err != nil {

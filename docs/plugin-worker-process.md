@@ -59,8 +59,8 @@ Explicitly out of scope for this release:
 
 Current model:
 
-- backend calls `ExtismRuntime.Call(...)` directly
-- host functions run in-process
+- backend calls `WorkerRuntime.Call(...)` or opens a `WorkerRuntime` session
+- host functions run in the worker and proxy host requests back to the backend
 
 Target model:
 
@@ -499,7 +499,7 @@ Responsibilities:
 
 Change:
 
-- replace the direct in-process `ExtismRuntime.Call(...)` execution path with a
+- replace the direct in-process Extism execution path with a
   worker-backed, session-oriented runtime implementation
 - pass an absolute plugin WASM path to the worker instead of relying on process
   working-directory behavior

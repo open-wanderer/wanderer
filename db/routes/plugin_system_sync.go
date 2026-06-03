@@ -210,6 +210,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	createSummitLog := boolOption(hostConfig, "createSummitLogForCompleted", true)
 	runtime, err := pluginsystem.NewRuntimeRegistry().RuntimeFor(plugin)
 	if err != nil {
+		setPluginInstanceStatusForError(app, instance, err)
 		return nil, err
 	}
 	sessions := &pluginSyncRuntimeSession{
@@ -218,6 +219,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 		policy:  pluginInstancePolicy(plugin, pluginConfig).WithHostAuth(auth),
 	}
 	if err := sessions.open(ctx); err != nil {
+		setPluginInstanceStatusForError(app, instance, err)
 		return nil, err
 	}
 	defer func() {

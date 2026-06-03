@@ -277,20 +277,7 @@ func (s *workerRuntimeSession) handleHostHTTPRequest(ctx context.Context, msg wo
 	if err != nil {
 		return err
 	}
-	response := hostHTTPResponse{}
-	var spec HostRequestSpec
-	if err := json.Unmarshal(requestBytes, &spec); err != nil {
-		response.Error = &PluginError{Code: "invalid_request", Message: "invalid host request: " + err.Error()}
-	} else {
-		executed, err := ExecuteHostRequest(ctx, s.plugin.Manifest, s.policy, spec, HostRequestOptions{})
-		if err != nil {
-			response.Error = &PluginError{Code: "provider_unavailable", Message: err.Error()}
-		} else {
-			response.Status = executed.Status
-			response.Headers = executed.Headers
-			response.BodyBase64 = encodeWorkerBytes(executed.Body)
-		}
-	}
+	response := executeHostHTTPRequest(ctx, s.plugin.Manifest, s.policy, requestBytes)
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
 		return err

@@ -50,35 +50,38 @@ func extismHostFunctions(manifest Manifest, policy RequestPolicyContext) []extis
 				})
 				return
 			}
-
-			var spec HostRequestSpec
-			if err := json.Unmarshal(requestBytes, &spec); err != nil {
-				writeHostHTTPResponse(ctx, plugin, stack, hostHTTPResponse{
-					Error: &PluginError{Code: "invalid_request", Message: "invalid host request: " + err.Error()},
-				})
-				return
-			}
-
-			executed, err := ExecuteHostRequest(ctx, manifest, policy, spec, HostRequestOptions{})
-			response := hostHTTPResponse{}
-			if err != nil {
-				response = hostHTTPResponse{
-					Error: &PluginError{Code: "provider_unavailable", Message: err.Error()},
-				}
-			} else {
-				response = hostHTTPResponse{
-					Status:     executed.Status,
-					Headers:    executed.Headers,
-					BodyBase64: base64.StdEncoding.EncodeToString(executed.Body),
-				}
-			}
-			writeHostHTTPResponse(ctx, plugin, stack, response)
+			writeHostHTTPResponse(ctx, plugin, stack, executeHostHTTPRequest(ctx, manifest, policy, requestBytes))
 		},
 		[]extism.ValueType{extism.ValueTypePTR},
 		[]extism.ValueType{extism.ValueTypePTR},
 	)
 	fn.SetNamespace("wanderer")
 	return []extism.HostFunction{fn}
+}
+
+// executeHostHTTPRequest turns a raw plugin http_request payload into the
+// hostHTTPResponse that the plugin reads back. It is the single source of truth
+// for the request/response contract shared by the in-process runtime
+// (extismHostFunctions) and the worker process (handleHostHTTPRequest), so the
+// two paths cannot drift on error codes or response shape.
+func executeHostHTTPRequest(ctx context.Context, manifest Manifest, policy RequestPolicyContext, requestBytes []byte) hostHTTPResponse {
+	var spec HostRequestSpec
+	if err := json.Unmarshal(requestBytes, &spec); err != nil {
+		return hostHTTPResponse{
+			Error: &PluginError{Code: "invalid_request", Message: "invalid host request: " + err.Error()},
+		}
+	}
+	executed, err := ExecuteHostRequest(ctx, manifest, policy, spec, HostRequestOptions{})
+	if err != nil {
+		return hostHTTPResponse{
+			Error: &PluginError{Code: "provider_unavailable", Message: err.Error()},
+		}
+	}
+	return hostHTTPResponse{
+		Status:     executed.Status,
+		Headers:    executed.Headers,
+		BodyBase64: base64.StdEncoding.EncodeToString(executed.Body),
+	}
 }
 
 func writeHostHTTPResponse(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64, response hostHTTPResponse) {

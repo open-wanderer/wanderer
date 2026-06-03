@@ -143,6 +143,11 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 	}); err != nil {
 		return apis.NewBadRequestError("plugin auth injection failed", err)
 	}
+	// Auth is fully resolved above (including OAuth refresh and plugin session
+	// refresh). Clearing the reference makes the route the sole injector so the
+	// executor's policy-based injection becomes a no-op instead of re-injecting
+	// against an empty policy.HostAuth.
+	plan.Request.Auth = ""
 	if err := executeHostRequest(e.Request.Context(), plugin.Manifest, policy, plan.Request, gpx); err != nil {
 		return err
 	}
