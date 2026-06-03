@@ -168,7 +168,14 @@ Minimal shape:
   ],
   "permissions": {
     "network": {
-      "staticHosts": ["api.example.com"]
+      "connectors": [
+        {
+          "name": "api",
+          "type": "public_api",
+          "fixedBaseURL": "https://api.example.com",
+          "allowedPathPrefixes": ["/v1"]
+        }
+      ]
     },
     "downloads": {
       "maxBytes": 1048576,
@@ -183,8 +190,70 @@ Important rules:
 - `runtime.entrypoint` must be relative to the plugin directory.
 - `id` must match the installed directory name by convention.
 - `capabilities[].export` names the WASM export the runtime calls.
-- `permissions.network.staticHosts` lists provider hosts the plugin may call.
+- `permissions.network.connectors` declares every provider target the plugin may
+  request through the host.
 - per-request limits may narrow manifest limits, but never expand them.
+
+### Network connectors
+
+Provider HTTP is connector-based. Plugins do not send absolute provider URLs to
+the host; they name a connector and a relative path. The host resolves that
+connector to a concrete base URL, validates the path scope, injects auth, and
+executes the request.
+
+Connector types:
+
+| Type | Purpose |
+| --- | --- |
+| `public_api` | Fixed public provider API declared in the manifest. Use this for SaaS APIs such as Strava, komoot, or Hammerhead. |
+| `configured` | Provider target configured by the host under `config.host.connectors`. Use this for self-hosted services. |
+
+`public_api` connectors must declare `fixedBaseURL`:
+
+```json
+{
+  "name": "api",
+  "type": "public_api",
+  "fixedBaseURL": "https://api.example.com",
+  "allowedPathPrefixes": ["/v1"],
+  "auth": ["oauth_access_token"]
+}
+```
+
+`configured` connectors must declare `configKey`; the host supplies the concrete
+base URL and trust settings:
+
+```json
+{
+  "name": "media",
+  "type": "configured",
+  "configKey": "immich",
+  "allowedPathPrefixes": ["/api"],
+  "auth": ["api_key"],
+  "supportsMediaAuth": true,
+  "supportsStorageRedirects": true,
+  "supportsCustomTLS": true
+}
+```
+
+Connector fields:
+
+| Field | Meaning |
+| --- | --- |
+| `name` | Connector identifier used by `HostRequestSpec.target.connector` and `MediaRef.connector`. |
+| `type` | `public_api` or `configured`. |
+| `fixedBaseURL` | Fixed URL for public APIs. Must not include credentials, query, or fragment. |
+| `configKey` | Host config key for configured connectors. |
+| `allowedPathPrefixes` | Relative provider paths the plugin may request. Defaults to `/` when empty. |
+| `auth` | Auth contexts allowed for this connector. |
+| `supportsMediaAuth` | Allows connector media downloads to reference an auth context. |
+| `supportsStorageRedirects` | Allows connector media downloads to redirect to configured storage origins. |
+| `supportsCustomTLS` | Allows the host to attach a custom CA bundle to this connector. |
+
+The host validates scheme, host, effective port, base path, path prefixes,
+redirect targets, TLS policy, and IP policy. `allowPrivate`, custom CA bundles,
+and storage origins are host-owned settings; plugin output can never enable
+private-network access.
 
 ## Capabilities
 
@@ -373,6 +442,50 @@ rules, deduplicates by provider/external ID, and stores the returned state.
 Trail photos are attached to the imported trail. Waypoint photos are attached to
 the corresponding waypoint records.
 
+Media sources have two trust models:
+
+| Source type | Meaning |
+| --- | --- |
+| `url` | Public external media URL. The host fetches it with public-only SSRF protections and bounded size limits. |
+| `connector` | Provider-owned media fetched through a declared connector, optional host-injected auth, connector TLS/IP policy, and connector-scoped redirects. |
+
+Public media example:
+
+```json
+{
+  "filename": "cover.jpg",
+  "contentType": "image/jpeg",
+  "source": {
+    "type": "url",
+    "url": "https://cdn.example.com/photos/cover.jpg"
+  }
+}
+```
+
+Connector media example:
+
+```json
+{
+  "filename": "original.jpg",
+  "contentType": "image/jpeg",
+  "source": {
+    "type": "connector",
+    "mediaRef": {
+      "connector": "media",
+      "auth": "api_key",
+      "path": "/api/assets/123/original",
+      "query": [
+        { "name": "size", "value": "preview" }
+      ],
+      "assetId": "123"
+    }
+  }
+}
+```
+
+`mediaRef.path` is required for connector downloads. `assetId` is metadata only
+for now; the host does not resolve `assetId` into a URL.
+
 Plugins should return GPX as the canonical track. If the provider exposes
 authoritative summary metrics, the plugin may additionally return them in
 `metadata`:
@@ -407,6 +520,7 @@ Supported host fields:
 | `merge.enabled` | boolean | Trail import | Runs auto-merge after creating imported trails. |
 | `createSummitLogForCompleted` | boolean | Trail import | Creates summit logs for completed imported trails. Defaults to `true`. |
 | `categoryMapping` | object | Trail import | Maps plugin-provided `metadata.providerCategory` values to local category IDs or category names. |
+| `connectors` | object | Host request/media policy | Concrete settings for configured connectors. |
 
 Example:
 
@@ -420,6 +534,39 @@ Example:
   }
 }
 ```
+
+Configured connector host config shape:
+
+```json
+{
+  "hostConfig": {
+    "connectors": {
+      "immich": {
+        "baseURL": "https://photos.example.com",
+        "basePath": "/immich",
+        "allowPrivate": false,
+        "tls": {
+          "mode": "system"
+        },
+        "storageOrigins": {
+          "object-storage": {
+            "baseURL": "https://storage.example.com",
+            "basePath": "/assets",
+            "allowPrivate": false,
+            "tls": {
+              "mode": "system"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+`tls.mode` supports `system` and `customCA`. Custom CA bundles are trusted only
+when the manifest connector declares `supportsCustomTLS`; certificate
+verification is not disabled.
 
 The host defines the semantics of these fields. Plugins only provide defaults
 or hints; custom plugin settings belong in `configSchema` and are passed to the
@@ -452,6 +599,7 @@ temporary_unavailable
 
 Plugins cannot perform arbitrary provider I/O. They ask the host to execute
 provider requests through the WASM host function `wanderer.http_request`.
+Absolute provider URLs are not part of the request ABI.
 
 The request shape is `HostRequestSpec`:
 
@@ -480,7 +628,7 @@ The request shape is `HostRequestSpec`:
 The host validates:
 
 - connector identity, scheme, host, effective port, base path, and path scope
-- auth context reference
+- auth context reference and connector-specific auth allowance
 - manifest network permissions
 - response content type
 - response size
@@ -503,6 +651,12 @@ response, body, err := sdk.HostRequest(sdk.HostRequestSpec{
     },
 })
 ```
+
+Auth referenced by `HostRequestSpec.auth` is injected by the host. OAuth,
+bearer, and API-key contexts are supported for plugin-initiated host requests.
+Session auth requires route-managed injection; if a plugin calls
+`wanderer.http_request` with a session auth context, the host rejects the
+request instead of silently sending it unauthenticated.
 
 ## Sending routes
 
@@ -631,7 +785,9 @@ Session auth is for providers that require plugin-mediated login:
 
 The host passes only the declared secret fields to the refresh export. The
 returned session token is stored encrypted and injected by the host into future
-host-executed requests that reference the auth context.
+route-managed host-executed requests that reference the auth context, such as
+`prepare_send_route.v1` upload plans. Plugin-initiated `wanderer.http_request`
+calls cannot refresh session auth themselves.
 
 ### API key and bearer
 
@@ -651,6 +807,20 @@ API key and bearer contexts use a configured secret field:
   }
 }
 ```
+
+## Runtime isolation
+
+WASM plugins run in a separate worker process for each sync or send-route job.
+All exports within that job share the same worker session and are called
+sequentially. If a plugin calls `wanderer.http_request`, the worker forwards the
+request bytes back to the backend; the backend remains the only process that
+holds connector policy, decrypted host auth, custom CA bundles, and HTTP
+execution logic.
+
+The worker boundary protects the backend from plugin crashes and hangs and
+enforces request/response frame limits and timeouts. It is not an OS-level
+sandbox for outbound network access; plugin-controlled provider traffic must
+still go through the host request API.
 
 ## Plugin state
 

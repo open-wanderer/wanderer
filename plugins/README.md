@@ -70,6 +70,7 @@ host fields are:
 | `merge.enabled` | Runs auto-merge after trail import. |
 | `createSummitLogForCompleted` | Creates summit logs for completed imports. |
 | `categoryMapping` | Maps `metadata.providerCategory` to local category IDs or names. |
+| `connectors` | Provides host-owned base URL, TLS, private-network, and storage redirect settings for configured connectors. |
 
 Trail import plugins should keep provider-specific category values in
 `metadata.providerCategory`. They may also provide provider summary metrics in
@@ -168,9 +169,11 @@ syncPluginInstance
   -> RuntimeFor(plugin)
   -> decryptedInstanceAuth
   -> RefreshOAuthAuthIfNeeded
+  -> runtime.OpenSession(plugin, policy.WithHostAuth(auth))
   -> loop syncCapabilityDescriptors
   -> pluginCapability
   -> syncPluginCapability
+  -> session.Close
 ```
 
 ### Sync capability
@@ -180,13 +183,12 @@ Used for one concrete import capability such as `list_routes.v1` or
 
 ```text
 syncPluginCapability
-  -> runtime.Call(list export)
-  -> WorkerRuntime.Call
+  -> session.Call(list export)
   -> plugin-worker process
   -> worker host-function RPC bridge
   -> plugin export returns TrailSummary[]
   -> host filters already imported external ids
-  -> runtime.Call(detail export) for new summaries
+  -> session.Call(detail export) for new summaries
   -> plugin detail export returns TrailImport
   -> importer.ImportTrail
   -> update capability state and counters
@@ -200,13 +202,17 @@ policy, executes the HTTP request, and returns the response to WASM.
 ```text
 plugin sdk.HostRequest
   -> WASM import wanderer.http_request
-  -> extism host function http_request
+  -> worker-side extism host function http_request
+  -> worker host_http_request RPC
+  -> backend executeHostHTTPRequest
   -> ExecuteHostRequest
-  -> ValidateHostRequestSpec
+  -> InjectHostRequestAuthFromPolicy
+  -> ValidateAndResolveHostRequestSpec
   -> hostRequestBody
   -> validateHostRequestUpload
-  -> http.Client.Do
+  -> connector-scoped http.Client.Do
   -> validateHostHTTPResponse
+  -> worker host_http_response RPC
   -> return HostResponse to plugin
 ```
 
@@ -220,9 +226,11 @@ POST /plugins/send-route
   -> localPluginCapability(prepare_send_route.v1)
   -> util.TrailAccessibleByUser
   -> readTrailGPX
-  -> runtime.Call(prepare_send_route_v1)
+  -> runtime.OpenSession(plugin, policy.WithHostAuth(auth))
+  -> session.Call(prepare_send_route_v1)
   -> plugin returns UploadPlan
   -> ValidateHostRequestSpec
   -> InjectHostRequestAuth
   -> ExecuteHostRequest
+  -> session.Close
 ```

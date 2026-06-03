@@ -34,11 +34,9 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | POCKETBASE_SMTP_USERNAME       | The username used to authenticate with the SMTP server                                                            |                       |
 | POCKETBASE_SMTP_PASSWORD       | The password used to authenticate with the SMTP server                                                            |                       |
 
-Plugins are not configured through an environment variable. The backend loads plugins from direct child directories of `data/plugins`. Each plugin must have its manifest at `data/plugins/<plugin-id>/plugin.json`.
-
-When running from a source checkout, first-party plugin source lives under `plugins/`, but runtime bundles should be copied to `data/plugins`. Run `make plugins-install-local` once after a fresh checkout to build and install the bundled plugins locally.
-
-Official Docker images do not include provider plugins. Download plugin bundles from the GitHub release assets and extract them into the mounted `./data/plugins` directory.
+Plugins are not configured through an environment variable. See
+[Plugin installation](/run/installation/plugins) for installing runtime plugin
+bundles and configuring self-hosted connector trust settings.
 
 ## Frontend
 
@@ -83,3 +81,6 @@ services:
     volumes:
       - ./certs/ca.pem:/etc/ssl/private-ca/ca.pem:ro
 ```
+
+Provider plugin connector CAs are configured per connector when a plugin
+supports custom TLS. They are not read from `NODE_EXTRA_CA_CERTS`.

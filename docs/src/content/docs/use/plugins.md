@@ -3,23 +3,13 @@ title: Plugins
 description: How to set up third-party provider plugins with wanderer.
 ---
 
-Third-party providers are provided by locally installed WASM plugins. First-party
-plugins are bundled in the wanderer repository under `plugins/`. Runtime plugin
-bundles live as direct child directories below `data/plugins` and are shown in
-the plugin settings once their `plugin.json` manifest has been discovered.
+Plugins add optional functionality that is not built into the core application.
+Once an administrator has installed a plugin, it appears in the plugin settings
+page where users can configure and enable it.
 
-Plugin capabilities decide which actions are available. A provider may support route listing, activity listing, media import, or sending a route from a trail's action menu.
-
-There is no built-in plugin store. Install plugins by downloading a plugin
-bundle from the GitHub release assets, extracting it, and copying the extracted
-plugin directory into `data/plugins`.
-
-Community plugins can be discovered through the project's public plugin list,
-for example a GitHub discussion maintained outside the application.
-
-Plugins with username/password or API-key auth can be saved and enabled
-directly. OAuth plugins have a separate connection step: save the settings,
-complete the provider authorization flow, and then enable the plugin.
+Plugin installation and self-hosted connector trust settings are administrator
+tasks. See [Plugin installation](/run/installation/plugins) for runtime bundle
+and connector details.
 
 ## Strava Plugin
 
