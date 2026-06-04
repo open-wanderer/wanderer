@@ -464,9 +464,10 @@
             new ClusterLayer(map, geojson, {
                 "unclustered-point": {
                     onEnter: (e) => {
+                        if (map) map.getCanvas().style.cursor = "pointer";
                         const id = (e as any).features[0].properties.id;
                         const trail = trails.find((t) => t.id === id);
-                        if (!trail) return;
+                        if (!hasTrailDetails(trail)) return;
                         highlightCluster(trail, e.lngLat);
                     },
                 },
@@ -485,12 +486,13 @@
                 listeners: {
                     preview: {
                         onEnter: (e) => {
+                            if (map) map.getCanvas().style.cursor = "pointer";
                             const trail = trails.find(
                                 (t) =>
                                     t.id ===
                                     (e as any).features[0].properties.trail,
                             );
-                            if (!trail) return;
+                            if (!hasTrailDetails(trail)) return;
                             highlightCluster(trail, e.lngLat);
                         },
                     },
@@ -593,11 +595,15 @@
         // map?.setPaintProperty(id, "line-color", "#648ad5");
     }
 
+    function hasTrailDetails(trail: Trail | undefined): trail is Trail {
+        return Boolean(trail?.name?.trim());
+    }
+
     export async function highlightCluster(
         trail: Trail,
         lnglat?: M.LngLatLike,
     ) {
-        if (!map || !map.style) {
+        if (!map || !map.style || !hasTrailDetails(trail)) {
             return;
         }
         clusterPopup?.remove();
