@@ -3,7 +3,6 @@ package federation
 import (
 	"fmt"
 	"os"
-	"path"
 	"time"
 
 	pub "github.com/go-ap/activitypub"
@@ -175,8 +174,7 @@ func processUnlikeActivity(app core.App, actor *core.Record, activity pub.Activi
 
 	likeActivity := activity.Object.(*pub.Activity)
 
-	trailId := path.Base(likeActivity.Object.GetID().String())
-	trail, err := app.FindRecordById("trails", trailId)
+	trail, err := app.FindFirstRecordByData("trails", "iri", likeActivity.Object.GetID().String())
 	if err != nil {
 		return err
 	}

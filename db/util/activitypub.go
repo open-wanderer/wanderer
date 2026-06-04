@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -119,16 +118,8 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 
 	iri := t.ID.String()
 	var record *core.Record
-	if actor.GetBool(("isLocal")) {
-		trailUrl, parseErr := url.Parse(iri)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		trailId := path.Base(trailUrl.Path)
-		record, err = app.FindRecordById("trails", trailId)
-	} else {
-		record, err = app.FindFirstRecordByData("trails", "iri", iri)
-	}
+
+	record, err = app.FindFirstRecordByData("trails", "iri", iri)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -410,16 +401,9 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 
 	iri := l.ID.String()
 	var record *core.Record
-	if actor.GetBool(("isLocal")) {
-		listURL, parseErr := url.Parse(iri)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		listId := path.Base(listURL.Path)
-		record, err = app.FindRecordById("lists", listId)
-	} else {
-		record, err = app.FindFirstRecordByData("lists", "iri", iri)
-	}
+
+	record, err = app.FindFirstRecordByData("lists", "iri", iri)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			collection, err := app.FindCollectionByNameOrId("lists")

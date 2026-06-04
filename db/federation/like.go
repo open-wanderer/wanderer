@@ -3,7 +3,6 @@ package federation
 import (
 	"fmt"
 	"os"
-	"path"
 	"pocketbase/util"
 	"time"
 
@@ -76,8 +75,7 @@ func ProcessLikeActivity(app core.App, actor *core.Record, activity pub.Activity
 		return fmt.Errorf("ORIGIN not set")
 	}
 
-	trailId := path.Base(activity.Object.GetID().String())
-	trail, err := app.FindRecordById("trails", trailId)
+	trail, err := app.FindFirstRecordByData("trails", "iri", activity.Object.GetID().String())
 	if err != nil {
 		return err
 	}

@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -512,14 +510,8 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 		return fmt.Errorf("error processing comment: InReplyTo empty")
 	}
 
-	trailUrl, err := url.Parse(commentObject.InReplyTo.GetLink().String())
-	if err != nil {
-		return err
-	}
-	trailId := path.Base(trailUrl.Path)
-
 	var trail *core.Record
-	trail, err = app.FindFirstRecordByFilter("trails", "iri={:iri} || id={:id}", dbx.Params{"id": trailId, "iri": commentObject.InReplyTo.GetID().String()})
+	trail, err = app.FindFirstRecordByData("trails", "iri", commentObject.InReplyTo.GetLink().String())
 
 	// if the trail is not present on this instance fetch it
 	if err != nil {
@@ -619,13 +611,7 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		return err
 	}
 
-	trailIRI, err := url.Parse(logObject.InReplyTo.GetID().String())
-	if err != nil {
-		return err
-	}
-	trailId := path.Base(trailIRI.Path)
-
-	trail, err := app.FindFirstRecordByFilter("trails", "iri={:iri} || id={:id}", dbx.Params{"id": trailId, "iri": logObject.InReplyTo.GetID().String()})
+	trail, err := app.FindFirstRecordByData("trails", "iri", logObject.InReplyTo.GetID().String())
 	// if the trail is not present on this instance fetch it
 	if err != nil {
 		if err == sql.ErrNoRows {

@@ -149,11 +149,8 @@ func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 				remoteIRI = fmt.Sprintf("%s://%s/api/v1/comment/%s", u.Scheme, u.Host, remoteID)
 			}
 
-			remoteCommentUrl, _ := url.Parse(remoteIRI)
-			possibleLocalId := path.Base(remoteCommentUrl.Path)
-
 			// Find existing record by IRI or ID to avoid duplicates
-			commentRecord, _ := txApp.FindFirstRecordByFilter("comments", "iri={:iri} || id={:id}", dbx.Params{"id": possibleLocalId, "iri": remoteIRI})
+			commentRecord, _ := txApp.FindFirstRecordByData("comments", "iri", remoteIRI)
 			if commentRecord == nil {
 				commentRecord = core.NewRecord(collection)
 				commentRecord.Set("iri", remoteIRI)
