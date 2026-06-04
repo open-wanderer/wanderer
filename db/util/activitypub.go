@@ -111,6 +111,28 @@ func generateKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	return priv, pub, nil
 }
 
+// IsLocalIRI reports whether iri belongs to this instance's own ORIGIN.
+// It is used to prevent the instance from federating with itself, i.e. treating
+// its own content as if it were remote.
+func IsLocalIRI(iri string) bool {
+	if iri == "" {
+		return false
+	}
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return false
+	}
+	o, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	u, err := url.Parse(iri)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(u.Host, o.Host)
+}
+
 func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
 	t, err := pub.ToObject(activity.Object)
 	if err != nil {
@@ -118,6 +140,24 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	}
 
 	iri := t.ID.String()
+
+	// Own content must never be ingested as if it were remote. An inbound
+	// activity referencing one of our own trails (e.g. an announce echoed back)
+	// would otherwise flag the local trail for a full sync and later make the
+	// instance fetch itself. Only a local actor may resolve a local object id to
+	// the local record; a remote actor must not be able to reference or attach
+	// side effects (feeds/shares/notifications) to local content by id.
+	if IsLocalIRI(iri) {
+		if !actor.GetBool("isLocal") {
+			return nil, fmt.Errorf("refusing remote activity referencing local trail %q", iri)
+		}
+		trailUrl, parseErr := url.Parse(iri)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		return app.FindRecordById("trails", path.Base(trailUrl.Path))
+	}
+
 	var record *core.Record
 	if actor.GetBool(("isLocal")) {
 		trailUrl, parseErr := url.Parse(iri)
@@ -409,6 +449,19 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 	}
 
 	iri := l.ID.String()
+
+	// Own content must never be ingested as if it were remote (see TrailFromActivity).
+	if IsLocalIRI(iri) {
+		if !actor.GetBool("isLocal") {
+			return nil, fmt.Errorf("refusing remote activity referencing local list %q", iri)
+		}
+		listURL, parseErr := url.Parse(iri)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		return app.FindRecordById("lists", path.Base(listURL.Path))
+	}
+
 	var record *core.Record
 	if actor.GetBool(("isLocal")) {
 		listURL, parseErr := url.Parse(iri)
