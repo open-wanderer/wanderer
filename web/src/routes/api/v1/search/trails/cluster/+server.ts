@@ -2,12 +2,24 @@ import { error, json, type RequestEvent } from "@sveltejs/kit";
 import Supercluster from "supercluster";
 import { MAP_MAX_POLYLINES } from "$lib/stores/trail_store";
 
+function isFiniteNumber(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value);
+}
+
+function isValidLngLat(value: any): value is { lat: number; lng: number } {
+    return isFiniteNumber(value?.lat) && isFiniteNumber(value?.lng);
+}
+
 export async function POST(event: RequestEvent) {
     const data = await event.request.json()
     const { southWest, northEast, zoom, filterText, q = "" } = data;
 
     if (!southWest || !northEast || zoom === undefined) {
         throw error(400, "Missing required parameters: southWest, northEast, zoom");
+    }
+
+    if (!isValidLngLat(southWest) || !isValidLngLat(northEast) || !isFiniteNumber(zoom)) {
+        throw error(400, "Invalid cluster bounds or zoom");
     }
 
     try {
@@ -111,6 +123,6 @@ export async function POST(event: RequestEvent) {
         });
     } catch (e: any) {
         console.error("Clustering error:", e);
-        throw error(e.httpStatus || 500, e)
+        throw error(e.httpStatus || 500, e.message ?? "Unable to cluster trails");
     }
 }

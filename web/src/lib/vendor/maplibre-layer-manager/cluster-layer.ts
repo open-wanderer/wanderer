@@ -103,16 +103,26 @@ export class ClusterLayer implements BaseLayer {
         const features = this.map.queryRenderedFeatures(e.point, {
             layers: ["clusters"],
         });
+        const feature = features[0];
+        if (!feature) {
+            return;
+        }
+
         const currentZoom = this.map.getZoom();
         this.map.flyTo({
-            center: (features[0].geometry as any).coordinates,
+            center: (feature.geometry as any).coordinates,
             zoom: currentZoom + 2,
             maxDuration: 3000
         });
     }
 
     private zoomOnUnclusteredPoint(e: MapMouseEvent) {
-        const coordinates = (e as any).features[0].geometry.coordinates.slice();
+        const feature = (e as any).features?.[0];
+        if (!feature) {
+            return;
+        }
+
+        const coordinates = feature.geometry.coordinates.slice();
 
         this.map.flyTo({
             center: coordinates,

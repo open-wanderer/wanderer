@@ -56,6 +56,7 @@
         page: 1,
         totalPages: 1,
     };
+    let searchRequestId = 0;
 
     const sortOptions: SelectItem[] = [
         { text: $_("name"), value: "name" },
@@ -138,6 +139,9 @@
         reset: boolean = true,
         loadMapData: boolean = true,
     ) {
+        const requestId =
+            reset || loadMapData ? ++searchRequestId : searchRequestId;
+
         if (reset) {
             pagination.page = 1;
             loading = true;
@@ -153,6 +157,10 @@
             loadMapData,
         );
 
+        if (requestId !== searchRequestId) {
+            return false;
+        }
+
         pagination.totalPages = trailsInBox.totalPages;
         trails = trailsInBox.trails;
         if (loadMapData) {
@@ -160,6 +168,7 @@
             clusters = trailsInBox.clusters;
         }
         loading = false;
+        return true;
     }
 
     function handleTrailCardMouseEnter(trail: Trail) {
@@ -199,13 +208,15 @@
         await searchTrails(bounds.getNorthEast(), bounds.getSouthWest());
     }
 
-    let moveTimeout: any;
+    let moveTimeout: ReturnType<typeof setTimeout> | undefined;
     async function handleMapMove() {
         if (!map) {
             return;
         }
-        
-        clearTimeout(moveTimeout);
+
+        if (moveTimeout) {
+            clearTimeout(moveTimeout);
+        }
         moveTimeout = setTimeout(async () => {
             const bounds = map!.getBounds();
             const west = bounds.getWest();
@@ -221,7 +232,7 @@
                 normalizedSW = new M.LngLat(-180, south);
                 normalizedNE = new M.LngLat(180, north);
             } else {
-                // Handle wrap-around wrap-around
+                // Handle wrap-around
                 normalizedSW = new M.LngLat(
                     ((((west + 180) % 360) + 360) % 360) - 180,
                     south,
@@ -232,7 +243,10 @@
                 );
             }
 
-            await searchTrails(normalizedNE, normalizedSW);
+            const applied = await searchTrails(normalizedNE, normalizedSW);
+            if (!applied) {
+                return;
+            }
 
             page.url.searchParams.set("tl_lat", north.toString());
             page.url.searchParams.set("tl_lon", east.toString());

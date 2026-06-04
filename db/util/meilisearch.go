@@ -13,7 +13,6 @@ import (
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/tkrajina/gpxgo/gpx"
 )
 
 func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
@@ -40,17 +39,17 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 		category = trailCategory.GetString("name")
 	}
 
-	bounds, err := getBounds(app, r)
-	if err != nil {
-		bounds = [4]float64{r.GetFloat("lat"), r.GetFloat("lat"), r.GetFloat("lon"), r.GetFloat("lon")}
-	}
+	bounds := getStoredBounds(r)
 
 	domain := ""
 	if !author.GetBool("isLocal") {
 		domain = author.GetString("domain")
 	}
 
-	diagonal := HaversineDistance(bounds[0], bounds[2], bounds[1], bounds[3])
+	diagonal := r.GetFloat("bounding_box_diagonal")
+	if diagonal == 0 && (bounds[0] != bounds[1] || bounds[2] != bounds[3]) {
+		diagonal = HaversineDistance(bounds[0], bounds[2], bounds[1], bounds[3])
+	}
 
 	document := map[string]any{
 		"id":                    r.Id,
@@ -134,85 +133,20 @@ func difficultyToNumber(difficulty string) int32 {
 	return 0
 }
 
-func getBounds(app core.App, r *core.Record) ([4]float64, error) {
+func getStoredBounds(r *core.Record) [4]float64 {
 	lat := r.GetFloat("lat")
 	lon := r.GetFloat("lon")
 	defaultBounds := [4]float64{lat, lat, lon, lon}
 
-	gpxPath := r.GetString("gpx")
-	if len(gpxPath) == 0 {
-		return defaultBounds, nil
-	}
-	avatarKey := r.BaseFilesPath() + "/" + gpxPath
-	fsys, err := app.NewFilesystem()
-	if err != nil {
-		return defaultBounds, err
-	}
-	defer fsys.Close()
-
-	gpxFile, err := fsys.GetReader(avatarKey)
-	if err != nil {
-		return defaultBounds, err
-	}
-	defer gpxFile.Close()
-
-	content := new(bytes.Buffer)
-	_, err = io.Copy(content, gpxFile)
-	if err != nil {
-		return defaultBounds, err
-	}
-	gpxData, err := gpx.Parse(content)
-	if err != nil {
-		return defaultBounds, err
+	minLat := r.GetFloat("min_lat")
+	maxLat := r.GetFloat("max_lat")
+	minLon := r.GetFloat("min_lon")
+	maxLon := r.GetFloat("max_lon")
+	if minLat == 0 && maxLat == 0 && minLon == 0 && maxLon == 0 && (lat != 0 || lon != 0) {
+		return defaultBounds
 	}
 
-	gpxData.SimplifyTracks(50)
-	minLat, maxLat, minLon, maxLon := 90.0, -90.0, 180.0, -180.0
-	hasPoints := false
-
-	for _, trk := range gpxData.Tracks {
-		for _, seg := range trk.Segments {
-			for _, pt := range seg.Points {
-				if pt.Latitude < minLat {
-					minLat = pt.Latitude
-				}
-				if pt.Latitude > maxLat {
-					maxLat = pt.Latitude
-				}
-				if pt.Longitude < minLon {
-					minLon = pt.Longitude
-				}
-				if pt.Longitude > maxLon {
-					maxLon = pt.Longitude
-				}
-				hasPoints = true
-			}
-		}
-	}
-
-	for _, rte := range gpxData.Routes {
-		for _, pt := range rte.Points {
-			if pt.Latitude < minLat {
-				minLat = pt.Latitude
-			}
-			if pt.Latitude > maxLat {
-				maxLat = pt.Latitude
-			}
-			if pt.Longitude < minLon {
-				minLon = pt.Longitude
-			}
-			if pt.Longitude > maxLon {
-				maxLon = pt.Longitude
-			}
-			hasPoints = true
-		}
-	}
-
-	if !hasPoints {
-		return defaultBounds, nil
-	}
-
-	return [4]float64{minLat, maxLat, minLon, maxLon}, nil
+	return [4]float64{minLat, maxLat, minLon, maxLon}
 }
 
 func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {
