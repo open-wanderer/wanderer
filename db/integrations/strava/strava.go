@@ -276,7 +276,7 @@ func syncTrailsWithRoutes(app core.App, client meilisearch.ServiceManager, ctx c
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for route '%s': %v", route.Name, err))
 			continue
 		}
-		err = createWaypointsFromRoute(app, route, user, trailid)
+		err = createWaypointsFromRoute(app, route, actor.Id, trailid)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create waypoints for route '%s': %v", route.Name, err))
 			continue
@@ -406,7 +406,7 @@ func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File,
 	return trailid, err
 }
 
-func createWaypointsFromRoute(app core.App, route StravaRoute, user string, trailid string) error {
+func createWaypointsFromRoute(app core.App, route StravaRoute, actor string, trailid string) error {
 	collection, err := app.FindCollectionByNameOrId("waypoints")
 	if err != nil {
 		return err
@@ -420,7 +420,7 @@ func createWaypointsFromRoute(app core.App, route StravaRoute, user string, trai
 		record.Set("lat", wp.Latlng[0])
 		record.Set("lon", wp.Latlng[1])
 		record.Set("icon", "circle")
-		record.Set("author", user)
+		record.Set("author", actor)
 		record.Set("distance_from_start", wp.DistanceIntoRoute)
 		record.Set("trail", trailid)
 

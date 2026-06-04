@@ -228,7 +228,7 @@ func syncTrailWithTours(app core.App, client meilisearch.ServiceManager, ctx con
 			app.Logger().Warn(fmt.Sprintf("Unable to create trail for tour '%s': %v", tour.Name, err))
 			continue
 		}
-		err = createWaypointsFromTour(app, detailedTour, user, trailid)
+		err = createWaypointsFromTour(app, detailedTour, actor.Id, trailid)
 		if err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to create waypoints for tour '%s': %v", tour.Name, err))
 			continue
@@ -358,7 +358,7 @@ func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomoo
 	return trailid, nil
 }
 
-func createWaypointsFromTour(app core.App, tour *DetailedKomootTour, user string, trailid string) error {
+func createWaypointsFromTour(app core.App, tour *DetailedKomootTour, actor string, trailid string) error {
 	collection, err := app.FindCollectionByNameOrId("waypoints")
 	if err != nil {
 		return err
@@ -392,7 +392,7 @@ func createWaypointsFromTour(app core.App, tour *DetailedKomootTour, user string
 			"lat":                 wpLat,
 			"lon":                 wpLon,
 			"icon":                "circle",
-			"author":              user,
+			"author":              actor,
 			"distance_from_start": 0,
 			"trail":               trailid,
 		})
