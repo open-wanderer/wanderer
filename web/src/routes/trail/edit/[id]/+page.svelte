@@ -77,7 +77,6 @@
     import RouteEditor from "$lib/components/trail/route_editor.svelte";
     import { TagCreateSchema } from "$lib/models/api/tag_schema.js";
     import { convertDMSToDD } from "$lib/models/gpx/utils.js";
-    import { getPb } from "$lib/pocketbase";
     import { Tag } from "$lib/models/tag.js";
     import {
         searchLocationReverse,
@@ -541,24 +540,17 @@
         }
 
         try {
-            const clusterResponse: WaypointPhotoClusterResponse =
-                await getPb().send("/waypoint/cluster", {
-                    method: "POST",
-                    headers: {
-                        "content-type": "application/json",
+            const clusterResponse = await clusterWaypointPhotos({
+                category: $formData.category,
+                photos: [
+                    {
+                        id: waypointMergeCheckPhotoId,
+                        lat: savedWaypoint.lat,
+                        lon: savedWaypoint.lon,
                     },
-                    body: JSON.stringify({
-                        category: $formData.category,
-                        photos: [
-                            {
-                                id: waypointMergeCheckPhotoId,
-                                lat: savedWaypoint.lat,
-                                lon: savedWaypoint.lon,
-                            },
-                        ],
-                        waypoints: existingWaypoints,
-                    }),
-                });
+                ],
+                waypoints: existingWaypoints,
+            });
 
             const matchingCluster = clusterResponse.clusters.find(
                 (cluster) =>
@@ -1323,6 +1315,36 @@
         clusters: WaypointPhotoCluster[];
     }
 
+    interface WaypointClusterPoint {
+        id: string;
+        lat: number;
+        lon: number;
+    }
+
+    interface WaypointPhotoClusterRequest {
+        category?: string;
+        photos: WaypointClusterPoint[];
+        waypoints: WaypointClusterPoint[];
+    }
+
+    async function clusterWaypointPhotos(
+        data: WaypointPhotoClusterRequest,
+    ): Promise<WaypointPhotoClusterResponse> {
+        const response = await fetch("/api/v1/waypoint/cluster", {
+            method: "POST",
+            headers: {
+                "content-type": "application/json",
+            },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            throw await response.json();
+        }
+
+        return (await response.json()) as WaypointPhotoClusterResponse;
+    }
+
     const waypointMergeCheckPhotoId = "__waypoint_merge_check__";
 
     async function handleWaypointPhotoSelection() {
@@ -1374,20 +1396,14 @@
 
         let clusterResponse: WaypointPhotoClusterResponse;
         try {
-            clusterResponse = await getPb().send("/waypoint/cluster", {
-                method: "POST",
-                headers: {
-                    "content-type": "application/json",
-                },
-                body: JSON.stringify({
-                    category: $formData.category,
-                    photos: photoCoords.map((coords) => ({
-                        id: coords.id,
-                        lat: coords.latitude,
-                        lon: coords.longitude,
-                    })),
-                    waypoints: getExistingWaypointClusterInputs(),
-                }),
+            clusterResponse = await clusterWaypointPhotos({
+                category: $formData.category,
+                photos: photoCoords.map((coords) => ({
+                    id: coords.id,
+                    lat: coords.latitude,
+                    lon: coords.longitude,
+                })),
+                waypoints: getExistingWaypointClusterInputs(),
             });
         } catch (e) {
             show_toast(

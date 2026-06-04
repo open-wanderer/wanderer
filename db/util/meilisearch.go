@@ -13,8 +13,6 @@ import (
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/tkrajina/gpxgo/gpx"
-	"github.com/twpayne/go-polyline"
 )
 
 func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
@@ -39,12 +37,6 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 	trailCategory := r.ExpandedOne("category")
 	if trailCategory != nil {
 		category = trailCategory.GetString("name")
-	}
-
-	polyline, bounds, err := getPolyline(app, r)
-	if err != nil {
-		polyline = ""
-		bounds = [4]float64{r.GetFloat("lat"), r.GetFloat("lat"), r.GetFloat("lon"), r.GetFloat("lon")}
 	}
 
 	domain := ""
@@ -75,7 +67,7 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 		"thumbnail":             thumbnail,
 		"gpx":                   r.GetString("gpx"),
 		"tags":                  tags,
-		"polyline":              polyline,
+		"polyline":              r.GetString("polyline"),
 		"domain":                domain,
 		"iri":                   r.GetString("iri"),
 		"min_lat":               bounds[0],
@@ -134,90 +126,6 @@ func difficultyToNumber(difficulty string) int32 {
 	}
 
 	return 0
-}
-
-func getPolyline(app core.App, r *core.Record) (string, [4]float64, error) {
-	lat := r.GetFloat("lat")
-	lon := r.GetFloat("lon")
-	defaultBounds := [4]float64{lat, lat, lon, lon}
-
-	gpxPath := r.GetString("gpx")
-	if len(gpxPath) == 0 {
-		return "", defaultBounds, nil
-	}
-	avatarKey := r.BaseFilesPath() + "/" + gpxPath
-	fsys, err := app.NewFilesystem()
-	if err != nil {
-		return "", defaultBounds, err
-	}
-	defer fsys.Close()
-
-	gpxFile, err := fsys.GetReader(avatarKey)
-	if err != nil {
-		return "", defaultBounds, err
-	}
-	defer gpxFile.Close()
-
-	content := new(bytes.Buffer)
-	_, err = io.Copy(content, gpxFile)
-	if err != nil {
-		return "", defaultBounds, err
-	}
-	gpxData, err := gpx.Parse(content)
-	if err != nil {
-		return "", defaultBounds, err
-	}
-
-	gpxData.SimplifyTracks(50)
-	coordinates := make([][]float64, 0)
-	minLat, maxLat, minLon, maxLon := 90.0, -90.0, 180.0, -180.0
-	hasPoints := false
-
-	for _, trk := range gpxData.Tracks {
-		for _, seg := range trk.Segments {
-			for _, pt := range seg.Points {
-				coordinates = append(coordinates, []float64{pt.Latitude, pt.Longitude})
-				if pt.Latitude < minLat {
-					minLat = pt.Latitude
-				}
-				if pt.Latitude > maxLat {
-					maxLat = pt.Latitude
-				}
-				if pt.Longitude < minLon {
-					minLon = pt.Longitude
-				}
-				if pt.Longitude > maxLon {
-					maxLon = pt.Longitude
-				}
-				hasPoints = true
-			}
-		}
-	}
-
-	for _, rte := range gpxData.Routes {
-		for _, pt := range rte.Points {
-			coordinates = append(coordinates, []float64{pt.Latitude, pt.Longitude})
-			if pt.Latitude < minLat {
-				minLat = pt.Latitude
-			}
-			if pt.Latitude > maxLat {
-				maxLat = pt.Latitude
-			}
-			if pt.Longitude < minLon {
-				minLon = pt.Longitude
-			}
-			if pt.Longitude > maxLon {
-				maxLon = pt.Longitude
-			}
-			hasPoints = true
-		}
-	}
-
-	if !hasPoints {
-		return "", defaultBounds, nil
-	}
-
-	return string(polyline.EncodeCoords(coordinates)), [4]float64{minLat, maxLat, minLon, maxLon}, nil
 }
 
 func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {
@@ -411,16 +319,8 @@ func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meili
 	}
 	documents := []map[string]interface{}{doc}
 
-	task, err := client.Index("trails").UpdateDocuments(documents, nil)
-
-	if err != nil {
+	if _, err = client.Index("trails").UpdateDocuments(documents, nil); err != nil {
 		return err
-	}
-
-	interval := 500 * time.Millisecond
-	_, err = client.WaitForTask(task.TaskUID, interval)
-	if err != nil {
-		return fmt.Errorf("meilisearch update trail: error waiting for task completion: %v", err)
 	}
 
 	return nil

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
@@ -213,8 +214,53 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 func initData(app core.App, client meilisearch.ServiceManager) error {
 	initCategories(app)
 	initMeilisearchConfig(client)
-	go initMeilisearchDocuments(app, client)
+	go func() {
+		backfillPolylines(app)
+		initMeilisearchDocuments(app, client)
+	}()
 	return nil
+}
+
+func backfillPolylines(app core.App) {
+	const pageSize int64 = 100
+	var lastID string
+	var processed int
+	var failed int
+
+	log.Printf("backfill polyline started")
+	defer func() {
+		log.Printf("backfill polyline completed: processed=%d failed=%d", processed, failed)
+	}()
+
+	for {
+		trails := []*core.Record{}
+		query := app.RecordQuery("trails").
+			AndWhere(dbx.NewExp("(polyline IS NULL OR polyline = '') AND gpx != ''")).
+			OrderBy("id ASC").
+			Limit(pageSize)
+
+		if lastID != "" {
+			query = query.AndWhere(dbx.NewExp("id > {:lastID}", dbx.Params{"lastID": lastID}))
+		}
+
+		err := query.All(&trails)
+		if err != nil {
+			log.Printf("backfill polyline query failed after trail %q: %v", lastID, err)
+			break
+		}
+		if len(trails) == 0 {
+			break
+		}
+		for _, r := range trails {
+			if err := util.SavePolyline(app, r); err != nil {
+				failed++
+				log.Printf("backfill polyline failed for trail %s (%q), gpx=%q: %v", r.Id, r.GetString("name"), r.GetString("gpx"), err)
+			} else {
+				processed++
+			}
+			lastID = r.Id
+		}
+	}
 }
 
 func initCategories(app core.App) error {

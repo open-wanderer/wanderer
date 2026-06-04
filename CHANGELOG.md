@@ -3,6 +3,17 @@
 ## Features
 - Tiered map clustering and polyline filtering: The world map now uses a density-based clustering strategy to manage performance. Smaller trails are automatically clustered, while the largest routes in the current view are shown as detailed polylines. The maximum number of visible polylines is fully configurable via the `PUBLIC_MAP_MAX_POLYLINES` environment variable.
 
+# v0.19.2
+## Documentation
+-  Add CONTRIBUTING guidelines
+  
+## Bug Fixes
+- All photos from strava activities are now synced, instead of just the first one
+- Shared trails are now displayed correctly in search results
+- Fixes bug that caused trails to be indexed multiple times causing high server load
+- Remaining likes are no correctly calculated when unliking a trail
+- Fix waypoint creation from photos
+
 # v0.19.1
 
 ## Features
