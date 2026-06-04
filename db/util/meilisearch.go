@@ -40,15 +40,16 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 		category = trailCategory.GetString("name")
 	}
 
+	bounds, err := getBounds(app, r)
+	if err != nil {
+		bounds = [4]float64{r.GetFloat("lat"), r.GetFloat("lat"), r.GetFloat("lon"), r.GetFloat("lon")}
+	}
+
 	domain := ""
 	if !author.GetBool("isLocal") {
 		domain = author.GetString("domain")
 	}
 
-	bounds, err := getBounds(app, r)
-	if err != nil {
-		bounds = [4]float64{r.GetFloat("lat"), r.GetFloat("lat"), r.GetFloat("lon"), r.GetFloat("lon")}
-	}
 	diagonal := HaversineDistance(bounds[0], bounds[2], bounds[1], bounds[3])
 
 	document := map[string]any{
