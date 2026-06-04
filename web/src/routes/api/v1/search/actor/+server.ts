@@ -11,7 +11,13 @@ import type { SearchResponse } from "meilisearch";
  * /api/v1/search/actor:
  *   get:
  *     summary: Search actors
- *     description: Searches for ActivityPub actors by username, combining local and federated results
+ *     description: |
+ *       Searches for ActivityPub actors by username. If the query is a valid
+ *       federated handle (e.g. `user@domain.tld`), it attempts a direct
+ *       ActivityPub lookup first and returns that result immediately. If the
+ *       handle lookup fails, or if the query is not a handle, it falls back to
+ *       a local Meilisearch index query. Returns a Meilisearch-shaped
+ *       `SearchResponse` in both cases.
  *     tags:
  *       - Search
  *     parameters:
@@ -20,23 +26,73 @@ import type { SearchResponse } from "meilisearch";
  *         required: true
  *         schema:
  *           type: string
+ *         description: |
+ *           Search query. Can be a plain username substring or a fully-qualified
+ *           ActivityPub handle (`user@domain.tld`). Handles trigger a federated
+ *           lookup before falling back to local search.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 3
+ *         description: |
+ *           Maximum number of results to return from the local index. Has no
+ *           effect when a federated handle is resolved successfully (always
+ *           returns exactly one hit).
  *       - in: query
  *         name: includeSelf
  *         schema:
  *           type: boolean
+ *           default: true
+ *         description: |
+ *           When `false` and the request is authenticated, the authenticated
+ *           user's own actor is excluded from local search results.
  *     responses:
  *       200:
- *         description: Array of matching actors
+ *         description: |
+ *           Meilisearch-shaped response containing matching actors. The `hits`
+ *           array contains actor objects with `id`, `domain`, `is_local`,
+ *           `preferred_username`, `username`, and `icon` fields.
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
+ *               type: object
+ *               properties:
+ *                 hits:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       domain:
+ *                         type: string
+ *                       is_local:
+ *                         type: boolean
+ *                       preferred_username:
+ *                         type: string
+ *                       username:
+ *                         type: string
+ *                       icon:
+ *                         type: string
+ *                 query:
+ *                   type: string
+ *                 processingTimeMs:
+ *                   type: integer
+ *                 estimatedTotalHits:
+ *                   type: integer
+ *                 totalHits:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 page:
+ *                   type: integer
  *       400:
- *         description: Bad Request
+ *         description: Missing required `q` parameter.
+ *       404:
+ *         description: Federated fetch failed with a network error.
  *       500:
- *         description: Internal Server Error
+ *         description: Internal server error.
  */
 export async function GET(event: RequestEvent) {
     try {
