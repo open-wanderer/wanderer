@@ -35,11 +35,6 @@ func CreateLikeActivity(app core.App, like *core.Record) error {
 
 	object := trail.GetString("iri")
 
-	if object == "" {
-		// trail is local
-		object = fmt.Sprintf("%s/api/v1/trail/%s", origin, trail.Id)
-	}
-
 	collection, err := app.FindCollectionByNameOrId("activitypub_activities")
 	if err != nil {
 		return err

@@ -226,12 +226,7 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	}
 
 	var trailIRI pub.IRI
-	if summitLogTrailAuthor.GetBool("isLocal") {
-		trailId := summitLog.GetString("trail")
-		trailIRI = pub.IRI(fmt.Sprintf("%s/api/v1/trail/%s", origin, trailId))
-	} else {
-		trailIRI = pub.IRI(summitLogTrail.GetString("iri"))
-	}
+	trailIRI = pub.IRI(summitLogTrail.GetString("iri"))
 
 	recordId := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
 
@@ -319,7 +314,7 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	logObject.Content = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, summitLog.GetString("text")))
 	logObject.AttributedTo = pub.IRI(summitLogAuthor.GetString("iri"))
 	logObject.Published = summitLog.GetDateTime("created").Time()
-	logObject.ID = pub.IRI(fmt.Sprintf("%s/api/v1/summit-log/%s", origin, summitLog.Id))
+	logObject.ID = pub.IRI(summitLog.GetString("iri"))
 	logObject.URL = pub.IRI(fmt.Sprintf("%s/trail/view/@%s/%s", origin, summitLogTrailAuthor.GetString("preferred_username"), summitLog.GetString("trail")))
 	logObject.InReplyTo = trailIRI
 	logObject.Tag = tags

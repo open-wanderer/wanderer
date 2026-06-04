@@ -90,10 +90,6 @@ func CreateUnlikeActivity(app core.App, like *core.Record) error {
 	}
 
 	object := trail.GetString("iri")
-	if object == "" {
-		// trail is local
-		object = fmt.Sprintf("%s/api/v1/trail/%s", origin, trail.Id)
-	}
 
 	// find the original follow activity
 	likeActivityRecord, err := app.FindFirstRecordByFilter("activitypub_activities", "actor={:actor}&&object={:object}&&type={:type}", dbx.Params{"actor": actor.GetString("iri"), "object": object, "type": string(pub.LikeType)})
