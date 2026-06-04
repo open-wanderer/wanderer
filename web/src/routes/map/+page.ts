@@ -3,19 +3,9 @@ import { categories_index } from "$lib/stores/category_store";
 import { trails_get_bounding_box, trails_get_filter_values } from "$lib/stores/trail_store";
 import type { ServerLoad } from "@sveltejs/kit";
 
-let cachedBoundingBox: any = null;
-let cachedFilterValues: any = null;
-
-export const load: ServerLoad = async ({ params, locals, fetch }) => {
-    if (!cachedBoundingBox) {
-        cachedBoundingBox = await trails_get_bounding_box(fetch);
-    }
-    if (!cachedFilterValues) {
-        cachedFilterValues = await trails_get_filter_values(fetch);
-    }
-
-    const boundingBox = cachedBoundingBox;
-    const filterValues = cachedFilterValues;
+export const load: ServerLoad = async ({ fetch }) => {
+    const boundingBox = await trails_get_bounding_box(fetch);
+    const filterValues = await trails_get_filter_values(fetch);
 
     const filter: TrailFilter = {
         q: "",
