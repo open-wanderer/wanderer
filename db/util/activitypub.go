@@ -150,11 +150,8 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		if !actor.GetBool("isLocal") {
 			return nil, fmt.Errorf("refusing remote activity referencing local trail %q", iri)
 		}
-		trailUrl, parseErr := url.Parse(iri)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		return app.FindRecordById("trails", path.Base(trailUrl.Path))
+
+		return app.FindFirstRecordByData("trails", "iri", iri)
 	}
 
 	var record *core.Record
@@ -446,11 +443,8 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 		if !actor.GetBool("isLocal") {
 			return nil, fmt.Errorf("refusing remote activity referencing local list %q", iri)
 		}
-		listURL, parseErr := url.Parse(iri)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		return app.FindRecordById("lists", path.Base(listURL.Path))
+
+		return app.FindFirstRecordByData("lists", "iri", iri)
 	}
 
 	var record *core.Record
