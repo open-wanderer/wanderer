@@ -8,16 +8,34 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"pocketbase/federation"
 	"pocketbase/util"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 )
+
+// remoteSyncThreshold is the minimum age of a remote record before a background sync is triggered.
+// Configurable via POCKETBASE_FEDERATION_SYNC_INTERVAL (minutes). Default: 60.
+var remoteSyncThreshold = func() time.Duration {
+	if v := os.Getenv("POCKETBASE_FEDERATION_SYNC_INTERVAL"); v != "" {
+		if minutes, err := strconv.Atoi(v); err == nil && minutes > 0 {
+			return time.Duration(minutes) * time.Minute
+		}
+	}
+	return 60 * time.Minute
+}()
+
+// trailSyncing and listSyncing track IRIs currently being synced to prevent concurrent duplicate syncs.
+var trailSyncing sync.Map
+var listSyncing sync.Map
 
 // --- Main Handler ---
 
@@ -61,11 +79,27 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 				}
 				return e.InternalServerError("Sync failed", err)
 			}
+			if record.Id == "" {
+				// Local content that does not exist (e.g. a stale URL to a
+				// missing local trail): performFullSync short-circuits local
+				// IRIs and returns the unsaved shell — surface a real 404
+				// instead of running access/expand on a non-existent record.
+				return e.NotFoundError("Trail not found", nil)
+			}
 		} else {
 			// We already have it locally. Show and update background.
 			updatedAt := record.GetDateTime("updated").Time()
-			if time.Now().UTC().Sub(updatedAt) > 60*time.Minute {
-				go performFullSync(e.App, ctx, e.Request.URL, record)
+
+			iri := record.GetString("iri")
+			if time.Now().UTC().Sub(updatedAt) > remoteSyncThreshold {
+				if _, alreadySyncing := trailSyncing.LoadOrStore(iri, struct{}{}); !alreadySyncing {
+					urlCopy := *e.Request.URL
+					bgCtx := context.WithValue(context.Background(), "actor", ctx.Value("actor"))
+					go func() {
+						defer trailSyncing.Delete(iri)
+						performFullSync(e.App, bgCtx, &urlCopy, record)
+					}()
+				}
 			}
 		}
 	} else {
@@ -119,19 +153,38 @@ func findLocalTrailByRemoteInfo(e *core.RequestEvent, ctx context.Context, handl
 // --- Core Sync Logic ---
 
 func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTrail *core.Record) (*core.Record, error) {
-	client := util.SafeHTTPClient()
-
 	iri := localTrail.GetString("iri")
+
+	// Never federate with ourselves: a trail whose IRI is empty or points back
+	// to this instance is local content (we are the source of truth). Syncing it
+	// would fetch our own origin (or fail on an empty URL); just clear the stale
+	// flag so the record is no longer stuck in a permanent re-sync loop.
+	if iri == "" || util.IsLocalIRI(iri) {
+		if localTrail.GetBool("needs_full_sync") {
+			localTrail.Set("needs_full_sync", false)
+			if err := app.Save(localTrail); err != nil {
+				return localTrail, err
+			}
+		}
+		return localTrail, nil
+	}
+
+	client := util.SafeHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
-	remoteUrl.RawQuery = reqURL.RawQuery // Forward params
+	query := reqURL.Query()
+	query.Del("handle")
+	remoteUrl.RawQuery = query.Encode()
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
 	req, _ := http.NewRequestWithContext(ctx, "GET", remoteUrl.String(), nil)
 	res, err := client.Do(req)
-	if err != nil || res.StatusCode != 200 {
+	if err != nil {
 		return localTrail, err
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return localTrail, fmt.Errorf("remote trail fetch %s returned: %d", remoteUrl.String(), res.StatusCode)
+	}
 
 	var remoteMap map[string]any
 	if err := json.NewDecoder(res.Body).Decode(&remoteMap); err != nil {

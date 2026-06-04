@@ -20,6 +20,9 @@ func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		if err != nil {
 			return err
 		}
+		if err := util.SavePolyline(e.App, record); err != nil {
+			log.Printf("failed to save polyline for trail %s: %v", record.Id, err)
+		}
 		if err := util.IndexTrails(e.App, []*core.Record{record}, client); err != nil {
 			return err
 		}
@@ -62,6 +65,13 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		if err != nil {
 			return err
 		}
+
+		if record.GetString("gpx") != record.Original().GetString("gpx") {
+			if err := util.SavePolyline(e.App, record); err != nil {
+				log.Printf("failed to save polyline for trail %s: %v", record.Id, err)
+			}
+		}
+
 		err = util.UpdateTrail(e.App, record, userActor, client)
 		if err != nil {
 			return err
