@@ -10,6 +10,8 @@ import (
 	"github.com/twpayne/go-polyline"
 )
 
+const PolylineMaxLength = 5 * 1024 * 1024
+
 func ComputePolyline(app core.App, r *core.Record) (string, error) {
 	gpxPath := r.GetString("gpx")
 	if len(gpxPath) == 0 {
@@ -55,6 +57,10 @@ func SavePolyline(app core.App, r *core.Record) error {
 	encoded, err := ComputePolyline(app, r)
 	if err != nil {
 		return err
+	}
+	// Encoded polylines are ASCII-only, so byte length matches character length.
+	if len(encoded) > PolylineMaxLength {
+		return fmt.Errorf("polyline exceeds maximum length of %d characters", PolylineMaxLength)
 	}
 	r.Set("polyline", encoded)
 	if err := app.UnsafeWithoutHooks().Save(r); err != nil {
