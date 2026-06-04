@@ -23,3 +23,12 @@ export interface Actor {
         user?: User
     }
 }
+
+export interface ActorSearchResult {
+    id: string;
+    username: string;
+    preferred_username: string;
+    domain: string;
+    is_local: boolean;
+    icon?: string;
+}

@@ -62,7 +62,7 @@
             const actors = await searchActors(q);
             searchDropdownItems = actors.map((a) => ({
                 text: a.username,
-                description: `@${a.preferred_username}${a.isLocal ? "" : "@" + a.domain}`,
+                description: `@${a.preferred_username}${a.is_local ? "" : "@" + a.domain}`,
                 value: a,
                 icon:
                     a.icon ||

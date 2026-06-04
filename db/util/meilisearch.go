@@ -15,7 +15,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
+func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
 	photos := r.GetStringSlice("photos")
 	thumbnail := ""
 	if len(photos) > 0 {
@@ -194,6 +194,20 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	return document, nil
 }
 
+func documentFromActorRecord(r *core.Record) (map[string]any, error) {
+
+	document := map[string]any{
+		"id":                 r.Id,
+		"username":           r.GetString("username"),
+		"preferred_username": r.GetString("preferred_username"),
+		"domain":             r.GetString("domain"),
+		"icon":               r.GetString("icon"),
+		"is_local":           r.GetBool("isLocal"),
+	}
+
+	return document, nil
+}
+
 func documentFromRemoteRecord(r *core.Record, index string) (map[string]any, error) {
 	client := &http.Client{}
 
@@ -281,7 +295,7 @@ func IndexTrails(app core.App, trails []*core.Record, client meilisearch.Service
 
 		author := r.ExpandedOne("author")
 
-		doc, err := documentFromTrailRecord(app, r, author, true)
+		doc, err := documentFromTrailRecord(r, author, true)
 		if err != nil {
 			return err
 		}
@@ -306,7 +320,7 @@ func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meili
 		return fmt.Errorf("meilisearch update trail: failed to expand category: %v", errs)
 	}
 
-	doc, err := documentFromTrailRecord(app, r, author, false)
+	doc, err := documentFromTrailRecord(r, author, false)
 	if err != nil {
 		return err
 	}
@@ -390,6 +404,37 @@ func UpdateList(app core.App, r *core.Record, author *core.Record, client meilis
 	}
 
 	if _, err = client.Index("lists").UpdateDocuments(documents, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func IndexActors(actors []*core.Record, client meilisearch.ServiceManager) error {
+	documents := make([]map[string]any, len(actors))
+
+	for i, r := range actors {
+
+		doc, err := documentFromActorRecord(r)
+		if err != nil {
+			return err
+		}
+		documents[i] = doc
+	}
+	if _, err := client.Index("actors").AddDocuments(documents, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UpdateActor(r *core.Record, client meilisearch.ServiceManager) error {
+	documents, err := documentFromActorRecord(r)
+	if err != nil {
+		return err
+	}
+
+	if _, err = client.Index("actors").UpdateDocuments(documents, nil); err != nil {
 		return err
 	}
 

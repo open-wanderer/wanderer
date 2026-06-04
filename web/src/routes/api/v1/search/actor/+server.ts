@@ -1,9 +1,10 @@
-import type { Actor } from '$lib/models/activitypub/actor';
+import type { Actor, ActorSearchResult } from '$lib/models/activitypub/actor';
 import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
-import { splitUsername } from '$lib/util/activitypub_util';
+import { isValidPubHandle, splitUsername } from '$lib/util/activitypub_util';
 import { handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError, type ListResult } from "pocketbase"
+import type { SearchResponse } from "meilisearch";
 
 /**
  * @swagger
@@ -44,30 +45,47 @@ export async function GET(event: RequestEvent) {
             throw new ClientResponseError({ status: 400, response: "Bad request" });
 
         }
-        const q = event.url.searchParams.get("q")
+        const q = event.url.searchParams.get("q")!
+        const limit = event.url.searchParams.get("limit")
 
-        const [user, domain] = splitUsername(q!)
+        if (isValidPubHandle(q)) {
+            try {
+                const { actor } = await getActorResponseForHandle(event, q!);
 
-        let filter = `username~'${user}'`;
+                const actorSearchResult = <ActorSearchResult>{
+                    id: actor.id,
+                    domain: actor.domain,
+                    is_local: actor.isLocal,
+                    preferred_username: actor.preferred_username,
+                    username: actor.username,
+                    icon: actor.icon
+                };
+
+                return json(<SearchResponse>{
+                    hits: [actorSearchResult],
+                    processingTimeMs: 0,
+                    query: q,
+                    estimatedTotalHits: 1,
+                    totalHits: 1,
+                    totalPages: 1,
+                    page: 1,
+                })
+            } catch (e) {
+                // Actor could not be found via the handle
+                // At least search our local registry
+            }
+        }
+
+        let filterText = "";
 
         if (event.url.searchParams.get("includeSelf") == "false" && event.locals.pb.authStore.record) {
-            filter += `&& id != "${event.locals.pb.authStore.record.actor}"`
+            filterText = `id != ${event.locals.pb.authStore.record.actor}`
         }
 
-        const response = await event.locals.pb.collection("activitypub_actors").getList<Actor>(1, 3, { filter: filter })
+        const r = await event.locals.ms.index("actors").search(q, { filter: filterText, limit: limit ?? 3 });
 
-        try {
-            const { actor } = await getActorResponseForHandle(event, q!);
 
-            if (!response.items.find(i => i.iri == actor.iri)) {
-                response.items.push(actor)
-            }
-
-        } catch (e) {
-
-        }
-
-        return json({ items: response.items })
+        return json(r)
 
 
     } catch (e) {
