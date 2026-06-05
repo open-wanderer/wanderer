@@ -60,6 +60,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get after => 'Nach';
 
   @override
+  String get all => 'Alle';
+
+  @override
   String get all_activities => 'Alle Aktivitäten';
 
   @override
@@ -818,6 +821,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get location => 'Standort';
 
   @override
+  String get locations => 'Orte';
+
+  @override
   String get login => 'Login';
 
   @override
@@ -1230,6 +1236,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get save_your_trail_first => 'Route zuerst speichern';
 
   @override
+  String get search => 'Suche';
+
+  @override
   String get search_cities => 'Städte suchen';
 
   @override
@@ -1504,6 +1513,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get use_roads => 'Nutze Straßen';
+
+  @override
+  String get users => 'Benutzer';
 
   @override
   String get username => 'Nutzername';

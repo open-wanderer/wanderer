@@ -1,0 +1,428 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart' hide Path;
+import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/models/global_search_models.dart';
+import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/provider/search/global_search_provider.dart';
+import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/polyline_util.dart';
+
+class GlobalSearchScreen extends ConsumerStatefulWidget {
+  const GlobalSearchScreen({super.key});
+
+  @override
+  ConsumerState<GlobalSearchScreen> createState() => _GlobalSearchScreenState();
+}
+
+class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _controller.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final state = ref.watch(globalSearchProvider);
+    final notifier = ref.read(globalSearchProvider.notifier);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: TextField(
+          controller: _controller,
+          autofocus: true,
+          onChanged: notifier.setQuery,
+          decoration: InputDecoration(
+            hintText: l10n.search_for_trails_places,
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(width: 1),
+            ),
+            hintStyle: const TextStyle(color: Colors.grey),
+          ),
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: [
+          if (_controller.text.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                _controller.clear();
+                notifier.setQuery('');
+              },
+            ),
+        ],
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CategoryChips(state: state, notifier: notifier, l10n: l10n),
+          const Divider(height: 1),
+          Expanded(
+            child: _ResultsList(state: state, l10n: l10n),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryChips extends StatelessWidget {
+  final GlobalSearchState state;
+  final GlobalSearchNotifier notifier;
+  final AppLocalizations l10n;
+
+  const _CategoryChips({
+    required this.state,
+    required this.notifier,
+    required this.l10n,
+  });
+
+  String _label(GlobalSearchCategory cat) => switch (cat) {
+    GlobalSearchCategory.all => l10n.all,
+    GlobalSearchCategory.trails => l10n.trail(2),
+    GlobalSearchCategory.lists => l10n.list(2),
+    GlobalSearchCategory.locations => l10n.locations,
+    GlobalSearchCategory.actors => l10n.users,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: GlobalSearchCategory.values.map((cat) {
+          final selected = state.category == cat;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(_label(cat)),
+              selected: selected,
+              onSelected: (_) => notifier.setCategory(cat),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _ResultsList extends StatelessWidget {
+  final GlobalSearchState state;
+  final AppLocalizations l10n;
+
+  const _ResultsList({required this.state, required this.l10n});
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state.query.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text(
+              l10n.search_for_trails_places,
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!state.hasResults) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text(
+              'No results for "${state.query}"',
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView(
+      children: [
+        ...state.visibleTrails.map((t) => _TrailTile(trail: t)),
+        ...state.visibleLists.map((l) => _ListTile(list: l)),
+        ...state.visibleLocations.map((l) => _LocationTile(location: l)),
+        ...state.visibleActors.map((a) => _ActorTile(actor: a)),
+      ],
+    );
+  }
+}
+
+class _TrailTile extends StatelessWidget {
+  final TrailSearchResult trail;
+
+  const _TrailTile({required this.trail});
+
+  String _difficultyLabel(BuildContext context, int difficulty) {
+    final l10n = AppLocalizations.of(context)!;
+    return difficulty == 0
+        ? l10n.easy
+        : difficulty == 1
+        ? l10n.moderate
+        : l10n.difficult;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: () => context.push('/trail/${trail.id}'),
+      leading: _PolylinePreview(
+        polyline: trail.polyline,
+        color: Theme.of(context).colorScheme.primary,
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      ),
+      title: Text(trail.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        [
+          if (trail.category.isNotEmpty) trail.category,
+          _difficultyLabel(context, trail.difficulty),
+          formatDistance(trail.distance),
+        ].join(' · '),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: trail.authorName.isNotEmpty
+          ? CircleAvatar(
+              radius: 14,
+              backgroundColor: Colors.grey.shade300,
+              backgroundImage: NetworkImage(
+                trail.authorAvatar.isNotEmpty
+                    ? trail.authorAvatar
+                    : 'https://api.dicebear.com/7.x/initials/png?seed=${trail.authorName}',
+              ),
+            )
+          : null,
+    );
+  }
+}
+
+class _ListTile extends StatelessWidget {
+  final ListSearchResult list;
+
+  const _ListTile({required this.list});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          Icons.format_list_bulleted,
+          size: 20,
+          color: Theme.of(context).colorScheme.secondary,
+        ),
+      ),
+      title: Text(list.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        '${list.trails} ${l10n.trail(list.trails)}${list.authorName.isNotEmpty ? ' · ${list.authorName}' : ''}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
+class _LocationTile extends StatelessWidget {
+  final LocationSearchResult location;
+
+  const _LocationTile({required this.location});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: FaIcon(
+          FontAwesomeIcons.locationDot,
+          size: 20,
+          color: Colors.orange.shade700,
+        ),
+      ),
+      title: Text(location.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: location.description.isNotEmpty
+          ? Text(
+              location.description,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            )
+          : null,
+    );
+  }
+}
+
+class _ActorTile extends StatelessWidget {
+  final SearchActor actor;
+
+  const _ActorTile({required this.actor});
+
+  @override
+  Widget build(BuildContext context) {
+    final displayName = actor.preferredUsername.isNotEmpty
+        ? actor.preferredUsername
+        : actor.username;
+    final subtitle = actor.domain != null && actor.domain!.isNotEmpty
+        ? '@${actor.domain}'
+        : null;
+
+    return ListTile(
+      leading: CircleAvatar(
+        radius: 20,
+        backgroundColor: Colors.grey.shade300,
+        backgroundImage: actor.icon != null && actor.icon!.isNotEmpty
+            ? NetworkImage(actor.icon!)
+            : NetworkImage(
+                'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
+              ),
+      ),
+      title: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: subtitle != null ? Text(subtitle) : null,
+    );
+  }
+}
+
+class _PolylinePreview extends StatelessWidget {
+  final String? polyline;
+  final Color color;
+  final Color backgroundColor;
+
+  const _PolylinePreview({
+    required this.polyline,
+    required this.color,
+    required this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    List<LatLng>? points;
+    if (polyline != null && polyline!.isNotEmpty) {
+      try {
+        points = PolylineTools.decode(polyline!).points;
+      } catch (_) {}
+    }
+
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: points != null && points.length >= 2
+            ? CustomPaint(
+                painter: _PolylinePainter(points: points, color: color),
+              )
+            : FaIcon(FontAwesomeIcons.route, size: 20, color: color),
+      ),
+    );
+  }
+}
+
+class _PolylinePainter extends CustomPainter {
+  final List<LatLng> points;
+  final Color color;
+
+  const _PolylinePainter({required this.points, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    double minLat = double.infinity, maxLat = -double.infinity;
+    double minLng = double.infinity, maxLng = -double.infinity;
+
+    for (final p in points) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+
+    final latRange = maxLat - minLat;
+    final lngRange = maxLng - minLng;
+    if (latRange == 0 && lngRange == 0) return;
+
+    const padding = 5.0;
+    final w = size.width - padding * 2;
+    final h = size.height - padding * 2;
+
+    final scale = latRange == 0
+        ? w / lngRange
+        : lngRange == 0
+        ? h / latRange
+        : math.min(w / lngRange, h / latRange);
+
+    final dx = padding + (w - lngRange * scale) / 2;
+    final dy = padding + (h - latRange * scale) / 2;
+
+    final path = Path();
+    for (int i = 0; i < points.length; i++) {
+      final x = dx + (points[i].longitude - minLng) * scale;
+      final y = dy + (maxLat - points[i].latitude) * scale;
+      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
+    }
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.7)
+        ..strokeWidth = 2.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..strokeWidth = 1.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_PolylinePainter old) =>
+      old.points != points || old.color != color;
+}

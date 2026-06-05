@@ -11,6 +11,7 @@ import 'package:wanderer/routes/map_screen.dart';
 import 'package:wanderer/routes/profile_screen.dart';
 import 'package:wanderer/routes/register_screen.dart';
 import 'package:wanderer/routes/server_selection_screen.dart';
+import 'package:wanderer/routes/global_search_screen.dart';
 import 'package:wanderer/routes/trail_detail_map_screen.dart';
 import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
@@ -126,6 +127,10 @@ class Router extends _$Router {
               ],
             ),
           ],
+        ),
+        GoRoute(
+          path: '/search',
+          builder: (context, state) => const GlobalSearchScreen(),
         ),
         GoRoute(
           path: '/trail/filter',

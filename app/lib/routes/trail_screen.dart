@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
-import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/router_provider.dart';
-import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_search_provider.dart';
 
 class TrailScreen extends ConsumerStatefulWidget {
@@ -38,39 +36,41 @@ class _TrailScreenState extends ConsumerState<TrailScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Material(
-                        color: Colors.white,
-                        elevation: 4,
-                        shadowColor: Colors.black26,
-                        borderRadius: BorderRadius.circular(30),
-                        clipBehavior: Clip.antiAlias,
-                        child: WandererSearchBar(
-                          onChanged: (value) {
-                            ref
-                                .read(trailFilterProvider.notifier)
-                                .updateFilter((f) => f.copyWith(q: value));
-                          },
-                          decoration: InputDecoration(
-                            hintText: AppLocalizations.of(
-                              context,
-                            )!.search_trails,
-                            hintStyle: const TextStyle(color: Colors.grey),
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              color: Colors.black,
+                      child: GestureDetector(
+                        onTap: () => router.push('/search'),
+                        child: Material(
+                          color: Colors.white,
+                          elevation: 4,
+                          shadowColor: Colors.black26,
+                          borderRadius: BorderRadius.circular(30),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 13,
                             ),
-                            suffixIcon: IconButton(
-                              onPressed: () => router.push('/trail/filter'),
-                              iconSize: 20,
-                              icon: const FaIcon(FontAwesomeIcons.filter),
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 15,
+                            child: Row(
+                              children: [
+                                const Icon(Icons.search, color: Colors.black),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    AppLocalizations.of(context)!.search,
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () => router.push('/trail/filter'),
+                      icon: const FaIcon(FontAwesomeIcons.filter, size: 18),
                     ),
                   ],
                 ),

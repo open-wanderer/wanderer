@@ -182,6 +182,12 @@ abstract class AppLocalizations {
   /// **'After'**
   String get after;
 
+  /// No description provided for @all.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get all;
+
   /// No description provided for @all_activities.
   ///
   /// In en, this message translates to:
@@ -1562,6 +1568,12 @@ abstract class AppLocalizations {
   /// **'Location'**
   String get location;
 
+  /// No description provided for @locations.
+  ///
+  /// In en, this message translates to:
+  /// **'Locations'**
+  String get locations;
+
   /// No description provided for @login.
   ///
   /// In en, this message translates to:
@@ -2270,6 +2282,12 @@ abstract class AppLocalizations {
   /// **'Save your trail first'**
   String get save_your_trail_first;
 
+  /// No description provided for @search.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get search;
+
   /// No description provided for @search_cities.
   ///
   /// In en, this message translates to:
@@ -2767,6 +2785,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use Roads'**
   String get use_roads;
+
+  /// No description provided for @users.
+  ///
+  /// In en, this message translates to:
+  /// **'Users'**
+  String get users;
 
   /// No description provided for @username.
   ///
