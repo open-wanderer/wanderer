@@ -189,14 +189,13 @@ class TrailPanel extends ConsumerWidget {
                               alignment: Alignment.topRight,
                               child: Padding(
                                 padding: const EdgeInsets.all(8.0),
-                                child: FloatingActionButton(
-                                  shape: const CircleBorder(),
-                                  mini: true,
-                                  elevation: 1,
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).canvasColor,
-                                  child: FaIcon(
+                                child: IconButton(
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).canvasColor,
+                                  ),
+                                  icon: FaIcon(
                                     FontAwesomeIcons
                                         .upRightAndDownLeftFromCenter,
                                     size: 18,
@@ -212,10 +211,13 @@ class TrailPanel extends ConsumerWidget {
                           ],
                         ),
                         SizedBox(height: 16),
-                        ElevationProfile(
-                          trail: trail,
-                          gpx: trail.expand!.gpx!,
-                          enableLineTouch: false,
+                        InkWell(
+                          onTap: () => context.push('/trail/${trail.id}/map'),
+                          child: ElevationProfile(
+                            trail: trail,
+                            gpx: trail.expand!.gpx!,
+                            enableLineTouch: false,
+                          ),
                         ),
                         SizedBox(height: 16),
                       },

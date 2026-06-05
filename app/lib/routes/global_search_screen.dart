@@ -50,7 +50,7 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
           decoration: InputDecoration(
             hintText: l10n.search_for_trails_places,
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(56),
               borderSide: BorderSide(width: 1),
             ),
             hintStyle: const TextStyle(color: Colors.grey),
@@ -115,6 +115,24 @@ class _CategoryChips extends StatelessWidget {
               label: Text(_label(cat)),
               selected: selected,
               onSelected: (_) => notifier.setCategory(cat),
+              backgroundColor: Theme.of(context).canvasColor,
+              selectedColor: Theme.of(
+                context,
+              ).primaryColor.withValues(alpha: 0.2),
+              checkmarkColor: Theme.of(context).primaryColor,
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: selected
+                      ? Theme.of(context).primaryColor
+                      : Colors.grey.shade300,
+                ),
+              ),
+              labelStyle: TextStyle(
+                color: selected
+                    ? Theme.of(context).primaryColor
+                    : Colors.black87,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
           );
         }).toList(),
@@ -266,6 +284,10 @@ class _LocationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      onTap: () => context.go(
+        '/map',
+        extra: {'lat': location.lat, 'lon': location.lon, 'zoom': 13.0},
+      ),
       leading: Container(
         width: 40,
         height: 40,

@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_animations/flutter_map_animations.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
-import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/components/map/map_compass.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
-import 'package:wanderer/provider/trail/trail_filter_provider.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/util/polyline_util.dart';
-import 'package:flutter_map_animations/flutter_map_animations.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key});
+  final LatLng? initialCenter;
+  final double? initialZoom;
+
+  const MapScreen({super.key, this.initialCenter, this.initialZoom});
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -34,6 +35,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
   late final ValueNotifier<double> _sheetSize;
+  late final AnimationController _mapButtonController;
+  late final Animation<double> _mapButtonScale;
+  ScrollController? _sheetScrollController;
 
   final sheetMinSize = 0.2;
   final sheetMediumsize = 0.7;
@@ -45,6 +49,37 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _initializeStyle();
     _sheetController.addListener(_onSheetSizeChanged);
     _sheetSize = ValueNotifier<double>(sheetMinSize);
+    _mapButtonController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+      reverseDuration: const Duration(milliseconds: 0),
+    );
+    _mapButtonScale = CurvedAnimation(
+      parent: _mapButtonController,
+      curve: Curves.elasticOut,
+      reverseCurve: Curves.easeOut,
+    );
+  }
+
+  @override
+  void didUpdateWidget(MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newCenter = widget.initialCenter;
+    if (newCenter != null && newCenter != oldWidget.initialCenter) {
+      _animatedMapController
+          .animateTo(
+            dest: newCenter,
+            zoom: widget.initialZoom ?? 13.0,
+            duration: const Duration(milliseconds: 750),
+            curve: Curves.easeInOut,
+          )
+          .then((_) {
+            if (!mounted) return;
+            final bounds =
+                _animatedMapController.mapController.camera.visibleBounds;
+            ref.read(mapTrailSearchProvider.notifier).searchInBounds(bounds);
+          });
+    }
   }
 
   Future<void> _initializeStyle() async {
@@ -69,6 +104,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _onSheetSizeChanged() {
     _sheetSize.value = _sheetController.size;
+    if (_sheetController.size >= sheetMaxSize) {
+      if (!_mapButtonController.isAnimating &&
+          !_mapButtonController.isCompleted) {
+        _mapButtonController.forward();
+      }
+    } else {
+      if (_mapButtonController.value > 0) {
+        _mapButtonController.reverse();
+      }
+    }
   }
 
   @override
@@ -77,6 +122,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _sheetController.removeListener(_onSheetSizeChanged);
     _sheetController.dispose();
     _sheetSize.dispose();
+    _mapButtonController.dispose();
     super.dispose();
   }
 
@@ -120,8 +166,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
         FlutterMap(
           mapController: _animatedMapController.mapController,
           options: MapOptions(
-            initialCenter: const LatLng(0, 0),
-            initialZoom: 3,
+            initialCenter: widget.initialCenter ?? const LatLng(0, 0),
+            initialZoom: widget.initialZoom ?? 3,
             maxZoom: 22,
             onMapEvent: (event) {
               if (event is MapEventMoveEnd) {
@@ -233,6 +279,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             snap: true,
             snapSizes: [sheetMinSize, sheetMediumsize, sheetMaxSize],
             builder: (context, scrollController) {
+              _sheetScrollController = scrollController;
               return Container(
                 decoration: BoxDecoration(
                   color: Theme.of(context).canvasColor,
@@ -397,6 +444,31 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
           ),
+
+        Positioned(
+          bottom: 24,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: ScaleTransition(
+              scale: _mapButtonScale,
+              child: FilledButton.icon(
+                onPressed: () {
+                  if (_sheetScrollController?.hasClients == true) {
+                    _sheetScrollController!.jumpTo(0);
+                  }
+                  _sheetController.animateTo(
+                    sheetMinSize,
+                    curve: Curves.easeOut,
+                    duration: const Duration(milliseconds: 300),
+                  );
+                },
+                icon: const FaIcon(FontAwesomeIcons.map),
+                label: Text(AppLocalizations.of(context)!.map),
+              ),
+            ),
+          ),
+        ),
 
         if (_selectedTrail != null)
           Positioned(

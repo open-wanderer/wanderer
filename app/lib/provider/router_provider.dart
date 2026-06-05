@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/components/base/wanderer_layout.dart';
 import 'package:wanderer/provider/auth_provider.dart';
@@ -108,7 +109,26 @@ class Router extends _$Router {
                 // Sub-routes keep the /trail prefix but stay inside the Shell
               ],
             ),
-            GoRoute(path: '/map', builder: (context, state) => MapScreen()),
+            GoRoute(
+              path: '/map',
+              builder: (context, state) {
+                LatLng? initialCenter;
+                double? initialZoom;
+                if (state.extra is Map<String, dynamic>) {
+                  final extra = state.extra as Map<String, dynamic>;
+                  final lat = extra['lat'] as double?;
+                  final lon = extra['lon'] as double?;
+                  if (lat != null && lon != null) {
+                    initialCenter = LatLng(lat, lon);
+                  }
+                  initialZoom = extra['zoom'] as double?;
+                }
+                return MapScreen(
+                  initialCenter: initialCenter,
+                  initialZoom: initialZoom,
+                );
+              },
+            ),
             GoRoute(
               path: '/profile',
               builder: (context, state) => ProfileScreen(),
