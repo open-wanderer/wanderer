@@ -2,7 +2,7 @@ package migrations
 
 import (
 	"fmt"
-	"net/url"
+	"os"
 
 	"github.com/pocketbase/pocketbase/core"
 	m "github.com/pocketbase/pocketbase/migrations"
@@ -10,6 +10,10 @@ import (
 
 func init() {
 	m.Register(func(app core.App) error {
+		origin := os.Getenv("ORIGIN")
+		if origin == "" {
+			return fmt.Errorf("ORIGIN not set")
+		}
 
 		// Comments
 		comments, err := app.FindAllRecords("comments")
@@ -22,14 +26,7 @@ func init() {
 			if iri != "" {
 				continue
 			}
-			author, err := app.FindRecordById("activitypub_actors", c.GetString("author"))
-			if err != nil {
-				return err
-			}
-			authorIri, _ := url.Parse(author.GetString("iri"))
-			authorDomain := author.GetString("domain")
-			authorScheme := authorIri.Scheme
-			iri = fmt.Sprintf("%s://%s/api/v1/comment/%s", authorScheme, authorDomain, c.Id)
+			iri = fmt.Sprintf("%s/api/v1/comment/%s", origin, c.Id)
 			c.Set("iri", iri)
 
 			if err := app.Save(c); err != nil {
@@ -49,17 +46,11 @@ func init() {
 			if iri != "" {
 				continue
 			}
-			author, err := app.FindRecordById("activitypub_actors", l.GetString("author"))
-			if err != nil {
-				return err
-			}
-			authorIri, _ := url.Parse(author.GetString("iri"))
-			authorDomain := author.GetString("domain")
-			authorScheme := authorIri.Scheme
-			iri = fmt.Sprintf("%s://%s/api/v1/list/%s", authorScheme, authorDomain, l.Id)
+
+			iri = fmt.Sprintf("%s/api/v1/list/%s", origin, l.Id)
 			l.Set("iri", iri)
 
-			if err := app.Save(l); err != nil {
+			if err := app.UnsafeWithoutHooks().Save(l); err != nil {
 				return err
 			}
 		}
@@ -76,14 +67,7 @@ func init() {
 			if iri != "" {
 				continue
 			}
-			author, err := app.FindRecordById("activitypub_actors", sl.GetString("author"))
-			if err != nil {
-				return err
-			}
-			authorIri, _ := url.Parse(author.GetString("iri"))
-			authorDomain := author.GetString("domain")
-			authorScheme := authorIri.Scheme
-			iri = fmt.Sprintf("%s://%s/api/v1/summit-log/%s", authorScheme, authorDomain, sl.Id)
+			iri = fmt.Sprintf("%s/api/v1/summit-log/%s", origin, sl.Id)
 			sl.Set("iri", iri)
 
 			if err := app.Save(sl); err != nil {
@@ -103,14 +87,8 @@ func init() {
 			if iri != "" {
 				continue
 			}
-			author, err := app.FindRecordById("activitypub_actors", t.GetString("author"))
-			if err != nil {
-				return err
-			}
-			authorIri, _ := url.Parse(author.GetString("iri"))
-			authorDomain := author.GetString("domain")
-			authorScheme := authorIri.Scheme
-			iri = fmt.Sprintf("%s://%s/api/v1/trail/%s", authorScheme, authorDomain, t.Id)
+
+			iri = fmt.Sprintf("%s/api/v1/trail/%s", origin, t.Id)
 			t.Set("iri", iri)
 
 			if err := app.UnsafeWithoutHooks().Save(t); err != nil {
@@ -131,14 +109,8 @@ func init() {
 			if iri != "" {
 				continue
 			}
-			author, err := app.FindRecordById("activitypub_actors", wp.GetString("author"))
-			if err != nil {
-				return err
-			}
-			authorIri, _ := url.Parse(author.GetString("iri"))
-			authorDomain := author.GetString("domain")
-			authorScheme := authorIri.Scheme
-			iri = fmt.Sprintf("%s://%s/api/v1/waypoint/%s", authorScheme, authorDomain, wp.Id)
+
+			iri = fmt.Sprintf("%s/api/v1/waypoint/%s", origin, wp.Id)
 			wp.Set("iri", iri)
 
 			if err := app.Save(wp); err != nil {
