@@ -27,7 +27,7 @@ func CreateCommentHandler() func(e *core.RecordRequestEvent) error {
 		if e.Record.GetString("iri") == "" {
 			e.Record.Set("iri", fmt.Sprintf("%s/api/v1/comment/%s", origin, e.Record.Id))
 		}
-		err = e.App.Save(e.Record)
+		err = e.App.UnsafeWithoutHooks().Save(e.Record)
 		if err != nil {
 			return err
 		}

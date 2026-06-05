@@ -26,7 +26,7 @@ func CreateSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 		if e.Record.GetString("iri") == "" {
 			e.Record.Set("iri", fmt.Sprintf("%s/api/v1/summit-log/%s", origin, e.Record.Id))
 		}
-		err = e.App.Save(e.Record)
+		err = e.App.UnsafeWithoutHooks().Save(e.Record)
 		if err != nil {
 			return err
 		}

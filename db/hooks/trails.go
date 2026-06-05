@@ -41,7 +41,7 @@ func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		}
 		if e.Record.GetString("iri") == "" {
 			e.Record.Set("iri", fmt.Sprintf("%s/api/v1/trail/%s", origin, e.Record.Id))
-			if err = e.App.Save(e.Record); err != nil {
+			if err = e.App.UnsafeWithoutHooks().Save(e.Record); err != nil {
 				return err
 			}
 		}

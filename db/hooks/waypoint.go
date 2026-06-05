@@ -23,6 +23,6 @@ func CreateWaypointHandler() func(e *core.RecordRequestEvent) error {
 			e.Record.Set("iri", fmt.Sprintf("%s/api/v1/waypoint/%s", origin, e.Record.Id))
 		}
 
-		return e.App.Save(e.Record)
+		return e.App.UnsafeWithoutHooks().Save(e.Record)
 	}
 }
