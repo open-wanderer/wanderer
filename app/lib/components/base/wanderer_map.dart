@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
@@ -17,6 +18,7 @@ class WandererMap extends ConsumerStatefulWidget {
   final EdgeInsets initialCameraFitPadding;
 
   final bool showTrail;
+  final bool showLocation;
 
   final TapCallback? onTap;
   final Function(MapEvent)? onMapEvent;
@@ -31,6 +33,7 @@ class WandererMap extends ConsumerStatefulWidget {
     this.disabled = false,
     this.controls = const [],
     this.showTrail = true,
+    this.showLocation = false,
     this.elevationMarkerPosition,
     this.initialCameraFitPadding = const EdgeInsets.all(40),
   });
@@ -47,7 +50,6 @@ class _WandererMapState extends ConsumerState<WandererMap> {
   void initState() {
     super.initState();
     _initializeStyle();
-
     bounds = widget.trail.expand?.gpx?.getBounds();
   }
 
@@ -94,6 +96,8 @@ class _WandererMapState extends ConsumerState<WandererMap> {
         ),
         if (widget.trail.expand?.gpx != null && widget.showTrail)
           TrailLayer(trail: widget.trail, onWaypointTap: widget.onWaypointTap),
+
+        if (widget.showLocation) const CurrentLocationLayer(),
 
         if (widget.elevationMarkerPosition != null)
           MarkerLayer(

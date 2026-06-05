@@ -1,5 +1,12 @@
 PODS:
   - Flutter (1.0.0)
+  - flutter_rotation_sensor (0.0.1):
+    - Flutter
+  - geolocator_apple (1.2.0):
+    - Flutter
+    - FlutterMacOS
+  - native_device_orientation (0.0.1):
+    - Flutter
   - ObjectBox (5.3.0-beta.4)
   - objectbox_flutter_libs (0.0.1):
     - Flutter
@@ -7,6 +14,9 @@ PODS:
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - flutter_rotation_sensor (from `.symlinks/plugins/flutter_rotation_sensor/ios`)
+  - geolocator_apple (from `.symlinks/plugins/geolocator_apple/darwin`)
+  - native_device_orientation (from `.symlinks/plugins/native_device_orientation/ios`)
   - objectbox_flutter_libs (from `.symlinks/plugins/objectbox_flutter_libs/ios`)
 
 SPEC REPOS:
@@ -16,11 +26,20 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  flutter_rotation_sensor:
+    :path: ".symlinks/plugins/flutter_rotation_sensor/ios"
+  geolocator_apple:
+    :path: ".symlinks/plugins/geolocator_apple/darwin"
+  native_device_orientation:
+    :path: ".symlinks/plugins/native_device_orientation/ios"
   objectbox_flutter_libs:
     :path: ".symlinks/plugins/objectbox_flutter_libs/ios"
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  flutter_rotation_sensor: f37d8d24050572029bdd2d55a93e0f334e2eeac6
+  geolocator_apple: 66b711889fd333205763b83c9dcf0a57a28c7afd
+  native_device_orientation: 42487b19c552fb5a6a2b51e61b93366f628113df
   ObjectBox: eccb95ea2054c39d81dfa2d4ccc5f1e31187228a
   objectbox_flutter_libs: 893a4322e8ec87438912bae6dfa745929adc6bf5
 

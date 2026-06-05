@@ -7,6 +7,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:wanderer/components/map/map_compass.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
@@ -199,6 +200,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 tileOffset: TileOffset.DEFAULT,
               ),
             ),
+            const CurrentLocationLayer(),
+
             if (_selectedTrail?.polyline != null)
               PolylineLayer(
                 polylines: [PolylineTools.decode(_selectedTrail!.polyline!)],

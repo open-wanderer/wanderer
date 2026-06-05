@@ -20,7 +20,9 @@ dependencies:
     sdk: flutter
   flutter_map: ^8.3.0
   flutter_map_animations: ^0.10.0
+  flutter_map_location_marker: ^10.0.2
   flutter_map_marker_cluster: ^8.2.2
+  geolocator: ^13.0.2
   flutter_riverpod: ^3.3.1
   flutter_svg: ^2.2.4
   font_awesome_flutter: ^11.0.0
