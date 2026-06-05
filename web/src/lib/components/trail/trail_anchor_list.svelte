@@ -419,7 +419,7 @@
         >
             <div class="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2 gap-y-1">
                 <button
-                    class="drag-handle relative row-start-1 flex h-8 w-8 -translate-x-0.5 items-center justify-center self-start rounded-full p-0 text-xl text-content hover:bg-secondary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                    class="drag-handle absolute inset-y-0 left-0 w-12 rounded-md p-0 disabled:cursor-not-allowed disabled:opacity-50"
                     type="button"
                     disabled={disabled}
                     aria-label={$_("move-route-point")}
@@ -430,6 +430,10 @@
                     onpointerup={handlePointerUp}
                     onpointercancel={clearDragState}
                     onlostpointercapture={clearDragState}
+                ></button>
+
+                <span
+                    class="anchor-icon pointer-events-none relative col-start-1 row-start-1 flex h-8 w-8 -translate-x-0.5 items-center justify-center text-xl text-content"
                 >
                     <i class="fa {anchorIcon(i)}"></i>
                     {#if i > 0 && i < anchors.length - 1}
@@ -439,9 +443,9 @@
                             {i}
                         </span>
                     {/if}
-                </button>
+                </span>
 
-                <div class="anchor-title min-w-0">
+                <div class="anchor-title col-start-2 min-w-0">
                     <div
                         class="anchor-title-viewport"
                         role="presentation"
@@ -459,7 +463,7 @@
                 {#if metrics}
                     {#if showCumulative}
                         <span
-                            class="cumulative-indicator col-start-1 row-start-2 flex h-5 items-center justify-end pr-1 text-sm font-semibold leading-5 text-gray-500"
+                            class="cumulative-indicator pointer-events-none relative z-10 col-start-1 row-start-2 flex h-5 w-5 items-center justify-center justify-self-center rounded-full bg-gray-500 text-xs font-semibold leading-none text-background"
                             title={$_("cumulative")}
                             aria-label={$_("cumulative")}
                         >
@@ -551,8 +555,43 @@
         white-space: nowrap;
     }
     .drag-handle {
+        background-image:
+            radial-gradient(
+                circle at 0.25rem 0.4375rem,
+                rgba(var(--content), 0.5) 1.35px,
+                transparent 1.65px
+            ),
+            radial-gradient(
+                circle at 0.75rem 0.125rem,
+                rgba(var(--content), 0.38) 1.35px,
+                transparent 1.65px
+            ),
+            radial-gradient(
+                circle at 1.25rem 0.4375rem,
+                rgba(var(--content), 0.27) 1.35px,
+                transparent 1.65px
+            ),
+            radial-gradient(
+                circle at 1.75rem 0.125rem,
+                rgba(var(--content), 0.17) 1.35px,
+                transparent 1.65px
+            ),
+            radial-gradient(
+                circle at 2.25rem 0.4375rem,
+                rgba(var(--content), 0.1) 1.35px,
+                transparent 1.65px
+            ),
+            radial-gradient(
+                circle at 2.75rem 0.125rem,
+                rgba(var(--content), 0.05) 1.35px,
+                transparent 1.65px
+            );
+        background-repeat: repeat-y;
+        background-size: 3rem 0.75rem;
         cursor: grab;
+        opacity: 0.82;
         touch-action: none;
+        transition: opacity 0.15s ease-in-out;
     }
     .drag-handle:active {
         cursor: grabbing;
@@ -606,6 +645,11 @@
         li:focus-within .delete-button {
             opacity: 1;
             pointer-events: auto;
+        }
+
+        li:hover .drag-handle,
+        li:focus-within .drag-handle {
+            opacity: 1;
         }
 
         li.has-cumulative:hover .segment-stats,
