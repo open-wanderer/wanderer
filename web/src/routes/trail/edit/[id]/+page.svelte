@@ -889,6 +889,11 @@
     async function addAnchorAndRecalculate(lat: number, lon: number) {
         const previousAnchor =
             valhallaStore.anchors[valhallaStore.anchors.length - 1];
+        if (!previousAnchor) {
+            addAnchor(lat, lon, 0);
+            return;
+        }
+
         const anchor = addAnchor(lat, lon, valhallaStore.anchors.length);
         startAnchorLoading(anchor);
         try {
