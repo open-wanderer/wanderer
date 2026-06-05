@@ -319,7 +319,7 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 		},
 		"actors": {
 			SearchableAttributes: []string{"username", "preferred_username", "domain"},
-			FilterableAttributes: []string{},
+			FilterableAttributes: []string{"id"},
 			SortableAttributes:   []string{},
 			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
 		},
