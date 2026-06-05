@@ -20,6 +20,7 @@ const (
 	TokenAuthClientSecretBasic = "client_secret_basic"
 
 	HostRequestBodyTypeJSON      = "json"
+	HostRequestBodyTypeForm      = "form"
 	HostRequestBodyTypeMultipart = "multipart"
 	MultipartSourceTrail         = "trail"
 	MultipartSourceTrailGPX      = "trail.gpx"
@@ -55,16 +56,21 @@ type CapabilityManifest struct {
 }
 
 type ConfigField struct {
-	Key         string              `json:"key"`
-	Type        string              `json:"type"`
-	Label       string              `json:"label,omitempty"`
-	Description string              `json:"description,omitempty"`
-	Options     []ConfigFieldOption `json:"options,omitempty"`
-	Default     any                 `json:"default,omitempty"`
+	Key          string              `json:"key"`
+	Type         string              `json:"type"`
+	Label        string              `json:"label,omitempty"`
+	Labels       map[string]string   `json:"labels,omitempty"`
+	Description  string              `json:"description,omitempty"`
+	Descriptions map[string]string   `json:"descriptions,omitempty"`
+	Options      []ConfigFieldOption `json:"options,omitempty"`
+	Default      any                 `json:"default,omitempty"`
+	Hidden       bool                `json:"hidden,omitempty"`
 }
 
 type ConfigFieldOption struct {
-	Value string `json:"value"`
+	Value  string            `json:"value"`
+	Label  string            `json:"label,omitempty"`
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 type AuthManifest struct {
@@ -135,12 +141,13 @@ type UploadPermissions struct {
 }
 
 type HostRequestSpec struct {
-	Method  string            `json:"method"`
-	Target  RequestTarget     `json:"target"`
-	Auth    string            `json:"auth,omitempty"`
-	Headers map[string]string `json:"headers,omitempty"`
-	Body    *HostRequestBody  `json:"body,omitempty"`
-	Expect  ResponseExpect    `json:"expect,omitempty"`
+	Method          string            `json:"method"`
+	Target          RequestTarget     `json:"target"`
+	Auth            string            `json:"auth,omitempty"`
+	Headers         map[string]string `json:"headers,omitempty"`
+	Body            *HostRequestBody  `json:"body,omitempty"`
+	Expect          ResponseExpect    `json:"expect,omitempty"`
+	FollowRedirects *bool             `json:"followRedirects,omitempty"`
 }
 
 type RequestTarget struct {
@@ -158,7 +165,13 @@ type QueryParam struct {
 type HostRequestBody struct {
 	Type  string          `json:"type"`
 	JSON  any             `json:"json,omitempty"`
+	Form  []FormField     `json:"form,omitempty"`
 	Parts []MultipartPart `json:"parts,omitempty"`
+}
+
+type FormField struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type MultipartPart struct {
@@ -186,4 +199,9 @@ type PluginError struct {
 	Code              string `json:"code"`
 	Message           string `json:"message,omitempty"`
 	RetryAfterSeconds *int   `json:"retryAfterSeconds,omitempty"`
+}
+
+type HostLogEntry struct {
+	Level   string `json:"level"`
+	Message string `json:"message"`
 }

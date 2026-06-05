@@ -7,7 +7,9 @@
     import { plugins_index } from "$lib/stores/plugin_store";
     import { theme } from "$lib/stores/theme_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { _ } from "svelte-i18n";
+    import { pluginTitle as localizedPluginTitle } from "$lib/util/plugin_i18n";
+    import { onMount } from "svelte";
+    import { _, locale } from "svelte-i18n";
 
     interface Props {
         trail?: Trail;
@@ -20,6 +22,14 @@
     let loading = $state(false);
     let sending = $state("");
     let eligible: PluginProvider[] = $state([]);
+    let currentTheme: "dark" | "light" = $state("light");
+
+    onMount(() => {
+        currentTheme = document.documentElement.classList.contains("dark") ? "dark" : "light";
+        return theme.subscribe((value) => {
+            currentTheme = value;
+        });
+    });
 
     export async function openModal() {
         modal.openModal();
@@ -53,10 +63,14 @@
     }
 
     function pluginLogo(plugin: PluginProvider): string | undefined {
-        if ($theme == "dark" && plugin.iconDark) {
+        if (currentTheme === "dark" && plugin.iconDark) {
             return plugin.iconDark;
         }
         return plugin.icon || undefined;
+    }
+
+    function pluginTitle(plugin: PluginProvider): string {
+        return localizedPluginTitle(plugin, $locale);
     }
 
     async function send(plugin: PluginProvider) {
@@ -117,10 +131,10 @@
                             <img
                                 class="h-20"
                                 src={pluginLogo(plugin)}
-                                alt={plugin.name}
+                                alt={pluginTitle(plugin)}
                             />
                         {:else}
-                            <span>{plugin.name}</span>
+                            <span>{pluginTitle(plugin)}</span>
                         {/if}
                     </button>
                 {/each}

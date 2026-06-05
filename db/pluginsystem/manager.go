@@ -26,6 +26,7 @@ type Manager struct {
 type PluginInfo struct {
 	ID           string   `json:"id"`
 	Name         string   `json:"name"`
+	DisplayName  string   `json:"displayName,omitempty"`
 	Description  string   `json:"description,omitempty"`
 	Icon         string   `json:"icon,omitempty"`
 	IconDark     string   `json:"iconDark,omitempty"`
@@ -71,6 +72,7 @@ func (m *Manager) ListLocalPlugins(context.Context) ([]PluginInfo, error) {
 		infos = append(infos, PluginInfo{
 			ID:           plugin.Manifest.ID,
 			Name:         plugin.Manifest.Name,
+			DisplayName:  stringMetadata(plugin.Manifest.Metadata, "displayName"),
 			Description:  plugin.Manifest.Description,
 			Icon:         icon,
 			IconDark:     iconDark,

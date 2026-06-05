@@ -1,20 +1,30 @@
+export type LocalizedTextMap = Record<string, string>;
+
 export interface ConfigFieldOption {
     value: string;
+    label?: string;
+    labels?: LocalizedTextMap;
 }
 
 export interface ConfigField {
     key: string;
     type: "boolean" | "date" | "object" | "select" | "text" | "url";
     label?: string;
+    labels?: LocalizedTextMap;
     description?: string;
+    descriptions?: LocalizedTextMap;
     options?: ConfigFieldOption[];
     default?: unknown;
+    hidden?: boolean;
 }
 
 export interface PluginProvider {
     id: string;
     name: string;
+    displayName?: string;
+    displayNames?: LocalizedTextMap;
     description?: string;
+    descriptions?: LocalizedTextMap;
     icon?: string;
     iconDark?: string;
     version?: string;
@@ -34,6 +44,7 @@ export interface PluginProvider {
         tokenAuth?: string;
     };
     configSchema?: ConfigField[];
+    hostConfig?: Record<string, unknown>;
     capabilities?: string[];
     limits?: {
         recommendedBatchSize?: number;

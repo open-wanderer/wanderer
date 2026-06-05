@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"runtime"
@@ -231,6 +232,8 @@ func (s *workerRuntimeSession) call(ctx context.Context, export string, input []
 				s.kill()
 				return workerCallOutcome{err: RuntimeSessionFatalError{Err: s.withStderr(err)}}
 			}
+		case workerMessageHostLog:
+			s.handleHostLog(msg)
 		case workerMessageCallResult:
 			result, err := workerData[workerCallResult](msg)
 			if err != nil {
@@ -266,6 +269,28 @@ func (s *workerRuntimeSession) call(ctx context.Context, export string, input []
 			return workerCallOutcome{err: RuntimeSessionFatalError{Err: fmt.Errorf("unexpected worker message %q", msg.Type)}}
 		}
 	}
+}
+
+func (s *workerRuntimeSession) handleHostLog(msg workerMessage) {
+	entry, err := workerData[workerHostLog](msg)
+	if err != nil {
+		log.Printf("plugin log invalid: session %s: %v", s.sessionID, err)
+		return
+	}
+	if entry.SessionID == "" {
+		entry.SessionID = s.sessionID
+	}
+	level, err := normalizeHostLogLevel(entry.Level)
+	if err != nil {
+		log.Printf("plugin log invalid: session %s: %v", s.sessionID, err)
+		return
+	}
+	message := sanitizeHostLogMessage(entry.Message)
+	if message == "" {
+		log.Printf("plugin log invalid: session %s: log message is required", s.sessionID)
+		return
+	}
+	log.Printf("plugin log [%s]: session %s: %s", level, entry.SessionID, message)
 }
 
 func (s *workerRuntimeSession) handleHostHTTPRequest(ctx context.Context, msg workerMessage) error {

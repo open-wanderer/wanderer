@@ -8,8 +8,9 @@
         plugin_instances_update,
     } from "$lib/stores/plugin_instance_store.js";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
-    import { tick, untrack } from "svelte";
-    import { _ } from "svelte-i18n";
+    import { pluginDescription as localizedPluginDescription, pluginTitle as localizedPluginTitle } from "$lib/util/plugin_i18n";
+    import { onMount, tick, untrack } from "svelte";
+    import { _, locale } from "svelte-i18n";
     import { theme } from "$lib/stores/theme_store";
 
     let { data } = $props();
@@ -23,6 +24,14 @@
 
     let pluginSettingsModal: PluginInstanceSettingsModal | undefined = $state();
     let selectedPlugin: PluginProvider | undefined = $state();
+    let currentTheme: "dark" | "light" = $state("light");
+
+    onMount(() => {
+        currentTheme = document.documentElement.classList.contains("dark") ? "dark" : "light";
+        return theme.subscribe((value) => {
+            currentTheme = value;
+        });
+    });
 
     async function savePluginInstance(instance: Partial<PluginInstance>) {
         try {
@@ -87,7 +96,7 @@
             ];
         } catch (e) {
             show_toast({
-                text: $_("error-setting-up-plugin", { values: { provider: plugin.name } }),
+                text: $_("error-setting-up-plugin", { values: { provider: pluginTitle(plugin) } }),
                 icon: "close",
                 type: "error",
             });
@@ -95,7 +104,7 @@
         }
 
         show_toast({
-            text: plugin.name + " " + $_(`plugin-${value ? "enabled" : "disabled"}`),
+            text: pluginTitle(plugin) + " " + $_(`plugin-${value ? "enabled" : "disabled"}`),
             icon: "check",
             type: "success",
         });
@@ -116,14 +125,18 @@
     }
 
     function pluginLogo(plugin: PluginProvider) {
-        if ($theme == "dark" && plugin.iconDark) {
+        if (currentTheme === "dark" && plugin.iconDark) {
             return plugin.iconDark;
         }
         return plugin.icon || undefined;
     }
 
+    function pluginTitle(plugin: PluginProvider) {
+        return localizedPluginTitle(plugin, $locale);
+    }
+
     function pluginDescription(plugin: PluginProvider) {
-        return plugin.description ?? "";
+        return localizedPluginDescription(plugin, $locale);
     }
 
     function pluginCardError(
@@ -157,7 +170,7 @@
         {@const instance = instanceForPlugin(plugin)}
         <PluginCard
             img={pluginLogo(plugin)}
-            title={plugin.name}
+            title={pluginTitle(plugin)}
             description={pluginDescription(plugin)}
             disabled={!instance || plugin.status != "available" || pluginRequiresConnection(plugin, instance)}
             active={instance?.enabled ?? false}

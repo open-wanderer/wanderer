@@ -100,6 +100,32 @@ Plugin sync starts from `plugin_instances.user`, the local wanderer user that ow
 
 Plugins cannot open provider connections themselves. They send a request spec to the host; the host resolves the connector, enforces policy, injects allowed auth, executes the HTTP request, and returns a bounded response. Host request failures after request decoding are returned to the plugin as `HostResponse.error` with the `provider_unavailable` code.
 
+Host request bodies may be JSON, `application/x-www-form-urlencoded`, or
+multipart, subject to the manifest upload limits and content-type allow-list.
+Here "uploads" means plugin-to-provider request bodies, including login forms,
+not only media/file uploads.
+Redirect following is enabled by default; plugins can set `followRedirects` to
+`false` to receive a 3xx response directly and handle provider login flows
+step-by-step. `HostResponse.headerValues` preserves all values for headers such
+as `Set-Cookie` and is the only response-header representation exposed to
+plugins.
+
+Plugins can emit host-visible diagnostics through the `wanderer:log` host
+function. The payload is a JSON object with a strict `level` (`debug`, `info`,
+`warn`, or `error`) and a non-empty `message`. The Go SDK exposes this as
+`sdk.LogDebug`, `sdk.LogInfo`, `sdk.LogWarn`, and `sdk.LogError`.
+Log messages are written to the host logs. Keep them short and never include
+secrets, credentials, cookies, tokens, authorization codes, or full URLs with
+query parameters.
+
+```go
+sdk.LogInfo("provider detail fetch took 420ms externalID=abc")
+sdk.LogWarn("provider returned an optional photo without a URL")
+```
+
+Declare host functions used by a capability in `requiredHostFunctions`, for
+example `["http_request", "log"]`.
+
 ```mermaid
 sequenceDiagram
   box WASM plugin
@@ -164,6 +190,7 @@ Manifest `configSchema` defines plugin-owned settings that are passed to plugin 
 | `planned` | Enables `list_routes.v1` sync. |
 | `completed` | Enables `list_activities.v1` sync. |
 | `privacy` | Chooses provider visibility or local user privacy settings. |
+| `merge.available` | Controls whether the UI offers auto-merge for this plugin. Defaults to `true`. |
 | `merge.enabled` | Runs auto-merge after trail import. |
 | `createSummitLogForCompleted` | Creates summit logs for completed imports. |
 | `categoryMapping` | Maps `metadata.providerCategory` to local category IDs or names. |
@@ -176,6 +203,59 @@ Photo descriptors may be returned either on the imported trail or on individual 
 ### List plugins
 
 Used by the settings UI to show locally available plugins, their metadata, icons, capabilities, and current availability status.
+
+Plugins may provide optional UI metadata through `manifest.metadata`:
+
+| Field | Purpose |
+| --- | --- |
+| `displayName` | Human-facing provider name shown in the UI. Falls back to manifest `name`. |
+| `displayNames` | Optional localized provider names keyed by locale, e.g. `de` or `de-CH`. Falls back to `displayName` and `name`. |
+| `descriptions` | Optional localized plugin descriptions keyed by locale. Falls back to manifest `description`. |
+| `icons.light` | Light-theme icon path inside the plugin bundle. |
+| `icons.dark` | Dark-theme icon path inside the plugin bundle. |
+
+Config schema fields may also localize plugin-owned UI text. The simple
+`label` and `description` strings remain valid fallbacks; optional `labels`
+and `descriptions` maps override them for matching locales. Select options can
+use `label` and `labels` in the same way. Fields with `"hidden": true` are not
+rendered in the settings modal, but their saved values are preserved and still
+passed to plugin exports.
+
+Locale lookup uses the exact locale first, then the language, then `en`, then
+the simple fallback string.
+
+```json
+{
+  "description": "Imports public hike suggestions from Schweizer Wanderwege.",
+  "metadata": {
+    "displayName": "Schweizer Wanderwege",
+    "displayNames": {
+      "de": "Schweizer Wanderwege",
+      "en": "Swiss Hiking Trails"
+    },
+    "descriptions": {
+      "de": "Importiert öffentliche Wandervorschläge der Schweizer Wanderwege.",
+      "en": "Imports public hike suggestions from Swiss Hiking Trails."
+    }
+  },
+  "configSchema": [
+    {
+      "key": "maxPhotos",
+      "type": "text",
+      "label": "Max photos",
+      "labels": {
+        "de": "Max. Fotos",
+        "en": "Max photos"
+      },
+      "description": "Maximum photos to import per hike. Use 0 for none or -1 for all.",
+      "descriptions": {
+        "de": "Maximale Anzahl Fotos pro Wanderung. 0 importiert keine Fotos, -1 alle.",
+        "en": "Maximum photos to import per hike. Use 0 for none or -1 for all."
+      }
+    }
+  ]
+}
+```
 
 ```mermaid
 flowchart TD

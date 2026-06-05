@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"pocketbase/util"
@@ -18,10 +20,10 @@ import (
 )
 
 type hostHTTPResponse struct {
-	Status     int               `json:"status"`
-	Headers    map[string]string `json:"headers,omitempty"`
-	BodyBase64 string            `json:"bodyBase64,omitempty"`
-	Error      *PluginError      `json:"error,omitempty"`
+	Status       int                 `json:"status"`
+	HeaderValues map[string][]string `json:"headerValues,omitempty"`
+	BodyBase64   string              `json:"bodyBase64,omitempty"`
+	Error        *PluginError        `json:"error,omitempty"`
 }
 
 type HostRequestOptions struct {
@@ -29,18 +31,20 @@ type HostRequestOptions struct {
 }
 
 type HostResponse struct {
-	Status  int
-	Headers map[string]string
-	Body    []byte
+	Status       int
+	HeaderValues map[string][]string
+	Body         []byte
 }
 
 var newConnectorHTTPClient = util.ConnectorHTTPClient
+
+const maxHostLogPayloadBytes = 8 * 1024
 
 // extismHostFunctions exposes the host APIs that WASM plugins may call. Each
 // function must delegate to the same policy-controlled host implementation that
 // backend handlers use.
 func extismHostFunctions(manifest Manifest, policy RequestPolicyContext) []extism.HostFunction {
-	fn := extism.NewHostFunctionWithStack(
+	httpFn := extism.NewHostFunctionWithStack(
 		"http_request",
 		func(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64) {
 			requestBytes, err := plugin.ReadBytes(stack[0])
@@ -50,13 +54,80 @@ func extismHostFunctions(manifest Manifest, policy RequestPolicyContext) []extis
 				})
 				return
 			}
-			writeHostHTTPResponse(ctx, plugin, stack, executeHostHTTPRequest(ctx, manifest, policy, requestBytes))
+			response := executeHostHTTPRequest(ctx, manifest, policy, requestBytes)
+			writeHostHTTPResponse(ctx, plugin, stack, response)
 		},
 		[]extism.ValueType{extism.ValueTypePTR},
 		[]extism.ValueType{extism.ValueTypePTR},
 	)
-	fn.SetNamespace("wanderer")
-	return []extism.HostFunction{fn}
+	httpFn.SetNamespace("wanderer")
+
+	logFn := extism.NewHostFunctionWithStack(
+		"log",
+		func(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64) {
+			message, err := plugin.ReadBytes(stack[0])
+			if err != nil {
+				plugin.Log(extism.LogLevelError, "read host log message: "+err.Error())
+				return
+			}
+			entry, err := parseHostLogEntry(message)
+			if err != nil {
+				plugin.Log(extism.LogLevelError, "invalid host log message: "+err.Error())
+				return
+			}
+			log.Printf("plugin log [%s]: %s", entry.Level, entry.Message)
+			_ = ctx
+		},
+		[]extism.ValueType{extism.ValueTypePTR},
+		nil,
+	)
+	logFn.SetNamespace("wanderer")
+
+	return []extism.HostFunction{httpFn, logFn}
+}
+
+func parseHostLogEntry(message []byte) (HostLogEntry, error) {
+	if len(message) > maxHostLogPayloadBytes {
+		return HostLogEntry{}, fmt.Errorf("log message exceeds maximum size")
+	}
+	var entry HostLogEntry
+	if err := json.Unmarshal(message, &entry); err != nil {
+		return HostLogEntry{}, fmt.Errorf("decode log entry: %w", err)
+	}
+	level, err := normalizeHostLogLevel(entry.Level)
+	if err != nil {
+		return HostLogEntry{}, err
+	}
+	entry.Level = level
+	entry.Message = sanitizeHostLogMessage(entry.Message)
+	if entry.Message == "" {
+		return HostLogEntry{}, fmt.Errorf("log message is required")
+	}
+	return entry, nil
+}
+
+func sanitizeHostLogMessage(message string) string {
+	return strings.TrimSpace(strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, message))
+}
+
+func normalizeHostLogLevel(level string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "debug":
+		return "debug", nil
+	case "info":
+		return "info", nil
+	case "warn":
+		return "warn", nil
+	case "error":
+		return "error", nil
+	default:
+		return "", fmt.Errorf("unsupported log level %q", level)
+	}
 }
 
 // executeHostHTTPRequest turns a raw plugin http_request payload into the
@@ -78,9 +149,9 @@ func executeHostHTTPRequest(ctx context.Context, manifest Manifest, policy Reque
 		}
 	}
 	return hostHTTPResponse{
-		Status:     executed.Status,
-		Headers:    executed.Headers,
-		BodyBase64: base64.StdEncoding.EncodeToString(executed.Body),
+		Status:       executed.Status,
+		HeaderValues: executed.HeaderValues,
+		BodyBase64:   base64.StdEncoding.EncodeToString(executed.Body),
 	}
 }
 
@@ -141,6 +212,9 @@ func ExecuteHostRequest(ctx context.Context, manifest Manifest, policy RequestPo
 		TLSMode:      resolved.Connector.TLS.Mode,
 		TLSCABundle:  resolved.Connector.TLS.CABundle,
 	}, func(req *http.Request, via []*http.Request) error {
+		if spec.FollowRedirects != nil && !*spec.FollowRedirects {
+			return http.ErrUseLastResponse
+		}
 		if len(via) >= 10 {
 			return fmt.Errorf("too many redirects")
 		}
@@ -178,16 +252,16 @@ func ExecuteHostRequest(ctx context.Context, manifest Manifest, policy RequestPo
 		return HostResponse{}, fmt.Errorf("provider response exceeds default maximum size")
 	}
 
-	headers := map[string]string{}
+	headerValues := map[string][]string{}
 	for key, values := range resp.Header {
 		if len(values) > 0 {
-			headers[key] = values[0]
+			headerValues[key] = append([]string{}, values...)
 		}
 	}
 	return HostResponse{
-		Status:  resp.StatusCode,
-		Headers: headers,
-		Body:    bodyBytes,
+		Status:       resp.StatusCode,
+		HeaderValues: headerValues,
+		Body:         bodyBytes,
 	}, nil
 }
 
@@ -202,6 +276,12 @@ func hostRequestBody(spec HostRequestSpec, options HostRequestOptions) (io.Reade
 			return nil, "", 0, err
 		}
 		return bytes.NewReader(body), "application/json", int64(len(body)), nil
+	case HostRequestBodyTypeForm:
+		body, err := formURLEncodedBody(spec.Body.Form)
+		if err != nil {
+			return nil, "", 0, err
+		}
+		return strings.NewReader(body), "application/x-www-form-urlencoded", int64(len(body)), nil
 	case HostRequestBodyTypeMultipart:
 		var body bytes.Buffer
 		writer := multipart.NewWriter(&body)
@@ -236,6 +316,20 @@ func hostRequestBody(spec HostRequestSpec, options HostRequestOptions) (io.Reade
 	default:
 		return nil, "", 0, fmt.Errorf("unsupported host request body type %q", spec.Body.Type)
 	}
+}
+
+func formURLEncodedBody(fields []FormField) (string, error) {
+	encoded := make([]string, 0, len(fields))
+	for _, field := range fields {
+		if field.Name == "" {
+			return "", fmt.Errorf("form field name must not be empty")
+		}
+		if hasControl(field.Name) || hasControl(field.Value) {
+			return "", fmt.Errorf("form fields must not contain control characters")
+		}
+		encoded = append(encoded, url.QueryEscape(field.Name)+"="+url.QueryEscape(field.Value))
+	}
+	return strings.Join(encoded, "&"), nil
 }
 
 func validateHostRequestUpload(manifest Manifest, spec HostRequestSpec, contentType string, bodySize int64) error {

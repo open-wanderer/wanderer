@@ -6,12 +6,45 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/extism/go-pdk"
 )
 
 //go:wasmimport wanderer http_request
 func wandererHTTPRequest(uint64) uint64
+
+//go:wasmimport wanderer log
+func wandererLog(uint64)
+
+func Log(level LogLevel, message string) {
+	entry := HostLogEntry{
+		Level:   level,
+		Message: message,
+	}
+	memory, err := pdk.AllocateJSON(entry)
+	if err != nil {
+		return
+	}
+	defer memory.Free()
+	wandererLog(memory.Offset())
+}
+
+func LogDebug(message string) {
+	Log(LogLevelDebug, message)
+}
+
+func LogInfo(message string) {
+	Log(LogLevelInfo, message)
+}
+
+func LogWarn(message string) {
+	Log(LogLevelWarn, message)
+}
+
+func LogError(message string) {
+	Log(LogLevelError, message)
+}
 
 func HostRequest(spec HostRequestSpec) (HostResponse, []byte, error) {
 	requestMemory, err := pdk.AllocateJSON(spec)
@@ -73,4 +106,49 @@ func PostJSON(connector string, path string, query []QueryParam, headers map[str
 		},
 		Expect: expect,
 	})
+}
+
+func PostForm(connector string, path string, query []QueryParam, headers map[string]string, form []FormField, expect ResponseExpect) (HostResponse, []byte, error) {
+	return HostRequest(HostRequestSpec{
+		Method: "POST",
+		Target: RequestTarget{
+			Type:      "connector",
+			Connector: connector,
+			Path:      path,
+			Query:     query,
+		},
+		Headers: headers,
+		Body: &HostRequestBody{
+			Type: HostRequestBodyTypeForm,
+			Form: form,
+		},
+		Expect: expect,
+	})
+}
+
+func (r HostResponse) FirstHeader(name string) string {
+	values := r.HeaderValuesFor(name)
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
+}
+
+func (r HostResponse) HeaderValuesFor(name string) []string {
+	if r.HeaderValues == nil {
+		return nil
+	}
+	if values, ok := r.HeaderValues[name]; ok {
+		return values
+	}
+	for key, values := range r.HeaderValues {
+		if strings.EqualFold(key, name) {
+			return values
+		}
+	}
+	return nil
+}
+
+func Bool(value bool) *bool {
+	return &value
 }

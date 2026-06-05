@@ -87,7 +87,28 @@
     {
       "key": "after",
       "type": "date",
-      "label": "Start date"
+      "label": "Start date",
+      "labels": {
+        "de": "Startdatum",
+        "en": "Start date"
+      },
+      "description": "Ignore routes and activities before this date.",
+      "descriptions": {
+        "cs": "Pokud váš účet obsahuje velké množství aktivit, můžete narazit na limit API služby Strava, což znemožní synchronizaci všech aktivit najednou. Tomuto problému předejdete nastavením data \"Od\" a dále - synchronizují se tak pouze aktivity zaznamenané po tomto datu.",
+        "de": "Wenn Ihr Konto eine große Anzahl von Aktivitäten enthält, kann es vorkommen, dass Sie aufgrund der API-Restriktionen von Strava nicht alle Aktivitäten auf einmal synchronisieren können. Um dieses Problem zu umgehen, können Sie unten ein Startdatum festlegen, sodass nur Aktivitäten synchronisiert werden, die nach diesem Datum aufgezeichnet wurden.",
+        "en": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an start date below so that only activities that were recorded after this date are synced.",
+        "es": "Si tu cuenta tiene una gran cantidad de actividades, es posible que alcances el límite de peticiones de la API de Strava, lo que impedirá la sincronización de todas las actividades a la vez. Para mitigar este problema, puedes establecer una fecha \"Posterior a\" a continuación, de modo que solo se sincronicen las actividades que se registraron después de esa fecha.",
+        "eu": "Zure kontuak ekintza esko baditu Stravaren APIaren mugekin topo egin dezakezu eta agian ezingo dituzu zure ekintza guztiak aldi berean inportatu. Horretarako data jakin batetik aurrerako ekintzak sinkronizatzeko aukera duzu.",
+        "fr": "Si votre compte a une grande quantité d'activités, vous pouvez rencontrer la limite d'utilisation de l'API de Strava vous empêchant de synchroniser toutes les activités en même temps. Pour atténuer ce problème, vous pouvez définir une date \"Après-\" ci-dessous afin que seules les activités qui ont été enregistrées après cette date soient synchronisées.",
+        "it": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced.",
+        "hu": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced.",
+        "nl": "Als uw account een grote hoeveelheid activiteiten heeft, kunt u op de API-limiet van Strava botsen voorkomend dat u alle activiteiten tegelijk synchroniseert. Om dit probleem te omzeilen kunt u een \"Later\" datum hieronder instellen, zodat alleen activiteiten die na deze datum werden opgenomen worden gesynchroniseerd.",
+        "no": "Hvis kontoen din har en stor mengde aktiviteter kan du støte på Stravas API-hastighetsgrense som hindrer deg i å synkronisere alle aktiviteter samtidig. For å redusere dette problemet kan du sette en \"Etter\" dato nedenfor slik at bare aktiviteter som ble registrert etter denne datoen blir synkronisert.",
+        "pl": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced.",
+        "pt": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced.",
+        "ru": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced.",
+        "zh": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced."
+      }
     }
   ],
   "hostConfig": {
@@ -134,6 +155,22 @@
     }
   },
   "metadata": {
+    "descriptions": {
+      "cs": "Synchronizuje vaše trasy a aktivity z aplikace Strava s Wandererem v pravidelných intervalech.",
+      "de": "Synchronisiert Deine Strava-Routen und -Aktivitäten regelmäßig mit wanderer.",
+      "en": "Syncs your Strava routes & activities with wanderer in regular intervals.",
+      "es": "Sincroniza tus recorridos y actividades de Strava con Wanderer en intervalos regulares.",
+      "eu": "Zure stravako ibilbideak wandererekin sinkronizatzen ditu aldian behin.",
+      "fr": "Synchronisez vos itinéraires et vos activités Strava avec wanderer à intervalles réguliers.",
+      "it": "Syncs your strava routes & activities with wanderer in regular intervals.",
+      "hu": "Syncs your strava routes & activities with wanderer in regular intervals.",
+      "nl": "Synchroniseert je Strava-routes en -activiteiten met Wanderer op regelmatige tijdstippen.",
+      "no": "Synkroniserer dine Strava-ruter og aktiviteter med Wanderer med jevne mellomrom.",
+      "pl": "Synchronizuje trasy i aktywność z wanderer w równych odstępach.",
+      "pt": "Syncs your strava routes & activities with wanderer in regular intervals.",
+      "ru": "Синхронизирует ваши данные со Strava.",
+      "zh": "定期与strava同步您的wanderer路线和活动。"
+    },
     "icons": {
       "light": "icon.svg"
     }

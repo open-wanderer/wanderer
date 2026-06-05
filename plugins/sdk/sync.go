@@ -15,8 +15,20 @@ func StringOption(options map[string]any, key string) string {
 	return StringField(options, key)
 }
 
+func IntOption(options map[string]any, key string, fallback int) int {
+	return intValue(options, key, fallback)
+}
+
+func BoolOption(options map[string]any, key string, fallback bool) bool {
+	return boolValue(options, key, fallback)
+}
+
 func IntState(state map[string]any, key string, fallback int) int {
-	switch value := state[key].(type) {
+	return intValue(state, key, fallback)
+}
+
+func intValue(values map[string]any, key string, fallback int) int {
+	switch value := values[key].(type) {
 	case float64:
 		return int(value)
 	case int:
@@ -28,6 +40,19 @@ func IntState(state map[string]any, key string, fallback int) int {
 		}
 	case string:
 		parsed, err := strconv.Atoi(value)
+		if err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func boolValue(values map[string]any, key string, fallback bool) bool {
+	switch value := values[key].(type) {
+	case bool:
+		return value
+	case string:
+		parsed, err := strconv.ParseBool(strings.TrimSpace(value))
 		if err == nil {
 			return parsed
 		}

@@ -168,6 +168,36 @@ func TestHandleCallExportRejectsInvalidInput(t *testing.T) {
 	}
 }
 
+func TestWorkerHostLogFrameRoundTrip(t *testing.T) {
+	msg, err := workerMessageWithData(workerMessageHostLog, workerHostLog{
+		Level:     "info",
+		Message:   "detail fetch took 1s",
+		SessionID: "sess-log",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	if err := writeWorkerMessage(&buf, 1024, msg); err != nil {
+		t.Fatalf("write message: %v", err)
+	}
+	got, err := readWorkerMessage(&buf, 1024)
+	if err != nil {
+		t.Fatalf("read worker message: %v", err)
+	}
+	if got.Type != workerMessageHostLog {
+		t.Fatalf("expected host_log, got %q", got.Type)
+	}
+	payload, err := workerData[workerHostLog](got)
+	if err != nil {
+		t.Fatalf("decode host log: %v", err)
+	}
+	if payload.Level != "info" || payload.Message != "detail fetch took 1s" || payload.SessionID != "sess-log" {
+		t.Fatalf("unexpected host log payload: %#v", payload)
+	}
+}
+
 func TestPluginErrorForCode(t *testing.T) {
 	t.Run("falls back when raw error is empty", func(t *testing.T) {
 		got := pluginErrorForCode("list_routes_v1", 7, "")

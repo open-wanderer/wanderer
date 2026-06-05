@@ -9,7 +9,13 @@
     import type { ConfigField, PluginProvider } from "$lib/models/plugin_provider";
     import { plugin_oauth_start } from "$lib/stores/plugin_instance_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { _ } from "svelte-i18n";
+    import {
+        configFieldDescription,
+        configFieldLabel,
+        configFieldOptionLabel,
+        pluginTitle as localizedPluginTitle,
+    } from "$lib/util/plugin_i18n";
+    import { _, locale } from "svelte-i18n";
 
     interface Props {
         plugin: PluginProvider;
@@ -32,6 +38,7 @@
     let needsOAuthConnect = $derived(isOAuthPlugin && (!isConnected || authChanged()));
     let plugin_id = $derived(plugin.id);
     let configSchema = $derived(plugin.configSchema ?? []);
+    let visibleConfigSchema = $derived(configSchema.filter((field) => !field.hidden));
     let extraConfig: Record<string, any> = $state(initialExtraConfig());
     let supportsPlanned = $derived(
         plugin.capabilities?.includes("list_routes.v1") ?? false,
@@ -39,9 +46,11 @@
     let supportsCompleted = $derived(
         plugin.capabilities?.includes("list_activities.v1") ?? false,
     );
+    let hasTourKindChoice = $derived(supportsPlanned && supportsCompleted);
     let supportsSourcePrivacy = $derived(
         plugin.capabilities?.includes("source_privacy") ?? false,
     );
+    let mergeAvailable = $derived((hostConfig().merge as any)?.available !== false);
 
     const configLabels: Record<string, string> = {
         after: "ignore-trails-before-date",
@@ -75,14 +84,17 @@
             configSchema.map((field) => {
                 const saved = config[field.key];
                 if (saved !== undefined) return [field.key, saved];
-                if (field.default !== undefined) return [field.key, String(field.default)];
                 if (field.type === "boolean") {
-                    return [field.key, false];
+                    return [field.key, booleanDefault(field.default, false)];
                 }
+                if (field.default !== undefined) return [field.key, String(field.default)];
                 if (field.type === "select" && field.options?.length) {
                     return [field.key, field.options[0].value];
                 }
                 if (field.type === "select") {
+                    return [field.key, ""];
+                }
+                if (field.type === "text" || field.type === "url") {
                     return [field.key, ""];
                 }
                 return [field.key, undefined];
@@ -90,24 +102,26 @@
         );
     }
 
+    function booleanDefault(value: unknown, fallback: boolean): boolean {
+        if (typeof value === "boolean") return value;
+        if (typeof value === "string") return value.trim().toLowerCase() === "true";
+        return fallback;
+    }
+
     function selectItems(field: ConfigField): SelectItem[] {
         return (field.options ?? []).map((o) => ({
-            text: $_(o.value),
+            text: configFieldOptionLabel(o, $locale, $_(o.value)),
             value: o.value,
         }));
     }
 
     function fieldLabel(field: ConfigField): string {
-        if (field.label) {
-            return field.label;
-        }
-        return $_(configLabels[field.key] ?? field.key);
+        return configFieldLabel(field, $locale, $_(configLabels[field.key] ?? field.key));
     }
 
     function fieldHint(field: ConfigField): string | undefined {
-        if (field.description) {
-            return field.description;
-        }
+        const description = configFieldDescription(field, $locale);
+        if (description) return description;
         const hint = configHints[field.key];
         return hint ? $_(hint) : undefined;
     }
@@ -133,7 +147,24 @@
     }
 
     function hostConfig(): Record<string, any> {
-        return configSection("host");
+        const manifestConfig = plugin.hostConfig ?? {};
+        const instanceConfig = configSection("host");
+        const manifestMerge =
+            manifestConfig.merge && typeof manifestConfig.merge === "object"
+                ? (manifestConfig.merge as Record<string, unknown>)
+                : {};
+        const instanceMerge =
+            instanceConfig.merge && typeof instanceConfig.merge === "object"
+                ? (instanceConfig.merge as Record<string, unknown>)
+                : {};
+        return {
+            ...manifestConfig,
+            ...instanceConfig,
+            merge: {
+                ...manifestMerge,
+                ...instanceMerge,
+            },
+        };
     }
 
     function authChanged() {
@@ -155,9 +186,10 @@
     export function openModal() {
         auth = initialAuth();
         const config = hostConfig();
-        planned = (config.planned as boolean | undefined) ?? true;
-        completed = (config.completed as boolean | undefined) ?? true;
-        mergeEnabled = Boolean((config.merge as any)?.enabled);
+        planned = supportsPlanned && (!hasTourKindChoice || ((config.planned as boolean | undefined) ?? true));
+        completed =
+            supportsCompleted && (!hasTourKindChoice || ((config.completed as boolean | undefined) ?? true));
+        mergeEnabled = mergeAvailable && Boolean((config.merge as any)?.enabled);
         privacy = (config.privacy as string | undefined) ?? "original";
         extraConfig = initialExtraConfig();
         modal.openModal();
@@ -172,15 +204,26 @@
         const pluginRuntimeConfig: Record<string, unknown> = { ...pluginConfig() };
         const pluginHostConfig: Record<string, unknown> = { ...hostConfig() };
         if (supportsPlanned) {
-            pluginHostConfig.planned = planned;
+            pluginHostConfig.planned = hasTourKindChoice ? planned : true;
+        } else {
+            delete pluginHostConfig.planned;
         }
         if (supportsCompleted) {
-            pluginHostConfig.completed = completed;
+            pluginHostConfig.completed = hasTourKindChoice ? completed : true;
+        } else {
+            delete pluginHostConfig.completed;
         }
         if (supportsSourcePrivacy) {
             pluginHostConfig.privacy = privacy;
         }
-        pluginHostConfig.merge = { enabled: mergeEnabled };
+        const currentMergeConfig =
+            pluginHostConfig.merge && typeof pluginHostConfig.merge === "object"
+                ? (pluginHostConfig.merge as Record<string, unknown>)
+                : {};
+        pluginHostConfig.merge = {
+            ...currentMergeConfig,
+            enabled: mergeAvailable && mergeEnabled,
+        };
         for (const field of configSchema) {
             const val = extraConfig[field.key];
             if (val !== undefined && val !== "") {
@@ -221,6 +264,10 @@
         modal.closeModal();
     }
 
+    function pluginTitle() {
+        return localizedPluginTitle(plugin, $locale);
+    }
+
     async function startOAuth() {
         try {
             const saved = await onsave?.(pluginInstanceFromForm());
@@ -248,8 +295,8 @@
 
 <Modal
     id="{plugin_id}-plugin-settings-modal"
-    size="md:max-w-lg"
-    title={plugin.name + " " + $_("settings")}
+    size="md:min-w-xl lg:min-w-2xl"
+    title={pluginTitle() + " " + $_("settings")}
     bind:this={modal}
 >
     {#snippet content()}
@@ -287,20 +334,16 @@
                 </p>
             {/if}
 
-            {#if supportsPlanned || supportsCompleted}
+            {#if hasTourKindChoice}
                 <div class="flex flex-wrap gap-x-4">
-                    {#if supportsPlanned}
-                        <Toggle
-                            bind:value={planned}
-                            label={$_("planned-tours", { values: { n: 2 } })}
-                        ></Toggle>
-                    {/if}
-                    {#if supportsCompleted}
-                        <Toggle
-                            bind:value={completed}
-                            label={$_("completed-tours", { values: { n: 2 } })}
-                        ></Toggle>
-                    {/if}
+                    <Toggle
+                        bind:value={planned}
+                        label={$_("planned-tours", { values: { n: 2 } })}
+                    ></Toggle>
+                    <Toggle
+                        bind:value={completed}
+                        label={$_("completed-tours", { values: { n: 2 } })}
+                    ></Toggle>
                 </div>
             {/if}
 
@@ -319,7 +362,7 @@
                 </p>
             {/if}
 
-            {#each configSchema as field}
+            {#each visibleConfigSchema as field}
                 {#if field.type === "select"}
                     <Select
                         label={fieldLabel(field)}
@@ -368,7 +411,9 @@
                 {/if}
             {/each}
 
-            <PluginMergeSettings prefix="merge" bind:value={mergeEnabled} />
+            {#if mergeAvailable}
+                <PluginMergeSettings prefix="merge" bind:value={mergeEnabled} />
+            {/if}
         </form>
     {/snippet}
     {#snippet footer()}

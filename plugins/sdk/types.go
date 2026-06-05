@@ -2,6 +2,7 @@ package sdk
 
 const (
 	HostRequestBodyTypeJSON      = "json"
+	HostRequestBodyTypeForm      = "form"
 	HostRequestBodyTypeMultipart = "multipart"
 	MultipartSourceTrail         = "trail"
 	MultipartSourceTrailGPX      = "trail.gpx"
@@ -11,12 +12,13 @@ const (
 )
 
 type HostRequestSpec struct {
-	Method  string            `json:"method"`
-	Target  RequestTarget     `json:"target"`
-	Auth    string            `json:"auth,omitempty"`
-	Headers map[string]string `json:"headers,omitempty"`
-	Body    *HostRequestBody  `json:"body,omitempty"`
-	Expect  ResponseExpect    `json:"expect,omitempty"`
+	Method          string            `json:"method"`
+	Target          RequestTarget     `json:"target"`
+	Auth            string            `json:"auth,omitempty"`
+	Headers         map[string]string `json:"headers,omitempty"`
+	Body            *HostRequestBody  `json:"body,omitempty"`
+	Expect          ResponseExpect    `json:"expect,omitempty"`
+	FollowRedirects *bool             `json:"followRedirects,omitempty"`
 }
 
 type RequestTarget struct {
@@ -34,7 +36,13 @@ type QueryParam struct {
 type HostRequestBody struct {
 	Type  string          `json:"type"`
 	JSON  any             `json:"json,omitempty"`
+	Form  []FormField     `json:"form,omitempty"`
 	Parts []MultipartPart `json:"parts,omitempty"`
+}
+
+type FormField struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type MultipartPart struct {
@@ -50,15 +58,29 @@ type ResponseExpect struct {
 }
 
 type HostResponse struct {
-	Status     int               `json:"status"`
-	Headers    map[string]string `json:"headers,omitempty"`
-	BodyBase64 string            `json:"bodyBase64,omitempty"`
-	Error      *PluginError      `json:"error,omitempty"`
+	Status       int                 `json:"status"`
+	HeaderValues map[string][]string `json:"headerValues,omitempty"`
+	BodyBase64   string              `json:"bodyBase64,omitempty"`
+	Error        *PluginError        `json:"error,omitempty"`
 }
 
 type PluginError struct {
 	Code    string `json:"code"`
 	Message string `json:"message,omitempty"`
+}
+
+type LogLevel string
+
+const (
+	LogLevelDebug LogLevel = "debug"
+	LogLevelInfo  LogLevel = "info"
+	LogLevelWarn  LogLevel = "warn"
+	LogLevelError LogLevel = "error"
+)
+
+type HostLogEntry struct {
+	Level   LogLevel `json:"level"`
+	Message string   `json:"message"`
 }
 
 type InstanceRef struct {

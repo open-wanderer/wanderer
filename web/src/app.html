@@ -7,15 +7,15 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<meta name="color-scheme" content="light">
 	<script>
-		localStorage.theme === 'dark' ||
-			(!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
-			? document.documentElement.classList.add('dark')
-			: document.documentElement.classList.add('light');
-
-		localStorage.theme === 'dark' ||
-			(!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
-			? document.querySelector("meta[name='color-scheme'" )?.setAttribute("content", 'dark')
-			: document.querySelector("meta[name='color-scheme'" )?.setAttribute("content", 'light')
+		const storedTheme = localStorage.theme;
+		const theme =
+			storedTheme === 'dark' || storedTheme === 'light'
+				? storedTheme
+				: window.matchMedia('(prefers-color-scheme: dark)').matches
+					? 'dark'
+					: 'light';
+		document.documentElement.classList.add(theme);
+		document.querySelector("meta[name='color-scheme']")?.setAttribute("content", theme);
 	</script>
 	%sveltekit.head%
 </head>

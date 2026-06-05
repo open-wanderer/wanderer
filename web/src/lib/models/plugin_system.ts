@@ -10,6 +10,7 @@ export interface PluginSystemManifest {
     manifestVersion: string;
     id: string;
     name: string;
+    displayName?: string;
     description?: string;
     icon?: string;
     iconDark?: string;
@@ -29,6 +30,7 @@ export interface PluginSystemManifest {
 export interface PluginSystemPlugin {
     id: string;
     name: string;
+    displayName?: string;
     description?: string;
     icon?: string;
     iconDark?: string;

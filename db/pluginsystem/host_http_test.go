@@ -2,6 +2,7 @@ package pluginsystem
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,49 @@ import (
 
 	"pocketbase/util"
 )
+
+func TestParseHostLogEntry(t *testing.T) {
+	payload, err := json.Marshal(HostLogEntry{Level: "warn", Message: "  slow request  "})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, err := parseHostLogEntry(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.Level != "warn" || entry.Message != "slow request" {
+		t.Fatalf("unexpected structured entry: %#v", entry)
+	}
+
+	if _, err := parseHostLogEntry([]byte(" plain message ")); err == nil {
+		t.Fatal("expected plain log message to fail")
+	}
+
+	if _, err := parseHostLogEntry([]byte(`{"level":"verbose","message":"hello"}`)); err == nil {
+		t.Fatal("expected unsupported log level to fail")
+	}
+
+	if _, err := parseHostLogEntry([]byte(`{"level":"info","message":"  "}`)); err == nil {
+		t.Fatal("expected empty log message to fail")
+	}
+}
+
+func TestParseHostLogEntrySanitizesMessage(t *testing.T) {
+	entry, err := parseHostLogEntry([]byte(`{"level":"info","message":"first\nsecond\rthird\tfourth"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.Message != "first second third fourth" {
+		t.Fatalf("unexpected sanitized message: %q", entry.Message)
+	}
+}
+
+func TestParseHostLogEntryRejectsOversizedPayload(t *testing.T) {
+	payload := []byte(`{"level":"info","message":"` + strings.Repeat("x", maxHostLogPayloadBytes) + `"}`)
+	if _, err := parseHostLogEntry(payload); err == nil {
+		t.Fatal("expected oversized log payload to fail")
+	}
+}
 
 func TestExecuteHostRequestRejectsRedirectToUndeclaredHost(t *testing.T) {
 	useUnsafeTestHTTPClient(t)
@@ -189,6 +233,101 @@ func TestExecuteHostRequestBuildsMultipartTrailSend(t *testing.T) {
 	}
 	if resp.Status != http.StatusOK {
 		t.Fatalf("unexpected status %d", resp.Status)
+	}
+}
+
+func TestExecuteHostRequestBuildsFormURLEncodedBody(t *testing.T) {
+	useUnsafeTestHTTPClient(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Content-Type"); got != "application/x-www-form-urlencoded" {
+			t.Fatalf("unexpected content type %q", got)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if got := r.Form.Get("person[login_identity]"); got != "user@example.test" {
+			t.Fatalf("login_identity = %q", got)
+		}
+		if got := r.Form.Get("person[password]"); got != "secret" {
+			t.Fatalf("password = %q", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	manifest := testHostManifest(t, server.URL)
+	manifest.Permissions.Uploads.ContentTypes = append(manifest.Permissions.Uploads.ContentTypes, "application/x-www-form-urlencoded")
+	resp, err := ExecuteHostRequest(context.Background(), manifest, testHostPolicy(t, server.URL), HostRequestSpec{
+		Method: "POST",
+		Target: RequestTarget{Type: "connector", Connector: "api", Path: "/v1/login"},
+		Body: &HostRequestBody{
+			Type: HostRequestBodyTypeForm,
+			Form: []FormField{
+				{Name: "person[login_identity]", Value: "user@example.test"},
+				{Name: "person[password]", Value: "secret"},
+			},
+		},
+		Expect: ResponseExpect{
+			ContentTypes: []string{"application/json"},
+			MaxBytes:     1024,
+		},
+	}, HostRequestOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Status != http.StatusOK {
+		t.Fatalf("unexpected status %d", resp.Status)
+	}
+}
+
+func TestExecuteHostRequestCanReturnRedirectResponse(t *testing.T) {
+	useUnsafeTestHTTPClient(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/v1/next", http.StatusFound)
+	}))
+	defer server.Close()
+
+	followRedirects := false
+	resp, err := ExecuteHostRequest(context.Background(), testHostManifest(t, server.URL), testHostPolicy(t, server.URL), HostRequestSpec{
+		Method:          "GET",
+		Target:          RequestTarget{Type: "connector", Connector: "api", Path: "/v1/start"},
+		FollowRedirects: &followRedirects,
+	}, HostRequestOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Status != http.StatusFound {
+		t.Fatalf("unexpected status %d", resp.Status)
+	}
+	if got := resp.HeaderValues["Location"]; len(got) != 1 || got[0] != "/v1/next" {
+		t.Fatalf("Location = %#v", got)
+	}
+}
+
+func TestExecuteHostRequestReturnsMultiValueHeaders(t *testing.T) {
+	useUnsafeTestHTTPClient(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Set-Cookie", "session=abc; Path=/")
+		w.Header().Add("Set-Cookie", "device=full; Path=/")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	resp, err := ExecuteHostRequest(context.Background(), testHostManifest(t, server.URL), testHostPolicy(t, server.URL), HostRequestSpec{
+		Method: "GET",
+		Target: RequestTarget{Type: "connector", Connector: "api", Path: "/v1"},
+		Expect: ResponseExpect{
+			ContentTypes: []string{"application/json"},
+			MaxBytes:     1024,
+		},
+	}, HostRequestOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := resp.HeaderValues["Set-Cookie"]; len(got) != 2 || got[0] != "session=abc; Path=/" || got[1] != "device=full; Path=/" {
+		t.Fatalf("Set-Cookie values = %#v", got)
 	}
 }
 

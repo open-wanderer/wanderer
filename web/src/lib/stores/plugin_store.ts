@@ -1,4 +1,4 @@
-import type { PluginProvider } from "$lib/models/plugin_provider";
+import type { LocalizedTextMap, PluginProvider } from "$lib/models/plugin_provider";
 import type { PluginSystemPlugin } from "$lib/models/plugin_system";
 import { APIError } from "$lib/util/api_util";
 import { derived, writable, type Readable, type Writable } from "svelte/store";
@@ -75,11 +75,15 @@ function pluginSystemToPluginProvider(plugin: PluginSystemPlugin): PluginProvide
         primaryAuth.fields ??
         primaryAuth.secretFields ??
         (primaryAuth.secretField ? [primaryAuth.secretField] : []);
+    const metadata = plugin.manifest.metadata ?? {};
 
     return {
         id: plugin.id,
         name: plugin.name,
+        displayName: plugin.displayName,
+        displayNames: localizedMetadata(metadata, "displayNames"),
         description: plugin.description,
+        descriptions: localizedMetadata(metadata, "descriptions"),
         icon: plugin.icon,
         iconDark: plugin.iconDark,
         version: plugin.version,
@@ -97,8 +101,23 @@ function pluginSystemToPluginProvider(plugin: PluginSystemPlugin): PluginProvide
             tokenAuth: primaryAuth.tokenAuth,
         },
         configSchema: plugin.manifest.configSchema as PluginProvider["configSchema"],
+        hostConfig: plugin.manifest.hostConfig,
         capabilities: plugin.capabilities,
         status: plugin.status,
         error: plugin.error,
     };
+}
+
+function localizedMetadata(
+    metadata: Record<string, unknown>,
+    key: string,
+): LocalizedTextMap | undefined {
+    const value = metadata[key];
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return undefined;
+    }
+    const entries = Object.entries(value as Record<string, unknown>).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+    );
+    return entries.length ? Object.fromEntries(entries) : undefined;
 }

@@ -74,7 +74,17 @@
     {
       "key": "after",
       "type": "date",
-      "label": "Start date"
+      "label": "Start date",
+      "labels": {
+        "de": "Startdatum",
+        "en": "Start date"
+      },
+      "description": "Ignore routes and activities before this date.",
+      "descriptions": {
+        "de": "Wenn Ihr Hammerhead Konto bereits mit anderen Trail-Datenbanken wie komoot oder Strava synchronisiert ist, kann die zusätzliche Synchronisierung Ihrer Hammerhead-Daten zu Duplikaten führen. Um dies zu vermeiden, können Sie unten ein Startdatum festlegen, sodass nur Aktivitäten synchronisiert werden, die nach diesem Datum aufgezeichnet wurden.",
+        "en": "If your hammerhead account is already synced with other trail databases, such as komoot or Strava, start syncing your Hammerhead data may result in duplicates. To avoid this, you can set an start date below, meaning only activities recorded after this date will be synced.",
+        "no": "Hvis Hammerhead-kontoen din allerede er synkronisert med andre stidatabaser, som Komoot eller Strava, kan synkronisering av Hammerhead-data føre til duplikater. For å unngå dette kan du angi en startdato nedenfor, slik at bare aktiviteter registrert etter denne datoen vil bli synkronisert."
+      }
     }
   ],
   "hostConfig": {
@@ -83,6 +93,11 @@
     }
   },
   "metadata": {
+    "descriptions": {
+      "de": "Synchronisiert Deine Hammerhead-Touren regelmäßig mit wanderer.",
+      "en": "Syncs your Hammerhead tours with wanderer in regular intervals.",
+      "no": "Synkroniserer Hammerhead-turene dine med Wanderer med jevne mellomrom."
+    },
     "icons": {
       "light": "icon.svg",
       "dark": "icon_dark.svg"

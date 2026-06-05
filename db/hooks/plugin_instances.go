@@ -48,6 +48,7 @@ func ViewPluginInstanceHandler() func(e *core.RecordRequestEvent) error {
 func CreatePluginInstanceHandler() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		ensurePluginInstanceStatus(e.Record)
+		mergePluginInstanceDefaultConfig(e.App, e.Record)
 		if err := encryptPluginInstanceAuth(e.App, e.Record); err != nil {
 			return err
 		}
@@ -70,12 +71,38 @@ func CreateUpdatePluginInstanceSuccessHandler() func(e *core.RecordEvent) error 
 func UpdatePluginInstanceHandler() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		ensurePluginInstanceStatus(e.Record)
+		mergePluginInstanceDefaultConfig(e.App, e.Record)
 		if err := encryptPluginInstanceAuth(e.App, e.Record); err != nil {
 			return err
 		}
 
 		return e.Next()
 	}
+}
+
+func mergePluginInstanceDefaultConfig(app core.App, r *core.Record) {
+	defaults := installedPluginDefaultConfig(app, r.GetString("plugin_id"))
+	if len(defaults) == 0 {
+		return
+	}
+	merged := pluginsystem.CloneJSONMap(defaults)
+	pluginsystem.DeepMergeConfig(merged, pluginsystem.JSONMapFromRecord(r, "config"))
+	r.Set("config", merged)
+}
+
+func installedPluginDefaultConfig(app core.App, pluginID string) map[string]any {
+	if pluginID == "" {
+		return map[string]any{}
+	}
+	record, _ := app.FindFirstRecordByFilter(
+		"installed_plugins",
+		"plugin_id={:plugin_id}",
+		dbx.Params{"plugin_id": pluginID},
+	)
+	if record == nil {
+		return map[string]any{}
+	}
+	return pluginsystem.JSONMapFromRecord(record, "config")
 }
 
 func censorPluginInstanceAuth(app core.App, r *core.Record) {

@@ -64,7 +64,16 @@
     {
       "key": "after",
       "type": "date",
-      "label": "Start date"
+      "label": "Start date",
+      "labels": {
+        "de": "Startdatum",
+        "en": "Start date"
+      },
+      "description": "Ignore tours before this date.",
+      "descriptions": {
+        "de": "Touren vor diesem Datum ignorieren.",
+        "en": "Ignore tours before this date."
+      }
     }
   ],
   "hostConfig": {
@@ -98,6 +107,22 @@
     }
   },
   "metadata": {
+    "descriptions": {
+      "cs": "Synchronizuje vaše trasy z aplikace Komoot s Wandererem v pravidelných intervalech.",
+      "de": "Synchronisiert Deine komoot-Touren regelmäßig mit wanderer.",
+      "en": "Syncs your komoot tours with wanderer in regular intervals.",
+      "es": "Sincroniza tus recorridos de Komoot con Wanderer en intervalos regulares.",
+      "eu": "Zure komooteko ibilbideak wandererekin sinkronizatzen ditu aldian behin.",
+      "fr": "Synchronisez vos Tours Komoot avec wanderer à intervalles réguliers.",
+      "it": "Syncs your komoot tours with wanderer in regular intervals.",
+      "hu": "Syncs your komoot tours with wanderer in regular intervals.",
+      "nl": "Synchroniseert je Komoot-tochten met Wanderer op regelmatige tijdstippen.",
+      "no": "Synkroniserer dine Komoot-turer med Wanderer med jevne mellomrom.",
+      "pl": "Synchronizuje trasy kamoot z wanderer w równych odstępach.",
+      "pt": "Syncs your komoot tours with wanderer in regular intervals.",
+      "ru": "Синхронизирует ваши данные с Komoot.",
+      "zh": "定期与komoot同步您的wanderer。"
+    },
     "icons": {
       "light": "icon.svg"
     }

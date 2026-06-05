@@ -525,7 +525,7 @@ func applyHostPolicy(item *pluginsystem.TrailImport, config map[string]any) {
 
 func autoMergeEnabled(config map[string]any) bool {
 	merge, ok := config["merge"].(map[string]any)
-	return ok && boolOption(merge, "enabled", false)
+	return ok && boolOption(merge, "available", true) && boolOption(merge, "enabled", false)
 }
 
 func boolOption(config map[string]any, key string, fallback bool) bool {

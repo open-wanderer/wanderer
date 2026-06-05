@@ -13,6 +13,7 @@ const (
 	workerMessageShutdown         = "shutdown"
 	workerMessageHostHTTPResponse = "host_http_response"
 	workerMessageHostHTTPRequest  = "host_http_request"
+	workerMessageHostLog          = "host_log"
 	workerMessageCallResult       = "call_result"
 	workerMessageError            = "error"
 
@@ -46,6 +47,12 @@ type workerHostHTTPRequest struct {
 
 type workerHostHTTPResponse struct {
 	ResponseBase64 string `json:"responseBase64"`
+}
+
+type workerHostLog struct {
+	Level     string `json:"level"`
+	Message   string `json:"message"`
+	SessionID string `json:"sessionId,omitempty"`
 }
 
 type workerError struct {

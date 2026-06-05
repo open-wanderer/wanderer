@@ -152,7 +152,7 @@ func (w *pluginWorkerProcess) openPlugin(wasmPath string) error {
 }
 
 func (w *pluginWorkerProcess) hostFunctions() []extism.HostFunction {
-	fn := extism.NewHostFunctionWithStack(
+	httpFn := extism.NewHostFunctionWithStack(
 		"http_request",
 		func(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64) {
 			requestBytes, err := plugin.ReadBytes(stack[0])
@@ -205,8 +205,41 @@ func (w *pluginWorkerProcess) hostFunctions() []extism.HostFunction {
 		[]extism.ValueType{extism.ValueTypePTR},
 		[]extism.ValueType{extism.ValueTypePTR},
 	)
-	fn.SetNamespace("wanderer")
-	return []extism.HostFunction{fn}
+	httpFn.SetNamespace("wanderer")
+
+	logFn := extism.NewHostFunctionWithStack(
+		"log",
+		func(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64) {
+			message, err := plugin.ReadBytes(stack[0])
+			if err != nil {
+				plugin.Log(extism.LogLevelError, "read host log message: "+err.Error())
+				return
+			}
+			entry, err := parseHostLogEntry(message)
+			if err != nil {
+				_, _ = fmt.Fprintf(w.stderr, "plugin log invalid: session %s: %v\n", w.sessionID, err)
+				return
+			}
+			msg, err := workerMessageWithData(workerMessageHostLog, workerHostLog{
+				Level:     entry.Level,
+				Message:   entry.Message,
+				SessionID: w.sessionID,
+			})
+			if err != nil {
+				_, _ = fmt.Fprintf(w.stderr, "plugin log encode failed: session %s: %v\n", w.sessionID, err)
+				return
+			}
+			if err := writeWorkerMessage(w.stdout, w.responseMaxBytes, msg); err != nil {
+				_, _ = fmt.Fprintf(w.stderr, "plugin log write failed: session %s: %v\n", w.sessionID, err)
+			}
+			_ = ctx
+		},
+		[]extism.ValueType{extism.ValueTypePTR},
+		nil,
+	)
+	logFn.SetNamespace("wanderer")
+
+	return []extism.HostFunction{httpFn, logFn}
 }
 
 func (w *pluginWorkerProcess) failHostRPC(stack []uint64, err error) {
