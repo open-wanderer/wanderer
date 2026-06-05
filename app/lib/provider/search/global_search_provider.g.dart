@@ -42,7 +42,7 @@ final class GlobalSearchNotifierProvider
 }
 
 String _$globalSearchNotifierHash() =>
-    r'8943eaf13cb949ccd2af102af22d231eb9df3361';
+    r'baae30b145eb02aae6a61da4298fc9b7af39a7b8';
 
 abstract class _$GlobalSearchNotifier extends $Notifier<GlobalSearchState> {
   GlobalSearchState build();

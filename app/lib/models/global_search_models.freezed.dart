@@ -601,42 +601,42 @@ as String,
 
 
 /// @nodoc
-mixin _$SearchActor {
+mixin _$ActorSearchResult {
 
- String get id; String get username;@JsonKey(name: 'preferred_username') String get preferredUsername; String? get domain; String? get icon; String get iri;
-/// Create a copy of SearchActor
+ String get id; String get username;@JsonKey(name: 'preferred_username') String get preferredUsername;@JsonKey(name: 'is_local') bool get isLocal; String get domain; String? get icon; String get iri;
+/// Create a copy of ActorSearchResult
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
-$SearchActorCopyWith<SearchActor> get copyWith => _$SearchActorCopyWithImpl<SearchActor>(this as SearchActor, _$identity);
+$ActorSearchResultCopyWith<ActorSearchResult> get copyWith => _$ActorSearchResultCopyWithImpl<ActorSearchResult>(this as ActorSearchResult, _$identity);
 
-  /// Serializes this SearchActor to a JSON map.
+  /// Serializes this ActorSearchResult to a JSON map.
   Map<String, dynamic> toJson();
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SearchActor&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.preferredUsername, preferredUsername) || other.preferredUsername == preferredUsername)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.iri, iri) || other.iri == iri));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActorSearchResult&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.preferredUsername, preferredUsername) || other.preferredUsername == preferredUsername)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.iri, iri) || other.iri == iri));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,username,preferredUsername,domain,icon,iri);
+int get hashCode => Object.hash(runtimeType,id,username,preferredUsername,isLocal,domain,icon,iri);
 
 @override
 String toString() {
-  return 'SearchActor(id: $id, username: $username, preferredUsername: $preferredUsername, domain: $domain, icon: $icon, iri: $iri)';
+  return 'ActorSearchResult(id: $id, username: $username, preferredUsername: $preferredUsername, isLocal: $isLocal, domain: $domain, icon: $icon, iri: $iri)';
 }
 
 
 }
 
 /// @nodoc
-abstract mixin class $SearchActorCopyWith<$Res>  {
-  factory $SearchActorCopyWith(SearchActor value, $Res Function(SearchActor) _then) = _$SearchActorCopyWithImpl;
+abstract mixin class $ActorSearchResultCopyWith<$Res>  {
+  factory $ActorSearchResultCopyWith(ActorSearchResult value, $Res Function(ActorSearchResult) _then) = _$ActorSearchResultCopyWithImpl;
 @useResult
 $Res call({
- String id, String username,@JsonKey(name: 'preferred_username') String preferredUsername, String? domain, String? icon, String iri
+ String id, String username,@JsonKey(name: 'preferred_username') String preferredUsername,@JsonKey(name: 'is_local') bool isLocal, String domain, String? icon, String iri
 });
 
 
@@ -644,22 +644,23 @@ $Res call({
 
 }
 /// @nodoc
-class _$SearchActorCopyWithImpl<$Res>
-    implements $SearchActorCopyWith<$Res> {
-  _$SearchActorCopyWithImpl(this._self, this._then);
+class _$ActorSearchResultCopyWithImpl<$Res>
+    implements $ActorSearchResultCopyWith<$Res> {
+  _$ActorSearchResultCopyWithImpl(this._self, this._then);
 
-  final SearchActor _self;
-  final $Res Function(SearchActor) _then;
+  final ActorSearchResult _self;
+  final $Res Function(ActorSearchResult) _then;
 
-/// Create a copy of SearchActor
+/// Create a copy of ActorSearchResult
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? preferredUsername = null,Object? domain = freezed,Object? icon = freezed,Object? iri = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? preferredUsername = null,Object? isLocal = null,Object? domain = null,Object? icon = freezed,Object? iri = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
 as String,preferredUsername: null == preferredUsername ? _self.preferredUsername : preferredUsername // ignore: cast_nullable_to_non_nullable
-as String,domain: freezed == domain ? _self.domain : domain // ignore: cast_nullable_to_non_nullable
-as String?,icon: freezed == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
+as String,isLocal: null == isLocal ? _self.isLocal : isLocal // ignore: cast_nullable_to_non_nullable
+as bool,domain: null == domain ? _self.domain : domain // ignore: cast_nullable_to_non_nullable
+as String,icon: freezed == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
 as String?,iri: null == iri ? _self.iri : iri // ignore: cast_nullable_to_non_nullable
 as String,
   ));
@@ -668,8 +669,8 @@ as String,
 }
 
 
-/// Adds pattern-matching-related methods to [SearchActor].
-extension SearchActorPatterns on SearchActor {
+/// Adds pattern-matching-related methods to [ActorSearchResult].
+extension ActorSearchResultPatterns on ActorSearchResult {
 /// A variant of `map` that fallback to returning `orElse`.
 ///
 /// It is equivalent to doing:
@@ -682,10 +683,10 @@ extension SearchActorPatterns on SearchActor {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _SearchActor value)?  $default,{required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _ActorSearchResult value)?  $default,{required TResult orElse(),}){
 final _that = this;
 switch (_that) {
-case _SearchActor() when $default != null:
+case _ActorSearchResult() when $default != null:
 return $default(_that);case _:
   return orElse();
 
@@ -704,10 +705,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _SearchActor value)  $default,){
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _ActorSearchResult value)  $default,){
 final _that = this;
 switch (_that) {
-case _SearchActor():
+case _ActorSearchResult():
 return $default(_that);case _:
   throw StateError('Unexpected subclass');
 
@@ -725,10 +726,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _SearchActor value)?  $default,){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _ActorSearchResult value)?  $default,){
 final _that = this;
 switch (_that) {
-case _SearchActor() when $default != null:
+case _ActorSearchResult() when $default != null:
 return $default(_that);case _:
   return null;
 
@@ -746,10 +747,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? icon,  String iri)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername, @JsonKey(name: 'is_local')  bool isLocal,  String domain,  String? icon,  String iri)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
-case _SearchActor() when $default != null:
-return $default(_that.id,_that.username,_that.preferredUsername,_that.domain,_that.icon,_that.iri);case _:
+case _ActorSearchResult() when $default != null:
+return $default(_that.id,_that.username,_that.preferredUsername,_that.isLocal,_that.domain,_that.icon,_that.iri);case _:
   return orElse();
 
 }
@@ -767,10 +768,10 @@ return $default(_that.id,_that.username,_that.preferredUsername,_that.domain,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? icon,  String iri)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername, @JsonKey(name: 'is_local')  bool isLocal,  String domain,  String? icon,  String iri)  $default,) {final _that = this;
 switch (_that) {
-case _SearchActor():
-return $default(_that.id,_that.username,_that.preferredUsername,_that.domain,_that.icon,_that.iri);case _:
+case _ActorSearchResult():
+return $default(_that.id,_that.username,_that.preferredUsername,_that.isLocal,_that.domain,_that.icon,_that.iri);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -787,10 +788,10 @@ return $default(_that.id,_that.username,_that.preferredUsername,_that.domain,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? icon,  String iri)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername, @JsonKey(name: 'is_local')  bool isLocal,  String domain,  String? icon,  String iri)?  $default,) {final _that = this;
 switch (_that) {
-case _SearchActor() when $default != null:
-return $default(_that.id,_that.username,_that.preferredUsername,_that.domain,_that.icon,_that.iri);case _:
+case _ActorSearchResult() when $default != null:
+return $default(_that.id,_that.username,_that.preferredUsername,_that.isLocal,_that.domain,_that.icon,_that.iri);case _:
   return null;
 
 }
@@ -801,51 +802,52 @@ return $default(_that.id,_that.username,_that.preferredUsername,_that.domain,_th
 /// @nodoc
 @JsonSerializable()
 
-class _SearchActor implements SearchActor {
-  const _SearchActor({this.id = '', this.username = '', @JsonKey(name: 'preferred_username') this.preferredUsername = '', this.domain, this.icon, this.iri = ''});
-  factory _SearchActor.fromJson(Map<String, dynamic> json) => _$SearchActorFromJson(json);
+class _ActorSearchResult implements ActorSearchResult {
+  const _ActorSearchResult({this.id = '', this.username = '', @JsonKey(name: 'preferred_username') this.preferredUsername = '', @JsonKey(name: 'is_local') this.isLocal = false, this.domain = '', this.icon, this.iri = ''});
+  factory _ActorSearchResult.fromJson(Map<String, dynamic> json) => _$ActorSearchResultFromJson(json);
 
 @override@JsonKey() final  String id;
 @override@JsonKey() final  String username;
 @override@JsonKey(name: 'preferred_username') final  String preferredUsername;
-@override final  String? domain;
+@override@JsonKey(name: 'is_local') final  bool isLocal;
+@override@JsonKey() final  String domain;
 @override final  String? icon;
 @override@JsonKey() final  String iri;
 
-/// Create a copy of SearchActor
+/// Create a copy of ActorSearchResult
 /// with the given fields replaced by the non-null parameter values.
 @override @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
-_$SearchActorCopyWith<_SearchActor> get copyWith => __$SearchActorCopyWithImpl<_SearchActor>(this, _$identity);
+_$ActorSearchResultCopyWith<_ActorSearchResult> get copyWith => __$ActorSearchResultCopyWithImpl<_ActorSearchResult>(this, _$identity);
 
 @override
 Map<String, dynamic> toJson() {
-  return _$SearchActorToJson(this, );
+  return _$ActorSearchResultToJson(this, );
 }
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SearchActor&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.preferredUsername, preferredUsername) || other.preferredUsername == preferredUsername)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.iri, iri) || other.iri == iri));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActorSearchResult&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.preferredUsername, preferredUsername) || other.preferredUsername == preferredUsername)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.iri, iri) || other.iri == iri));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,username,preferredUsername,domain,icon,iri);
+int get hashCode => Object.hash(runtimeType,id,username,preferredUsername,isLocal,domain,icon,iri);
 
 @override
 String toString() {
-  return 'SearchActor(id: $id, username: $username, preferredUsername: $preferredUsername, domain: $domain, icon: $icon, iri: $iri)';
+  return 'ActorSearchResult(id: $id, username: $username, preferredUsername: $preferredUsername, isLocal: $isLocal, domain: $domain, icon: $icon, iri: $iri)';
 }
 
 
 }
 
 /// @nodoc
-abstract mixin class _$SearchActorCopyWith<$Res> implements $SearchActorCopyWith<$Res> {
-  factory _$SearchActorCopyWith(_SearchActor value, $Res Function(_SearchActor) _then) = __$SearchActorCopyWithImpl;
+abstract mixin class _$ActorSearchResultCopyWith<$Res> implements $ActorSearchResultCopyWith<$Res> {
+  factory _$ActorSearchResultCopyWith(_ActorSearchResult value, $Res Function(_ActorSearchResult) _then) = __$ActorSearchResultCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String username,@JsonKey(name: 'preferred_username') String preferredUsername, String? domain, String? icon, String iri
+ String id, String username,@JsonKey(name: 'preferred_username') String preferredUsername,@JsonKey(name: 'is_local') bool isLocal, String domain, String? icon, String iri
 });
 
 
@@ -853,22 +855,23 @@ $Res call({
 
 }
 /// @nodoc
-class __$SearchActorCopyWithImpl<$Res>
-    implements _$SearchActorCopyWith<$Res> {
-  __$SearchActorCopyWithImpl(this._self, this._then);
+class __$ActorSearchResultCopyWithImpl<$Res>
+    implements _$ActorSearchResultCopyWith<$Res> {
+  __$ActorSearchResultCopyWithImpl(this._self, this._then);
 
-  final _SearchActor _self;
-  final $Res Function(_SearchActor) _then;
+  final _ActorSearchResult _self;
+  final $Res Function(_ActorSearchResult) _then;
 
-/// Create a copy of SearchActor
+/// Create a copy of ActorSearchResult
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? preferredUsername = null,Object? domain = freezed,Object? icon = freezed,Object? iri = null,}) {
-  return _then(_SearchActor(
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? username = null,Object? preferredUsername = null,Object? isLocal = null,Object? domain = null,Object? icon = freezed,Object? iri = null,}) {
+  return _then(_ActorSearchResult(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
 as String,preferredUsername: null == preferredUsername ? _self.preferredUsername : preferredUsername // ignore: cast_nullable_to_non_nullable
-as String,domain: freezed == domain ? _self.domain : domain // ignore: cast_nullable_to_non_nullable
-as String?,icon: freezed == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
+as String,isLocal: null == isLocal ? _self.isLocal : isLocal // ignore: cast_nullable_to_non_nullable
+as bool,domain: null == domain ? _self.domain : domain // ignore: cast_nullable_to_non_nullable
+as String,icon: freezed == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
 as String?,iri: null == iri ? _self.iri : iri // ignore: cast_nullable_to_non_nullable
 as String,
   ));

@@ -292,18 +292,17 @@ class _LocationTile extends StatelessWidget {
 }
 
 class _ActorTile extends StatelessWidget {
-  final SearchActor actor;
+  final ActorSearchResult actor;
 
   const _ActorTile({required this.actor});
 
   @override
   Widget build(BuildContext context) {
-    final displayName = actor.preferredUsername.isNotEmpty
-        ? actor.preferredUsername
-        : actor.username;
-    final subtitle = actor.domain != null && actor.domain!.isNotEmpty
-        ? '@${actor.domain}'
-        : null;
+    final displayName = actor.username.isNotEmpty
+        ? actor.username
+        : actor.preferredUsername;
+    final subtitle =
+        '@${actor.preferredUsername}${actor.isLocal ? "" : "@${actor.domain}"}';
 
     return ListTile(
       leading: CircleAvatar(
@@ -316,7 +315,7 @@ class _ActorTile extends StatelessWidget {
               ),
       ),
       title: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: subtitle != null ? Text(subtitle) : null,
+      subtitle: Text(subtitle),
     );
   }
 }

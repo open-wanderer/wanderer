@@ -13,7 +13,7 @@ class GlobalSearchState {
   final List<TrailSearchResult> trails;
   final List<ListSearchResult> lists;
   final List<LocationSearchResult> locations;
-  final List<SearchActor> actors;
+  final List<ActorSearchResult> actors;
   final bool isLoading;
   final String? error;
 
@@ -46,7 +46,7 @@ class GlobalSearchState {
     List<TrailSearchResult>? trails,
     List<ListSearchResult>? lists,
     List<LocationSearchResult>? locations,
-    List<SearchActor>? actors,
+    List<ActorSearchResult>? actors,
     bool? isLoading,
     Object? error = _unset,
   }) {
@@ -64,27 +64,27 @@ class GlobalSearchState {
 
   List<TrailSearchResult> get visibleTrails =>
       (category == GlobalSearchCategory.all ||
-              category == GlobalSearchCategory.trails)
-          ? trails
-          : [];
+          category == GlobalSearchCategory.trails)
+      ? trails
+      : [];
 
   List<ListSearchResult> get visibleLists =>
       (category == GlobalSearchCategory.all ||
-              category == GlobalSearchCategory.lists)
-          ? lists
-          : [];
+          category == GlobalSearchCategory.lists)
+      ? lists
+      : [];
 
   List<LocationSearchResult> get visibleLocations =>
       (category == GlobalSearchCategory.all ||
-              category == GlobalSearchCategory.locations)
-          ? locations
-          : [];
+          category == GlobalSearchCategory.locations)
+      ? locations
+      : [];
 
-  List<SearchActor> get visibleActors =>
+  List<ActorSearchResult> get visibleActors =>
       (category == GlobalSearchCategory.all ||
-              category == GlobalSearchCategory.actors)
-          ? actors
-          : [];
+          category == GlobalSearchCategory.actors)
+      ? actors
+      : [];
 
   bool get hasResults =>
       visibleTrails.isNotEmpty ||
@@ -119,10 +119,15 @@ class GlobalSearchNotifier extends _$GlobalSearchNotifier {
 
   void setCategory(GlobalSearchCategory category) {
     state = state.copyWith(category: category);
+    if (state.query.isNotEmpty) {
+      _debounce?.cancel();
+      _search();
+    }
   }
 
   Future<void> _search() async {
     final q = state.query;
+    final category = state.category;
     if (q.isEmpty) return;
 
     state = state.copyWith(isLoading: true, error: null);
@@ -132,75 +137,98 @@ class GlobalSearchNotifier extends _$GlobalSearchNotifier {
     List<TrailSearchResult> trails = [];
     List<ListSearchResult> lists = [];
     List<LocationSearchResult> locations = [];
-    List<SearchActor> actors = [];
+    List<ActorSearchResult> actors = [];
+
+    final bool searchTrails =
+        category == GlobalSearchCategory.all ||
+        category == GlobalSearchCategory.trails;
+    final bool searchLists =
+        category == GlobalSearchCategory.all ||
+        category == GlobalSearchCategory.lists;
+    final bool searchLocations =
+        category == GlobalSearchCategory.all ||
+        category == GlobalSearchCategory.locations;
+    final bool searchActors =
+        category == GlobalSearchCategory.all ||
+        category == GlobalSearchCategory.actors;
 
     await Future.wait([
-      api
-          .post('/search/trails', data: {
-            'q': q,
-            'options': {'hitsPerPage': 10, 'page': 1},
-          })
-          .then((response) {
-            trails = (response.data['hits'] as List<dynamic>)
-                .map(
-                  (e) =>
-                      TrailSearchResult.fromJson(e as Map<String, dynamic>),
-                )
-                .toList();
-          })
-          .catchError((_) {}),
-      api
-          .post('/search/lists', data: {
-            'q': q,
-            'options': {'hitsPerPage': 10, 'page': 1},
-          })
-          .then((response) {
-            lists = (response.data['hits'] as List<dynamic>)
-                .map(
-                  (e) => ListSearchResult.fromJson(e as Map<String, dynamic>),
-                )
-                .toList();
-          })
-          .catchError((_) {}),
-      api
-          .get('/geocoding/search', queryParameters: {'q': q})
-          .then((response) {
-            final features =
-                response.data['features'] as List<dynamic>? ?? [];
-            locations = features.map((f) {
-              final props = f['properties'] as Map<String, dynamic>;
-              final coords = f['geometry']['coordinates'] as List<dynamic>;
-              final address =
-                  props['address'] as Map<String, dynamic>? ?? {};
-              final rawName = props['name'] as String?;
-              return LocationSearchResult(
-                name: (rawName != null && rawName.isNotEmpty)
-                    ? rawName
-                    : (props['display_name'] as String?) ?? '',
-                description: _buildLocationDescription(address),
-                lat: (coords[1] as num).toDouble(),
-                lon: (coords[0] as num).toDouble(),
-                category: (props['category'] as String?) ?? '',
-                type: props['type'] == 'administrative'
-                    ? (props['addresstype'] as String?) ?? ''
-                    : (props['type'] as String?) ?? '',
-              );
-            }).toList();
-          })
-          .catchError((_) {}),
-      api
-          .get('/search/actor', queryParameters: {'q': q})
-          .then((response) {
-            actors = ((response.data['items'] as List<dynamic>?) ?? [])
-                .map(
-                  (e) => SearchActor.fromJson(e as Map<String, dynamic>),
-                )
-                .toList();
-          })
-          .catchError((_) {}),
+      if (searchTrails)
+        api
+            .post(
+              '/search/trails',
+              data: {
+                'q': q,
+                'options': {'hitsPerPage': 10, 'page': 1},
+              },
+            )
+            .then((response) {
+              trails = (response.data['hits'] as List<dynamic>)
+                  .map(
+                    (e) =>
+                        TrailSearchResult.fromJson(e as Map<String, dynamic>),
+                  )
+                  .toList();
+            })
+            .catchError((_) {}),
+      if (searchLists)
+        api
+            .post(
+              '/search/lists',
+              data: {
+                'q': q,
+                'options': {'hitsPerPage': 10, 'page': 1},
+              },
+            )
+            .then((response) {
+              lists = (response.data['hits'] as List<dynamic>)
+                  .map(
+                    (e) => ListSearchResult.fromJson(e as Map<String, dynamic>),
+                  )
+                  .toList();
+            })
+            .catchError((_) {}),
+      if (searchLocations)
+        api
+            .get('/geocoding/search', queryParameters: {'q': q})
+            .then((response) {
+              final features =
+                  response.data['features'] as List<dynamic>? ?? [];
+              locations = features.map((f) {
+                final props = f['properties'] as Map<String, dynamic>;
+                final coords = f['geometry']['coordinates'] as List<dynamic>;
+                final address = props['address'] as Map<String, dynamic>? ?? {};
+                final rawName = props['name'] as String?;
+                return LocationSearchResult(
+                  name: (rawName != null && rawName.isNotEmpty)
+                      ? rawName
+                      : (props['display_name'] as String?) ?? '',
+                  description: _buildLocationDescription(address),
+                  lat: (coords[1] as num).toDouble(),
+                  lon: (coords[0] as num).toDouble(),
+                  category: (props['category'] as String?) ?? '',
+                  type: props['type'] == 'administrative'
+                      ? (props['addresstype'] as String?) ?? ''
+                      : (props['type'] as String?) ?? '',
+                );
+              }).toList();
+            })
+            .catchError((_) {}),
+      if (searchActors)
+        api
+            .get('/search/actor', queryParameters: {'q': q})
+            .then((response) {
+              actors = ((response.data['items'] as List<dynamic>?) ?? [])
+                  .map(
+                    (e) =>
+                        ActorSearchResult.fromJson(e as Map<String, dynamic>),
+                  )
+                  .toList();
+            })
+            .catchError((_) {}),
     ]);
 
-    if (_cancelled || state.query != q) return;
+    if (_cancelled || state.query != q || state.category != category) return;
 
     state = state.copyWith(
       trails: trails,
@@ -214,7 +242,8 @@ class GlobalSearchNotifier extends _$GlobalSearchNotifier {
 
   static String _buildLocationDescription(Map<String, dynamic> address) {
     final parts = <String>[];
-    final city = address['city'] ??
+    final city =
+        address['city'] ??
         address['town'] ??
         address['hamlet'] ??
         address['village'];

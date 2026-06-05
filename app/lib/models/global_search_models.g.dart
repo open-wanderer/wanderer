@@ -48,20 +48,23 @@ Map<String, dynamic> _$ListSearchResultToJson(_ListSearchResult instance) =>
       'iri': instance.iri,
     };
 
-_SearchActor _$SearchActorFromJson(Map<String, dynamic> json) => _SearchActor(
-  id: json['id'] as String? ?? '',
-  username: json['username'] as String? ?? '',
-  preferredUsername: json['preferred_username'] as String? ?? '',
-  domain: json['domain'] as String?,
-  icon: json['icon'] as String?,
-  iri: json['iri'] as String? ?? '',
-);
+_ActorSearchResult _$ActorSearchResultFromJson(Map<String, dynamic> json) =>
+    _ActorSearchResult(
+      id: json['id'] as String? ?? '',
+      username: json['username'] as String? ?? '',
+      preferredUsername: json['preferred_username'] as String? ?? '',
+      isLocal: json['is_local'] as bool? ?? false,
+      domain: json['domain'] as String? ?? '',
+      icon: json['icon'] as String?,
+      iri: json['iri'] as String? ?? '',
+    );
 
-Map<String, dynamic> _$SearchActorToJson(_SearchActor instance) =>
+Map<String, dynamic> _$ActorSearchResultToJson(_ActorSearchResult instance) =>
     <String, dynamic>{
       'id': instance.id,
       'username': instance.username,
       'preferred_username': instance.preferredUsername,
+      'is_local': instance.isLocal,
       'domain': instance.domain,
       'icon': instance.icon,
       'iri': instance.iri,

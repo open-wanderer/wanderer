@@ -43,16 +43,17 @@ abstract class LocationSearchResult with _$LocationSearchResult {
 }
 
 @freezed
-abstract class SearchActor with _$SearchActor {
-  const factory SearchActor({
+abstract class ActorSearchResult with _$ActorSearchResult {
+  const factory ActorSearchResult({
     @Default('') String id,
     @Default('') String username,
     @JsonKey(name: 'preferred_username') @Default('') String preferredUsername,
-    String? domain,
+    @JsonKey(name: 'is_local') @Default(false) bool isLocal,
+    @Default('') String domain,
     String? icon,
     @Default('') String iri,
-  }) = _SearchActor;
+  }) = _ActorSearchResult;
 
-  factory SearchActor.fromJson(Map<String, dynamic> json) =>
-      _$SearchActorFromJson(json);
+  factory ActorSearchResult.fromJson(Map<String, dynamic> json) =>
+      _$ActorSearchResultFromJson(json);
 }

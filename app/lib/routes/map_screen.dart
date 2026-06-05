@@ -327,32 +327,49 @@ class _MapScreenState extends ConsumerState<MapScreen>
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
 
-              child: Material(
-                color: Colors.white,
-                elevation: 4,
-                shadowColor: Colors.black26,
-                borderRadius: BorderRadius.circular(30),
-                clipBehavior: Clip.antiAlias,
-
-                child: WandererSearchBar(
-                  onChanged: (value) {
-                    ref
-                        .read(trailFilterProvider.notifier)
-                        .updateFilter((f) => f.copyWith(q: value));
-                  },
-                  decoration: InputDecoration(
-                    hintText: AppLocalizations.of(context)!.search_trails,
-                    hintStyle: const TextStyle(color: Colors.grey),
-                    prefixIcon: const Icon(Icons.search, color: Colors.black),
-                    suffixIcon: IconButton(
-                      onPressed: () => context.push('/trail/filter'),
-                      iconSize: 20,
-                      icon: const FaIcon(FontAwesomeIcons.filter),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => context.push('/search'),
+                      child: Material(
+                        color: Colors.white,
+                        elevation: 4,
+                        shadowColor: Colors.black26,
+                        borderRadius: BorderRadius.circular(30),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 13,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.search, color: Colors.black),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  AppLocalizations.of(context)!.search,
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => context.push('/trail/filter'),
+                    icon: const FaIcon(FontAwesomeIcons.filter, size: 18),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Theme.of(context).canvasColor,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
