@@ -25,7 +25,7 @@ type hostHTTPResponse struct {
 }
 
 type HostRequestOptions struct {
-	Route []byte
+	Trail []byte
 }
 
 type HostResponse struct {
@@ -38,7 +38,7 @@ var newConnectorHTTPClient = util.ConnectorHTTPClient
 
 // extismHostFunctions exposes the host APIs that WASM plugins may call. Each
 // function must delegate to the same policy-controlled host implementation that
-// route handlers use.
+// backend handlers use.
 func extismHostFunctions(manifest Manifest, policy RequestPolicyContext) []extism.HostFunction {
 	fn := extism.NewHostFunctionWithStack(
 		"http_request",
@@ -206,15 +206,15 @@ func hostRequestBody(spec HostRequestSpec, options HostRequestOptions) (io.Reade
 		var body bytes.Buffer
 		writer := multipart.NewWriter(&body)
 		for _, part := range spec.Body.Parts {
-			if part.Source == MultipartSourceRoute || part.Source == MultipartSourceRouteGPX {
-				if len(options.Route) == 0 {
-					return nil, "", 0, fmt.Errorf("multipart part %q requires route content", part.Name)
+			if part.Source == MultipartSourceTrail || part.Source == MultipartSourceTrailGPX {
+				if len(options.Trail) == 0 {
+					return nil, "", 0, fmt.Errorf("multipart part %q requires trail content", part.Name)
 				}
-				partWriter, err := writer.CreateFormFile(part.Name, MultipartRouteFilename)
+				partWriter, err := writer.CreateFormFile(part.Name, MultipartTrailFilename)
 				if err != nil {
 					return nil, "", 0, err
 				}
-				if _, err := partWriter.Write(options.Route); err != nil {
+				if _, err := partWriter.Write(options.Trail); err != nil {
 					return nil, "", 0, err
 				}
 				continue
@@ -243,21 +243,21 @@ func validateHostRequestUpload(manifest Manifest, spec HostRequestSpec, contentT
 		return nil
 	}
 	if manifest.Permissions.Uploads.MaxBytes > 0 && bodySize > manifest.Permissions.Uploads.MaxBytes {
-		return fmt.Errorf("plugin upload request exceeds manifest upload limit")
+		return fmt.Errorf("host request upload exceeds manifest upload limit")
 	}
 	if contentType == "" || len(manifest.Permissions.Uploads.ContentTypes) == 0 {
 		return nil
 	}
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		return fmt.Errorf("upload request has invalid content type")
+		return fmt.Errorf("host request upload has invalid content type")
 	}
 	for _, allowed := range manifest.Permissions.Uploads.ContentTypes {
 		if strings.EqualFold(mediaType, allowed) {
 			return nil
 		}
 	}
-	return fmt.Errorf("upload request content type %q is not allowed", mediaType)
+	return fmt.Errorf("host request upload content type %q is not allowed", mediaType)
 }
 
 func validateHostHTTPResponse(manifest Manifest, spec HostRequestSpec, resp *http.Response) error {

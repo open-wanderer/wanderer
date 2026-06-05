@@ -7,7 +7,7 @@ This plugin exports the wanderer plugin-system ABI:
 - `list_routes_v1`
 - `list_activities_v1`
 - `refresh_session_v1`
-- `prepare_send_route_v1`
+- `prepare_trail_send_v1`
 
 ## Build
 

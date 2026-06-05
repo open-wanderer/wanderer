@@ -4,7 +4,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
 export async function POST(event: RequestEvent) {
     try {
         const body = await event.request.json();
-        const r = await event.locals.pb.send("/plugins/send-route", {
+        const r = await event.locals.pb.send("/plugins/trail-send", {
             method: "POST",
             body,
             fetch: event.fetch,

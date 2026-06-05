@@ -81,7 +81,7 @@ func hammerheadManifestForTest() Manifest {
 			Entrypoint: "plugin.wasm",
 		},
 		Capabilities: []CapabilityManifest{
-			{Name: "prepare_send_route", Version: "v1", Export: "prepare_send_route_v1"},
+			{Name: "prepare_trail_send", Version: "v1", Export: "prepare_trail_send_v1"},
 		},
 		Auth: AuthManifest{
 			Contexts: map[string]AuthContext{
@@ -126,7 +126,7 @@ func writeManifest(t *testing.T, dir string, manifest Manifest) {
 			"entrypoint": "` + manifest.Runtime.Entrypoint + `"
 		},
 		"capabilities": [
-			{"name": "prepare_send_route", "version": "v1", "export": "prepare_send_route_v1"}
+			{"name": "prepare_trail_send", "version": "v1", "export": "prepare_trail_send_v1"}
 		]
 	}`)
 	if err := os.WriteFile(filepath.Join(dir, "plugin.json"), data, 0o600); err != nil {

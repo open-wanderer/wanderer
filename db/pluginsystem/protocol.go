@@ -21,9 +21,9 @@ const (
 
 	HostRequestBodyTypeJSON      = "json"
 	HostRequestBodyTypeMultipart = "multipart"
-	MultipartSourceRoute         = "route"
-	MultipartSourceRouteGPX      = "route.gpx"
-	MultipartRouteFilename       = "route.gpx"
+	MultipartSourceTrail         = "trail"
+	MultipartSourceTrailGPX      = "trail.gpx"
+	MultipartTrailFilename       = "trail.gpx"
 )
 
 type Manifest struct {
@@ -178,7 +178,7 @@ type TrackTransferPlan struct {
 	Transfer HostRequestSpec `json:"transfer"`
 }
 
-type UploadPlan struct {
+type TrailSendPlan struct {
 	Request HostRequestSpec `json:"request"`
 }
 

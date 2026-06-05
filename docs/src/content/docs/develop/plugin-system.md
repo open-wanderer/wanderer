@@ -265,7 +265,7 @@ Implemented sync/send capabilities:
 | `get_route_detail.v1` | `get_route_detail_v1` | Return one planned route import |
 | `list_activities.v1` | `list_activities_v1` | List completed activity IDs |
 | `get_activity_detail.v1` | `get_activity_detail_v1` | Return one completed activity import |
-| `prepare_send_route.v1` | `prepare_send_route_v1` | Prepare an outbound route upload |
+| `prepare_trail_send.v1` | `prepare_trail_send_v1` | Prepare sending a trail |
 
 Import sync is a two-step protocol. A plugin that declares `list_routes.v1`
 must also declare `get_route_detail.v1`; a plugin that declares
@@ -654,14 +654,14 @@ response, body, err := sdk.HostRequest(sdk.HostRequestSpec{
 
 Auth referenced by `HostRequestSpec.auth` is injected by the host. OAuth,
 bearer, and API-key contexts are supported for plugin-initiated host requests.
-Session auth requires route-managed injection; if a plugin calls
+Session auth requires handler-managed injection; if a plugin calls
 `wanderer.http_request` with a session auth context, the host rejects the
 request instead of silently sending it unauthenticated.
 
-## Sending routes
+## Sending trails
 
-`prepare_send_route_v1` receives the trail GPX from wanderer and returns an
-upload plan. The plugin prepares the provider-specific request; the host
+`prepare_trail_send_v1` receives the trail GPX from wanderer and returns a
+send plan. The plugin prepares the provider-specific request; the host
 executes it.
 
 Input:
@@ -675,7 +675,7 @@ Input:
   "auth": {},
   "config": {},
   "name": "Lunch Loop",
-  "route": {
+  "trail": {
     "format": "gpx",
     "contentBase64": "..."
   }
@@ -703,7 +703,7 @@ Output:
       "parts": [
         {
           "name": "file",
-          "source": "route"
+          "source": "trail"
         }
       ]
     },
@@ -715,11 +715,11 @@ Output:
 }
 ```
 
-Supported multipart route sources:
+Supported multipart trail sources:
 
 ```text
-route
-route.gpx
+trail
+trail.gpx
 ```
 
 ## Auth
@@ -785,8 +785,8 @@ Session auth is for providers that require plugin-mediated login:
 
 The host passes only the declared secret fields to the refresh export. The
 returned session token is stored encrypted and injected by the host into future
-route-managed host-executed requests that reference the auth context, such as
-`prepare_send_route.v1` upload plans. Plugin-initiated `wanderer.http_request`
+handler-managed host-executed requests that reference the auth context, such as
+`prepare_trail_send.v1` send plans. Plugin-initiated `wanderer.http_request`
 calls cannot refresh session auth themselves.
 
 ### API key and bearer
@@ -810,7 +810,7 @@ API key and bearer contexts use a configured secret field:
 
 ## Runtime isolation
 
-WASM plugins run in a separate worker process for each sync or send-route job.
+WASM plugins run in a separate worker process for each sync or trail-upload job.
 All exports within that job share the same worker session and are called
 sequentially. If a plugin calls `wanderer.http_request`, the worker forwards the
 request bytes back to the backend; the backend remains the only process that
@@ -837,7 +837,7 @@ plugin_instances
   status
   last_error
   last_sync_at
-  next_retry_at
+  retry_not_before
 ```
 
 `auth` is encrypted by PocketBase hooks. `config.plugin` stores settings passed

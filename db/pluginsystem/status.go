@@ -27,10 +27,10 @@ func (e PluginCapabilityError) Error() string {
 // InstanceStatusUpdate contains the normalized status fields that are written
 // back to plugin_instances after a failed sync.
 type InstanceStatusUpdate struct {
-	Status      string
-	Code        string
-	Message     string
-	NextRetryAt *time.Time
+	Status         string
+	Code           string
+	Message        string
+	RetryNotBefore *time.Time
 }
 
 // InstanceStatusForError converts sync/runtime errors into the persisted
@@ -79,11 +79,11 @@ func InstanceStatusForPluginError(pluginErr PluginError, now time.Time) Instance
 		Message: message,
 	}
 	if pluginErr.RetryAfterSeconds != nil && *pluginErr.RetryAfterSeconds > 0 {
-		nextRetry := now.Add(time.Duration(*pluginErr.RetryAfterSeconds) * time.Second)
-		update.NextRetryAt = &nextRetry
+		retryNotBefore := now.Add(time.Duration(*pluginErr.RetryAfterSeconds) * time.Second)
+		update.RetryNotBefore = &retryNotBefore
 	} else if code == "rate_limited" {
-		nextRetry := now.Add(time.Hour)
-		update.NextRetryAt = &nextRetry
+		retryNotBefore := now.Add(time.Hour)
+		update.RetryNotBefore = &retryNotBefore
 	}
 	return update
 }

@@ -19,28 +19,28 @@ import (
 	"pocketbase/util"
 )
 
-type pluginSystemSendRouteRequest struct {
+type pluginSystemTrailSendRequest struct {
 	PluginID string `json:"pluginId"`
 	TrailID  string `json:"trailId"`
 	Share    string `json:"share,omitempty"`
 }
 
-type pluginSystemSendRouteInput struct {
+type pluginSystemTrailSendInput struct {
 	Instance pluginsystem.InstanceRef `json:"instance"`
 	Auth     map[string]any           `json:"auth,omitempty"`
 	Config   map[string]any           `json:"config,omitempty"`
 	Name     string                   `json:"name,omitempty"`
-	Route    pluginsystem.Track       `json:"route"`
+	Trail    pluginsystem.Track       `json:"trail"`
 }
 
-// PluginSystemSendRoute asks a plugin to prepare an upload request for an
+// PluginSystemTrailSend asks a plugin to prepare a trail send request for an
 // existing trail and then executes that request through the host policy layer.
-func PluginSystemSendRoute(e *core.RequestEvent) error {
+func PluginSystemTrailSend(e *core.RequestEvent) error {
 	if e.Auth == nil {
 		return apis.NewUnauthorizedError("authentication required", nil)
 	}
 
-	var data pluginSystemSendRouteRequest
+	var data pluginSystemTrailSendRequest
 	if err := e.BindBody(&data); err != nil {
 		return apis.NewBadRequestError("Failed to read request data", err)
 	}
@@ -57,7 +57,7 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 		return apis.NewBadRequestError("no enabled plugin instance configured for this plugin", nil)
 	}
 
-	plugin, capability, err := localPluginCapability(e.App, data.PluginID, "prepare_send_route", "v1")
+	plugin, capability, err := localPluginCapability(e.App, data.PluginID, "prepare_trail_send", "v1")
 	if err != nil {
 		return err
 	}
@@ -83,14 +83,14 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 		return err
 	}
 
-	input := pluginSystemSendRouteInput{
+	input := pluginSystemTrailSendInput{
 		Instance: pluginsystem.InstanceRef{
 			ID:       instance.Id,
 			PluginID: instance.GetString("plugin_id"),
 		},
 		Auth: pluginsystem.PluginInputAuth(plugin, auth),
 		Name: trail.GetString("name"),
-		Route: pluginsystem.Track{
+		Trail: pluginsystem.Track{
 			Format:        "gpx",
 			ContentBase64: base64.StdEncoding.EncodeToString(gpx),
 		},
@@ -120,15 +120,15 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 		return err
 	}
 
-	var plan pluginsystem.UploadPlan
+	var plan pluginsystem.TrailSendPlan
 	if err := json.Unmarshal(output, &plan); err != nil {
-		return apis.NewBadRequestError("plugin returned an invalid upload plan", err)
+		return apis.NewBadRequestError("plugin returned an invalid send plan", err)
 	}
 	if plan.Request.Method == "" {
-		return apis.NewBadRequestError("plugin returned an empty upload request", nil)
+		return apis.NewBadRequestError("plugin returned an empty send request", nil)
 	}
 	if err := pluginsystem.ValidateHostRequestSpec(plugin.Manifest, plan.Request, policy); err != nil {
-		return apis.NewBadRequestError("plugin upload request is not permitted by manifest", err)
+		return apis.NewBadRequestError("plugin send request is not permitted by manifest", err)
 	}
 
 	if err := pluginsystem.InjectHostRequestAuth(e.Request.Context(), pluginsystem.AuthInjectionInput{
@@ -145,7 +145,7 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 		return apis.NewBadRequestError("plugin auth injection failed", err)
 	}
 	// Auth is fully resolved above (including OAuth refresh and plugin session
-	// refresh). Clearing the reference makes the route the sole injector so the
+	// refresh). Clearing the reference makes this handler the sole injector so the
 	// executor's policy-based injection becomes a no-op instead of re-injecting
 	// against an empty policy.HostAuth.
 	plan.Request.Auth = ""
@@ -156,18 +156,18 @@ func PluginSystemSendRoute(e *core.RequestEvent) error {
 	return e.JSON(http.StatusOK, map[string]any{"ok": true})
 }
 
-// executeHostRequest runs a plugin upload plan through the shared host request
+// executeHostRequest runs a plugin send plan through the shared host request
 // executor and maps provider failures to API errors.
 func executeHostRequest(ctx context.Context, manifest pluginsystem.Manifest, policy pluginsystem.RequestPolicyContext, spec pluginsystem.HostRequestSpec, gpx []byte) error {
 	resp, err := pluginsystem.ExecuteHostRequest(ctx, manifest, policy, spec, pluginsystem.HostRequestOptions{
-		Route: gpx,
+		Trail: gpx,
 	})
 	if err != nil {
 		return err
 	}
 	if resp.Status < 200 || resp.Status >= 300 {
 		return apis.NewBadRequestError(
-			fmt.Sprintf("provider upload failed: %d", resp.Status),
+			fmt.Sprintf("provider request failed: %d", resp.Status),
 			strings.TrimSpace(string(resp.Body)),
 		)
 	}
@@ -175,7 +175,7 @@ func executeHostRequest(ctx context.Context, manifest pluginsystem.Manifest, pol
 }
 
 // readTrailGPX loads the trail GPX file that can be inserted into a plugin's
-// multipart upload plan.
+// multipart send plan.
 func readTrailGPX(app core.App, trail *core.Record) ([]byte, error) {
 	gpxPath := trail.GetString("gpx")
 	if gpxPath == "" {

@@ -146,7 +146,7 @@ func init() {
 					"id": "date430001011",
 					"max": "",
 					"min": "",
-					"name": "next_retry_at",
+					"name": "retry_not_before",
 					"presentable": false,
 					"required": false,
 					"system": false,
@@ -361,16 +361,16 @@ func saveLegacyMappedPluginInstance(app core.App, userID string, pluginID string
 }
 
 type legacyPluginInstance struct {
-	UserID      string
-	PluginID    string
-	Enabled     bool
-	Auth        map[string]any
-	Config      map[string]any
-	State       map[string]any
-	Status      string
-	LastError   map[string]any
-	LastSyncAt  string
-	NextRetryAt string
+	UserID         string
+	PluginID       string
+	Enabled        bool
+	Auth           map[string]any
+	Config         map[string]any
+	State          map[string]any
+	Status         string
+	LastError      map[string]any
+	LastSyncAt     string
+	RetryNotBefore string
 }
 
 func saveLegacyPluginInstance(app core.App, instance legacyPluginInstance) error {
@@ -409,19 +409,19 @@ func saveLegacyPluginInstance(app core.App, instance legacyPluginInstance) error
 
 	now := types.NowDateTime().String()
 	_, err = app.DB().Insert("plugin_instances", dbx.Params{
-		"id":            security.RandomStringWithAlphabet(15, "abcdefghijklmnopqrstuvwxyz0123456789"),
-		"user":          instance.UserID,
-		"plugin_id":     instance.PluginID,
-		"enabled":       instance.Enabled,
-		"auth":          string(authJSON),
-		"config":        string(configJSON),
-		"state":         string(stateJSON),
-		"status":        status,
-		"last_error":    string(lastErrorJSON),
-		"last_sync_at":  instance.LastSyncAt,
-		"next_retry_at": instance.NextRetryAt,
-		"created":       now,
-		"updated":       now,
+		"id":               security.RandomStringWithAlphabet(15, "abcdefghijklmnopqrstuvwxyz0123456789"),
+		"user":             instance.UserID,
+		"plugin_id":        instance.PluginID,
+		"enabled":          instance.Enabled,
+		"auth":             string(authJSON),
+		"config":           string(configJSON),
+		"state":            string(stateJSON),
+		"status":           status,
+		"last_error":       string(lastErrorJSON),
+		"last_sync_at":     instance.LastSyncAt,
+		"retry_not_before": instance.RetryNotBefore,
+		"created":          now,
+		"updated":          now,
 	}).Execute()
 	return err
 }

@@ -176,7 +176,7 @@ func TestInjectHostRequestAuthFromPolicyRejectsSessionAuth(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if err.Error() != "session auth requires route-managed injection" {
+	if err.Error() != "session auth requires handler-managed injection" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

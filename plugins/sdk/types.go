@@ -3,8 +3,8 @@ package sdk
 const (
 	HostRequestBodyTypeJSON      = "json"
 	HostRequestBodyTypeMultipart = "multipart"
-	MultipartSourceRoute         = "route"
-	MultipartSourceRouteGPX      = "route.gpx"
+	MultipartSourceTrail         = "trail"
+	MultipartSourceTrailGPX      = "trail.gpx"
 
 	AuthHeaderAuthorization = "Authorization"
 	AuthSchemeBearer        = "Bearer"
@@ -173,14 +173,14 @@ type MediaRef struct {
 	AssetID   string       `json:"assetId,omitempty"`
 }
 
-type SendRouteInput struct {
+type TrailSendInput struct {
 	Instance InstanceRef    `json:"instance"`
 	Auth     map[string]any `json:"auth,omitempty"`
 	Config   map[string]any `json:"config,omitempty"`
 	Name     string         `json:"name,omitempty"`
-	Route    Track          `json:"route"`
+	Trail    Track          `json:"trail"`
 }
 
-type UploadPlan struct {
+type TrailSendPlan struct {
 	Request HostRequestSpec `json:"request"`
 }

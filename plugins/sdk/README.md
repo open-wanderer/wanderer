@@ -13,7 +13,7 @@ Common protocol types:
 
 - `ListInput`, `ListOutput`, `TrailImport`, `Track`, `Waypoint`, `Photo`
 - `RefreshSessionInput`, `RefreshSessionOutput`
-- `SendRouteInput`, `UploadPlan`
+- `TrailSendInput`, `TrailSendPlan`
 - `HostRequestSpec`, `HostResponse`, `PluginError`
 
 Provider HTTP requests use connector targets. Plugins provide a connector name,

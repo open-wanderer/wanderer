@@ -10,7 +10,7 @@ import {
 export const pluginProviders: Writable<PluginProvider[]> = writable([]);
 
 // True when the user has at least one enabled plugin instance whose plugin
-// advertises the route upload capability. Used to gate the trail "send to" action.
+// advertises the trail send capability. Used to gate the trail "send to" action.
 export const hasSendCapablePlugin: Readable<boolean> = derived(
     [pluginProviders, pluginInstances],
     ([$plugins, $instances]) => {
@@ -20,7 +20,7 @@ export const hasSendCapablePlugin: Readable<boolean> = derived(
         return $plugins.some(
             (p) =>
                 p.status === "available" &&
-                (p.capabilities ?? []).includes("prepare_send_route.v1") &&
+                (p.capabilities ?? []).includes("prepare_trail_send.v1") &&
                 enabledProviders.has(p.id),
         );
     },

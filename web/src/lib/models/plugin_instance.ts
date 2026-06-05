@@ -21,5 +21,5 @@ export interface PluginInstance {
         message?: string;
     };
     last_sync_at?: string;
-    next_retry_at?: string;
+    retry_not_before?: string;
 }

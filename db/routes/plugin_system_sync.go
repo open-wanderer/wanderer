@@ -86,8 +86,8 @@ type pluginSystemSyncResult struct {
 	Skipped  int    `json:"skipped"`
 }
 
-// PluginSystemSync runs a manual sync for the authenticated user's enabled
-// instance of one plugin.
+// PluginSystemSync refreshes installed plugin metadata and runs a manual sync
+// for the authenticated user's enabled instance of one plugin.
 func PluginSystemSync(client meilisearch.ServiceManager) func(e *core.RequestEvent) error {
 	return func(e *core.RequestEvent) error {
 		if e.Auth == nil {
@@ -109,6 +109,11 @@ func PluginSystemSync(client meilisearch.ServiceManager) func(e *core.RequestEve
 		)
 		if err != nil {
 			return apis.NewBadRequestError("no enabled plugin instance configured for this plugin", nil)
+		}
+
+		manager := pluginsystem.NewManager(e.App, "")
+		if err := manager.SyncInstalledPlugins(e.Request.Context()); err != nil {
+			return err
 		}
 
 		plugin, err := localPlugin(e.App, data.PluginID)
@@ -155,7 +160,7 @@ func PluginSystemSyncConfigured(ctx context.Context, app core.App, client meilis
 				return err
 			}
 			if shouldSkipPluginInstance(instance) {
-				app.Logger().Info("plugin sync skipping instance due to retry backoff", "plugin", plugin.Manifest.ID, "instance", instance.Id, "next_retry_at", instance.GetString("next_retry_at"))
+				app.Logger().Info("plugin sync skipping instance due to retry delay", "plugin", plugin.Manifest.ID, "instance", instance.Id, "retry_not_before", instance.GetString("retry_not_before"))
 				continue
 			}
 			app.Logger().Info("plugin instance sync started", "plugin", plugin.Manifest.ID, "instance", instance.Id)
@@ -267,7 +272,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	instance.Set("state", map[string]any{})
 	instance.Set("last_sync_at", time.Now())
 	instance.Set("last_error", map[string]any{})
-	instance.Set("next_retry_at", "")
+	instance.Set("retry_not_before", "")
 	instance.Set("status", "configured")
 	if err := app.Save(instance); err != nil {
 		return nil, err
@@ -275,10 +280,10 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	return result, nil
 }
 
-// shouldSkipPluginInstance applies provider backoff from the last sync error.
+// shouldSkipPluginInstance applies retry delay from the last sync error.
 func shouldSkipPluginInstance(instance *core.Record) bool {
-	nextRetry := instance.GetDateTime("next_retry_at")
-	return !nextRetry.IsZero() && nextRetry.Time().After(time.Now())
+	retryNotBefore := instance.GetDateTime("retry_not_before")
+	return !retryNotBefore.IsZero() && retryNotBefore.Time().After(time.Now())
 }
 
 type capabilitySyncResult struct {
@@ -498,10 +503,10 @@ func setPluginInstanceStatusForError(app core.App, instance *core.Record, err er
 		"code":    update.Code,
 		"message": update.Message,
 	})
-	if update.NextRetryAt != nil {
-		instance.Set("next_retry_at", *update.NextRetryAt)
+	if update.RetryNotBefore != nil {
+		instance.Set("retry_not_before", *update.RetryNotBefore)
 	} else {
-		instance.Set("next_retry_at", "")
+		instance.Set("retry_not_before", "")
 	}
 	if saveErr := app.Save(instance); saveErr != nil {
 		app.Logger().Warn("failed to update plugin instance status", "instance", instance.Id, "error", saveErr)

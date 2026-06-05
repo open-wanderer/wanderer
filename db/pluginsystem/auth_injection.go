@@ -98,7 +98,7 @@ func InjectHostRequestAuthFromPolicy(manifest Manifest, auth map[string]any, spe
 	case AuthTypeBearer:
 		return injectBearerAuth(authContext, auth, spec)
 	case AuthTypeSession:
-		return fmt.Errorf("session auth requires route-managed injection")
+		return fmt.Errorf("session auth requires handler-managed injection")
 	default:
 		return fmt.Errorf("auth context is not supported for host requests")
 	}

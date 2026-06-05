@@ -22,8 +22,8 @@ func TestInstanceStatusForPluginCapabilityError(t *testing.T) {
 	if update.Code != "rate_limited" || update.Message != "try later" {
 		t.Fatalf("unexpected error fields: %#v", update)
 	}
-	if update.NextRetryAt == nil || !update.NextRetryAt.Equal(now.Add(120*time.Second)) {
-		t.Fatalf("unexpected retry time: %#v", update.NextRetryAt)
+	if update.RetryNotBefore == nil || !update.RetryNotBefore.Equal(now.Add(120*time.Second)) {
+		t.Fatalf("unexpected retry time: %#v", update.RetryNotBefore)
 	}
 }
 
@@ -42,8 +42,8 @@ func TestInstanceStatusForPluginCallError(t *testing.T) {
 	if update.Code != "invalid_grant" || update.Message != "invalid_grant" {
 		t.Fatalf("unexpected error fields: %#v", update)
 	}
-	if update.NextRetryAt != nil {
-		t.Fatalf("did not expect retry time: %#v", update.NextRetryAt)
+	if update.RetryNotBefore != nil {
+		t.Fatalf("did not expect retry time: %#v", update.RetryNotBefore)
 	}
 }
 

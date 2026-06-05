@@ -30,9 +30,9 @@
       "export": "get_activity_detail_v1"
     },
     {
-      "name": "prepare_send_route",
+      "name": "prepare_trail_send",
       "version": "v1",
-      "export": "prepare_send_route_v1"
+      "export": "prepare_trail_send_v1"
     }
   ],
   "auth": {

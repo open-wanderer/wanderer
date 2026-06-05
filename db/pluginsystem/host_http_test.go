@@ -149,7 +149,7 @@ func TestExecuteHostRequestInjectsAPIKeyQueryBeforeBuildingURL(t *testing.T) {
 	}
 }
 
-func TestExecuteHostRequestBuildsMultipartRouteUpload(t *testing.T) {
+func TestExecuteHostRequestBuildsMultipartTrailSend(t *testing.T) {
 	useUnsafeTestHTTPClient(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if mediaType := strings.Split(r.Header.Get("Content-Type"), ";")[0]; mediaType != "multipart/form-data" {
@@ -162,7 +162,7 @@ func TestExecuteHostRequestBuildsMultipartRouteUpload(t *testing.T) {
 		defer file.Close()
 		data, _ := io.ReadAll(file)
 		if string(data) != "<gpx />" {
-			t.Fatalf("unexpected route body %q", string(data))
+			t.Fatalf("unexpected trail body %q", string(data))
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"ok":true}`))
@@ -176,14 +176,14 @@ func TestExecuteHostRequestBuildsMultipartRouteUpload(t *testing.T) {
 			Type: HostRequestBodyTypeMultipart,
 			Parts: []MultipartPart{{
 				Name:   "file",
-				Source: MultipartSourceRoute,
+				Source: MultipartSourceTrail,
 			}},
 		},
 		Expect: ResponseExpect{
 			ContentTypes: []string{"application/json"},
 			MaxBytes:     1024,
 		},
-	}, HostRequestOptions{Route: []byte("<gpx />")})
+	}, HostRequestOptions{Trail: []byte("<gpx />")})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

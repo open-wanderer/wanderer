@@ -128,14 +128,14 @@ func getTrailDetail(kind string) int32 {
 	return 0
 }
 
-//export prepare_send_route_v1
-func prepareSendRouteV1() int32 {
-	var input sendRouteInput
+//export prepare_trail_send_v1
+func prepareTrailSendV1() int32 {
+	var input trailSendInput
 	if err := pdk.InputJSON(&input); err != nil {
-		return fail("invalid_request", "invalid prepare_send_route input: "+err.Error())
+		return fail("invalid_request", "invalid prepare_trail_send input: "+err.Error())
 	}
-	if input.Route.Format != "gpx" || input.Route.ContentBase64 == "" {
-		return fail("invalid_request", "a GPX route is required")
+	if input.Trail.Format != "gpx" || input.Trail.ContentBase64 == "" {
+		return fail("invalid_request", "a GPX trail is required")
 	}
 
 	userID, err := userIDForUpload(input.Auth)
@@ -143,7 +143,7 @@ func prepareSendRouteV1() int32 {
 		return fail("auth_failed", err.Error())
 	}
 
-	plan := uploadPlan{
+	plan := trailSendPlan{
 		Request: sdk.HostRequestSpec{
 			Method: "POST",
 			Target: sdk.RequestTarget{
@@ -157,7 +157,7 @@ func prepareSendRouteV1() int32 {
 				Parts: []sdk.MultipartPart{
 					{
 						Name:        "file",
-						Source:      sdk.MultipartSourceRoute,
+						Source:      sdk.MultipartSourceTrail,
 						ContentType: "application/gpx+xml",
 					},
 				},

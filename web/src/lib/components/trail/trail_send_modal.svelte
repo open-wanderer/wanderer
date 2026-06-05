@@ -42,7 +42,7 @@
             eligible = plugins.filter(
                 (p) =>
                     p.status === "available" &&
-                    (p.capabilities ?? []).includes("prepare_send_route.v1") &&
+                    (p.capabilities ?? []).includes("prepare_trail_send.v1") &&
                     enabledProviders.has(p.id),
             );
         } catch (e) {
@@ -65,7 +65,7 @@
         }
         sending = plugin.id;
         try {
-            const response = await fetch("/api/v1/plugin-system/send-route", {
+            const response = await fetch("/api/v1/plugin-system/trail-send", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ pluginId: plugin.id, trailId: trail.id, share }),

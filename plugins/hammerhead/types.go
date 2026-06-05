@@ -5,7 +5,7 @@ import "github.com/open-wanderer/wanderer/plugins/sdk"
 type instanceRef = sdk.InstanceRef
 type refreshSessionInput = sdk.RefreshSessionInput
 type refreshSessionOutput = sdk.RefreshSessionOutput
-type sendRouteInput = sdk.SendRouteInput
+type trailSendInput = sdk.TrailSendInput
 type listInput = sdk.ListInput
 type listOutput = sdk.ListOutput
 type detailInput = sdk.DetailInput
@@ -14,7 +14,7 @@ type trailSummary = sdk.TrailSummary
 type trailImport = sdk.TrailImport
 type trailImportSource = sdk.TrailImportSource
 type track = sdk.Track
-type uploadPlan = sdk.UploadPlan
+type trailSendPlan = sdk.TrailSendPlan
 
 type loginResponse struct {
 	Token string `json:"access_token"`
