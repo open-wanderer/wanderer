@@ -95,10 +95,13 @@ import type { SearchResponse } from "meilisearch";
  *         description: Internal server error.
  */
 export async function GET(event: RequestEvent) {
+    if (!event.locals.user) {
+        return error(401, "Unauthorized")
+    }
     try {
 
         if (!event.url.searchParams.has("q")) {
-            throw new ClientResponseError({ status: 400, response: "Bad request" });
+            return error(404, "Bad request: missing required parameter 'q'")
 
         }
         const q = event.url.searchParams.get("q")!

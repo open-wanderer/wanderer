@@ -12,6 +12,7 @@ import type { Actor } from '$lib/models/activitypub/actor'
 import { normalizeLocale } from '$lib/i18n/locales'
 import { handleError } from '$lib/util/api_util'
 
+const SEARCH_TOKEN_VERSION = 1;
 
 function csrf(allowedPaths: string[]): Handle {
   return async ({ event, resolve }) => {
@@ -85,12 +86,12 @@ const auth: Handle = async ({ event, resolve }) => {
   const currentUserId = pb.authStore.record?.id || 'public';
 
   if (meiliCookie) {
-    const [token, ownerId] = meiliCookie.split('|');
+    const [token, ownerId, version] = meiliCookie.split('|');
 
-    if (ownerId === currentUserId) {
+    if (ownerId === currentUserId && Number(version) === SEARCH_TOKEN_VERSION) {
       meilisearchToken = token;
     } else {
-      // Identity mismatch (e.g. just logged in/out)
+      // Identity mismatch (e.g. just logged in/out) or stale token version
       event.cookies.delete('meilisearch_token', { path: '/' });
     }
   }
@@ -99,7 +100,7 @@ const auth: Handle = async ({ event, resolve }) => {
     try {
       const tokenResponse = await pb.send("/search/token", { method: "GET", fetch: event.fetch });
       meilisearchToken = tokenResponse.token
-      event.cookies.set('meilisearch_token', `${meilisearchToken}|${currentUserId}`, {
+      event.cookies.set('meilisearch_token', `${meilisearchToken}|${currentUserId}|${SEARCH_TOKEN_VERSION}`, {
         path: '/',
         httpOnly: false,
         maxAge: 60 * 60 * 24,
