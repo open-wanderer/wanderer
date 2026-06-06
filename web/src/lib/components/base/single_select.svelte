@@ -34,8 +34,10 @@
     let trigger: HTMLButtonElement | undefined = $state();
     let menu: HTMLUListElement | undefined = $state();
     let menuStyle = $state("");
+    let activeIndex = $state(-1);
 
     let selectedItem = $derived(items.find((item) => item.value === value));
+    let selectedIndex = $derived(items.findIndex((item) => item.value === value));
 
     async function positionMenu() {
         await tick();
@@ -62,6 +64,12 @@
         ].join("; ");
     }
 
+    async function scrollActiveItemIntoView() {
+        await tick();
+        menu?.querySelector<HTMLElement>(`[data-single-select-index="${activeIndex}"]`)
+            ?.scrollIntoView({ block: "nearest" });
+    }
+
     function selectItem(item: SingleSelectItem) {
         if (disabled) return;
         value = item.value;
@@ -69,11 +77,78 @@
         onchange?.(item.value);
     }
 
+    async function openMenu(index = selectedIndex >= 0 ? selectedIndex : 0) {
+        if (disabled) return;
+        activeIndex = items.length ? Math.max(0, Math.min(index, items.length - 1)) : -1;
+        open = true;
+        await positionMenu();
+        await scrollActiveItemIntoView();
+    }
+
+    function closeMenu() {
+        open = false;
+        activeIndex = -1;
+    }
+
     async function toggle() {
         if (disabled) return;
-        open = !open;
         if (open) {
-            await positionMenu();
+            closeMenu();
+        } else {
+            await openMenu();
+        }
+    }
+
+    async function setActiveIndex(index: number) {
+        if (!items.length) return;
+        activeIndex = (index + items.length) % items.length;
+        await scrollActiveItemIntoView();
+    }
+
+    async function handleKeydown(event: KeyboardEvent) {
+        if (disabled) return;
+
+        switch (event.key) {
+            case "ArrowDown":
+                event.preventDefault();
+                if (!open) {
+                    await openMenu(selectedIndex >= 0 ? selectedIndex : 0);
+                } else {
+                    await setActiveIndex(activeIndex + 1);
+                }
+                break;
+            case "ArrowUp":
+                event.preventDefault();
+                if (!open) {
+                    await openMenu(selectedIndex >= 0 ? selectedIndex : items.length - 1);
+                } else {
+                    await setActiveIndex(activeIndex - 1);
+                }
+                break;
+            case "Home":
+                if (!open) return;
+                event.preventDefault();
+                await setActiveIndex(0);
+                break;
+            case "End":
+                if (!open) return;
+                event.preventDefault();
+                await setActiveIndex(items.length - 1);
+                break;
+            case "Enter":
+            case " ":
+                event.preventDefault();
+                if (!open) {
+                    await openMenu();
+                } else if (activeIndex >= 0 && items[activeIndex]) {
+                    selectItem(items[activeIndex]);
+                }
+                break;
+            case "Escape":
+                if (!open) return;
+                event.preventDefault();
+                closeMenu();
+                break;
         }
     }
 
@@ -88,16 +163,34 @@
 
         function handleDocumentKeyDown(event: KeyboardEvent) {
             if (event.key === "Escape") {
-                open = false;
+                closeMenu();
             }
+        }
+
+        function handleDocumentScroll(event: Event) {
+            if (!open) return;
+            const target = event.target as Node | null;
+            if (target && menu?.contains(target)) {
+                return;
+            }
+            closeMenu();
+        }
+
+        function handleWindowResize() {
+            if (!open) return;
+            positionMenu();
         }
 
         document.addEventListener("mousedown", handleDocumentMouseDown);
         document.addEventListener("keydown", handleDocumentKeyDown);
+        document.addEventListener("scroll", handleDocumentScroll, true);
+        window.addEventListener("resize", handleWindowResize);
 
         return () => {
             document.removeEventListener("mousedown", handleDocumentMouseDown);
             document.removeEventListener("keydown", handleDocumentKeyDown);
+            document.removeEventListener("scroll", handleDocumentScroll, true);
+            window.removeEventListener("resize", handleWindowResize);
         };
     });
 </script>
@@ -120,6 +213,7 @@
         class:cursor-default={disabled}
         disabled={disabled}
         onclick={toggle}
+        onkeydown={handleKeydown}
     >
         {#if selectedItem}
             <span class="truncate">{selectedItem.text}</span>
@@ -139,12 +233,14 @@
             class="fixed z-[1001] overflow-y-auto rounded-md border border-input-border bg-menu-background shadow-lg"
             style={menuStyle}
         >
-            {#each items as item}
+            {#each items as item, i}
                 <li
                     role="option"
                     aria-selected={item.value === value}
                     tabindex="-1"
                     class="flex cursor-pointer items-center justify-between px-3 py-2 hover:bg-menu-item-background-hover focus:bg-menu-item-background-focus"
+                    class:bg-menu-item-background-focus={activeIndex === i}
+                    data-single-select-index={i}
                     onmousedown={(event) => {
                         event.preventDefault();
                         selectItem(item);

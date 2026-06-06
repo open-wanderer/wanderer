@@ -272,9 +272,8 @@ func initCategories(app core.App) error {
 	if err := query.All(&records); err != nil {
 		return err
 	}
-	existing := map[string]bool{}
-	for _, record := range records {
-		existing[record.GetString("name")] = true
+	if len(records) != 0 {
+		return nil
 	}
 
 	collection, err := app.FindCollectionByNameOrId("categories")
@@ -284,9 +283,6 @@ func initCategories(app core.App) error {
 
 	categories := []string{"Hiking", "Walking", "Climbing", "Skiing", "Canoeing", "Biking", "Other"}
 	for _, element := range categories {
-		if existing[element] {
-			continue
-		}
 		record := core.NewRecord(collection)
 		record.Set("name", element)
 		record.Set("settings", map[string]any{

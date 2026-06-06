@@ -325,11 +325,6 @@ func (index trackDistanceIndex) nearest(point geoPoint) (trackDistance, bool) {
 	return nearest, found
 }
 
-func pointToSegmentDistanceMeters(point geoPoint, start geoPoint, end geoPoint) float64 {
-	distance, _ := pointToSegmentProjectionMeters(point, start, end)
-	return distance
-}
-
 func pointToSegmentProjectionMeters(point geoPoint, start geoPoint, end geoPoint) (float64, float64) {
 	const earthRadius = 6371000.0
 	latRad := point.Lat * math.Pi / 180

@@ -244,15 +244,27 @@
 
     function validateConfig(): boolean {
         const errors: Record<string, string> = {};
-        for (const field of visibleConfigSchema) {
+        const hiddenMissing: ConfigField[] = [];
+        for (const field of configSchema) {
             if (!field.required) continue;
             const value = extraConfig[field.key];
             if (value === undefined || value === null || value === "") {
+                if (field.hidden) {
+                    hiddenMissing.push(field);
+                    continue;
+                }
                 errors[field.key] = $_("required");
             }
         }
         configErrors = errors;
-        return Object.keys(errors).length === 0;
+        if (hiddenMissing.length > 0) {
+            show_toast({
+                text: `${hiddenMissing.map((field) => fieldLabel(field)).join(", ")}: ${$_("required")}`,
+                icon: "close",
+                type: "error",
+            });
+        }
+        return Object.keys(errors).length === 0 && hiddenMissing.length === 0;
     }
 
     function authLabel(field: string): string {
