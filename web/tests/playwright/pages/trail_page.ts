@@ -43,7 +43,11 @@ export class TrailPage {
   }
 
   async gotoEdit(trailId: string) {
-    await this.page.goto(`/trail/edit/${trailId}`, { waitUntil: 'domcontentloaded' });
+    // Use 'networkidle' to ensure Svelte 5 hydration completes before form interactions.
+    // Svelte 5 may reset reactive form state during hydration — without networkidle,
+    // a clear()+fill() can be overwritten when the component re-binds $formData from the
+    // server-loaded trail. Matches the gotoNew() pattern for the same reason.
+    await this.page.goto(`/trail/edit/${trailId}`, { waitUntil: 'networkidle' });
   }
 
   async gotoView(handle: string, trailId: string) {
@@ -76,8 +80,16 @@ export class TrailPage {
 
   // Open the trail action dropdown and click the given menu item.
   // Used by Plan 02 delete/edit flows.
-  private async selectDropdownAction(action: string) {
+  async selectDropdownAction(action: string) {
     await this.dropdownButton.click();
     await this.page.locator('.menu .menu-item').filter({ hasText: action }).click();
+  }
+
+  // Navigate to the edit page, clear the name field, fill with newName, and save.
+  // Waits on /api/v1/trail/form 200 (POST update) before returning (TRAIL-04).
+  async editName(newName: string): Promise<void> {
+    await this.nameInput.clear();
+    await this.nameInput.fill(newName);
+    await this.save();
   }
 }

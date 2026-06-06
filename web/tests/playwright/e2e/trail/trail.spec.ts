@@ -1,6 +1,7 @@
 import { test as base, expect } from '@playwright/test';
 import { TrailPage } from '../../pages/trail_page';
 import { deleteTrail } from '../../helpers/api';
+import { trailName } from '../../helpers/data';
 
 // Run tests serially — all trail tests share a single trailId created in the fixture.
 // Matches the list.spec.ts pattern for consistent teardown and ordering guarantees.
@@ -65,4 +66,21 @@ test('TRAIL-03: created trail is visible on its detail page', async ({ page, tra
     // Use getByRole heading level 4 filtered by text to avoid false positives when multiple
     // h4 elements exist in the DOM (RESEARCH Pitfall 4 — trail_info_panel.svelte has multiple h4s).
     await expect(page.getByRole('heading', { level: 4 }).filter({ hasText: 'Test Trail' })).toBeVisible();
+});
+
+test('TRAIL-04: trail name edit persists on the view page', async ({ page, trailFixture }) => {
+    const { trailPage, handle, trailId } = trailFixture;
+
+    // Generate a unique name to avoid collisions on re-run (RESEARCH Don't Hand-Roll).
+    const newName = trailName();
+
+    // Navigate to the edit page (D-04).
+    await trailPage.gotoEdit(trailId);
+
+    // Clear, fill with the new name, and save via /api/v1/trail/form (POST update).
+    await trailPage.editName(newName);
+
+    // Navigate to the view page and assert the new name persists (D-05).
+    await trailPage.gotoView(handle, trailId);
+    await expect(page.getByRole('heading', { level: 4 }).filter({ hasText: newName })).toBeVisible();
 });
