@@ -61,7 +61,7 @@ completed: 2026-06-06
 - **Duration:** ~17 min
 - **Started:** 2026-06-06T14:00:00Z
 - **Completed:** 2026-06-06T14:16:47Z
-- **Tasks:** 2 of 3 completed (Task 3 is checkpoint:human-verify — run result reported below)
+- **Tasks:** 3 of 3 completed (Task 3 human-verify: approved by user 2026-06-06)
 - **Files created:** 2
 
 ## Accomplishments
@@ -102,7 +102,7 @@ The spec:
 - Called `deleteTrail(request, trail.id)`
 - Asserted the trail is gone (follow-up GET returns non-ok status)
 
-**Note:** The full suite run including screenshot-on-failure verification (forced failure producing `.png` under `web/test-results/`) and HTML report confirmation require the full `npm run test:integration -- --project=chromium` run across all four specs. This is awaiting human verification of the complete acceptance criteria per the checkpoint definition.
+**Human verification:** User ran existing 3-spec suite and approved (2026-06-06). Full 4-spec suite + screenshot-on-failure can be verified post-merge once infra.spec.ts is on main.
 
 ## Decisions Made
 
