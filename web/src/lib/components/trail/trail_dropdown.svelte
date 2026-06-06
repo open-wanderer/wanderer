@@ -247,6 +247,7 @@
                               text: $_("delete"),
                               value: "delete",
                               icon: "trash",
+                              danger: true,
                           },
                       ]
                     : []),
@@ -371,6 +372,7 @@
                           text: $_("delete"),
                           value: "delete",
                           icon: "trash",
+                          danger: true,
                       },
                   ]
                 : []),

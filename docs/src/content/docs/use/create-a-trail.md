@@ -37,6 +37,9 @@ Click the **Draw a route** button to manually define a route on the map. While i
 - Click on the map to place waypoints
 - <span class="-tracking-[0.075em]">wanderer</span> will automatically route between points using the [Valhalla routing engine](https://github.com/valhalla/valhalla)
 - You can drag points to reposition them
+- The anchor list next to the map shows start, intermediate, and finish points with segment distance and elevation stats
+- Hover an item in the anchor list to highlight its marker on the map
+- Reorder intermediate anchors from the list to adjust the route sequence
 - Use the top-left menu to change routing mode (e.g. walking, cycling)
 - To remove a point, click on it and then click the red trash icon
 
@@ -105,4 +108,3 @@ To learn more about summit logs visit the [dedicated section](/use/summit-logs) 
 ## Step 6: Save the trail
 
 When you're done, click   <button class="h-10 text-white rounded-lg px-4 py-2 mx-2 bg-primary font-semibold transition-all hover:bg-primary-hover focus:ring-4 ring-zinc-400 leading-none">Save Trail</button> to persist your trail to the database. This will also re-index it for search and display it in your trail list.
-

@@ -127,7 +127,10 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 func findLocalTrailByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle, trailID string) (*core.Record, error) {
 	// 1. Get Actor to build the IRI
 	actor, err := federation.GetActorByHandle(e.App, ctx, handle, false)
-	if err != nil {
+	if err != nil && !errors.Is(err, federation.ErrProfilePrivate) {
+		return nil, err
+	}
+	if actor == nil {
 		return nil, err
 	}
 
