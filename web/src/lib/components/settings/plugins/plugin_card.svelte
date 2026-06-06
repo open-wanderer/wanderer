@@ -32,6 +32,7 @@
             timeStyle: "short",
         });
     }
+
 </script>
 
 <div
@@ -95,6 +96,19 @@
         <button class="btn-secondary" {onclick}
             ><i class="fa fa-cogs mr-2"></i>{$_("settings")}</button
         >
-        <Toggle bind:value={active} onchange={ontoggle} {disabled}></Toggle>
+        <div class="plugin-card-toggle">
+            <Toggle bind:value={active} onchange={ontoggle} {disabled}></Toggle>
+        </div>
     </div>
 </div>
+
+<style>
+    .plugin-card-toggle :global(label) {
+        margin: -0.5rem;
+        padding: 0.5rem;
+    }
+
+    .plugin-card-toggle :global(label > div) {
+        position: relative;
+    }
+</style>
