@@ -373,6 +373,7 @@
   "road": "Weg",
   "route": "{n, plural,=1 {Tocht} other {Tochten}}",
   "route-point": "Routepunt",
+  "add-as-endpoint": "Add as endpoint",
   "russian": "Russisch",
   "save": "Bewaren",
   "save-list": "Bewaar lijst",
