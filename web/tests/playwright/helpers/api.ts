@@ -9,22 +9,33 @@
 import { type APIRequestContext } from '@playwright/test';
 
 export async function deleteTrail(request: APIRequestContext, id: string): Promise<void> {
-    await request.delete(`/api/v1/trail/${id}`);
-    // DELETE /api/v1/trail/:id returns { acknowledged: boolean } — no body parsing needed
+    const response = await request.delete(`/api/v1/trail/${id}`);
+    if (!response.ok()) {
+        throw new Error(`deleteTrail failed for id=${id}: HTTP ${response.status()}`);
+    }
 }
 
 export async function deleteList(request: APIRequestContext, id: string): Promise<void> {
-    await request.delete(`/api/v1/list/${id}`);
+    const response = await request.delete(`/api/v1/list/${id}`);
+    if (!response.ok()) {
+        throw new Error(`deleteList failed for id=${id}: HTTP ${response.status()}`);
+    }
 }
 
 export async function deleteComment(request: APIRequestContext, id: string): Promise<void> {
-    await request.delete(`/api/v1/comment/${id}`);
+    const response = await request.delete(`/api/v1/comment/${id}`);
+    if (!response.ok()) {
+        throw new Error(`deleteComment failed for id=${id}: HTTP ${response.status()}`);
+    }
 }
 
 export async function deleteAllTrails(request: APIRequestContext): Promise<void> {
     const response = await request.get('/api/v1/trail', {
         params: { perPage: '-1' }
     });
+    if (!response.ok()) {
+        throw new Error(`deleteAllTrails list failed: HTTP ${response.status()}`);
+    }
     const data = await response.json();
     for (const trail of data.items ?? []) {
         await deleteTrail(request, trail.id);
