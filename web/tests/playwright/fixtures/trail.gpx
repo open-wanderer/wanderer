@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-test"
+     xmlns="http://www.topografix.com/GPX/1/1">
+    <trk>
+        <name>Test Trail</name>
+        <trkseg>
+            <trkpt lat="47.6700" lon="11.9000"><ele>800</ele></trkpt>
+            <trkpt lat="47.6710" lon="11.9015"><ele>815</ele></trkpt>
+            <trkpt lat="47.6720" lon="11.9030"><ele>830</ele></trkpt>
+            <trkpt lat="47.6730" lon="11.9045"><ele>848</ele></trkpt>
+            <trkpt lat="47.6740" lon="11.9060"><ele>865</ele></trkpt>
+            <trkpt lat="47.6750" lon="11.9075"><ele>880</ele></trkpt>
+            <trkpt lat="47.6760" lon="11.9090"><ele>895</ele></trkpt>
+            <trkpt lat="47.6770" lon="11.9105"><ele>910</ele></trkpt>
+            <trkpt lat="47.6780" lon="11.9120"><ele>925</ele></trkpt>
+            <trkpt lat="47.6790" lon="11.9135"><ele>940</ele></trkpt>
+            <trkpt lat="47.6800" lon="11.9150"><ele>955</ele></trkpt>
+            <trkpt lat="47.6810" lon="11.9165"><ele>968</ele></trkpt>
+            <trkpt lat="47.6820" lon="11.9180"><ele>975</ele></trkpt>
+            <trkpt lat="47.6830" lon="11.9195"><ele>960</ele></trkpt>
+            <trkpt lat="47.6840" lon="11.9210"><ele>945</ele></trkpt>
+            <trkpt lat="47.6850" lon="11.9225"><ele>930</ele></trkpt>
+            <trkpt lat="47.6860" lon="11.9240"><ele>915</ele></trkpt>
+            <trkpt lat="47.6870" lon="11.9255"><ele>900</ele></trkpt>
+            <trkpt lat="47.6880" lon="11.9270"><ele>885</ele></trkpt>
+            <trkpt lat="47.6890" lon="11.9285"><ele>870</ele></trkpt>
+            <trkpt lat="47.6900" lon="11.9300"><ele>855</ele></trkpt>
+            <trkpt lat="47.6910" lon="11.9315"><ele>840</ele></trkpt>
+            <trkpt lat="47.6920" lon="11.9330"><ele>825</ele></trkpt>
+            <trkpt lat="47.6930" lon="11.9345"><ele>810</ele></trkpt>
+            <trkpt lat="47.6940" lon="11.9360"><ele>800</ele></trkpt>
+            <trkpt lat="47.6950" lon="11.9375"><ele>790</ele></trkpt>
+            <trkpt lat="47.6960" lon="11.9390"><ele>782</ele></trkpt>
+            <trkpt lat="47.6970" lon="11.9405"><ele>775</ele></trkpt>
+            <trkpt lat="47.6980" lon="11.9420"><ele>770</ele></trkpt>
+            <trkpt lat="47.6990" lon="11.9435"><ele>765</ele></trkpt>
+        </trkseg>
+    </trk>
+</gpx>
