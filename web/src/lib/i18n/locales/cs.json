@@ -373,6 +373,7 @@
   "road": "Silnice",
   "route": "{n, plural, =1 {Trasa} few {Trasy} other {Tras}}",
   "route-point": "Bod trasy",
+  "add-as-endpoint": "Add as endpoint",
   "russian": "Ruština",
   "save": "Uložit",
   "save-list": "Uložit seznam",

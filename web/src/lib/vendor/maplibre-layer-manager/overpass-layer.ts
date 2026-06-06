@@ -4,12 +4,17 @@
  * License: MIT
  */
 
-import { createOverpassPopup } from "$lib/util/maplibre_util";
+import { createOverpassPopup, type OverpassPopupAction } from "$lib/util/maplibre_util";
 import * as M from "maplibre-gl";
 import { type LngLatBounds, type MapMouseEvent, type StyleSpecification } from "maplibre-gl";
 import { pois, type BaseLayer, type MapState } from "./layers";
 import type { OverpassResponse } from "./types";
 import { env } from '$env/dynamic/public'
+
+export type OverpassPopupActionFactory = (
+    feature: GeoJSON.Feature,
+    coordinates: GeoJSON.Position,
+) => OverpassPopupAction | null | undefined;
 
 export class OverpassLayer implements BaseLayer {
     private overpassApiURL: string = "/api/v1/overpass/interpreter";
@@ -61,9 +66,11 @@ export class OverpassLayer implements BaseLayer {
     private popup: M.Popup;
     private map: M.Map;
     private currentPopupCoordinates: GeoJSON.Position | null = null
+    private popupActionFactory?: OverpassPopupActionFactory;
 
-    constructor(map: M.Map) {
+    constructor(map: M.Map, popupActionFactory?: OverpassPopupActionFactory) {
         this.map = map;
+        this.popupActionFactory = popupActionFactory;
         this.popup = new M.Popup()
             .setMaxWidth("420px")
     }
@@ -71,7 +78,8 @@ export class OverpassLayer implements BaseLayer {
     private openPopup(e: MapMouseEvent) {
         const features = (e as any).features as GeoJSON.Feature[];
         const point = features[0].geometry as GeoJSON.Point;
-        const content = createOverpassPopup(features[0], point.coordinates);
+        const action = this.popupActionFactory?.(features[0], point.coordinates);
+        const content = createOverpassPopup(features[0], point.coordinates, action ?? undefined);
 
         this.currentPopupCoordinates = point.coordinates;
         this.popup
