@@ -373,6 +373,7 @@
   "road": "Шоссе",
   "route": "{n, plural, =1 {Маршрут} other {Маршрутов}}",
   "route-point": "Точка маршрута",
+  "add-as-endpoint": "Add as endpoint",
   "russian": "Русский",
   "save": "Сохранить",
   "save-list": "Сохранить список",

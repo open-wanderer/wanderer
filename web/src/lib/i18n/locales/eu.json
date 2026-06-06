@@ -373,6 +373,7 @@
   "road": "Errepidea",
   "route": "{n, plural, one {}=1 {ibilbide} other {ibilbide}}",
   "route-point": "Ibilbideko puntua",
+  "add-as-endpoint": "Add as endpoint",
   "russian": "Errusiera",
   "save": "Gorde",
   "save-list": "Gorde zerrenda",
