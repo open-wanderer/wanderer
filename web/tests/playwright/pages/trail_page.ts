@@ -92,4 +92,16 @@ export class TrailPage {
     await this.nameInput.fill(newName);
     await this.save();
   }
+
+  // Open the dropdown, click Delete, confirm in the modal, and wait for the DELETE response.
+  // Returns after the DELETE /api/v1/trail/{id} 200 response is received (TRAIL-05).
+  async deleteViaUi(): Promise<void> {
+    await this.selectDropdownAction('Delete');
+    await Promise.all([
+      this.page.waitForResponse(
+        r => r.url().includes('/api/v1/trail/') && r.status() === 200 && r.request().method() === 'DELETE'
+      ),
+      this.confirmModalConfirmButton.click(),
+    ]);
+  }
 }

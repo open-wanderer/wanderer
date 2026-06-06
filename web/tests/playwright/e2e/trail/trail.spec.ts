@@ -84,3 +84,17 @@ test('TRAIL-04: trail name edit persists on the view page', async ({ page, trail
     await trailPage.gotoView(handle, trailId);
     await expect(page.getByRole('heading', { level: 4 }).filter({ hasText: newName })).toBeVisible();
 });
+
+test('TRAIL-05: delete trail navigates away from the view page', async ({ trailFixture }) => {
+    const { trailPage, handle, trailId } = trailFixture;
+
+    // Navigate to the trail view page (D-06).
+    await trailPage.gotoView(handle, trailId);
+
+    // Open dropdown → click Delete → confirm in modal → wait for DELETE response.
+    await trailPage.deleteViaUi();
+
+    // Assert the browser navigated away from the trail view URL (D-07).
+    // Do NOT re-navigate to assert a 404 — waitForURL away is sufficient.
+    await trailPage.page.waitForURL(url => !url.pathname.includes(`/trail/view/${handle}/${trailId}`));
+});
