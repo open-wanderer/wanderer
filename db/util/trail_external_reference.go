@@ -125,6 +125,10 @@ func EnsureTrailExternalReference(app core.App, trailID string, provider string,
 	if err != nil {
 		return err
 	}
+	if userID == "" {
+		app.Logger().Warn("skipping trail external reference without local user", "provider", provider, "external_id", externalID, "trail", trailID)
+		return nil
+	}
 
 	refs, err := app.FindRecordsByFilter(
 		"trail_external_reference",

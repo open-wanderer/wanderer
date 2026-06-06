@@ -210,7 +210,7 @@ func (w *pluginWorkerProcess) hostFunctions() []extism.HostFunction {
 	logFn := extism.NewHostFunctionWithStack(
 		"log",
 		func(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64) {
-			message, err := plugin.ReadBytes(stack[0])
+			message, err := readBoundedHostLogPayload(plugin, stack[0])
 			if err != nil {
 				plugin.Log(extism.LogLevelError, "read host log message: "+err.Error())
 				return

@@ -65,7 +65,7 @@ func extismHostFunctions(manifest Manifest, policy RequestPolicyContext) []extis
 	logFn := extism.NewHostFunctionWithStack(
 		"log",
 		func(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64) {
-			message, err := plugin.ReadBytes(stack[0])
+			message, err := readBoundedHostLogPayload(plugin, stack[0])
 			if err != nil {
 				plugin.Log(extism.LogLevelError, "read host log message: "+err.Error())
 				return
@@ -84,6 +84,17 @@ func extismHostFunctions(manifest Manifest, policy RequestPolicyContext) []extis
 	logFn.SetNamespace("wanderer")
 
 	return []extism.HostFunction{httpFn, logFn}
+}
+
+func readBoundedHostLogPayload(plugin *extism.CurrentPlugin, offset uint64) ([]byte, error) {
+	length, err := plugin.Length(offset)
+	if err != nil {
+		return nil, err
+	}
+	if length > maxHostLogPayloadBytes {
+		return nil, fmt.Errorf("log message exceeds maximum size")
+	}
+	return plugin.ReadBytes(offset)
 }
 
 func parseHostLogEntry(message []byte) (HostLogEntry, error) {
