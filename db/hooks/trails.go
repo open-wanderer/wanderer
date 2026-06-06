@@ -29,6 +29,11 @@ func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			return err
 		}
 
+		err = e.Next()
+		if err != nil {
+			return err
+		}
+
 		// add local iri
 		origin := os.Getenv("ORIGIN")
 		if origin == "" {
@@ -36,11 +41,9 @@ func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		}
 		if e.Record.GetString("iri") == "" {
 			e.Record.Set("iri", fmt.Sprintf("%s/api/v1/trail/%s", origin, e.Record.Id))
-		}
-
-		err = e.Next()
-		if err != nil {
-			return err
+			if err = e.App.UnsafeWithoutHooks().Save(e.Record); err != nil {
+				return err
+			}
 		}
 
 		if !userActor.GetBool("isLocal") {

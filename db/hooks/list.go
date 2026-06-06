@@ -24,6 +24,11 @@ func CreateListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 			return err
 		}
 
+		err = e.Next()
+		if err != nil {
+			return err
+		}
+
 		// add local iri
 		origin := os.Getenv("ORIGIN")
 		if origin == "" {
@@ -31,11 +36,9 @@ func CreateListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 		}
 		if e.Record.GetString("iri") == "" {
 			e.Record.Set("iri", fmt.Sprintf("%s/api/v1/list/%s", origin, e.Record.Id))
-		}
-
-		err = e.Next()
-		if err != nil {
-			return err
+			if err = e.App.UnsafeWithoutHooks().Save(e.Record); err != nil {
+				return err
+			}
 		}
 
 		if !author.GetBool("isLocal") {

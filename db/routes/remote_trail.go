@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 )
@@ -133,7 +134,7 @@ func findLocalTrailByRemoteInfo(e *core.RequestEvent, ctx context.Context, handl
 	iri := fmt.Sprintf("%s://%s/api/v1/trail/%s", actorURL.Scheme, actorURL.Host, trailID)
 
 	// 2. Check if this IRI already exists in our DB
-	existing, _ := e.App.FindFirstRecordByData("trails", "iri", iri)
+	existing, _ := e.App.FindFirstRecordByFilter("trails", "iri={:iri}||id={:id}", dbx.Params{"id": trailID, "iri": iri})
 	if existing != nil {
 		return existing, nil
 	}
