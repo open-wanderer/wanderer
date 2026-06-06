@@ -17,8 +17,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Serial execution required — shared auth session and DB state (CLAUDE.md constraint). */
+  workers: 1,
   /* Per-test timeout (D-06) */
   timeout: 60_000,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -44,7 +44,6 @@ export default defineConfig({
     {
       name: 'teardown',
       testMatch: /.*\.teardown\.ts/,
-      dependencies: ['chromium'],
       use: {
         storageState: 'playwright/.auth/user.json',
       }
@@ -63,11 +62,11 @@ export default defineConfig({
     {
       name: 'chromium',
       dependencies: ['setup'],
+      teardown: 'teardown',
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/user.json',
       },
-      // dependencies: ['setup']
     },
 
     // {
