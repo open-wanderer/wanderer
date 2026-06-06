@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
-	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
 	"pocketbase/plugins/importer"
@@ -43,10 +41,6 @@ type syncCapabilityDescriptor struct {
 	CapabilityName string
 	DetailName     string
 	Version        string
-}
-
-type pluginSystemSyncRequest struct {
-	PluginID string `json:"pluginId"`
 }
 
 type pluginSystemListInput struct {
@@ -84,49 +78,6 @@ type pluginSystemSyncResult struct {
 	PluginID string `json:"pluginId"`
 	Imported int    `json:"imported"`
 	Skipped  int    `json:"skipped"`
-}
-
-// PluginSystemSync refreshes installed plugin metadata and runs a manual sync
-// for the authenticated user's enabled instance of one plugin.
-func PluginSystemSync(client meilisearch.ServiceManager) func(e *core.RequestEvent) error {
-	return func(e *core.RequestEvent) error {
-		if e.Auth == nil {
-			return apis.NewUnauthorizedError("authentication required", nil)
-		}
-
-		var data pluginSystemSyncRequest
-		if err := e.BindBody(&data); err != nil {
-			return apis.NewBadRequestError("Failed to read request data", err)
-		}
-		if data.PluginID == "" {
-			return apis.NewBadRequestError("pluginId is required", nil)
-		}
-
-		instance, err := e.App.FindFirstRecordByFilter(
-			"plugin_instances",
-			"user={:user} && plugin_id={:plugin_id} && enabled=true",
-			dbx.Params{"user": e.Auth.Id, "plugin_id": data.PluginID},
-		)
-		if err != nil {
-			return apis.NewBadRequestError("no enabled plugin instance configured for this plugin", nil)
-		}
-
-		manager := pluginsystem.NewManager(e.App, "")
-		if err := manager.SyncInstalledPlugins(e.Request.Context()); err != nil {
-			return err
-		}
-
-		plugin, err := localPlugin(e.App, data.PluginID)
-		if err != nil {
-			return err
-		}
-		result, err := syncPluginInstance(e.Request.Context(), e.App, client, plugin, instance)
-		if err != nil {
-			return err
-		}
-
-		return e.JSON(http.StatusOK, result)
-	}
 }
 
 // PluginSystemSyncConfigured is the cron entrypoint. It refreshes plugin

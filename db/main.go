@@ -167,7 +167,6 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/search/token", routes.SearchToken(client))
 
 	se.Router.GET("/plugins", routes.PluginSystemPluginsList)
-	se.Router.POST("/plugins/sync", routes.PluginSystemSync(client))
 	se.Router.POST("/plugins/trail-send", routes.PluginSystemTrailSend)
 	se.Router.POST("/plugins/oauth/start", routes.PluginSystemOAuthStart)
 	se.Router.POST("/plugins/oauth/callback", routes.PluginSystemOAuthCallback)
