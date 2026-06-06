@@ -21,9 +21,11 @@ export class TrailPage {
     this.page = page;
     this.fileInput = page.locator('#fileInput');
     this.trailForm = page.locator('#trail-form');
-    this.nameInput = page.locator('input[name="name"]');
-    this.distanceInput = page.locator('input[name="distance"]');
-    this.elevationGainInput = page.locator('input[name="elevation_gain"]');
+    // Scope name/distance/elevation_gain inputs to #trail-form to avoid strict-mode
+    // violations — the waypoint form (#waypoint-form) also contains input[name="name"].
+    this.nameInput = this.trailForm.locator('input[name="name"]');
+    this.distanceInput = this.trailForm.locator('input[name="distance"]');
+    this.elevationGainInput = this.trailForm.locator('input[name="elevation_gain"]');
     this.saveButton = this.trailForm.locator('button[type="submit"]');
     this.dropdownButton = page.getByLabel('Open dropdown');
     this.confirmModal = page.locator('#confirm-modal');
@@ -34,7 +36,10 @@ export class TrailPage {
   }
 
   async gotoNew() {
-    await this.page.goto('/trail/edit/new', { waitUntil: 'domcontentloaded' });
+    // Use 'networkidle' to ensure Svelte 5's delegated event system is fully hydrated.
+    // Svelte 5 delegates 'change' events to the document level; with 'domcontentloaded'
+    // the delegate listener hasn't been registered yet and setInputFiles silently no-ops.
+    await this.page.goto('/trail/edit/new', { waitUntil: 'networkidle' });
   }
 
   async gotoEdit(trailId: string) {
