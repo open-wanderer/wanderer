@@ -272,23 +272,32 @@ func initCategories(app core.App) error {
 	if err := query.All(&records); err != nil {
 		return err
 	}
-	if len(records) == 0 {
-		collection, _ := app.FindCollectionByNameOrId("categories")
+	existing := map[string]bool{}
+	for _, record := range records {
+		existing[record.GetString("name")] = true
+	}
 
-		categories := []string{"Hiking", "Walking", "Climbing", "Skiing", "Canoeing", "Biking", "Other"}
-		for _, element := range categories {
-			record := core.NewRecord(collection)
-			record.Set("name", element)
-			record.Set("settings", map[string]any{
-				"wp_merge_enabled": true,
-				"wp_merge_radius":  50,
-			})
-			f, _ := filesystem.NewFileFromPath("migrations/initial_data/" + strings.ToLower(element) + ".jpg")
+	collection, err := app.FindCollectionByNameOrId("categories")
+	if err != nil {
+		return err
+	}
+
+	categories := []string{"Hiking", "Walking", "Climbing", "Skiing", "Canoeing", "Biking", "Other"}
+	for _, element := range categories {
+		if existing[element] {
+			continue
+		}
+		record := core.NewRecord(collection)
+		record.Set("name", element)
+		record.Set("settings", map[string]any{
+			"wp_merge_enabled": true,
+			"wp_merge_radius":  50,
+		})
+		if f, err := filesystem.NewFileFromPath("migrations/initial_data/" + strings.ToLower(element) + ".jpg"); err == nil {
 			record.Set("img", f)
-			err := app.Save(record)
-			if err != nil {
-				return err
-			}
+		}
+		if err := app.Save(record); err != nil {
+			return err
 		}
 	}
 	return nil

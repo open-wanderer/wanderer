@@ -34,8 +34,13 @@
     "contexts": {
       "provider_session": {
         "type": "session",
-        "fields": ["email", "password"],
-        "secretFields": ["password"],
+        "fields": [
+          "email",
+          "password"
+        ],
+        "secretFields": [
+          "password"
+        ],
         "refresh": {
           "mode": "plugin",
           "function": "refresh_session_v1"
@@ -50,14 +55,22 @@
           "name": "api",
           "type": "public_api",
           "fixedBaseURL": "https://api.komoot.de",
-          "allowedPathPrefixes": ["/v006", "/v007"]
+          "allowedPathPrefixes": [
+            "/v006",
+            "/v007"
+          ]
         }
       ]
     },
-    "auth": ["provider_session"],
+    "auth": [
+      "provider_session"
+    ],
     "downloads": {
       "maxBytes": 16777216,
-      "contentTypes": ["application/json", "application/hal+json"]
+      "contentTypes": [
+        "application/json",
+        "application/hal+json"
+      ]
     }
   },
   "configSchema": [
@@ -125,6 +138,164 @@
     },
     "icons": {
       "light": "icon.svg"
+    },
+    "providerCategories": {
+      "hike": {
+        "labels": {
+          "de": "Wandern",
+          "en": "Hiking"
+        }
+      },
+      "mountaineering": {
+        "labels": {
+          "de": "Bergsteigen",
+          "en": "Mountaineering"
+        }
+      },
+      "racebike": {
+        "labels": {
+          "de": "Rennrad",
+          "en": "Road bike"
+        }
+      },
+      "e_racebike": {
+        "labels": {
+          "de": "E-Rennrad",
+          "en": "E-road bike"
+        }
+      },
+      "touringbicycle": {
+        "labels": {
+          "de": "Tourenrad",
+          "en": "Touring bike"
+        }
+      },
+      "e_touringbicycle": {
+        "labels": {
+          "de": "E-Tourenrad",
+          "en": "E-touring bike"
+        }
+      },
+      "mtb": {
+        "labels": {
+          "de": "Mountainbike",
+          "en": "Mountain bike"
+        }
+      },
+      "e_mtb": {
+        "labels": {
+          "de": "E-Mountainbike",
+          "en": "E-mountain bike"
+        }
+      },
+      "mtb_easy": {
+        "labels": {
+          "de": "Mountainbike einfach",
+          "en": "Easy mountain bike"
+        }
+      },
+      "e_mtb_easy": {
+        "labels": {
+          "de": "E-Mountainbike einfach",
+          "en": "Easy e-mountain bike"
+        }
+      },
+      "mtb_advanced": {
+        "labels": {
+          "de": "Mountainbike anspruchsvoll",
+          "en": "Advanced mountain bike"
+        }
+      },
+      "e_mtb_advanced": {
+        "labels": {
+          "de": "E-Mountainbike anspruchsvoll",
+          "en": "Advanced e-mountain bike"
+        }
+      },
+      "downhillbike": {
+        "labels": {
+          "de": "Downhill-Bike",
+          "en": "Downhill bike"
+        }
+      },
+      "unicycle": {
+        "labels": {
+          "de": "Einrad",
+          "en": "Unicycle"
+        }
+      },
+      "citybike": {
+        "labels": {
+          "de": "Citybike",
+          "en": "City bike"
+        }
+      },
+      "jogging": {
+        "labels": {
+          "de": "Joggen",
+          "en": "Jogging"
+        }
+      },
+      "nordicwalking": {
+        "labels": {
+          "de": "Nordic Walking",
+          "en": "Nordic walking"
+        }
+      },
+      "skaten": {
+        "labels": {
+          "de": "Skaten",
+          "en": "Skating"
+        }
+      },
+      "other": {
+        "labels": {
+          "de": "Sonstiges",
+          "en": "Other"
+        }
+      },
+      "climbing": {
+        "labels": {
+          "de": "Klettern",
+          "en": "Climbing"
+        }
+      },
+      "nordic": {
+        "labels": {
+          "de": "Langlauf",
+          "en": "Cross-country skiing"
+        }
+      },
+      "skialpin": {
+        "labels": {
+          "de": "Ski alpin",
+          "en": "Alpine skiing"
+        }
+      },
+      "skitour": {
+        "labels": {
+          "de": "Skitour",
+          "en": "Ski touring"
+        }
+      },
+      "sled": {
+        "labels": {
+          "de": "Schlitten",
+          "en": "Sledding"
+        }
+      },
+      "snowboard": {
+        "labels": {
+          "de": "Snowboard",
+          "en": "Snowboard"
+        }
+      },
+      "snowshoe": {
+        "labels": {
+          "de": "Schneeschuhwandern",
+          "en": "Snowshoeing"
+        }
+      }
     }
   }
 }

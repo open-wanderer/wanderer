@@ -8,13 +8,14 @@ export interface ConfigFieldOption {
 
 export interface ConfigField {
     key: string;
-    type: "boolean" | "date" | "object" | "select" | "text" | "url";
+    type: "boolean" | "date" | "select" | "text" | "url";
     label?: string;
     labels?: LocalizedTextMap;
     description?: string;
     descriptions?: LocalizedTextMap;
     options?: ConfigFieldOption[];
     default?: unknown;
+    required?: boolean;
     hidden?: boolean;
 }
 
@@ -45,6 +46,7 @@ export interface PluginProvider {
     };
     configSchema?: ConfigField[];
     hostConfig?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
     capabilities?: string[];
     limits?: {
         recommendedBatchSize?: number;

@@ -34,11 +34,21 @@
     "contexts": {
       "oauth_access_token": {
         "type": "oauth2",
-        "fields": ["clientId", "clientSecret"],
-        "secretFields": ["clientSecret", "accessToken", "refreshToken"],
+        "fields": [
+          "clientId",
+          "clientSecret"
+        ],
+        "secretFields": [
+          "clientSecret",
+          "accessToken",
+          "refreshToken"
+        ],
         "authorizationUrl": "https://www.strava.com/oauth/authorize",
         "tokenUrl": "https://www.strava.com/oauth/token",
-        "scopes": ["read_all", "activity:read_all"],
+        "scopes": [
+          "read_all",
+          "activity:read_all"
+        ],
         "scopeSeparator": ",",
         "tokenRequestFormat": "json",
         "tokenAuth": "client_secret_post",
@@ -59,28 +69,46 @@
           "name": "api",
           "type": "public_api",
           "fixedBaseURL": "https://www.strava.com/api/v3",
-          "allowedPathPrefixes": ["/"],
-          "auth": ["oauth_access_token"]
+          "allowedPathPrefixes": [
+            "/"
+          ],
+          "auth": [
+            "oauth_access_token"
+          ]
         },
         {
           "name": "api_next",
           "type": "public_api",
           "fixedBaseURL": "https://www.api-v3.strava.com",
-          "allowedPathPrefixes": ["/"],
-          "auth": ["oauth_access_token"]
+          "allowedPathPrefixes": [
+            "/"
+          ],
+          "auth": [
+            "oauth_access_token"
+          ]
         },
         {
           "name": "oauth",
           "type": "public_api",
           "fixedBaseURL": "https://www.strava.com/oauth",
-          "allowedPathPrefixes": ["/"]
+          "allowedPathPrefixes": [
+            "/"
+          ]
         }
       ]
     },
-    "auth": ["oauth_access_token"],
+    "auth": [
+      "oauth_access_token"
+    ],
     "downloads": {
       "maxBytes": 1048576,
-      "contentTypes": ["application/json", "application/gpx+xml", "application/xml", "text/xml", "application/octet-stream"]
+      "contentTypes": [
+        "application/json",
+        "application/gpx+xml",
+        "application/xml",
+        "text/xml",
+        "application/octet-stream"
+      ]
     }
   },
   "configSchema": [
@@ -173,6 +201,242 @@
     },
     "icons": {
       "light": "icon.svg"
+    },
+    "providerCategories": {
+      "route:1": {
+        "labels": {
+          "de": "Strava-Route: Radfahren",
+          "en": "Strava route: cycling"
+        }
+      },
+      "route:2": {
+        "labels": {
+          "de": "Strava-Route: Laufen",
+          "en": "Strava route: running"
+        }
+      },
+      "AlpineSki": {
+        "labels": {
+          "de": "Ski alpin",
+          "en": "Alpine ski"
+        }
+      },
+      "BackcountrySki": {
+        "labels": {
+          "de": "Skitour",
+          "en": "Backcountry ski"
+        }
+      },
+      "Canoeing": {
+        "labels": {
+          "de": "Kanufahren",
+          "en": "Canoeing"
+        }
+      },
+      "Crossfit": {
+        "labels": {
+          "de": "Crossfit",
+          "en": "Crossfit"
+        }
+      },
+      "EBikeRide": {
+        "labels": {
+          "de": "E-Bike-Fahrt",
+          "en": "E-bike ride"
+        }
+      },
+      "Elliptical": {
+        "labels": {
+          "de": "Crosstrainer",
+          "en": "Elliptical"
+        }
+      },
+      "Golf": {
+        "labels": {
+          "de": "Golf",
+          "en": "Golf"
+        }
+      },
+      "Handcycle": {
+        "labels": {
+          "de": "Handbike",
+          "en": "Handcycle"
+        }
+      },
+      "Hike": {
+        "labels": {
+          "de": "Wandern",
+          "en": "Hike"
+        }
+      },
+      "IceSkate": {
+        "labels": {
+          "de": "Schlittschuhlaufen",
+          "en": "Ice skate"
+        }
+      },
+      "InlineSkate": {
+        "labels": {
+          "de": "Inlineskaten",
+          "en": "Inline skate"
+        }
+      },
+      "Kayaking": {
+        "labels": {
+          "de": "Kajakfahren",
+          "en": "Kayaking"
+        }
+      },
+      "Kitesurf": {
+        "labels": {
+          "de": "Kitesurfen",
+          "en": "Kitesurf"
+        }
+      },
+      "NordicSki": {
+        "labels": {
+          "de": "Langlauf",
+          "en": "Nordic ski"
+        }
+      },
+      "Ride": {
+        "labels": {
+          "de": "Radfahren",
+          "en": "Ride"
+        }
+      },
+      "RockClimbing": {
+        "labels": {
+          "de": "Felsklettern",
+          "en": "Rock climbing"
+        }
+      },
+      "RollerSki": {
+        "labels": {
+          "de": "Rollski",
+          "en": "Roller ski"
+        }
+      },
+      "Rowing": {
+        "labels": {
+          "de": "Rudern",
+          "en": "Rowing"
+        }
+      },
+      "Run": {
+        "labels": {
+          "de": "Laufen",
+          "en": "Run"
+        }
+      },
+      "Sail": {
+        "labels": {
+          "de": "Segeln",
+          "en": "Sail"
+        }
+      },
+      "Skateboard": {
+        "labels": {
+          "de": "Skateboard",
+          "en": "Skateboard"
+        }
+      },
+      "Snowboard": {
+        "labels": {
+          "de": "Snowboard",
+          "en": "Snowboard"
+        }
+      },
+      "Snowshoe": {
+        "labels": {
+          "de": "Schneeschuhwandern",
+          "en": "Snowshoe"
+        }
+      },
+      "Soccer": {
+        "labels": {
+          "de": "Fussball",
+          "en": "Soccer"
+        }
+      },
+      "StairStepper": {
+        "labels": {
+          "de": "Stepper",
+          "en": "Stair stepper"
+        }
+      },
+      "StandUpPaddling": {
+        "labels": {
+          "de": "Stand-up-Paddling",
+          "en": "Stand-up paddling"
+        }
+      },
+      "Surfing": {
+        "labels": {
+          "de": "Surfen",
+          "en": "Surfing"
+        }
+      },
+      "Swim": {
+        "labels": {
+          "de": "Schwimmen",
+          "en": "Swim"
+        }
+      },
+      "Velomobile": {
+        "labels": {
+          "de": "Velomobil",
+          "en": "Velomobile"
+        }
+      },
+      "VirtualRide": {
+        "labels": {
+          "de": "Virtuelle Radfahrt",
+          "en": "Virtual ride"
+        }
+      },
+      "VirtualRun": {
+        "labels": {
+          "de": "Virtueller Lauf",
+          "en": "Virtual run"
+        }
+      },
+      "Walk": {
+        "labels": {
+          "de": "Gehen",
+          "en": "Walk"
+        }
+      },
+      "WeightTraining": {
+        "labels": {
+          "de": "Krafttraining",
+          "en": "Weight training"
+        }
+      },
+      "Wheelchair": {
+        "labels": {
+          "de": "Rollstuhl",
+          "en": "Wheelchair"
+        }
+      },
+      "Windsurf": {
+        "labels": {
+          "de": "Windsurfen",
+          "en": "Windsurf"
+        }
+      },
+      "Workout": {
+        "labels": {
+          "de": "Training",
+          "en": "Workout"
+        }
+      },
+      "Yoga": {
+        "labels": {
+          "de": "Yoga",
+          "en": "Yoga"
+        }
+      }
     }
   }
 }

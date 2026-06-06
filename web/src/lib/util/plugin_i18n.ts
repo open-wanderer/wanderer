@@ -58,6 +58,29 @@ export function configFieldOptionLabel(
     return localizedText(option.labels, currentLocale, option.label || fallback);
 }
 
+export function providerCategoryLabel(
+    plugin: PluginProvider,
+    providerCategory: string,
+    currentLocale: string | null | undefined,
+): string {
+    const providerCategories = plugin.metadata?.providerCategories;
+    if (!providerCategories || typeof providerCategories !== "object" || Array.isArray(providerCategories)) {
+        return providerCategory;
+    }
+
+    const category = (providerCategories as Record<string, unknown>)[providerCategory];
+    if (!category || typeof category !== "object" || Array.isArray(category)) {
+        return providerCategory;
+    }
+
+    const labels = (category as Record<string, unknown>).labels;
+    if (!labels || typeof labels !== "object" || Array.isArray(labels)) {
+        return providerCategory;
+    }
+
+    return localizedText(labels as LocalizedTextMap, currentLocale, providerCategory);
+}
+
 function normalizeLocale(value: string | null | undefined): string {
     return (value || "en").trim().toLowerCase().replace("_", "-");
 }

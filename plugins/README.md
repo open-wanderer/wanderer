@@ -5,6 +5,7 @@ This directory contains first-party WASM provider plugins.
 Each plugin is a standalone Go/TinyGo module with:
 
 - `plugin.json` as the source manifest
+- `plugins/schema/plugin.schema.json` for editor completion and manifest help
 - `go run github.com/open-wanderer/wanderer/plugins/sdk/cmd/manifestcheck` for normalized dist manifest output
 - ignored `dist/<plugin-id>/plugin.json` and `dist/<plugin-id>/plugin.wasm` build output for runtime discovery
 
@@ -30,6 +31,15 @@ make build
 Repeat for `hammerhead` and `komoot` as needed.
 
 Release builds create plugin bundle archives in CI. The database Docker image does not include plugins; users install release bundles into `data/plugins`.
+
+Plugin authors can reference the manifest schema from a source manifest:
+
+```json
+{
+  "$schema": "../schema/plugin.schema.json",
+  "manifestVersion": "1.0"
+}
+```
 
 ## Runtime flows
 
@@ -196,7 +206,13 @@ Manifest `configSchema` defines plugin-owned settings that are passed to plugin 
 | `categoryMapping` | Maps `metadata.providerCategory` to local category IDs or names. |
 | `connectors` | Provides host-owned base URL, TLS, private-network, and storage redirect settings for configured connectors. |
 
-Trail import plugins should keep provider-specific category values in `metadata.providerCategory`. They may also provide provider summary metrics in `metadata.distance`, `metadata.elevationGain`, `metadata.elevationLoss`, and `metadata.duration`; the host uses those positive values instead of GPX-derived summary metrics and falls back to GPX when a value is missing.
+The settings UI lets users edit `categoryMapping` per plugin instance for trail import plugins.
+Plugins may describe provider-owned category values for the settings UI with
+`metadata.providerCategories`. This is display-only metadata; `categoryMapping`
+keys still use the raw provider category values emitted as
+`metadata.providerCategory`.
+
+Trail import plugins should keep provider-specific category values in `metadata.providerCategory`. They may also provide provider summary metrics in `metadata.distance`, `metadata.elevationGain`, `metadata.elevationLoss`, and `metadata.duration`; the host uses those positive values instead of GPX-derived summary metrics and falls back to GPX when a value is missing. Plugins may provide an intended start coordinate in `metadata.providerStart` as `{ "lat": 47.123, "lon": 8.456 }`; the host uses it only when it is close enough to the imported GPX track to be plausible.
 
 Photo descriptors may be returned either on the imported trail or on individual waypoints. The host downloads those media files and stores them on the corresponding PocketBase records.
 
@@ -211,15 +227,17 @@ Plugins may provide optional UI metadata through `manifest.metadata`:
 | `displayName` | Human-facing provider name shown in the UI. Falls back to manifest `name`. |
 | `displayNames` | Optional localized provider names keyed by locale, e.g. `de` or `de-CH`. Falls back to `displayName` and `name`. |
 | `descriptions` | Optional localized plugin descriptions keyed by locale. Falls back to manifest `description`. |
+| `providerCategories` | Optional metadata for provider-owned category values. The settings UI uses `providerCategories.*.labels` for localized category mapping labels. |
 | `icons.light` | Light-theme icon path inside the plugin bundle. |
 | `icons.dark` | Dark-theme icon path inside the plugin bundle. |
 
 Config schema fields may also localize plugin-owned UI text. The simple
 `label` and `description` strings remain valid fallbacks; optional `labels`
 and `descriptions` maps override them for matching locales. Select options can
-use `label` and `labels` in the same way. Fields with `"hidden": true` are not
-rendered in the settings modal, but their saved values are preserved and still
-passed to plugin exports.
+use `label` and `labels` in the same way. Fields with `"required": true` are
+validated in the settings modal. Fields with `"hidden": true` are not rendered
+in the settings modal, but their saved values are preserved and still passed to
+plugin exports.
 
 Locale lookup uses the exact locale first, then the language, then `en`, then
 the simple fallback string.
@@ -251,7 +269,8 @@ the simple fallback string.
       "descriptions": {
         "de": "Maximale Anzahl Fotos pro Wanderung. 0 importiert keine Fotos, -1 alle.",
         "en": "Maximum photos to import per hike. Use 0 for none or -1 for all."
-      }
+      },
+      "required": true
     }
   ]
 }

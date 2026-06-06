@@ -102,6 +102,7 @@ function pluginSystemToPluginProvider(plugin: PluginSystemPlugin): PluginProvide
         },
         configSchema: plugin.manifest.configSchema as PluginProvider["configSchema"],
         hostConfig: plugin.manifest.hostConfig,
+        metadata,
         capabilities: plugin.capabilities,
         status: plugin.status,
         error: plugin.error,

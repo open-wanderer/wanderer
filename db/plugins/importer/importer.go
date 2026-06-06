@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math"
 	"mime"
 	"net/http"
 	"net/url"
@@ -73,6 +74,8 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 
 	record := core.NewRecord(collection)
 	metrics := metricsFromGPX(parsedGPX)
+	trackIndex := trackDistanceIndexFromGPX(parsedGPX)
+	applyProviderStart(&metrics, trackIndex, item.Metadata)
 	applyProviderMetrics(&metrics, item.Metadata)
 	public := publicFromPrivacy(item.Privacy, opts.DefaultPublic)
 	categoryID := categoryIDForImport(app, item, opts.CategoryMapping)
@@ -109,7 +112,7 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		return nil, err
 	}
 
-	if err := createWaypoints(ctx, app, item.Waypoints, opts, mediaBudget, record.Id); err != nil {
+	if err := createWaypoints(ctx, app, item.Waypoints, opts, mediaBudget, record.Id, trackIndex); err != nil {
 		return nil, err
 	}
 
@@ -131,6 +134,30 @@ type trailMetrics struct {
 	StartLon      float64
 	StartTime     time.Time
 }
+
+type geoPoint struct {
+	Lat float64
+	Lon float64
+}
+
+type trackDistanceIndex struct {
+	points   []indexedTrackPoint
+	segments []indexedTrackSegment
+}
+
+type indexedTrackPoint struct {
+	point    geoPoint
+	distance float64
+}
+
+type indexedTrackSegment struct {
+	start         geoPoint
+	end           geoPoint
+	startDistance float64
+	length        float64
+}
+
+const maxProviderStartDistanceMeters = 1000
 
 // decodeAndParseGPX keeps the importer strict for now: plugins must return GPX
 // as base64 so the host can compute canonical trail metrics itself.
@@ -155,8 +182,8 @@ func decodeAndParseGPX(track pluginsystem.Track) ([]byte, *gpx.GPX, error) {
 	return content, parsed, nil
 }
 
-// metricsFromGPX derives fallback trail fields from the GPX and always owns the
-// start point. Provider metadata may override summary metrics afterwards.
+// metricsFromGPX derives fallback trail fields from the GPX. Provider metadata
+// may override summary metrics and, when plausible, the displayed start point.
 func metricsFromGPX(gpxData *gpx.GPX) trailMetrics {
 	uphillDownhill := gpxData.UphillDownhill()
 	movingData := gpxData.MovingData()
@@ -184,6 +211,153 @@ func metricsFromGPX(gpxData *gpx.GPX) trailMetrics {
 	return metrics
 }
 
+// applyProviderStart lets providers correct the displayed trail start when the
+// provider's intended start is close to the imported GPX track. Implausible
+// starts are ignored so broken metadata does not move trails off their geometry.
+func applyProviderStart(metrics *trailMetrics, trackIndex trackDistanceIndex, metadata map[string]any) {
+	if metrics == nil || len(metadata) == 0 {
+		return
+	}
+	start, ok := providerStartFromMetadata(metadata)
+	if !ok || !providerStartNearTrack(trackIndex, start) {
+		return
+	}
+	metrics.StartLat = start.Lat
+	metrics.StartLon = start.Lon
+}
+
+func providerStartFromMetadata(metadata map[string]any) (geoPoint, bool) {
+	raw, ok := metadata["providerStart"]
+	if !ok {
+		return geoPoint{}, false
+	}
+	values, ok := raw.(map[string]any)
+	if !ok {
+		return geoPoint{}, false
+	}
+	lat, ok := floatMetadata(values, "lat")
+	if !ok {
+		lat, ok = floatMetadata(values, "latitude")
+	}
+	if !ok {
+		return geoPoint{}, false
+	}
+	lon, ok := floatMetadata(values, "lon")
+	if !ok {
+		lon, ok = floatMetadata(values, "longitude")
+	}
+	if !ok || lat < -90 || lat > 90 || lon < -180 || lon > 180 {
+		return geoPoint{}, false
+	}
+	return geoPoint{Lat: lat, Lon: lon}, true
+}
+
+func providerStartNearTrack(trackIndex trackDistanceIndex, start geoPoint) bool {
+	distance, ok := trackIndex.nearest(start)
+	return ok && distance.offTrack <= maxProviderStartDistanceMeters
+}
+
+type trackDistance struct {
+	fromStart float64
+	offTrack  float64
+}
+
+func trackDistanceIndexFromGPX(gpxData *gpx.GPX) trackDistanceIndex {
+	index := trackDistanceIndex{}
+	if gpxData == nil {
+		return index
+	}
+	totalDistance := 0.0
+	for _, track := range gpxData.Tracks {
+		for _, segment := range track.Segments {
+			var previous geoPoint
+			hasPrevious := false
+			for _, point := range segment.Points {
+				current := geoPoint{Lat: point.Latitude, Lon: point.Longitude}
+				if !hasPrevious {
+					index.points = append(index.points, indexedTrackPoint{
+						point:    current,
+						distance: totalDistance,
+					})
+					previous = current
+					hasPrevious = true
+					continue
+				}
+				length := util.HaversineDistanceMeters(previous.Lat, previous.Lon, current.Lat, current.Lon)
+				if length > 0 {
+					index.segments = append(index.segments, indexedTrackSegment{
+						start:         previous,
+						end:           current,
+						startDistance: totalDistance,
+						length:        length,
+					})
+					totalDistance += length
+				}
+				index.points = append(index.points, indexedTrackPoint{
+					point:    current,
+					distance: totalDistance,
+				})
+				previous = current
+			}
+		}
+	}
+	return index
+}
+
+func (index trackDistanceIndex) nearest(point geoPoint) (trackDistance, bool) {
+	var nearest trackDistance
+	found := false
+	for _, candidate := range index.points {
+		offTrack := util.HaversineDistanceMeters(point.Lat, point.Lon, candidate.point.Lat, candidate.point.Lon)
+		if !found || offTrack < nearest.offTrack {
+			nearest = trackDistance{fromStart: candidate.distance, offTrack: offTrack}
+			found = true
+		}
+	}
+	for _, segment := range index.segments {
+		offTrack, t := pointToSegmentProjectionMeters(point, segment.start, segment.end)
+		fromStart := segment.startDistance + segment.length*t
+		if !found || offTrack < nearest.offTrack {
+			nearest = trackDistance{fromStart: fromStart, offTrack: offTrack}
+			found = true
+		}
+	}
+	return nearest, found
+}
+
+func pointToSegmentDistanceMeters(point geoPoint, start geoPoint, end geoPoint) float64 {
+	distance, _ := pointToSegmentProjectionMeters(point, start, end)
+	return distance
+}
+
+func pointToSegmentProjectionMeters(point geoPoint, start geoPoint, end geoPoint) (float64, float64) {
+	const earthRadius = 6371000.0
+	latRad := point.Lat * math.Pi / 180
+	toXY := func(p geoPoint) (float64, float64) {
+		x := (p.Lon - point.Lon) * math.Pi / 180 * math.Cos(latRad) * earthRadius
+		y := (p.Lat - point.Lat) * math.Pi / 180 * earthRadius
+		return x, y
+	}
+
+	startX, startY := toXY(start)
+	endX, endY := toXY(end)
+	dx := endX - startX
+	dy := endY - startY
+	lengthSquared := dx*dx + dy*dy
+	if lengthSquared == 0 {
+		return math.Hypot(startX, startY), 0
+	}
+	t := -(startX*dx + startY*dy) / lengthSquared
+	if t < 0 {
+		t = 0
+	} else if t > 1 {
+		t = 1
+	}
+	closestX := startX + t*dx
+	closestY := startY + t*dy
+	return math.Hypot(closestX, closestY), t
+}
+
 // applyProviderMetrics lets plugins preserve provider-provided summary metrics
 // where those values are more authoritative than values recalculated from a
 // simplified/import GPX. GPX parsing remains mandatory and provides fallback
@@ -207,21 +381,29 @@ func applyProviderMetrics(metrics *trailMetrics, metadata map[string]any) {
 }
 
 func positiveFloatMetadata(metadata map[string]any, key string) (float64, bool) {
+	value, ok := floatMetadata(metadata, key)
+	return value, ok && value > 0
+}
+
+func floatMetadata(metadata map[string]any, key string) (float64, bool) {
 	switch value := metadata[key].(type) {
 	case float64:
-		return value, value > 0
+		return value, true
 	case float32:
 		floatValue := float64(value)
-		return floatValue, floatValue > 0
+		return floatValue, true
 	case int:
 		floatValue := float64(value)
-		return floatValue, floatValue > 0
+		return floatValue, true
 	case int64:
 		floatValue := float64(value)
-		return floatValue, floatValue > 0
+		return floatValue, true
+	case int32:
+		floatValue := float64(value)
+		return floatValue, true
 	case json.Number:
 		parsed, err := value.Float64()
-		return parsed, err == nil && parsed > 0
+		return parsed, err == nil
 	default:
 		return 0, false
 	}
@@ -250,7 +432,7 @@ func dateFromImport(item pluginsystem.TrailImport, metrics trailMetrics) time.Ti
 
 // createWaypoints persists plugin-provided waypoints after the trail exists so
 // they can reference the imported trail record.
-func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem.Waypoint, opts Options, mediaBudget *pluginMediaBudget, trailID string) error {
+func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem.Waypoint, opts Options, mediaBudget *pluginMediaBudget, trailID string, trackIndex trackDistanceIndex) error {
 	if len(waypoints) == 0 {
 		return nil
 	}
@@ -269,6 +451,10 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 		if icon == "" {
 			icon = "circle"
 		}
+		distanceFromStart := 0.0
+		if distance, ok := trackIndex.nearest(geoPoint{Lat: waypoint.Lat, Lon: waypoint.Lon}); ok {
+			distanceFromStart = distance.fromStart
+		}
 		photos := photoFiles(ctx, app, waypoint.Photos, opts, mediaBudget)
 		record.Load(map[string]any{
 			"name":                waypoint.Name,
@@ -277,7 +463,7 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 			"lon":                 waypoint.Lon,
 			"icon":                icon,
 			"author":              opts.ActorID,
-			"distance_from_start": 0,
+			"distance_from_start": distanceFromStart,
 			"trail":               trailID,
 		})
 		if len(photos) > 0 {

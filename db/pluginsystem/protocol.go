@@ -64,6 +64,7 @@ type ConfigField struct {
 	Descriptions map[string]string   `json:"descriptions,omitempty"`
 	Options      []ConfigFieldOption `json:"options,omitempty"`
 	Default      any                 `json:"default,omitempty"`
+	Required     bool                `json:"required,omitempty"`
 	Hidden       bool                `json:"hidden,omitempty"`
 }
 

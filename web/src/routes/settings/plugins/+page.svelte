@@ -1,6 +1,7 @@
 <script lang="ts">
     import PluginCard from "$lib/components/settings/plugins/plugin_card.svelte";
     import PluginInstanceSettingsModal from "$lib/components/settings/plugins/plugin_instance_settings_modal.svelte";
+    import type { Category } from "$lib/models/category.js";
     import type { PluginInstance } from "$lib/models/plugin_instance.js";
     import type { PluginProvider } from "$lib/models/plugin_provider.js";
     import {
@@ -21,6 +22,7 @@
     let plugins: PluginProvider[] = $state(
         untrack(() => data.pluginProviders ?? []),
     );
+    let categories: Category[] = $state(untrack(() => data.categories ?? []));
 
     let pluginSettingsModal: PluginInstanceSettingsModal | undefined = $state();
     let selectedPlugin: PluginProvider | undefined = $state();
@@ -188,6 +190,7 @@
             bind:this={pluginSettingsModal}
             plugin={selectedPlugin}
             instance={instanceForPlugin(selectedPlugin)}
+            categories={categories}
             onsave={savePluginInstance}
         ></PluginInstanceSettingsModal>
     {/key}

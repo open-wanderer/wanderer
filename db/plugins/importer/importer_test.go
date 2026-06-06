@@ -121,6 +121,95 @@ func TestApplyProviderMetrics(t *testing.T) {
 	}
 }
 
+func TestApplyProviderStart(t *testing.T) {
+	_, parsed, err := decodeAndParseGPX(gpxTrack())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	trackIndex := trackDistanceIndexFromGPX(parsed)
+
+	t.Run("uses plausible provider start", func(t *testing.T) {
+		metrics := metricsFromGPX(parsed)
+		applyProviderStart(&metrics, trackIndex, map[string]any{
+			"providerStart": map[string]any{
+				"lat": 45.9995,
+				"lon": 7.9995,
+			},
+		})
+
+		if metrics.StartLat != 45.9995 || metrics.StartLon != 7.9995 {
+			t.Fatalf("unexpected provider start: %v, %v", metrics.StartLat, metrics.StartLon)
+		}
+	})
+
+	t.Run("ignores distant provider start", func(t *testing.T) {
+		metrics := metricsFromGPX(parsed)
+		applyProviderStart(&metrics, trackIndex, map[string]any{
+			"providerStart": map[string]any{
+				"lat": 47.0,
+				"lon": 8.0,
+			},
+		})
+
+		if metrics.StartLat != 46.0 || metrics.StartLon != 8.0 {
+			t.Fatalf("distant provider start should be ignored: %v, %v", metrics.StartLat, metrics.StartLon)
+		}
+	})
+
+	t.Run("ignores invalid provider start", func(t *testing.T) {
+		metrics := metricsFromGPX(parsed)
+		applyProviderStart(&metrics, trackIndex, map[string]any{
+			"providerStart": map[string]any{
+				"lat": 91.0,
+				"lon": 8.0,
+			},
+		})
+
+		if metrics.StartLat != 46.0 || metrics.StartLon != 8.0 {
+			t.Fatalf("invalid provider start should be ignored: %v, %v", metrics.StartLat, metrics.StartLon)
+		}
+	})
+}
+
+func TestTrackDistanceIndexNearest(t *testing.T) {
+	_, parsed, err := decodeAndParseGPX(gpxTrack())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	trackIndex := trackDistanceIndexFromGPX(parsed)
+	total := util.HaversineDistanceMeters(46.0, 8.0, 46.001, 8.001)
+
+	t.Run("start point", func(t *testing.T) {
+		distance, ok := trackIndex.nearest(geoPoint{Lat: 46.0, Lon: 8.0})
+		if !ok {
+			t.Fatal("expected nearest distance")
+		}
+		if distance.fromStart != 0 {
+			t.Fatalf("got %v, want 0", distance.fromStart)
+		}
+	})
+
+	t.Run("mid segment projection", func(t *testing.T) {
+		distance, ok := trackIndex.nearest(geoPoint{Lat: 46.0005, Lon: 8.0005})
+		if !ok {
+			t.Fatal("expected nearest distance")
+		}
+		if distance.fromStart < total*0.45 || distance.fromStart > total*0.55 {
+			t.Fatalf("got %v, want about half of %v", distance.fromStart, total)
+		}
+	})
+
+	t.Run("end point", func(t *testing.T) {
+		distance, ok := trackIndex.nearest(geoPoint{Lat: 46.001, Lon: 8.001})
+		if !ok {
+			t.Fatal("expected nearest distance")
+		}
+		if distance.fromStart < total-0.001 || distance.fromStart > total+0.001 {
+			t.Fatalf("got %v, want %v", distance.fromStart, total)
+		}
+	})
+}
+
 func TestApplyProviderMetricsIgnoresEmptyValues(t *testing.T) {
 	metrics := trailMetrics{
 		Distance:      1,

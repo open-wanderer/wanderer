@@ -142,6 +142,16 @@ Most plugins use:
 Each plugin must define a static `plugin.json` manifest. The manifest is the
 security and capability contract used by the host.
 
+The repository includes a JSON Schema at
+`plugins/schema/plugin.schema.json`. Add a `$schema` field in source manifests
+to get editor completion and inline validation:
+
+```json
+{
+  "$schema": "../schema/plugin.schema.json"
+}
+```
+
 Minimal shape:
 
 ```json
@@ -193,6 +203,8 @@ Important rules:
 - `permissions.network.connectors` declares every provider target the plugin may
   request through the host.
 - per-request limits may narrow manifest limits, but never expand them.
+- `configSchema[].required` marks plugin-owned settings that the settings UI
+  must collect before saving.
 
 ### Network connectors
 
@@ -440,7 +452,8 @@ Detail capabilities return the full trail import:
 The host imports the trails, writes PocketBase records, applies visibility
 rules, deduplicates by provider/external ID, and stores the returned state.
 Trail photos are attached to the imported trail. Waypoint photos are attached to
-the corresponding waypoint records.
+the corresponding waypoint records. Waypoint `distance_from_start` is derived
+by the host from the nearest position on the imported GPX track.
 
 Media sources have two trust models:
 
@@ -496,12 +509,14 @@ authoritative summary metrics, the plugin may additionally return them in
 | `elevationGain` | meters | Provider-reported positive elevation gain. |
 | `elevationLoss` | meters | Provider-reported negative elevation loss. |
 | `duration` | seconds | Provider-reported elapsed duration. |
+| `providerStart` | object | Provider-reported intended start coordinate, for example `{ "lat": 47.123, "lon": 8.456 }`. |
 | `providerCategory` | string | Raw provider activity/category value used by host category mapping. |
 
 The host uses positive provider metrics when present and falls back to GPX
-derived metrics otherwise. Start location still comes from the GPX. Plugins
-should not map `providerCategory` to local category IDs; the host owns that
-mapping.
+derived metrics otherwise. Start location comes from the GPX unless
+`providerStart` is present and close enough to the imported GPX track to be
+plausible. Plugins should not map `providerCategory` to local category IDs; the
+host owns that mapping.
 
 ## Host config
 
@@ -522,6 +537,10 @@ Supported host fields:
 | `categoryMapping` | object | Trail import | Maps plugin-provided `metadata.providerCategory` values to local category IDs or category names. |
 | `connectors` | object | Host request/media policy | Concrete settings for configured connectors. |
 
+The settings UI lets users edit `categoryMapping` per plugin instance for trail
+import plugins. Unknown or empty provider categories still fall back to the
+host's activity-type mapping.
+
 Example:
 
 ```json
@@ -531,9 +550,29 @@ Example:
       "Ride": "Biking",
       "Hike": "Hiking"
     }
+  },
+  "metadata": {
+    "providerCategories": {
+      "Ride": {
+        "labels": {
+          "de": "Radfahren",
+          "en": "Ride"
+        }
+      },
+      "Hike": {
+        "labels": {
+          "de": "Wandern",
+          "en": "Hike"
+        }
+      }
+    }
   }
 }
 ```
+
+`metadata.providerCategories` is display-only metadata for provider-owned
+category values. The `categoryMapping` keys still use the raw values emitted as
+`metadata.providerCategory`.
 
 Configured connector host config shape:
 

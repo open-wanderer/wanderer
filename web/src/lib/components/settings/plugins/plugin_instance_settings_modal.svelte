@@ -2,9 +2,11 @@
     import Datepicker from "$lib/components/base/datepicker.svelte";
     import Modal from "$lib/components/base/modal.svelte";
     import Select, { type SelectItem } from "$lib/components/base/select.svelte";
+    import SingleSelect from "$lib/components/base/single_select.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import Toggle from "$lib/components/base/toggle.svelte";
     import PluginMergeSettings from "$lib/components/settings/plugins/plugin_merge_settings.svelte";
+    import type { Category } from "$lib/models/category";
     import type { PluginInstance } from "$lib/models/plugin_instance";
     import type { ConfigField, PluginProvider } from "$lib/models/plugin_provider";
     import { plugin_oauth_start } from "$lib/stores/plugin_instance_store";
@@ -14,16 +16,24 @@
         configFieldLabel,
         configFieldOptionLabel,
         pluginTitle as localizedPluginTitle,
+        providerCategoryLabel,
     } from "$lib/util/plugin_i18n";
+    import { tick } from "svelte";
     import { _, locale } from "svelte-i18n";
 
     interface Props {
         plugin: PluginProvider;
+        categories?: Category[];
         instance?: PluginInstance;
         onsave?: (instance: Partial<PluginInstance>) => Promise<PluginInstance | void> | PluginInstance | void;
     }
 
-    let { plugin, instance, onsave }: Props = $props();
+    interface CategoryMappingRow {
+        providerCategory: string;
+        category: string;
+    }
+
+    let { plugin, categories = [], instance, onsave }: Props = $props();
 
     let modal: Modal;
     let auth: Record<string, string> = $state(initialAuth());
@@ -31,6 +41,8 @@
     let completed = $state(true);
     let mergeEnabled = $state(false);
     let privacy = $state("original");
+    let categoryMappingRows: CategoryMappingRow[] = $state(initialCategoryMappingRows());
+    let categoryMappingList: HTMLDivElement | undefined = $state();
     let authFields = $derived(plugin.auth.fields ?? []);
     let secretFields = $derived(new Set(plugin.auth.secretFields ?? plugin.auth.fields ?? []));
     let isOAuthPlugin = $derived(plugin.auth.type === "oauth2");
@@ -40,6 +52,7 @@
     let configSchema = $derived(plugin.configSchema ?? []);
     let visibleConfigSchema = $derived(configSchema.filter((field) => !field.hidden));
     let extraConfig: Record<string, any> = $state(initialExtraConfig());
+    let configErrors: Record<string, string> = $state({});
     let supportsPlanned = $derived(
         plugin.capabilities?.includes("list_routes.v1") ?? false,
     );
@@ -51,6 +64,22 @@
         plugin.capabilities?.includes("source_privacy") ?? false,
     );
     let mergeAvailable = $derived((hostConfig().merge as any)?.available !== false);
+    let supportsCategoryMapping = $derived(supportsPlanned || supportsCompleted);
+    let categorySelectItems: SelectItem[] = $derived(
+        categories
+            .map((category) => ({
+                text: $_(category.name),
+                value: category.id,
+            }))
+            .sort((a, b) => a.text.localeCompare(b.text, $locale ?? undefined)),
+    );
+    let providerCategorySelectItems: SelectItem[] = $derived(providerCategoryItems());
+    let canAddCategoryMappingRow = $derived(
+        categoryMappingRows.every((row) => row.providerCategory && row.category) &&
+        providerCategorySelectItems.some(
+            (item) => !categoryMappingRows.some((row) => row.providerCategory === item.value),
+        ),
+    );
 
     const configLabels: Record<string, string> = {
         after: "ignore-trails-before-date",
@@ -87,7 +116,9 @@
                 if (field.type === "boolean") {
                     return [field.key, booleanDefault(field.default, false)];
                 }
-                if (field.default !== undefined) return [field.key, String(field.default)];
+                if (field.default !== undefined && field.default !== null) {
+                    return [field.key, String(field.default)];
+                }
                 if (field.type === "select" && field.options?.length) {
                     return [field.key, field.options[0].value];
                 }
@@ -99,6 +130,69 @@
                 }
                 return [field.key, undefined];
             }),
+        );
+    }
+
+    function initialCategoryMappingRows(): CategoryMappingRow[] {
+        return Object.entries(categoryMapping()).map(([providerCategory, category]) => ({
+            providerCategory,
+            category: categoryTargetValue(category),
+        }));
+    }
+
+    function manifestCategoryMapping(): Record<string, string> {
+        const raw = plugin.hostConfig?.categoryMapping;
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+            return {};
+        }
+        return stringMapping(raw as Record<string, unknown>);
+    }
+
+    function categoryMapping(): Record<string, string> {
+        const raw = hostConfig().categoryMapping;
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+            return {};
+        }
+        return stringMapping(raw as Record<string, unknown>);
+    }
+
+    function stringMapping(raw: Record<string, unknown>): Record<string, string> {
+        return Object.fromEntries(
+            Object.entries(raw)
+                .filter(([, value]) => typeof value === "string")
+                .map(([key, value]) => [key, value as string]),
+        );
+    }
+
+    function categoryTargetValue(value: string): string {
+        const match = categories.find((category) => category.id === value || category.name === value);
+        return match?.id ?? value;
+    }
+
+    function providerCategoryItems(): SelectItem[] {
+        const values = new Set<string>([
+            ...Object.keys(manifestCategoryMapping()),
+            ...Object.keys(categoryMapping()),
+            ...categoryMappingRows.map((row) => row.providerCategory).filter(Boolean),
+        ]);
+        return [...values]
+            .map((value) => ({
+                text: providerCategoryLabel(plugin, value, $locale),
+                value,
+            }))
+            .sort((a, b) => a.text.localeCompare(b.text, $locale ?? undefined));
+    }
+
+    function providerCategoryItemsForRow(index: number): SelectItem[] {
+        const currentValue = categoryMappingRows[index]?.providerCategory;
+        const assignedValues = new Set(
+            categoryMappingRows
+                .filter((_, i) => i !== index)
+                .map((row) => row.providerCategory)
+                .filter(Boolean),
+        );
+        return providerCategorySelectItems.filter(
+            (item) => item.value === currentValue || !assignedValues.has(item.value),
         );
     }
 
@@ -124,6 +218,41 @@
         if (description) return description;
         const hint = configHints[field.key];
         return hint ? $_(hint) : undefined;
+    }
+
+    function fieldError(field: ConfigField): string {
+        return configErrors[field.key] ?? "";
+    }
+
+    async function addCategoryMappingRow() {
+        const newIndex = categoryMappingRows.length;
+        categoryMappingRows = [
+            ...categoryMappingRows,
+            {
+                providerCategory: "",
+                category: "",
+            },
+        ];
+        await tick();
+        categoryMappingList?.querySelector<HTMLElement>(`[data-category-mapping-row="${newIndex}"]`)
+            ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+
+    function removeCategoryMappingRow(index: number) {
+        categoryMappingRows = categoryMappingRows.filter((_, i) => i !== index);
+    }
+
+    function validateConfig(): boolean {
+        const errors: Record<string, string> = {};
+        for (const field of visibleConfigSchema) {
+            if (!field.required) continue;
+            const value = extraConfig[field.key];
+            if (value === undefined || value === null || value === "") {
+                errors[field.key] = $_("required");
+            }
+        }
+        configErrors = errors;
+        return Object.keys(errors).length === 0;
     }
 
     function authLabel(field: string): string {
@@ -192,6 +321,8 @@
         mergeEnabled = mergeAvailable && Boolean((config.merge as any)?.enabled);
         privacy = (config.privacy as string | undefined) ?? "original";
         extraConfig = initialExtraConfig();
+        categoryMappingRows = initialCategoryMappingRows();
+        configErrors = {};
         modal.openModal();
     }
 
@@ -224,6 +355,19 @@
             ...currentMergeConfig,
             enabled: mergeAvailable && mergeEnabled,
         };
+        const categoryMappingConfig: Record<string, string> = {};
+        for (const row of categoryMappingRows) {
+            const providerCategory = row.providerCategory.trim();
+            if (!providerCategory || !row.category) {
+                continue;
+            }
+            categoryMappingConfig[providerCategory] = row.category;
+        }
+        if (Object.keys(categoryMappingConfig).length > 0) {
+            pluginHostConfig.categoryMapping = categoryMappingConfig;
+        } else {
+            delete pluginHostConfig.categoryMapping;
+        }
         for (const field of configSchema) {
             const val = extraConfig[field.key];
             if (val !== undefined && val !== "") {
@@ -260,6 +404,9 @@
     }
 
     function submit() {
+        if (!validateConfig()) {
+            return;
+        }
         onsave?.(pluginInstanceFromForm());
         modal.closeModal();
     }
@@ -269,6 +416,9 @@
     }
 
     async function startOAuth() {
+        if (!validateConfig()) {
+            return;
+        }
         try {
             const saved = await onsave?.(pluginInstanceFromForm());
             const instanceId = saved?.id ?? instance?.id;
@@ -368,11 +518,13 @@
                         label={fieldLabel(field)}
                         items={selectItems(field)}
                         bind:value={extraConfig[field.key] as string}
+                        error={fieldError(field)}
                     ></Select>
                 {:else if field.type === "boolean"}
                     <Toggle
                         bind:value={extraConfig[field.key]}
                         label={fieldLabel(field)}
+                        error={fieldError(field)}
                     ></Toggle>
                     {@const hint = fieldHint(field)}
                     {#if hint}
@@ -391,6 +543,7 @@
                         <Datepicker
                             label={fieldLabel(field)}
                             bind:value={extraConfig[field.key]}
+                            error={fieldError(field)}
                         ></Datepicker>
                         <button
                             class="btn-icon mb-[10px]"
@@ -407,9 +560,68 @@
                         bind:value={extraConfig[field.key]}
                         name={field.key}
                         type={field.type === "url" ? "url" : "text"}
+                        error={fieldError(field)}
                     ></TextField>
                 {/if}
             {/each}
+
+            {#if supportsCategoryMapping && categorySelectItems.length > 0}
+                <div class="space-y-2 pt-4 border-t border-input-border">
+                    <div class="flex items-center justify-between gap-3">
+                        <h4 class="text-sm font-medium">{$_("category-mapping")}</h4>
+                        <button
+                            class="btn-primary text-sm"
+                            class:btn-disabled={!canAddCategoryMappingRow}
+                            type="button"
+                            disabled={!canAddCategoryMappingRow}
+                            onclick={addCategoryMappingRow}
+                        >{$_("add-entry")}</button>
+                    </div>
+                    {#if categoryMappingRows.length > 0}
+                        <div class="hidden md:grid grid-cols-[minmax(0,1.2fr)_minmax(14rem,1fr)_2.75rem] gap-3 text-sm font-medium">
+                            <span>{$_("provider-category")}</span>
+                            <span>{$_("category")}</span>
+                            <span></span>
+                        </div>
+                        <div
+                            bind:this={categoryMappingList}
+                            class="space-y-3 pr-1 scroll-smooth"
+                            class:max-h-[300px]={categoryMappingRows.length > 6}
+                            class:overflow-y-auto={categoryMappingRows.length > 6}
+                            class:overflow-y-visible={categoryMappingRows.length <= 6}
+                        >
+                            {#each categoryMappingRows as row, i}
+                                {@const providerItems = providerCategoryItemsForRow(i)}
+                                <div
+                                    class="grid grid-cols-1 md:grid-cols-[minmax(0,1.2fr)_minmax(14rem,1fr)_2.75rem] items-end gap-3"
+                                    data-category-mapping-row={i}
+                                >
+                                    <SingleSelect
+                                        ariaLabel={$_("provider-category")}
+                                        placeholder={$_("select-provider-category")}
+                                        items={providerItems}
+                                        bind:value={row.providerCategory}
+                                        disabled={row.providerCategory !== "" && providerItems.length <= 1}
+                                    ></SingleSelect>
+                                    <SingleSelect
+                                        ariaLabel={$_("category")}
+                                        placeholder={$_("select-category")}
+                                        items={categorySelectItems}
+                                        bind:value={row.category}
+                                        disabled={row.category !== "" && categorySelectItems.length <= 1}
+                                    ></SingleSelect>
+                                    <button
+                                        class="btn-icon h-10"
+                                        type="button"
+                                        onclick={() => removeCategoryMappingRow(i)}
+                                        aria-label={$_("remove")}
+                                    ><i class="fa fa-close"></i></button>
+                                </div>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            {/if}
 
             {#if mergeAvailable}
                 <PluginMergeSettings prefix="merge" bind:value={mergeEnabled} />
