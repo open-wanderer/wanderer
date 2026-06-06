@@ -19,6 +19,7 @@
     import { ClusterLayer } from "$lib/vendor/maplibre-layer-manager/cluster-layer";
     import { baseMapStyles } from "$lib/vendor/maplibre-layer-manager/layers";
     import { LayerManager } from "$lib/vendor/maplibre-layer-manager/maplibre-layer-manager";
+    import type { OverpassPopupActionFactory } from "$lib/vendor/maplibre-layer-manager/overpass-layer";
     import { PreviewLayer } from "$lib/vendor/maplibre-layer-manager/preview-layer";
     import { TerrainLayer } from "$lib/vendor/maplibre-layer-manager/terrain-layer";
     import { TrailLayer } from "$lib/vendor/maplibre-layer-manager/trail-layer";
@@ -70,6 +71,7 @@
         ) => void;
         oninit?: (map: M.Map) => void;
         autoGeolocateOnDrawing?: boolean;
+        buildPoiAnchorAction?: OverpassPopupActionFactory;
     }
 
     let {
@@ -102,6 +104,7 @@
         onUnclusteredClick,
         oninit,
         autoGeolocateOnDrawing = false,
+        buildPoiAnchorAction = undefined,
     }: Props = $props();
 
     let mapContainer: HTMLDivElement;
@@ -877,7 +880,7 @@
         };
         map = new M.Map(finalMapOptions);
 
-        layerManager = new LayerManager(map);
+        layerManager = new LayerManager(map, { overpassActionFactory: buildPoiAnchorAction });
 
         elevationMarker = new FontawesomeMarker(
             {

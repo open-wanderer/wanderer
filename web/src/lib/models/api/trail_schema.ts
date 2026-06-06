@@ -45,7 +45,7 @@ const TrailUpdateSchema = z.object({
     "photos-": z.string().optional(),
     "photos+": z.string().optional(),
     thumbnail: z.number().int().nonnegative().optional(),
-    like_count: z.number().int().min(0).optional().default(0),
+    like_count: z.number().int().min(0).optional(),
     category: z.string().optional(),
     tags: z.array(z.string()).optional(),
     gpx: z.string().optional(),
