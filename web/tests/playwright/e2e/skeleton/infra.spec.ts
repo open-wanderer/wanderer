@@ -23,7 +23,7 @@ test('infrastructure: upload and delete a trail end-to-end', async ({ request })
         },
     });
 
-    expect(uploadResponse.ok()).toBeTruthy();
+    expect(uploadResponse.status()).toBe(200);
 
     const trail = await uploadResponse.json();
 
@@ -37,10 +37,10 @@ test('infrastructure: upload and delete a trail end-to-end', async ({ request })
     expect(trail.distance).toBeGreaterThan(0);
     expect(trail.elevation_gain).toBeGreaterThan(0);
 
-    // Teardown: delete the trail via the typed helper
+    // Teardown: delete the trail via the typed helper (throws on non-ok response)
     await deleteTrail(request, trail.id);
 
-    // Assert the trail is gone — a follow-up GET should return a non-ok status (404)
+    // Assert the trail is gone — a follow-up GET should return 404
     const getResponse = await request.get(`/api/v1/trail/${trail.id}`);
-    expect(getResponse.ok()).toBeFalsy();
+    expect(getResponse.status()).toBe(404);
 });
