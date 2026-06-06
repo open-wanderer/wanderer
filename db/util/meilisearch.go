@@ -201,6 +201,7 @@ func documentFromActorRecord(r *core.Record) (map[string]any, error) {
 		"username":           r.GetString("username"),
 		"preferred_username": r.GetString("preferred_username"),
 		"domain":             r.GetString("domain"),
+		"iri":                r.GetString("iri"),
 		"icon":               r.GetString("icon"),
 		"is_local":           r.GetBool("is_local"),
 	}
