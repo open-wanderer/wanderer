@@ -58,46 +58,48 @@
             {#if description}
                 <p class="line-clamp-2 text-sm text-gray-500">{description}</p>
             {/if}
-            <div class="min-h-5 text-xs text-gray-500">
-                {#if lastSyncAt}
-                    <span
-                        class:text-red-400={error}
-                        class="inline-flex min-w-0 items-center gap-2"
-                        title={error
-                            ? error
-                            : `${$_("last-sync")}: ${formatLastSyncAt(lastSyncAt)}`}
-                    >
-                        {#if error}
-                            <i
-                                class="fa fa-triangle-exclamation shrink-0 text-[0.8rem]"
-                                aria-hidden="true"
-                            ></i>
-                        {:else}
-                            <i
-                                class="fa fa-clock shrink-0 text-[0.8rem]"
-                                aria-hidden="true"
-                            ></i>
-                        {/if}
-                        <span class="truncate">{formatLastSyncAt(lastSyncAt)}</span>
-                    </span>
-                {:else if error}
-                    <span class="inline-flex items-center gap-2 text-red-400" title={error}>
+        </div>
+    </div>
+    <div class="flex shrink-0 flex-col gap-2 md:items-start">
+        <div class="flex items-center justify-between gap-4 md:justify-end">
+            <button class="btn-secondary" {onclick}
+                ><i class="fa fa-cogs mr-2"></i>{$_("settings")}</button
+            >
+            <div class="plugin-card-toggle">
+                <Toggle bind:value={active} onchange={ontoggle} {disabled}></Toggle>
+            </div>
+        </div>
+        <div class="min-h-5 max-w-56 text-xs text-gray-500">
+            {#if lastSyncAt}
+                <span
+                    class:text-red-400={error}
+                    class="inline-flex min-w-0 items-center gap-2"
+                    title={error
+                        ? error
+                        : `${$_("last-sync")}: ${formatLastSyncAt(lastSyncAt)}`}
+                >
+                    {#if error}
                         <i
                             class="fa fa-triangle-exclamation shrink-0 text-[0.8rem]"
                             aria-hidden="true"
                         ></i>
-                        <span>Sync</span>
-                    </span>
-                {/if}
-            </div>
-        </div>
-    </div>
-    <div class="flex shrink-0 items-center justify-between gap-4 md:justify-end">
-        <button class="btn-secondary" {onclick}
-            ><i class="fa fa-cogs mr-2"></i>{$_("settings")}</button
-        >
-        <div class="plugin-card-toggle">
-            <Toggle bind:value={active} onchange={ontoggle} {disabled}></Toggle>
+                    {:else}
+                        <i
+                            class="fa fa-clock shrink-0 text-[0.8rem]"
+                            aria-hidden="true"
+                        ></i>
+                    {/if}
+                    <span class="truncate">{formatLastSyncAt(lastSyncAt)}</span>
+                </span>
+            {:else if error}
+                <span class="inline-flex items-center gap-2 text-red-400" title={error}>
+                    <i
+                        class="fa fa-triangle-exclamation shrink-0 text-[0.8rem]"
+                        aria-hidden="true"
+                    ></i>
+                    <span>Sync</span>
+                </span>
+            {/if}
         </div>
     </div>
 </div>
