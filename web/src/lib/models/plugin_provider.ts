@@ -21,6 +21,7 @@ export interface ConfigField {
 
 export interface PluginProvider {
     id: string;
+    type: "integration";
     name: string;
     displayName?: string;
     displayNames?: LocalizedTextMap;

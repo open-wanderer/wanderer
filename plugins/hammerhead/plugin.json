@@ -1,8 +1,9 @@
 {
   "manifestVersion": "1.0",
   "id": "hammerhead",
+  "type": "integration",
   "name": "Hammerhead",
-  "description": "Syncs Hammerhead routes and activities with wanderer and sends routes to Hammerhead devices.",
+  "description": "Imports Hammerhead routes and activities, and can send wanderer routes to Hammerhead.",
   "version": "0.1.0",
   "runtime": {
     "type": "wasm",
@@ -110,8 +111,8 @@
   },
   "metadata": {
     "descriptions": {
-      "de": "Synchronisiert Deine Hammerhead-Touren regelmäßig mit wanderer.",
-      "en": "Syncs your Hammerhead tours with wanderer in regular intervals.",
+      "de": "Importiert Hammerhead-Routen und Aktivitäten und kann wanderer-Routen an Hammerhead senden.",
+      "en": "Imports Hammerhead routes and activities, and can send wanderer routes to Hammerhead.",
       "no": "Synkroniserer Hammerhead-turene dine med Wanderer med jevne mellomrom."
     },
     "icons": {

@@ -426,6 +426,8 @@
   "error-sending-trail": "Fehler beim Senden des Trails",
   "no-send-plugins": "Kein verbundenes Plugin unterstützt das Senden von Trails. Verbinde zuerst eines in den Plugin-Einstellungen.",
   "plugins": "Plugins",
+  "plugin-type-integration": "Integrationen",
+  "plugin-type-integration-description": "Integrationen verbinden wanderer mit externen Diensten und synchronisieren Routen oder Aktivitäten automatisch im Hintergrund.",
   "set-private": "Verbergen",
   "set-public": "Veröffentlichen",
   "settings": "Einstellungen",

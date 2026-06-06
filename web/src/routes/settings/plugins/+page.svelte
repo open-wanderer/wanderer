@@ -9,7 +9,10 @@
         plugin_instances_update,
     } from "$lib/stores/plugin_instance_store.js";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
-    import { pluginDescription as localizedPluginDescription, pluginTitle as localizedPluginTitle } from "$lib/util/plugin_i18n";
+    import {
+        pluginDescription as localizedPluginDescription,
+        pluginTitle as localizedPluginTitle,
+    } from "$lib/util/plugin_i18n";
     import { onMount, tick, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
     import { theme } from "$lib/stores/theme_store";
@@ -27,6 +30,18 @@
     let pluginSettingsModal: PluginInstanceSettingsModal | undefined = $state();
     let selectedPlugin: PluginProvider | undefined = $state();
     let currentTheme: "dark" | "light" = $state("light");
+    let pluginGroups = $derived.by(() => {
+        const groups: { type: PluginProvider["type"]; plugins: PluginProvider[] }[] = [];
+        for (const plugin of plugins) {
+            let group = groups.find((candidate) => candidate.type === plugin.type);
+            if (!group) {
+                group = { type: plugin.type, plugins: [] };
+                groups.push(group);
+            }
+            group.plugins.push(plugin);
+        }
+        return groups;
+    });
 
     onMount(() => {
         currentTheme = document.documentElement.classList.contains("dark") ? "dark" : "light";
@@ -141,6 +156,14 @@
         return localizedPluginDescription(plugin, $locale);
     }
 
+    function pluginTypeTitle(type: PluginProvider["type"]) {
+        return $_(`plugin-type-${type}`);
+    }
+
+    function pluginTypeDescription(type: PluginProvider["type"]) {
+        return $_(`plugin-type-${type}-description`);
+    }
+
     function pluginCardError(
         plugin: PluginProvider,
         instance: PluginInstance | undefined,
@@ -167,20 +190,32 @@
 <h3 class="text-2xl font-semibold">{$_("plugins")}</h3>
 <hr class="mt-4 mb-6 border-input-border" />
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    {#each plugins as plugin (plugin.id)}
-        {@const instance = instanceForPlugin(plugin)}
-        <PluginCard
-            img={pluginLogo(plugin)}
-            title={pluginTitle(plugin)}
-            description={pluginDescription(plugin)}
-            disabled={!instance || plugin.status != "available" || pluginRequiresConnection(plugin, instance)}
-            active={instance?.enabled ?? false}
-            lastSyncAt={instance?.last_sync_at}
-            error={pluginCardError(plugin, instance)}
-            onclick={() => openPluginSettings(plugin)}
-            ontoggle={(value) => onPluginToggle(plugin, instance, value)}
-        ></PluginCard>
+<div class="space-y-8">
+    {#each pluginGroups as group (group.type)}
+        <section>
+            <div class="mb-4 space-y-2">
+                <h4 class="text-xl font-medium">{pluginTypeTitle(group.type)}</h4>
+                <p class="text-sm text-gray-500 max-w-3xl">
+                    {pluginTypeDescription(group.type)}
+                </p>
+            </div>
+            <div class="space-y-3">
+                {#each group.plugins as plugin (plugin.id)}
+                    {@const instance = instanceForPlugin(plugin)}
+                    <PluginCard
+                        img={pluginLogo(plugin)}
+                        title={pluginTitle(plugin)}
+                        description={pluginDescription(plugin)}
+                        disabled={!instance || plugin.status != "available" || pluginRequiresConnection(plugin, instance)}
+                        active={instance?.enabled ?? false}
+                        lastSyncAt={instance?.last_sync_at}
+                        error={pluginCardError(plugin, instance)}
+                        onclick={() => openPluginSettings(plugin)}
+                        ontoggle={(value) => onPluginToggle(plugin, instance, value)}
+                    ></PluginCard>
+                {/each}
+            </div>
+        </section>
     {/each}
 </div>
 

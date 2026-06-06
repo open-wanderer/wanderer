@@ -79,6 +79,7 @@ function pluginSystemToPluginProvider(plugin: PluginSystemPlugin): PluginProvide
 
     return {
         id: plugin.id,
+        type: plugin.type ?? plugin.manifest.type ?? "integration",
         name: plugin.name,
         displayName: plugin.displayName,
         displayNames: localizedMetadata(metadata, "displayNames"),

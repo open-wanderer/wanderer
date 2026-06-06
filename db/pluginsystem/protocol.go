@@ -4,6 +4,8 @@ const (
 	ManifestVersion = "1.0"
 	RuntimeWASM     = "wasm"
 
+	PluginTypeIntegration = "integration"
+
 	AuthTypeOAuth2  = "oauth2"
 	AuthTypeAPIKey  = "api_key"
 	AuthTypeBearer  = "bearer"
@@ -30,6 +32,7 @@ const (
 type Manifest struct {
 	ManifestVersion string               `json:"manifestVersion"`
 	ID              string               `json:"id"`
+	Type            string               `json:"type"`
 	Name            string               `json:"name"`
 	Description     string               `json:"description,omitempty"`
 	Version         string               `json:"version"`

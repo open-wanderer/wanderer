@@ -77,6 +77,17 @@ func createInstalledPluginsCollection(app core.App) error {
 			},
 			{
 				"hidden": false,
+				"id": "selectplgtype",
+				"maxSelect": 1,
+				"name": "type",
+				"presentable": false,
+				"required": true,
+				"system": false,
+				"type": "select",
+				"values": ["integration"]
+			},
+			{
+				"hidden": false,
 				"id": "textplginvers",
 				"max": 64,
 				"min": 1,

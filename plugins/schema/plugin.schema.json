@@ -8,6 +8,7 @@
   "required": [
     "manifestVersion",
     "id",
+    "type",
     "name",
     "version",
     "runtime",
@@ -25,6 +26,10 @@
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9_-]*$"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["integration"]
     },
     "name": {
       "type": "string",

@@ -1,8 +1,9 @@
 {
   "manifestVersion": "1.0",
   "id": "strava",
+  "type": "integration",
   "name": "Strava",
-  "description": "Syncs Strava routes and activities with wanderer.",
+  "description": "Imports Strava routes, activities and photos into wanderer.",
   "version": "0.1.0",
   "runtime": {
     "type": "wasm",
@@ -199,8 +200,8 @@
   "metadata": {
     "descriptions": {
       "cs": "Synchronizuje vaše trasy a aktivity z aplikace Strava s Wandererem v pravidelných intervalech.",
-      "de": "Synchronisiert Deine Strava-Routen und -Aktivitäten regelmäßig mit wanderer.",
-      "en": "Syncs your Strava routes & activities with wanderer in regular intervals.",
+      "de": "Importiert Strava-Routen, Aktivitäten und Fotos in wanderer.",
+      "en": "Imports Strava routes, activities and photos into wanderer.",
       "es": "Sincroniza tus recorridos y actividades de Strava con Wanderer en intervalos regulares.",
       "eu": "Zure stravako ibilbideak wandererekin sinkronizatzen ditu aldian behin.",
       "fr": "Synchronisez vos itinéraires et vos activités Strava avec wanderer à intervalles réguliers.",

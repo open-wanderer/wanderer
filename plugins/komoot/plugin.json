@@ -1,8 +1,9 @@
 {
   "manifestVersion": "1.0",
   "id": "komoot",
-  "name": "Komoot",
-  "description": "Syncs planned and completed Komoot tours with wanderer.",
+  "type": "integration",
+  "name": "komoot",
+  "description": "Imports planned and completed komoot tours, including photos and waypoints, into wanderer.",
   "version": "0.1.0",
   "runtime": {
     "type": "wasm",
@@ -122,8 +123,8 @@
   "metadata": {
     "descriptions": {
       "cs": "Synchronizuje vaše trasy z aplikace Komoot s Wandererem v pravidelných intervalech.",
-      "de": "Synchronisiert Deine komoot-Touren regelmäßig mit wanderer.",
-      "en": "Syncs your komoot tours with wanderer in regular intervals.",
+      "de": "Importiert geplante und abgeschlossene komoot-Touren inklusive Fotos und Wegpunkten in wanderer.",
+      "en": "Imports planned and completed komoot tours, including photos and waypoints, into wanderer.",
       "es": "Sincroniza tus recorridos de Komoot con Wanderer en intervalos regulares.",
       "eu": "Zure komooteko ibilbideak wandererekin sinkronizatzen ditu aldian behin.",
       "fr": "Synchronisez vos Tours Komoot avec wanderer à intervalles réguliers.",

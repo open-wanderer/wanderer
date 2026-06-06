@@ -124,6 +124,9 @@ func ValidateManifest(manifest Manifest) error {
 	if !pluginIDPattern.MatchString(manifest.ID) {
 		return fmt.Errorf("id must match %s", pluginIDPattern.String())
 	}
+	if manifest.Type != PluginTypeIntegration {
+		return fmt.Errorf("type must be %q", PluginTypeIntegration)
+	}
 	if strings.TrimSpace(manifest.Name) == "" {
 		return fmt.Errorf("name is required")
 	}

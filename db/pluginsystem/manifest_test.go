@@ -74,6 +74,7 @@ func hammerheadManifestForTest() Manifest {
 	return Manifest{
 		ManifestVersion: ManifestVersion,
 		ID:              "hammerhead",
+		Type:            PluginTypeIntegration,
 		Name:            "Hammerhead",
 		Version:         "0.1.0",
 		Runtime: RuntimeManifest{
@@ -119,6 +120,7 @@ func writeManifest(t *testing.T, dir string, manifest Manifest) {
 	data := []byte(`{
 		"manifestVersion": "1.0",
 		"id": "` + manifest.ID + `",
+		"type": "` + manifest.Type + `",
 		"name": "` + manifest.Name + `",
 		"version": "` + manifest.Version + `",
 		"runtime": {

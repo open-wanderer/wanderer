@@ -25,6 +25,7 @@ type Manager struct {
 // static manifest with runtime availability and embedded icon data.
 type PluginInfo struct {
 	ID           string   `json:"id"`
+	Type         string   `json:"type"`
 	Name         string   `json:"name"`
 	DisplayName  string   `json:"displayName,omitempty"`
 	Description  string   `json:"description,omitempty"`
@@ -71,6 +72,7 @@ func (m *Manager) ListLocalPlugins(context.Context) ([]PluginInfo, error) {
 		icon, iconDark := pluginIcons(plugin)
 		infos = append(infos, PluginInfo{
 			ID:           plugin.Manifest.ID,
+			Type:         plugin.Manifest.Type,
 			Name:         plugin.Manifest.Name,
 			DisplayName:  stringMetadata(plugin.Manifest.Metadata, "displayName"),
 			Description:  plugin.Manifest.Description,
@@ -153,6 +155,7 @@ func (m *Manager) SyncInstalledPlugins(ctx context.Context) error {
 			record.Set("status", "available")
 		}
 		record.Set("name", plugin.Manifest.Name)
+		record.Set("type", plugin.Manifest.Type)
 		record.Set("version", plugin.Manifest.Version)
 		record.Set("runtime", plugin.Manifest.Runtime.Type)
 		record.Set("path", plugin.Dir)

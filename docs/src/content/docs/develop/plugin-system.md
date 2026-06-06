@@ -158,6 +158,7 @@ Minimal shape:
 {
   "manifestVersion": "1.0",
   "id": "example",
+  "type": "integration",
   "name": "Example",
   "version": "0.1.0",
   "runtime": {
@@ -197,6 +198,7 @@ Minimal shape:
 
 Important rules:
 
+- `type` is the functional plugin category. Currently only `integration` is supported.
 - `runtime.entrypoint` must be relative to the plugin directory.
 - `id` must match the installed directory name by convention.
 - `capabilities[].export` names the WASM export the runtime calls.
