@@ -114,7 +114,7 @@ export async function GET(event: RequestEvent) {
                 const actorSearchResult = <ActorSearchResult>{
                     id: actor.id,
                     domain: actor.domain,
-                    is_local: actor.isLocal,
+                    is_local: actor.is_local,
                     preferred_username: actor.preferred_username,
                     username: actor.username,
                     icon: actor.icon

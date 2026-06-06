@@ -15,7 +15,7 @@ export interface Actor {
     icon?: string;
     followers?: string;
     following?: string;
-    isLocal: boolean;
+    is_local: boolean;
     public_key: string;
     last_fetched: string;
     user?: string

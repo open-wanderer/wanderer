@@ -22,7 +22,7 @@ func CreateListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 			return err
 		}
 
-		if !author.GetBool("isLocal") {
+		if !author.GetBool("is_local") {
 			// this happens if someone fetches a remote list
 			// we create a stub list record for later reference
 			// no need to create an activity for that
@@ -61,7 +61,7 @@ func UpdateListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 			return err
 		}
 
-		if !author.GetBool("isLocal") {
+		if !author.GetBool("is_local") {
 			// this happens if someone fetches a remote list
 			// we create a stub list record for later reference
 			// no need to create an activity for that

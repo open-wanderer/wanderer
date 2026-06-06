@@ -144,7 +144,7 @@ const auth: Handle = async ({ event, resolve }) => {
 
   if (pb.authStore.record) {
     settings = await pb.collection('settings').getFirstListItem<Settings>(`user="${pb.authStore.record.id}"`, { requestKey: null })
-    actor = await pb.collection("activitypub_actors").getFirstListItem(`isLocal=1&&user='${pb.authStore.record.id}'`)
+    actor = await pb.collection("activitypub_actors").getFirstListItem(`is_local=1&&user='${pb.authStore.record.id}'`)
   }
   const meiliHost = env.MEILI_URL;
   if (!meiliHost) {

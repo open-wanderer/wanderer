@@ -26,7 +26,7 @@ func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		if err := util.IndexTrails(e.App, []*core.Record{record}, client); err != nil {
 			return err
 		}
-		if !userActor.GetBool("isLocal") {
+		if !userActor.GetBool("is_local") {
 			// this happens if someone fetches a remote trail
 			// we create a stub trail record for later reference
 			// no need to create an activity for that
@@ -76,7 +76,7 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		if err != nil {
 			return err
 		}
-		if !userActor.GetBool("isLocal") {
+		if !userActor.GetBool("is_local") {
 			// this happens if someone fetches a remote trail
 			// we create a stub trail record for later reference
 			// no need to create an activity for that

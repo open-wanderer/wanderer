@@ -119,7 +119,7 @@
             goto(`/lists/${item.value}`);
         } else if (item.value.preferred_username) {
             goto(
-                `/profile/@${item.value.preferred_username}${item.value.isLocal ? "" : "@" + item.value.domain}`,
+                `/profile/@${item.value.preferred_username}${item.value.is_local ? "" : "@" + item.value.domain}`,
             );
         } else {
             goto(`/map/?lat=${item.value.lat}&lon=${item.value.lon}`);

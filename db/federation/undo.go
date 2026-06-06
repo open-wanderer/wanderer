@@ -145,7 +145,7 @@ func ProcessUndoActivity(app core.App, actor *core.Record, activity pub.Activity
 
 func processUnfollowActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 	// this was a local follow
-	if actor.GetBool("isLocal") {
+	if actor.GetBool("is_local") {
 		return nil
 	}
 
@@ -169,7 +169,7 @@ func processUnfollowActivity(app core.App, actor *core.Record, activity pub.Acti
 }
 
 func processUnlikeActivity(app core.App, actor *core.Record, activity pub.Activity) error {
-	if actor.GetBool("isLocal") {
+	if actor.GetBool("is_local") {
 		return nil
 	}
 

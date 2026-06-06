@@ -87,7 +87,7 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 	record.Set("outbox", id+"/outbox")
 	record.Set("followers", id+"/followers")
 	record.Set("following", id+"/following")
-	record.Set("isLocal", true)
+	record.Set("is_local", true)
 	record.Set("public_key", string(pubPem))
 	record.Set("private_key", privEncrypted)
 	record.Set("user", u.Id)
@@ -148,7 +148,7 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	// the local record; a remote actor must not be able to reference or attach
 	// side effects (feeds/shares/notifications) to local content by id.
 	if IsLocalIRI(iri) {
-		if !actor.GetBool("isLocal") {
+		if !actor.GetBool("is_local") {
 			return nil, fmt.Errorf("refusing remote activity referencing local trail %q", iri)
 		}
 		trailUrl, parseErr := url.Parse(iri)
@@ -159,7 +159,7 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	}
 
 	var record *core.Record
-	if actor.GetBool(("isLocal")) {
+	if actor.GetBool(("is_local")) {
 		trailUrl, parseErr := url.Parse(iri)
 		if parseErr != nil {
 			return nil, parseErr
@@ -452,7 +452,7 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 
 	// Own content must never be ingested as if it were remote (see TrailFromActivity).
 	if IsLocalIRI(iri) {
-		if !actor.GetBool("isLocal") {
+		if !actor.GetBool("is_local") {
 			return nil, fmt.Errorf("refusing remote activity referencing local list %q", iri)
 		}
 		listURL, parseErr := url.Parse(iri)
@@ -463,7 +463,7 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 	}
 
 	var record *core.Record
-	if actor.GetBool(("isLocal")) {
+	if actor.GetBool(("is_local")) {
 		listURL, parseErr := url.Parse(iri)
 		if parseErr != nil {
 			return nil, parseErr
@@ -595,7 +595,7 @@ func ObjectFromComment(app core.App, comment *core.Record, mentions *pub.ItemCol
 	}
 
 	trailURL := ""
-	if commentTrailAuthor.GetBool("isLocal") {
+	if commentTrailAuthor.GetBool("is_local") {
 		trailURL = fmt.Sprintf("https://%s/api/v1/trail/%s", commentTrailAuthor.GetString("domain"), comment.GetString("trail"))
 	} else {
 		trailURL = commentTrail.GetString("iri")

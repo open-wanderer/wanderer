@@ -61,7 +61,7 @@ export async function PUT(event: RequestEvent) {
         const followerActor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`user = '${event.locals.user.id}'`)
         const followeeActor: Actor = await event.locals.pb.collection("activitypub_actors").getOne(safeData.followee);
 
-        const follow = await event.locals.pb.collection("follows").create({ follower: followerActor.id, followee: followeeActor.id, status: followeeActor.isLocal ? "accepted" : "pending" })
+        const follow = await event.locals.pb.collection("follows").create({ follower: followerActor.id, followee: followeeActor.id, status: followeeActor.is_local ? "accepted" : "pending" })
 
         return json(follow);
     } catch (e) {

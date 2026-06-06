@@ -40,7 +40,7 @@ func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares 
 	}
 
 	domain := ""
-	if !author.GetBool("isLocal") {
+	if !author.GetBool("is_local") {
 		domain = author.GetString("domain")
 	}
 
@@ -153,7 +153,7 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	}
 
 	domain := ""
-	if !author.GetBool("isLocal") {
+	if !author.GetBool("is_local") {
 		domain = author.GetString("domain")
 	}
 
@@ -202,7 +202,7 @@ func documentFromActorRecord(r *core.Record) (map[string]any, error) {
 		"preferred_username": r.GetString("preferred_username"),
 		"domain":             r.GetString("domain"),
 		"icon":               r.GetString("icon"),
-		"is_local":           r.GetBool("isLocal"),
+		"is_local":           r.GetBool("is_local"),
 	}
 
 	return document, nil

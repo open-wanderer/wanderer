@@ -228,7 +228,7 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	}
 
 	var trailIRI pub.IRI
-	if summitLogTrailAuthor.GetBool("isLocal") {
+	if summitLogTrailAuthor.GetBool("is_local") {
 		trailId := summitLog.GetString("trail")
 		trailIRI = pub.IRI(fmt.Sprintf("%s/api/v1/trail/%s", origin, trailId))
 	} else {
@@ -544,7 +544,7 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 	}
 
 	// no need to do anything else if the actor is local
-	if actor.GetBool("isLocal") {
+	if actor.GetBool("is_local") {
 		return nil
 	}
 
@@ -664,7 +664,7 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		}
 	}
 	// no need to do anything else if the actor is local
-	if actor.GetBool("isLocal") {
+	if actor.GetBool("is_local") {
 		return nil
 	}
 
