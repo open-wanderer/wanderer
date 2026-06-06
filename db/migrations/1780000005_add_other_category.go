@@ -8,6 +8,14 @@ import (
 
 func init() {
 	m.Register(func(app core.App) error {
+		categories, err := app.FindAllRecords("categories")
+		if err != nil {
+			return err
+		}
+		if len(categories) == 0 {
+			return nil
+		}
+
 		existing, _ := app.FindFirstRecordByData("categories", "name", "Other")
 		if existing != nil {
 			return nil

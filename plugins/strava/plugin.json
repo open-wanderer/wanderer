@@ -145,18 +145,26 @@
       "route:2": "Walking",
       "AlpineSki": "Skiing",
       "BackcountrySki": "Skiing",
+      "Badminton": "Other",
       "Canoeing": "Canoeing",
       "Crossfit": "Workout",
       "EBikeRide": "Biking",
+      "EMountainBikeRide": "Biking",
       "Elliptical": "Workout",
       "Golf": "Other",
+      "GravelRide": "Biking",
       "Handcycle": "Biking",
+      "HighIntensityIntervalTraining": "Other",
       "Hike": "Hiking",
       "IceSkate": "Skiing",
       "InlineSkate": "Walking",
       "Kayaking": "Canoeing",
       "Kitesurf": "Canoeing",
+      "MountainBikeRide": "Biking",
       "NordicSki": "Skiing",
+      "Pickleball": "Other",
+      "Pilates": "Other",
+      "Racquetball": "Other",
       "Ride": "Biking",
       "RockClimbing": "Climbing",
       "RollerSki": "Skiing",
@@ -167,12 +175,18 @@
       "Snowboard": "Skiing",
       "Snowshoe": "Hiking",
       "Soccer": "Other",
+      "Squash": "Other",
       "StairStepper": "Workout",
       "StandUpPaddling": "Canoeing",
       "Surfing": "Canoeing",
       "Swim": "Other",
+      "TableTennis": "Other",
+      "Tennis": "Other",
+      "TrailRun": "Other",
+      "Training": "Other",
       "Velomobile": "Biking",
       "VirtualRide": "Biking",
+      "VirtualRow": "Other",
       "VirtualRun": "Walking",
       "Walk": "Walking",
       "WeightTraining": "Workout",
@@ -227,6 +241,12 @@
           "en": "Backcountry ski"
         }
       },
+      "Badminton": {
+        "labels": {
+          "de": "Badminton",
+          "en": "Badminton"
+        }
+      },
       "Canoeing": {
         "labels": {
           "de": "Kanufahren",
@@ -245,6 +265,12 @@
           "en": "E-bike ride"
         }
       },
+      "EMountainBikeRide": {
+        "labels": {
+          "de": "E-Mountainbike-Fahrt",
+          "en": "E-mountain bike ride"
+        }
+      },
       "Elliptical": {
         "labels": {
           "de": "Crosstrainer",
@@ -257,10 +283,22 @@
           "en": "Golf"
         }
       },
+      "GravelRide": {
+        "labels": {
+          "de": "Gravel-Fahrt",
+          "en": "Gravel ride"
+        }
+      },
       "Handcycle": {
         "labels": {
           "de": "Handbike",
           "en": "Handcycle"
+        }
+      },
+      "HighIntensityIntervalTraining": {
+        "labels": {
+          "de": "HIIT",
+          "en": "High-intensity interval training"
         }
       },
       "Hike": {
@@ -293,10 +331,34 @@
           "en": "Kitesurf"
         }
       },
+      "MountainBikeRide": {
+        "labels": {
+          "de": "Mountainbike-Fahrt",
+          "en": "Mountain bike ride"
+        }
+      },
       "NordicSki": {
         "labels": {
           "de": "Langlauf",
           "en": "Nordic ski"
+        }
+      },
+      "Pickleball": {
+        "labels": {
+          "de": "Pickleball",
+          "en": "Pickleball"
+        }
+      },
+      "Pilates": {
+        "labels": {
+          "de": "Pilates",
+          "en": "Pilates"
+        }
+      },
+      "Racquetball": {
+        "labels": {
+          "de": "Racquetball",
+          "en": "Racquetball"
         }
       },
       "Ride": {
@@ -359,6 +421,12 @@
           "en": "Soccer"
         }
       },
+      "Squash": {
+        "labels": {
+          "de": "Squash",
+          "en": "Squash"
+        }
+      },
       "StairStepper": {
         "labels": {
           "de": "Stepper",
@@ -383,6 +451,30 @@
           "en": "Swim"
         }
       },
+      "TableTennis": {
+        "labels": {
+          "de": "Tischtennis",
+          "en": "Table tennis"
+        }
+      },
+      "Tennis": {
+        "labels": {
+          "de": "Tennis",
+          "en": "Tennis"
+        }
+      },
+      "TrailRun": {
+        "labels": {
+          "de": "Trailrun",
+          "en": "Trail run"
+        }
+      },
+      "Training": {
+        "labels": {
+          "de": "Training",
+          "en": "Training"
+        }
+      },
       "Velomobile": {
         "labels": {
           "de": "Velomobil",
@@ -393,6 +485,12 @@
         "labels": {
           "de": "Virtuelle Radfahrt",
           "en": "Virtual ride"
+        }
+      },
+      "VirtualRow": {
+        "labels": {
+          "de": "Virtuelles Rudern",
+          "en": "Virtual row"
         }
       },
       "VirtualRun": {
