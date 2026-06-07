@@ -5,6 +5,16 @@ import 'package:wanderer/provider/auth_provider.dart';
 
 part 'profile_provider.g.dart';
 
+/// Typed exception thrown when the current user is not authenticated.
+/// Callers can catch this specifically to show a login prompt rather than
+/// a generic error message (distinguishes from network errors).
+class NotAuthenticatedException implements Exception {
+  const NotAuthenticatedException();
+
+  @override
+  String toString() => 'NotAuthenticatedException: user is not authenticated';
+}
+
 /// Auto-dispose family provider — fetches any user's profile by handle.
 /// Call site: `ref.watch(profileProvider(handle))`
 /// Auto-disposes when no longer watched; re-fetches on each navigation.
@@ -26,7 +36,7 @@ class OwnProfile extends _$OwnProfile {
   @override
   FutureOr<Actor> build() async {
     final user = await ref.read(authProvider.future);
-    if (user == null) throw Exception('Not authenticated');
+    if (user == null) throw const NotAuthenticatedException();
     final api = ref.read(apiProvider);
     final response = await api.get('/profile/${user.preferredUsername}');
     return Actor.fromJson(response.data as Map<String, dynamic>);
