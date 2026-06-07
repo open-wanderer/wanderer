@@ -39,35 +39,47 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 		category = trailCategory.GetString("name")
 	}
 
+	bounds := getStoredBounds(r)
+
 	domain := ""
 	if !author.GetBool("isLocal") {
 		domain = author.GetString("domain")
 	}
 
+	diagonal := r.GetFloat("bounding_box_diagonal")
+	if diagonal == 0 && (bounds[0] != bounds[1] || bounds[2] != bounds[3]) {
+		diagonal = HaversineDistance(bounds[0], bounds[2], bounds[1], bounds[3])
+	}
+
 	document := map[string]any{
-		"id":             r.Id,
-		"author":         author.Id,
-		"author_name":    author.GetString("preferred_username"),
-		"author_avatar":  author.GetString("icon"),
-		"name":           r.GetString("name"),
-		"description":    r.GetString("description"),
-		"location":       r.GetString("location"),
-		"distance":       r.GetFloat("distance"),
-		"elevation_gain": r.GetFloat("elevation_gain"),
-		"elevation_loss": r.GetFloat("elevation_loss"),
-		"duration":       r.GetFloat("duration"),
-		"difficulty":     difficultyToNumber(r.GetString("difficulty")),
-		"category":       category,
-		"completed":      r.GetBool("completed"),
-		"date":           r.GetDateTime("date").Time().Unix(),
-		"created":        r.GetDateTime("created").Time().Unix(),
-		"public":         r.GetBool("public"),
-		"thumbnail":      thumbnail,
-		"gpx":            r.GetString("gpx"),
-		"tags":           tags,
-		"polyline":       r.GetString("polyline"),
-		"domain":         domain,
-		"iri":            r.GetString("iri"),
+		"id":                    r.Id,
+		"author":                author.Id,
+		"author_name":           author.GetString("preferred_username"),
+		"author_avatar":         author.GetString("icon"),
+		"name":                  r.GetString("name"),
+		"description":           r.GetString("description"),
+		"location":              r.GetString("location"),
+		"distance":              r.GetFloat("distance"),
+		"elevation_gain":        r.GetFloat("elevation_gain"),
+		"elevation_loss":        r.GetFloat("elevation_loss"),
+		"duration":              r.GetFloat("duration"),
+		"difficulty":            difficultyToNumber(r.GetString("difficulty")),
+		"category":              category,
+		"completed":             r.GetBool("completed"),
+		"date":                  r.GetDateTime("date").Time().Unix(),
+		"created":               r.GetDateTime("created").Time().Unix(),
+		"public":                r.GetBool("public"),
+		"thumbnail":             thumbnail,
+		"gpx":                   r.GetString("gpx"),
+		"tags":                  tags,
+		"polyline":              r.GetString("polyline"),
+		"domain":                domain,
+		"iri":                   r.GetString("iri"),
+		"min_lat":               bounds[0],
+		"max_lat":               bounds[1],
+		"min_lon":               bounds[2],
+		"max_lon":               bounds[3],
+		"bounding_box_diagonal": diagonal,
 		"_geo": map[string]float64{
 			"lat": r.GetFloat("lat"),
 			"lng": r.GetFloat("lon"),
@@ -119,6 +131,22 @@ func difficultyToNumber(difficulty string) int32 {
 	}
 
 	return 0
+}
+
+func getStoredBounds(r *core.Record) [4]float64 {
+	lat := r.GetFloat("lat")
+	lon := r.GetFloat("lon")
+	defaultBounds := [4]float64{lat, lat, lon, lon}
+
+	minLat := r.GetFloat("min_lat")
+	maxLat := r.GetFloat("max_lat")
+	minLon := r.GetFloat("min_lon")
+	maxLon := r.GetFloat("max_lon")
+	if minLat == 0 && maxLat == 0 && minLon == 0 && maxLon == 0 && (lat != 0 || lon != 0) {
+		return defaultBounds
+	}
+
+	return [4]float64{minLat, maxLat, minLon, maxLon}
 }
 
 func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {

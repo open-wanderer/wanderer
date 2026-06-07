@@ -4,6 +4,7 @@ import { baseMapStyles, defaultMapState, type BaseLayer, type MapState } from ".
 import { OverlayLayer } from "./overlay-layer";
 import { OverpassLayer, type OverpassPopupActionFactory } from "./overpass-layer";
 
+const DEFAULT_GLYPHS = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
 
 
 export class LayerManager {
@@ -118,6 +119,14 @@ export class LayerManager {
             if (!this.map.getSource(id)) {
                 this.map.addSource(id, s)
             }
+        }
+
+        const style = this.map.getStyle();
+        if (
+            !style.glyphs &&
+            layer.spec.layers.some((l) => l.type === "symbol" && l.layout && "text-field" in l.layout)
+        ) {
+            this.map.setGlyphs(layer.spec.glyphs ?? DEFAULT_GLYPHS);
         }
 
         for (const l of layer.spec.layers) {
