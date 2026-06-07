@@ -1,4 +1,4 @@
-package waypointcluster
+package routes
 
 import (
 	"net/http"
@@ -49,7 +49,7 @@ type categorySettings struct {
 	WaypointMergeRadius  *float64 `json:"wp_merge_radius"`
 }
 
-func Handler(e *core.RequestEvent) error {
+func WaypointCluster(e *core.RequestEvent) error {
 	if e.Auth == nil {
 		return apis.NewUnauthorizedError("authentication required", nil)
 	}

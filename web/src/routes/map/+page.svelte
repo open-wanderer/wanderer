@@ -29,11 +29,14 @@
     import { trails_search_bounding_box } from "$lib/stores/trail_store";
     import { getIconForLocation } from "$lib/util/icon_util";
     import type { Snapshot } from "@sveltejs/kit";
+    import type { FeatureCollection } from "geojson";
     import * as M from "maplibre-gl";
     import { _ } from "svelte-i18n";
     import { slide } from "svelte/transition";
 
     let trails: Trail[] = $state([]);
+    let mapTrails: Trail[] = $state([]);
+    let clusters: FeatureCollection | undefined = $state();
 
     let map: M.Map | undefined = $state();
     let mapWithElevation: MapWithElevationMaplibre | undefined = $state();
@@ -46,8 +49,6 @@
     const maxBoundingBox: TrailBoundingBox = page.data.boundingBox;
     const settings: Settings = page.data.settings;
 
-    const MIN_ZOOM = 10;
-
     let loading: boolean = $state(true);
     let loadingNextPage: boolean = false;
 
@@ -55,6 +56,7 @@
         page: 1,
         totalPages: 1,
     };
+    let searchRequestId = 0;
 
     const sortOptions: SelectItem[] = [
         { text: $_("name"), value: "name" },
@@ -98,19 +100,19 @@
             ],
         });
 
-        const trailItems = r[0].hits.map((t: TrailSearchResult) => ({
+        const trailItems = (r[0]?.hits || []).map((t: TrailSearchResult) => ({
             text: t.name,
             description: `Trail ${t.location.length ? ", " + t.location : ""}`,
             value: `@${t.author_name}${t.domain ? `@${t.domain}` : ""}/${t.id}`,
             icon: "route",
         }));
-        const listItems = r[1].hits.map((t: ListSearchResult) => ({
+        const listItems = (r[1]?.hits || []).map((t: ListSearchResult) => ({
             text: t.name,
             description: `List, ${t.trails} ${$_("trail", { values: { n: t.trails } })}`,
             value: t.id,
             icon: "layer-group",
         }));
-        const cityItems = r[2].hits.map((c: LocationSearchResult) => ({
+        const cityItems = (r[2]?.hits || []).map((c: LocationSearchResult) => ({
             text: c.name,
             description: c.description,
             value: c,
@@ -135,7 +137,11 @@
         northEast: M.LngLat,
         southWest: M.LngLat,
         reset: boolean = true,
+        loadMapData: boolean = true,
     ) {
+        const requestId =
+            reset || loadMapData ? ++searchRequestId : searchRequestId;
+
         if (reset) {
             pagination.page = 1;
             loading = true;
@@ -146,11 +152,23 @@
             southWest,
             filter,
             pagination.page,
-            (map?.getZoom() ?? 0) > MIN_ZOOM,
+            map?.getZoom(),
+            50,
+            loadMapData,
         );
+
+        if (requestId !== searchRequestId) {
+            return false;
+        }
+
         pagination.totalPages = trailsInBox.totalPages;
         trails = trailsInBox.trails;
+        if (loadMapData) {
+            mapTrails = trailsInBox.mapTrails;
+            clusters = trailsInBox.clusters;
+        }
         loading = false;
+        return true;
     }
 
     function handleTrailCardMouseEnter(trail: Trail) {
@@ -190,33 +208,57 @@
         await searchTrails(bounds.getNorthEast(), bounds.getSouthWest());
     }
 
+    let moveTimeout: ReturnType<typeof setTimeout> | undefined;
     async function handleMapMove() {
         if (!map) {
             return;
         }
-        const bounds = map.getBounds();
 
-        const normalizedBounds = {
-            southWest: new M.LngLat(
-                ((((bounds.getSouthWest().lng + 180) % 360) + 360) % 360) - 180,
-                bounds.getSouthWest().lat,
-            ),
-            northEast: new M.LngLat(
-                ((((bounds.getNorthEast().lng + 180) % 360) + 360) % 360) - 180,
-                bounds.getNorthEast().lat,
-            ),
-        };
-        await searchTrails(
-            normalizedBounds.northEast,
-            normalizedBounds.southWest,
-        );
+        if (moveTimeout) {
+            clearTimeout(moveTimeout);
+        }
+        moveTimeout = setTimeout(async () => {
+            const bounds = map!.getBounds();
+            const west = bounds.getWest();
+            const east = bounds.getEast();
+            const north = bounds.getNorth();
+            const south = bounds.getSouth();
 
-        page.url.searchParams.set("tl_lat", bounds.getNorth().toString());
-        page.url.searchParams.set("tl_lon", bounds.getEast().toString());
-        page.url.searchParams.set("br_lat", bounds.getSouth().toString());
-        page.url.searchParams.set("br_lon", bounds.getWest().toString());
+            let normalizedSW: M.LngLat;
+            let normalizedNE: M.LngLat;
 
-        goto(`?${page.url.searchParams.toString()}`);
+            if (east - west >= 360) {
+                // Global view
+                normalizedSW = new M.LngLat(-180, south);
+                normalizedNE = new M.LngLat(180, north);
+            } else {
+                // Handle wrap-around
+                normalizedSW = new M.LngLat(
+                    ((((west + 180) % 360) + 360) % 360) - 180,
+                    south,
+                );
+                normalizedNE = new M.LngLat(
+                    ((((east + 180) % 360) + 360) % 360) - 180,
+                    north,
+                );
+            }
+
+            const applied = await searchTrails(normalizedNE, normalizedSW);
+            if (!applied) {
+                return;
+            }
+
+            page.url.searchParams.set("tl_lat", north.toString());
+            page.url.searchParams.set("tl_lon", east.toString());
+            page.url.searchParams.set("br_lat", south.toString());
+            page.url.searchParams.set("br_lon", west.toString());
+
+            goto(`?${page.url.searchParams.toString()}`, {
+                replaceState: true,
+                noScroll: true,
+                keepFocus: true,
+            });
+        }, 200);
     }
 
     function handleMapInit() {
@@ -314,7 +356,7 @@
         }
         pagination.page += 1;
         const bounds = map.getBounds();
-        await searchTrails(bounds.getNorthEast(), bounds.getSouthWest(), false);
+        await searchTrails(bounds.getNorthEast(), bounds.getSouthWest(), false, false);
     }
 </script>
 
@@ -391,7 +433,7 @@
                 {#if trails.length == 0}
                     <EmptyStateSearch></EmptyStateSearch>
                 {/if}
-                {#each trails as trail, i}
+                {#each trails.filter(t => t.name !== "") as trail, i}
                     <a
                         href="/map/trail/@{trail.author}{trail.domain
                             ? `@${trail.domain}`
@@ -419,7 +461,8 @@
         <MapWithElevationMaplibre
             onmoveend={handleMapMove}
             oninit={handleMapInit}
-            {trails}
+            trails={mapTrails}
+            serverClusters={clusters}
             showElevation={false}
             showTerrain={true}
             showInfoPopup={true}
@@ -427,6 +470,7 @@
             fitBounds="off"
             clusterTrails={true}
             bind:map
+
             bind:this={mapWithElevation}
         ></MapWithElevationMaplibre>
     </div>

@@ -76,13 +76,12 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
     return marker;
 }
 
-export function createAnchorMarker(lat: number, lon: number, index: number,
+export function createAnchorMarker(lat: number, lon: number,
     onDeleteClick: () => void, onLoopClick: () => void,
     onDragStart: (event: Event) => void, onDragEnd: (event: Event) => void): FontawesomeMarker {
 
     const anchorElement = document.createElement("span")
-    anchorElement.className = "route-anchor cursor-pointer rounded-full w-6 h-6 border border-black text-center bg-primary text-white"
-    anchorElement.textContent = "" + index
+    anchorElement.className = "route-anchor cursor-pointer flex items-center justify-center rounded-full w-6 h-6 border border-black bg-primary text-white"
     const marker = new M.Marker(
         {
             draggable: true,
@@ -96,7 +95,7 @@ export function createAnchorMarker(lat: number, lon: number, index: number,
     popupContent.className = "py-3 pl-3"
     const anchorH = document.createElement("h5")
     anchorH.classList.add("text-base", "font-medium");
-    anchorH.textContent = get(_)("route-point") + " #" + index;
+    anchorH.textContent = get(_)("route-point");
 
     const deleteButton = document.createElement("button");
     deleteButton.className = "btn-secondary w-full mt-2 text-sm";
@@ -260,19 +259,33 @@ export function createPopupFromTrail(trail: Trail) {
     return popup;
 }
 
-export function createOverpassPopup(feature: GeoJSON.Feature, coordinates: GeoJSON.Position) {
+export type OverpassPopupAction = {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+    helperText?: string;
+    icon?: string;
+};
+
+export function createOverpassPopup(
+    feature: GeoJSON.Feature,
+    coordinates: GeoJSON.Position,
+    action?: OverpassPopupAction,
+) {
     const tags: Record<string, string> = JSON.parse(feature.properties?.tags);
     const name = tags.name ?? get(_)(feature.properties?.query) ?? "?"
 
     const popupContainer = document.createElement("div");
-    popupContainer.className = "p-4"
+    popupContainer.className = "p-4 relative"
+
+    const indent = action ? "pl-12 " : "";
 
     const popupHeading = document.createElement("h1");
-    popupHeading.className = "font-medium text-lg"
+    popupHeading.className = indent + "font-medium text-lg"
     popupHeading.textContent = name;
 
     const coordinateSubtitle = document.createElement("p")
-    coordinateSubtitle.className = "text-gray-500"
+    coordinateSubtitle.className = indent + "text-gray-500"
     coordinateSubtitle.textContent = `${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`
 
     popupContainer.appendChild(popupHeading)
@@ -294,6 +307,36 @@ export function createOverpassPopup(feature: GeoJSON.Feature, coordinates: GeoJS
     }));
 
     popupContainer.appendChild(tagsGrid)
+
+    if (action) {
+        const actionButton = document.createElement("button");
+        actionButton.type = "button";
+        actionButton.className =
+            "flex h-9 w-9 items-center justify-center absolute top-4 left-4 rounded-full p-0 text-xl text-content hover:bg-secondary-hover disabled:opacity-40 disabled:cursor-not-allowed";
+        actionButton.disabled = action.disabled ?? false;
+        actionButton.setAttribute("aria-label", action.label);
+        actionButton.setAttribute("title", action.label);
+
+        const iconElement = document.createElement("i");
+        iconElement.className = (action.icon ?? "fa fa-flag-checkered");
+        iconElement.setAttribute("aria-hidden", "true");
+        actionButton.appendChild(iconElement);
+
+        actionButton.addEventListener("click", () => {
+            if (!actionButton.disabled) {
+                action.onClick();
+            }
+        });
+
+        popupContainer.appendChild(actionButton);
+
+        if (action.helperText) {
+            const helper = document.createElement("p");
+            helper.className = "text-xs text-gray-500 mt-2";
+            helper.textContent = action.helperText;
+            popupContainer.appendChild(helper);
+        }
+    }
 
     return popupContainer;
 }

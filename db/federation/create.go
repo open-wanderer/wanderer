@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -21,7 +19,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, typ pub.ActivityVocabularyType) error {
+func CreateTrailActivity(app core.App, ctx context.Context, trail *core.Record, typ pub.ActivityVocabularyType) error {
 	if !trail.GetBool("public") {
 		// only broadcast the trail if it is public
 		return nil
@@ -46,7 +44,7 @@ func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, t
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
 
-	mentionedActors, err := ActorsFromMentions(app, actor, trail.GetString("description"))
+	mentionedActors, err := ActorsFromMentions(app, ctx, trail.GetString("description"))
 	if err != nil {
 		return err
 	}
@@ -108,7 +106,7 @@ func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, t
 	return PostActivity(app, trailAuthor, activity, recipients)
 }
 
-func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Record, typ pub.ActivityVocabularyType) error {
+func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Record, typ pub.ActivityVocabularyType) error {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
@@ -134,7 +132,7 @@ func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Recor
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, activityRecordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
 
-	mentionedActors, err := ActorsFromMentions(app, actor, comment.GetString("text"))
+	mentionedActors, err := ActorsFromMentions(app, ctx, comment.GetString("text"))
 	if err != nil {
 		return err
 	}
@@ -193,7 +191,7 @@ func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Recor
 
 }
 
-func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.Record, typ pub.ActivityVocabularyType) error {
+func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.Record, typ pub.ActivityVocabularyType) error {
 
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -228,12 +226,7 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 	}
 
 	var trailIRI pub.IRI
-	if summitLogTrailAuthor.GetBool("isLocal") {
-		trailId := summitLog.GetString("trail")
-		trailIRI = pub.IRI(fmt.Sprintf("%s/api/v1/trail/%s", origin, trailId))
-	} else {
-		trailIRI = pub.IRI(summitLogTrail.GetString("iri"))
-	}
+	trailIRI = pub.IRI(summitLogTrail.GetString("iri"))
 
 	recordId := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
 
@@ -245,7 +238,7 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 		to.Append(pub.IRI(summitLogTrailAuthor.GetString("iri")))
 	}
 
-	mentionedActors, err := ActorsFromMentions(app, actor, summitLog.GetString("text"))
+	mentionedActors, err := ActorsFromMentions(app, ctx, summitLog.GetString("text"))
 	if err != nil {
 		return err
 	}
@@ -321,7 +314,7 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 	logObject.Content = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, summitLog.GetString("text")))
 	logObject.AttributedTo = pub.IRI(summitLogAuthor.GetString("iri"))
 	logObject.Published = summitLog.GetDateTime("created").Time()
-	logObject.ID = pub.IRI(fmt.Sprintf("%s/api/v1/summit-log/%s", origin, summitLog.Id))
+	logObject.ID = pub.IRI(summitLog.GetString("iri"))
 	logObject.URL = pub.IRI(fmt.Sprintf("%s/trail/view/@%s/%s", origin, summitLogTrailAuthor.GetString("preferred_username"), summitLog.GetString("trail")))
 	logObject.InReplyTo = trailIRI
 	logObject.Tag = tags
@@ -512,14 +505,8 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 		return fmt.Errorf("error processing comment: InReplyTo empty")
 	}
 
-	trailUrl, err := url.Parse(commentObject.InReplyTo.GetLink().String())
-	if err != nil {
-		return err
-	}
-	trailId := path.Base(trailUrl.Path)
-
 	var trail *core.Record
-	trail, err = app.FindFirstRecordByFilter("trails", "iri={:iri} || id={:id}", dbx.Params{"id": trailId, "iri": commentObject.InReplyTo.GetID().String()})
+	trail, err = app.FindFirstRecordByData("trails", "iri", commentObject.InReplyTo.GetLink().String())
 
 	// if the trail is not present on this instance fetch it
 	if err != nil {
@@ -619,13 +606,7 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		return err
 	}
 
-	trailIRI, err := url.Parse(logObject.InReplyTo.GetID().String())
-	if err != nil {
-		return err
-	}
-	trailId := path.Base(trailIRI.Path)
-
-	trail, err := app.FindFirstRecordByFilter("trails", "iri={:iri} || id={:id}", dbx.Params{"id": trailId, "iri": logObject.InReplyTo.GetID().String()})
+	trail, err := app.FindFirstRecordByData("trails", "iri", logObject.InReplyTo.GetID().String())
 	// if the trail is not present on this instance fetch it
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -807,7 +788,7 @@ func processCreateOrUpdateListActivity(activity pub.Activity, app core.App, acto
 	return err
 }
 
-func ActorsFromMentions(app core.App, actor *core.Record, htmlStr string) ([]*core.Record, error) {
+func ActorsFromMentions(app core.App, ctx context.Context, htmlStr string) ([]*core.Record, error) {
 	doc, err := html.Parse(strings.NewReader(htmlStr))
 	if err != nil {
 		return nil, err
@@ -842,7 +823,7 @@ func ActorsFromMentions(app core.App, actor *core.Record, htmlStr string) ([]*co
 	f(doc)
 
 	for _, h := range handles {
-		actor, err := GetActorByHandle(app, actor, h, false)
+		actor, err := GetActorByHandle(app, ctx, h, false)
 		if err != nil {
 			continue
 		}

@@ -1,9 +1,7 @@
-import { error, json, RequestEvent } from '@sveltejs/kit';
-import type PocketBase from "PocketBase";
+import { error, json, type RequestEvent } from '@sveltejs/kit';
+import type PocketBase from "pocketbase";
 // @ts-ignore
 import { env } from "$env/dynamic/private"
-// @ts-ignore
-import { env as publicEnv } from '$env/dynamic/public';
 // @ts-ignore
 import { handleError } from "$lib/util/api_util";
 // @ts-ignore
@@ -43,7 +41,8 @@ export async function GET(event: RequestEvent) {
             return error(400, "Bad request");
         }
 
-        const actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`iri='${iri}'`)
+        const locals = event.locals as typeof event.locals & { pb: PocketBase };
+        const actor = await locals.pb.collection("activitypub_actors").getFirstListItem(`iri='${iri}'`)
 
         const r: WebfingerResponse = {
             subject: handle,

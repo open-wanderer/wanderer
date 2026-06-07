@@ -1,27 +1,28 @@
 {
   "name": "docs",
   "type": "module",
-  "version": "0.18.5",
+  "version": "0.19.2",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro check && astro build",
+    "sync-openapi": "node scripts/sync-openapi.js",
+    "build": "npm run sync-openapi && astro check && astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.6",
-    "@astrojs/node": "^10.0.5",
-    "@astrojs/starlight": "^0.38.3",
+    "@astrojs/check": "^0.9.8",
+    "@astrojs/node": "^10.1.1",
+    "@astrojs/starlight": "^0.38.4",
     "@astrojs/starlight-tailwind": "^5.0.0",
-    "@astrojs/svelte": "^8.0.5",
+    "@astrojs/svelte": "^8.1.1",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.8",
-    "@tailwindcss/vite": "^4.2.1",
-    "astro": "^6.1.7",
+    "@tailwindcss/vite": "^4.2.4",
+    "astro": "^6.3.2",
     "sharp": "^0.34.5",
-    "starlight-openapi": "^0.24.0",
-    "svelte": "^5.55.4",
+    "starlight-openapi": "^0.25.0",
+    "svelte": "^5.56.0",
     "tailwindcss": "^4.1.10",
     "typescript": "^5.9.3"
   }

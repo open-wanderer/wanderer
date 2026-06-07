@@ -13,12 +13,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
 
 	pub "github.com/go-ap/activitypub"
+	"github.com/go-fed/httpsig"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
@@ -110,51 +110,26 @@ func generateKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	return priv, pub, nil
 }
 
-func SyncOutbox(app core.App, actor *core.Record) error {
-	return fetchOutboxPage(app, actor, actor.GetString("outbox")+"?page=1")
-}
-
-func fetchOutboxPage(app core.App, actor *core.Record, pageURL string) error {
-	client := &http.Client{}
-
-	req, err := http.NewRequest(http.MethodGet, pageURL, nil)
+// IsLocalIRI reports whether iri belongs to this instance's own ORIGIN.
+// It is used to prevent the instance from federating with itself, i.e. treating
+// its own content as if it were remote.
+func IsLocalIRI(iri string) bool {
+	if iri == "" {
+		return false
+	}
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return false
+	}
+	o, err := url.Parse(origin)
 	if err != nil {
-		return err
+		return false
 	}
-	req.Header.Add("Accept", `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`)
-
-	resp, err := client.Do(req)
+	u, err := url.Parse(iri)
 	if err != nil {
-		return err
+		return false
 	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	var page pub.OrderedCollectionPage
-	err = json.Unmarshal(body, &page)
-	if err != nil {
-		return err
-	}
-
-	for _, item := range page.OrderedItems {
-		activity, err := pub.ToActivity(item)
-		if err != nil {
-			return err
-		}
-		if activity.Type != pub.CreateType {
-			continue
-		}
-	}
-
-	if page.Next != nil {
-		return fetchOutboxPage(app, actor, page.Next.GetID().String())
-	}
-
-	return nil
+	return strings.EqualFold(u.Host, o.Host)
 }
 
 func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
@@ -164,17 +139,24 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	}
 
 	iri := t.ID.String()
-	var record *core.Record
-	if actor.GetBool(("isLocal")) {
-		trailUrl, parseErr := url.Parse(iri)
-		if parseErr != nil {
-			return nil, parseErr
+
+	// Own content must never be ingested as if it were remote. An inbound
+	// activity referencing one of our own trails (e.g. an announce echoed back)
+	// would otherwise flag the local trail for a full sync and later make the
+	// instance fetch itself. Only a local actor may resolve a local object id to
+	// the local record; a remote actor must not be able to reference or attach
+	// side effects (feeds/shares/notifications) to local content by id.
+	if IsLocalIRI(iri) {
+		if !actor.GetBool("isLocal") {
+			return nil, fmt.Errorf("refusing remote activity referencing local trail %q", iri)
 		}
-		trailId := path.Base(trailUrl.Path)
-		record, err = app.FindRecordById("trails", trailId)
-	} else {
-		record, err = app.FindFirstRecordByData("trails", "iri", iri)
+
+		return app.FindFirstRecordByData("trails", "iri", iri)
 	}
+
+	var record *core.Record
+
+	record, err = app.FindFirstRecordByData("trails", "iri", iri)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -191,7 +173,13 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		}
 	} else {
 		// this trail exists already
-		// nothing more to do
+		// ensure that it is fully synced to catch waypoint/summit log updates
+
+		record.Set("needs_full_sync", true)
+		err = app.Save(record)
+		if err != nil {
+			return nil, err
+		}
 
 		return record, nil
 	}
@@ -264,6 +252,7 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	record.Set("public", true)
 	record.Set("iri", t.ID.String())
 	record.Set("author", actor.Id)
+	record.Set("needs_full_sync", true)
 
 	categoryRecord, err := app.FindFirstRecordByData("categories", "name", category)
 	if err == nil {
@@ -431,7 +420,7 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 	}
 	trailObject.AttributedTo = pub.IRI(trailAuthor.GetString("iri"))
 	trailObject.Published = trail.GetDateTime("created").Time()
-	trailObject.ID = pub.IRI(fmt.Sprintf("%s/api/v1/trail/%s", origin, trail.Id))
+	trailObject.ID = pub.IRI(trail.GetString("iri"))
 	trailObject.URL = pub.IRI(activityURL)
 
 	trailObject.StartTime = trail.GetDateTime("date").Time()
@@ -448,17 +437,20 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 	}
 
 	iri := l.ID.String()
-	var record *core.Record
-	if actor.GetBool(("isLocal")) {
-		listURL, parseErr := url.Parse(iri)
-		if parseErr != nil {
-			return nil, parseErr
+
+	// Own content must never be ingested as if it were remote (see TrailFromActivity).
+	if IsLocalIRI(iri) {
+		if !actor.GetBool("isLocal") {
+			return nil, fmt.Errorf("refusing remote activity referencing local list %q", iri)
 		}
-		listId := path.Base(listURL.Path)
-		record, err = app.FindRecordById("lists", listId)
-	} else {
-		record, err = app.FindFirstRecordByData("lists", "iri", iri)
+
+		return app.FindFirstRecordByData("lists", "iri", iri)
 	}
+
+	var record *core.Record
+
+	record, err = app.FindFirstRecordByData("lists", "iri", iri)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			collection, err := app.FindCollectionByNameOrId("lists")
@@ -473,7 +465,9 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 		}
 	} else {
 		// this list exists already
-		// nothing more to do
+		// ensure that it is fully synced to catch trail updates
+
+		record.Set("needs_full_sync", true)
 
 		return record, nil
 	}
@@ -483,6 +477,7 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 	record.Set("public", true)
 	record.Set("iri", iri)
 	record.Set("author", actor.Id)
+	record.Set("needs_full_sync", true)
 
 	if l.Attachment != nil {
 
@@ -551,7 +546,7 @@ func ObjectFromList(app core.App, list *core.Record) (*pub.Object, error) {
 
 	listObject.AttributedTo = pub.IRI(listAuthor.GetString("iri"))
 	listObject.Published = list.GetDateTime("created").Time()
-	listObject.ID = pub.IRI(fmt.Sprintf("%s/api/v1/list/%s", origin, list.Id))
+	listObject.ID = pub.IRI(list.GetString("iri"))
 	listObject.URL = pub.IRI(activityURL)
 	listObject.Attachment = attachments
 	return listObject, nil
@@ -572,24 +567,13 @@ func ObjectFromComment(app core.App, comment *core.Record, mentions *pub.ItemCol
 	if err != nil {
 		return nil, err
 	}
-	commentTrailAuthor, err := app.FindRecordById("activitypub_actors", commentTrail.GetString("author"))
-	if err != nil {
-		return nil, err
-	}
-
-	trailURL := ""
-	if commentTrailAuthor.GetBool("isLocal") {
-		trailURL = fmt.Sprintf("https://%s/api/v1/trail/%s", commentTrailAuthor.GetString("domain"), comment.GetString("trail"))
-	} else {
-		trailURL = commentTrail.GetString("iri")
-	}
 
 	commentObject := pub.ObjectNew(pub.NoteType)
-	commentObject.ID = pub.IRI(fmt.Sprintf("%s/api/v1/comment/%s", origin, comment.Id))
+	commentObject.ID = pub.IRI(comment.GetString("iri"))
 	commentObject.Content = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, comment.GetString("text")))
 	commentObject.Published = comment.GetDateTime("created").Time()
 	commentObject.AttributedTo = pub.IRI(commentAuthor.GetString("iri"))
-	commentObject.InReplyTo = pub.IRI(trailURL)
+	commentObject.InReplyTo = pub.IRI(commentTrail.GetString("iri"))
 
 	if mentions != nil {
 		commentObject.Tag = *mentions
@@ -601,7 +585,7 @@ func ObjectFromComment(app core.App, comment *core.Record, mentions *pub.ItemCol
 func TrailObjectFromIRI(iri string) (*pub.Object, error) {
 	fetchURL := strings.Replace(iri, "api/v1/trail", "api/v1/activitypub/trail", 1)
 
-	client := &http.Client{}
+	client := SafeHTTPClient()
 
 	req, err := http.NewRequest(http.MethodGet, fetchURL, nil)
 	if err != nil {
@@ -626,4 +610,69 @@ func TrailObjectFromIRI(iri string) (*pub.Object, error) {
 	}
 
 	return &object, nil
+}
+
+func VerifySignature(app core.App, req *http.Request, publicKeyPem string) (bool, error) {
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return false, fmt.Errorf("ORIGIN not set")
+	}
+	block, _ := pem.Decode([]byte(publicKeyPem))
+	if block == nil || block.Type != "PUBLIC KEY" {
+		return false, fmt.Errorf("could not decode publicKeyPem to PUBLIC KEY pem block type")
+	}
+
+	req.URL = &url.URL{
+		Path: req.Header.Get("X-Forwarded-Path"),
+	}
+
+	url, err := url.Parse(origin)
+	if err != nil {
+		return false, err
+	}
+
+	req.Header.Set("Host", url.Host)
+	req.Host = url.Host
+
+	app.Logger().Info(req.Header.Get("signature"))
+
+	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return false, err
+	}
+
+	v, err := httpsig.NewVerifier(req)
+	if err != nil {
+		return false, err
+	}
+
+	err = v.Verify(publicKey, httpsig.RSA_SHA256)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func SplitHandle(handle string) (string, string) {
+
+	cleaned := strings.TrimPrefix(handle, "@")
+	cleaned = strings.TrimSpace(cleaned)
+
+	if !strings.Contains(cleaned, "@") {
+		return cleaned, ""
+	}
+
+	parts := strings.SplitN(cleaned, "@", 2)
+	user := parts[0]
+	domain := parts[1]
+
+	return user, domain
+}
+
+func ItemID(item pub.Item) string {
+	if item == nil || item.GetID() == "" {
+		return ""
+	}
+	return item.GetID().String()
 }

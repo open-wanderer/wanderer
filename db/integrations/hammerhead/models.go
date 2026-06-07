@@ -2,6 +2,8 @@ package hammerhead
 
 import (
 	"time"
+
+	"pocketbase/services/trailmerge"
 )
 
 type HammerheadToursResponse struct {
@@ -72,12 +74,13 @@ type HammerheadTour struct {
 }
 
 type HammerheadIntegration struct {
-	Active    bool   `json:"active"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	Planned   bool   `json:"planned"`
-	Completed bool   `json:"completed"`
-	After     string `json:"after,omitempty"`
+	Active    bool                                    `json:"active"`
+	Email     string                                  `json:"email"`
+	Password  string                                  `json:"password"`
+	Planned   bool                                    `json:"planned"`
+	Completed bool                                    `json:"completed"`
+	After     string                                  `json:"after,omitempty"`
+	Merge     trailmerge.IntegrationAutoMergeSettings `json:"merge"`
 }
 
 type LoginResponse struct {

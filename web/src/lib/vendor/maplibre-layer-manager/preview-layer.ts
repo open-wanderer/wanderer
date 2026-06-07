@@ -18,9 +18,10 @@ export class PreviewLayer implements BaseLayer {
         }
     };
 
-    constructor(map: M.Map, geojson: GeoJSON.FeatureCollection, listeners?: Record<string, { onMouseUp?: (e: MapMouseEvent) => void; onMouseDown?: (e: MapMouseEvent) => void; onEnter?: (e: MapMouseEvent) => void; onLeave?: (e: MapMouseEvent) => void; onMouseMove?: (e: MapMouseEvent) => void; }>) {
+    constructor(map: M.Map, geojson: GeoJSON.FeatureCollection, options?: { showStartMarker?: boolean, listeners?: Record<string, { onMouseUp?: (e: MapMouseEvent) => void; onMouseDown?: (e: MapMouseEvent) => void; onEnter?: (e: MapMouseEvent) => void; onLeave?: (e: MapMouseEvent) => void; onMouseMove?: (e: MapMouseEvent) => void; }> }) {
 
         this.map = map;
+        const listeners = options?.listeners;
         this.listeners = {
             "preview": { ...this.listeners["preview"], ...listeners?.["preview"] },
             "preview-start-points": { ...this.listeners["preview-start-points"], ...listeners?.["preview-start-points"] }
@@ -40,9 +41,11 @@ export class PreviewLayer implements BaseLayer {
                 }
             }))
         };
+
         this.spec = {
             version: 8,
             name: "preview",
+            glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
             sources: {
                 "preview": {
                     type: "geojson",
@@ -58,7 +61,6 @@ export class PreviewLayer implements BaseLayer {
                     id: "preview",
                     type: "line",
                     source: "preview",
-                    minzoom: 10,
                     paint: {
                         "line-color": ["get", "color"],
                         "line-width": 5,
@@ -68,10 +70,10 @@ export class PreviewLayer implements BaseLayer {
                     id: "preview-start-points",
                     type: "circle",
                     source: "preview-start-points",
-                    minzoom: 10,
+                    filter: ["literal", options?.showStartMarker ?? false],
                     paint: {
                         "circle-color": "#242734",
-                        "circle-radius": 6,
+                        "circle-radius": 5,
                         "circle-stroke-width": 2,
                         "circle-stroke-color": "#fff",
                     },
@@ -80,7 +82,6 @@ export class PreviewLayer implements BaseLayer {
                     id: "preview-direction-carets",
                     type: "symbol",
                     source: "preview",
-                    minzoom: 10,
                     layout: {
                         "symbol-placement": "line",
                         "symbol-spacing": [
