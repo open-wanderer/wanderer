@@ -70,12 +70,20 @@ export class TrailPage {
   // Click save and wait for the /api/v1/trail/form 200 response.
   // Returns the response body, which includes the created trail's `id`.
   // Uses /api/v1/trail/form (NOT /api/v1/trail) — the browser UI save endpoint.
+  // Timeout of 15 s prevents an indefinite hang on non-200 or missing response.
   async save(): Promise<{ id: string }> {
     const [response] = await Promise.all([
-      this.page.waitForResponse(r => r.url().includes('/api/v1/trail/form') && r.status() === 200),
+      this.page.waitForResponse(
+        r => r.url().includes('/api/v1/trail/form') && r.status() === 200,
+        { timeout: 15_000 }
+      ),
       this.saveButton.click(),
     ]);
-    return response.json();
+    const record = await response.json();
+    if (!record.id) {
+      throw new Error(`save(): response body missing 'id' field — got: ${JSON.stringify(record)}`);
+    }
+    return record;
   }
 
   // Open the trail action dropdown and click the given menu item.
