@@ -94,12 +94,14 @@ export class TrailPage {
   }
 
   // Open the dropdown, click Delete, confirm in the modal, and wait for the DELETE response.
-  // Returns after the DELETE /api/v1/trail/{id} 200 response is received (TRAIL-05).
-  async deleteViaUi(): Promise<void> {
+  // Returns after the DELETE /api/v1/trail/{trailId} 200 response is received (TRAIL-05).
+  // Caller must pass the trailId so the URL filter is anchored to the specific record being
+  // deleted — prevents a concurrent teardown-initiated DELETE from satisfying the wait.
+  async deleteViaUi(trailId: string): Promise<void> {
     await this.selectDropdownAction('Delete');
     await Promise.all([
       this.page.waitForResponse(
-        r => r.url().includes('/api/v1/trail/') && r.status() === 200 && r.request().method() === 'DELETE'
+        r => r.url().endsWith(`/api/v1/trail/${trailId}`) && r.status() === 200 && r.request().method() === 'DELETE'
       ),
       this.confirmModalConfirmButton.click(),
     ]);

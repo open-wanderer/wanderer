@@ -92,7 +92,7 @@ test('TRAIL-05: delete trail navigates away from the view page', async ({ trailF
     await trailPage.gotoView(handle, trailId);
 
     // Open dropdown → click Delete → confirm in modal → wait for DELETE response.
-    await trailPage.deleteViaUi();
+    await trailPage.deleteViaUi(trailId);
 
     // Assert the browser navigated away from the trail view URL (D-07).
     // Do NOT re-navigate to assert a 404 — waitForURL away is sufficient.
