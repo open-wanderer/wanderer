@@ -1,11 +1,11 @@
 import type { SummitLog } from "$lib/models/summit_log";
 import type { Tag } from "$lib/models/tag";
+import { MAP_MAX_POLYLINES } from "$lib/config/map";
 import { defaultTrailSearchAttributes, Trail, type TrailFilter, type TrailFilterValues, type TrailSearchResult } from "$lib/models/trail";
 import type { Waypoint } from "$lib/models/waypoint";
 import { APIError } from "$lib/util/api_util";
 import { deepEqual } from "$lib/util/deep_util";
 import { getFileURL, objectToFormData } from "$lib/util/file_util";
-import { env } from '$env/dynamic/public';
 import * as M from "maplibre-gl";
 import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
@@ -89,7 +89,6 @@ export async function trails_search_filter(filter: TrailFilter, page: number = 1
 
 }
 
-export const MAP_MAX_POLYLINES = Number(env.PUBLIC_MAP_MAX_POLYLINES || 100);
 const DETAILED_CACHE_MAX_SIZE = Math.max(200, MAP_MAX_POLYLINES * 10);
 
 let trails: Trail[] = []

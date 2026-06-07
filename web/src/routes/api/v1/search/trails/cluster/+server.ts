@@ -1,6 +1,6 @@
 import { error, json, type RequestEvent } from "@sveltejs/kit";
 import Supercluster from "supercluster";
-import { MAP_MAX_POLYLINES } from "$lib/stores/trail_store";
+import { MAP_MAX_POLYLINES } from "$lib/config/map";
 
 function isFiniteNumber(value: unknown): value is number {
     return typeof value === "number" && Number.isFinite(value);
