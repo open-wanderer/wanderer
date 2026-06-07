@@ -153,7 +153,7 @@ final class OwnProfileProvider
   OwnProfile create() => OwnProfile();
 }
 
-String _$ownProfileHash() => r'62aca914f7c2864e5f4853236cf0b956faf872ff';
+String _$ownProfileHash() => r'00639a308d27a7d6f44943efbc2f53551dde31d4';
 
 /// keepAlive provider — fetches the current user's own profile Actor.
 /// Reads handle from authProvider.preferredUsername (per D-02).
