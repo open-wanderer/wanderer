@@ -1,6 +1,8 @@
 package hooks
 
 import (
+	"fmt"
+	"os"
 	"pocketbase/federation"
 	"pocketbase/util"
 
@@ -12,7 +14,23 @@ import (
 func CreateCommentHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
 
-		e.Next()
+		err := e.Next()
+		if err != nil {
+			return err
+		}
+
+		// add local iri
+		origin := os.Getenv("ORIGIN")
+		if origin == "" {
+			return fmt.Errorf("ORIGIN not set")
+		}
+		if e.Record.GetString("iri") == "" {
+			e.Record.Set("iri", fmt.Sprintf("%s/api/v1/comment/%s", origin, e.Record.Id))
+		}
+		err = e.App.UnsafeWithoutHooks().Save(e.Record)
+		if err != nil {
+			return err
+		}
 
 		userActor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
 		if err != nil {

@@ -1,6 +1,8 @@
 package hooks
 
 import (
+	"fmt"
+	"os"
 	"pocketbase/federation"
 	"pocketbase/util"
 
@@ -18,7 +20,24 @@ func CreateListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 			return err
 		}
 
+		// add local iri
+		origin := os.Getenv("ORIGIN")
+		if origin == "" {
+			return fmt.Errorf("ORIGIN not set")
+		}
+		if e.Record.GetString("iri") == "" {
+			e.Record.Set("iri", fmt.Sprintf("%s/api/v1/list/%s", origin, e.Record.Id))
+			if err = e.App.UnsafeWithoutHooks().Save(e.Record); err != nil {
+				return err
+			}
+		}
+
 		if err := util.IndexLists(e.App, []*core.Record{record}, client); err != nil {
+			return err
+		}
+
+		err = e.Next()
+		if err != nil {
 			return err
 		}
 
@@ -26,12 +45,7 @@ func CreateListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 			// this happens if someone fetches a remote list
 			// we create a stub list record for later reference
 			// no need to create an activity for that
-			return e.Next()
-		}
-
-		err = e.Next()
-		if err != nil {
-			return err
+			return nil
 		}
 
 		err = federation.CreateListActivity(e.App, e.Record, pub.CreateType)

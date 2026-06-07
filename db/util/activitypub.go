@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -151,24 +150,13 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		if !actor.GetBool("isLocal") {
 			return nil, fmt.Errorf("refusing remote activity referencing local trail %q", iri)
 		}
-		trailUrl, parseErr := url.Parse(iri)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		return app.FindRecordById("trails", path.Base(trailUrl.Path))
+
+		return app.FindFirstRecordByData("trails", "iri", iri)
 	}
 
 	var record *core.Record
-	if actor.GetBool(("isLocal")) {
-		trailUrl, parseErr := url.Parse(iri)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		trailId := path.Base(trailUrl.Path)
-		record, err = app.FindRecordById("trails", trailId)
-	} else {
-		record, err = app.FindFirstRecordByData("trails", "iri", iri)
-	}
+
+	record, err = app.FindFirstRecordByData("trails", "iri", iri)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -432,7 +420,7 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 	}
 	trailObject.AttributedTo = pub.IRI(trailAuthor.GetString("iri"))
 	trailObject.Published = trail.GetDateTime("created").Time()
-	trailObject.ID = pub.IRI(fmt.Sprintf("%s/api/v1/trail/%s", origin, trail.Id))
+	trailObject.ID = pub.IRI(trail.GetString("iri"))
 	trailObject.URL = pub.IRI(activityURL)
 
 	trailObject.StartTime = trail.GetDateTime("date").Time()
@@ -455,24 +443,14 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 		if !actor.GetBool("isLocal") {
 			return nil, fmt.Errorf("refusing remote activity referencing local list %q", iri)
 		}
-		listURL, parseErr := url.Parse(iri)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		return app.FindRecordById("lists", path.Base(listURL.Path))
+
+		return app.FindFirstRecordByData("lists", "iri", iri)
 	}
 
 	var record *core.Record
-	if actor.GetBool(("isLocal")) {
-		listURL, parseErr := url.Parse(iri)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		listId := path.Base(listURL.Path)
-		record, err = app.FindRecordById("lists", listId)
-	} else {
-		record, err = app.FindFirstRecordByData("lists", "iri", iri)
-	}
+
+	record, err = app.FindFirstRecordByData("lists", "iri", iri)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			collection, err := app.FindCollectionByNameOrId("lists")
@@ -568,7 +546,7 @@ func ObjectFromList(app core.App, list *core.Record) (*pub.Object, error) {
 
 	listObject.AttributedTo = pub.IRI(listAuthor.GetString("iri"))
 	listObject.Published = list.GetDateTime("created").Time()
-	listObject.ID = pub.IRI(fmt.Sprintf("%s/api/v1/list/%s", origin, list.Id))
+	listObject.ID = pub.IRI(list.GetString("iri"))
 	listObject.URL = pub.IRI(activityURL)
 	listObject.Attachment = attachments
 	return listObject, nil
@@ -589,24 +567,13 @@ func ObjectFromComment(app core.App, comment *core.Record, mentions *pub.ItemCol
 	if err != nil {
 		return nil, err
 	}
-	commentTrailAuthor, err := app.FindRecordById("activitypub_actors", commentTrail.GetString("author"))
-	if err != nil {
-		return nil, err
-	}
-
-	trailURL := ""
-	if commentTrailAuthor.GetBool("isLocal") {
-		trailURL = fmt.Sprintf("https://%s/api/v1/trail/%s", commentTrailAuthor.GetString("domain"), comment.GetString("trail"))
-	} else {
-		trailURL = commentTrail.GetString("iri")
-	}
 
 	commentObject := pub.ObjectNew(pub.NoteType)
-	commentObject.ID = pub.IRI(fmt.Sprintf("%s/api/v1/comment/%s", origin, comment.Id))
+	commentObject.ID = pub.IRI(comment.GetString("iri"))
 	commentObject.Content = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, comment.GetString("text")))
 	commentObject.Published = comment.GetDateTime("created").Time()
 	commentObject.AttributedTo = pub.IRI(commentAuthor.GetString("iri"))
-	commentObject.InReplyTo = pub.IRI(trailURL)
+	commentObject.InReplyTo = pub.IRI(commentTrail.GetString("iri"))
 
 	if mentions != nil {
 		commentObject.Tag = *mentions

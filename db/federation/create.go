@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -228,12 +226,7 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	}
 
 	var trailIRI pub.IRI
-	if summitLogTrailAuthor.GetBool("isLocal") {
-		trailId := summitLog.GetString("trail")
-		trailIRI = pub.IRI(fmt.Sprintf("%s/api/v1/trail/%s", origin, trailId))
-	} else {
-		trailIRI = pub.IRI(summitLogTrail.GetString("iri"))
-	}
+	trailIRI = pub.IRI(summitLogTrail.GetString("iri"))
 
 	recordId := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
 
@@ -321,7 +314,7 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	logObject.Content = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, summitLog.GetString("text")))
 	logObject.AttributedTo = pub.IRI(summitLogAuthor.GetString("iri"))
 	logObject.Published = summitLog.GetDateTime("created").Time()
-	logObject.ID = pub.IRI(fmt.Sprintf("%s/api/v1/summit-log/%s", origin, summitLog.Id))
+	logObject.ID = pub.IRI(summitLog.GetString("iri"))
 	logObject.URL = pub.IRI(fmt.Sprintf("%s/trail/view/@%s/%s", origin, summitLogTrailAuthor.GetString("preferred_username"), summitLog.GetString("trail")))
 	logObject.InReplyTo = trailIRI
 	logObject.Tag = tags
@@ -512,14 +505,8 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 		return fmt.Errorf("error processing comment: InReplyTo empty")
 	}
 
-	trailUrl, err := url.Parse(commentObject.InReplyTo.GetLink().String())
-	if err != nil {
-		return err
-	}
-	trailId := path.Base(trailUrl.Path)
-
 	var trail *core.Record
-	trail, err = app.FindFirstRecordByFilter("trails", "iri={:iri} || id={:id}", dbx.Params{"id": trailId, "iri": commentObject.InReplyTo.GetID().String()})
+	trail, err = app.FindFirstRecordByData("trails", "iri", commentObject.InReplyTo.GetLink().String())
 
 	// if the trail is not present on this instance fetch it
 	if err != nil {
@@ -619,13 +606,7 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		return err
 	}
 
-	trailIRI, err := url.Parse(logObject.InReplyTo.GetID().String())
-	if err != nil {
-		return err
-	}
-	trailId := path.Base(trailIRI.Path)
-
-	trail, err := app.FindFirstRecordByFilter("trails", "iri={:iri} || id={:id}", dbx.Params{"id": trailId, "iri": logObject.InReplyTo.GetID().String()})
+	trail, err := app.FindFirstRecordByData("trails", "iri", logObject.InReplyTo.GetID().String())
 	// if the trail is not present on this instance fetch it
 	if err != nil {
 		if err == sql.ErrNoRows {
