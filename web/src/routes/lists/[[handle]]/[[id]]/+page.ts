@@ -17,7 +17,7 @@ export const load: Load = async ({ params, fetch, url }) => {
     let lists: Awaited<ReturnType<typeof lists_search_filter>>;
     if (params.handle && params.id) {
         try {
-            const list = await lists_show(params.id, params.handle, fetch)
+            const list = await lists_show(params.id, params.handle, false, fetch)
 
             lists = { items: [list], page: 1, totalPages: 1, hits: [] }
         } catch (e) {

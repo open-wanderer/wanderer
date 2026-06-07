@@ -15,7 +15,7 @@ export const load: Load = async ({ params, fetch, data }) => {
         return { list: list, previewUrl: "" }
     } else {
         try {
-            list = await lists_show(params.id, undefined, fetch);
+            list = await lists_show(params.id, undefined, false, fetch);
             const previewURL = getFileURL(list, list.avatar);
 
             return { list: list, previewUrl: previewURL }

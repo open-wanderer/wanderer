@@ -135,7 +135,10 @@
 
     let clusterPopup: M.Popup | null = null;
 
-    let [data, clusterData, previewData] = $derived(getData(trails));
+    let trailGeojson: Record<string, FeatureCollection | undefined> = $state({});
+    const pendingGeojsonLoads = new Set<string>();
+
+    let [data, clusterData, previewData] = $derived(getData(trails, trailGeojson));
     $effect(() => {
         if (data && map && mapLoaded) {
             untrack(() => initMap(map?.loaded() ?? false));
@@ -187,8 +190,63 @@
         });
     });
 
+    $effect(() => {
+        let loadedTrails = new Set<string>();
+        let nextGeojson = trailGeojson;
+        let newData = false;
+
+        trails.forEach((trail, index) => {
+            const key = getTrailKey(trail, index);
+            loadedTrails.add(key);
+
+            if (nextGeojson[key]) {
+                return;
+            }
+
+            if (trail.expand?.gpx) {
+                nextGeojson = {
+                    ...nextGeojson,
+                    [key]: trail.expand.gpx.toGeoJSON(),
+                };
+                newData = true;
+                return;
+            }
+
+            if (trail.expand?.gpx_data) {
+                try {
+                    nextGeojson = {
+                        ...nextGeojson,
+                        [key]: GPX.parse(trail.expand.gpx_data).toGeoJSON(),
+                    };
+                    newData = true;
+                } catch (error) {
+                    console.error("Failed to parse GPX data", error);
+                }
+                return;
+            }
+
+            if (trail.gpx && !pendingGeojsonLoads.has(key)) {
+                loadTrailGeojson(trail, key);
+            }
+        });
+
+        Object.keys(nextGeojson).forEach((key) => {
+            if (!loadedTrails.has(key)) {
+                pendingGeojsonLoads.delete(key);
+                const { [key]: _, ...rest } = nextGeojson;
+                nextGeojson = rest;
+                newData = true;
+            }
+        });
+
+        if (newData) {
+            trailGeojson = nextGeojson;
+        }
+    });
+
     function getData(
         trails: Trail[],
+        geojsonByTrail: Record<string, FeatureCollection | undefined>,
     ): [FeatureCollection[], FeatureCollection, FeatureCollection] {
         let clusterData: FeatureCollection = {
             type: "FeatureCollection",
@@ -198,14 +256,12 @@
             type: "FeatureCollection",
             features: [],
         };
-        let r: FeatureCollection[] = [];
+        const r: FeatureCollection[] = trails.map((trail, index) => {
+            const key = getTrailKey(trail, index);
+            return geojsonByTrail[key] ?? { type: "FeatureCollection", features: [], };
+        });
 
         trails.forEach((t, i) => {
-            if (t.expand?.gpx) {
-                r.push(t.expand.gpx.toGeoJSON());
-            } else if (t.expand?.gpx_data) {
-                r.push(GPX.parse(t.expand.gpx_data).toGeoJSON());
-            }
             if (clusterTrails) {
                 if (t.lat !== null && t.lon !== null) {
                     clusterData.features.push({
@@ -1023,6 +1079,29 @@
             hash |= 0;
         }
         return Math.abs(hash) % max;
+    }
+
+    function getTrailKey(trail: Trail, index: number) {
+        return trail.id ?? `trail-${index}`;
+    }
+
+    async function loadTrailGeojson(trail: Trail, key: string) {
+        pendingGeojsonLoads.add(key);
+        try {
+            const gpx = await fetchGPX(trail);
+            if (!gpx) {
+                return;
+            }
+            const geojson = GPX.parse(gpx).toGeoJSON();
+            trailGeojson = {
+                ...trailGeojson,
+                [key]: geojson,
+            };
+        } catch (error) {
+            console.error("Failed to load GPX data", error);
+        } finally {
+            pendingGeojsonLoads.delete(key);
+        }
     }
 </script>
 

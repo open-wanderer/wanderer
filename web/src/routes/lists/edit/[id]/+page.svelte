@@ -26,7 +26,7 @@
         trail_share_create,
         trail_share_index,
     } from "$lib/stores/trail_share_store.js";
-    import { trails_show, trails_update } from "$lib/stores/trail_store";
+    import { trails_show, trails_update, fetchGPX } from "$lib/stores/trail_store";
     import { currentUser } from "$lib/stores/user_store.js";
     import { getFileURL } from "$lib/util/file_util.js";
     import {
@@ -102,6 +102,13 @@
 
     onMount(() => {
         trailsOnMap = [...(data.list.expand?.trails ?? [])];
+
+        if (trailsOnMap) {
+            for (const trail of trailsOnMap) {
+                if (trail.expand === undefined || trail.expand.gpx_data) continue;
+                fetchGPX(trail, fetch).then((gpx) => trail.expand!.gpx_data= gpx);
+            }
+        }
     });
 
     async function checkPrerequisites() {

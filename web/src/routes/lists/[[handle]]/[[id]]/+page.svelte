@@ -23,7 +23,7 @@
         lists_search_filter,
         lists_show,
     } from "$lib/stores/list_store";
-    import { trails_show } from "$lib/stores/trail_store";
+    import { trails_show, fetchGPX } from "$lib/stores/trail_store";
     import { currentUser } from "$lib/stores/user_store";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util.js";
     import * as M from "maplibre-gl";
@@ -112,6 +112,7 @@
         const fullList = await lists_show(
             item.id!,
             handleFromRecordWithIRI(item),
+            false,
             fetch,
         );
         selectedList = fullList;
@@ -146,6 +147,23 @@
 
         mapWithElevation?.unHighlightTrail(trail.id!);
         window.scrollTo({ top: 0 });
+    }
+
+    function getMapTrails() {
+        if (selectedTrail) {
+            return [selectedTrail];
+        }
+
+        if (selectedList?.expand?.trails) {
+            for (const trail of selectedList.expand.trails) {
+                if (trail.expand === undefined || trail.expand.gpx_data) continue;
+                fetchGPX(trail, fetch).then((gpx) => trail.expand!.gpx_data= gpx);
+            }
+
+            return selectedList.expand.trails;
+        }
+
+        return [];
     }
 
     function highlightTrail(trail: Trail) {

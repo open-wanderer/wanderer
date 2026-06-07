@@ -76,7 +76,7 @@ export async function lists_search_filter(filter: ListFilter, page: number = 1, 
     return { items: result, ...fetchedLists };
 }
 
-export async function lists_show(id: string, handle?: string, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+export async function lists_show(id: string, handle?: string, doFetchGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
 
     const r = await f(`/api/v1/list/${id}?` + new URLSearchParams({
         expand: "author,trails,trails.author,trails.category,trails.tags,list_share_via_list.actor",
@@ -92,9 +92,11 @@ export async function lists_show(id: string, handle?: string, f: (url: RequestIn
 
     const response = await r.json()
 
-    for (const trail of response.expand?.trails ?? []) {
-        const gpxData: string = await fetchGPX(trail, f);
-        trail.expand.gpx_data = gpxData;
+    if (doFetchGPX) {
+        for (const trail of response.expand?.trails ?? []) {
+            const gpxData: string = await fetchGPX(trail, f);
+            trail.expand.gpx_data = gpxData;
+        }
     }
 
     list.set(response);
