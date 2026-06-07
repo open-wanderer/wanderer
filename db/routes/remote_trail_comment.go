@@ -39,8 +39,13 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 		return err
 	}
 
+	trailAuthor, err := e.App.FindRecordById("activitypub_actors", trail.GetString("author"))
+	if err != nil {
+		return err
+	}
+
 	// Sync remote data first (Fetch + Save)
-	if trail.GetString("iri") != "" {
+	if trail.GetString("iri") != "" && !trailAuthor.GetBool("isLocal") {
 		_ = syncRemoteComments(e, trail)
 	}
 

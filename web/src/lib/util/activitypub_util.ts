@@ -38,7 +38,7 @@ export function handleFromRecordWithIRI(record: any) {
         throw new Error("object has no author info")
     }
     
-    if (!record.iri) {
+    if (record.expand.author.isLocal) {
         return `@${record.expand.author.preferred_username}`
     }
     const url = new URL(record.iri ?? "")
