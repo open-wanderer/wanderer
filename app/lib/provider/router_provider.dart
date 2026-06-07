@@ -16,7 +16,6 @@ import 'package:wanderer/routes/global_search_screen.dart';
 import 'package:wanderer/routes/trail_detail_map_screen.dart';
 import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
-import 'package:wanderer/routes/trail_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
 
 part 'router_provider.g.dart';
@@ -78,7 +77,7 @@ class Router extends _$Router {
         }
 
         if (loggedIn && (isAtSplash || isAtAuthRoute)) {
-          return '/trail';
+          return '/map';
         }
 
         return null;
@@ -102,13 +101,6 @@ class Router extends _$Router {
             return WandererLayout(child: child);
           },
           routes: [
-            GoRoute(
-              path: '/trail',
-              builder: (context, state) => const TrailScreen(),
-              routes: [
-                // Sub-routes keep the /trail prefix but stay inside the Shell
-              ],
-            ),
             GoRoute(
               path: '/map',
               builder: (context, state) {

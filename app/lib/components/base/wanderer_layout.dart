@@ -25,16 +25,16 @@ class WandererLayout extends ConsumerWidget {
         unselectedItemColor: Colors.grey,
         items: [
           BottomNavigationBarItem(
-            icon: const FaIcon(FontAwesomeIcons.route),
-            label: AppLocalizations.of(context)!.trail(2),
-          ),
-          BottomNavigationBarItem(
             icon: const FaIcon(FontAwesomeIcons.mapLocationDot),
-            label: AppLocalizations.of(context)!.map,
+            label: AppLocalizations.of(context)!.trail(2),
           ),
           BottomNavigationBarItem(
             icon: const FaIcon(FontAwesomeIcons.list),
             label: AppLocalizations.of(context)!.list(2),
+          ),
+          BottomNavigationBarItem(
+            icon: const FaIcon(FontAwesomeIcons.bookAtlas),
+            label: "Library",
           ),
           BottomNavigationBarItem(
             icon: CircleAvatar(
@@ -53,13 +53,13 @@ class WandererLayout extends ConsumerWidget {
         onTap: (index) {
           switch (index) {
             case 0:
-              router.go('/trail');
-              break;
-            case 1:
               router.go('/map');
               break;
-            case 2:
+            case 1:
               router.go('/list');
+              break;
+            case 2:
+              router.go('/library');
               break;
             case 3:
               router.go('/profile');
@@ -73,8 +73,9 @@ class WandererLayout extends ConsumerWidget {
   }
 
   int _calculateSelectedIndex(String path) {
-    if (path.startsWith('/map')) return 1;
-    if (path.startsWith('/list')) return 2;
+    if (path.startsWith('/map')) return 0;
+    if (path.startsWith('/list')) return 1;
+    if (path.startsWith('/library')) return 2;
     if (path.startsWith('/profile')) return 3;
     return 0;
   }
