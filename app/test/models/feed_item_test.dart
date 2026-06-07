@@ -94,25 +94,33 @@ void main() {
       expect(listItem.list.id, 'list-1');
     });
 
-    test('type "summit_log" throws UnsupportedError', () {
+    // Replaces the old 'summit_log throws UnsupportedError' test.
+    // summit_log items are pre-filtered at the provider level and must never
+    // reach fromJson in production. The meaningful defensive contract is that
+    // a feed entry arriving WITHOUT expand.item (the field the server may omit
+    // for unresolved federated items) throws a typed FormatException — not a
+    // null-pointer crash — so the provider's AsyncValue.guard can catch it.
+    test('absent expand.item throws FormatException', () {
       final json = {
         'id': 'feed-3',
         'actor': 'actor-1',
-        'type': 'summit_log',
+        'type': 'trail',
         'created': '2024-01-01 00:00:00.000Z',
-        'expand': {},
+        'expand': <String, dynamic>{}, // item key is missing
       };
 
-      expect(() => FeedItem.fromJson(json), throwsUnsupportedError);
+      expect(() => FeedItem.fromJson(json), throwsA(isA<FormatException>()));
     });
 
-    test('unknown type throws UnsupportedError', () {
+    test('unknown type with expand.item present throws UnsupportedError', () {
       final json = {
         'id': 'feed-4',
         'actor': 'actor-1',
         'type': 'unknown_type',
         'created': '2024-01-01 00:00:00.000Z',
-        'expand': {},
+        'expand': {
+          'item': {'id': 'x'},
+        },
       };
 
       expect(() => FeedItem.fromJson(json), throwsUnsupportedError);
