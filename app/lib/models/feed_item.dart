@@ -47,14 +47,14 @@ sealed class FeedItem with _$FeedItem {
       'trail' => FeedItem.trail(
           id: json['id'] as String,
           actor: json['actor'] as String,
-          type: type,
+          type: type!, // type is narrowed to non-null by the switch arm
           created: json['created'] as String,
           trail: TrailSearchResult.fromJson(item),
         ),
       'list' => FeedItem.list(
           id: json['id'] as String,
           actor: json['actor'] as String,
-          type: type,
+          type: type!, // type is narrowed to non-null by the switch arm
           created: json['created'] as String,
           list: ListSearchResult.fromJson(item),
         ),
