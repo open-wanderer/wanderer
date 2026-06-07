@@ -25,14 +25,6 @@ func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		if err := util.SavePolyline(e.App, record); err != nil {
 			log.Printf("failed to save polyline for trail %s: %v", record.Id, err)
 		}
-		if err := util.IndexTrails(e.App, []*core.Record{record}, client); err != nil {
-			return err
-		}
-
-		err = e.Next()
-		if err != nil {
-			return err
-		}
 
 		// add local iri
 		origin := os.Getenv("ORIGIN")
@@ -44,6 +36,15 @@ func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			if err = e.App.UnsafeWithoutHooks().Save(e.Record); err != nil {
 				return err
 			}
+		}
+
+		if err := util.IndexTrails(e.App, []*core.Record{record}, client); err != nil {
+			return err
+		}
+
+		err = e.Next()
+		if err != nil {
+			return err
 		}
 
 		if !userActor.GetBool("isLocal") {
