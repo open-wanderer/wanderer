@@ -1,7 +1,7 @@
 # [Unreleased]
 
 ## Features
-- Tiered map clustering and polyline filtering: The world map now uses a density-based clustering strategy to manage performance. Smaller trails are automatically clustered, while the largest routes in the current view are shown as detailed polylines. The maximum number of visible polylines is fully configurable via the `PUBLIC_MAP_MAX_POLYLINES` environment variable.
+- Server-side map clustering and zoom-aware polyline filtering: The world map now performs trail clustering on the server to improve performance. At lower zoom levels, smaller trails are clustered, while at higher zoom levels the largest routes in the current view are shown as detailed polylines. The maximum number of simultaneously visible polylines can be configured via the PUBLIC_MAP_MAX_POLYLINES environment variable.
 
 # v0.19.2
 ## Documentation
