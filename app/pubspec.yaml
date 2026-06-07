@@ -70,7 +70,6 @@ flutter:
   generate: true
   assets:
     - assets/svgs/
-    - assets/styles/
   fonts:
     - family: IBMPlexSans
       fonts:

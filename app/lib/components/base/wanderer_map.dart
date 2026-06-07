@@ -4,15 +4,19 @@ import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
+import 'package:wanderer/components/map/themes/map_theme_wanderer_dark.dart';
+import 'package:wanderer/components/map/themes/map_theme_wanderer_light.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
 
 class WandererMap extends ConsumerStatefulWidget {
   final Trail trail;
   final MapController? mapController;
   final bool disabled;
+  final bool offline;
   final List<Widget>? controls;
   final LatLng? elevationMarkerPosition;
   final EdgeInsets initialCameraFitPadding;
@@ -23,6 +27,7 @@ class WandererMap extends ConsumerStatefulWidget {
   final TapCallback? onTap;
   final Function(MapEvent)? onMapEvent;
   final Function(Waypoint wp)? onWaypointTap;
+
   const WandererMap({
     super.key,
     required this.trail,
@@ -31,6 +36,7 @@ class WandererMap extends ConsumerStatefulWidget {
     this.onWaypointTap,
     this.onMapEvent,
     this.disabled = false,
+    this.offline = false,
     this.controls = const [],
     this.showTrail = true,
     this.showLocation = false,
@@ -43,31 +49,75 @@ class WandererMap extends ConsumerStatefulWidget {
 }
 
 class _WandererMapState extends ConsumerState<WandererMap> {
-  Style? style;
-  LatLngBounds? bounds;
+  Style? _style;
+  PmTilesVectorTileProvider? _offlineTileProvider;
+  Object? _error;
+  LatLngBounds? _bounds;
 
   @override
   void initState() {
     super.initState();
-    _initializeStyle();
-    bounds = widget.trail.expand?.gpx?.getBounds();
+    _bounds = widget.trail.expand?.gpx?.getBounds();
+    _initStyle();
+    if (widget.offline) {
+      _initOffline();
+    }
   }
 
-  Future<void> _initializeStyle() async {
-    final originalStyle = await StyleReader.asset(
-      'assets/styles/ofm.json',
+  Future<void> _initStyle() async {
+    final brightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final asset = brightness == Brightness.dark
+        ? mapThemeWandererDark()
+        : mapThemeWandererLight();
+    final style = await StyleReader.map(
+      asset,
+      apiKey: const String.fromEnvironment(
+        'PROTOMAPS_API_KEY',
+        defaultValue: '',
+      ),
     ).read();
-
     if (mounted) {
-      setState(() {
-        style = originalStyle;
-      });
+      setState(() => _style = style);
     }
+  }
+
+  Future<void> _initOffline() async {
+    try {
+      final provider = await PmTilesVectorTileProvider.fromSource(
+        widget.trail.pmTiles[0],
+      );
+      if (mounted) setState(() => _offlineTileProvider = provider);
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    }
+  }
+
+  bool get _ready =>
+      widget.offline ? _offlineTileProvider != null : _style != null;
+
+  VectorTileLayer _buildTileLayer() {
+    if (widget.offline) {
+      return VectorTileLayer(
+        fileCacheTtl: Duration.zero,
+        theme: _style!.theme,
+        tileProviders: TileProviders({'protomaps': _offlineTileProvider!}),
+        tileOffset: TileOffset.DEFAULT,
+      );
+    }
+    return VectorTileLayer(
+      tileProviders: _style!.providers,
+      theme: _style!.theme,
+      tileOffset: TileOffset.DEFAULT,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (style == null) {
+    if (_error != null) {
+      return Center(child: Text(_error.toString()));
+    }
+    if (!_ready) {
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -79,9 +129,9 @@ class _WandererMapState extends ConsumerState<WandererMap> {
         interactionOptions: widget.disabled
             ? const InteractionOptions(flags: InteractiveFlag.none)
             : const InteractionOptions(),
-        initialCameraFit: bounds != null
+        initialCameraFit: _bounds != null
             ? CameraFit.bounds(
-                bounds: bounds!,
+                bounds: _bounds!,
                 padding: widget.initialCameraFitPadding,
               )
             : null,
@@ -89,11 +139,8 @@ class _WandererMapState extends ConsumerState<WandererMap> {
         initialZoom: 18,
       ),
       children: [
-        VectorTileLayer(
-          tileProviders: style!.providers,
-          theme: style!.theme,
-          tileOffset: TileOffset.DEFAULT,
-        ),
+        _buildTileLayer(),
+
         if (widget.trail.expand?.gpx != null && widget.showTrail)
           TrailLayer(trail: widget.trail, onWaypointTap: widget.onWaypointTap),
 

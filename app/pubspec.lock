@@ -1324,7 +1324,7 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: "6ba8a99f08ca98e80f2e45c0c41a02e9a9f6d86c"
+      resolved-ref: "2ad23ae23e0c8059ad5bb4be6f6ccd6914cda08c"
       url: "https://github.com/flomp/flutter-vector-map-tiles"
     source: git
     version: "10.0.0-beta.2"
@@ -1349,7 +1349,7 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: dc310c79ee291e7e9aab7953619a1d3189108edd
+      resolved-ref: "75dc31dd371c9bd39e1d28e5eebfbcbfb295f2ed"
       url: "https://github.com/flomp/dart-vector-tile-renderer"
     source: git
     version: "7.0.0-beta.2"

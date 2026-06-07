@@ -9,6 +9,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:wanderer/components/map/map_compass.dart';
+import 'package:wanderer/components/map/themes/map_theme_wanderer_dark.dart';
+import 'package:wanderer/components/map/themes/map_theme_wanderer_light.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -84,8 +86,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   Future<void> _initializeStyle() async {
-    final originalStyle = await StyleReader.asset(
-      'assets/styles/ofm.json',
+    final brightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final asset = brightness == Brightness.dark
+        ? mapThemeWandererDark()
+        : mapThemeWandererLight();
+    final originalStyle = await StyleReader.map(
+      asset,
+      apiKey: const String.fromEnvironment(
+        'PROTOMAPS_API_KEY',
+        defaultValue: '',
+      ),
     ).read();
 
     if (mounted) {
