@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1.0",
   "id": "komoot",
-  "type": "integration",
+  "type": "trails",
   "name": "komoot",
   "description": "Imports planned and completed komoot tours, including photos and waypoints, into wanderer.",
   "version": "0.1.0",

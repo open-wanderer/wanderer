@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1.0",
   "id": "hammerhead",
-  "type": "integration",
+  "type": "trails",
   "name": "Hammerhead",
   "description": "Imports Hammerhead routes and activities, and can send wanderer routes to Hammerhead.",
   "version": "0.1.0",

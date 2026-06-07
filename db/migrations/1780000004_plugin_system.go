@@ -84,7 +84,7 @@ func createInstalledPluginsCollection(app core.App) error {
 				"required": true,
 				"system": false,
 				"type": "select",
-				"values": ["integration"]
+				"values": ["trails"]
 			},
 			{
 				"hidden": false,

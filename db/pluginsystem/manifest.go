@@ -2,6 +2,7 @@ package pluginsystem
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +15,8 @@ const (
 )
 
 var pluginIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+
+var ErrUnsupportedPluginType = errors.New("unsupported plugin type")
 
 type LocalPlugin struct {
 	Manifest Manifest `json:"manifest"`
@@ -65,6 +68,9 @@ func LoadLocalPlugins(dir string) ([]LocalPlugin, error) {
 		plugin, err := LoadLocalPlugin(pluginDir)
 		if err != nil {
 			if os.IsNotExist(err) {
+				continue
+			}
+			if errors.Is(err, ErrUnsupportedPluginType) {
 				continue
 			}
 			return nil, fmt.Errorf("%s: %w", pluginDir, err)
@@ -124,8 +130,8 @@ func ValidateManifest(manifest Manifest) error {
 	if !pluginIDPattern.MatchString(manifest.ID) {
 		return fmt.Errorf("id must match %s", pluginIDPattern.String())
 	}
-	if manifest.Type != PluginTypeIntegration {
-		return fmt.Errorf("type must be %q", PluginTypeIntegration)
+	if manifest.Type != PluginTypeTrails {
+		return fmt.Errorf("%w: type must be %q", ErrUnsupportedPluginType, PluginTypeTrails)
 	}
 	if strings.TrimSpace(manifest.Name) == "" {
 		return fmt.Errorf("name is required")

@@ -57,6 +57,35 @@ func TestLoadLocalPluginsFindsDirectChildPlugins(t *testing.T) {
 	}
 }
 
+func TestLoadLocalPluginsSkipsUnsupportedPluginTypes(t *testing.T) {
+	root := t.TempDir()
+	writePluginDir(t, root, "hammerhead")
+
+	assetsDir := filepath.Join(root, "immich")
+	if err := os.MkdirAll(assetsDir, 0o700); err != nil {
+		t.Fatalf("mkdir plugin dir: %v", err)
+	}
+	manifest := hammerheadManifestForTest()
+	manifest.ID = "immich"
+	manifest.Name = "Immich"
+	manifest.Type = "assets"
+	writeManifest(t, assetsDir, manifest)
+	if err := os.WriteFile(filepath.Join(assetsDir, "plugin.wasm"), []byte("wasm"), 0o600); err != nil {
+		t.Fatalf("write wasm: %v", err)
+	}
+
+	plugins, err := LoadLocalPlugins(root)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(plugins) != 1 {
+		t.Fatalf("got %d plugins, want 1", len(plugins))
+	}
+	if plugins[0].Manifest.ID != "hammerhead" {
+		t.Fatalf("got plugin %q, want hammerhead", plugins[0].Manifest.ID)
+	}
+}
+
 func TestLoadLocalPluginsDoesNotSearchRecursively(t *testing.T) {
 	root := t.TempDir()
 	writePluginDir(t, filepath.Join(root, "nested"), "hammerhead")
@@ -74,7 +103,7 @@ func hammerheadManifestForTest() Manifest {
 	return Manifest{
 		ManifestVersion: ManifestVersion,
 		ID:              "hammerhead",
-		Type:            PluginTypeIntegration,
+		Type:            PluginTypeTrails,
 		Name:            "Hammerhead",
 		Version:         "0.1.0",
 		Runtime: RuntimeManifest{

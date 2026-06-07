@@ -350,7 +350,7 @@ func testHostManifest(t *testing.T, rawURL string) Manifest {
 	return Manifest{
 		ManifestVersion: ManifestVersion,
 		ID:              "test",
-		Type:            PluginTypeIntegration,
+		Type:            PluginTypeTrails,
 		Name:            "Test",
 		Version:         "0.1.0",
 		Runtime: RuntimeManifest{

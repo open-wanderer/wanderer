@@ -4,7 +4,7 @@ const (
 	ManifestVersion = "1.0"
 	RuntimeWASM     = "wasm"
 
-	PluginTypeIntegration = "integration"
+	PluginTypeTrails = "trails"
 
 	AuthTypeOAuth2  = "oauth2"
 	AuthTypeAPIKey  = "api_key"

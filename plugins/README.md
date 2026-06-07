@@ -38,7 +38,7 @@ Plugin authors can reference the manifest schema from a source manifest:
 {
   "$schema": "../schema/plugin.schema.json",
   "manifestVersion": "1.0",
-  "type": "integration"
+  "type": "trails"
 }
 ```
 

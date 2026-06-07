@@ -21,7 +21,7 @@ export interface ConfigField {
 
 export interface PluginProvider {
     id: string;
-    type: "integration";
+    type: "trails";
     name: string;
     displayName?: string;
     displayNames?: LocalizedTextMap;

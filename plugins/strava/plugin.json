@@ -1,7 +1,7 @@
 {
   "manifestVersion": "1.0",
   "id": "strava",
-  "type": "integration",
+  "type": "trails",
   "name": "Strava",
   "description": "Imports Strava routes, activities and photos into wanderer.",
   "version": "0.1.0",
