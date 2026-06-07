@@ -12,3 +12,6 @@ build*.sh
 start*.*
 
 data*/
+.planning/
+.claude
+CLAUDE.md

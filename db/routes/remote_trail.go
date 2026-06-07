@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"pocketbase/federation"
 	"pocketbase/util"
 	"strconv"
@@ -350,13 +349,10 @@ func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, ori
 		slID, _ := raw["id"].(string)
 		iri, _ := raw["iri"].(string)
 		if iri == "" {
-			iri = fmt.Sprintf("%s/api/v1/summit_logs/%s", origin, slID)
+			iri = fmt.Sprintf("%s/api/v1/summit-log/%s", origin, slID)
 		}
 
-		remoteSummitLogUrl, _ := url.Parse(iri)
-		possibleLocalId := path.Base(remoteSummitLogUrl.Path)
-
-		sl, _ := txApp.FindFirstRecordByFilter("summit_logs", "iri={:iri} || id={:id}", dbx.Params{"id": possibleLocalId, "iri": iri})
+		sl, _ := txApp.FindFirstRecordByData("summit_logs", "iri", iri)
 		if sl == nil {
 			sl = core.NewRecord(col)
 		}

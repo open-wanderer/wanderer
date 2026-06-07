@@ -39,8 +39,13 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 		return err
 	}
 
+	trailAuthor, err := e.App.FindRecordById("activitypub_actors", trail.GetString("author"))
+	if err != nil {
+		return err
+	}
+
 	// Sync remote data first (Fetch + Save)
-	if trail.GetString("iri") != "" {
+	if trail.GetString("iri") != "" && !trailAuthor.GetBool("isLocal") {
 		_ = syncRemoteComments(e, trail)
 	}
 
@@ -149,11 +154,8 @@ func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 				remoteIRI = fmt.Sprintf("%s://%s/api/v1/comment/%s", u.Scheme, u.Host, remoteID)
 			}
 
-			remoteCommentUrl, _ := url.Parse(remoteIRI)
-			possibleLocalId := path.Base(remoteCommentUrl.Path)
-
 			// Find existing record by IRI or ID to avoid duplicates
-			commentRecord, _ := txApp.FindFirstRecordByFilter("comments", "iri={:iri} || id={:id}", dbx.Params{"id": possibleLocalId, "iri": remoteIRI})
+			commentRecord, _ := txApp.FindFirstRecordByData("comments", "iri", remoteIRI)
 			if commentRecord == nil {
 				commentRecord = core.NewRecord(collection)
 				commentRecord.Set("iri", remoteIRI)

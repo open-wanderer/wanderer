@@ -1,6 +1,8 @@
 package hooks
 
 import (
+	"fmt"
+	"os"
 	"pocketbase/federation"
 	"pocketbase/util"
 
@@ -11,8 +13,20 @@ import (
 
 func CreateSummitLogHandler(client meilisearch.ServiceManager) func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
-
 		err := e.Next()
+		if err != nil {
+			return err
+		}
+
+		// add local iri
+		origin := os.Getenv("ORIGIN")
+		if origin == "" {
+			return fmt.Errorf("ORIGIN not set")
+		}
+		if e.Record.GetString("iri") == "" {
+			e.Record.Set("iri", fmt.Sprintf("%s/api/v1/summit-log/%s", origin, e.Record.Id))
+		}
+		err = e.App.UnsafeWithoutHooks().Save(e.Record)
 		if err != nil {
 			return err
 		}
