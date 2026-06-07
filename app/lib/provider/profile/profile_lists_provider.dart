@@ -64,8 +64,16 @@ class ProfileListsNotifier extends _$ProfileListsNotifier {
       },
     );
 
-    final List<dynamic> hits = response.data['hits'] ?? [];
-    final int totalPages = response.data['totalPages'] ?? 1;
+    if (response.data is! Map<String, dynamic>) {
+      throw FormatException(
+        'Unexpected response shape from /profile/$handle/lists: '
+        '${response.data.runtimeType}',
+      );
+    }
+    final data = response.data as Map<String, dynamic>;
+
+    final List<dynamic> hits = data['hits'] ?? [];
+    final int totalPages = data['totalPages'] ?? 1;
 
     return ProfileListsState(
       lists: hits.map((json) => ListSearchResult.fromJson(json)).toList(),

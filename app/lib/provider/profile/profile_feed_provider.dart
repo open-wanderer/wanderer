@@ -62,7 +62,15 @@ class ProfileFeedNotifier extends _$ProfileFeedNotifier {
       queryParameters: {'page': page, 'perPage': perPage, 'sort': '-created'},
     );
 
-    final rawItems = (response.data['items'] as List? ?? []);
+    if (response.data is! Map<String, dynamic>) {
+      throw FormatException(
+        'Unexpected response shape from /profile/$handle/feed: '
+        '${response.data.runtimeType}',
+      );
+    }
+    final data = response.data as Map<String, dynamic>;
+
+    final rawItems = (data['items'] as List? ?? []);
     final List<FeedItem> feedItems = rawItems
         .where((json) {
           final type = (json as Map<String, dynamic>)['type'] as String?;
@@ -73,10 +81,10 @@ class ProfileFeedNotifier extends _$ProfileFeedNotifier {
 
     return ProfileFeedState(
       items: feedItems,
-      page: response.data['page'] as int? ?? page,
-      perPage: response.data['perPage'] as int? ?? perPage,
-      totalPages: response.data['totalPages'] as int? ?? 1,
-      totalItems: response.data['totalItems'] as int? ?? 0,
+      page: data['page'] as int? ?? page,
+      perPage: data['perPage'] as int? ?? perPage,
+      totalPages: data['totalPages'] as int? ?? 1,
+      totalItems: data['totalItems'] as int? ?? 0,
     );
   }
 }
