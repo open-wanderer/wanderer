@@ -15,8 +15,6 @@ export class TrailPage {
   readonly confirmModal: Locator;
   readonly confirmModalConfirmButton: Locator;
 
-  readonly trailName: Locator;
-
   constructor(page: Page) {
     this.page = page;
     this.fileInput = page.locator('#fileInput');
@@ -30,9 +28,6 @@ export class TrailPage {
     this.dropdownButton = page.getByLabel('Open dropdown');
     this.confirmModal = page.locator('#confirm-modal');
     this.confirmModalConfirmButton = this.confirmModal.locator('#confirm');
-    // View-page trail name heading (h4); use .filter({ hasText }) at call sites to
-    // avoid selecting the wrong h4 when multiple heading elements are present.
-    this.trailName = page.getByRole('heading', { level: 4 });
   }
 
   async gotoNew() {
