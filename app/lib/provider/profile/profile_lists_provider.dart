@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/profile/profile_constants.dart';
 
 part 'profile_lists_provider.g.dart';
 part 'profile_lists_provider.freezed.dart';
@@ -54,7 +55,7 @@ class ProfileListsNotifier extends _$ProfileListsNotifier {
     required int page,
   }) async {
     final api = ref.read(apiProvider);
-    const int perPage = 20;
+    const int perPage = kProfileSearchPerPage;
 
     final response = await api.post(
       '/profile/$handle/lists',

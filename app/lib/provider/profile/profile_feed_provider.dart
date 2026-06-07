@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/feed_item.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/profile/profile_constants.dart';
 
 part 'profile_feed_provider.g.dart';
 part 'profile_feed_provider.freezed.dart';
@@ -55,7 +56,7 @@ class ProfileFeedNotifier extends _$ProfileFeedNotifier {
     required int page,
   }) async {
     final api = ref.read(apiProvider);
-    const int perPage = 10;
+    const int perPage = kProfileFeedPerPage;
 
     final response = await api.get(
       '/profile/$handle/feed',
