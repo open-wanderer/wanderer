@@ -37,20 +37,26 @@ sealed class FeedItem with _$FeedItem {
         : <String, dynamic>{};
     final item = expand['item'] as Map<String, dynamic>?;
 
+    if (item == null) {
+      throw FormatException(
+        'FeedItem.fromJson: expand.item is absent for type "$type".',
+      );
+    }
+
     return switch (type) {
       'trail' => FeedItem.trail(
           id: json['id'] as String,
           actor: json['actor'] as String,
-          type: type!,
+          type: type,
           created: json['created'] as String,
-          trail: TrailSearchResult.fromJson(item!),
+          trail: TrailSearchResult.fromJson(item),
         ),
       'list' => FeedItem.list(
           id: json['id'] as String,
           actor: json['actor'] as String,
-          type: type!,
+          type: type,
           created: json['created'] as String,
-          list: ListSearchResult.fromJson(item!),
+          list: ListSearchResult.fromJson(item),
         ),
       _ => throw UnsupportedError('Unsupported feed item type: $type'),
     };
