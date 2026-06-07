@@ -93,8 +93,8 @@ export class TrailPage {
     await this.page.locator('.menu .menu-item').filter({ hasText: action }).click();
   }
 
-  // Navigate to the edit page, clear the name field, fill with newName, and save.
-  // Waits on /api/v1/trail/form 200 (POST update) before returning (TRAIL-04).
+  // Precondition: caller must already be on the trail edit page (e.g. via gotoEdit()).
+  // Clears the name field, fills with newName, and saves via /api/v1/trail/form 200 (TRAIL-04).
   async editName(newName: string): Promise<void> {
     await this.nameInput.clear();
     await this.nameInput.fill(newName);
