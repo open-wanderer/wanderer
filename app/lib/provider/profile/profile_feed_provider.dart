@@ -38,8 +38,9 @@ class ProfileFeedNotifier extends _$ProfileFeedNotifier {
       return;
     }
 
-    // Preserve previous data in the loading state so the UI does not flicker.
-    state = AsyncLoading<ProfileFeedState>()..copyWithPrevious(state);
+    // Do NOT set AsyncLoading here — stay in AsyncData while fetching the
+    // next page so the UI keeps showing the existing list without flickering
+    // to an empty spinner. State transitions directly AsyncData -> AsyncData.
     state = await AsyncValue.guard(() async {
       final nextPage = currentState.page + 1;
       final responseState = await _fetchPage(handle: _handle, page: nextPage);
