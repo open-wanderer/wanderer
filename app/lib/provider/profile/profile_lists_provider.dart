@@ -36,7 +36,8 @@ class ProfileListsNotifier extends _$ProfileListsNotifier {
       return;
     }
 
-    state = AsyncLoading();
+    // Preserve previous data in the loading state so the UI does not flicker.
+    state = AsyncLoading<ProfileListsState>()..copyWithPrevious(state);
     state = await AsyncValue.guard(() async {
       final nextPage = currentState.page + 1;
       final responseState = await _fetchPage(handle: _handle, page: nextPage);
