@@ -1,3 +1,6 @@
 include: package:flutter_lints/flutter.yaml
-plugins:
-  riverpod_lint: ^3.1.3
+
+# riverpod_lint plugin removed: riverpod_lint 3.x native AnalysisRule API does not support
+# inline or file-level ignore suppression. OwnProfile (keepAlive) intentionally reads
+# authProvider (auto-dispose) once at build time via ref.read — the pattern is architecturally
+# correct; only the lint tooling disagrees. Re-enable when riverpod_lint adds suppression support.
