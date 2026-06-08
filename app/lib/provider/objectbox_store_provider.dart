@@ -3,7 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'objectbox_store_provider.g.dart';
 
-@riverpod
+@Riverpod(keepAlive: true)
 class ObjectBox extends _$ObjectBox {
   @override
   Store build() {

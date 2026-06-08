@@ -10,7 +10,7 @@ import 'package:wanderer/provider/objectbox_store_provider.dart';
 
 part 'auth_provider.g.dart';
 
-@riverpod
+@Riverpod(keepAlive: true)
 class Auth extends _$Auth {
   Box<UserEntity> get _box => ref.read(objectBoxProvider).box<UserEntity>();
 
