@@ -123,7 +123,7 @@ class Router extends _$Router {
             ),
             GoRoute(
               path: '/profile',
-              builder: (context, state) => ProfileScreen(),
+              builder: (context, state) => const ProfileScreen(handle: null),
             ),
             GoRoute(
               path: '/library',
@@ -163,6 +163,13 @@ class Router extends _$Router {
               },
             ),
           ],
+        ),
+        GoRoute(
+          path: '/profile/:handle',
+          builder: (context, state) {
+            final handle = state.pathParameters['handle']!;
+            return ProfileScreen(handle: handle);
+          },
         ),
       ],
     );
