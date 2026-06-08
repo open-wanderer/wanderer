@@ -102,14 +102,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         slivers: [
           SliverAppBar(
             pinned: true,
-            expandedHeight: 280,
+            expandedHeight: 200,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                '@${actor.preferredUsername}',
-                style: const TextStyle(fontSize: 14),
+              title: Builder(
+                builder: (context) {
+                  final settings = context
+                      .dependOnInheritedWidgetOfExactType<
+                        FlexibleSpaceBarSettings
+                      >();
+                  const fadeRange = 16.0;
+                  final opacity = settings == null
+                      ? 0.0
+                      : 1.0 -
+                            ((settings.currentExtent - settings.minExtent) /
+                                    fadeRange)
+                                .clamp(0.0, 1.0);
+                  return Opacity(
+                    opacity: opacity,
+                    child: Text(actor.preferredUsername),
+                  );
+                },
               ),
               centerTitle: false,
-              background: _ProfileHeaderBackground(actor: actor),
+              background: _ProfileHeaderBackground(actor: actor, isOwn: isOwn),
             ),
             actions: _actionButtons(actor),
           ),
@@ -117,8 +132,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // Bio section
           SliverToBoxAdapter(child: _BioSection(summary: actor.summary)),
 
-          // Lists preview
+          // Stats row — follower/following counts + follow button
+          SliverToBoxAdapter(
+            child: _StatsRow(actor: actor, isOwn: isOwn),
+          ),
+
+          // Lists heading + preview
+          if (h != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  AppLocalizations.of(context)!.list(2),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
           if (h != null) SliverToBoxAdapter(child: _ListsPreview(handle: h)),
+
+          // Feed heading
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                "Feed",
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
 
           // Feed — loaded items
           if (!feedIsInitialLoading && feedItems.isNotEmpty)
@@ -171,7 +218,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       ];
     } else {
-      return [_FollowButton(profileActorId: actor.id)];
+      return [SizedBox.shrink()];
     }
   }
 }
@@ -182,8 +229,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
 class _ProfileHeaderBackground extends StatelessWidget {
   final Actor actor;
-
-  const _ProfileHeaderBackground({required this.actor});
+  final bool isOwn;
+  const _ProfileHeaderBackground({required this.actor, required this.isOwn});
 
   @override
   Widget build(BuildContext context) {
@@ -220,11 +267,6 @@ class _ProfileHeaderBackground extends StatelessWidget {
             Text(
               '${AppLocalizations.of(context)!.joined} $joinedDate',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${actor.followerCount ?? 0} ${AppLocalizations.of(context)!.followers} · ${actor.followingCount ?? 0} ${AppLocalizations.of(context)!.following}',
-              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
             ),
           ],
         ),
@@ -320,6 +362,58 @@ class _ListsPreview extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Stats row — follower/following counts and follow button
+// ---------------------------------------------------------------------------
+
+class _StatsRow extends StatelessWidget {
+  final Actor actor;
+  final bool isOwn;
+  const _StatsRow({required this.actor, required this.isOwn});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _StatColumn(label: l.followers, count: actor.followerCount ?? 0),
+          const SizedBox(width: 24),
+          _StatColumn(label: l.following, count: actor.followingCount ?? 0),
+          const Spacer(),
+          if (!isOwn)
+            SizedBox(
+              width: 100,
+              child: _FollowButton(profileActorId: actor.id),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatColumn extends StatelessWidget {
+  final String label;
+  final int count;
+  const _StatColumn({required this.label, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+        Text(
+          '$count',
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Follow button — drives followProvider for remote profiles
 // ---------------------------------------------------------------------------
 
@@ -345,7 +439,11 @@ class _FollowButton extends ConsumerWidget {
                 : () => ref
                       .read(followProvider(profileActorId).notifier)
                       .toggle(),
-            child: Text(followState.isFollowing ? 'Unfollow' : 'Follow'),
+            child: Text(
+              followState.isFollowing
+                  ? AppLocalizations.of(context)!.following
+                  : AppLocalizations.of(context)!.follow,
+            ),
           ),
         );
       },

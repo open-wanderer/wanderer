@@ -24,7 +24,7 @@ class ProfileNotifier extends _$ProfileNotifier {
   FutureOr<Actor> build(String handle) async {
     final api = ref.watch(apiProvider);
     final response = await api.get('/profile/$handle');
-    return Actor.fromJson(response.data as Map<String, dynamic>);
+    return Actor.fromJson(response.data["actor"] as Map<String, dynamic>);
   }
 }
 
