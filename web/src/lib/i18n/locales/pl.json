@@ -373,6 +373,7 @@
   "road": "Droga",
   "route": "{n, plural,=1 {Trasa} other {Trasy}}",
   "route-point": "Punkt trasy",
+  "add-as-endpoint": "Add as endpoint",
   "russian": "Russian",
   "save": "Zapisz",
   "save-list": "Zapisz listę",

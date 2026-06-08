@@ -49,6 +49,12 @@ func RemoteListGet(e *core.RequestEvent) error {
 				}
 				return e.InternalServerError("Sync failed", err)
 			}
+			if record.Id == "" {
+				// Local content that does not exist: performFullListSync
+				// short-circuits local IRIs and returns the unsaved shell —
+				// surface a real 404 instead of access/expand on a missing record.
+				return e.NotFoundError("List not found", nil)
+			}
 		} else {
 			updatedAt := record.GetDateTime("updated").Time()
 
@@ -111,11 +117,24 @@ func findLocalListByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle
 }
 
 func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, localList *core.Record) (*core.Record, error) {
-	client := util.SafeHTTPClient()
-
 	iri := localList.GetString("iri")
+
+	// Never federate with ourselves (see performFullSync in remote_trail.go).
+	if iri == "" || util.IsLocalIRI(iri) {
+		if localList.GetBool("needs_full_sync") {
+			localList.Set("needs_full_sync", false)
+			if err := app.Save(localList); err != nil {
+				return localList, err
+			}
+		}
+		return localList, nil
+	}
+
+	client := util.SafeHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
-	remoteUrl.RawQuery = reqURL.RawQuery
+	query := reqURL.Query()
+	query.Del("handle")
+	remoteUrl.RawQuery = query.Encode()
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, remoteUrl.String(), nil)
@@ -124,10 +143,13 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 	}
 
 	res, err := client.Do(req)
-	if err != nil || res.StatusCode != 200 {
+	if err != nil {
 		return localList, err
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return localList, fmt.Errorf("remote list fetch %s returned: %d", remoteUrl.String(), res.StatusCode)
+	}
 
 	var remoteMap map[string]any
 	if err := json.NewDecoder(res.Body).Decode(&remoteMap); err != nil {

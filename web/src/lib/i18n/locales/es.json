@@ -373,6 +373,7 @@
   "road": "Carretera",
   "route": "{n, plural, one {}=1 {Ruta} other {Rutas}}",
   "route-point": "Punto de ruta",
+  "add-as-endpoint": "Add as endpoint",
   "russian": "Ruso",
   "save": "Guardar",
   "save-list": "Guardar Lista",

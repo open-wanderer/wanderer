@@ -373,6 +373,7 @@
   "road": "Route",
   "route": "{n, plural, =1 {Itinéraire} other {Itinéraires}}",
   "route-point": "Étape",
+  "add-as-endpoint": "Add as endpoint",
   "russian": "Russe",
   "save": "Sauvegarder",
   "save-list": "Sauvegarder la liste",
