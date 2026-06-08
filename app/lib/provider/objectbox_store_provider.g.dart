@@ -19,7 +19,7 @@ final class ObjectBoxProvider extends $NotifierProvider<ObjectBox, Store> {
         argument: null,
         retry: null,
         name: r'objectBoxProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -40,7 +40,7 @@ final class ObjectBoxProvider extends $NotifierProvider<ObjectBox, Store> {
   }
 }
 
-String _$objectBoxHash() => r'61f7ca205899848e8ab5170e636ab2c45ec0db82';
+String _$objectBoxHash() => r'6155f448d6771a58a2b4e3c235be59c1e5a4c915';
 
 abstract class _$ObjectBox extends $Notifier<Store> {
   Store build();
