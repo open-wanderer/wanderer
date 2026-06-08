@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/models/feed_item.dart';
-import 'package:wanderer/components/trail/trail_card.dart';
-import 'package:wanderer/components/profile/list_card.dart';
+import 'package:wanderer/components/trail/trail_list_item.dart';
+import 'package:wanderer/components/list/list_list_item.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 String _formatCreated(String created) {
@@ -33,10 +34,9 @@ class FeedItemCard extends StatelessWidget {
         FeedItemTrail(:final trail, :final created) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _AuthorRow(actor: profileActor, created: created),
-            TrailCard(
+            _AuthorRow(actor: profileActor, created: created, type: "trail"),
+            TrailListItem(
               trail: trail,
-              fullWidth: true,
               onTrailSelect: () => context.push('/trail/${trail.id}'),
             ),
           ],
@@ -44,8 +44,8 @@ class FeedItemCard extends StatelessWidget {
         FeedItemList(:final list, :final created) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _AuthorRow(actor: profileActor, created: created),
-            ListCard(list: list),
+            _AuthorRow(actor: profileActor, created: created, type: "list"),
+            ListListItem(list: list),
           ],
         ),
       },
@@ -56,17 +56,23 @@ class FeedItemCard extends StatelessWidget {
 class _AuthorRow extends StatelessWidget {
   final Actor actor;
   final String created;
+  final String type;
 
-  const _AuthorRow({required this.actor, required this.created});
+  const _AuthorRow({
+    required this.actor,
+    required this.created,
+    required this.type,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           CircleAvatar(
-            radius: 16,
+            radius: 14,
             backgroundColor: Colors.grey.shade300,
             backgroundImage: NetworkImage(
               actor.icon != null && actor.icon!.isNotEmpty
@@ -86,6 +92,22 @@ class _AuthorRow extends StatelessWidget {
             _formatCreated(created),
             style: TextStyle(color: Colors.grey[600], fontSize: 12),
           ),
+          Spacer(),
+          if (type == "trail") ...[
+            FaIcon(FontAwesomeIcons.route, size: 14, color: Colors.grey),
+            SizedBox(width: 4),
+            Text(
+              AppLocalizations.of(context)!.trail(1),
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ] else if (type == "list") ...[
+            FaIcon(FontAwesomeIcons.layerGroup, size: 14, color: Colors.grey),
+            SizedBox(width: 4),
+            Text(
+              AppLocalizations.of(context)!.list(1),
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ],
         ],
       ),
     );

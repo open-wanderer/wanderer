@@ -1,12 +1,12 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 
-part 'trail_search_provider.g.dart';
 part 'trail_search_provider.freezed.dart';
+part 'trail_search_provider.g.dart';
 
 @freezed
 abstract class TrailSearchState with _$TrailSearchState {

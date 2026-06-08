@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Actor {
 
- String get id; String get collectionId; String get collectionName; DateTime get created; DateTime get updated; String get username;@JsonKey(name: 'preferred_username') String get preferredUsername; String? get domain; String? get summary; String? get published; int? get followerCount; int? get followingCount; String get iri; String get inbox; String? get outbox; String? get icon; String? get followers; String? get following; bool get isLocal;@JsonKey(name: 'public_key') String get publicKey;@JsonKey(name: 'last_fetched') String get lastFetched; String get user;
+ String get id; String get collectionId; String get collectionName; DateTime get created; DateTime get updated; String get username;@JsonKey(name: 'preferred_username') String get preferredUsername; String? get domain; String? get summary; String? get published;@JsonKey(name: 'follower_count') int? get followerCount;@JsonKey(name: 'following_count') int? get followingCount; String get iri; String get inbox; String? get outbox; String? get icon; String? get followers; String? get following; bool get isLocal;@JsonKey(name: 'public_key') String get publicKey;@JsonKey(name: 'last_fetched') String get lastFetched; String get user;
 /// Create a copy of Actor
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $ActorCopyWith<$Res>  {
   factory $ActorCopyWith(Actor value, $Res Function(Actor) _then) = _$ActorCopyWithImpl;
 @useResult
 $Res call({
- String id, String collectionId, String collectionName, DateTime created, DateTime updated, String username,@JsonKey(name: 'preferred_username') String preferredUsername, String? domain, String? summary, String? published, int? followerCount, int? followingCount, String iri, String inbox, String? outbox, String? icon, String? followers, String? following, bool isLocal,@JsonKey(name: 'public_key') String publicKey,@JsonKey(name: 'last_fetched') String lastFetched, String user
+ String id, String collectionId, String collectionName, DateTime created, DateTime updated, String username,@JsonKey(name: 'preferred_username') String preferredUsername, String? domain, String? summary, String? published,@JsonKey(name: 'follower_count') int? followerCount,@JsonKey(name: 'following_count') int? followingCount, String iri, String inbox, String? outbox, String? icon, String? followers, String? following, bool isLocal,@JsonKey(name: 'public_key') String publicKey,@JsonKey(name: 'last_fetched') String lastFetched, String user
 });
 
 
@@ -174,7 +174,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published,  int? followerCount,  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published, @JsonKey(name: 'follower_count')  int? followerCount, @JsonKey(name: 'following_count')  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Actor() when $default != null:
 return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.preferredUsername,_that.domain,_that.summary,_that.published,_that.followerCount,_that.followingCount,_that.iri,_that.inbox,_that.outbox,_that.icon,_that.followers,_that.following,_that.isLocal,_that.publicKey,_that.lastFetched,_that.user);case _:
@@ -195,7 +195,7 @@ return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published,  int? followerCount,  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published, @JsonKey(name: 'follower_count')  int? followerCount, @JsonKey(name: 'following_count')  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)  $default,) {final _that = this;
 switch (_that) {
 case _Actor():
 return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.preferredUsername,_that.domain,_that.summary,_that.published,_that.followerCount,_that.followingCount,_that.iri,_that.inbox,_that.outbox,_that.icon,_that.followers,_that.following,_that.isLocal,_that.publicKey,_that.lastFetched,_that.user);case _:
@@ -215,7 +215,7 @@ return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published,  int? followerCount,  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String collectionId,  String collectionName,  DateTime created,  DateTime updated,  String username, @JsonKey(name: 'preferred_username')  String preferredUsername,  String? domain,  String? summary,  String? published, @JsonKey(name: 'follower_count')  int? followerCount, @JsonKey(name: 'following_count')  int? followingCount,  String iri,  String inbox,  String? outbox,  String? icon,  String? followers,  String? following,  bool isLocal, @JsonKey(name: 'public_key')  String publicKey, @JsonKey(name: 'last_fetched')  String lastFetched,  String user)?  $default,) {final _that = this;
 switch (_that) {
 case _Actor() when $default != null:
 return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_that.updated,_that.username,_that.preferredUsername,_that.domain,_that.summary,_that.published,_that.followerCount,_that.followingCount,_that.iri,_that.inbox,_that.outbox,_that.icon,_that.followers,_that.following,_that.isLocal,_that.publicKey,_that.lastFetched,_that.user);case _:
@@ -230,7 +230,7 @@ return $default(_that.id,_that.collectionId,_that.collectionName,_that.created,_
 @JsonSerializable()
 
 class _Actor extends Actor {
-  const _Actor({required this.id, required this.collectionId, required this.collectionName, required this.created, required this.updated, required this.username, @JsonKey(name: 'preferred_username') required this.preferredUsername, this.domain, this.summary, this.published, this.followerCount, this.followingCount, required this.iri, required this.inbox, this.outbox, this.icon, this.followers, this.following, this.isLocal = false, @JsonKey(name: 'public_key') required this.publicKey, @JsonKey(name: 'last_fetched') required this.lastFetched, required this.user}): super._();
+  const _Actor({required this.id, required this.collectionId, required this.collectionName, required this.created, required this.updated, required this.username, @JsonKey(name: 'preferred_username') required this.preferredUsername, this.domain, this.summary, this.published, @JsonKey(name: 'follower_count') this.followerCount, @JsonKey(name: 'following_count') this.followingCount, required this.iri, required this.inbox, this.outbox, this.icon, this.followers, this.following, this.isLocal = false, @JsonKey(name: 'public_key') required this.publicKey, @JsonKey(name: 'last_fetched') required this.lastFetched, required this.user}): super._();
   factory _Actor.fromJson(Map<String, dynamic> json) => _$ActorFromJson(json);
 
 @override final  String id;
@@ -243,8 +243,8 @@ class _Actor extends Actor {
 @override final  String? domain;
 @override final  String? summary;
 @override final  String? published;
-@override final  int? followerCount;
-@override final  int? followingCount;
+@override@JsonKey(name: 'follower_count') final  int? followerCount;
+@override@JsonKey(name: 'following_count') final  int? followingCount;
 @override final  String iri;
 @override final  String inbox;
 @override final  String? outbox;
@@ -289,7 +289,7 @@ abstract mixin class _$ActorCopyWith<$Res> implements $ActorCopyWith<$Res> {
   factory _$ActorCopyWith(_Actor value, $Res Function(_Actor) _then) = __$ActorCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String collectionId, String collectionName, DateTime created, DateTime updated, String username,@JsonKey(name: 'preferred_username') String preferredUsername, String? domain, String? summary, String? published, int? followerCount, int? followingCount, String iri, String inbox, String? outbox, String? icon, String? followers, String? following, bool isLocal,@JsonKey(name: 'public_key') String publicKey,@JsonKey(name: 'last_fetched') String lastFetched, String user
+ String id, String collectionId, String collectionName, DateTime created, DateTime updated, String username,@JsonKey(name: 'preferred_username') String preferredUsername, String? domain, String? summary, String? published,@JsonKey(name: 'follower_count') int? followerCount,@JsonKey(name: 'following_count') int? followingCount, String iri, String inbox, String? outbox, String? icon, String? followers, String? following, bool isLocal,@JsonKey(name: 'public_key') String publicKey,@JsonKey(name: 'last_fetched') String lastFetched, String user
 });
 
 

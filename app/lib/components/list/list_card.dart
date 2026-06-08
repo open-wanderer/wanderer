@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:wanderer/models/global_search_models.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:wanderer/models/list_summary.dart';
+import 'package:wanderer/provider/auth_provider.dart';
 
-class ListCard extends StatelessWidget {
-  final ListSearchResult list;
+class ListCard extends ConsumerWidget {
+  final ListSummary list;
 
   const ListCard({super.key, required this.list});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).value!;
+
+    final avatarUrl = list.getFileUrl(
+      user.serverUrl,
+      list.avatar,
+      thumb: "600x0",
+    );
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       width: 160,
@@ -33,9 +43,9 @@ class ListCard extends StatelessWidget {
                 ),
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: list.avatar != null && list.avatar!.isNotEmpty
+                  child: list.avatar?.isNotEmpty == true
                       ? Image(
-                          image: NetworkImage(list.avatar!),
+                          image: NetworkImage(avatarUrl!),
                           fit: BoxFit.cover,
                           errorBuilder: (_, _, _) => _placeholder(context),
                         )
@@ -58,11 +68,8 @@ class ListCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${list.trails} trails',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
+                      '${list.trailCount} trails',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
                   ],
                 ),
@@ -75,11 +82,10 @@ class ListCard extends StatelessWidget {
   }
 
   Widget _placeholder(BuildContext context) {
-    return Container(
-      color: Colors.grey.shade200,
-      child: const Center(
-        child: FaIcon(FontAwesomeIcons.layerGroup, color: Colors.grey),
-      ),
+    return SvgPicture.asset(
+      "assets/svgs/empty_state_trail_${Brightness.light.name}.svg",
+      semanticsLabel: 'wanderer logo',
+      height: 80,
     );
   }
 }

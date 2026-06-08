@@ -39,6 +39,6 @@ class OwnProfile extends _$OwnProfile {
     if (user == null) throw const NotAuthenticatedException();
     final api = ref.read(apiProvider);
     final response = await api.get('/profile/${user.preferredUsername}');
-    return Actor.fromJson(response.data as Map<String, dynamic>);
+    return Actor.fromJson(response.data["actor"] as Map<String, dynamic>);
   }
 }

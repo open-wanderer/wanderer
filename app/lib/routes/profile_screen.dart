@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
+import 'package:wanderer/components/list/list_card.dart';
 import 'package:wanderer/components/profile/feed_item_card.dart';
-import 'package:wanderer/components/profile/feed_item_shimmer.dart';
-import 'package:wanderer/components/profile/list_card.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/profile/follow_provider.dart';
@@ -81,7 +82,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final feedAsync = h != null ? ref.watch(profileFeedProvider(h)) : null;
     final feedItems = feedAsync?.value?.items ?? [];
     final feedHasMore = feedAsync?.value?.hasMore ?? false;
-    final feedIsInitialLoading = feedAsync?.isLoading == true && feedItems.isEmpty;
+    final feedIsInitialLoading =
+        feedAsync?.isLoading == true && feedItems.isEmpty;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -113,33 +115,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
 
           // Bio section
-          SliverToBoxAdapter(
-            child: _BioSection(summary: actor.summary),
-          ),
+          SliverToBoxAdapter(child: _BioSection(summary: actor.summary)),
 
           // Lists preview
-          if (h != null)
-            SliverToBoxAdapter(
-              child: _ListsPreview(handle: h),
-            ),
-
-          // Feed — initial load: show shimmers
-          if (feedIsInitialLoading)
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => const FeedItemShimmer(),
-                childCount: 3,
-              ),
-            ),
+          if (h != null) SliverToBoxAdapter(child: _ListsPreview(handle: h)),
 
           // Feed — loaded items
           if (!feedIsInitialLoading && feedItems.isNotEmpty)
             SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, index) => FeedItemCard(
-                  item: feedItems[index],
-                  profileActor: actor,
-                ),
+                (context, index) =>
+                    FeedItemCard(item: feedItems[index], profileActor: actor),
                 childCount: feedItems.length,
               ),
             ),
@@ -147,10 +133,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // Feed — loading next page footer
           if (!feedIsInitialLoading && feedHasMore)
             const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: FeedItemShimmer(),
-              ),
+              child: Center(child: CircularProgressIndicator()),
             ),
 
           // Feed — error state
@@ -177,20 +160,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (isOwn) {
       return [
         IconButton(
-          icon: const FaIcon(FontAwesomeIcons.gear),
+          icon: const FaIcon(FontAwesomeIcons.gear, size: 16),
           onPressed: () => context.push('/settings'),
         ),
         IconButton(
-          icon: const FaIcon(FontAwesomeIcons.shareNodes),
+          icon: const FaIcon(FontAwesomeIcons.shareNodes, size: 16),
           onPressed: () {
             // Share screen wired in Phase 3
           },
         ),
       ];
     } else {
-      return [
-        _FollowButton(profileActorId: actor.id),
-      ];
+      return [_FollowButton(profileActorId: actor.id)];
     }
   }
 }
@@ -228,27 +209,22 @@ class _ProfileHeaderBackground extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              handleDisplay,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
+              actor.username,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 4),
             Text(
-              'Joined $joinedDate',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              handleDisplay,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${AppLocalizations.of(context)!.joined} $joinedDate',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
             const SizedBox(height: 6),
             Text(
-              '${actor.followerCount ?? 0} followers · ${actor.followingCount ?? 0} following',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[700],
-              ),
+              '${actor.followerCount ?? 0} ${AppLocalizations.of(context)!.followers} · ${actor.followingCount ?? 0} ${AppLocalizations.of(context)!.following}',
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
             ),
           ],
         ),
@@ -279,21 +255,23 @@ class _BioSectionState extends State<_BioSection> {
     if (summary == null || summary.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(
-          'No bio yet.',
-          style: TextStyle(color: Colors.grey[600]),
-        ),
+        child: Text('No bio yet.', style: TextStyle(color: Colors.grey[600])),
       );
     }
 
-    final truncated = summary.length > 150 && !_expanded;
+    final bioMaxLength = 150;
+    final truncated = summary.length > bioMaxLength && !_expanded;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(truncated ? '${summary.substring(0, 150)}…' : summary),
-          if (summary.length > 150)
+          Html(
+            data: truncated
+                ? '${summary.substring(0, bioMaxLength)}…'
+                : summary,
+          ),
+          if (summary.length > bioMaxLength)
             TextButton(
               onPressed: () => setState(() => _expanded = !_expanded),
               child: Text(_expanded ? 'Show less' : 'Show more'),
@@ -334,7 +312,7 @@ class _ListsPreview extends ConsumerWidget {
       },
       loading: () => const SizedBox(
         height: 170,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: Center(child: CircularProgressIndicator()),
       ),
       error: (err, _) => const SizedBox.shrink(),
     );

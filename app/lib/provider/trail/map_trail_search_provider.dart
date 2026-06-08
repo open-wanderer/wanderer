@@ -1,5 +1,6 @@
 import 'package:flutter_map/flutter_map.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';

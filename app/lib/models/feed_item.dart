@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:wanderer/models/global_search_models.dart';
+import 'package:wanderer/models/list.dart';
 import 'package:wanderer/models/trail.dart';
 
 part 'feed_item.freezed.dart';
@@ -14,7 +14,7 @@ sealed class FeedItem with _$FeedItem {
     required String actor,
     required String type,
     required String created,
-    required TrailSearchResult trail,
+    required Trail trail,
   }) = FeedItemTrail;
 
   const factory FeedItem.list({
@@ -22,7 +22,7 @@ sealed class FeedItem with _$FeedItem {
     required String actor,
     required String type,
     required String created,
-    required ListSearchResult list,
+    required WandererList list,
   }) = FeedItemList;
 
   // Hand-written dispatch factory.
@@ -45,19 +45,19 @@ sealed class FeedItem with _$FeedItem {
 
     return switch (type) {
       'trail' => FeedItem.trail(
-          id: json['id'] as String,
-          actor: json['actor'] as String,
-          type: type!, // type is narrowed to non-null by the switch arm
-          created: json['created'] as String,
-          trail: TrailSearchResult.fromJson(item),
-        ),
+        id: json['id'] as String,
+        actor: json['actor'] as String,
+        type: type!, // type is narrowed to non-null by the switch arm
+        created: json['created'] as String,
+        trail: Trail.fromJson(item),
+      ),
       'list' => FeedItem.list(
-          id: json['id'] as String,
-          actor: json['actor'] as String,
-          type: type!, // type is narrowed to non-null by the switch arm
-          created: json['created'] as String,
-          list: ListSearchResult.fromJson(item),
-        ),
+        id: json['id'] as String,
+        actor: json['actor'] as String,
+        type: type!, // type is narrowed to non-null by the switch arm
+        created: json['created'] as String,
+        list: WandererList.fromJson(item),
+      ),
       _ => throw UnsupportedError('Unsupported feed item type: $type'),
     };
   }

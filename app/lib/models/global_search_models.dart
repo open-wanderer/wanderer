@@ -1,4 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:wanderer/models/list_summary.dart';
+import 'package:wanderer/models/record.dart';
+import 'package:wanderer/models/trail_summary.dart';
 
 part 'global_search_models.freezed.dart';
 part 'global_search_models.g.dart';
@@ -6,9 +9,92 @@ part 'global_search_models.g.dart';
 enum GlobalSearchCategory { all, trails, lists, locations, actors }
 
 @freezed
-abstract class ListSearchResult with _$ListSearchResult {
+abstract class GeoLocation with _$GeoLocation {
+  const factory GeoLocation({required double lat, required double lng}) =
+      _GeoLocation;
+
+  factory GeoLocation.fromJson(Map<String, dynamic> json) =>
+      _$GeoLocationFromJson(json);
+}
+
+@freezed
+abstract class TrailSearchResult
+    with _$TrailSearchResult, RecordFunctions
+    implements TrailSummary {
+  const factory TrailSearchResult({
+    required String id,
+    @Default('trails') String collectionId,
+    required String author,
+    @JsonKey(name: 'author_name') required String authorName,
+    @JsonKey(name: 'author_avatar') required String authorAvatar,
+    required String name,
+    required String description,
+    required String location,
+    required double distance,
+    @JsonKey(name: 'elevation_gain') required double elevationGain,
+    @JsonKey(name: 'elevation_loss') required double elevationLoss,
+    required double duration,
+    required int difficulty, // 0 | 1 | 2
+    required String category,
+    required bool completed,
+    required int date,
+    required int created,
+    required bool public,
+    required String thumbnail,
+    String? polyline,
+    List<String>? likes,
+    @JsonKey(name: 'like_count') required int likeCount,
+    List<String>? shares,
+    List<String>? tags,
+    String? domain,
+    String? iri,
+    required String gpx,
+    @JsonKey(name: '_geo') required GeoLocation geo,
+  }) = _TrailSearchResult;
+
+  const TrailSearchResult._();
+
+  @override
+  String get summaryAuthorName => authorName;
+
+  @override
+  String get summaryAuthorAvatar => authorAvatar;
+
+  @override
+  DateTime? get summaryDate => DateTime.fromMillisecondsSinceEpoch(date * 1000);
+
+  @override
+  int get summaryDifficulty => difficulty;
+
+  @override
+  String get summaryThumbnail => thumbnail;
+
+  @override
+  String get summaryCategory => category;
+
+  @override
+  List<String>? get summaryTags => tags;
+
+  @override
+  List<String>? get summaryShares => shares;
+
+  @override
+  bool get isOffline => false;
+
+  @override
+  List<String> get localPhotos => [];
+
+  factory TrailSearchResult.fromJson(Map<String, dynamic> json) =>
+      _$TrailSearchResultFromJson(json);
+}
+
+@freezed
+abstract class ListSearchResult
+    with _$ListSearchResult, RecordFunctions
+    implements ListSummary {
   const factory ListSearchResult({
     required String id,
+    @Default('lists') String collectionId,
     required String author,
     @JsonKey(name: 'author_name') required String authorName,
     @JsonKey(name: 'author_avatar') required String authorAvatar,
@@ -25,6 +111,11 @@ abstract class ListSearchResult with _$ListSearchResult {
     List<String>? shares,
     String? iri,
   }) = _ListSearchResult;
+
+  const ListSearchResult._();
+
+  @override
+  int get trailCount => trails;
 
   factory ListSearchResult.fromJson(Map<String, dynamic> json) =>
       _$ListSearchResultFromJson(json);

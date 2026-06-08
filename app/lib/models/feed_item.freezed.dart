@@ -153,7 +153,7 @@ return list(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String id,  String actor,  String type,  String created,  TrailSearchResult trail)?  trail,TResult Function( String id,  String actor,  String type,  String created,  ListSearchResult list)?  list,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String id,  String actor,  String type,  String created,  Trail trail)?  trail,TResult Function( String id,  String actor,  String type,  String created,  WandererList list)?  list,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case FeedItemTrail() when trail != null:
 return trail(_that.id,_that.actor,_that.type,_that.created,_that.trail);case FeedItemList() when list != null:
@@ -175,7 +175,7 @@ return list(_that.id,_that.actor,_that.type,_that.created,_that.list);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String id,  String actor,  String type,  String created,  TrailSearchResult trail)  trail,required TResult Function( String id,  String actor,  String type,  String created,  ListSearchResult list)  list,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String id,  String actor,  String type,  String created,  Trail trail)  trail,required TResult Function( String id,  String actor,  String type,  String created,  WandererList list)  list,}) {final _that = this;
 switch (_that) {
 case FeedItemTrail():
 return trail(_that.id,_that.actor,_that.type,_that.created,_that.trail);case FeedItemList():
@@ -193,7 +193,7 @@ return list(_that.id,_that.actor,_that.type,_that.created,_that.list);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String id,  String actor,  String type,  String created,  TrailSearchResult trail)?  trail,TResult? Function( String id,  String actor,  String type,  String created,  ListSearchResult list)?  list,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String id,  String actor,  String type,  String created,  Trail trail)?  trail,TResult? Function( String id,  String actor,  String type,  String created,  WandererList list)?  list,}) {final _that = this;
 switch (_that) {
 case FeedItemTrail() when trail != null:
 return trail(_that.id,_that.actor,_that.type,_that.created,_that.trail);case FeedItemList() when list != null:
@@ -216,7 +216,7 @@ class FeedItemTrail implements FeedItem {
 @override final  String actor;
 @override final  String type;
 @override final  String created;
- final  TrailSearchResult trail;
+ final  Trail trail;
 
 /// Create a copy of FeedItem
 /// with the given fields replaced by the non-null parameter values.
@@ -248,11 +248,11 @@ abstract mixin class $FeedItemTrailCopyWith<$Res> implements $FeedItemCopyWith<$
   factory $FeedItemTrailCopyWith(FeedItemTrail value, $Res Function(FeedItemTrail) _then) = _$FeedItemTrailCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String actor, String type, String created, TrailSearchResult trail
+ String id, String actor, String type, String created, Trail trail
 });
 
 
-$TrailSearchResultCopyWith<$Res> get trail;
+$TrailCopyWith<$Res> get trail;
 
 }
 /// @nodoc
@@ -272,7 +272,7 @@ as String,actor: null == actor ? _self.actor : actor // ignore: cast_nullable_to
 as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as String,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
 as String,trail: null == trail ? _self.trail : trail // ignore: cast_nullable_to_non_nullable
-as TrailSearchResult,
+as Trail,
   ));
 }
 
@@ -280,9 +280,9 @@ as TrailSearchResult,
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
-$TrailSearchResultCopyWith<$Res> get trail {
+$TrailCopyWith<$Res> get trail {
   
-  return $TrailSearchResultCopyWith<$Res>(_self.trail, (value) {
+  return $TrailCopyWith<$Res>(_self.trail, (value) {
     return _then(_self.copyWith(trail: value));
   });
 }
@@ -299,7 +299,7 @@ class FeedItemList implements FeedItem {
 @override final  String actor;
 @override final  String type;
 @override final  String created;
- final  ListSearchResult list;
+ final  WandererList list;
 
 /// Create a copy of FeedItem
 /// with the given fields replaced by the non-null parameter values.
@@ -331,11 +331,11 @@ abstract mixin class $FeedItemListCopyWith<$Res> implements $FeedItemCopyWith<$R
   factory $FeedItemListCopyWith(FeedItemList value, $Res Function(FeedItemList) _then) = _$FeedItemListCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String actor, String type, String created, ListSearchResult list
+ String id, String actor, String type, String created, WandererList list
 });
 
 
-$ListSearchResultCopyWith<$Res> get list;
+$WandererListCopyWith<$Res> get list;
 
 }
 /// @nodoc
@@ -355,7 +355,7 @@ as String,actor: null == actor ? _self.actor : actor // ignore: cast_nullable_to
 as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
 as String,created: null == created ? _self.created : created // ignore: cast_nullable_to_non_nullable
 as String,list: null == list ? _self.list : list // ignore: cast_nullable_to_non_nullable
-as ListSearchResult,
+as WandererList,
   ));
 }
 
@@ -363,9 +363,9 @@ as ListSearchResult,
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
-$ListSearchResultCopyWith<$Res> get list {
+$WandererListCopyWith<$Res> get list {
   
-  return $ListSearchResultCopyWith<$Res>(_self.list, (value) {
+  return $WandererListCopyWith<$Res>(_self.list, (value) {
     return _then(_self.copyWith(list: value));
   });
 }
