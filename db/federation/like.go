@@ -80,7 +80,7 @@ func ProcessLikeActivity(app core.App, actor *core.Record, activity pub.Activity
 		return err
 	}
 
-	if !actor.GetBool("isLocal") {
+	if !actor.GetBool("is_local") {
 		trailLikeCollection, err := app.FindCollectionByNameOrId("trail_like")
 		if err != nil {
 			return err

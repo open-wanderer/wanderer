@@ -45,7 +45,7 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 	}
 
 	// Sync remote data first (Fetch + Save)
-	if trail.GetString("iri") != "" && !trailAuthor.GetBool("isLocal") {
+	if trail.GetString("iri") != "" && !trailAuthor.GetBool("is_local") {
 		_ = syncRemoteComments(e, trail)
 	}
 

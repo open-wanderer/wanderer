@@ -132,7 +132,7 @@ func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub
 	}
 
 	var trail *core.Record
-	if !actor.GetBool("isLocal") {
+	if !actor.GetBool("is_local") {
 		trail, err = util.TrailFromActivity(activity, app, actor)
 		if err != nil {
 			return err
@@ -210,7 +210,7 @@ func processListAnnounceActivity(app core.App, actor *core.Record, activity pub.
 	}
 
 	var list *core.Record
-	if !actor.GetBool("isLocal") {
+	if !actor.GetBool("is_local") {
 		list, err = util.ListFromActivity(activity, app, actor)
 		if err != nil {
 			return err

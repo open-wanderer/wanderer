@@ -17,6 +17,18 @@ export function splitUsername(handle: string, localDomain?: string) {
     return [user, domain]
 }
 
+export function isValidPubHandle(handle: string): boolean {
+  // Regex breakdown:
+  // ^@?                - Optional leading '@'
+  // [a-zA-Z0-9_.-]+    - Username: alphanumeric, underscores, dots, hyphens (minimum 1 char)
+  // @                  - Literal '@' separator
+  // ([a-zA-Z0-9-]+\.)+ - Domain segments (e.g., "mastodon.")
+  // [a-zA-Z]{2,}$      - TLD (e.g., "social", "com" - minimum 2 chars)
+  const activityPubRegex = /^@?[a-zA-Z0-9_.-]+@([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+
+  return activityPubRegex.test(handle);
+}
+
 export function isRemoteHandle(handle: string, origin: string) {
     const [, domain] = splitUsername(handle, origin);
     if (!domain) {

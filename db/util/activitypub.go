@@ -86,7 +86,7 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 	record.Set("outbox", id+"/outbox")
 	record.Set("followers", id+"/followers")
 	record.Set("following", id+"/following")
-	record.Set("isLocal", true)
+	record.Set("is_local", true)
 	record.Set("public_key", string(pubPem))
 	record.Set("private_key", privEncrypted)
 	record.Set("user", u.Id)
@@ -147,7 +147,7 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	// the local record; a remote actor must not be able to reference or attach
 	// side effects (feeds/shares/notifications) to local content by id.
 	if IsLocalIRI(iri) {
-		if !actor.GetBool("isLocal") {
+		if !actor.GetBool("is_local") {
 			return nil, fmt.Errorf("refusing remote activity referencing local trail %q", iri)
 		}
 
@@ -440,7 +440,7 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 
 	// Own content must never be ingested as if it were remote (see TrailFromActivity).
 	if IsLocalIRI(iri) {
-		if !actor.GetBool("isLocal") {
+		if !actor.GetBool("is_local") {
 			return nil, fmt.Errorf("refusing remote activity referencing local list %q", iri)
 		}
 

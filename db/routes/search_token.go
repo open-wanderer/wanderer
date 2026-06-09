@@ -28,6 +28,7 @@ func SearchToken(client meilisearch.ServiceManager) func(e *core.RequestEvent) e
 				"trails": map[string]string{
 					"filter": "public = true OR author = " + userActor.Id + " OR shares = " + userActor.Id,
 				},
+				"actors": map[string]string{},
 			}
 		}
 

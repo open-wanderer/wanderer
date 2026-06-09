@@ -91,7 +91,7 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 		return err
 	}
 
-	if !author.GetBool("isLocal") {
+	if !author.GetBool("is_local") {
 		return nil
 	}
 
@@ -105,7 +105,7 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 		return err
 	}
 
-	if commentTrailAuthor.GetBool("isLocal") {
+	if commentTrailAuthor.GetBool("is_local") {
 		return nil
 	}
 
@@ -153,7 +153,7 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 		return err
 	}
 
-	if !author.GetBool("isLocal") {
+	if !author.GetBool("is_local") {
 		return nil
 	}
 
@@ -234,7 +234,7 @@ func CreateListDeleteActivity(app core.App, r *core.Record) error {
 		return err
 	}
 
-	if !author.GetBool("isLocal") {
+	if !author.GetBool("is_local") {
 		return nil
 	}
 
@@ -290,7 +290,7 @@ func CreateListDeleteActivity(app core.App, r *core.Record) error {
 
 func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 	// no need to do anything if the actor is local
-	if actor.GetBool("isLocal") {
+	if actor.GetBool("is_local") {
 		return nil
 	}
 

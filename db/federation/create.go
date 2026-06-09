@@ -531,7 +531,7 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 	}
 
 	// no need to do anything else if the actor is local
-	if actor.GetBool("isLocal") {
+	if actor.GetBool("is_local") {
 		return nil
 	}
 
@@ -645,7 +645,7 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		}
 	}
 	// no need to do anything else if the actor is local
-	if actor.GetBool("isLocal") {
+	if actor.GetBool("is_local") {
 		return nil
 	}
 
