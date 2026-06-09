@@ -66,7 +66,7 @@ final class TrailPolylineProvider
   }
 }
 
-String _$trailPolylineHash() => r'746d6e75c96b0fe7832558fce58d2c1df69c4d2f';
+String _$trailPolylineHash() => r'7c9acd31645638350890036d7803d0f4cc53fb5b';
 
 final class TrailPolylineFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<Polyline<Object>?>, String> {

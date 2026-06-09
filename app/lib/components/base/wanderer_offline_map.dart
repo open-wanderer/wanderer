@@ -20,7 +20,7 @@ class WandererOfflineMap extends ConsumerStatefulWidget {
 class _WandererOfflineMapState extends ConsumerState<WandererOfflineMap> {
   Future<PmTilesVectorTileProvider>? _futureTileProvider;
 
-  final mapTheme = ProvidedThemes.protomapsLight(logger: Logger.console());
+  final mapTheme = ProvidedThemes.wandererLight(logger: Logger.console());
 
   @override
   void initState() {

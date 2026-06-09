@@ -9,14 +9,13 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:wanderer/components/map/map_compass.dart';
-import 'package:wanderer/components/map/themes/map_theme_wanderer_dark.dart';
-import 'package:wanderer/components/map/themes/map_theme_wanderer_light.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
+import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
 class MapScreen extends ConsumerStatefulWidget {
   final LatLng? initialCenter;
@@ -90,8 +89,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final brightness =
         WidgetsBinding.instance.platformDispatcher.platformBrightness;
     final asset = brightness == Brightness.dark
-        ? mapThemeWandererDark()
-        : mapThemeWandererLight();
+        ? vtr.wandererDarkTheme()
+        : vtr.wandererLightTheme();
     final originalStyle = await StyleReader.map(
       asset,
       apiKey: const String.fromEnvironment(

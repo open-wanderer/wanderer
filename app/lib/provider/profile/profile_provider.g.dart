@@ -59,7 +59,7 @@ final class ProfileNotifierProvider
   }
 }
 
-String _$profileNotifierHash() => r'a9d771b94f111b48a5acab5709afbf435b6b283d';
+String _$profileNotifierHash() => r'2b8d7e60cbc91d2745a6ae7c7f44b39b7719f372';
 
 /// Auto-dispose family provider — fetches any user's profile by handle.
 /// Call site: `ref.watch(profileProvider(handle))`
@@ -153,7 +153,7 @@ final class OwnProfileProvider
   OwnProfile create() => OwnProfile();
 }
 
-String _$ownProfileHash() => r'545e771d72c533a8121a7fcde8f3863740882abf';
+String _$ownProfileHash() => r'523fba0b5e989c27a5d6ccd40f717a8ecee4d99f';
 
 /// keepAlive provider — fetches the current user's own profile Actor.
 /// Reads handle from authProvider.preferredUsername (per D-02).

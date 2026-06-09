@@ -1429,7 +1429,7 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: "75dc31dd371c9bd39e1d28e5eebfbcbfb295f2ed"
+      resolved-ref: cd6973143a786a32458e26d3189e78ae87430c24
       url: "https://github.com/flomp/dart-vector-tile-renderer"
     source: git
     version: "7.0.0-beta.2"

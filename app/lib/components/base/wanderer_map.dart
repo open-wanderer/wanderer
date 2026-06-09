@@ -4,13 +4,12 @@ import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
-import 'package:wanderer/components/map/themes/map_theme_wanderer_dark.dart';
-import 'package:wanderer/components/map/themes/map_theme_wanderer_light.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
+import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
 class WandererMap extends ConsumerStatefulWidget {
   final Trail trail;
@@ -68,8 +67,8 @@ class _WandererMapState extends ConsumerState<WandererMap> {
     final brightness =
         WidgetsBinding.instance.platformDispatcher.platformBrightness;
     final asset = brightness == Brightness.dark
-        ? mapThemeWandererDark()
-        : mapThemeWandererLight();
+        ? vtr.wandererDarkTheme()
+        : vtr.wandererLightTheme();
     final style = await StyleReader.map(
       asset,
       apiKey: const String.fromEnvironment(
