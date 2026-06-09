@@ -30,5 +30,6 @@ export interface ActorSearchResult {
     preferred_username: string;
     domain: string;
     is_local: boolean;
+    iri: string;
     icon?: string;
 }
