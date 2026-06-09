@@ -113,14 +113,12 @@ func ProcessAnnounceActivity(app core.App, actor *core.Record, activity pub.Acti
 	object := activity.Object.GetID().String()
 
 	if strings.Contains(object, "/api/v1/trail") {
-		processTrailAnnounceActivity(app, actor, activity)
-
+		return processTrailAnnounceActivity(app, actor, activity)
 	} else if strings.Contains(object, "/api/v1/list") {
-		processListAnnounceActivity(app, actor, activity)
+		return processListAnnounceActivity(app, actor, activity)
 	} else {
 		return fmt.Errorf("unknown announce type")
 	}
-	return nil
 
 }
 

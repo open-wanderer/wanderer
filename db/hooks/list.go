@@ -87,7 +87,7 @@ func UpdateListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 			return err
 		}
 
-		err = federation.CreateListActivity(e.App, e.Record, pub.CreateType)
+		err = federation.CreateListActivity(e.App, e.Record, pub.UpdateType)
 		if err != nil {
 			return err
 		}

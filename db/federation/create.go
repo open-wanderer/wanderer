@@ -264,15 +264,14 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 		gpx = fmt.Sprintf("%s/api/v1/files/summit_logs/%s/%s", origin, summitLog.Id, summitLog.GetString("gpx"))
 	}
 
-	attachments := make(pub.ItemCollection, max(len(photos), 2))
+	attachments := make(pub.ItemCollection, 0, len(photos)+1)
 	for i := range len(photos) {
 		iri := fmt.Sprintf("%s/api/v1/files/summit_logs/%s/%s", origin, summitLog.Id, photos[i])
-
-		attachments[i] = pub.Document{
+		attachments.Append(pub.Document{
 			Type:      pub.ImageType,
 			MediaType: "image/jpeg",
 			URL:       pub.IRI(iri),
-		}
+		})
 	}
 	if gpx != "" {
 		attachments.Append(pub.Document{
@@ -469,7 +468,10 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 		return err
 	}
 
-	trailObject, _ := pub.ToObject(activity.Object)
+	trailObject, err := pub.ToObject(activity.Object)
+	if err != nil {
+		return err
+	}
 
 	for _, t := range trailObject.Tag {
 		if t.GetType() == pub.MentionType {
@@ -487,11 +489,11 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 				Seen:   false,
 				Author: actor.Id,
 			}
-			return util.SendNotification(app, notification, mentionedActor)
+			util.SendNotification(app, notification, mentionedActor)
 		}
 	}
 
-	return err
+	return nil
 }
 
 func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, actor *core.Record) error {
@@ -578,7 +580,7 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 				Seen:   false,
 				Author: actor.Id,
 			}
-			return util.SendNotification(app, notification, mentionedActor)
+			util.SendNotification(app, notification, mentionedActor)
 		}
 	}
 	if activity.Type == pub.CreateType {
@@ -629,6 +631,11 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		return err
 	}
 
+	// no need to do anything else if the actor is local
+	if actor.GetBool("isLocal") {
+		return nil
+	}
+
 	newSummitLog := false
 	record, err := app.FindFirstRecordByData("summit_logs", "iri", logObject.ID.String())
 	if err != nil {
@@ -643,10 +650,6 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		} else {
 			return err
 		}
-	}
-	// no need to do anything else if the actor is local
-	if actor.GetBool("isLocal") {
-		return nil
 	}
 
 	var distance, duration, elevation_gain, elevation_loss float64
@@ -752,7 +755,7 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 				Seen:   false,
 				Author: actor.Id,
 			}
-			return util.SendNotification(app, notification, mentionedActor)
+			util.SendNotification(app, notification, mentionedActor)
 		}
 	}
 

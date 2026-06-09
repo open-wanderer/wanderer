@@ -196,10 +196,11 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 
 		privacy := settings.GetString("privacy")
 		result := make(map[string]interface{})
-		json.Unmarshal([]byte(privacy), &result)
-
-		// check that it's not our own profile
-		private = result["account"] == "private" && dbActor.Id != strings.TrimPrefix(ctx.Value("actor").(string), "actor:")
+		if err := json.Unmarshal([]byte(privacy), &result); err == nil {
+			// check that it's not our own profile
+			actorVal, _ := ctx.Value("actor").(string)
+			private = result["account"] == "private" && dbActor.Id != strings.TrimPrefix(actorVal, "actor:")
+		}
 
 	} else {
 
@@ -279,6 +280,9 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 	client := util.SafeHTTPClient()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", iri, nil)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	headers := map[string]string{
 		"Accept":       "application/ld+json",
@@ -291,7 +295,8 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 		req.Header.Add(k, v)
 	}
 
-	userActorId := strings.TrimPrefix(ctx.Value("actor").(string), "actor:")
+	actorVal, _ := ctx.Value("actor").(string)
+	userActorId := strings.TrimPrefix(actorVal, "actor:")
 	userActor, err := app.FindRecordById("activitypub_actors", userActorId)
 	if userActor != nil && userActor.GetString("private_key") != "" {
 		dbPrivateKey := userActor.GetString("private_key")
@@ -332,7 +337,7 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 	defer resp.Body.Close()
 
 	var pubActor pub.Actor
-	if err := json.NewDecoder(resp.Body).Decode(&pubActor); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&pubActor); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -365,6 +370,9 @@ func FetchCollection(app core.App, ctx context.Context, collectionURL string) (*
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", collectionURL, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	headers := map[string]string{
 		"Accept":       "application/ld+json",
@@ -376,7 +384,8 @@ func FetchCollection(app core.App, ctx context.Context, collectionURL string) (*
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
-	userActorId := strings.TrimPrefix(ctx.Value("actor").(string), "actor:")
+	actorVal, _ := ctx.Value("actor").(string)
+	userActorId := strings.TrimPrefix(actorVal, "actor:")
 	userActor, err := app.FindRecordById("activitypub_actors", userActorId)
 	if userActor != nil && userActor.GetString("private_key") != "" {
 		dbPrivateKey := userActor.GetString("private_key")

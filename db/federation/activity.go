@@ -23,6 +23,8 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+var httpClient = &http.Client{Timeout: 10 * time.Second}
+
 func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, recipients []string) error {
 	go func() {
 		defer func() {
@@ -67,7 +69,6 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 		}
 		pubID := actor.GetString("iri") + "#main-key"
 
-		client := &http.Client{}
 		sem := semaphore.NewWeighted(5)
 
 		slices.Sort(recipients)
@@ -105,7 +106,7 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 					return
 				}
 
-				resp, err := client.Do(req)
+				resp, err := httpClient.Do(req)
 				if err != nil {
 					app.Logger().Error(fmt.Sprintf("Error sending to inbox %s: %s", inbox, err))
 					return
