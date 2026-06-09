@@ -157,7 +157,7 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	totalDuration := 0.0
 	trails := len(r.GetStringSlice("trails"))
 
-	if r.GetString("iri") != "" && !author.GetBool("isLocal") {
+	if r.GetString("iri") != "" && !author.GetBool("is_local") {
 		doc, err := documentFromRemoteRecord(r, "lists")
 		if err == nil {
 			totalElevationGain = doc["elevation_gain"].(float64)
