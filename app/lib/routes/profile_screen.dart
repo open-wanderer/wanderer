@@ -206,9 +206,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         IconButton(
           icon: const FaIcon(FontAwesomeIcons.shareNodes, size: 16),
-          onPressed: () {
-            // Share screen wired in Phase 3
-          },
+          onPressed: () => context.push('/profile/share'),
         ),
       ];
     } else {
