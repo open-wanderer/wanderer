@@ -264,6 +264,8 @@
   "make-one": "Vytvořte si vlastní!",
   "make-thumbnail": "Vytvořit náhled",
   "map": "Mapa",
+  "map-trail-preview-zoom-level": "Zobrazit náhledy tras od úrovně přiblížení",
+  "show-trail-start-marker": "Zobrazit značku na začátku trasy",
   "map-style": "Styl mapy",
   "mark-trail-as-completed": "",
   "mark-trail-as-completed-modal-text": "",

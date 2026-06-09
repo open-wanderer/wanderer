@@ -98,7 +98,7 @@ export async function searchTrails(q: string, options: SearchParams): Promise<Hi
 
     const response: SearchResponse<TrailSearchResult> = await r.json();
 
-    return response.hits
+    return response.hits || []
 }
 
 export async function searchLocations(q: string, limit?: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<Hits<LocationSearchResult>> {
@@ -243,6 +243,10 @@ export async function searchMulti(options: MultiSearchParams): Promise<MultiSear
     }
 
     const response: MultiSearchResponse<any> = await r.json();
+
+    if (!response.results) {
+        return [];
+    }
 
 
     if (locationQuery && locationQuery.q !== undefined && locationQuery.q !== null) {

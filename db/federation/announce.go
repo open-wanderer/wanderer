@@ -3,9 +3,7 @@ package federation
 import (
 	"database/sql"
 	"fmt"
-	"net/url"
 	"os"
-	"path"
 	"pocketbase/util"
 	"strings"
 	"time"
@@ -180,12 +178,7 @@ func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub
 			return err
 		}
 	} else {
-		trailUrl, err := url.Parse(activity.Object.GetID().String())
-		if err != nil {
-			return err
-		}
-		trailId := path.Base(trailUrl.Path)
-		trail, err = app.FindRecordById("trails", trailId)
+		trail, err = app.FindFirstRecordByData("trails", "iri", activity.Object.GetID().String())
 		if err != nil {
 			return err
 		}
@@ -245,12 +238,7 @@ func processListAnnounceActivity(app core.App, actor *core.Record, activity pub.
 			return err
 		}
 	} else {
-		listUrl, err := url.Parse(activity.Object.GetID().String())
-		if err != nil {
-			return err
-		}
-		listId := path.Base(listUrl.Path)
-		list, err = app.FindRecordById("trails", listId)
+		list, err = app.FindFirstRecordByData("lists", "iri", activity.Object.GetID().String())
 		if err != nil {
 			return err
 		}

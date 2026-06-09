@@ -264,6 +264,8 @@
   "make-one": "Faites-en un !",
   "make-thumbnail": "Créer une miniature",
   "map": "Carte",
+  "map-trail-preview-zoom-level": "Afficher les aperçus d'itinéraires à partir du niveau de zoom",
+  "show-trail-start-marker": "Afficher un marqueur au début de l'itinéraire",
   "map-style": "Style de carte",
   "mark-trail-as-completed": "",
   "mark-trail-as-completed-modal-text": "",

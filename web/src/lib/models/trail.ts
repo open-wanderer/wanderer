@@ -34,6 +34,7 @@ class Trail {
     domain?: string;
     iri?: string;
     like_count: number;
+    bounding_box_diagonal?: number;
     expand?: {
         tags?: Tag[]
         category?: Category;
@@ -74,8 +75,9 @@ class Trail {
             comments?: Comment[],
             shares?: TrailShare[],
             tags?: Tag[],
-            description?: string
-            created?: string
+            description?: string,
+            created?: string,
+            bounding_box_diagonal?: number
         }
 
     ) {
@@ -96,6 +98,7 @@ class Trail {
         this.photos = params?.photos ?? [];
         this.tags = [];
         this.gpx = params?.gpx;
+        this.bounding_box_diagonal = params?.bounding_box_diagonal ?? 0;
         this.like_count = 0
         this.expand = {
             category: params?.category,
@@ -214,6 +217,7 @@ interface TrailSearchResult {
     domain?: string;
     iri?: string;
     gpx: string;
+    bounding_box_diagonal: number;
     _geo: {
         lat: number,
         lng: number
@@ -245,6 +249,7 @@ export const defaultTrailSearchAttributes = [
     "like_count",
     "shares",
     "iri",
+    "bounding_box_diagonal",
     "_geo",]
 
 

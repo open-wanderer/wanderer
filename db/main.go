@@ -102,6 +102,8 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordUpdateRequest("summit_logs").BindFunc(hooks.UpdateSummitLogHandler())
 	app.OnRecordDeleteRequest("summit_logs").BindFunc(hooks.DeleteSummitLogHandler(client))
 
+	app.OnRecordCreateRequest("waypoints").BindFunc(hooks.CreateWaypointHandler())
+
 	app.OnRecordCreateRequest("comments").BindFunc(hooks.CreateCommentHandler())
 	app.OnRecordUpdateRequest("comments").BindFunc(hooks.UpdateCommentHandler())
 	app.OnRecordDeleteRequest("comments").BindFunc(hooks.DeleteCommentHandler(client))
@@ -301,9 +303,9 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 		"trails": {
 			SearchableAttributes: []string{"author_name", "name", "description", "location", "tags"},
 			FilterableAttributes: []string{
-				"_geo", "author", "category", "completed", "date", "difficulty",
+				"id", "_geo", "author", "category", "completed", "date", "difficulty",
 				"distance", "elevation_gain", "elevation_loss", "likes", "public",
-				"shares", "tags",
+				"shares", "tags", "min_lat", "max_lat", "min_lon", "max_lon", "bounding_box_diagonal",
 			},
 			SortableAttributes: []string{
 				"author", "created", "date", "difficulty", "distance",

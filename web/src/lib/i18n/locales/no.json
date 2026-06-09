@@ -264,6 +264,8 @@
   "make-one": "Lag en!",
   "make-thumbnail": "Lag miniatyrbilde",
   "map": "Kart",
+  "map-trail-preview-zoom-level": "Vis ruteforhåndsvisninger fra zoomnivå",
+  "show-trail-start-marker": "Vis markør ved starten av stien",
   "map-style": "Kartstil",
   "mark-trail-as-completed": "",
   "mark-trail-as-completed-modal-text": "",

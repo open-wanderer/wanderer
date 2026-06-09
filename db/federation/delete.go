@@ -39,7 +39,7 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
 	cc := author.GetString("iri") + "/followers"
-	object := fmt.Sprintf("%s/api/v1/trail/%s", origin, r.Id)
+	object := r.GetString("iri")
 
 	record := core.NewRecord(collection)
 	record.Set("id", recordId)
@@ -118,7 +118,7 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
 	to := commentTrailAuthor.GetString("iri")
-	object := fmt.Sprintf("%s/api/v1/comment/%s", origin, r.Id)
+	object := r.GetString("iri")
 
 	activity := pub.DeleteNew(pub.IRI(id), pub.IRI(object))
 	activity.Actor = pub.IRI(author.GetString("iri"))
@@ -176,7 +176,7 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
 	to := summitLogTrailAuthor.GetString("iri")
-	object := fmt.Sprintf("%s/api/v1/summit-log/%s", origin, r.Id)
+	object := r.GetString("iri")
 	cc := pub.ItemCollection{pub.IRI(author.GetString("iri") + "/followers")}
 
 	activity := pub.DeleteNew(pub.IRI(id), pub.IRI(object))
@@ -248,7 +248,7 @@ func CreateListDeleteActivity(app core.App, r *core.Record) error {
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
 	cc := author.GetString("iri") + "/followers"
-	object := fmt.Sprintf("%s/api/v1/list/%s", origin, r.Id)
+	object := r.GetString("iri")
 
 	activity := pub.DeleteNew(pub.IRI(id), pub.IRI(object))
 	activity.Actor = pub.IRI(author.GetString("iri"))

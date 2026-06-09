@@ -3,7 +3,6 @@ package federation
 import (
 	"fmt"
 	"os"
-	"path"
 	"time"
 
 	pub "github.com/go-ap/activitypub"
@@ -91,10 +90,6 @@ func CreateUnlikeActivity(app core.App, like *core.Record) error {
 	}
 
 	object := trail.GetString("iri")
-	if object == "" {
-		// trail is local
-		object = fmt.Sprintf("%s/api/v1/trail/%s", origin, trail.Id)
-	}
 
 	// find the original follow activity
 	likeActivityRecord, err := app.FindFirstRecordByFilter("activitypub_activities", "actor={:actor}&&object={:object}&&type={:type}", dbx.Params{"actor": actor.GetString("iri"), "object": object, "type": string(pub.LikeType)})
@@ -175,8 +170,7 @@ func processUnlikeActivity(app core.App, actor *core.Record, activity pub.Activi
 
 	likeActivity := activity.Object.(*pub.Activity)
 
-	trailId := path.Base(likeActivity.Object.GetID().String())
-	trail, err := app.FindRecordById("trails", trailId)
+	trail, err := app.FindFirstRecordByData("trails", "iri", likeActivity.Object.GetID().String())
 	if err != nil {
 		return err
 	}

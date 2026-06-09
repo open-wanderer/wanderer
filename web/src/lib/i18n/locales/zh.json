@@ -264,6 +264,8 @@
   "make-one": "立刻注册！",
   "make-thumbnail": "生成缩略图",
   "map": "地图",
+  "map-trail-preview-zoom-level": "从该缩放级别开始显示路线预览",
+  "show-trail-start-marker": "在路线起点显示标记",
   "map-style": "地图样式",
   "mark-trail-as-completed": "",
   "mark-trail-as-completed-modal-text": "",

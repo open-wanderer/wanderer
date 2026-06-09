@@ -264,6 +264,8 @@
   "make-one": "Faz um!",
   "make-thumbnail": "Faça miniatura",
   "map": "Mapa",
+  "map-trail-preview-zoom-level": "Mostrar pré-visualizações de rotas a partir do nível de zoom",
+  "show-trail-start-marker": "Mostrar marcador no início da rota",
   "map-style": "Map style",
   "mark-trail-as-completed": "",
   "mark-trail-as-completed-modal-text": "",

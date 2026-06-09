@@ -286,6 +286,8 @@
   "make-one": "Make one!",
   "make-thumbnail": "Make thumbnail",
   "map": "Map",
+  "map-trail-preview-zoom-level": "Show trail previews from zoom level",
+  "show-trail-start-marker": "Show marker at start of trail",
   "map-style": "Map style",
   "mark-trail-as-completed": "Mark trail as completed",
   "mark-trail-as-completed-modal-text": "Would you like to mark this trail as completed? You can change this status again at any time.",
