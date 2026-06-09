@@ -270,17 +270,29 @@ func injectSessionAuth(ctx context.Context, input AuthInjectionInput, authContex
 		return err
 	}
 	var session pluginSessionResponse
-	if err := json.Unmarshal(output, &session); err != nil {
-		return fmt.Errorf("plugin returned an invalid session: %w", err)
-	}
-	if session.Token == "" {
-		return fmt.Errorf("plugin returned an empty session token")
+	if err := validatePluginSessionRefreshOutput(output, &session); err != nil {
+		return err
 	}
 	scheme := session.Scheme
 	if scheme == "" {
 		scheme = AuthSchemeBearer
 	}
 	setAuthHeader(input.Spec, scheme+" "+session.Token)
+	return nil
+}
+
+func ValidatePluginSessionRefreshOutput(output []byte) error {
+	var session pluginSessionResponse
+	return validatePluginSessionRefreshOutput(output, &session)
+}
+
+func validatePluginSessionRefreshOutput(output []byte, session *pluginSessionResponse) error {
+	if err := json.Unmarshal(output, session); err != nil {
+		return fmt.Errorf("plugin returned an invalid session: %w", err)
+	}
+	if session.Token == "" {
+		return fmt.Errorf("plugin returned an empty session token")
+	}
 	return nil
 }
 
@@ -318,6 +330,11 @@ func setRawQueryParamOrdered(rawQuery string, name string, value string) string 
 
 func AuthForPluginRefresh(auth map[string]any, authContext AuthContext) map[string]any {
 	filtered := map[string]any{}
+	for _, field := range authContext.Fields {
+		if value, ok := auth[field]; ok {
+			filtered[field] = value
+		}
+	}
 	for _, field := range authContext.SecretFields {
 		if value, ok := auth[field]; ok {
 			filtered[field] = value

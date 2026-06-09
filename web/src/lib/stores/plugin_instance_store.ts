@@ -91,6 +91,28 @@ export async function plugin_oauth_start(
     return (await r.json()) as { url: string; state: string; instanceId: string };
 }
 
+export async function plugin_auth_validate(
+    data: {
+        pluginId: string;
+        instanceId?: string;
+        authContext?: string;
+        auth: Record<string, string>;
+    },
+    f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch,
+) {
+    const r = await f("/api/v1/plugin-system/auth/validate", {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+
+    if (!r.ok) {
+        const response = await r.json();
+        throw new APIError(r.status, response.message, response.detail);
+    }
+
+    return (await r.json()) as { ok: boolean; authContext?: string };
+}
+
 export async function plugin_oauth_callback(
     data: { instanceId: string; code: string; state: string },
     f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch,

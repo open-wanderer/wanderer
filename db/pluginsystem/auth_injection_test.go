@@ -272,7 +272,8 @@ func TestAuthForPluginRefresh(t *testing.T) {
 		"password":    "secret",
 		"accessToken": "token",
 	}, AuthContext{
-		SecretFields: []string{"email", "password"},
+		Fields:       []string{"email", "password"},
+		SecretFields: []string{"password"},
 	})
 
 	if len(filtered) != 2 {

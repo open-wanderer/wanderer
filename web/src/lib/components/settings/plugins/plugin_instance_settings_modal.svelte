@@ -9,7 +9,7 @@
     import type { Category } from "$lib/models/category";
     import type { PluginInstance } from "$lib/models/plugin_instance";
     import type { ConfigField, PluginProvider } from "$lib/models/plugin_provider";
-    import { plugin_oauth_start } from "$lib/stores/plugin_instance_store";
+    import { plugin_auth_validate, plugin_oauth_start } from "$lib/stores/plugin_instance_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import {
         configFieldDescription,
@@ -46,7 +46,9 @@
     let authFields = $derived(plugin.auth.fields ?? []);
     let secretFields = $derived(new Set(plugin.auth.secretFields ?? plugin.auth.fields ?? []));
     let isOAuthPlugin = $derived(plugin.auth.type === "oauth2");
+    let isSessionPlugin = $derived(plugin.auth.type === "session");
     let isConnected = $derived(instance?.status === "configured");
+    let isSaving = $state(false);
     let needsOAuthConnect = $derived(isOAuthPlugin && (!isConnected || authChanged()));
     let plugin_id = $derived(plugin.id);
     let configSchema = $derived(plugin.configSchema ?? []);
@@ -415,12 +417,43 @@
         };
     }
 
-    function submit() {
+    async function validateAuthIfNeeded() {
+        if (!isSessionPlugin || !authChanged()) {
+            return;
+        }
+        await plugin_auth_validate({
+            pluginId: plugin.id,
+            instanceId: instance?.id,
+            auth,
+        });
+    }
+
+    async function submit() {
         if (!validateConfig()) {
             return;
         }
-        onsave?.(pluginInstanceFromForm());
-        modal.closeModal();
+        try {
+            isSaving = true;
+            await validateAuthIfNeeded();
+        } catch (e) {
+            show_toast({
+                text: e instanceof Error ? e.message : $_("error-setting-up-plugin", { values: { provider: pluginTitle() } }),
+                icon: "close",
+                type: "error",
+            });
+            isSaving = false;
+            return;
+        }
+
+        try {
+            await onsave?.(pluginInstanceFromForm());
+            modal.closeModal();
+        } catch {
+            // onsave owns persistence error reporting so the modal does not
+            // duplicate toasts.
+        } finally {
+            isSaving = false;
+        }
     }
 
     function pluginTitle() {
@@ -642,12 +675,12 @@
     {/snippet}
     {#snippet footer()}
         <div class="flex items-center gap-4">
-            <button class="btn-secondary" onclick={() => modal.closeModal()}
+            <button class="btn-secondary" onclick={() => modal.closeModal()} disabled={isSaving}
                 >{$_("cancel")}</button
             >
             {#if isOAuthPlugin}
                 {#if needsOAuthConnect}
-                    <button class="btn-primary" type="button" onclick={startOAuth}
+                    <button class="btn-primary" type="button" onclick={startOAuth} disabled={isSaving}
                         >{isConnected ? $_("save-and-reconnect") : $_("save-and-connect")}</button
                     >
                 {:else}
@@ -655,7 +688,8 @@
                         class="btn-primary"
                         form="{plugin_id}-plugin-settings-form"
                         type="submit"
-                        name="save">{$_("save")}</button
+                        name="save"
+                        disabled={isSaving}>{$_("save")}</button
                     >
                 {/if}
             {:else}
@@ -663,7 +697,9 @@
                     class="btn-primary"
                     form="{plugin_id}-plugin-settings-form"
                     type="submit"
-                    name="save">{$_("save")}</button
+                    name="save"
+                    disabled={isSaving}
+                    >{isSessionPlugin && authChanged() ? $_("save-and-validate") : $_("save")}</button
                 >
             {/if}
         </div>
