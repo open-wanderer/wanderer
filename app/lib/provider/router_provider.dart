@@ -173,8 +173,11 @@ class Router extends _$Router {
           },
           routes: [
             GoRoute(
-              path: 'trail',
-              builder: (context, state) => ProfileTrailScreen(),
+              path: 'trails',
+              builder: (context, state) {
+                final handle = state.pathParameters['handle']!;
+                return ProfileTrailScreen(handle: handle);
+              },
             ),
           ],
         ),

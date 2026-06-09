@@ -33,7 +33,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   /// Resolves the handle to use for data providers.
   /// For own profile, reads from authProvider; for remote, uses widget.handle.
   String? get _handle =>
-      widget.handle ?? ref.read(authProvider).value?.preferredUsername;
+      widget.handle ?? "@${ref.read(authProvider).value?.preferredUsername}";
 
   @override
   void initState() {
@@ -140,16 +140,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
           // Trail / list count cards
           SliverToBoxAdapter(
-            child: _CountsRow(handle: _handle!, actorId: actor.id),
+            child: _CountsRow(
+              handle: actor.preferredUsername,
+              actorId: actor.id,
+            ),
           ),
 
           // Lists heading + preview
-          if (h != null)
+          if (h != null) SliverToBoxAdapter(child: _ListsPreview(handle: h)),
+
+          // Feed — loaded items
+          if (!feedIsInitialLoading && feedItems.isNotEmpty) ...[
+            // Feed heading
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Text(
-                  AppLocalizations.of(context)!.list(2),
+                  "Feed",
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -157,24 +164,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
             ),
-          if (h != null) SliverToBoxAdapter(child: _ListsPreview(handle: h)),
-
-          // Feed heading
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                "Feed",
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-
-          // Feed — loaded items
-          if (!feedIsInitialLoading && feedItems.isNotEmpty)
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) =>
@@ -182,6 +171,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 childCount: feedItems.length,
               ),
             ),
+          ],
 
           // Feed — loading next page footer
           if (!feedIsInitialLoading && feedHasMore)
@@ -347,14 +337,28 @@ class _ListsPreview extends ConsumerWidget {
       data: (state) {
         final lists = state.lists;
         if (lists.isEmpty) return const SizedBox.shrink();
-        return SizedBox(
-          height: 170,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: lists.length,
-            separatorBuilder: (context, _) => const SizedBox(width: 8),
-            itemBuilder: (context, index) => ListCard(list: lists[index]),
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppLocalizations.of(context)!.list(2),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(
+                height: 170,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: lists.length,
+                  separatorBuilder: (context, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) => ListCard(list: lists[index]),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -441,9 +445,7 @@ class _CountsRow extends ConsumerWidget {
               icon: const FaIcon(FontAwesomeIcons.route, size: 16),
               label: AppLocalizations.of(context)!.trail(2),
               count: countsAsync.value?.trailCount,
-              onTap: () => context.push(
-                '/profile/$handle/trails',
-              ), // wire to trails detail screen
+              onTap: () => context.push('/profile/$handle/trails'),
             ),
           ),
           const SizedBox(width: 12),
@@ -559,14 +561,8 @@ class _FollowButton extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const Padding(
-        padding: EdgeInsets.only(right: 12),
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      ),
+      loading: () =>
+          WandererButton(primary: true, disabled: true, loading: true),
       error: (err, _) => const SizedBox.shrink(),
     );
   }

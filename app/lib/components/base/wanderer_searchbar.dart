@@ -35,6 +35,7 @@ class _WandererSearchBarState extends State<WandererSearchBar> {
           widget.decoration ??
           InputDecoration(
             hintText: widget.hintText,
+            hintStyle: TextStyle(color: Colors.grey),
             filled: true,
             fillColor: Theme.of(context).inputDecorationTheme.fillColor,
             contentPadding: const EdgeInsets.all(12),
