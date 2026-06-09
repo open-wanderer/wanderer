@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
-import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/search/global_search_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/polyline_util.dart';
@@ -338,6 +337,8 @@ class _ActorTile extends StatelessWidget {
       ),
       title: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitle),
+      onTap: () =>
+          context.push('/profile/@${actor.preferredUsername}@${actor.domain}'),
     );
   }
 }

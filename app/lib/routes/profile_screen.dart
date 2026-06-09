@@ -138,13 +138,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: _StatsRow(actor: actor, isOwn: isOwn),
           ),
 
-          // Trail / list count cards
-          SliverToBoxAdapter(
-            child: _CountsRow(
-              handle: actor.preferredUsername,
-              actorId: actor.id,
+          if (h != null)
+            // Trail / list count cards
+            SliverToBoxAdapter(
+              child: _CountsRow(handle: h, actorId: actor.id),
             ),
-          ),
 
           // Lists heading + preview
           if (h != null) SliverToBoxAdapter(child: _ListsPreview(handle: h)),

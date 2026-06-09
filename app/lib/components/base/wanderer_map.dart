@@ -130,7 +130,7 @@ class _WandererMapState extends ConsumerState<WandererMap> {
         onMapEvent: (e) => widget.onMapEvent,
         interactionOptions: widget.disabled
             ? const InteractionOptions(flags: InteractiveFlag.none)
-            : const InteractionOptions(),
+            : const InteractionOptions(enableMultiFingerGestureRace: true),
         initialCameraFit: _bounds != null
             ? CameraFit.bounds(
                 bounds: _bounds!,

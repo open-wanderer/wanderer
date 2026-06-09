@@ -181,6 +181,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
           options: MapOptions(
             initialCenter: widget.initialCenter ?? const LatLng(0, 0),
             initialZoom: widget.initialZoom ?? 3,
+            interactionOptions: InteractionOptions(
+              enableMultiFingerGestureRace: true,
+            ),
             maxZoom: 22,
             onMapEvent: (event) {
               if (event is MapEventMoveEnd) {
@@ -211,7 +214,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 tileProviders: style!.providers,
                 theme: style!.theme,
                 tileOffset: TileOffset.DEFAULT,
-                concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
+                concurrency: kDebugMode
+                    ? 0
+                    : VectorTileLayer.defaultConcurrency,
               ),
             ),
             const CurrentLocationLayer(),
@@ -351,7 +356,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                     padding: const EdgeInsets.all(8.0),
                                     child: Center(
                                       child: Text(
-                                        "${trails.length}${trails.length == 500 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
+                                        "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
                                         style: Theme.of(
                                           context,
                                         ).textTheme.labelLarge,
