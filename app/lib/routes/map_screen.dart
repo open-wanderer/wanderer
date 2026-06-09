@@ -16,7 +16,7 @@ import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
-import 'package:wanderer/util/polyline_util.dart';
+import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   final LatLng? initialCenter;
@@ -34,6 +34,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   late final _animatedMapController = AnimatedMapController(vsync: this);
 
   TrailSearchResult? _selectedTrail;
+  Polyline? _selectedPolyline;
 
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
@@ -200,6 +201,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
               setState(() {
                 _selectedTrail = null;
+                _selectedPolyline = null;
               });
             },
           ),
@@ -213,10 +215,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
             const CurrentLocationLayer(),
 
-            if (_selectedTrail?.polyline != null)
-              PolylineLayer(
-                polylines: [PolylineTools.decode(_selectedTrail!.polyline!)],
-              ),
+            if (_selectedPolyline != null)
+              PolylineLayer(polylines: [_selectedPolyline!]),
             Positioned(
               top: 124,
               right: 8,
@@ -238,20 +238,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 onMarkerTap: (marker) {
                   final trailId = (marker.key as ValueKey<String>).value;
                   final trail = trails.firstWhere((t) => t.id == trailId);
-                  if (trail.polyline != null) {
-                    _animatedMapController.animatedFitCamera(
-                      cameraFit: CameraFit.bounds(
-                        bounds: LatLngBounds.fromPoints(
-                          PolylineTools.decode(trail.polyline!).points,
-                        ),
-                        padding: EdgeInsets.fromLTRB(40, 56, 40, 248),
-                      ),
-                      duration: Duration(milliseconds: 750),
-                    );
-                  }
-
                   setState(() {
                     _selectedTrail = trail;
+                    _selectedPolyline = null;
+                  });
+
+                  ref.read(trailPolylineProvider(trailId).future).then((
+                    polyline,
+                  ) {
+                    if (!mounted || _selectedTrail?.id != trailId) return;
+                    if (polyline != null) {
+                      _animatedMapController.animatedFitCamera(
+                        cameraFit: CameraFit.bounds(
+                          bounds: LatLngBounds.fromPoints(polyline.points),
+                          padding: EdgeInsets.fromLTRB(40, 56, 40, 248),
+                        ),
+                        duration: Duration(milliseconds: 750),
+                      );
+                    }
+                    setState(() => _selectedPolyline = polyline);
                   });
                 },
                 builder: (context, markers) {
@@ -495,6 +500,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               onDismissed: (_) {
                 setState(() {
                   _selectedTrail = null;
+                  _selectedPolyline = null;
                 });
               },
               child: TrailListItem(

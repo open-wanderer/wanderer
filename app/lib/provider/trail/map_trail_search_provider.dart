@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_map/flutter_map.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/global_search_models.dart';
@@ -11,9 +13,12 @@ part 'map_trail_search_provider.g.dart';
 @riverpod
 class MapTrailSearch extends _$MapTrailSearch {
   LatLngBounds? _lastBounds;
+  Timer? _debounce;
 
   @override
   FutureOr<List<TrailSearchResult>> build() async {
+    ref.onDispose(() => _debounce?.cancel());
+
     ref.listen(trailFilterProvider, (previous, next) {
       if (_lastBounds != null && next.hasValue && !next.isLoading) {
         final currentFilter = next.value;
@@ -26,12 +31,19 @@ class MapTrailSearch extends _$MapTrailSearch {
     return [];
   }
 
-  Future<void> searchInBounds(
+  void searchInBounds(LatLngBounds bounds, {TrailFilter? passedFilter}) {
+    _lastBounds = bounds;
+    _debounce?.cancel();
+    _debounce = Timer(
+      const Duration(milliseconds: 400),
+      () => _executeSearch(bounds, passedFilter: passedFilter),
+    );
+  }
+
+  Future<void> _executeSearch(
     LatLngBounds bounds, {
     TrailFilter? passedFilter,
   }) async {
-    _lastBounds = bounds;
-
     final TrailFilter filter =
         passedFilter ?? await ref.read(trailFilterProvider.future);
     final user = await ref.read(authProvider.future);
@@ -66,11 +78,8 @@ class MapTrailSearch extends _$MapTrailSearch {
             'sort': [
               "${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}",
             ],
-            'attributesToRetrieve': [
-              ...defaultTrailSearchAttributes,
-              'polyline',
-            ],
-            'hitsPerPage': 500,
+            'attributesToRetrieve': [...defaultTrailSearchAttributes],
+            'hitsPerPage': 100,
             'page': 1,
           },
         },
