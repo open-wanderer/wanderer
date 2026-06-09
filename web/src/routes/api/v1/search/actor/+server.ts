@@ -117,6 +117,7 @@ export async function GET(event: RequestEvent) {
                     is_local: actor.is_local,
                     preferred_username: actor.preferred_username,
                     username: actor.username,
+                    iri: actor.iri,
                     icon: actor.icon
                 };
 
