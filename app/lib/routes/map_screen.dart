@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_animations/flutter_map_animations.dart';
@@ -210,6 +211,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 tileProviders: style!.providers,
                 theme: style!.theme,
                 tileOffset: TileOffset.DEFAULT,
+                concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
               ),
             ),
             const CurrentLocationLayer(),

@@ -12,6 +12,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/profile/follow_provider.dart';
+import 'package:wanderer/provider/profile/profile_counts_provider.dart';
 import 'package:wanderer/provider/profile/profile_feed_provider.dart';
 import 'package:wanderer/provider/profile/profile_lists_provider.dart';
 import 'package:wanderer/provider/profile/profile_provider.dart';
@@ -135,6 +136,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // Stats row — follower/following counts + follow button
           SliverToBoxAdapter(
             child: _StatsRow(actor: actor, isOwn: isOwn),
+          ),
+
+          // Trail / list count cards
+          SliverToBoxAdapter(
+            child: _CountsRow(handle: _handle!, actorId: actor.id),
           ),
 
           // Lists heading + preview
@@ -409,6 +415,112 @@ class _StatColumn extends StatelessWidget {
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Counts row — trail count card + list count card
+// ---------------------------------------------------------------------------
+
+class _CountsRow extends ConsumerWidget {
+  final String actorId;
+  final String handle;
+  const _CountsRow({required this.handle, required this.actorId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final countsAsync = ref.watch(profileCountsProvider(actorId));
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: _CountCard(
+              icon: const FaIcon(FontAwesomeIcons.route, size: 16),
+              label: AppLocalizations.of(context)!.trail(2),
+              count: countsAsync.value?.trailCount,
+              onTap: () => context.push(
+                '/profile/$handle/trails',
+              ), // wire to trails detail screen
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _CountCard(
+              icon: const FaIcon(FontAwesomeIcons.layerGroup, size: 16),
+              label: AppLocalizations.of(context)!.list(2),
+              count: countsAsync.value?.listCount,
+              onTap: null, // wire to lists detail screen
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CountCard extends StatelessWidget {
+  final Widget icon;
+  final String label;
+  final int? count;
+  final VoidCallback? onTap;
+
+  const _CountCard({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colorScheme.outline),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              IconTheme(
+                data: IconThemeData(size: 16, color: colorScheme.primary),
+                child: icon,
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                  count == null
+                      ? const SizedBox(
+                          width: 24,
+                          height: 20,
+                          child: LinearProgressIndicator(),
+                        )
+                      : Text(
+                          '$count',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
