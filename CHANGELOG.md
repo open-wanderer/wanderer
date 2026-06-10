@@ -1,3 +1,8 @@
+# [Unreleased]
+
+## Features
+- Server-side map clustering and zoom-aware polyline filtering: The world map now performs trail clustering on the server to improve performance. At lower zoom levels, smaller trails are clustered, while at higher zoom levels the largest routes in the current view are shown as detailed polylines. The maximum number of simultaneously visible polylines can be configured via the PUBLIC_MAP_MAX_POLYLINES environment variable.
+
 # v0.19.2
 ## Documentation
 -  Add CONTRIBUTING guidelines
@@ -74,7 +79,6 @@
 
 ## Maintenance
 - Meilisearch, PocketBase, Go, web/docs dependencies, CI actions, and Docker build setup updated.
-
 
 # v0.18.5
 ## Security

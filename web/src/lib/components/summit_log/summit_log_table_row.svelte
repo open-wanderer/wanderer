@@ -190,13 +190,13 @@
             <p
                 class="tooltip flex justify-center"
                 data-title="@{log.expand.author.preferred_username}{log.expand.author
-                    .isLocal
+                    .is_local
                     ? ''
                     : '@' + log.expand.author.domain}"
             >
                 <a
                     href="/profile/@{log.expand.author.preferred_username?.toLowerCase()}{log
-                        .expand.author.isLocal
+                        .expand.author.is_local
                         ? ''
                         : '@' + log.expand.author.domain}"
                 >

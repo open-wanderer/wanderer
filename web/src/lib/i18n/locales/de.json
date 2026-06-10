@@ -286,6 +286,8 @@
   "make-one": "Neues erstellen!",
   "make-thumbnail": "Thumbnail festlegen",
   "map": "Karte",
+  "map-trail-preview-zoom-level": "Routenlinien anzeigen ab Zoomstufe",
+  "show-trail-start-marker": "Marker am Start der Route anzeigen",
   "map-style": "Kartenstil",
   "mark-trail-as-completed": "Route als abgeschlossen markieren",
   "mark-trail-as-completed-modal-text": "Möchtest du diese Route als abgeschlossen markieren? Du kannst diesen Status jederzeit wieder ändern.",

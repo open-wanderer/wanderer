@@ -1,8 +1,7 @@
-import type { Actor } from "$lib/models/activitypub/actor";
+import type { ActorSearchResult } from "$lib/models/activitypub/actor";
 import { defaultTrailSearchAttributes, type TrailSearchResult } from "$lib/models/trail";
 import { APIError } from "$lib/util/api_util";
 import type { Hits, MultiSearchParams, MultiSearchResponse, MultiSearchResult, SearchParams, SearchResponse } from "meilisearch";
-import type { ListResult } from "pocketbase";
 
 export type LocationSearchResult = {
     name: string;
@@ -99,7 +98,7 @@ export async function searchTrails(q: string, options: SearchParams): Promise<Hi
 
     const response: SearchResponse<TrailSearchResult> = await r.json();
 
-    return response.hits
+    return response.hits || []
 }
 
 export async function searchLocations(q: string, limit?: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<Hits<LocationSearchResult>> {
@@ -245,6 +244,10 @@ export async function searchMulti(options: MultiSearchParams): Promise<MultiSear
 
     const response: MultiSearchResponse<any> = await r.json();
 
+    if (!response.results) {
+        return [];
+    }
+
 
     if (locationQuery && locationQuery.q !== undefined && locationQuery.q !== null) {
         const locationsResults = await searchLocations(locationQuery.q, locationQuery.limit)
@@ -258,16 +261,16 @@ export async function searchMulti(options: MultiSearchParams): Promise<MultiSear
     return response.results
 }
 
-export async function searchActors(q: string, includeSelf: boolean = true): Promise<Actor[]> {
+export async function searchActors(q: string, includeSelf: boolean = true): Promise<ActorSearchResult[]> {
     try {
         const r = await fetch(`/api/v1/search/actor?q=${q}&includeSelf=${includeSelf}`,)
 
         if (!r.ok) {
             return []
         }
-        const response: ListResult<Actor> = await r.json()
+        const response: SearchResponse<ActorSearchResult> = await r.json()
 
-        return response.items
+        return response.hits
     } catch (e) {
         console.log(e);
 

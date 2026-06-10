@@ -173,7 +173,7 @@
                         alt="avatar"
                     />
                     {trail.expand.author.preferred_username}{trail.expand.author
-                        .isLocal
+                        .is_local
                         ? ""
                         : "@" + trail.expand.author.domain}
                 </p>

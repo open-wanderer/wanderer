@@ -15,11 +15,21 @@ export interface Actor {
     icon?: string;
     followers?: string;
     following?: string;
-    isLocal: boolean;
+    is_local: boolean;
     public_key: string;
     last_fetched: string;
     user?: string
     expand?: {
         user?: User
     }
+}
+
+export interface ActorSearchResult {
+    id: string;
+    username: string;
+    preferred_username: string;
+    domain: string;
+    is_local: boolean;
+    iri: string;
+    icon?: string;
 }

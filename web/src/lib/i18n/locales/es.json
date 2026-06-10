@@ -264,6 +264,8 @@
   "make-one": "¡Crea uno!",
   "make-thumbnail": "Generar miniaturas",
   "map": "Mapa",
+  "map-trail-preview-zoom-level": "Mostrar vistas previas de rutas a partir del nivel de zoom",
+  "show-trail-start-marker": "Mostrar marcador al inicio de la ruta",
   "map-style": "Estilo de mapa",
   "mark-trail-as-completed": "",
   "mark-trail-as-completed-modal-text": "",

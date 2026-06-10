@@ -90,6 +90,10 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordAfterCreateSuccess("users").BindFunc(hooks.CreateUserHandler(client))
 	app.OnRecordAfterUpdateSuccess("users").BindFunc(hooks.UpdateUserHandler(client))
 
+	app.OnRecordAfterCreateSuccess("activitypub_actors").BindFunc(hooks.CreateActorHandler(client))
+	app.OnRecordAfterUpdateSuccess("activitypub_actors").BindFunc(hooks.UpdateActorHandler(client))
+	app.OnRecordAfterDeleteSuccess("activitypub_actors").BindFunc(hooks.DeleteActorHandler(client))
+
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client))
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client))
 	app.OnRecordAfterDeleteSuccess("trails").BindFunc(hooks.DeleteTrailHandler(client))
@@ -97,6 +101,8 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordCreateRequest("summit_logs").BindFunc(hooks.CreateSummitLogHandler(client))
 	app.OnRecordUpdateRequest("summit_logs").BindFunc(hooks.UpdateSummitLogHandler())
 	app.OnRecordDeleteRequest("summit_logs").BindFunc(hooks.DeleteSummitLogHandler(client))
+
+	app.OnRecordCreateRequest("waypoints").BindFunc(hooks.CreateWaypointHandler())
 
 	app.OnRecordCreateRequest("comments").BindFunc(hooks.CreateCommentHandler())
 	app.OnRecordUpdateRequest("comments").BindFunc(hooks.UpdateCommentHandler())
@@ -305,9 +311,9 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 		"trails": {
 			SearchableAttributes: []string{"author_name", "name", "description", "location", "tags"},
 			FilterableAttributes: []string{
-				"_geo", "author", "category", "completed", "date", "difficulty",
+				"id", "_geo", "author", "category", "completed", "date", "difficulty",
 				"distance", "elevation_gain", "elevation_loss", "likes", "public",
-				"shares", "tags",
+				"shares", "tags", "min_lat", "max_lat", "min_lon", "max_lon", "bounding_box_diagonal",
 			},
 			SortableAttributes: []string{
 				"author", "created", "date", "difficulty", "distance",
@@ -319,6 +325,12 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 			SearchableAttributes: []string{"*"},
 			FilterableAttributes: []string{"author", "public", "shares"},
 			SortableAttributes:   []string{"created", "name"},
+			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
+		},
+		"actors": {
+			SearchableAttributes: []string{"username", "preferred_username", "domain"},
+			FilterableAttributes: []string{"id"},
+			SortableAttributes:   []string{},
 			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
 		},
 	}
@@ -404,6 +416,33 @@ func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) e
 
 		if err := util.IndexLists(app, lists, client); err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to index list page %d: %v", page, err))
+			continue
+		}
+
+		page++
+	}
+
+	// --- Actors ---
+	if _, err := client.Index("actors").DeleteAllDocuments(nil); err != nil {
+		return err
+	}
+
+	page = 0
+	for {
+		actors := []*core.Record{}
+		err := app.RecordQuery("activitypub_actors").
+			Limit(pageSize).
+			Offset(page * pageSize).
+			All(&actors)
+		if err != nil {
+			return err
+		}
+		if len(actors) == 0 {
+			break
+		}
+
+		if err := util.IndexActors(actors, client); err != nil {
+			app.Logger().Warn(fmt.Sprintf("Unable to index actor page %d: %v", page, err))
 			continue
 		}
 
