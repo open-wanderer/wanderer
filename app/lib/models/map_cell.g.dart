@@ -34,6 +34,7 @@ Map<String, dynamic> _$MapCellInfoToJson(_MapCellInfo instance) =>
 const _$MapCellStatusEnumMap = {
   MapCellStatus.isNew: 'new',
   MapCellStatus.pending: 'pending',
+  MapCellStatus.generating: 'generating',
   MapCellStatus.ready: 'ready',
   MapCellStatus.error: 'error',
 };
