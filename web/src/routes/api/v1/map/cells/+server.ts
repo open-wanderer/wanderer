@@ -64,7 +64,12 @@ export async function GET(event: RequestEvent) {
   if (!bbox) {
     return json({ message: "Missing required query parameter: bbox" }, { status: 400 });
   }
- 
+
+  const parts = bbox.split(",");
+  if (parts.length !== 4 || parts.some((part) => !Number.isFinite(Number(part)))) {
+    return json({ message: "Malformed bbox: expected 4 comma-separated numbers" }, { status: 400 });
+  }
+
   try {
     const result = await event.locals.pb.send("/map/cells", {
       method: "GET",

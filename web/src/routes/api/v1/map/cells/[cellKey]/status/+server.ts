@@ -1,6 +1,8 @@
 import { handleError } from "$lib/util/api_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 
+const CELL_KEY_RE = /^-?\d+\.\d+_-?\d+\.\d+_-?\d+\.\d+_-?\d+\.\d+$/;
+
 /**
  * @swagger
  * /api/v1/maps/cells/{cellKey}/status:
@@ -49,7 +51,11 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  */
 export async function GET(event: RequestEvent) {
   const cellKey = event.params.cellKey;
- 
+
+  if (!cellKey || !CELL_KEY_RE.test(cellKey)) {
+    return json({ message: "Invalid cell key format" }, { status: 400 });
+  }
+
   try {
     const result = await event.locals.pb.send(`/map/cells/${cellKey}/status`, {
       method: "GET",
