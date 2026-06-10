@@ -80,28 +80,71 @@ class TrailDropdown extends ConsumerWidget {
 
   void _downloadTrail(BuildContext context, WidgetRef ref, Trail trail) async {
     final trailDownloadService = ref.read(trailDownloadServiceProvider);
+    final progress = ValueNotifier<(int, int)?>(null);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _DownloadProgressDialog(progress: progress),
+    );
 
     try {
-      await trailDownloadService.downloadTrail(trail);
-      ref
-          .read(toastProvider.notifier)
-          .add(
-            ToastMessage(
-              type: ToastType.success,
-              icon: FontAwesomeIcons.circleCheck,
-              text: 'Trail saved for offline use',
-            ),
-          );
+      await trailDownloadService.downloadTrail(
+        trail,
+        onProgress: (done, total) => progress.value = (done, total),
+      );
+      if (context.mounted) Navigator.of(context).pop();
+      ref.read(toastProvider.notifier).add(
+        ToastMessage(
+          type: ToastType.success,
+          icon: FontAwesomeIcons.circleCheck,
+          text: 'Trail saved for offline use',
+        ),
+      );
     } catch (e) {
-      ref
-          .read(toastProvider.notifier)
-          .add(
-            ToastMessage(
-              type: ToastType.error,
-              icon: FontAwesomeIcons.xmark,
-              text: 'Error saving trail',
-            ),
-          );
+      if (context.mounted) Navigator.of(context).pop();
+      ref.read(toastProvider.notifier).add(
+        ToastMessage(
+          type: ToastType.error,
+          icon: FontAwesomeIcons.xmark,
+          text: 'Error saving trail',
+        ),
+      );
+    } finally {
+      progress.dispose();
     }
+  }
+}
+
+class _DownloadProgressDialog extends StatelessWidget {
+  final ValueNotifier<(int, int)?> progress;
+
+  const _DownloadProgressDialog({required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      content: ValueListenableBuilder<(int, int)?>(
+        valueListenable: progress,
+        builder: (_, value, _) {
+          final (done, total) = value ?? (0, 0);
+          final hasProgress = total > 0;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasProgress) ...[
+                LinearProgressIndicator(value: done / total),
+                const SizedBox(height: 12),
+                Text('Downloading map tiles ($done / $total)'),
+              ] else ...[
+                const CircularProgressIndicator(),
+                const SizedBox(height: 12),
+                const Text('Preparing download...'),
+              ],
+            ],
+          );
+        },
+      ),
+    );
   }
 }
