@@ -63,6 +63,10 @@ _Trail _$TrailFromJson(Map<String, dynamic> json) => _Trail(
       TrailDifficulty.easy,
   lat: (json['lat'] as num?)?.toDouble(),
   lon: (json['lon'] as num?)?.toDouble(),
+  maxLat: (json['max_lat'] as num?)?.toDouble() ?? 0,
+  maxLon: (json['max_lon'] as num?)?.toDouble() ?? 0,
+  minLat: (json['min_lat'] as num?)?.toDouble() ?? 0,
+  minLon: (json['min_lon'] as num?)?.toDouble() ?? 0,
   thumbnail: (json['thumbnail'] as num?)?.toInt() ?? 0,
   photos:
       (json['photos'] as List<dynamic>?)?.map((e) => e as String).toList() ??
@@ -108,6 +112,10 @@ Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
   'difficulty': _$TrailDifficultyEnumMap[instance.difficulty]!,
   'lat': instance.lat,
   'lon': instance.lon,
+  'max_lat': instance.maxLat,
+  'max_lon': instance.maxLon,
+  'min_lat': instance.minLat,
+  'min_lon': instance.minLon,
   'thumbnail': instance.thumbnail,
   'photos': instance.photos,
   'gpx': instance.gpx,

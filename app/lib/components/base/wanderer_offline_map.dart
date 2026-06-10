@@ -32,7 +32,7 @@ class _WandererOfflineMapState extends ConsumerState<WandererOfflineMap> {
 
   @override
   Widget build(BuildContext context) {
-    final bounds = widget.trail.expand?.gpx?.getBounds();
+    final bounds = widget.trail.bounds;
 
     return FutureBuilder<PmTilesVectorTileProvider>(
       future: _futureTileProvider,
@@ -41,12 +41,10 @@ class _WandererOfflineMapState extends ConsumerState<WandererOfflineMap> {
           final tileProvider = snapshot.data!;
           return FlutterMap(
             options: MapOptions(
-              initialCameraFit: bounds != null
-                  ? CameraFit.bounds(
-                      bounds: bounds,
-                      padding: const EdgeInsets.all(40),
-                    )
-                  : null, // firenze
+              initialCameraFit: CameraFit.bounds(
+                bounds: bounds,
+                padding: const EdgeInsets.all(40),
+              ),
               maxZoom: 18,
               minZoom: 0,
             ),

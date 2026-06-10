@@ -1,14 +1,13 @@
 import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:gpx/gpx.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/map_cell.dart';
 import 'package:wanderer/models/trail.dart';
-import 'package:wanderer/util/gpx_util.dart';
 
 class TrailDownloadService {
   final Store _store;
@@ -50,26 +49,7 @@ class TrailDownloadService {
     Trail trail,
     Directory trailDir,
   ) async {
-    final LatLngBounds bounds;
-
-    if (trail.expand?.gpx != null) {
-      final b = trail.expand!.gpx!.getBounds();
-      if (b == null) {
-        throw Exception('GPX for trail ${trail.id} has no track points');
-      }
-      bounds = b;
-    } else if (trail.expand?.gpxData != null) {
-      final b = GpxReader().fromString(trail.expand!.gpxData!).getBounds();
-      if (b == null) {
-        throw Exception('GPX data for trail ${trail.id} has no track points');
-      }
-      bounds = b;
-    } else {
-      throw Exception(
-        'Trail ${trail.id} has no GPX data in expand. '
-        'Make sure gpx_data or gpx is included in the expand when calling downloadTrail.',
-      );
-    }
+    final LatLngBounds bounds = trail.bounds;
 
     final bbox =
         '${bounds.west},${bounds.south},${bounds.east},${bounds.north}';

@@ -1,5 +1,7 @@
+import 'package:flutter_map/flutter_map.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:gpx/gpx.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:wanderer/models/record.dart';
 import 'package:wanderer/models/trail_summary.dart';
 
@@ -60,6 +62,10 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     @Default(TrailDifficulty.easy) TrailDifficulty difficulty,
     double? lat,
     double? lon,
+    @JsonKey(name: 'max_lat') @Default(0) double maxLat,
+    @JsonKey(name: 'max_lon') @Default(0) double maxLon,
+    @JsonKey(name: 'min_lat') @Default(0) double minLat,
+    @JsonKey(name: 'min_lon') @Default(0) double minLon,
     @Default(0) int thumbnail,
     @Default([]) List<String> photos,
     String? gpx,
@@ -81,6 +87,9 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
   }) = _Trail;
 
   const Trail._();
+
+  LatLngBounds get bounds =>
+      LatLngBounds(LatLng(minLat, minLon), LatLng(maxLat, maxLon));
 
   @override
   String get summaryAuthorName => expand?.author?.username ?? "Unknown";

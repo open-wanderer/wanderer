@@ -354,7 +354,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
   }
 
   Widget _buildMapControls(BuildContext context, Trail trail) {
-    final bounds = trail.expand?.gpx?.getBounds();
+    final bounds = trail.bounds;
 
     return Padding(
       padding: const EdgeInsets.all(8.0),

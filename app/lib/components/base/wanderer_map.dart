@@ -5,12 +5,11 @@ import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
+import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
-import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
-import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
 class WandererMap extends ConsumerStatefulWidget {
   final Trail trail;
@@ -57,7 +56,7 @@ class _WandererMapState extends ConsumerState<WandererMap> {
   @override
   void initState() {
     super.initState();
-    _bounds = widget.trail.expand?.gpx?.getBounds();
+    _bounds = widget.trail.bounds;
     _initStyle();
     if (widget.offline) {
       _initOffline();
