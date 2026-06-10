@@ -1,7 +1,10 @@
 import { handleError } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
+import { z } from 'zod';
 
-const CELL_KEY_RE = /^-?\d+\.\d+_-?\d+\.\d+_-?\d+\.\d+_-?\d+\.\d+$/;
+const CellKeySchema = z.object({
+  cellKey: z.string().regex(/^-?\d+\.\d+_-?\d+\.\d+_-?\d+\.\d+_-?\d+\.\d+$/, 'Invalid cell key format'),
+});
 
 /**
  * @swagger
@@ -46,7 +49,7 @@ const CELL_KEY_RE = /^-?\d+\.\d+_-?\d+\.\d+_-?\d+\.\d+_-?\d+\.\d+$/;
  *               properties:
  *                 status:
  *                   type: string
- *                   example: generating
+ *                   example: pending
  *                 status_url:
  *                   type: string
  *       400:
@@ -57,13 +60,9 @@ const CELL_KEY_RE = /^-?\d+\.\d+_-?\d+\.\d+_-?\d+\.\d+_-?\d+\.\d+$/;
  *         description: Internal Server Error
  */
 export async function GET(event: RequestEvent) {
-  const cellKey = event.params.cellKey;
-
-  if (!cellKey || !CELL_KEY_RE.test(cellKey)) {
-    return json({ message: "Invalid cell key format" }, { status: 400 });
-  }
-
   try {
+    const { cellKey } = CellKeySchema.parse(event.params);
+
     const result = await event.locals.pb.send(`/map/cells/${cellKey}`, {
       method: "GET",
       fetch: event.fetch,

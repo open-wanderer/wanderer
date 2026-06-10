@@ -161,7 +161,6 @@ class TrailDownloadService {
           );
         case MapCellStatus.pending:
         case MapCellStatus.isNew:
-        case MapCellStatus.generating:
           continue;
       }
     }

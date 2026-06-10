@@ -1,5 +1,16 @@
 import { handleError } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
+import { z } from 'zod';
+
+const BboxSchema = z.object({
+  bbox: z.string().refine(
+    (s) => {
+      const parts = s.split(',');
+      return parts.length === 4 && parts.every((p) => Number.isFinite(Number(p)));
+    },
+    { message: 'Malformed bbox: expected 4 comma-separated numbers' }
+  ),
+});
 
 /**
  * @swagger
@@ -8,7 +19,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *     summary: List grid cells for a bounding box
  *     description: >
  *       Resolves a bounding box to the fixed grid cells that cover it.
- *       Returns the current status of each cell (ready / generating / pending / error)
+ *       Returns the current status of each cell (new / pending / ready / error)
  *       and URLs for requesting, polling, and downloading each one.
  *       The client should call this first to determine what needs to be downloaded.
  *     tags:
@@ -39,7 +50,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *                         example: "6.00_51.00_6.50_51.50"
  *                       status:
  *                         type: string
- *                         enum: [ready, generating, pending, error]
+ *                         enum: [new, pending, ready, error]
  *                       request_url:
  *                         type: string
  *                         description: URL to trigger generation of this cell
@@ -60,17 +71,9 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *         description: Internal Server Error
  */
 export async function GET(event: RequestEvent) {
-  const bbox = event.url.searchParams.get("bbox");
-  if (!bbox) {
-    return json({ message: "Missing required query parameter: bbox" }, { status: 400 });
-  }
-
-  const parts = bbox.split(",");
-  if (parts.length !== 4 || parts.some((part) => !Number.isFinite(Number(part)))) {
-    return json({ message: "Malformed bbox: expected 4 comma-separated numbers" }, { status: 400 });
-  }
-
   try {
+    const { bbox } = BboxSchema.parse(Object.fromEntries(event.url.searchParams));
+
     const result = await event.locals.pb.send("/map/cells", {
       method: "GET",
       query: { bbox },

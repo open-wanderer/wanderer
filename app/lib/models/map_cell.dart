@@ -8,8 +8,6 @@ enum MapCellStatus {
   isNew,
   @JsonValue('pending')
   pending,
-  @JsonValue('generating')
-  generating,
   @JsonValue('ready')
   ready,
   @JsonValue('error')
