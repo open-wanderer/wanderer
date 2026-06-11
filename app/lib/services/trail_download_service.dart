@@ -27,25 +27,29 @@ class TrailDownloadService {
     final trailId = trail.id;
     final appDir = await getApplicationDocumentsDirectory();
     final trailDir = Directory('${appDir.path}/library/$trailId');
-
+    final baseUrl = Uri.parse(_api.options.baseUrl).origin;
     if (!await trailDir.exists()) {
       await trailDir.create(recursive: true);
     }
 
     final List<String> localPaths = await _downloadPhotos(
-      trail.photos
-          .map((p) => trail.getFileUrl(_api.options.baseUrl, p)!)
-          .toList(),
+      trail.photos.map((p) => trail.getFileUrl(baseUrl, p)!).toList(),
       trailDir,
       cancelToken: cancelToken,
     );
 
-    final cellPaths = await _downloadMapTiles(
-      trail,
-      trailDir,
-      cancelToken: cancelToken,
-      onProgress: onProgress,
-    );
+    final List<String> cellPaths;
+    try {
+      cellPaths = await _downloadMapTiles(
+        trail,
+        trailDir,
+        cancelToken: cancelToken,
+        onProgress: onProgress,
+      );
+    } catch (e) {
+      await trailDir.delete(recursive: true);
+      rethrow;
+    }
 
     final entity = TrailEntity.fromModel(trail);
     entity.photos = localPaths;
@@ -87,10 +91,7 @@ class TrailDownloadService {
       }
 
       try {
-        final requestRes = await _api.get(
-          cell.url,
-          cancelToken: cancelToken,
-        );
+        final requestRes = await _api.get(cell.url, cancelToken: cancelToken);
         var readyCell = MapCellStatusResponse.fromJson(requestRes.data!);
 
         if (readyCell.status != MapCellStatus.ready) {
@@ -108,18 +109,11 @@ class TrailDownloadService {
         );
         onProgress?.call(++completed, total);
         return localPath;
-      } on DioException catch (e) {
-        if (CancelToken.isCancel(e)) {
-          if (await File(localPath).exists()) {
-            await File(localPath).delete();
-          }
-          rethrow;
+      } on DioException {
+        if (await File(localPath).exists()) {
+          await File(localPath).delete();
         }
-        print('Failed to download map cell $key: $e');
-        return null;
-      } catch (e) {
-        print('Failed to download map cell $key: $e');
-        return null;
+        rethrow;
       }
     }).toList();
 

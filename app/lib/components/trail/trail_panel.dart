@@ -68,12 +68,17 @@ class TrailPanel extends ConsumerWidget {
                 ),
               ],
             ),
-
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    DateFormat.yMMMMd(
+                      Localizations.localeOf(context).toString(),
+                    ).format(trail.summaryDate!),
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -88,51 +93,35 @@ class TrailPanel extends ConsumerWidget {
                       ?actionMenu,
                     ],
                   ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      InkWell(
-                        onTap: () => context.push(
-                          '/profile/@${trail.expand!.author!.preferredUsername}@${trail.expand!.author!.domain}',
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4.0),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Colors.grey.shade300,
-                                backgroundImage: NetworkImage(
-                                  trail.summaryAuthorAvatar.isNotEmpty
-                                      ? trail.summaryAuthorAvatar
-                                      : "https://api.dicebear.com/7.x/initials/png?seed=${trail.summaryAuthorName}&backgroundType=gradientLinear",
-                                ),
-                                onBackgroundImageError: (_, _) =>
-                                    FaIcon(FontAwesomeIcons.user),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                "@${trail.expand!.author!.preferredUsername}@${trail.expand!.author!.domain}",
-                                style: Theme.of(context).textTheme.labelLarge,
-                              ),
-                            ],
+                  InkWell(
+                    onTap: () => context.push(
+                      '/profile/@${trail.expand!.author!.preferredUsername}@${trail.expand!.author!.domain}',
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.grey.shade300,
+                            backgroundImage: NetworkImage(
+                              trail.summaryAuthorAvatar.isNotEmpty
+                                  ? trail.summaryAuthorAvatar
+                                  : "https://api.dicebear.com/7.x/initials/png?seed=${trail.summaryAuthorName}&backgroundType=gradientLinear",
+                            ),
+                            onBackgroundImageError: (_, _) =>
+                                FaIcon(FontAwesomeIcons.user),
                           ),
-                        ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "@${trail.expand!.author!.preferredUsername}@${trail.expand!.author!.domain}",
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                        ],
                       ),
-
-                      SizedBox(width: 12),
-                      Text("·"),
-                      SizedBox(width: 12),
-                      Text(
-                        DateFormat.yMMMMd(
-                          Localizations.localeOf(context).toString(),
-                        ).format(trail.summaryDate!),
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 12),
-
                   Wrap(
                     spacing: 10,
                     runSpacing: 10,

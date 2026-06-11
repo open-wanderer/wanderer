@@ -22,7 +22,7 @@ class LibraryScreen extends ConsumerWidget {
               return TrailCard(
                 trail: trailLibrary[i],
                 onTrailSelect: () =>
-                    router.push('/library/${trailLibrary[i].id}'),
+                    router.push('/trail/${trailLibrary[i].id}'),
               );
             },
           ),

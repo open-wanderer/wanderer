@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	pmtilesSource = "https://build.protomaps.com/20260514.pmtiles"
+	pmtilesSource = "https://build.protomaps.com/20260610.pmtiles"
 
 	maxZoom = 14
 

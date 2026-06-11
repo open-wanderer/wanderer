@@ -55,7 +55,7 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: WandererSearchBar(
               hintText: AppLocalizations.of(context)!.search,
               onChanged: (q) => ref
@@ -79,9 +79,7 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
                           if (index == state.trails.length) {
                             return const Padding(
                               padding: EdgeInsets.symmetric(vertical: 16),
-                              child: Center(
-                                child: CircularProgressIndicator(),
-                              ),
+                              child: Center(child: CircularProgressIndicator()),
                             );
                           }
                           final trail = state.trails[index];
@@ -93,8 +91,7 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
                         },
                       ),
               ),
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => WandererError(err: err, stack: stack),
             ),
           ),

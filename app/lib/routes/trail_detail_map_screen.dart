@@ -14,7 +14,6 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/format_util.dart';
-import 'package:wanderer/util/gpx_util.dart';
 
 class TrailDetailMapScreen extends ConsumerStatefulWidget {
   final String id;

@@ -5,7 +5,6 @@ import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/trail.dart';
-import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
 
 class WandererOfflineMap extends ConsumerStatefulWidget {
