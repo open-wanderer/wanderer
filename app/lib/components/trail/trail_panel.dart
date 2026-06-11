@@ -73,11 +73,51 @@ class TrailPanel extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    DateFormat.yMMMMd(
-                      Localizations.localeOf(context).toString(),
-                    ).format(trail.summaryDate!),
-                    style: TextStyle(color: Colors.grey[600]),
+                  Row(
+                    children: [
+                      Text(
+                        DateFormat.yMMMMd(
+                          Localizations.localeOf(context).toString(),
+                        ).format(trail.summaryDate!),
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                      if (trail.isOffline) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.grey.shade400,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.cloud_off,
+                                size: 9,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Offline',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,

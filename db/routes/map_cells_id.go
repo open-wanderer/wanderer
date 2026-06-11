@@ -68,7 +68,7 @@ func MapCellsStatus(e *core.RequestEvent) error {
 	resp := map[string]any{"key": cell.CacheKey(), "status": status}
 	if status == "ready" {
 		resp["size_bytes"] = int64(r.GetFloat("size_bytes"))
-		resp["download_url"] = "/api/maps/cells/" + cell.CacheKey() + "/download"
+		resp["download_url"] = "/map/cells/" + cell.CacheKey() + "/download"
 	}
 	if status == "error" {
 		resp["error"] = r.GetString("error_message")

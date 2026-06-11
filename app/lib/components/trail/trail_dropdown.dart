@@ -139,6 +139,7 @@ class TrailDropdown extends ConsumerWidget {
             text: 'Downloading ${trail.name}...',
           ),
         );
+    await notificationService.showProgress(trail.name, 0, 0);
 
     try {
       await trailDownloadService.downloadTrail(
