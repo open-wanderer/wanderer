@@ -16,18 +16,19 @@ dependencies:
     sdk: flutter
   flutter_form_builder: ^10.3.0+2
   flutter_html: ^3.0.0
+  flutter_local_notifications: ^18.0.0
   flutter_localizations:
     sdk: flutter
   flutter_map: ^8.3.0
   flutter_map_animations: ^0.10.0
   flutter_map_location_marker: ^10.0.2
   flutter_map_marker_cluster: ^8.2.2
-  geolocator: ^13.0.2
   flutter_riverpod: ^3.3.1
   flutter_svg: ^2.2.4
   font_awesome_flutter: ^11.0.0
   form_builder_validators: ^11.3.0
   freezed_annotation: ^3.1.0
+  geolocator: ^13.0.2
   go_router: ^17.2.1
   gpx: ^2.3.0
   intl: any
@@ -43,6 +44,7 @@ dependencies:
   share_plus: ^13.1.0
   textfield_tags: ^3.0.1
   timeago: ^3.7.1
+  url_launcher: ^6.3.2
   vector_map_tiles: ^10.0.0-beta.2
   vector_tile_renderer: ^7.0.0-beta.1
 
