@@ -49,7 +49,7 @@ class WandererMap extends ConsumerStatefulWidget {
 
 class _WandererMapState extends ConsumerState<WandererMap> {
   Style? _style;
-  PmTilesVectorTileProvider? _offlineTileProvider;
+  MultiPmTilesVectorTileProvider? _offlineTileProvider;
   Object? _error;
   LatLngBounds? _bounds;
 
@@ -83,8 +83,8 @@ class _WandererMapState extends ConsumerState<WandererMap> {
 
   Future<void> _initOffline() async {
     try {
-      final provider = await PmTilesVectorTileProvider.fromSource(
-        widget.trail.pmTiles[0],
+      final provider = await MultiPmTilesVectorTileProvider.fromSources(
+        widget.trail.pmTiles,
       );
       if (mounted) setState(() => _offlineTileProvider = provider);
     } catch (e) {
