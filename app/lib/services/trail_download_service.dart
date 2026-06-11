@@ -38,6 +38,18 @@ class TrailDownloadService {
       cancelToken: cancelToken,
     );
 
+    final waypoints = trail.expand?.waypointsViaTrail ?? [];
+    final Map<String, List<String>> waypointLocalPhotos = {};
+    for (final waypoint in waypoints) {
+      if (waypoint.photos.isEmpty) continue;
+      final waypointDir = Directory('${trailDir.path}/waypoints/${waypoint.id}');
+      waypointLocalPhotos[waypoint.id] = await _downloadPhotos(
+        waypoint.photos.map((p) => waypoint.getFileUrl(baseUrl, p)!).toList(),
+        waypointDir,
+        cancelToken: cancelToken,
+      );
+    }
+
     final List<String> cellPaths;
     try {
       cellPaths = await _downloadMapTiles(
@@ -54,6 +66,10 @@ class TrailDownloadService {
     final entity = TrailEntity.fromModel(trail);
     entity.photos = localPaths;
     entity.pmTiles = cellPaths;
+    for (final waypointEntity in entity.waypoints) {
+      final paths = waypointLocalPhotos[waypointEntity.id];
+      if (paths != null) waypointEntity.localPhotos = paths;
+    }
     _store.runInTransaction(TxMode.write, () {
       box.put(entity);
     });

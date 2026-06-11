@@ -21,6 +21,7 @@ class WaypointEntity {
   String? icon;
 
   List<String> photos;
+  List<String> localPhotos;
 
   @Property(type: PropertyType.dateUtc)
   DateTime created;
@@ -41,6 +42,7 @@ class WaypointEntity {
     required this.author,
     this.icon,
     this.photos = const [],
+    this.localPhotos = const [],
   });
 
   factory WaypointEntity.fromModel(Waypoint w) {
@@ -71,6 +73,7 @@ extension WaypointEntityMapping on WaypointEntity {
       distanceFromStart: distanceFromStart,
       author: author,
       photos: photos,
+      localPhotos: localPhotos,
       icon: fontAwesomeIconsMap[icon] ?? FontAwesomeIcons.circle,
       updated: updated,
       created: created,
