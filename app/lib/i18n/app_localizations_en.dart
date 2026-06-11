@@ -300,6 +300,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get delete => 'Delete';
 
   @override
+  String get open => 'Open';
+
+  @override
   String get delete_account => 'Delete Account';
 
   @override

@@ -212,6 +212,7 @@ class TrailPanel extends ConsumerWidget {
                                   child: WandererMap(
                                     trail: trail,
                                     disabled: true,
+                                    offline: trail.isOffline,
                                     onTap: (_, _) =>
                                         context.push('/trail/${trail.id}/map'),
                                   ),

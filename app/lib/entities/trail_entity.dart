@@ -25,6 +25,10 @@ class TrailEntity {
   double? duration;
   double? lat;
   double? lon;
+  double maxLat;
+  double maxLon;
+  double minLat;
+  double minLon;
   String? gpxData;
   String? description;
   @Property(type: PropertyType.dateUtc)
@@ -70,6 +74,10 @@ class TrailEntity {
     this.difficulty = TrailDifficulty.easy,
     this.lat,
     this.lon,
+    this.maxLat = 0,
+    this.maxLon = 0,
+    this.minLat = 0,
+    this.minLon = 0,
     this.gpxData,
     this.description = "",
   });
@@ -87,6 +95,10 @@ class TrailEntity {
       duration: trail.duration,
       lat: trail.lat,
       lon: trail.lon,
+      maxLat: trail.maxLat,
+      maxLon: trail.maxLon,
+      minLat: trail.minLat,
+      minLon: trail.minLon,
       gpxData: trail.expand?.gpxData,
       description: trail.description,
       updated: trail.updated,
@@ -132,6 +144,10 @@ extension TrailEntityMapping on TrailEntity {
       difficulty: difficulty,
       lat: lat,
       lon: lon,
+      maxLat: maxLat,
+      maxLon: maxLon,
+      minLat: minLat,
+      minLon: minLon,
       description: description ?? "",
       isOffline: true,
       localPhotos: photos,

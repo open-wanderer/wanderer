@@ -17,6 +17,7 @@ class TrailCard extends ConsumerWidget {
   final bool fullWidth;
   final bool selected;
   final VoidCallback? onTrailSelect;
+  final VoidCallback? onLongPress;
 
   const TrailCard({
     super.key,
@@ -24,6 +25,7 @@ class TrailCard extends ConsumerWidget {
     this.fullWidth = false,
     this.selected = false,
     this.onTrailSelect,
+    this.onLongPress,
   });
 
   @override
@@ -85,6 +87,7 @@ class TrailCard extends ConsumerWidget {
           ),
           child: InkWell(
             onTap: onTrailSelect,
+            onLongPress: onLongPress,
             borderRadius: BorderRadius.circular(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -93,7 +93,7 @@ class _WandererMapState extends ConsumerState<WandererMap> {
   }
 
   bool get _ready =>
-      widget.offline ? _offlineTileProvider != null : _style != null;
+      _style != null && (widget.offline ? _offlineTileProvider != null : true);
 
   VectorTileLayer _buildTileLayer() {
     if (widget.offline) {

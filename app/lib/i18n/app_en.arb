@@ -88,6 +88,7 @@
   "default_location": "Default Location",
   "degrees": "Degrees",
   "delete": "Delete",
+  "open": "Open",
   "delete_account": "Delete Account",
   "delete_list_confirm": "Do you really want to delete this list? The trails in the list will still be available.",
   "delete_summit_log_confirm": "Do you really want to delete this summit log? This action cannot be undone.",

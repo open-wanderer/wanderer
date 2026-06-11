@@ -89,6 +89,7 @@
   "default_location": "Standort",
   "degrees": "Grad",
   "delete": "Löschen",
+  "open": "Öffnen",
   "delete_account": "Konto löschen",
   "delete_list_confirm": "Möchtest Du diese Liste wirklich löschen? Die Routen in der Liste sind danach weiterhin verfügbar.",
   "delete_summit_log_confirm": "Möchtest du diesen Gipfelbuch_Eintrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",

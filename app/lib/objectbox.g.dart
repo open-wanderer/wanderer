@@ -385,7 +385,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(6, 5034082009762803572),
     name: 'TrailEntity',
-    lastPropertyId: const obx_int.IdUid(21, 3743255950615280682),
+    lastPropertyId: const obx_int.IdUid(25, 5606963275384491232),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -519,6 +519,30 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(21, 3743255950615280682),
         name: 'updated',
         type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(22, 4844198063624822025),
+        name: 'maxLat',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(23, 7653326966957921410),
+        name: 'maxLon',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(24, 6823241243665890973),
+        name: 'minLat',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(25, 5606963275384491232),
+        name: 'minLon',
+        type: 8,
         flags: 0,
       ),
     ],
@@ -1069,7 +1093,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final pmTilesOffset = fbb.writeList(
           object.pmTiles.map(fbb.writeString).toList(growable: false),
         );
-        fbb.startTable(22);
+        fbb.startTable(26);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1091,6 +1115,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addInt64(18, object.category.targetId);
         fbb.addInt64(19, object.created.millisecondsSinceEpoch);
         fbb.addInt64(20, object.updated.millisecondsSinceEpoch);
+        fbb.addFloat64(21, object.maxLat);
+        fbb.addFloat64(22, object.maxLon);
+        fbb.addFloat64(23, object.minLat);
+        fbb.addFloat64(24, object.minLon);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1158,6 +1186,30 @@ obx_int.ModelDefinition getObjectBoxModel() {
           rootOffset,
           26,
         );
+        final maxLatParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          46,
+          0,
+        );
+        final maxLonParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          48,
+          0,
+        );
+        final minLatParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          50,
+          0,
+        );
+        final minLonParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          52,
+          0,
+        );
         final gpxDataParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 28);
@@ -1179,6 +1231,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 duration: durationParam,
                 lat: latParam,
                 lon: lonParam,
+                maxLat: maxLatParam,
+                maxLon: maxLonParam,
+                minLat: minLatParam,
+                minLon: minLonParam,
                 gpxData: gpxDataParam,
                 description: descriptionParam,
               )
@@ -1610,6 +1666,26 @@ class TrailEntity_ {
   /// See [TrailEntity.updated].
   static final updated = obx.QueryDateProperty<TrailEntity>(
     _entities[4].properties[20],
+  );
+
+  /// See [TrailEntity.maxLat].
+  static final maxLat = obx.QueryDoubleProperty<TrailEntity>(
+    _entities[4].properties[21],
+  );
+
+  /// See [TrailEntity.maxLon].
+  static final maxLon = obx.QueryDoubleProperty<TrailEntity>(
+    _entities[4].properties[22],
+  );
+
+  /// See [TrailEntity.minLat].
+  static final minLat = obx.QueryDoubleProperty<TrailEntity>(
+    _entities[4].properties[23],
+  );
+
+  /// See [TrailEntity.minLon].
+  static final minLon = obx.QueryDoubleProperty<TrailEntity>(
+    _entities[4].properties[24],
   );
 
   /// see [TrailEntity.waypoints]

@@ -83,6 +83,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                     elevationMarkerPosition: elevationMarkerPosition,
                     onWaypointTap: _onWaypointSelected,
                     showLocation: true,
+                    offline: trail.isOffline,
                     initialCameraFitPadding: EdgeInsets.only(
                       bottom: 300,
                       left: 40,
