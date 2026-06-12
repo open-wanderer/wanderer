@@ -136,7 +136,9 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                                   size: 16,
                                 ),
                                 style: IconButton.styleFrom(
-                                  backgroundColor: Colors.white,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainer,
                                 ),
                               ),
                             ],

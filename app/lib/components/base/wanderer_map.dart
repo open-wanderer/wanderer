@@ -99,13 +99,15 @@ class _WandererMapState extends ConsumerState<WandererMap> {
     }
 
     return styleAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      skipLoadingOnRefresh: false,
+      loading: () => ColoredBox(color: Theme.of(context).colorScheme.surface),
       error: (e, _) => Center(child: Text(e.toString())),
       data: (style) {
         if (widget.offline && _offlineTileProvider == null) {
           return const Center(child: CircularProgressIndicator());
         }
         return FlutterMap(
+      key: ObjectKey(style),
       mapController: widget.mapController,
       options: MapOptions(
         onTap: widget.onTap,

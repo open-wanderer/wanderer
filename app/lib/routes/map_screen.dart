@@ -111,7 +111,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   @override
   Widget build(BuildContext context) {
     final styleAsync = ref.watch(mapStyleProvider);
-    final style = styleAsync.value;
+    final isRefreshing = styleAsync.isLoading && styleAsync.hasValue;
+    final style = isRefreshing ? null : styleAsync.value;
 
     ref.listen(mapStyleProvider, (previous, next) {
       if (previous?.value == null && next.value != null) {
@@ -126,8 +127,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     });
 
     if (style == null) {
-      return const SizedBox.expand(
-        child: Center(child: CircularProgressIndicator()),
+      return SizedBox.expand(
+        child: ColoredBox(color: Theme.of(context).colorScheme.surface),
       );
     }
 
@@ -161,6 +162,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     return Stack(
       children: [
         FlutterMap(
+          key: ObjectKey(style),
           mapController: _animatedMapController.mapController,
           options: MapOptions(
             initialCenter: widget.initialCenter ?? const LatLng(0, 0),

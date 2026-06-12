@@ -9,7 +9,7 @@ part 'map_style_provider.g.dart';
 @Riverpod(keepAlive: true)
 Future<Style> mapStyle(Ref ref) async {
   final mode = ref.watch(themeModeProvider);
-  final brightness = _effectiveBrightness(mode);
+  final brightness = effectiveBrightness(mode);
   final asset = brightness == Brightness.dark
       ? vtr.wandererDarkTheme()
       : vtr.wandererLightTheme();
@@ -22,7 +22,7 @@ Future<Style> mapStyle(Ref ref) async {
   ).read();
 }
 
-Brightness _effectiveBrightness(ThemeMode mode) {
+Brightness effectiveBrightness(ThemeMode mode) {
   if (mode == ThemeMode.dark) return Brightness.dark;
   if (mode == ThemeMode.light) return Brightness.light;
   return WidgetsBinding.instance.platformDispatcher.platformBrightness;
