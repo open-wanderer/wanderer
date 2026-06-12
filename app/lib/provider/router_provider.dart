@@ -19,6 +19,8 @@ import 'package:wanderer/routes/trail_detail_map_screen.dart';
 import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/settings_appearance_screen.dart';
 import 'package:wanderer/routes/settings_screen.dart';
+import 'package:wanderer/models/navigate_response.dart';
+import 'package:wanderer/routes/navigation_screen.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
 import 'package:wanderer/routes/trail_sort_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
@@ -185,6 +187,14 @@ class Router extends _$Router {
               builder: (context, state) {
                 final trailId = state.pathParameters['id']!;
                 return TrailDetailMapScreen(id: trailId);
+              },
+            ),
+            GoRoute(
+              path: 'navigate',
+              builder: (context, state) {
+                final trailId = state.pathParameters['id']!;
+                final response = state.extra as NavigateResponse;
+                return NavigationScreen(id: trailId, response: response);
               },
             ),
           ],
