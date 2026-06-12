@@ -214,4 +214,160 @@ describe("POST /api/v1/valhalla/navigate", () => {
     });
     expect(resultBicycle.costing).toBe("bicycle");
   });
+
+  // ---------------------------------------------------------------------------
+  // Test 4: Auth gate (D-09)
+  // ---------------------------------------------------------------------------
+  it("Test 4: returns 401 and does not call Valhalla when user is not authenticated", async () => {
+    const fetchMock = vi.fn();
+    const event = {
+      locals: { user: null },
+      request: {
+        json: async () => ({
+          waypoints: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }],
+        }),
+      },
+      fetch: fetchMock,
+    } as unknown as import("@sveltejs/kit").RequestEvent;
+
+    let threw = false;
+    let thrownStatus: number | undefined;
+    try {
+      const response = await POST(event);
+      thrownStatus = response.status;
+    } catch (e: any) {
+      threw = true;
+      // SvelteKit error() throws an HttpError — check its status
+      thrownStatus = e?.status ?? e?.statusCode;
+    }
+
+    // Either threw a 401 HttpError or returned 401 response
+    expect(thrownStatus).toBe(401);
+    // Valhalla was never called
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Test 5: Invalid input → 400 (Success Criterion 3)
+  // ---------------------------------------------------------------------------
+  it("Test 5: invalid input returns 400 with message: invalid_params — never a 500", async () => {
+    // Empty waypoints fails Zod min(2) → handleError → 400
+    const event = makeEvent({
+      body: { waypoints: [] },
+    });
+
+    const response = await POST(event);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.message).toBe("invalid_params");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Test 6: Valhalla upstream failure → 502 (Pitfall 5)
+  // ---------------------------------------------------------------------------
+  it("Test 6: upstream Valhalla failure returns 502 with message: valhalla_error — never a 500", async () => {
+    const event = makeEvent({
+      body: { waypoints: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }] },
+      fetchResponse: {
+        ok: false,
+        status: 400,
+        text: async () => "no path found between points",
+      },
+    });
+
+    const response = await POST(event);
+    const body = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(body.message).toBe("valhalla_error");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Test 7: Multi-leg shape offset (Pitfall 1 / D-03)
+  // ---------------------------------------------------------------------------
+  it("Test 7: multi-leg shape offset — second leg maneuver begin_shape_index is offset by leg-1 point count", async () => {
+    // Leg 1 has 3 points (encodedLeg1), leg 2 has 2 points (encodedLeg2)
+    const multiLegTrip = {
+      legs: [
+        {
+          shape: encodedLeg1,
+          maneuvers: [
+            {
+              instruction: "Start heading north",
+              length: 1.2,
+              begin_shape_index: 0, // leg-local index 0
+              bearing_after: 10,
+              bearing_before: 0,
+            },
+          ],
+        },
+        {
+          shape: encodedLeg2,
+          maneuvers: [
+            {
+              instruction: "Continue on trail",
+              length: 0.5,
+              begin_shape_index: 1, // leg-local index 1
+              bearing_after: 20,
+              bearing_before: 10,
+            },
+          ],
+        },
+      ],
+    };
+
+    const event = makeEvent({
+      body: { waypoints: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }, { lat: 47.9, lon: 8.5 }] },
+      fetchResponse: {
+        ok: true,
+        status: 200,
+        json: async () => ({ trip: multiLegTrip }),
+      },
+    });
+
+    const response = await POST(event);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+
+    // Total shape = leg1 (3 points) + leg2 (2 points) = 5
+    expect(body.shape).toHaveLength(3 + 2);
+
+    // Leg-1 maneuver: begin_shape_index = 0 + 0 = 0
+    expect(body.maneuvers[0].begin_shape_index).toBe(0);
+
+    // Leg-2 maneuver: local index 1, offset by leg1's 3 points → 3 + 1 = 4
+    expect(body.maneuvers[1].begin_shape_index).toBe(3 + 1);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Test 8: Missing maneuvers array (guard against crash)
+  // ---------------------------------------------------------------------------
+  it("Test 8: leg with no maneuvers field does not crash — returns 200 with empty maneuver list", async () => {
+    const tripWithNoManeuvers = {
+      legs: [
+        {
+          shape: encodedShape,
+          // no maneuvers field — tests the `?? []` guard
+        },
+      ],
+    };
+
+    const event = makeEvent({
+      body: { waypoints: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }] },
+      fetchResponse: {
+        ok: true,
+        status: 200,
+        json: async () => ({ trip: tripWithNoManeuvers }),
+      },
+    });
+
+    const response = await POST(event);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.maneuvers).toHaveLength(0);
+    expect(Array.isArray(body.shape)).toBe(true);
+  });
 });
