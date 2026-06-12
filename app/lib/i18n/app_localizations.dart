@@ -536,6 +536,12 @@ abstract class AppLocalizations {
   /// **'Contribute'**
   String get contribute;
 
+  /// No description provided for @couldnt_start_navigation.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t start navigation. Check your connection and try again.'**
+  String get couldnt_start_navigation;
+
   /// No description provided for @copy_link.
   ///
   /// In en, this message translates to:
@@ -1706,6 +1712,12 @@ abstract class AppLocalizations {
   /// **'My trails'**
   String get my_trails;
 
+  /// No description provided for @in_distance.
+  ///
+  /// In en, this message translates to:
+  /// **'in {distance}'**
+  String in_distance(String distance);
+
   /// No description provided for @n_days_ago.
   ///
   /// In en, this message translates to:
@@ -1747,6 +1759,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Name'**
   String get name;
+
+  /// No description provided for @navigate.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigate'**
+  String get navigate;
 
   /// No description provided for @near.
   ///
@@ -2173,6 +2191,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Railway station'**
   String get railway_station;
+
+  /// No description provided for @reached_end_of_trail.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve reached the end of the trail.'**
+  String get reached_end_of_trail;
 
   /// No description provided for @read_more.
   ///
@@ -2899,6 +2923,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You can'**
   String get you_can;
+
+  /// No description provided for @you_have_arrived.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve arrived'**
+  String get you_have_arrived;
 }
 
 class _AppLocalizationsDelegate

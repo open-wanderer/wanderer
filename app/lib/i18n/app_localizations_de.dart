@@ -254,6 +254,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get contribute => 'Mitwirken';
 
   @override
+  String get couldnt_start_navigation =>
+      'Navigation konnte nicht gestartet werden. Prüfe deine Verbindung und versuche es erneut.';
+
+  @override
   String get copy_link => 'Link kopieren';
 
   @override
@@ -894,6 +898,11 @@ class AppLocalizationsDe extends AppLocalizations {
   String get my_trails => 'Meine Routen';
 
   @override
+  String in_distance(String distance) {
+    return 'in $distance';
+  }
+
+  @override
   String n_days_ago(Object n) {
     return 'vor $n Tagen';
   }
@@ -931,6 +940,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get name => 'Name';
+
+  @override
+  String get navigate => 'Navigieren';
 
   @override
   String get near => 'Nahe';
@@ -1170,6 +1182,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get railway_station => 'Bahnhof';
+
+  @override
+  String get reached_end_of_trail => 'Du hast das Ende des Wegs erreicht.';
 
   @override
   String get read_more => 'Mehr';
@@ -1580,4 +1595,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get you_can => 'Du kannst';
+
+  @override
+  String get you_have_arrived => 'Angekommen';
 }

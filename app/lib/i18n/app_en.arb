@@ -73,6 +73,7 @@
   "confirm_share": "Confirm share",
   "connect": "Connect",
   "contribute": "Contribute",
+  "couldnt_start_navigation": "Couldn't start navigation. Check your connection and try again.",
   "copy_link": "Copy Link",
   "create_new_list": "Create new list",
   "create_waypoint": "Create waypoint",
@@ -268,6 +269,14 @@
   "must_be_at_most_n_characters_long": "Must be at most {n} characters long",
   "my_account": "My Account",
   "my_trails": "My trails",
+  "in_distance": "in {distance}",
+  "@in_distance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
   "n_days_ago": "{n} days ago",
   "n_hours_ago": "{n} hours ago",
   "n_minutes_ago": "{n} minutes ago",
@@ -275,6 +284,7 @@
   "n_seconds_ago": "{n, plural, =0 {just now} other {{n} seconds ago}}",
   "n_years_ago": "{n} years ago",
   "name": "Name",
+  "navigate": "Navigate",
   "near": "Near",
   "never": "Never",
   "new_list": "New List",
@@ -346,6 +356,7 @@
   "public_transport": "Public transport",
   "radius": "Radius",
   "railway_station": "Railway station",
+  "reached_end_of_trail": "You've reached the end of the trail.",
   "read_more": "Read more",
   "ready_to_join": "Ready to join",
   "recalculate_elevation_data": "Recalculate elevation data",
@@ -466,5 +477,6 @@
   "welcome_to": "Welcome to",
   "width": "Width",
   "wrong_username_or_password": "Wrong username or password",
-  "you_can": "You can"
+  "you_can": "You can",
+  "you_have_arrived": "You've arrived"
 }
