@@ -1,6 +1,12 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NavigateRequestSchema } from "$lib/models/api/valhalla_navigate_schema";
 import { encodePolyline } from "$lib/util/polyline_util";
+
+// Mock getValhallaBaseUrl so the endpoint doesn't need a real VALHALLA_URL env var in tests
+vi.mock("$lib/server/valhalla", () => ({
+  getValhallaBaseUrl: () => "http://valhalla.test",
+}));
+
 import { POST } from "./+server";
 
 // ---------------------------------------------------------------------------
@@ -42,34 +48,35 @@ function makeEvent(opts: {
 
 // ---------------------------------------------------------------------------
 // Encode a set of coordinates as a precision-6 polyline.
-// encodePolyline expects [lng, lat] pairs (matches decodePolyline's output).
-// We supply [lng, lat] pairs and the decoded output will be [lng, lat] each.
-// The endpoint flips to [lat, lng] for the response shape.
+// encodePolyline expects [lat, lng] pairs (first value is latitude, which is
+// what decodePolyline accumulates first and then outputs as [lng, lat]).
+// So to get decode output [lng=8.1, lat=47.5] we must encode [lat=47.5, lng=8.1].
+// The endpoint flips decode's [lng, lat] → [lat, lng] for the response shape.
 //
-// Known coordinates used across tests (all distinct so order matters):
-//   Point A: lat=47.5, lon=8.1  → encode as [lng=8.1, lat=47.5]
-//   Point B: lat=47.6, lon=8.2  → encode as [lng=8.2, lat=47.6]
-//   Point C: lat=47.7, lon=8.3  → encode as [lng=8.3, lat=47.7]
+// Known coordinates used across tests (all distinct so lat != lon):
+//   Point A: lat=47.5, lon=8.1  → encode as [lat=47.5, lon=8.1]
+//   Point B: lat=47.6, lon=8.2  → encode as [lat=47.6, lon=8.2]
+//   Point C: lat=47.7, lon=8.3  → encode as [lat=47.7, lon=8.3]
 // ---------------------------------------------------------------------------
-const coordsLngLat: number[][] = [
-  [8.1, 47.5],
-  [8.2, 47.6],
-  [8.3, 47.7],
+const coordsLatLng: number[][] = [
+  [47.5, 8.1],
+  [47.6, 8.2],
+  [47.7, 8.3],
 ];
-const encodedShape = encodePolyline(coordsLngLat, 6);
+const encodedShape = encodePolyline(coordsLatLng, 6);
 
 // Two-leg test coordinates
-const leg1CoordsLngLat: number[][] = [
-  [8.1, 47.5],
-  [8.2, 47.6],
-  [8.3, 47.7],
+const leg1CoordsLatLng: number[][] = [
+  [47.5, 8.1],
+  [47.6, 8.2],
+  [47.7, 8.3],
 ];
-const leg2CoordsLngLat: number[][] = [
-  [8.4, 47.8],
-  [8.5, 47.9],
+const leg2CoordsLatLng: number[][] = [
+  [47.8, 8.4],
+  [47.9, 8.5],
 ];
-const encodedLeg1 = encodePolyline(leg1CoordsLngLat, 6);
-const encodedLeg2 = encodePolyline(leg2CoordsLngLat, 6);
+const encodedLeg1 = encodePolyline(leg1CoordsLatLng, 6);
+const encodedLeg2 = encodePolyline(leg2CoordsLatLng, 6);
 
 // ---------------------------------------------------------------------------
 // Shared test trip data
