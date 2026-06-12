@@ -287,8 +287,8 @@ class _BadgeIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(4),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainer,
         shape: BoxShape.circle,
       ),
       child: child,

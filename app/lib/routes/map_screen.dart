@@ -546,7 +546,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         return FaIcon(
           FontAwesomeIcons.personHiking,
           color: Colors.white,
-          size: 18,
+          size: 14,
         );
       case "Biking":
         return FaIcon(FontAwesomeIcons.bicycle, color: Colors.white, size: 18);

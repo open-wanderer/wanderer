@@ -73,7 +73,9 @@ class TrailCard extends ConsumerWidget {
             border: Border.all(
               color: selected
                   ? Theme.of(context).primaryColor
-                  : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  : Theme.of(
+                      context,
+                    ).colorScheme.outlineVariant.withValues(alpha: 0.5),
               width: selected ? 2 : 1,
             ),
             boxShadow: [
@@ -167,7 +169,9 @@ class TrailCard extends ConsumerWidget {
                         Text(
                           DateFormat.yMMMMd(locale).format(trail.summaryDate!),
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.6),
                             fontSize: 12,
                           ),
                         ),
@@ -181,14 +185,17 @@ class TrailCard extends ConsumerWidget {
                               Text(
                                 AppLocalizations.of(context)?.by ?? "by",
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
                                   fontSize: 12,
                                 ),
                               ),
                               const SizedBox(width: 6),
                               CircleAvatar(
                                 radius: 12,
-                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
                                 backgroundImage: NetworkImage(
                                   trail.summaryAuthorAvatar.isNotEmpty
                                       ? trail.summaryAuthorAvatar
@@ -201,7 +208,8 @@ class TrailCard extends ConsumerWidget {
                               Text(
                                 "${trail.summaryAuthorName}${(trail.domain?.isNotEmpty ?? false) ? "@${trail.domain}" : ""}",
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
                                   fontSize: 12,
                                 ),
                               ),
@@ -306,8 +314,8 @@ class _BadgeWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(6),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainer,
         shape: BoxShape.circle,
       ),
       child: child,
