@@ -9,6 +9,7 @@ import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
+import 'package:wanderer/provider/theme_provider.dart';
 import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
 
 class WandererMap extends ConsumerStatefulWidget {
@@ -57,15 +58,19 @@ class _WandererMapState extends ConsumerState<WandererMap> {
   void initState() {
     super.initState();
     _bounds = widget.trail.bounds;
-    _initStyle();
+    _initStyle(_effectiveBrightness(ref.read(themeModeProvider)));
     if (widget.offline) {
       _initOffline();
     }
   }
 
-  Future<void> _initStyle() async {
-    final brightness =
-        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+  Brightness _effectiveBrightness(ThemeMode mode) {
+    if (mode == ThemeMode.dark) return Brightness.dark;
+    if (mode == ThemeMode.light) return Brightness.light;
+    return WidgetsBinding.instance.platformDispatcher.platformBrightness;
+  }
+
+  Future<void> _initStyle(Brightness brightness) async {
     final asset = brightness == Brightness.dark
         ? vtr.wandererDarkTheme()
         : vtr.wandererLightTheme();
@@ -115,6 +120,15 @@ class _WandererMapState extends ConsumerState<WandererMap> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(themeModeProvider, (previous, next) {
+      final prevBrightness = _effectiveBrightness(previous ?? ThemeMode.system);
+      final nextBrightness = _effectiveBrightness(next);
+      if (prevBrightness != nextBrightness) {
+        setState(() => _style = null);
+        _initStyle(nextBrightness);
+      }
+    });
+
     if (_error != null) {
       return Center(child: Text(_error.toString()));
     }
