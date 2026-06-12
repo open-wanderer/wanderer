@@ -81,7 +81,7 @@
     },
     {
       "id": "3:7655646596805638170",
-      "lastPropertyId": "13:56903946369053220",
+      "lastPropertyId": "14:7256564728982687697",
       "name": "WaypointEntity",
       "properties": [
         {
@@ -154,6 +154,11 @@
           "id": "13:56903946369053220",
           "name": "updated",
           "type": 10
+        },
+        {
+          "id": "14:7256564728982687697",
+          "name": "localPhotos",
+          "type": 30
         }
       ],
       "relations": []
@@ -451,9 +456,28 @@
         }
       ],
       "relations": []
+    },
+    {
+      "id": "7:7624156081543730552",
+      "lastPropertyId": "2:5096657038833034963",
+      "name": "SettingsEntity",
+      "properties": [
+        {
+          "id": "1:9020446465757785365",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:5096657038833034963",
+          "name": "themeMode",
+          "type": 9
+        }
+      ],
+      "relations": []
     }
   ],
-  "lastEntityId": "6:5034082009762803572",
+  "lastEntityId": "7:7624156081543730552",
   "lastIndexId": "12:5788203279492778612",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",

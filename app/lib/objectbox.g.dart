@@ -16,6 +16,7 @@ import 'package:objectbox_flutter_libs/objectbox_flutter_libs.dart';
 
 import 'entities/actor_entity.dart';
 import 'entities/category_entity.dart';
+import 'entities/settings_entity.dart';
 import 'entities/trail_entity.dart';
 import 'entities/user_entity.dart';
 import 'entities/waypoint_entity.dart';
@@ -115,7 +116,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(3, 7655646596805638170),
     name: 'WaypointEntity',
-    lastPropertyId: const obx_int.IdUid(13, 56903946369053220),
+    lastPropertyId: const obx_int.IdUid(14, 7256564728982687697),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -198,6 +199,12 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(13, 56903946369053220),
         name: 'updated',
         type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 7256564728982687697),
+        name: 'localPhotos',
+        type: 30,
         flags: 0,
       ),
     ],
@@ -555,6 +562,28 @@ final _entities = <obx_int.ModelEntity>[
       ),
     ],
   ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(7, 7624156081543730552),
+    name: 'SettingsEntity',
+    lastPropertyId: const obx_int.IdUid(2, 5096657038833034963),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 9020446465757785365),
+        name: 'obxId',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 5096657038833034963),
+        name: 'themeMode',
+        type: 9,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
 ];
 
 /// Shortcut for [obx.Store.new] that passes [getObjectBoxModel] and for Flutter
@@ -600,7 +629,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
     // Typically, this is done with `dart run build_runner build`.
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
-    lastEntityId: const obx_int.IdUid(6, 5034082009762803572),
+    lastEntityId: const obx_int.IdUid(7, 7624156081543730552),
     lastIndexId: const obx_int.IdUid(12, 5788203279492778612),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
@@ -769,7 +798,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final iconOffset = object.icon == null
             ? null
             : fbb.writeString(object.icon!);
-        fbb.startTable(14);
+        final localPhotosOffset = fbb.writeList(
+          object.localPhotos.map(fbb.writeString).toList(growable: false),
+        );
+        fbb.startTable(15);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -783,6 +815,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(10, iconOffset);
         fbb.addInt64(11, object.created.millisecondsSinceEpoch);
         fbb.addInt64(12, object.updated.millisecondsSinceEpoch);
+        fbb.addOffset(13, localPhotosOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -830,6 +863,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fb.StringReader(asciiOptimization: true),
           lazy: false,
         ).vTableGet(buffer, rootOffset, 20, []);
+        final localPhotosParam = const fb.ListReader<String>(
+          fb.StringReader(asciiOptimization: true),
+          lazy: false,
+        ).vTableGet(buffer, rootOffset, 30, []);
         final object = WaypointEntity(
           id: idParam,
           created: createdParam,
@@ -842,6 +879,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           author: authorParam,
           icon: iconParam,
           photos: photosParam,
+          localPhotos: localPhotosParam,
         )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
         object.trail.targetId = const fb.Int64Reader().vTableGet(
           buffer,
@@ -1284,6 +1322,34 @@ obx_int.ModelDefinition getObjectBoxModel() {
         return object;
       },
     ),
+    SettingsEntity: obx_int.EntityDefinition<SettingsEntity>(
+      model: _entities[5],
+      toOneRelations: (SettingsEntity object) => [],
+      toManyRelations: (SettingsEntity object) => {},
+      getId: (SettingsEntity object) => object.obxId,
+      setId: (SettingsEntity object, int id) {
+        object.obxId = id;
+      },
+      objectToFB: (SettingsEntity object, fb.Builder fbb) {
+        final themeModeOffset = fbb.writeString(object.themeMode);
+        fbb.startTable(3);
+        fbb.addInt64(0, object.obxId);
+        fbb.addOffset(1, themeModeOffset);
+        fbb.finish(fbb.endTable());
+        return object.obxId;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final themeModeParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 6, '');
+        final object = SettingsEntity(themeMode: themeModeParam)
+          ..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+
+        return object;
+      },
+    ),
   };
 
   return obx_int.ModelDefinition(model, bindings);
@@ -1422,6 +1488,11 @@ class WaypointEntity_ {
   /// See [WaypointEntity.updated].
   static final updated = obx.QueryDateProperty<WaypointEntity>(
     _entities[1].properties[12],
+  );
+
+  /// See [WaypointEntity.localPhotos].
+  static final localPhotos = obx.QueryStringVectorProperty<WaypointEntity>(
+    _entities[1].properties[13],
   );
 }
 
@@ -1691,5 +1762,18 @@ class TrailEntity_ {
   /// see [TrailEntity.waypoints]
   static final waypoints = obx.QueryBacklinkToMany<WaypointEntity, TrailEntity>(
     WaypointEntity_.trail,
+  );
+}
+
+/// [SettingsEntity] entity fields to define ObjectBox queries.
+class SettingsEntity_ {
+  /// See [SettingsEntity.obxId].
+  static final obxId = obx.QueryIntegerProperty<SettingsEntity>(
+    _entities[5].properties[0],
+  );
+
+  /// See [SettingsEntity.themeMode].
+  static final themeMode = obx.QueryStringProperty<SettingsEntity>(
+    _entities[5].properties[1],
   );
 }

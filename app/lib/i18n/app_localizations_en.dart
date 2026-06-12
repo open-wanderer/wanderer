@@ -21,6 +21,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get about => 'About';
 
   @override
+  String get appearance => 'Appearance';
+
+  @override
   String get account_delete_confirm =>
       'You are about to delete your account. All your trails will also be deleted. Do you want to proceed?';
 
@@ -1436,6 +1439,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get text => 'Text';
+
+  @override
+  String get theme_dark => 'Dark';
+
+  @override
+  String get theme_light => 'Light';
+
+  @override
+  String get theme_system => 'Follow system';
 
   @override
   String get tilesets => 'Custom tilesets';

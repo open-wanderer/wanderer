@@ -7,13 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:wanderer/components/toast_overlay.dart';
-import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 
 import 'i18n/app_localizations.dart';
 import 'objectbox.g.dart';
 import 'provider/router_provider.dart';
+import 'provider/theme_provider.dart';
 import 'theme/theme.dart';
 
 void main() async {
@@ -66,7 +66,7 @@ class MainApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.createTheme(Brightness.light),
       darkTheme: AppTheme.createTheme(Brightness.dark),
-      themeMode: ThemeMode.system,
+      themeMode: ref.watch(themeModeProvider),
 
       routerConfig: goRouter,
 

@@ -22,7 +22,7 @@ class WandererLayout extends ConsumerWidget {
         type: BottomNavigationBarType.fixed,
         currentIndex: currentIndex,
         selectedItemColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
         items: [
           BottomNavigationBarItem(
             icon: const FaIcon(FontAwesomeIcons.mapLocationDot),
@@ -39,7 +39,7 @@ class WandererLayout extends ConsumerWidget {
           BottomNavigationBarItem(
             icon: CircleAvatar(
               radius: 12,
-              backgroundColor: Colors.grey.shade300,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               backgroundImage: NetworkImage(
                 user?.getFileUrl(user.serverUrl, user.avatar) ??
                     "https://api.dicebear.com/7.x/initials/png?seed=${user?.preferredUsername}&backgroundType=gradientLinear",

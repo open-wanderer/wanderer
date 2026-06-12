@@ -122,6 +122,12 @@ abstract class AppLocalizations {
   /// **'About'**
   String get about;
 
+  /// No description provided for @appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearance;
+
   /// No description provided for @account_delete_confirm.
   ///
   /// In en, this message translates to:
@@ -2659,6 +2665,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Text'**
   String get text;
+
+  /// No description provided for @theme_dark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get theme_dark;
+
+  /// No description provided for @theme_light.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get theme_light;
+
+  /// No description provided for @theme_system.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow system'**
+  String get theme_system;
 
   /// No description provided for @tilesets.
   ///

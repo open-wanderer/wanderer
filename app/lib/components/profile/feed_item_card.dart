@@ -73,7 +73,7 @@ class _AuthorRow extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 14,
-            backgroundColor: Colors.grey.shade300,
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             backgroundImage: NetworkImage(
               actor.icon != null && actor.icon!.isNotEmpty
                   ? actor.icon!
@@ -90,18 +90,18 @@ class _AuthorRow extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             _formatCreated(created),
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 12),
           ),
           Spacer(),
           if (type == "trail") ...[
-            FaIcon(FontAwesomeIcons.route, size: 14, color: Colors.grey),
+            FaIcon(FontAwesomeIcons.route, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
             SizedBox(width: 4),
             Text(
               AppLocalizations.of(context)!.trail(1),
               style: Theme.of(context).textTheme.labelSmall,
             ),
           ] else if (type == "list") ...[
-            FaIcon(FontAwesomeIcons.layerGroup, size: 14, color: Colors.grey),
+            FaIcon(FontAwesomeIcons.layerGroup, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
             SizedBox(width: 4),
             Text(
               AppLocalizations.of(context)!.list(1),

@@ -73,7 +73,7 @@ class TrailCard extends ConsumerWidget {
             border: Border.all(
               color: selected
                   ? Theme.of(context).primaryColor
-                  : Colors.grey.withValues(alpha: 0.2),
+                  : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
               width: selected ? 2 : 1,
             ),
             boxShadow: [
@@ -167,7 +167,7 @@ class TrailCard extends ConsumerWidget {
                         Text(
                           DateFormat.yMMMMd(locale).format(trail.summaryDate!),
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                             fontSize: 12,
                           ),
                         ),
@@ -181,14 +181,14 @@ class TrailCard extends ConsumerWidget {
                               Text(
                                 AppLocalizations.of(context)?.by ?? "by",
                                 style: TextStyle(
-                                  color: Colors.grey[600],
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                   fontSize: 12,
                                 ),
                               ),
                               const SizedBox(width: 6),
                               CircleAvatar(
                                 radius: 12,
-                                backgroundColor: Colors.grey.shade300,
+                                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 backgroundImage: NetworkImage(
                                   trail.summaryAuthorAvatar.isNotEmpty
                                       ? trail.summaryAuthorAvatar
@@ -201,7 +201,7 @@ class TrailCard extends ConsumerWidget {
                               Text(
                                 "${trail.summaryAuthorName}${(trail.domain?.isNotEmpty ?? false) ? "@${trail.domain}" : ""}",
                                 style: TextStyle(
-                                  color: Colors.grey[600],
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                   fontSize: 12,
                                 ),
                               ),
@@ -291,7 +291,7 @@ class TrailCard extends ConsumerWidget {
 
   Widget _buildPlaceholder(BuildContext context) {
     return SvgPicture.asset(
-      "assets/svgs/empty_state_trail_${Brightness.light.name}.svg",
+      "assets/svgs/empty_state_trail_${Theme.of(context).brightness.name}.svg",
       semanticsLabel: 'wanderer logo',
       height: 80,
     );
@@ -324,12 +324,15 @@ class _Chip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 11, color: Colors.black87),
+        style: TextStyle(
+          fontSize: 11,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     );
   }

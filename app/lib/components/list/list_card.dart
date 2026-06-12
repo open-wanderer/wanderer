@@ -30,7 +30,7 @@ class ListCard extends ConsumerWidget {
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Colors.grey.withValues(alpha: 0.2),
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
               width: 1,
             ),
           ),
@@ -69,7 +69,7 @@ class ListCard extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Text(
                       '${list.trailCount} trails',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 12),
                     ),
                   ],
                 ),
@@ -83,7 +83,7 @@ class ListCard extends ConsumerWidget {
 
   Widget _placeholder(BuildContext context) {
     return SvgPicture.asset(
-      "assets/svgs/empty_state_trail_${Brightness.light.name}.svg",
+      "assets/svgs/empty_state_trail_${Theme.of(context).brightness.name}.svg",
       semanticsLabel: 'wanderer logo',
       height: 80,
     );
