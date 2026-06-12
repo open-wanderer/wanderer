@@ -59,6 +59,10 @@ class AppTheme {
         thickness: 1,
       ),
 
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: isDark ? AppColors.contentDark : AppColors.primaryLight,
+      ),
+
       sliderTheme: SliderThemeData(
         showValueIndicator: ShowValueIndicator.onDrag,
       ),

@@ -20,9 +20,11 @@ class ToastOverlay extends ConsumerWidget {
   }
 
   void _displayToast(BuildContext context, ToastMessage toast) {
+    final colorScheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
+        backgroundColor: colorScheme.inverseSurface,
         content: Row(
           children: [
             FaIcon(toast.icon, color: _getColor(toast.type), size: 16),
@@ -30,7 +32,7 @@ class ToastOverlay extends ConsumerWidget {
             Expanded(
               child: Text(
                 toast.text,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: colorScheme.onInverseSurface),
               ),
             ),
           ],
