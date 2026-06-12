@@ -96,6 +96,7 @@ export async function POST(event: RequestEvent) {
 
     const res = await event.fetch(baseUrl + "/route", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(valhallaReq),
     });
 
