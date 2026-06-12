@@ -14,9 +14,9 @@ import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
+import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
-import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
 class MapScreen extends ConsumerStatefulWidget {
   final LatLng? initialCenter;
@@ -30,7 +30,6 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen>
     with TickerProviderStateMixin {
-  Style? style;
   late final _animatedMapController = AnimatedMapController(vsync: this);
 
   TrailSearchResult? _selectedTrail;
@@ -50,7 +49,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
   @override
   void initState() {
     super.initState();
-    _initializeStyle();
     _sheetController.addListener(_onSheetSizeChanged);
     _sheetSize = ValueNotifier<double>(sheetMinSize);
     _mapButtonController = AnimationController(
@@ -86,35 +84,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
-  Future<void> _initializeStyle() async {
-    final brightness =
-        WidgetsBinding.instance.platformDispatcher.platformBrightness;
-    final asset = brightness == Brightness.dark
-        ? vtr.wandererDarkTheme()
-        : vtr.wandererLightTheme();
-    final originalStyle = await StyleReader.map(
-      asset,
-      apiKey: const String.fromEnvironment(
-        'PROTOMAPS_API_KEY',
-        defaultValue: '',
-      ),
-    ).read();
-
-    if (mounted) {
-      setState(() {
-        style = originalStyle;
-      });
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          final bounds =
-              _animatedMapController.mapController.camera.visibleBounds;
-          ref.read(mapTrailSearchProvider.notifier).searchInBounds(bounds);
-        }
-      });
-    }
-  }
-
   void _onSheetSizeChanged() {
     _sheetSize.value = _sheetController.size;
     if (_sheetController.size >= sheetMaxSize) {
@@ -141,6 +110,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   @override
   Widget build(BuildContext context) {
+    final styleAsync = ref.watch(mapStyleProvider);
+    final style = styleAsync.value;
+
+    ref.listen(mapStyleProvider, (previous, next) {
+      if (previous?.value == null && next.value != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            final bounds =
+                _animatedMapController.mapController.camera.visibleBounds;
+            ref.read(mapTrailSearchProvider.notifier).searchInBounds(bounds);
+          }
+        });
+      }
+    });
+
     if (style == null) {
       return const SizedBox.expand(
         child: Center(child: CircularProgressIndicator()),
@@ -211,8 +195,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           children: [
             SizedBox.expand(
               child: VectorTileLayer(
-                tileProviders: style!.providers,
-                theme: style!.theme,
+                tileProviders: style.providers,
+                theme: style.theme,
                 tileOffset: TileOffset.DEFAULT,
                 concurrency: kDebugMode
                     ? 0

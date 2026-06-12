@@ -5,11 +5,10 @@ import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
-import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
-import 'package:wanderer/provider/theme_provider.dart';
+import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
 
 class WandererMap extends ConsumerStatefulWidget {
@@ -49,7 +48,6 @@ class WandererMap extends ConsumerStatefulWidget {
 }
 
 class _WandererMapState extends ConsumerState<WandererMap> {
-  Style? _style;
   MultiPmTilesVectorTileProvider? _offlineTileProvider;
   Object? _error;
   LatLngBounds? _bounds;
@@ -58,31 +56,8 @@ class _WandererMapState extends ConsumerState<WandererMap> {
   void initState() {
     super.initState();
     _bounds = widget.trail.bounds;
-    _initStyle(_effectiveBrightness(ref.read(themeModeProvider)));
     if (widget.offline) {
       _initOffline();
-    }
-  }
-
-  Brightness _effectiveBrightness(ThemeMode mode) {
-    if (mode == ThemeMode.dark) return Brightness.dark;
-    if (mode == ThemeMode.light) return Brightness.light;
-    return WidgetsBinding.instance.platformDispatcher.platformBrightness;
-  }
-
-  Future<void> _initStyle(Brightness brightness) async {
-    final asset = brightness == Brightness.dark
-        ? vtr.wandererDarkTheme()
-        : vtr.wandererLightTheme();
-    final style = await StyleReader.map(
-      asset,
-      apiKey: const String.fromEnvironment(
-        'PROTOMAPS_API_KEY',
-        defaultValue: '',
-      ),
-    ).read();
-    if (mounted) {
-      setState(() => _style = style);
     }
   }
 
@@ -97,22 +72,19 @@ class _WandererMapState extends ConsumerState<WandererMap> {
     }
   }
 
-  bool get _ready =>
-      _style != null && (widget.offline ? _offlineTileProvider != null : true);
-
-  VectorTileLayer _buildTileLayer() {
+  VectorTileLayer _buildTileLayer(Style style) {
     if (widget.offline) {
       return VectorTileLayer(
         fileCacheTtl: Duration.zero,
-        theme: _style!.theme,
+        theme: style.theme,
         tileProviders: TileProviders({'protomaps': _offlineTileProvider!}),
         tileOffset: TileOffset.DEFAULT,
         concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
       );
     }
     return VectorTileLayer(
-      tileProviders: _style!.providers,
-      theme: _style!.theme,
+      tileProviders: style.providers,
+      theme: style.theme,
       tileOffset: TileOffset.DEFAULT,
       concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
     );
@@ -120,23 +92,20 @@ class _WandererMapState extends ConsumerState<WandererMap> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(themeModeProvider, (previous, next) {
-      final prevBrightness = _effectiveBrightness(previous ?? ThemeMode.system);
-      final nextBrightness = _effectiveBrightness(next);
-      if (prevBrightness != nextBrightness) {
-        setState(() => _style = null);
-        _initStyle(nextBrightness);
-      }
-    });
+    final styleAsync = ref.watch(mapStyleProvider);
 
     if (_error != null) {
       return Center(child: Text(_error.toString()));
     }
-    if (!_ready) {
-      return const Center(child: CircularProgressIndicator());
-    }
 
-    return FlutterMap(
+    return styleAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text(e.toString())),
+      data: (style) {
+        if (widget.offline && _offlineTileProvider == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return FlutterMap(
       mapController: widget.mapController,
       options: MapOptions(
         onTap: widget.onTap,
@@ -154,7 +123,7 @@ class _WandererMapState extends ConsumerState<WandererMap> {
         initialZoom: 18,
       ),
       children: [
-        _buildTileLayer(),
+        _buildTileLayer(style),
 
         if (widget.trail.expand?.gpx != null && widget.showTrail)
           TrailLayer(trail: widget.trail, onWaypointTap: widget.onWaypointTap),
@@ -194,6 +163,8 @@ class _WandererMapState extends ConsumerState<WandererMap> {
           ),
         ),
       ],
+        );
+      },
     );
   }
 }
