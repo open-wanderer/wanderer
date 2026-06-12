@@ -105,7 +105,11 @@ export async function POST(event: RequestEvent) {
       return json({ message: "valhalla_error", detail }, { status: 502 });
     }
 
-    const trip = (await res.json()).trip;
+    const data = await res.json();
+    const trip = data?.trip;
+    if (!trip?.legs) {
+      return json({ message: "valhalla_error", detail: "unexpected response shape" }, { status: 502 });
+    }
 
     const shape: [number, number][] = [];
     const maneuvers: NavigateManeuver[] = [];
