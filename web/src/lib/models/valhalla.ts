@@ -103,9 +103,18 @@ export interface Location {
     original_index: number
 }
 
+export interface ValhallaManeuver {
+    instruction: string
+    length: number
+    begin_shape_index: number
+    bearing_before?: number
+    bearing_after?: number
+}
+
 export interface Leg {
     summary: Summary
     shape: string
+    maneuvers?: ValhallaManeuver[]
 }
 
 export interface Summary {
