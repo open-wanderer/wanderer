@@ -11,6 +11,10 @@ class SettingsAppearanceScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final currentMode = ref.watch(themeModeProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+    final activeColor = Theme.of(context).brightness == Brightness.dark
+        ? colorScheme.onSurface
+        : colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
@@ -32,14 +36,17 @@ class SettingsAppearanceScreen extends ConsumerWidget {
             RadioListTile<ThemeMode>(
               title: Text(l10n.theme_light),
               value: ThemeMode.light,
+              activeColor: activeColor,
             ),
             RadioListTile<ThemeMode>(
               title: Text(l10n.theme_dark),
               value: ThemeMode.dark,
+              activeColor: activeColor,
             ),
             RadioListTile<ThemeMode>(
               title: Text(l10n.theme_system),
               value: ThemeMode.system,
+              activeColor: activeColor,
             ),
           ],
         ),
