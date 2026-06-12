@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/theme_provider.dart';
 
-class AppearanceScreen extends ConsumerWidget {
-  const AppearanceScreen({super.key});
+class SettingsAppearanceScreen extends ConsumerWidget {
+  const SettingsAppearanceScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
