@@ -42,19 +42,30 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: TextField(
-          controller: _controller,
-          autofocus: true,
-          onChanged: notifier.setQuery,
-          decoration: InputDecoration(
-            hintText: l10n.search_for_trails_places,
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(56),
-              borderSide: BorderSide(width: 1),
-            ),
-            hintStyle: const TextStyle(color: Colors.grey),
-          ),
-          style: const TextStyle(fontSize: 16),
+        title: Builder(
+          builder: (context) {
+            final colorScheme = Theme.of(context).colorScheme;
+            return TextField(
+              controller: _controller,
+              autofocus: true,
+              onChanged: notifier.setQuery,
+              cursorColor: colorScheme.onSurface,
+              decoration: InputDecoration(
+                hintText: l10n.search_for_trails_places,
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(56),
+                  borderSide: BorderSide(
+                    color: colorScheme.onSurface,
+                    width: 1,
+                  ),
+                ),
+                hintStyle: TextStyle(
+                  color: colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+              style: const TextStyle(fontSize: 16),
+            );
+          },
         ),
         actions: [
           if (_controller.text.isNotEmpty)
@@ -102,6 +113,7 @@ class _CategoryChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -114,22 +126,20 @@ class _CategoryChips extends StatelessWidget {
               label: Text(_label(cat)),
               selected: selected,
               onSelected: (_) => notifier.setCategory(cat),
-              backgroundColor: Theme.of(context).canvasColor,
-              selectedColor: Theme.of(
-                context,
-              ).primaryColor.withValues(alpha: 0.2),
-              checkmarkColor: Theme.of(context).primaryColor,
+              backgroundColor: colorScheme.surfaceContainerHighest,
+              selectedColor: colorScheme.primaryContainer,
+              checkmarkColor: colorScheme.onPrimaryContainer,
               shape: StadiumBorder(
                 side: BorderSide(
                   color: selected
-                      ? Theme.of(context).primaryColor
-                      : Colors.grey.shade300,
+                      ? colorScheme.primary
+                      : colorScheme.outlineVariant,
                 ),
               ),
               labelStyle: TextStyle(
                 color: selected
-                    ? Theme.of(context).primaryColor
-                    : Colors.black87,
+                    ? colorScheme.onPrimaryContainer
+                    : colorScheme.onSurface,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
@@ -259,11 +269,7 @@ class _ListTile extends StatelessWidget {
           color: Theme.of(context).colorScheme.secondaryContainer,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(
-          Icons.format_list_bulleted,
-          size: 20,
-          color: Theme.of(context).colorScheme.secondary,
-        ),
+        child: Center(child: FaIcon(FontAwesomeIcons.layerGroup, size: 18)),
       ),
       title: Text(list.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
@@ -291,13 +297,13 @@ class _LocationTile extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.orange.shade50,
+          color: Colors.orange.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: FaIcon(
+        child: const FaIcon(
           FontAwesomeIcons.locationDot,
-          size: 20,
-          color: Colors.orange.shade700,
+          size: 18,
+          color: Colors.orange,
         ),
       ),
       title: Text(location.name, maxLines: 1, overflow: TextOverflow.ellipsis),

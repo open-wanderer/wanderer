@@ -14,6 +14,7 @@ import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
+import 'package:wanderer/provider/map_camera_provider.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
@@ -110,6 +111,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   @override
   Widget build(BuildContext context) {
+    final savedCamera = ref.read(mapCameraProvider);
     final styleAsync = ref.watch(mapStyleProvider);
     final isRefreshing = styleAsync.isLoading && styleAsync.hasValue;
     final style = isRefreshing ? null : styleAsync.value;
@@ -165,8 +167,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           key: ObjectKey(style),
           mapController: _animatedMapController.mapController,
           options: MapOptions(
-            initialCenter: widget.initialCenter ?? const LatLng(0, 0),
-            initialZoom: widget.initialZoom ?? 3,
+            initialCenter: widget.initialCenter ?? savedCamera?.center ?? const LatLng(0, 0),
+            initialZoom: widget.initialZoom ?? savedCamera?.zoom ?? 3,
             interactionOptions: InteractionOptions(
               enableMultiFingerGestureRace: true,
             ),
@@ -177,6 +179,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ref
                     .read(mapTrailSearchProvider.notifier)
                     .searchInBounds(bounds);
+                ref
+                    .read(mapCameraProvider.notifier)
+                    .save(event.camera.center, event.camera.zoom);
               }
             },
             onTap: (tapPosition, point) {
@@ -291,27 +296,34 @@ class _MapScreenState extends ConsumerState<MapScreen>
             snapSizes: [sheetMinSize, sheetMediumsize, sheetMaxSize],
             builder: (context, scrollController) {
               _sheetScrollController = scrollController;
-              return Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).canvasColor,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 10,
-                      offset: const Offset(0, -2),
+              return ValueListenableBuilder<double>(
+                valueListenable: _sheetSize,
+                builder: (context, size, child) => Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).canvasColor,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(size >= sheetMaxSize ? 0 : 16),
                     ),
-                  ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: size >= sheetMediumsize
+                        ? EdgeInsets.fromLTRB(0, _getDynamicPadding(size), 0, 0)
+                        : EdgeInsets.zero,
+                    child: child,
+                  ),
                 ),
-                child: ValueListenableBuilder(
-                  valueListenable: _sheetSize,
-                  child: ListView.builder(
-                    itemCount: trails.length + 2,
-                    padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    controller: scrollController,
-                    itemBuilder: (context, index) {
+                child: ListView.builder(
+                  itemCount: trails.length + 2,
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  controller: scrollController,
+                  itemBuilder: (context, index) {
                       if (index == 0 || index == 1) {
                         return ValueListenableBuilder<double>(
                           valueListenable: _sheetSize,
@@ -362,20 +374,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       );
                     },
                   ),
-                  builder: (context, size, child) {
-                    EdgeInsets e = EdgeInsets.zero;
-                    if (size >= sheetMediumsize) {
-                      e = EdgeInsets.fromLTRB(
-                        0,
-                        _getDynamicPadding(size),
-                        0,
-                        0,
-                      );
-                    }
-                    return Padding(padding: e, child: child);
-                  },
-                ),
-              );
+                );
             },
           ),
 
