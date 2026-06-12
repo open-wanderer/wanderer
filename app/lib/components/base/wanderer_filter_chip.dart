@@ -5,6 +5,7 @@ class WandererFilterChip<T> extends StatelessWidget {
   final List<T> selectedValues;
   final String Function(T) labelBuilder;
   final Function(List<T>) onChanged;
+  final bool multiple;
 
   const WandererFilterChip({
     super.key,
@@ -12,10 +13,13 @@ class WandererFilterChip<T> extends StatelessWidget {
     required this.selectedValues,
     required this.labelBuilder,
     required this.onChanged,
+    this.multiple = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Wrap(
       spacing: 8.0,
       runSpacing: 4.0,
@@ -26,26 +30,32 @@ class WandererFilterChip<T> extends StatelessWidget {
           label: Text(labelBuilder(option)),
           selected: isSelected,
           onSelected: (bool selected) {
-            final newList = List<T>.from(selectedValues);
-            if (selected) {
-              newList.add(option);
+            if (multiple) {
+              final newList = List<T>.from(selectedValues);
+              if (selected) {
+                newList.add(option);
+              } else {
+                newList.remove(option);
+              }
+              onChanged(newList);
             } else {
-              newList.remove(option);
+              onChanged(selected ? [option] : []);
             }
-            onChanged(newList);
           },
-          backgroundColor: Theme.of(context).canvasColor,
-          selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
-          checkmarkColor: Theme.of(context).primaryColor,
+          backgroundColor: colorScheme.surfaceContainerHighest,
+          selectedColor: colorScheme.primaryContainer,
+          checkmarkColor: colorScheme.onPrimaryContainer,
           shape: StadiumBorder(
             side: BorderSide(
               color: isSelected
-                  ? Theme.of(context).primaryColor
-                  : Colors.grey.shade300,
+                  ? colorScheme.outlineVariant
+                  : colorScheme.outline,
             ),
           ),
           labelStyle: TextStyle(
-            color: isSelected ? Theme.of(context).primaryColor : Colors.black87,
+            color: isSelected
+                ? colorScheme.onPrimaryContainer
+                : colorScheme.onSurface,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         );

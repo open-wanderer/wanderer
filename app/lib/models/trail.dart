@@ -125,6 +125,23 @@ abstract class TrailNear with _$TrailNear {
       _TrailNear;
 }
 
+enum TrailFilterSortOrder { asc, desc }
+
+enum TrailFilterSort {
+  created,
+  date,
+  difficulty,
+  distance,
+  duration,
+  // ignore: constant_identifier_names
+  elevation_gain,
+  // ignore: constant_identifier_names
+  elevation_loss,
+  // ignore: constant_identifier_names
+  like_count,
+  name,
+}
+
 @freezed
 abstract class TrailFilter with _$TrailFilter {
   const factory TrailFilter({
@@ -150,8 +167,9 @@ abstract class TrailFilter with _$TrailFilter {
     DateTime? endDate,
     bool? completed,
     bool? liked,
-    required String sort, // "name" | "distance" | "elevation_gain" | "created"
-    required String sortOrder, // "+" | "-"
+    required TrailFilterSort
+    sort, // "name" | "distance" | "elevation_gain" | "created"
+    required TrailFilterSortOrder sortOrder,
   }) = _TrailFilter;
 
   const TrailFilter._();

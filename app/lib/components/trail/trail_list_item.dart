@@ -11,6 +11,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/icon_util.dart';
 
 class TrailListItem extends ConsumerWidget {
   final TrailSummary trail;
@@ -154,10 +155,7 @@ class TrailListItem extends ConsumerWidget {
                           runSpacing: 4,
                           children: [
                             if (trail.summaryCategory.isNotEmpty)
-                              _InlineIcon(
-                                icon: FontAwesomeIcons.shapes,
-                                label: trail.summaryCategory,
-                              ),
+                              _CategoryIcon(value: trail.summaryCategory),
                             if (trail.location != null &&
                                 trail.location!.isNotEmpty)
                               _InlineIcon(
@@ -292,6 +290,23 @@ class _BadgeIcon extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       child: child,
+    );
+  }
+}
+
+class _CategoryIcon extends StatelessWidget {
+  final String value;
+  const _CategoryIcon({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        getTrailIcon(value, color: Colors.grey[700]),
+        const SizedBox(width: 4),
+        Text(value, style: TextStyle(fontSize: 12, color: Colors.grey[800])),
+      ],
     );
   }
 }

@@ -58,12 +58,10 @@ class WandererRadioGroup<T> extends FormBuilderField<T> {
                        decoration: BoxDecoration(
                          shape: BoxShape.circle,
                          border: Border.all(
-                           color: isSelected
-                               ? theme.colorScheme.primary
-                               : theme.colorScheme.outline,
+                           color: theme.colorScheme.onSurface,
                            width: isSelected ? 5 : 1,
                          ),
-                         color: Colors.transparent,
+                         color: theme.colorScheme.surface,
                        ),
                      ),
                      const SizedBox(width: 10),

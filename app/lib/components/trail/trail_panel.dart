@@ -17,6 +17,7 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/icon_util.dart';
 
 class TrailPanel extends ConsumerWidget {
   const TrailPanel({
@@ -166,17 +167,44 @@ class TrailPanel extends ConsumerWidget {
                     spacing: 10,
                     runSpacing: 10,
                     children: [
+                      if (trail.expand?.category != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              getTrailIcon(
+                                trail.summaryCategory,
+                                color: Colors.blueGrey,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                trail.summaryCategory,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
                       StatChip(
                         icon: FontAwesomeIcons.ruler,
                         label: formatDistance(trail.distance),
                       ),
-                      StatChip(
-                        icon: FontAwesomeIcons.clock,
-                        label: Duration(seconds: trail.duration.toInt()).pretty(
-                          abbreviated: true,
-                          tersity: DurationTersity.minute,
+                      if (trail.duration > 0)
+                        StatChip(
+                          icon: FontAwesomeIcons.clock,
+                          label: Duration(seconds: trail.duration.toInt())
+                              .pretty(
+                                abbreviated: true,
+                                tersity: DurationTersity.minute,
+                              ),
                         ),
-                      ),
                       StatChip(
                         icon: FontAwesomeIcons.arrowTrendUp,
                         label: formatElevation(trail.elevationGain),
@@ -185,11 +213,6 @@ class TrailPanel extends ConsumerWidget {
                         icon: FontAwesomeIcons.arrowTrendDown,
                         label: formatElevation(trail.elevationLoss),
                       ),
-                      if (trail.expand?.category != null)
-                        StatChip(
-                          icon: FontAwesomeIcons.route,
-                          label: trail.expand!.category!.name,
-                        ),
                     ],
                   ),
                 ],

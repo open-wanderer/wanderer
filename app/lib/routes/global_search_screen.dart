@@ -52,6 +52,10 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
               cursorColor: colorScheme.onSurface,
               decoration: InputDecoration(
                 hintText: l10n.search_for_trails_places,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(56),
+                  borderSide: BorderSide(color: colorScheme.outline, width: 1),
+                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(56),
                   borderSide: BorderSide(
@@ -59,9 +63,7 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
                     width: 1,
                   ),
                 ),
-                hintStyle: TextStyle(
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
+                hintStyle: TextStyle(color: Colors.grey),
               ),
               style: const TextStyle(fontSize: 16),
             );
@@ -132,8 +134,8 @@ class _CategoryChips extends StatelessWidget {
               shape: StadiumBorder(
                 side: BorderSide(
                   color: selected
-                      ? colorScheme.primary
-                      : colorScheme.outlineVariant,
+                      ? colorScheme.outlineVariant
+                      : colorScheme.outline,
                 ),
               ),
               labelStyle: TextStyle(

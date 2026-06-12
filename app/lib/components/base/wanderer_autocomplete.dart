@@ -104,17 +104,18 @@ class _WandererAutocompleteState<T> extends State<WandererAutocomplete<T>> {
                   focusNode: inputFieldValues.focusNode,
                   decoration: InputDecoration(
                     isDense: true,
-                    border: OutlineInputBorder(
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(56),
                       borderSide: BorderSide(
                         color: Theme.of(context).colorScheme.outline,
-                        width: 1.5,
+                        width: 1,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(56),
                       borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 1.5,
+                        color: Theme.of(context).colorScheme.onSurface,
+                        width: 1,
                       ),
                     ),
                     hintText: inputFieldValues.tags.isNotEmpty

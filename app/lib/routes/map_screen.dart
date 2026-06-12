@@ -18,6 +18,7 @@ import 'package:wanderer/provider/map_camera_provider.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
+import 'package:wanderer/util/icon_util.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   final LatLng? initialCenter;
@@ -156,7 +157,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ],
           ),
-          child: Center(child: _getTrailIcon(trail)),
+          child: Center(child: getTrailIcon(trail.category)),
         ),
       );
     }).toList();
@@ -167,7 +168,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
           key: ObjectKey(style),
           mapController: _animatedMapController.mapController,
           options: MapOptions(
-            initialCenter: widget.initialCenter ?? savedCamera?.center ?? const LatLng(0, 0),
+            initialCenter:
+                widget.initialCenter ??
+                savedCamera?.center ??
+                const LatLng(0, 0),
             initialZoom: widget.initialZoom ?? savedCamera?.zoom ?? 3,
             interactionOptions: InteractionOptions(
               enableMultiFingerGestureRace: true,
@@ -324,57 +328,57 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
                   controller: scrollController,
                   itemBuilder: (context, index) {
-                      if (index == 0 || index == 1) {
-                        return ValueListenableBuilder<double>(
-                          valueListenable: _sheetSize,
-                          builder: (context, size, child) {
-                            double fadeStart = sheetMediumsize;
-                            double opacity = 1.0;
+                    if (index == 0 || index == 1) {
+                      return ValueListenableBuilder<double>(
+                        valueListenable: _sheetSize,
+                        builder: (context, size, child) {
+                          double fadeStart = sheetMediumsize;
+                          double opacity = 1.0;
 
-                            if (size > fadeStart) {
-                              opacity =
-                                  1.0 - ((size - fadeStart) / (1 - fadeStart));
-                              opacity = opacity.clamp(0.0, 1.0);
-                            }
+                          if (size > fadeStart) {
+                            opacity =
+                                1.0 - ((size - fadeStart) / (1 - fadeStart));
+                            opacity = opacity.clamp(0.0, 1.0);
+                          }
 
-                            if (opacity == 0.0) return const SizedBox.shrink();
+                          if (opacity == 0.0) return const SizedBox.shrink();
 
-                            Widget child = index == 0
-                                ? Center(
-                                    child: Container(
-                                      width: 30,
-                                      height: 5,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[300],
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
+                          Widget child = index == 0
+                              ? Center(
+                                  child: Container(
+                                    width: 30,
+                                    height: 5,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                  )
-                                : Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Center(
-                                      child: Text(
-                                        "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.labelLarge,
-                                      ),
+                                  ),
+                                )
+                              : Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Center(
+                                    child: Text(
+                                      "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.labelLarge,
                                     ),
-                                  );
+                                  ),
+                                );
 
-                            return Opacity(opacity: opacity, child: child);
-                          },
-                        );
-                      }
-                      final trail = trails[index - 2];
-                      return TrailCard(
-                        trail: trail,
-                        onTrailSelect: () =>
-                            context.push("/trail/${trail.id}", extra: trail),
+                          return Opacity(opacity: opacity, child: child);
+                        },
                       );
-                    },
-                  ),
-                );
+                    }
+                    final trail = trails[index - 2];
+                    return TrailCard(
+                      trail: trail,
+                      onTrailSelect: () =>
+                          context.push("/trail/${trail.id}", extra: trail),
+                    );
+                  },
+                ),
+              );
             },
           ),
 
@@ -384,47 +388,75 @@ class _MapScreenState extends ConsumerState<MapScreen>
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
 
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => context.push('/search'),
-                      child: Material(
-                        color: Colors.white,
-                        elevation: 4,
-                        shadowColor: Colors.black26,
-                        borderRadius: BorderRadius.circular(30),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 13,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.search, color: Colors.black),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  AppLocalizations.of(context)!.search,
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 16,
-                                  ),
+                  GestureDetector(
+                    onTap: () => context.push('/search'),
+                    child: Material(
+                      color: Theme.of(context).colorScheme.surface,
+                      elevation: 4,
+                      shadowColor: Colors.black26,
+                      borderRadius: BorderRadius.circular(30),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 13,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.search,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                AppLocalizations.of(context)!.search,
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 16,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: () => context.push('/trail/filter'),
-                    icon: const FaIcon(FontAwesomeIcons.filter, size: 18),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Theme.of(context).canvasColor,
-                    ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      ActionChip(
+                        onPressed: () => context.push('/trail/filter'),
+                        avatar: FaIcon(
+                          FontAwesomeIcons.filter,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        shape: StadiumBorder(
+                          side: BorderSide(color: Colors.transparent),
+                        ),
+                        label: const Text('Filter'),
+                        backgroundColor: Theme.of(context).colorScheme.surface,
+                        elevation: 4,
+                      ),
+                      const SizedBox(width: 8),
+                      ActionChip(
+                        onPressed: () => context.push('/trail/sort'),
+                        avatar: FaIcon(
+                          FontAwesomeIcons.arrowsUpDown,
+                          size: 14,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        shape: StadiumBorder(
+                          side: BorderSide(color: Colors.transparent),
+                        ),
+                        label: Text(AppLocalizations.of(context)!.sort),
+                        backgroundColor: Theme.of(context).colorScheme.surface,
+                        elevation: 4,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -521,34 +553,5 @@ class _MapScreenState extends ConsumerState<MapScreen>
         (currentSize - startThreshold) / (endThreshold - startThreshold);
 
     return minPadding + (percentage * (maxPadding - minPadding));
-  }
-
-  Icon _getTrailIcon(TrailSearchResult trail) {
-    final category = trail.category;
-
-    switch (category) {
-      case "Hiking":
-        return FaIcon(
-          FontAwesomeIcons.personHiking,
-          color: Colors.white,
-          size: 14,
-        );
-      case "Biking":
-        return FaIcon(FontAwesomeIcons.bicycle, color: Colors.white, size: 18);
-      case "Walking":
-        return Icon(Icons.nordic_walking, color: Colors.white, size: 18);
-      case "Climbing":
-        return Icon(Icons.landscape, color: Colors.white, size: 18);
-      case "Skiing":
-        return FaIcon(
-          FontAwesomeIcons.personSkiing,
-          color: Colors.white,
-          size: 18,
-        );
-      case "Canoeing":
-        return Icon(Icons.kayaking, color: Colors.white, size: 18);
-      default:
-        return FaIcon(FontAwesomeIcons.route, color: Colors.white, size: 18);
-    }
   }
 }

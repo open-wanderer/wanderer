@@ -1,6 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
+Icon getTrailIcon(
+  String category, {
+  double size = 14,
+  Color? color = Colors.white,
+}) {
+  switch (category) {
+    case "Hiking":
+      return FaIcon(
+        FontAwesomeIcons.personHiking,
+        color: Colors.white,
+        size: size,
+      );
+    case "Biking":
+      return FaIcon(FontAwesomeIcons.bicycle, color: color, size: size);
+    case "Walking":
+      return Icon(Icons.nordic_walking, color: color, size: size);
+    case "Climbing":
+      return Icon(Icons.landscape, color: color, size: size);
+    case "Skiing":
+      return FaIcon(
+        FontAwesomeIcons.personSkiing,
+        color: Colors.white,
+        size: size,
+      );
+    case "Canoeing":
+      return Icon(Icons.kayaking, color: color, size: size);
+    default:
+      return FaIcon(FontAwesomeIcons.route, color: color, size: size);
+  }
+}
+
 /// Icon data map for Material Icons
 const Map<String, IconData> iconsMap = <String, IconData>{
   'ac_unit': Icons.ac_unit,

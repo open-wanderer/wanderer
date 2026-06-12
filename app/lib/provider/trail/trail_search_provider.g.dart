@@ -34,7 +34,7 @@ final class TrailSearchNotifierProvider
 }
 
 String _$trailSearchNotifierHash() =>
-    r'240dc4954df3ee0aca822c0cc16d732f92a34328';
+    r'da74e07e677b97397f9151ef4242d7789e695d90';
 
 abstract class _$TrailSearchNotifier extends $AsyncNotifier<TrailSearchState> {
   FutureOr<TrailSearchState> build();

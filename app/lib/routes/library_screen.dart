@@ -7,41 +7,101 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/router_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 
-class LibraryScreen extends ConsumerWidget {
+class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
+}
+
+class _LibraryScreenState extends ConsumerState<LibraryScreen> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Trail> _filtered(List<Trail> trails) {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return trails;
+    return trails.where((t) {
+      return t.name.toLowerCase().contains(q) ||
+          t.description.toLowerCase().contains(q);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final trailLibrary = ref.watch(trailLibraryProvider);
     final router = ref.watch(routerProvider);
+    final visible = _filtered(trailLibrary);
 
     return Scaffold(
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: ListView.builder(
-            itemCount: trailLibrary.length,
-            itemBuilder: (context, i) {
-              final trail = trailLibrary[i];
-              return TrailCard(
-                trail: trail,
-                onTrailSelect: () => router.push('/trail/${trail.id}'),
-                onLongPress: () =>
-                    _showContextMenu(context, ref, trail, router),
-              );
-            },
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (v) => setState(() => _query = v),
+                  cursorColor: Theme.of(context).colorScheme.onSurface,
+                  decoration: InputDecoration(
+                    hintText: 'Search library…',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _query.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _query = '');
+                            },
+                          )
+                        : null,
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                      borderRadius: BorderRadius.circular(56),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(56),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        width: 1,
+                      ),
+                    ),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: visible.length,
+                  itemBuilder: (context, i) {
+                    final trail = visible[i];
+                    return TrailCard(
+                      trail: trail,
+                      onTrailSelect: () => router.push('/trail/${trail.id}'),
+                      onLongPress: () =>
+                          _showContextMenu(context, trail, router),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  void _showContextMenu(
-    BuildContext context,
-    WidgetRef ref,
-    Trail trail,
-    router,
-  ) {
+  void _showContextMenu(BuildContext context, Trail trail, router) {
     final l18n = AppLocalizations.of(context)!;
 
     showModalBottomSheet(
@@ -73,7 +133,7 @@ class LibraryScreen extends ConsumerWidget {
               ),
               onTap: () {
                 Navigator.of(ctx).pop();
-                _confirmDelete(context, ref, trail);
+                _confirmDelete(context, trail);
               },
             ),
           ],
@@ -82,7 +142,7 @@ class LibraryScreen extends ConsumerWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref, Trail trail) {
+  void _confirmDelete(BuildContext context, Trail trail) {
     final l18n = AppLocalizations.of(context)!;
 
     showDialog(

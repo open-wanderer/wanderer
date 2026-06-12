@@ -45,14 +45,14 @@ enum CompletionStatus {
 class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
   @override
   Widget build(BuildContext context) {
-    final l18n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context)!;
 
     final filter = ref.watch(trailFilterProvider);
     final UserEntity user = ref.watch(authProvider).value!;
     final categories = ref.watch(categoryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l18n.filter_trails)),
+      appBar: AppBar(title: Text(l10n.filter_trails)),
       body: filter.when(
         data: (f) {
           return Padding(
@@ -63,7 +63,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   filter.value?.toFilterText(actor: user.actorId) ??
                       "Filter loading...",
                 ),
-                Text(l18n.categories, style: TextTheme.of(context).labelLarge),
+                Text(l10n.categories, style: TextTheme.of(context).labelLarge),
                 const SizedBox(height: 8),
 
                 WandererFilterChip<Category>(
@@ -79,7 +79,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                Text(l18n.tags, style: TextTheme.of(context).labelLarge),
+                Text(l10n.tags, style: TextTheme.of(context).labelLarge),
                 const SizedBox(height: 8),
 
                 WandererAutocomplete<Tag>(
@@ -113,7 +113,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                Text(l18n.author, style: TextTheme.of(context).labelLarge),
+                Text(l10n.author, style: TextTheme.of(context).labelLarge),
                 const SizedBox(height: 8),
 
                 WandererSearchBar(
@@ -131,7 +131,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 CheckboxListTile(
                   dense: true,
                   value: filter.value?.public,
-                  title: Text(l18n.public),
+                  title: Text(l10n.public),
                   onChanged: (value) => ref
                       .read(trailFilterProvider.notifier)
                       .updateFilter((filter) => filter.copyWith(public: value)),
@@ -139,7 +139,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 CheckboxListTile(
                   dense: true,
                   value: filter.value?.private,
-                  title: Text(l18n.private),
+                  title: Text(l10n.private),
                   onChanged: (value) => ref
                       .read(trailFilterProvider.notifier)
                       .updateFilter(
@@ -149,7 +149,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 CheckboxListTile(
                   dense: true,
                   value: filter.value?.shared,
-                  title: Text(l18n.shared),
+                  title: Text(l10n.shared),
 
                   onChanged: (value) => ref
                       .read(trailFilterProvider.notifier)
@@ -157,16 +157,17 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                Text(l18n.difficulty, style: TextTheme.of(context).labelLarge),
+                Text(l10n.difficulty, style: TextTheme.of(context).labelLarge),
                 const SizedBox(height: 8),
 
                 WandererFilterChip<int>(
                   options: [0, 1, 2],
+                  multiple: true,
                   selectedValues: f.difficulty,
                   labelBuilder: (c) {
                     switch (c) {
                       case 0:
-                        return l18n.easy;
+                        return l10n.easy;
                       case 1:
                         return AppLocalizations.of(context)?.moderate ??
                             "Moderate";
@@ -187,7 +188,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                Text(l18n.distance, style: TextTheme.of(context).labelLarge),
+                Text(l10n.distance, style: TextTheme.of(context).labelLarge),
                 RangeSlider(
                   values: RangeValues(
                     filter.value?.distanceMin ?? 0,
@@ -214,7 +215,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 const SizedBox(height: 16),
 
                 Text(
-                  l18n.elevation_gain,
+                  l10n.elevation_gain,
                   style: TextTheme.of(context).labelLarge,
                 ),
                 RangeSlider(
@@ -243,7 +244,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 const SizedBox(height: 16),
 
                 Text(
-                  l18n.elevation_loss,
+                  l10n.elevation_loss,
                   style: TextTheme.of(context).labelLarge,
                 ),
                 RangeSlider(
@@ -270,7 +271,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                Text(l18n.before, style: TextTheme.of(context).labelLarge),
+                Text(l10n.before, style: TextTheme.of(context).labelLarge),
                 const SizedBox(height: 8),
 
                 WandererDatePicker(
@@ -286,7 +287,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                Text(l18n.after, style: TextTheme.of(context).labelLarge),
+                Text(l10n.after, style: TextTheme.of(context).labelLarge),
                 const SizedBox(height: 8),
 
                 WandererDatePicker(
@@ -302,11 +303,11 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                Text(l18n.like_status, style: TextTheme.of(context).labelLarge),
+                Text(l10n.like_status, style: TextTheme.of(context).labelLarge),
                 CheckboxListTile(
                   dense: true,
                   value: filter.value?.liked,
-                  title: Text(l18n.liked),
+                  title: Text(l10n.liked),
                   onChanged: (value) => ref
                       .read(trailFilterProvider.notifier)
                       .updateFilter((filter) => filter.copyWith(liked: value)),
@@ -314,7 +315,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 const SizedBox(height: 16),
 
                 Text(
-                  l18n.completion_status,
+                  l10n.completion_status,
                   style: TextTheme.of(context).labelLarge,
                 ),
                 const SizedBox(height: 8),
@@ -327,15 +328,15 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
 
                   options: [
                     WandererRadioOption(
-                      label: l18n.completed,
+                      label: l10n.completed,
                       value: CompletionStatus.completed,
                     ),
                     WandererRadioOption(
-                      label: l18n.not_completed,
+                      label: l10n.not_completed,
                       value: CompletionStatus.notCompleted,
                     ),
                     WandererRadioOption(
-                      label: l18n.no_preference,
+                      label: l10n.no_preference,
                       value: CompletionStatus.noPreference,
                     ),
                   ],

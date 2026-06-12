@@ -20,6 +20,7 @@ import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/settings_appearance_screen.dart';
 import 'package:wanderer/routes/settings_screen.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
+import 'package:wanderer/routes/trail_sort_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
 
 part 'router_provider.g.dart';
@@ -167,6 +168,10 @@ class Router extends _$Router {
         GoRoute(
           path: '/trail/filter',
           builder: (context, state) => const TrailFilterScreen(),
+        ),
+        GoRoute(
+          path: '/trail/sort',
+          builder: (context, state) => const TrailSortScreen(),
         ),
         GoRoute(
           path: '/trail/:id',

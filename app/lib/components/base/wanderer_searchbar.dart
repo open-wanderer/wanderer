@@ -39,17 +39,17 @@ class _WandererSearchBarState extends State<WandererSearchBar> {
             filled: true,
             fillColor: Theme.of(context).inputDecorationTheme.fillColor,
             contentPadding: const EdgeInsets.all(12),
-            prefixIcon: const Icon(Icons.search, color: Colors.black),
+            prefixIcon: Icon(Icons.search, color: Colors.grey.shade300),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(56),
               borderSide: BorderSide(
                 color: Theme.of(context).colorScheme.outline,
               ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(56),
               borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.primary,
+                color: Theme.of(context).colorScheme.onSurface,
                 width: 1.5,
               ),
             ),

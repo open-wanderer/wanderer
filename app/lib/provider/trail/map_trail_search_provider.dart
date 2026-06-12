@@ -75,9 +75,7 @@ class MapTrailSearch extends _$MapTrailSearch {
               '_geoBoundingBox([$neLat, $neLng], [$swLat, $swLng])',
               if (filterText.isNotEmpty) filterText,
             ],
-            'sort': [
-              "${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}",
-            ],
+            'sort': ["${filter.sort.name}:${filter.sortOrder.name}"],
             'attributesToRetrieve': [...defaultTrailSearchAttributes],
             'hitsPerPage': 100,
             'page': 1,

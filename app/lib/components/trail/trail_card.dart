@@ -11,6 +11,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/icon_util.dart';
 
 class TrailCard extends ConsumerWidget {
   final TrailSummary trail;
@@ -75,7 +76,7 @@ class TrailCard extends ConsumerWidget {
                   ? Theme.of(context).primaryColor
                   : Theme.of(
                       context,
-                    ).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    ).colorScheme.outlineVariant.withValues(alpha: 0.1),
               width: selected ? 2 : 1,
             ),
             boxShadow: [
@@ -224,10 +225,7 @@ class TrailCard extends ConsumerWidget {
                         runSpacing: 8,
                         children: [
                           if (trail.summaryCategory.isNotEmpty)
-                            _CategoryIcon(
-                              icon: FontAwesomeIcons.shapes,
-                              value: trail.summaryCategory,
-                            ),
+                            _CategoryIcon(value: trail.summaryCategory),
 
                           if (trail.location != null &&
                               trail.location!.isNotEmpty)
@@ -250,7 +248,6 @@ class TrailCard extends ConsumerWidget {
                               ),
                             ),
                           _CategoryIcon(
-                            icon: FontAwesomeIcons.gauge,
                             value: _getDifficultyLabel(
                               context,
                               trail.summaryDifficulty,
@@ -387,16 +384,15 @@ class _StatsGrid extends StatelessWidget {
 }
 
 class _CategoryIcon extends StatelessWidget {
-  final FaIconData icon;
   final String value;
-  const _CategoryIcon({required this.icon, required this.value});
+  const _CategoryIcon({required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        FaIcon(icon, size: 16),
+        getTrailIcon(value),
         const SizedBox(width: 6),
         Text(value, style: TextStyle(fontSize: 16)),
       ],

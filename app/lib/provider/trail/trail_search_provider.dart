@@ -60,9 +60,7 @@ class TrailSearchNotifier extends _$TrailSearchNotifier {
         'q': filter.q,
         'options': {
           'filter': filter.toFilterText(actor: user?.actorId ?? ""),
-          'sort': [
-            "${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}",
-          ],
+          'sort': ["${filter.sort.name}:${filter.sortOrder.name}"],
           'hitsPerPage': perPage,
           'page': page,
         },
