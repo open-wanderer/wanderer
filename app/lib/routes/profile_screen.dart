@@ -384,37 +384,32 @@ class _StatsRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _StatColumn(label: l.followers, count: actor.followerCount ?? 0),
-          const SizedBox(width: 24),
-          _StatColumn(label: l.following, count: actor.followingCount ?? 0),
-          const Spacer(),
-          if (!isOwn)
+          Expanded(
+            child: _CountCard(
+              icon: FontAwesomeIcons.userGroup,
+              label: l.followers,
+              count: actor.followerCount,
+              onTap: null,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _CountCard(
+              icon: FontAwesomeIcons.userCheck,
+              label: l.following,
+              count: actor.followingCount,
+              onTap: null,
+            ),
+          ),
+          if (!isOwn) ...[
+            const SizedBox(width: 12),
             SizedBox(
               width: 100,
               child: _FollowButton(profileActorId: actor.id),
             ),
+          ],
         ],
       ),
-    );
-  }
-}
-
-class _StatColumn extends StatelessWidget {
-  final String label;
-  final int count;
-  const _StatColumn({required this.label, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-        Text(
-          '$count',
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
-        ),
-      ],
     );
   }
 }
@@ -495,7 +490,10 @@ class _CountCard extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
                   count == null
                       ? const SizedBox(
