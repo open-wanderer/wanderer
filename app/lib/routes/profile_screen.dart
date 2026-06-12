@@ -438,7 +438,7 @@ class _CountsRow extends ConsumerWidget {
         children: [
           Expanded(
             child: _CountCard(
-              icon: const FaIcon(FontAwesomeIcons.route, size: 16),
+              icon: FontAwesomeIcons.route,
               label: AppLocalizations.of(context)!.trail(2),
               count: countsAsync.value?.trailCount,
               onTap: () => context.push('/profile/$handle/trails'),
@@ -447,7 +447,7 @@ class _CountsRow extends ConsumerWidget {
           const SizedBox(width: 12),
           Expanded(
             child: _CountCard(
-              icon: const FaIcon(FontAwesomeIcons.layerGroup, size: 16),
+              icon: FontAwesomeIcons.layerGroup,
               label: AppLocalizations.of(context)!.list(2),
               count: countsAsync.value?.listCount,
               onTap: null, // wire to lists detail screen
@@ -460,7 +460,7 @@ class _CountsRow extends ConsumerWidget {
 }
 
 class _CountCard extends StatelessWidget {
-  final Widget icon;
+  final FaIconData icon;
   final String label;
   final int? count;
   final VoidCallback? onTap;
@@ -488,10 +488,7 @@ class _CountCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              IconTheme(
-                data: IconThemeData(size: 16, color: colorScheme.primary),
-                child: icon,
-              ),
+              FaIcon(icon, size: 16),
               const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
