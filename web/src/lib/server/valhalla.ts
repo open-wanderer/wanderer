@@ -1,5 +1,6 @@
 import { resolveBaseUrl } from "$lib/server/url";
 
-export function getValhallaBaseUrl(): string {
-    return resolveBaseUrl("VALHALLA_URL");
+export function getValhallaBaseUrl(): string | null {
+    const url = resolveBaseUrl("VALHALLA_URL");
+    return url || null;
 }
