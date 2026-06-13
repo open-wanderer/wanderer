@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Backend API** - SvelteKit POST /api/v1/valhalla/navigate endpoint returns structured maneuver list (completed 2026-06-12)
 - [x] **Phase 2: Navigation Screen** - Full-screen Flutter navigation screen with map, maneuvers, GPS, and orientation toggle (completed 2026-06-13)
-- [ ] **Phase 3: Stats Sheet** - DraggableScrollableSheet with live distance/elevation/speed stats and a reused elevation-profile page
+- [x] **Phase 3: Stats Sheet** - DraggableScrollableSheet with live distance/elevation/speed stats and a reused elevation-profile page (completed 2026-06-13)
 
 ## Phase Details
 
@@ -85,11 +85,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plansPlans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — navigationStatsProvider (@riverpod + freezed NavigationStats; distance/elevation/speed accumulation, pause/resume, elapsed timer) + format_util formatSpeed/formatElapsed, unit-tested
+- [x] 03-01-PLAN.md — navigationStatsProvider (@riverpod + freezed NavigationStats; distance/elevation/speed accumulation, pause/resume, elapsed timer) + format_util formatSpeed/formatElapsed, unit-tested
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-02-PLAN.md — Stats sheet UI in NavigationScreen (DraggableScrollableSheet + button-driven PageView + Pause/Exit button row, GPS-fed stats, reused ElevationProfile) + i18n; old exit overlay removed
+- [x] 03-02-PLAN.md — Stats sheet UI in NavigationScreen (DraggableScrollableSheet + button-driven PageView + Pause/Exit button row, GPS-fed stats, reused ElevationProfile) + i18n; old exit overlay removed
 
 **UI hint**: yes
 
@@ -102,4 +102,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Backend API | 1/1 | Complete    | 2026-06-12 |
 | 2. Navigation Screen | 3/3 | Complete   | 2026-06-13 |
-| 3. Stats Sheet | 0/2 | Planned | - |
+| 3. Stats Sheet | 2/2 | Complete   | 2026-06-13 |
