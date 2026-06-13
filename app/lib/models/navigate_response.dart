@@ -35,6 +35,8 @@ abstract class NavigateResponse with _$NavigateResponse {
 /// `[lat, lng]` after decoding the Valhalla polyline.
 /// [0] = latitude, [1] = longitude.
 extension NavigateResponseX on NavigateResponse {
-  List<LatLng> get shapeAsLatLng =>
-      shape.map((p) => LatLng(p[0], p[1])).toList();
+  List<LatLng> get shapeAsLatLng => shape
+      .where((p) => p.length >= 2)
+      .map((p) => LatLng(p[0], p[1]))
+      .toList();
 }
