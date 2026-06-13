@@ -58,11 +58,19 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _positionStream = Geolocator.getPositionStream().asBroadcastStream();
 
     // Subscribe the navigation notifier to raw Position (lat/lon for D-12 + D-18)
-    _sub = _positionStream.listen((pos) {
-      ref
-          .read(navigationProvider(widget.response).notifier)
-          .onPosition(LatLng(pos.latitude, pos.longitude));
-    });
+    _sub = _positionStream.listen(
+      (pos) {
+        ref
+            .read(navigationProvider(widget.response).notifier)
+            .onPosition(LatLng(pos.latitude, pos.longitude));
+      },
+      onError: (Object error) {
+        // PlatformException from Geolocator (e.g. permission denied mid-session)
+        // is swallowed here so it does not escape to the Flutter error handler.
+        // The GPS dot simply stops updating — the user can exit via the X button.
+        debugPrint('NavigationScreen: GPS stream error — $error');
+      },
+    );
 
     // Recenter button appear/disappear animation (mirror map_screen.dart pattern)
     _recenterButtonController = AnimationController(
