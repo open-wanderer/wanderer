@@ -13,10 +13,12 @@ import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:wanderer/components/map/map_compass.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
+import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/navigation_provider.dart';
+import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 
@@ -40,20 +42,14 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   late final Stream<Position> _positionStream;
   StreamSubscription<Position>? _sub;
 
+  // Stats sheet controllers: PageView (button-driven page switch — stats vs
+  // elevation profile) and the DraggableScrollableSheet drag controller.
+  final PageController _pageController = PageController();
+  final DraggableScrollableController _sheetController =
+      DraggableScrollableController();
+
   bool _followEnabled = true;
   bool _headingUp = false;
-
-  late final AnimationController _recenterButtonController =
-      AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 500),
-        reverseDuration: const Duration(milliseconds: 200),
-      );
-  late final Animation<double> _recenterButtonScale = CurvedAnimation(
-    parent: _recenterButtonController,
-    curve: Curves.elasticOut,
-    reverseCurve: Curves.easeOut,
-  );
 
   @override
   void initState() {
@@ -73,6 +69,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         ref
             .read(navigationProvider(widget.response).notifier)
             .onPosition(LatLng(pos.latitude, pos.longitude));
+        // Feed the SAME single GPS fix to the stats notifier (D-13 — no second
+        // stream). The stats provider needs altitude + speed, so pass the raw
+        // geolocator Position rather than a LatLng.
+        ref
+            .read(navigationStatsProvider(widget.response).notifier)
+            .onPosition(pos);
         if (_followEnabled) {
           _recenterTrigger.add(null);
         }
@@ -93,24 +95,20 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     // (Pitfall 6 — mirror map_screen.dart:103-111)
     _sub?.cancel();
     _recenterTrigger.close();
-    _recenterButtonController.dispose();
+    _pageController.dispose();
+    _sheetController.dispose();
     _animatedMapController.dispose();
     super.dispose();
   }
 
   void _onPanStart() {
-    // Only a drag (pan) disables follow — pinch-zoom must NOT disable follow
-    // (D-09 free-pan; D-10 user-adjustable zoom)
     if (_followEnabled) {
       setState(() => _followEnabled = false);
-      _recenterButtonController.forward();
     }
   }
 
   void _onRecenter() {
     setState(() => _followEnabled = true);
-    _recenterButtonController.reverse();
-    // One-shot realign event to CurrentLocationLayer.alignPositionStream
     _recenterTrigger.add(null);
   }
 
@@ -118,6 +116,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   Widget build(BuildContext context) {
     final styleAsync = ref.watch(mapStyleProvider);
     final navState = ref.watch(navigationProvider(widget.response));
+    final stats = ref.watch(navigationStatsProvider(widget.response));
     final trailAsync = ref.watch(trailProvider(widget.id));
     final localizations = AppLocalizations.of(context)!;
 
@@ -216,25 +215,40 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                         : AlignOnUpdate.never,
                   ),
 
-                  // (5) Compass toggle — must live inside FlutterMap.children so
-                  // MapCamera.of(context) resolves the inherited map camera.
-                  // Top-right, 16px inset (NAV-05, D-11)
+                  // (5) Map controls column — bottom-right.
+                  // Must live inside FlutterMap.children so MapCamera.of()
+                  // resolves for MapCompass. Recenter is disabled (not hidden)
+                  // when the camera is already following the user.
                   Positioned(
-                    top: 124,
+                    bottom: 24,
                     right: 8,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        MapCompass(
-                          hideIfRotatedNorth: false,
-                          onPressed: () {
-                            setState(() => _headingUp = !_headingUp);
-                            if (!_headingUp) {
-                              _animatedMapController.animateTo(rotation: 0);
-                            }
-                          },
-                        ),
-                      ],
+                    child: SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          MapCompass(
+                            hideIfRotatedNorth: false,
+                            onPressed: () {
+                              setState(() => _headingUp = !_headingUp);
+                              if (!_headingUp) {
+                                _animatedMapController.animateTo(rotation: 0);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 4),
+                          IconButton(
+                            onPressed: _followEnabled ? null : _onRecenter,
+                            icon: const FaIcon(
+                              FontAwesomeIcons.locationCrosshairs,
+                            ),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.surface,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -258,34 +272,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                 ),
               ),
 
-              // Exit button — top-left, 16px inset (NAV-07)
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: _buildExitButton(context),
-                  ),
-                ),
-              ),
-
-              // Recenter button — bottom-center, visible only when follow paused
-              // (D-09, reuse ScaleTransition pattern from map_screen.dart:490-513)
-              Positioned(
-                bottom: 24,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: ScaleTransition(
-                    scale: _recenterButtonScale,
-                    child: FilledButton.icon(
-                      onPressed: _onRecenter,
-                      icon: const FaIcon(FontAwesomeIcons.locationCrosshairs),
-                      label: const SizedBox.shrink(),
-                    ),
-                  ),
-                ),
-              ),
+              // ----------------------------------------------------------------
+              // Stats sheet — bottom band only (Pitfall 4: must NOT cover the
+              // whole screen, so the map + bottom-right controls stay reachable).
+              // ----------------------------------------------------------------
+              _buildStatsSheet(context, localizations, stats, trailAsync),
             ],
           );
         },
@@ -390,24 +381,256 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  /// Exit button (top-left): circular IconButton with canvasColor bg, xmark
-  /// icon, 48px minimum touch target. Pops route with no confirmation (NAV-07).
-  Widget _buildExitButton(BuildContext context) {
-    return Material(
-      color: Theme.of(context).canvasColor,
-      shape: const CircleBorder(),
-      elevation: 4,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () => context.pop(),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: FaIcon(
-            FontAwesomeIcons.xmark,
-            color: Theme.of(context).colorScheme.onSurface,
-            size: 20,
+  /// Bottom stats sheet: a [DraggableScrollableSheet] covering only the bottom
+  /// band (Pitfall 4 — the map and its bottom-right control column remain
+  /// reachable). Snaps between a collapsed (0.18) and expanded (0.45) extent
+  /// (A2 — tune if controls get covered). The scrollable child is a [ListView]
+  /// so the vertical drag-to-expand gesture is forwarded (Pitfall 1).
+  Widget _buildStatsSheet(
+    BuildContext context,
+    AppLocalizations localizations,
+    NavigationStats stats,
+    AsyncValue<dynamic> trailAsync,
+  ) {
+    final theme = Theme.of(context);
+
+    return DraggableScrollableSheet(
+      controller: _sheetController,
+      initialChildSize: 0.18,
+      minChildSize: 0.18,
+      maxChildSize: 0.45,
+      snap: true,
+      snapSizes: const [0.18, 0.45],
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.canvasColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
           ),
-        ),
+          child: ListView(
+            controller: scrollController,
+            physics: const ClampingScrollPhysics(),
+            padding: EdgeInsets.zero,
+            children: [
+              // Drag handle.
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // Page area: page 0 = live stats, page 1 = elevation profile.
+              // Button-driven only (NeverScrollableScrollPhysics — no swipe).
+              SizedBox(
+                height: 220,
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildStatsPage(context, localizations, stats),
+                    _buildElevationPage(context, trailAsync),
+                  ],
+                ),
+              ),
+
+              // Button row: [Elevation profile | Pause/Resume | Exit].
+              _buildButtonRow(context, localizations, stats),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Page 0: live stats. Compact row (collapsed view) shows Time / Distance /
+  /// Elevation gain; the expanded row (revealed as the sheet grows) adds
+  /// Elevation loss / Current speed / Average speed.
+  Widget _buildStatsPage(
+    BuildContext context,
+    AppLocalizations localizations,
+    NavigationStats stats,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              _buildStatCell(
+                context,
+                localizations.time,
+                formatElapsed(stats.elapsed),
+              ),
+              _buildStatCell(
+                context,
+                localizations.distance,
+                formatDistance(stats.distanceMeters),
+              ),
+              _buildStatCell(
+                context,
+                localizations.elevation_gain,
+                formatElevation(stats.elevationGainMeters),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _buildStatCell(
+                context,
+                localizations.elevation_loss,
+                formatElevation(stats.elevationLossMeters),
+              ),
+              _buildStatCell(
+                context,
+                localizations.speed,
+                formatSpeed(stats.currentSpeedKmh),
+              ),
+              _buildStatCell(
+                context,
+                localizations.average_speed,
+                formatSpeed(stats.averageSpeedKmh),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A single stat cell: subdued label above, large bold value below
+  /// (CONTEXT specifics: value fontSize 24, FontWeight.bold).
+  Widget _buildStatCell(BuildContext context, String label, String value) {
+    final theme = Theme.of(context);
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Page 1: the reused [ElevationProfile] chart with a top-left back control
+  /// returning to the stats page. The map behind the sheet stays interactive.
+  Widget _buildElevationPage(
+    BuildContext context,
+    AsyncValue<dynamic> trailAsync,
+  ) {
+    return trailAsync.when(
+      data: (trail) {
+        final gpx = trail.expand?.gpx;
+        if (gpx == null) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.topLeft,
+              child: IconButton(
+                onPressed: () => _pageController.animateToPage(
+                  0,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                ),
+                icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+              ),
+            ),
+            Flexible(
+              child: ElevationProfile(
+                trail: trail,
+                gpx: gpx,
+                enableLineTouch: false,
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => const SizedBox.shrink(),
+    );
+  }
+
+  /// Button row (always visible below the PageView): elevation-profile switch
+  /// (left), dominant Pause/Resume (center), Exit (right). Exit consolidates
+  /// the old top-left X overlay (NAV-07).
+  Widget _buildButtonRow(
+    BuildContext context,
+    AppLocalizations localizations,
+    NavigationStats stats,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Left — switch to elevation profile page.
+          IconButton(
+            tooltip: localizations.elevation_profile,
+            onPressed: () => _pageController.animateToPage(
+              1,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+            ),
+            icon: const FaIcon(FontAwesomeIcons.chartArea),
+          ),
+
+          // Center — dominant Pause/Resume bound to the stats provider.
+          FilledButton.icon(
+            onPressed: () => ref
+                .read(navigationStatsProvider(widget.response).notifier)
+                .togglePause(),
+            icon: FaIcon(
+              stats.isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
+              size: 18,
+            ),
+            label: Text(
+              stats.isPaused ? localizations.resume : localizations.pause,
+            ),
+          ),
+
+          // Right — Exit pops the route (replaces the old top-left X, NAV-07).
+          IconButton(
+            tooltip: localizations.exit_navigation,
+            onPressed: () => context.pop(),
+            icon: const FaIcon(FontAwesomeIcons.xmark),
+          ),
+        ],
       ),
     );
   }
