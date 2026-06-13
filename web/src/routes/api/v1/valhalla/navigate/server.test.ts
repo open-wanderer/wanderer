@@ -111,7 +111,7 @@ const happyPathTrip = {
 describe("POST /api/v1/valhalla/navigate", () => {
   it("Test 1: returns 200 with maneuver list and shape for valid authenticated request", async () => {
     const event = makeEvent({
-      body: { waypoints: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }] },
+      body: { shape: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }] },
       fetchResponse: {
         ok: true,
         status: 200,
@@ -154,7 +154,7 @@ describe("POST /api/v1/valhalla/navigate", () => {
   it("Test 2: coordinate flip — shape[0] is [lat, lon] not [lon, lat]", async () => {
     // lat=47.5 and lon=8.1 are distinct so order is observable
     const event = makeEvent({
-      body: { waypoints: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }] },
+      body: { shape: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }] },
       fetchResponse: {
         ok: true,
         status: 200,
@@ -177,18 +177,18 @@ describe("POST /api/v1/valhalla/navigate", () => {
   // Test 3: Schema validation
   // ---------------------------------------------------------------------------
   it("Test 3: NavigateRequestSchema validation", () => {
-    // Rejects empty waypoint array
-    expect(() => NavigateRequestSchema.parse({ waypoints: [] })).toThrow();
+    // Rejects empty shape array
+    expect(() => NavigateRequestSchema.parse({ shape: [] })).toThrow();
 
-    // Rejects single-waypoint array (min 2)
+    // Rejects single-point array (min 2)
     expect(() =>
-      NavigateRequestSchema.parse({ waypoints: [{ lat: 47.5, lon: 8.1 }] })
+      NavigateRequestSchema.parse({ shape: [{ lat: 47.5, lon: 8.1 }] })
     ).toThrow();
 
     // Rejects lat=200 / lon=200 (out of bounds)
     expect(() =>
       NavigateRequestSchema.parse({
-        waypoints: [
+        shape: [
           { lat: 200, lon: 200 },
           { lat: 47.6, lon: 8.2 },
         ],
@@ -197,7 +197,7 @@ describe("POST /api/v1/valhalla/navigate", () => {
 
     // Defaults costing to "pedestrian" when omitted
     const result = NavigateRequestSchema.parse({
-      waypoints: [
+      shape: [
         { lat: 47.5, lon: 8.1 },
         { lat: 47.7, lon: 8.3 },
       ],
@@ -206,7 +206,7 @@ describe("POST /api/v1/valhalla/navigate", () => {
 
     // Accepts costing: "bicycle"
     const resultBicycle = NavigateRequestSchema.parse({
-      waypoints: [
+      shape: [
         { lat: 47.5, lon: 8.1 },
         { lat: 47.7, lon: 8.3 },
       ],
@@ -224,7 +224,7 @@ describe("POST /api/v1/valhalla/navigate", () => {
       locals: { user: null },
       request: {
         json: async () => ({
-          waypoints: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }],
+          shape: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }],
         }),
       },
       fetch: fetchMock,
@@ -251,9 +251,9 @@ describe("POST /api/v1/valhalla/navigate", () => {
   // Test 5: Invalid input → 400 (Success Criterion 3)
   // ---------------------------------------------------------------------------
   it("Test 5: invalid input returns 400 with message: invalid_params — never a 500", async () => {
-    // Empty waypoints fails Zod min(2) → handleError → 400
+    // Empty shape fails Zod min(2) → handleError → 400
     const event = makeEvent({
-      body: { waypoints: [] },
+      body: { shape: [] },
     });
 
     const response = await POST(event);
@@ -268,7 +268,7 @@ describe("POST /api/v1/valhalla/navigate", () => {
   // ---------------------------------------------------------------------------
   it("Test 6: upstream Valhalla failure returns 502 with message: valhalla_error — never a 500", async () => {
     const event = makeEvent({
-      body: { waypoints: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }] },
+      body: { shape: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }] },
       fetchResponse: {
         ok: false,
         status: 400,
@@ -318,7 +318,7 @@ describe("POST /api/v1/valhalla/navigate", () => {
     };
 
     const event = makeEvent({
-      body: { waypoints: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }, { lat: 47.9, lon: 8.5 }] },
+      body: { shape: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }, { lat: 47.9, lon: 8.5 }] },
       fetchResponse: {
         ok: true,
         status: 200,
@@ -355,7 +355,7 @@ describe("POST /api/v1/valhalla/navigate", () => {
     };
 
     const event = makeEvent({
-      body: { waypoints: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }] },
+      body: { shape: [{ lat: 47.5, lon: 8.1 }, { lat: 47.7, lon: 8.3 }] },
       fetchResponse: {
         ok: true,
         status: 200,

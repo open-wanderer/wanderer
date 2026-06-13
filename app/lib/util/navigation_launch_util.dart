@@ -49,39 +49,42 @@ Future<void> launchNavigation({
   // (1) Guard: must have a parsed GPX with at least 2 points (V5, T-02-08)
   final gpx = trail.expand?.gpx;
   if (gpx == null) {
-    ref.read(toastProvider.notifier).add(
-      ToastMessage(
-        type: ToastType.error,
-        icon: FontAwesomeIcons.triangleExclamation,
-        text: AppLocalizations.of(context)!.couldnt_start_navigation,
-      ),
-    );
+    ref
+        .read(toastProvider.notifier)
+        .add(
+          ToastMessage(
+            type: ToastType.error,
+            icon: FontAwesomeIcons.triangleExclamation,
+            text: AppLocalizations.of(context)!.couldnt_start_navigation,
+          ),
+        );
     return;
   }
 
   final points = gpx.allPoints;
   if (points.length < 2) {
-    ref.read(toastProvider.notifier).add(
-      ToastMessage(
-        type: ToastType.error,
-        icon: FontAwesomeIcons.triangleExclamation,
-        text: AppLocalizations.of(context)!.couldnt_start_navigation,
-      ),
-    );
+    ref
+        .read(toastProvider.notifier)
+        .add(
+          ToastMessage(
+            type: ToastType.error,
+            icon: FontAwesomeIcons.triangleExclamation,
+            text: AppLocalizations.of(context)!.couldnt_start_navigation,
+          ),
+        );
     return;
   }
 
   // (2) Derive costing from the trail category (Pattern 4, T-02-09)
   final costing = _costingFor(trail.expand?.category?.name);
 
-  // (3) Build waypoint list — downsample to ≤2000 preserving first+last (A4)
-  // step = ceil(n/1999) guarantees at most 1999 regularly-sampled points, so
-  // the appended last point can never push the total above 2000. Using 1999
-  // (not 2000) as the divisor also prevents step=1 for n=2001 (which with
-  // 2000 would emit every point and exceed the cap).
-  List<Map<String, double>> waypoints;
-  if (points.length > 2000) {
-    final step = (points.length / 1999).ceil();
+  // (3) Build shape list — downsample to ≤500 preserving first+last (A4)
+  // trace_route accepts up to ~500 shape points. step = ceil(n/499) guarantees
+  // at most 499 regularly-sampled points, so the appended last point can never
+  // push the total above 500. Using 499 (not 500) prevents step=1 for n=501.
+  List<Map<String, double>> shape;
+  if (points.length > 500) {
+    final step = (points.length / 499).ceil();
     final sampled = <Map<String, double>>[];
     for (int i = 0; i < points.length; i++) {
       if (i % step == 0) {
@@ -96,9 +99,9 @@ Future<void> launchNavigation({
     if (sampled.isEmpty || sampled.last != lastPoint) {
       sampled.add(lastPoint);
     }
-    waypoints = sampled;
+    shape = sampled;
   } else {
-    waypoints = points
+    shape = points
         .map((p) => {'lat': p.latitude, 'lon': p.longitude})
         .toList();
   }
@@ -108,23 +111,26 @@ Future<void> launchNavigation({
     final api = ref.read(apiProvider);
     final res = await api.post(
       '/valhalla/navigate',
-      data: {'waypoints': waypoints, 'costing': costing},
+      data: {'shape': shape, 'costing': costing},
     );
 
     // (5) Parse response and guard for non-empty content (V5, T-02-08)
-    final response =
-        NavigateResponse.fromJson(res.data as Map<String, dynamic>);
+    final response = NavigateResponse.fromJson(
+      res.data as Map<String, dynamic>,
+    );
 
     if (response.maneuvers.isEmpty || response.shape.isEmpty) {
       // Guard mounted before using context after await (Pitfall 5)
       if (!context.mounted) return;
-      ref.read(toastProvider.notifier).add(
-        ToastMessage(
-          type: ToastType.error,
-          icon: FontAwesomeIcons.triangleExclamation,
-          text: AppLocalizations.of(context)!.couldnt_start_navigation,
-        ),
-      );
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.triangleExclamation,
+              text: AppLocalizations.of(context)!.couldnt_start_navigation,
+            ),
+          );
       return;
     }
 
@@ -133,16 +139,18 @@ Future<void> launchNavigation({
 
     // (7) Navigate to the navigation screen, passing the response as extra (D-05)
     context.push('/trail/${trail.id}/navigate', extra: response);
-  } catch (_) {
+  } catch (e) {
     // D-07: on any error (network, parse, etc.) show toast and stay
     // Guard mounted before using context after await (Pitfall 5)
     if (!context.mounted) return;
-    ref.read(toastProvider.notifier).add(
-      ToastMessage(
-        type: ToastType.error,
-        icon: FontAwesomeIcons.triangleExclamation,
-        text: AppLocalizations.of(context)!.couldnt_start_navigation,
-      ),
-    );
+    ref
+        .read(toastProvider.notifier)
+        .add(
+          ToastMessage(
+            type: ToastType.error,
+            icon: FontAwesomeIcons.triangleExclamation,
+            text: AppLocalizations.of(context)!.couldnt_start_navigation,
+          ),
+        );
   }
 }

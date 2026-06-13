@@ -20,11 +20,12 @@ import type { NavigateManeuver } from '$lib/models/api/valhalla_navigate_schema'
  *           schema:
  *             type: object
  *             required:
- *               - waypoints
+ *               - shape
  *             properties:
- *               waypoints:
+ *               shape:
  *                 type: array
  *                 minItems: 2
+ *                 maxItems: 500
  *                 items:
  *                   type: object
  *                   required: [lat, lon]
@@ -89,12 +90,13 @@ export async function POST(event: RequestEvent) {
     const body = NavigateRequestSchema.parse(await event.request.json());
 
     const valhallaReq = {
-      locations: body.waypoints,
+      shape: body.shape,
       costing: body.costing,
       directions_type: "instructions",
+      shape_match: "map_snap",
     };
 
-    const res = await event.fetch(baseUrl + "/route", {
+    const res = await event.fetch(baseUrl + "/trace_route", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(valhallaReq),
