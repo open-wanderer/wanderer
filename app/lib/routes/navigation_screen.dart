@@ -42,14 +42,20 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   late final Stream<Position> _positionStream;
   StreamSubscription<Position>? _sub;
 
-  // Stats sheet controllers: PageView (button-driven page switch — stats vs
-  // elevation profile) and the DraggableScrollableSheet drag controller.
-  final PageController _pageController = PageController();
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
 
+  static const _kSheetMinSize = 0.2;
+  static const _kSheetStatsSize = 0.3;
+  static const _kSheetElevationSize = 0.45;
+
   bool _followEnabled = true;
   bool _headingUp = false;
+  bool _showingElevation = false;
+  // Ceiling for maxChildSize — raised before animating to elevation and lowered
+  // only after the shrink animation finishes, so the sheet never gets clamped
+  // mid-animation.
+  bool _sheetAtElevationSize = false;
 
   @override
   void initState() {
@@ -95,7 +101,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     // (Pitfall 6 — mirror map_screen.dart:103-111)
     _sub?.cancel();
     _recenterTrigger.close();
-    _pageController.dispose();
     _sheetController.dispose();
     _animatedMapController.dispose();
     super.dispose();
@@ -220,7 +225,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                   // resolves for MapCompass. Recenter is disabled (not hidden)
                   // when the camera is already following the user.
                   Positioned(
-                    bottom: 24,
+                    top: 96,
                     right: 8,
                     child: SafeArea(
                       child: Column(
@@ -277,6 +282,16 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               // whole screen, so the map + bottom-right controls stay reachable).
               // ----------------------------------------------------------------
               _buildStatsSheet(context, localizations, stats, trailAsync),
+
+              // Button row floats above the sheet as a Positioned overlay so the
+              // sheet itself can be a plain SingleChildScrollView (no LayoutBuilder
+              // hack needed to anchor the row at the sheet bottom).
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: MediaQuery.of(context).padding.bottom,
+                child: _buildButtonRow(context, localizations, stats),
+              ),
             ],
           );
         },
@@ -324,7 +339,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final maneuver = maneuvers[safeIndex];
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 2.0, right: 8.0),
@@ -381,11 +396,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  /// Bottom stats sheet: a [DraggableScrollableSheet] covering only the bottom
-  /// band (Pitfall 4 — the map and its bottom-right control column remain
-  /// reachable). Snaps between a collapsed (0.18) and expanded (0.45) extent
-  /// (A2 — tune if controls get covered). The scrollable child is a [ListView]
-  /// so the vertical drag-to-expand gesture is forwarded (Pitfall 1).
+  /// Bottom stats sheet. Standard [DraggableScrollableSheet] usage: the sheet's
+  /// [scrollController] drives a [SingleChildScrollView] so drag-to-expand works
+  /// out of the box. The button row lives in the outer [Stack] as a [Positioned]
+  /// overlay, so no [LayoutBuilder]/[Stack] trick is needed here.
   Widget _buildStatsSheet(
     BuildContext context,
     AppLocalizations localizations,
@@ -393,14 +407,17 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     AsyncValue<dynamic> trailAsync,
   ) {
     final theme = Theme.of(context);
+    final maxSize = _sheetAtElevationSize
+        ? _kSheetElevationSize
+        : _kSheetStatsSize;
 
     return DraggableScrollableSheet(
       controller: _sheetController,
-      initialChildSize: 0.18,
-      minChildSize: 0.18,
-      maxChildSize: 0.45,
+      initialChildSize: _kSheetMinSize,
+      minChildSize: _kSheetMinSize,
+      maxChildSize: maxSize,
       snap: true,
-      snapSizes: const [0.18, 0.45],
+      snapSizes: [_kSheetMinSize, maxSize],
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
@@ -414,82 +431,104 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               ),
             ],
           ),
-          child: ListView(
+          child: SingleChildScrollView(
             controller: scrollController,
-            physics: const ClampingScrollPhysics(),
-            padding: EdgeInsets.zero,
-            children: [
-              // Drag handle.
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle.
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
 
-              // Page area: page 0 = live stats, page 1 = elevation profile.
-              // Button-driven only (NeverScrollableScrollPhysics — no swipe).
-              SizedBox(
-                height: 220,
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _buildStatsPage(context, localizations, stats),
-                    _buildElevationPage(context, trailAsync),
-                  ],
+                // Always-visible top stats row.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Row(
+                    children: [
+                      _buildStatCell(
+                        context,
+                        localizations.time,
+                        formatElapsed(stats.elapsed),
+                      ),
+                      _buildStatCell(
+                        context,
+                        localizations.distance,
+                        formatDistance(stats.distanceMeters),
+                      ),
+                      _buildStatCell(
+                        context,
+                        localizations.elevation_gain,
+                        formatElevation(stats.elevationGainMeters),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-              // Button row: [Elevation profile | Pause/Resume | Exit].
-              _buildButtonRow(context, localizations, stats),
-            ],
+                // Additional content fades in as the sheet expands.
+                AnimatedBuilder(
+                  animation: _sheetController,
+                  builder: (ctx, child) {
+                    final targetSize = _showingElevation
+                        ? _kSheetElevationSize
+                        : _kSheetStatsSize;
+                    final t = _sheetController.isAttached
+                        ? ((_sheetController.size - _kSheetMinSize) /
+                                  (targetSize - _kSheetMinSize))
+                              .clamp(0.0, 1.0)
+                        : 0.0;
+                    return Opacity(opacity: t, child: child);
+                  },
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: _showingElevation
+                        ? SizedBox(
+                            key: const ValueKey('elevation'),
+                            height: 216,
+                            child: _buildElevationPage(context, trailAsync),
+                          )
+                        : SizedBox(
+                            key: const ValueKey('stats'),
+                            child: _buildAdditionalStats(
+                              context,
+                              localizations,
+                              stats,
+                            ),
+                          ),
+                  ),
+                ),
+
+                // Clearance so content does not hide behind the button overlay.
+                const SizedBox(height: 80),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  /// Page 0: live stats. Compact row (collapsed view) shows Time / Distance /
-  /// Elevation gain; the expanded row (revealed as the sheet grows) adds
-  /// Elevation loss / Current speed / Average speed.
-  Widget _buildStatsPage(
+  /// Additional stats that fade in as the sheet expands: elevation loss,
+  /// current speed, and average speed.
+  Widget _buildAdditionalStats(
     BuildContext context,
     AppLocalizations localizations,
     NavigationStats stats,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              _buildStatCell(
-                context,
-                localizations.time,
-                formatElapsed(stats.elapsed),
-              ),
-              _buildStatCell(
-                context,
-                localizations.distance,
-                formatDistance(stats.distanceMeters),
-              ),
-              _buildStatCell(
-                context,
-                localizations.elevation_gain,
-                formatElevation(stats.elevationGainMeters),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Row(
             children: [
               _buildStatCell(
@@ -556,29 +595,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         if (gpx == null) {
           return const SizedBox.shrink();
         }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                onPressed: () => _pageController.animateToPage(
-                  0,
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeInOut,
-                ),
-                icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
-              ),
-            ),
-            Flexible(
-              child: ElevationProfile(
-                trail: trail,
-                gpx: gpx,
-                enableLineTouch: false,
-              ),
-            ),
-          ],
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: ElevationProfile(
+            trail: trail,
+            gpx: gpx,
+            enableLineTouch: false,
+          ),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -597,38 +620,82 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          // Left — switch to elevation profile page.
-          IconButton(
-            tooltip: localizations.elevation_profile,
-            onPressed: () => _pageController.animateToPage(
-              1,
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
+          // Left — Exit pops the route.
+          FloatingActionButton.small(
+            heroTag: 'nav_exit',
+            tooltip: localizations.exit_navigation,
+            elevation: 2,
+            shape: StadiumBorder(),
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            onPressed: () => context.pop(),
+            child: FaIcon(
+              FontAwesomeIcons.xmark,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 18,
             ),
-            icon: const FaIcon(FontAwesomeIcons.chartArea),
-          ),
-
-          // Center — dominant Pause/Resume bound to the stats provider.
-          FilledButton.icon(
+          ), // Center — dominant Pause/Resume, icon-only FAB.
+          FloatingActionButton(
+            heroTag: 'nav_pause',
+            tooltip: stats.isPaused
+                ? localizations.resume
+                : localizations.pause,
+            elevation: 2,
+            shape: StadiumBorder(),
             onPressed: () => ref
                 .read(navigationStatsProvider(widget.response).notifier)
                 .togglePause(),
-            icon: FaIcon(
+            child: FaIcon(
               stats.isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
-              size: 18,
-            ),
-            label: Text(
-              stats.isPaused ? localizations.resume : localizations.pause,
             ),
           ),
 
-          // Right — Exit pops the route (replaces the old top-left X, NAV-07).
-          IconButton(
-            tooltip: localizations.exit_navigation,
-            onPressed: () => context.pop(),
-            icon: const FaIcon(FontAwesomeIcons.xmark),
+          // Right — toggle between additional stats and elevation profile.
+          FloatingActionButton.small(
+            heroTag: 'nav_elevation',
+            tooltip: localizations.elevation_profile,
+            shape: const StadiumBorder(),
+            elevation: 2,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            onPressed: () {
+              if (!_showingElevation) {
+                // Stats → elevation: raise ceiling first, then expand + switch.
+                setState(() {
+                  _sheetAtElevationSize = true;
+                  _showingElevation = true;
+                });
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    _sheetController.animateTo(
+                      _kSheetElevationSize,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
+                });
+              } else {
+                // Elevation → stats: switch content + shrink simultaneously;
+                // lower the ceiling only after the animation completes so the
+                // sheet is never clamped mid-animation.
+                setState(() => _showingElevation = false);
+                _sheetController.animateTo(
+                  _kSheetStatsSize,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  if (mounted) setState(() => _sheetAtElevationSize = false);
+                });
+              }
+            },
+            child: FaIcon(
+              _showingElevation
+                  ? FontAwesomeIcons.chartSimple
+                  : FontAwesomeIcons.chartArea,
+              color: Theme.of(context).colorScheme.onSurface,
+              size: 18,
+            ),
           ),
         ],
       ),

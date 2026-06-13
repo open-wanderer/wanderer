@@ -8,11 +8,7 @@ Icon getTrailIcon(
 }) {
   switch (category) {
     case "Hiking":
-      return FaIcon(
-        FontAwesomeIcons.personHiking,
-        color: Colors.white,
-        size: size,
-      );
+      return FaIcon(FontAwesomeIcons.personHiking, color: color, size: size);
     case "Biking":
       return FaIcon(FontAwesomeIcons.bicycle, color: color, size: size);
     case "Walking":
@@ -20,11 +16,7 @@ Icon getTrailIcon(
     case "Climbing":
       return Icon(Icons.landscape, color: color, size: size);
     case "Skiing":
-      return FaIcon(
-        FontAwesomeIcons.personSkiing,
-        color: Colors.white,
-        size: size,
-      );
+      return FaIcon(FontAwesomeIcons.personSkiing, color: color, size: size);
     case "Canoeing":
       return Icon(Icons.kayaking, color: color, size: size);
     default:
