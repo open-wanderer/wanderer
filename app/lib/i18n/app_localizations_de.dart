@@ -540,6 +540,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get explore_some_trails => 'Erkunde einige Routen';
 
   @override
+  String get exit_navigation => 'Beenden';
+
+  @override
   String get export => 'Exportieren';
 
   @override
@@ -1108,6 +1111,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get parking => 'Parken';
 
   @override
+  String get pause => 'Pause';
+
+  @override
   String get password => 'Passwort';
 
   @override
@@ -1220,6 +1226,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get reset_password => 'Passwort zurücksetzen';
+
+  @override
+  String get resume => 'Fortsetzen';
 
   @override
   String get reverse_direction => 'Richtung umkehren';
@@ -1471,6 +1480,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get tilesets => 'Tilesets';
+
+  @override
+  String get time => 'Zeit';
 
   @override
   String get toilets => 'Toiletten';

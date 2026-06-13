@@ -1064,6 +1064,12 @@ abstract class AppLocalizations {
   /// **'Explore some trails'**
   String get explore_some_trails;
 
+  /// No description provided for @exit_navigation.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit'**
+  String get exit_navigation;
+
   /// No description provided for @export.
   ///
   /// In en, this message translates to:
@@ -2048,6 +2054,12 @@ abstract class AppLocalizations {
   /// **'Parking'**
   String get parking;
 
+  /// No description provided for @pause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pause;
+
   /// No description provided for @password.
   ///
   /// In en, this message translates to:
@@ -2263,6 +2275,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset Password'**
   String get reset_password;
+
+  /// No description provided for @resume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get resume;
 
   /// No description provided for @reverse_direction.
   ///
@@ -2713,6 +2731,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Custom tilesets'**
   String get tilesets;
+
+  /// No description provided for @time.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get time;
 
   /// No description provided for @toilets.
   ///
