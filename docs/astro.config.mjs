@@ -52,6 +52,10 @@ export default defineConfig({
           link: '/use/create-a-trail/'
         },
         {
+          label: 'Categories',
+          link: '/use/categories/'
+        },
+        {
           label: 'Summit logs',
           link: '/use/summit-logs/'
         },

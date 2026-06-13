@@ -24,7 +24,6 @@ class Settings {
   bio?: string | null;
   mapFocus?: "trails" | "location";
   location?: { name: string, lat: number, lon: number } | null;
-  category?: string;
   tilesets?: ({ name: string, url: string }[]) | null
   terrain?: { terrain?: string, hillshading?: string } | null;
   user?: string;
@@ -39,7 +38,6 @@ class Settings {
     user: string,
     params?: {
       location?: { name: string, lat: number, lon: number }
-      category?: string
       tilesets?: { name: string, url: string }[]
       terrain?: { terrain: string, hillshading: string };
     }
@@ -49,7 +47,6 @@ class Settings {
     this.mapFocus = mapFocus;
     this.user = user;
     this.location = params?.location;
-    this.category = params?.category;
     this.tilesets = params?.tilesets ?? [];
     this.terrain = params?.terrain;
   }

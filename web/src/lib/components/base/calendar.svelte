@@ -1,8 +1,9 @@
 <script lang="ts">
 	import type { SummitLog } from "$lib/models/summit_log";
     import { range } from "$lib/util/array_util";
+	import { displayCategoryName } from "$lib/util/category_util";
 	import { isSameDay, isToday } from "../../util/date_util";
-	import { _, date } from "svelte-i18n";
+	import { _, date, locale } from "svelte-i18n";
 	interface Props {
 		logs?: SummitLog[];
 		colorMap?: Record<string, string>;
@@ -99,7 +100,10 @@
 	}
 
 	function colorKey(a: typeof currentMonthArray, i: number) {
-		return $_(a[i]?.log?.expand?.trail?.expand?.category?.name ?? "");
+		return displayCategoryName(
+			a[i]?.log?.expand?.trail?.expand?.category,
+			$locale,
+		);
 	}
 
 	function handleDateClick(date?: Date) {

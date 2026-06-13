@@ -256,13 +256,13 @@ func createTrailFromTour(app core.App, k *KomootApi, detailedTour *DetailedKomoo
 		"touringbicycle": "Biking",
 		"mtb":            "Biking",
 		"racebike":       "Biking",
-		"jogging":        "Walking",
+		"jogging":        "Running",
 		"mtb_easy":       "Workout",
 		"mtb_advanced":   "Walking",
 		"mountaineering": "Hiking",
 	}
 
-	category, _ := app.FindFirstRecordByData("categories", "name", categoryMap[detailedTour.Sport])
+	category, _ := util.FindCategoryByNormalizedName(app, categoryMap[detailedTour.Sport])
 	categoryId := ""
 	if category != nil {
 		categoryId = category.Id

@@ -1,3 +1,4 @@
+import { withTrailPreferenceMeiliFilter } from "$lib/server/category_preference_filter";
 import { error, json, type RequestEvent } from "@sveltejs/kit";
 
 /**
@@ -43,6 +44,15 @@ export async function POST(event: RequestEvent) {
     const data = await event.request.json()
 
     try {
+        if (event.params.index === "trails") {
+            data.options = {
+                ...(data.options ?? {}),
+                filter: await withTrailPreferenceMeiliFilter(
+                    event,
+                    data.options?.filter,
+                ),
+            };
+        }
         const r = await event.locals.ms.index(event.params.index as string).search(data.q, data.options);
         return json(r);
     } catch (e: any) {

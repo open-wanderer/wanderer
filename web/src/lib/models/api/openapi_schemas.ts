@@ -158,6 +158,182 @@
  *           type: string
  *           description: Tag name
  *
+ *     CategoryTranslation:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *         short_name:
+ *           type: string
+ *
+ *     Category:
+ *       type: object
+ *       required:
+ *         - id
+ *         - name
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Category ID (15 chars)
+ *         name:
+ *           type: string
+ *         short_name:
+ *           type: string
+ *           nullable: true
+ *         icon:
+ *           type: string
+ *           nullable: true
+ *         translations:
+ *           type: object
+ *           nullable: true
+ *           additionalProperties:
+ *             $ref: '#/components/schemas/CategoryTranslation'
+ *         settings:
+ *           type: object
+ *           nullable: true
+ *           properties:
+ *             wp_merge_enabled:
+ *               type: boolean
+ *             wp_merge_radius:
+ *               type: number
+ *         created:
+ *           type: string
+ *           format: date-time
+ *         updated:
+ *           type: string
+ *           format: date-time
+ *
+ *     Subcategory:
+ *       type: object
+ *       required:
+ *         - id
+ *         - category
+ *         - name
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Subcategory ID (15 chars)
+ *         category:
+ *           type: string
+ *           description: Parent category ID (15 chars)
+ *         name:
+ *           type: string
+ *         short_name:
+ *           type: string
+ *           nullable: true
+ *         icon:
+ *           type: string
+ *           nullable: true
+ *         badge_icon:
+ *           type: string
+ *           nullable: true
+ *         translations:
+ *           type: object
+ *           nullable: true
+ *           additionalProperties:
+ *             $ref: '#/components/schemas/CategoryTranslation'
+ *         created:
+ *           type: string
+ *           format: date-time
+ *         updated:
+ *           type: string
+ *           format: date-time
+ *
+ *     UserCategoryPreference:
+ *       type: object
+ *       required:
+ *         - id
+ *         - user
+ *         - category
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Preference ID (15 chars)
+ *         user:
+ *           type: string
+ *           description: User ID (15 chars)
+ *         category:
+ *           type: string
+ *           description: Category ID (15 chars)
+ *         exclude_search:
+ *           type: boolean
+ *         hide_design:
+ *           type: boolean
+ *         exclude_federated:
+ *           type: boolean
+ *         priority:
+ *           type: integer
+ *           nullable: true
+ *         created:
+ *           type: string
+ *           format: date-time
+ *         updated:
+ *           type: string
+ *           format: date-time
+ *
+ *     UserCategoryPreferenceUpsertInput:
+ *       type: object
+ *       required:
+ *         - category
+ *       properties:
+ *         category:
+ *           type: string
+ *           description: Category ID (15 chars)
+ *         exclude_search:
+ *           type: boolean
+ *         hide_design:
+ *           type: boolean
+ *         exclude_federated:
+ *           type: boolean
+ *
+ *     UserCategoryPreferenceReorderInput:
+ *       type: object
+ *       required:
+ *         - categories
+ *       properties:
+ *         categories:
+ *           type: array
+ *           items:
+ *             type: string
+ *             description: Category ID (15 chars)
+ *
+ *     UserSubcategoryPreference:
+ *       type: object
+ *       required:
+ *         - id
+ *         - user
+ *         - subcategory
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Preference ID (15 chars)
+ *         user:
+ *           type: string
+ *           description: User ID (15 chars)
+ *         subcategory:
+ *           type: string
+ *           description: Subcategory ID (15 chars)
+ *         visible:
+ *           type: boolean
+ *         created:
+ *           type: string
+ *           format: date-time
+ *         updated:
+ *           type: string
+ *           format: date-time
+ *
+ *     UserSubcategoryPreferenceUpsertInput:
+ *       type: object
+ *       required:
+ *         - subcategory
+ *         - visible
+ *       properties:
+ *         subcategory:
+ *           type: string
+ *           description: Subcategory ID (15 chars)
+ *         visible:
+ *           type: boolean
+ *
  *     Trail:
  *       type: object
  *       required:
@@ -220,6 +396,9 @@
  *         category:
  *           type: string
  *           description: Category ID (15 chars)
+ *         subcategory:
+ *           type: string
+ *           description: Subcategory ID (15 chars)
  *         tags:
  *           type: array
  *           items:
@@ -290,6 +469,8 @@
  *           default: 0
  *         category:
  *           type: string
+ *         subcategory:
+ *           type: string
  *         tags:
  *           type: array
  *           items:
@@ -347,6 +528,8 @@
  *           type: integer
  *           default: 0
  *         category:
+ *           type: string
+ *         subcategory:
  *           type: string
  *         tags:
  *           type: array

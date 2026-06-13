@@ -524,7 +524,7 @@ func createTrailFromActivity(app core.App, detailedTour *HammerheadActivity, gpx
 
 	record := core.NewRecord(collection)
 
-	category, _ := app.FindFirstRecordByData("categories", "name", "Biking" /*ToDo: Mapping*/)
+	category, _ := util.FindCategoryByNormalizedName(app, "Biking" /*ToDo: Mapping*/)
 	categoryId := ""
 	if category != nil {
 		categoryId = category.Id
@@ -613,7 +613,7 @@ func createTrailFromTour(app core.App, detailedTour *HammerheadTour, gpx *filesy
 
 	record := core.NewRecord(collection)
 
-	category, _ := app.FindFirstRecordByData("categories", "name", "Biking" /*ToDo: Mapping*/)
+	category, _ := util.FindCategoryByNormalizedName(app, "Biking" /*ToDo: Mapping*/)
 	categoryId := ""
 	if category != nil {
 		categoryId = category.Id

@@ -27,7 +27,6 @@
     import type { OverpassPopupActionFactory } from "$lib/vendor/maplibre-layer-manager/overpass-layer";
     import { type OverpassPopupAction } from "$lib/util/maplibre_util";
     import { Waypoint } from "$lib/models/waypoint";
-    import { categories } from "$lib/stores/category_store";
     import {
         lists_add_trail,
         lists_remove_trail,
@@ -89,6 +88,7 @@
     import { tags_index } from "$lib/stores/tag_store.js";
     import { theme } from "$lib/stores/theme_store.js";
     import { currentUser } from "$lib/stores/user_store.js";
+    import { designSelectableCategories } from "$lib/util/category_util";
     import { getIconForLocation } from "$lib/util/icon_util.js";
     import {
         createAnchorMarker,
@@ -105,13 +105,14 @@
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
     import { onMount, untrack } from "svelte";
-    import { _ } from "svelte-i18n";
+    import { _, locale } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
     import { fly } from "svelte/transition";
     import { z } from "zod";
     import Track from "$lib/models/gpx/track.js";
     import TrackSegment from "$lib/models/gpx/track-segment.js";
     import ConfirmModal from "$lib/components/confirm_modal.svelte";
+    import CategoryPicker from "$lib/components/trail/category_picker.svelte";
 
     let { data } = $props();
 
@@ -154,7 +155,6 @@
 
     let searchDropdownItems: SearchItem[] = $state([]);
     let selectedSearchLocation: SearchItem | null = $state(null);
-
     let cropStartMarker: FontawesomeMarker;
     let cropEndMarker: FontawesomeMarker;
 
@@ -190,15 +190,29 @@
 
     let tagItems: ComboboxItem[] = $state([]);
 
+    function defaultCategoryId() {
+        const existingCategory = data.trail.category;
+        if (existingCategory) {
+            return existingCategory;
+        }
+
+        // Pre-select the highest-priority visible category for new trails.
+        return (
+            designSelectableCategories(
+                data.categories,
+                data.categoryPreferences,
+                $locale,
+            )[0]?.id ?? data.categories[0]?.id ?? ""
+        );
+    }
+
     const getInitialFormValues = () => ({
         ...data.trail,
         public: data.trail.id
             ? data.trail.public
             : page.data.settings?.privacy?.trails === "public",
-        category:
-            data.trail.category ||
-            page.data.settings?.category ||
-            $categories[0].id,
+        category: defaultCategoryId(),
+        subcategory: data.trail.subcategory || "",
     });
 
     const {
@@ -295,6 +309,22 @@
             }
         },
     });
+
+    let categorySelectValue = $derived(
+        $formData.subcategory
+            ? `subcategory:${$formData.subcategory}`
+            : $formData.category
+              ? `category:${$formData.category}`
+              : "",
+    );
+
+    function handleCategoryChange(selection: {
+        category: string;
+        subcategory: string;
+    }) {
+        setFields("category", selection.category);
+        setFields("subcategory", selection.subcategory);
+    }
 
     onMount(async () => {
         clearAnchors();
@@ -404,8 +434,9 @@
             if (!replaceExistingRoute) {
                 setFields(
                     "category",
-                    page.data.settings.category || $categories[0].id,
+                    defaultCategoryId(),
                 );
+                setFields("subcategory", "");
                 setFields(
                     "public",
                     page.data.settings?.privacy?.trails === "public",
@@ -1972,14 +2003,13 @@
                     { text: $_("difficult"), value: "difficult" },
                 ]}
             ></Select>
-            <Select
-                name="category"
-                label={$_("category")}
-                items={$categories.map((c) => ({
-                    text: $_(c.name),
-                    value: c.id,
-                }))}
-            ></Select>
+            <CategoryPicker
+                value={categorySelectValue}
+                hiddenInputs
+                currentCategoryId={data.trail.category}
+                fixedDropdown
+                onchange={handleCategoryChange}
+            ></CategoryPicker>
         </div>
 
         <Toggle

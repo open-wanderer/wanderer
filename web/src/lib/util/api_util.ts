@@ -31,6 +31,9 @@ export enum Collection {
     notifications = "notifications",
     profile_feed = "profile_feed",
     settings = "settings",
+    subcategories = "subcategories",
+    user_category_preferences = "user_category_preferences",
+    user_subcategory_preferences = "user_subcategory_preferences",
     summit_logs = "summit_logs",
     trail_like = "trail_like",
     trail_share = "trail_share",
@@ -162,7 +165,14 @@ export function handleError(e: any) {
         return json({ ...e.response, message: e.message, detail: e.originalError.data }, { status: e.status })
     } else if (e instanceof SyntaxError) {
         return json({ message: "invalid_json" }, { status: 400 })
+    } else if (e instanceof Error) {
+        return json({ message: e.message }, { status: 500 })
     } else {
-        return json({ message: e }, { status: 500 })
+        const message = typeof e?.message === "string"
+            ? e.message
+            : typeof e === "string"
+                ? e
+                : "internal_server_error";
+        return json({ message, detail: e }, { status: 500 })
     }
 }

@@ -1,6 +1,15 @@
 @import 'tailwindcss';
 @reference "./app.css";
 
+:root {
+    --tooltip-background: rgba(36, 39, 52, 0.75);
+    --tooltip-border-radius: 4px;
+    --tooltip-color: #fff;
+    --tooltip-font-size: 12px;
+    --tooltip-offset-top: 24px;
+    --tooltip-padding: 6px 10px;
+}
+
 .btn-primary {
     @apply min-h-10 text-white rounded-lg px-4 py-2 bg-primary font-semibold transition-all hover:bg-primary-hover focus:ring-4 ring-input-ring
 }
@@ -58,13 +67,13 @@
 }
 
 .tooltip:before {
-    background: rgba(36, 39, 52, 0.75);
-    border-radius: 4px;
-    color: #fff;
+    background: var(--tooltip-background);
+    border-radius: var(--tooltip-border-radius);
+    color: var(--tooltip-color);
     content: attr(data-title);
-    font-size: 12px;
-    padding: 6px 10px;
-    top: 24px;
+    font-size: var(--tooltip-font-size);
+    padding: var(--tooltip-padding);
+    top: var(--tooltip-offset-top);
     white-space: nowrap;
     z-index: 10
 }

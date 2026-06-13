@@ -290,10 +290,11 @@
         } else if (
             settings &&
             settings.mapFocus == "trails" &&
-            (maxBoundingBox.min_lon != 0 ||
-                maxBoundingBox.max_lat != 0 ||
-                maxBoundingBox.max_lon != 0 ||
-                maxBoundingBox.min_lat != 0)
+            (maxBoundingBox.has_trails ??
+                (maxBoundingBox.min_lon != 0 ||
+                    maxBoundingBox.max_lat != 0 ||
+                    maxBoundingBox.max_lon != 0 ||
+                    maxBoundingBox.min_lat != 0))
         ) {
             if (
                 maxBoundingBox.min_lon == maxBoundingBox.max_lon &&

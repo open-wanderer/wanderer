@@ -33,10 +33,24 @@ func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares 
 		tags[i] = v.GetString("name")
 	}
 
+	categoryID := r.GetString("category")
+	var categoryIDValue any
+	if categoryID != "" {
+		categoryIDValue = categoryID
+	}
+
+	subcategoryID := r.GetString("subcategory")
+	var subcategoryIDValue any
+	if subcategoryID != "" {
+		subcategoryIDValue = subcategoryID
+	}
+
 	category := ""
+	categoryIcon := ""
 	trailCategory := r.ExpandedOne("category")
 	if trailCategory != nil {
 		category = trailCategory.GetString("name")
+		categoryIcon = trailCategory.GetString("icon")
 	}
 
 	bounds := getStoredBounds(r)
@@ -65,6 +79,12 @@ func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares 
 		"duration":              r.GetFloat("duration"),
 		"difficulty":            difficultyToNumber(r.GetString("difficulty")),
 		"category":              category,
+		"category_id":           categoryIDValue,
+		"category_icon":         categoryIcon,
+		"subcategory_id":        subcategoryIDValue,
+		"is_federated":          !author.GetBool("is_local"),
+		"remote_category":       r.GetString("remote_category"),
+		"remote_subcategory":    r.GetString("remote_subcategory"),
 		"completed":             r.GetBool("completed"),
 		"date":                  r.GetDateTime("date").Time().Unix(),
 		"created":               r.GetDateTime("created").Time().Unix(),

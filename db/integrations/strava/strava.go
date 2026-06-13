@@ -349,8 +349,8 @@ func createTrailFromRoute(app core.App, route StravaRoute, gpx *filesystem.File,
 		lat, lon = 0, 0
 	}
 
-	bikeCategory, _ := app.FindFirstRecordByData("categories", "name", "Biking")
-	hikeCategory, _ := app.FindFirstRecordByData("categories", "name", "Walking")
+	bikeCategory, _ := util.FindCategoryByNormalizedName(app, "Biking")
+	hikeCategory, _ := util.FindCategoryByNormalizedName(app, "Walking")
 
 	category := ""
 
@@ -539,7 +539,7 @@ func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx
 		"RockClimbing":    "Climbing",
 		"RollerSki":       "Skiing",
 		"Rowing":          "Canoeing",
-		"Run":             "Walking",
+		"Run":             "Running",
 		"Sail":            "Canoeing",
 		"Skateboard":      "Walking",
 		"Snowboard":       "Skiing",
@@ -551,7 +551,7 @@ func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx
 		"Swim":            "Workout",
 		"Velomobile":      "Biking",
 		"VirtualRide":     "Biking",
-		"VirtualRun":      "Walking",
+		"VirtualRun":      "Running",
 		"Walk":            "Walking",
 		"WeightTraining":  "Workout",
 		"Wheelchair":      "Walking",
@@ -560,7 +560,7 @@ func createTrailFromActivity(app core.App, activity *DetailedStravaActivity, gpx
 		"Yoga":            "Workout",
 	}
 
-	category, _ := app.FindFirstRecordByData("categories", "name", activityMap[activity.Type])
+	category, _ := util.FindCategoryByNormalizedName(app, activityMap[activity.Type])
 	categoryId := ""
 	if category != nil {
 		categoryId = category.Id

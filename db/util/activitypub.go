@@ -185,7 +185,7 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	}
 
 	var distance, duration, elevation_gain, elevation_loss float64
-	var diffculty, category string
+	var diffculty, category, subcategory string
 	trailTags := []string{}
 	tags, err := pub.ToItemCollection(t.Tag)
 	if err != nil {
@@ -201,6 +201,8 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		switch tagObj.Name.First().Value.String() {
 		case "category":
 			category = content
+		case "subcategory":
+			subcategory = content
 		case "difficulty":
 			diffculty = content
 		case "elevation_gain":
@@ -254,9 +256,22 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	record.Set("author", actor.Id)
 	record.Set("needs_full_sync", true)
 
-	categoryRecord, err := app.FindFirstRecordByData("categories", "name", category)
-	if err == nil {
+	if category != "" {
+		record.Set("remote_category", category)
+	}
+	if subcategory != "" {
+		record.Set("remote_subcategory", subcategory)
+	}
+
+	categoryRecord, subcategoryRecord, err := ResolveCategoryAndSubcategoryByNormalizedNames(app, category, subcategory)
+	if err != nil {
+		return nil, err
+	}
+	if categoryRecord != nil {
 		record.Set("category", categoryRecord.Id)
+	}
+	if subcategoryRecord != nil {
+		record.Set("subcategory", subcategoryRecord.Id)
 	}
 
 	if t.Attachment != nil {
@@ -320,15 +335,20 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("failed to expand tags: %v", errs)
 	}
-	errs = app.ExpandRecord(trail, []string{"category"}, nil)
+	errs = app.ExpandRecord(trail, []string{"category", "subcategory"}, nil)
 	if len(errs) > 0 {
-		return nil, fmt.Errorf("failed to expand category: %v", errs)
+		return nil, fmt.Errorf("failed to expand category/subcategory: %v", errs)
 	}
 
 	category := ""
 	categoryRecord := trail.ExpandedOne("category")
 	if categoryRecord != nil {
 		category = categoryRecord.GetString("name")
+	}
+	subcategory := ""
+	subcategoryRecord := trail.ExpandedOne("subcategory")
+	if subcategoryRecord != nil {
+		subcategory = subcategoryRecord.GetString("name")
 	}
 
 	tagRecords := trail.ExpandedAll("tags")
@@ -370,6 +390,14 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 		for _, m := range *mentions {
 			tags.Append(m)
 		}
+	}
+
+	if subcategory != "" {
+		tags.Append(pub.Object{
+			Type:    pub.NoteType,
+			Name:    pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "subcategory")),
+			Content: pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, subcategory)),
+		})
 	}
 
 	for _, v := range tagRecords {

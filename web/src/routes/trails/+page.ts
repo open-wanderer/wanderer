@@ -1,6 +1,10 @@
 import type { TrailFilter } from "$lib/models/trail";
 import { categories_index } from "$lib/stores/category_store";
+import { category_preferences_index } from "$lib/stores/category_preference_store";
+import { subcategory_preferences_index } from "$lib/stores/subcategory_preference_store";
+import { subcategories_index } from "$lib/stores/subcategory_store";
 import { trails_get_filter_values } from "$lib/stores/trail_store";
+import { normalizeCategoryName } from "$lib/util/category_util";
 import type { ServerLoad } from "@sveltejs/kit";
 
 export const load: ServerLoad = async ({ params, locals, url, fetch }) => {
@@ -9,6 +13,7 @@ export const load: ServerLoad = async ({ params, locals, url, fetch }) => {
     const filter: TrailFilter = {
         q: "",
         category: [],
+        subcategory: [],
         tags: [],
         difficulty: [0, 1, 2],
         author: "",
@@ -31,11 +36,20 @@ export const load: ServerLoad = async ({ params, locals, url, fetch }) => {
         sort: "created",
         sortOrder: "+",
     };
+    const categories = await categories_index(fetch)
     const paramCategory = url.searchParams.get("category");
     if (paramCategory) {
-        filter.category.push(paramCategory);
+        const normalizedCategory = normalizeCategoryName(paramCategory);
+        const category = categories.find(
+            (item) => normalizeCategoryName(item.name) === normalizedCategory,
+        );
+        if (category) {
+            filter.category.push(category.id);
+        }
     }
-    const categories = await categories_index(fetch)
+    await category_preferences_index(fetch)
+    await subcategories_index(fetch)
+    await subcategory_preferences_index(fetch)
 
     return {
         categories,
