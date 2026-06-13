@@ -46,8 +46,16 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   bool _followEnabled = true;
   bool _headingUp = false;
 
-  late final AnimationController _recenterButtonController;
-  late final Animation<double> _recenterButtonScale;
+  late final AnimationController _recenterButtonController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 500),
+    reverseDuration: const Duration(milliseconds: 200),
+  );
+  late final Animation<double> _recenterButtonScale = CurvedAnimation(
+    parent: _recenterButtonController,
+    curve: Curves.elasticOut,
+    reverseCurve: Curves.easeOut,
+  );
 
   @override
   void initState() {
@@ -70,18 +78,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         // The GPS dot simply stops updating — the user can exit via the X button.
         debugPrint('NavigationScreen: GPS stream error — $error');
       },
-    );
-
-    // Recenter button appear/disappear animation (mirror map_screen.dart pattern)
-    _recenterButtonController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-      reverseDuration: const Duration(milliseconds: 200),
-    );
-    _recenterButtonScale = CurvedAnimation(
-      parent: _recenterButtonController,
-      curve: Curves.elasticOut,
-      reverseCurve: Curves.easeOut,
     );
   }
 
