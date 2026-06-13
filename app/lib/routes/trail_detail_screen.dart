@@ -18,6 +18,13 @@ class TrailDetailScreen extends ConsumerStatefulWidget {
 
 class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
   bool _isLaunching = false;
+  late final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +42,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
                   padding: const EdgeInsets.only(bottom: 72),
                   child: TrailPanel(
                     trail: trail,
-                    scrollController: ScrollController(),
+                    scrollController: _scrollController,
                     actionMenu: TrailDropdown(trail: trail),
                   ),
                 ),
