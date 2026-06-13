@@ -12,13 +12,16 @@ number: 1
 name: End-to-end navigation launch
 expected: |
   Tapping Navigate on a trail opens a spinner in the button, then transitions to NavigationScreen full-screen with map centered on GPS
-awaiting: user response
+result: issue
+reported: "Exceeded max locations: 50 — public Valhalla hard limit"
 
 ## Tests
 
 ### 1. End-to-end navigation launch
 expected: Tapping Navigate on a trail opens a spinner in the button, then transitions to NavigationScreen full-screen with map centered on GPS
-result: [pending]
+result: issue
+reported: "Querying the API returns: detail -> {\"error_code\":150,\"error\":\"Exceeded max locations: 50\",\"status_code\":400,\"status\":\"Bad Request\"} — public Valhalla provider has a hard limit of 50 locations"
+severity: blocker
 
 ### 2. Maneuver auto-advance and breadcrumb growth
 expected: Moving near a maneuver shape point (within 30m) advances the instruction banner; a red polyline traces the traveled path
@@ -52,9 +55,18 @@ result: [pending]
 
 total: 8
 passed: 0
-issues: 0
-pending: 8
+issues: 1
+pending: 7
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+- truth: "Tapping Navigate calls the API and transitions to NavigationScreen"
+  status: failed
+  reason: "User reported: Valhalla public provider returns error_code 150, Exceeded max locations: 50"
+  severity: blocker
+  test: 1
+  root_cause: ""
+  artifacts: []
+  missing: []

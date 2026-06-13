@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_animations/flutter_map_animations.dart';
@@ -23,11 +24,7 @@ class NavigationScreen extends ConsumerStatefulWidget {
   final String id;
   final NavigateResponse response;
 
-  const NavigationScreen({
-    super.key,
-    required this.id,
-    required this.response,
-  });
+  const NavigationScreen({super.key, required this.id, required this.response});
 
   @override
   ConsumerState<NavigationScreen> createState() => _NavigationScreenState();
@@ -46,11 +43,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   bool _followEnabled = true;
   bool _headingUp = false;
 
-  late final AnimationController _recenterButtonController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 500),
-    reverseDuration: const Duration(milliseconds: 200),
-  );
+  late final AnimationController _recenterButtonController =
+      AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 500),
+        reverseDuration: const Duration(milliseconds: 200),
+      );
   late final Animation<double> _recenterButtonScale = CurvedAnimation(
     parent: _recenterButtonController,
     curve: Curves.elasticOut,
@@ -65,12 +63,19 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     // (D-13: no second stream allowed — battery + position divergence risk)
     _positionStream = Geolocator.getPositionStream().asBroadcastStream();
 
-    // Subscribe the navigation notifier to raw Position (lat/lon for D-12 + D-18)
+    // Subscribe the navigation notifier to raw Position (lat/lon for D-12 + D-18).
+    // Also drive camera follow: emit to _recenterTrigger when _followEnabled so
+    // CurrentLocationLayer snaps to each new GPS fix. This avoids AlignOnUpdate.always,
+    // which races against setState(_followEnabled=false) and re-centers the camera
+    // before the rebuild lands — making the recenter button impossible to reach.
     _sub = _positionStream.listen(
       (pos) {
         ref
             .read(navigationProvider(widget.response).notifier)
             .onPosition(LatLng(pos.latitude, pos.longitude));
+        if (_followEnabled) {
+          _recenterTrigger.add(null);
+        }
       },
       onError: (Object error) {
         // PlatformException from Geolocator (e.g. permission denied mid-session)
@@ -118,8 +123,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
     final maneuvers = widget.response.maneuvers;
     final currentIndex = navState.currentManeuverIndex;
-    final isArrived = currentIndex >= maneuvers.length - 1 &&
-        maneuvers.isNotEmpty;
+    final isArrived =
+        currentIndex >= maneuvers.length - 1 && maneuvers.isNotEmpty;
 
     return Scaffold(
       body: styleAsync.when(
@@ -149,7 +154,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                     // Only drag events disable follow — pinch-zoom events must
                     // NOT pause follow (D-09 free-pan; D-10 zoom must stay free)
                     if (event is MapEventMoveStart &&
-                        event.source == MapEventSource.onDrag) {
+                        event.source == MapEventSource.dragStart) {
                       _onPanStart();
                     }
                   },
@@ -161,6 +166,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                       tileProviders: style.providers,
                       theme: style.theme,
                       tileOffset: TileOffset.DEFAULT,
+                      concurrency: kDebugMode
+                          ? 0
+                          : VectorTileLayer.defaultConcurrency,
                     ),
                   ),
 
@@ -168,10 +176,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                   trailAsync.when(
                     data: (trail) {
                       if (trail.expand?.gpx != null) {
-                        return TrailLayer(
-                          trail: trail,
-                          showWaypoints: false,
-                        );
+                        return TrailLayer(trail: trail, showWaypoints: false);
                       }
                       return const SizedBox.shrink();
                     },
@@ -182,33 +187,55 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                   // (3) Breadcrumb polyline (actual traveled path — crimson
                   // #DC2626, 3.5px, thinner than trail so trail stays dominant
                   // D-18, D-20, T-02-05)
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: navState.breadcrumb,
-                        color: const Color(0xFFDC2626),
-                        strokeWidth: 3.5,
-                      ),
-                    ],
-                  ),
+                  // Guard: PolylineLayer crashes on empty points list (flutter_map
+                  // calls LatLngBounds.fromPoints which asserts isNotEmpty).
+                  if (navState.breadcrumb.isNotEmpty)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: navState.breadcrumb,
+                          color: const Color(0xFFDC2626),
+                          strokeWidth: 3.5,
+                        ),
+                      ],
+                    ),
 
                   // (4) GPS dot — position stream shared with notifier (D-13)
-                  // Camera follow and heading-up are purely configuration:
-                  // alignPositionOnUpdate controls follow; alignDirectionOnUpdate
-                  // controls heading-up rotation — no manual animateTo per frame
-                  // (avoids camera fight — Pitfall 2)
+                  // alignPositionOnUpdate is always Never; follow is driven
+                  // manually by emitting to _recenterTrigger from the GPS
+                  // listener when _followEnabled=true. This avoids the race
+                  // where AlignOnUpdate.always fires a mapController move
+                  // before the setState(_followEnabled=false) rebuild lands.
                   CurrentLocationLayer(
                     positionStream: const LocationMarkerDataStreamFactory()
-                        .fromGeolocatorPositionStream(
-                          stream: _positionStream,
-                        ),
+                        .fromGeolocatorPositionStream(stream: _positionStream),
                     alignPositionStream: _recenterTrigger.stream,
-                    alignPositionOnUpdate: _followEnabled
-                        ? AlignOnUpdate.always
-                        : AlignOnUpdate.never,
+                    alignPositionOnUpdate: AlignOnUpdate.never,
                     alignDirectionOnUpdate: _headingUp
                         ? AlignOnUpdate.always
                         : AlignOnUpdate.never,
+                  ),
+
+                  // (5) Compass toggle — must live inside FlutterMap.children so
+                  // MapCamera.of(context) resolves the inherited map camera.
+                  // Top-right, 16px inset (NAV-05, D-11)
+                  Positioned(
+                    top: 124,
+                    right: 8,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        MapCompass(
+                          hideIfRotatedNorth: false,
+                          onPressed: () {
+                            setState(() => _headingUp = !_headingUp);
+                            if (!_headingUp) {
+                              _animatedMapController.animateTo(rotation: 0);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -242,26 +269,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                 ),
               ),
 
-              // Compass toggle — top-right, 16px inset (NAV-05, D-11)
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: MapCompass(
-                      hideIfRotatedNorth: false,
-                      onPressed: () {
-                        setState(() => _headingUp = !_headingUp);
-                        // When switching back to north-up, animate map to 0°
-                        if (!_headingUp) {
-                          _animatedMapController.animateTo(rotation: 0);
-                        }
-                      },
-                    ),
-                  ),
-                ),
-              ),
-
               // Recenter button — bottom-center, visible only when follow paused
               // (D-09, reuse ScaleTransition pattern from map_screen.dart:490-513)
               Positioned(
@@ -273,9 +280,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                     scale: _recenterButtonScale,
                     child: FilledButton.icon(
                       onPressed: _onRecenter,
-                      icon: const FaIcon(
-                        FontAwesomeIcons.locationCrosshairs,
-                      ),
+                      icon: const FaIcon(FontAwesomeIcons.locationCrosshairs),
                       label: const SizedBox.shrink(),
                     ),
                   ),

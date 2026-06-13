@@ -62,7 +62,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
   @override
   Widget build(BuildContext context) {
     final trailAsync = ref.watch(trailProvider(widget.id));
-    final user = ref.watch(authProvider).valueOrNull;
+    final user = ref.watch(authProvider).requireValue;
 
     return Scaffold(
       appBar: AppBar(
@@ -250,7 +250,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                                             .map(
                                               (p) =>
                                                   selectedWaypoint!.getFileUrl(
-                                                    user.serverUrl,
+                                                    user!.serverUrl,
                                                     p,
                                                     thumb: '200x0',
                                                   ) ??
@@ -421,25 +421,24 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                 });
               },
             ),
-            if (bounds != null)
-              IconButton(
-                icon: FaIcon(FontAwesomeIcons.expand, size: 18),
-                visualDensity: VisualDensity.compact,
-                onPressed: () {
-                  final padding =
-                      !showElevationProfile && selectedWaypoint == null
-                      ? EdgeInsets.all(40)
-                      : EdgeInsets.only(
-                          bottom: 300,
-                          left: 40,
-                          right: 40,
-                          top: 40,
-                        );
-                  _mapController.fitCamera(
-                    CameraFit.bounds(bounds: bounds, padding: padding),
-                  );
-                },
-              ),
+            IconButton(
+              icon: FaIcon(FontAwesomeIcons.expand, size: 18),
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                final padding =
+                    !showElevationProfile && selectedWaypoint == null
+                    ? EdgeInsets.all(40)
+                    : EdgeInsets.only(
+                        bottom: 300,
+                        left: 40,
+                        right: 40,
+                        top: 40,
+                      );
+                _mapController.fitCamera(
+                  CameraFit.bounds(bounds: bounds, padding: padding),
+                );
+              },
+            ),
             IconButton(
               icon: FaIcon(FontAwesomeIcons.mountain, size: 18),
               visualDensity: VisualDensity.compact,
