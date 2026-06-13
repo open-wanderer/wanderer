@@ -70,10 +70,10 @@ void main() {
     });
 
     NavigationStatsNotifier notifier() =>
-        container.read(navigationStatsNotifierProvider(response).notifier);
+        container.read(navigationStatsProvider(response).notifier);
 
     NavigationStats read() =>
-        container.read(navigationStatsNotifierProvider(response));
+        container.read(navigationStatsProvider(response));
 
     test('initial state has all-zero stats and is not paused', () {
       final s = read();
