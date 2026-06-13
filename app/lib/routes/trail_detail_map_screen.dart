@@ -14,6 +14,7 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/navigation_launch_util.dart';
 
 class TrailDetailMapScreen extends ConsumerStatefulWidget {
   final String id;
@@ -30,6 +31,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
   bool showTrail = true;
   LatLng? elevationMarkerPosition;
   Waypoint? selectedWaypoint;
+  bool _isLaunching = false;
 
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
@@ -98,6 +100,44 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                     mapController: _mapController,
                   ),
                 ),
+                // Floating full-width Navigate button — floats above elevation
+                // profile when it is visible, or at the very bottom otherwise
+                // (D-02, D-03, NAV-02)
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: trail.expand?.gpx != null && showElevationProfile
+                      ? 258
+                      : 16,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isLaunching
+                          ? null
+                          : () async {
+                              setState(() => _isLaunching = true);
+                              await launchNavigation(
+                                context: context,
+                                ref: ref,
+                                trail: trail,
+                              );
+                              if (mounted) setState(() => _isLaunching = false);
+                            },
+                      icon: _isLaunching
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const FaIcon(FontAwesomeIcons.locationArrow),
+                      label: Text(AppLocalizations.of(context)!.navigate),
+                    ),
+                  ),
+                ),
+
                 if (trail.expand?.gpx != null && showElevationProfile)
                   Align(
                     alignment: Alignment.bottomCenter,
