@@ -75,14 +75,26 @@ Future<void> launchNavigation({
   final costing = _costingFor(trail.expand?.category?.name);
 
   // (3) Build waypoint list — downsample to ≤2000 preserving first+last (A4)
+  // step = ceil(n/1999) guarantees at most 1999 regularly-sampled points, so
+  // the appended last point can never push the total above 2000. Using 1999
+  // (not 2000) as the divisor also prevents step=1 for n=2001 (which with
+  // 2000 would emit every point and exceed the cap).
   List<Map<String, double>> waypoints;
   if (points.length > 2000) {
-    final step = (points.length / 2000).ceil();
+    final step = (points.length / 1999).ceil();
     final sampled = <Map<String, double>>[];
     for (int i = 0; i < points.length; i++) {
-      if (i == 0 || i == points.length - 1 || i % step == 0) {
+      if (i % step == 0) {
         sampled.add({'lat': points[i].latitude, 'lon': points[i].longitude});
       }
+    }
+    // Always include the last point; deduplicate if already present.
+    final lastPoint = {
+      'lat': points.last.latitude,
+      'lon': points.last.longitude,
+    };
+    if (sampled.isEmpty || sampled.last != lastPoint) {
+      sampled.add(lastPoint);
     }
     waypoints = sampled;
   } else {
