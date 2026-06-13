@@ -158,6 +158,10 @@ None - no external service configuration required.
 - `formatSpeed`/`formatElapsed` ready for the sheet's stat rows.
 - No blockers for the Wave 2 sheet UI.
 
+## Self-Check: PASSED
+
+All 5 created files verified present on disk; all 5 commits verified in git log.
+
 ---
 *Phase: 03-stats-sheet*
 *Completed: 2026-06-13*
