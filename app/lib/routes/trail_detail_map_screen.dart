@@ -62,7 +62,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
   @override
   Widget build(BuildContext context) {
     final trailAsync = ref.watch(trailProvider(widget.id));
-    final user = ref.watch(authProvider).requireValue!;
+    final user = ref.watch(authProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -237,7 +237,8 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                                   if (selectedWaypoint!
                                           .localPhotos
                                           .isNotEmpty ||
-                                      selectedWaypoint!.photos.isNotEmpty)
+                                      selectedWaypoint!.photos.isNotEmpty &&
+                                          user != null)
                                     ClipRRect(
                                       borderRadius: const BorderRadius.vertical(
                                         top: Radius.circular(16),
