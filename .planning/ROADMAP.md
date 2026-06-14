@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Navigation Screen** - Full-screen Flutter navigation screen with map, maneuvers, GPS, and orientation toggle (completed 2026-06-13)
 - [x] **Phase 3: Stats Sheet** - DraggableScrollableSheet with live distance/elevation/speed stats and a reused elevation-profile page (completed 2026-06-13)
 - [x] **Phase 4: Serialization Fix + Entity Schema** - Fix NavigateResponse.toJson() serialization bug, add navCacheJson to TrailEntity (completed 2026-06-14)
-- [ ] **Phase 5: Cache Write + Fallback + UI** - Cache navigation instructions at download time, fall back to cache when offline, re-cache after online sessions, show offline indicator
+- [x] **Phase 5: Cache Write + Fallback + UI** - Cache navigation instructions at download time, fall back to cache when offline, re-cache after online sessions, show offline indicator (completed 2026-06-14)
 
 ## Phase Details
 
@@ -137,8 +137,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 05-03-PLAN.md — launchNavigation DioException cache fallback + isOffline propagation + unawaited silent re-cache (OFFLINE-02, OFFLINE-03)
-- [ ] 05-04-PLAN.md — Best-effort silent Valhalla cache write in TrailDownloadService.downloadTrail (OFFLINE-01)
+- [x] 05-03-PLAN.md — launchNavigation DioException cache fallback + isOffline propagation + unawaited silent re-cache (OFFLINE-02, OFFLINE-03)
+- [x] 05-04-PLAN.md — Best-effort silent Valhalla cache write in TrailDownloadService.downloadTrail (OFFLINE-01)
 
 ## Progress
 
@@ -151,4 +151,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Navigation Screen | 3/3 | Complete | 2026-06-13 |
 | 3. Stats Sheet | 2/2 | Complete | 2026-06-13 |
 | 4. Serialization Fix + Entity Schema | 2/2 | Complete   | 2026-06-14 |
-| 5. Cache Write + Fallback + UI | 2/4 | In Progress|  |
+| 5. Cache Write + Fallback + UI | 4/4 | Complete   | 2026-06-14 |
