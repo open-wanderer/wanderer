@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -7,7 +8,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/map_cell.dart';
+import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/util/gpx_util.dart';
 
 class TrailDownloadService {
   final Store _store;
@@ -70,6 +73,51 @@ class TrailDownloadService {
       final paths = waypointLocalPhotos[waypointEntity.id];
       if (paths != null) waypointEntity.localPhotos = paths;
     }
+
+    // Best-effort Valhalla cache write (OFFLINE-01 / D-06, D-07, D-08).
+    // Any failure (Valhalla outage, null GPX, parse error) is silently swallowed
+    // so the tile download and entity persistence are never blocked.
+    try {
+      final gpx = trail.expand?.gpx;
+      if (gpx != null) {
+        final points = gpx.allPoints;
+        if (points.length >= 2) {
+          // Same shape helper as the online path (D-08): ensures cache and live
+          // requests send byte-identical shape payloads to Valhalla.
+          final shape = buildNavShape(points);
+
+          // Derive costing from category — mirrors _costingFor in
+          // navigation_launch_util.dart (Pattern 4 from 02-RESEARCH.md).
+          // Inlined here because _costingFor is private to the other file.
+          final categoryName = trail.expand?.category?.name ?? '';
+          final lower = categoryName.toLowerCase();
+          final costing =
+              (lower.contains('bike') ||
+                      lower.contains('cycling') ||
+                      lower.contains('bicycle'))
+                  ? 'bicycle'
+                  : 'pedestrian';
+
+          final res = await _api.post(
+            '/valhalla/navigate',
+            data: {'shape': shape, 'costing': costing},
+            cancelToken: cancelToken,
+          );
+
+          final response = NavigateResponse.fromJson(
+            res.data as Map<String, dynamic>,
+          );
+
+          // Only persist a non-empty, valid response (no broken cache).
+          if (response.maneuvers.isNotEmpty && response.shape.isNotEmpty) {
+            entity.navCacheJson = jsonEncode(response.toJson());
+          }
+        }
+      }
+    } catch (_) {
+      // Best-effort: Valhalla outage must not block download (D-06).
+    }
+
     _store.runInTransaction(TxMode.write, () {
       box.put(entity);
     });
