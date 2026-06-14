@@ -16,6 +16,7 @@ import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/navigate_response.dart';
+import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
@@ -393,7 +394,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     BuildContext context,
     AppLocalizations localizations,
     NavigationStats stats,
-    AsyncValue<dynamic> trailAsync,
+    AsyncValue<Trail> trailAsync,
   ) {
     final theme = Theme.of(context);
     final maxSize = _sheetAtElevationSize
@@ -572,7 +573,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// returning to the stats page. The map behind the sheet stays interactive.
   Widget _buildElevationPage(
     BuildContext context,
-    AsyncValue<dynamic> trailAsync,
+    AsyncValue<Trail> trailAsync,
   ) {
     return trailAsync.when(
       data: (trail) {
