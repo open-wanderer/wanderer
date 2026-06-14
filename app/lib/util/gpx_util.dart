@@ -26,12 +26,15 @@ List<Map<String, double>> buildNavShape(List<LatLng> points) {
       }
     }
     // Always include the last point; deduplicate if already present.
-    final lastPoint = {
-      'lat': points.last.latitude,
-      'lon': points.last.longitude,
-    };
-    if (sampled.isEmpty || sampled.last != lastPoint) {
-      sampled.add(lastPoint);
+    // Note: Map<String, double> uses identity (not structural) equality with !=,
+    // so compare coordinate values directly to detect whether the last sampled
+    // entry already corresponds to the last input point.
+    final lastLat = points.last.latitude;
+    final lastLon = points.last.longitude;
+    if (sampled.isEmpty ||
+        sampled.last['lat'] != lastLat ||
+        sampled.last['lon'] != lastLon) {
+      sampled.add({'lat': lastLat, 'lon': lastLon});
     }
     return sampled;
   } else {
