@@ -25,7 +25,7 @@ class WelcomeScreen extends ConsumerWidget {
               const Spacer(flex: 1),
 
               SvgPicture.asset(
-                "assets/svgs/logo_text_dark.svg",
+                "assets/svgs/logo_text_${Theme.of(context).brightness.name}.svg",
                 semanticsLabel: 'wanderer logo',
                 height: 80,
               ),
