@@ -35,6 +35,7 @@ class PhotoCollage extends StatelessWidget {
         0,
         height: 220,
         borderRadius: BorderRadius.zero,
+        forceFitWidth: true,
       );
     }
 
@@ -137,11 +138,25 @@ class PhotoCollage extends StatelessWidget {
     int index, {
     double? height,
     BorderRadius borderRadius = BorderRadius.zero,
+    bool forceFitWidth = false,
   }) {
-    Widget image = photos[index].buildImage(fit: BoxFit.cover);
+    Widget image = photos[index].buildImage(
+      fit: forceFitWidth ? BoxFit.fitWidth : BoxFit.cover,
+    );
 
     if (height != null) {
-      image = SizedBox(height: height, child: image);
+      image = SizedBox(
+        height: height,
+        width: double.infinity,
+        child: ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.center,
+            minHeight: height,
+            maxHeight: double.infinity,
+            child: image,
+          ),
+        ),
+      );
     } else {
       image = SizedBox.expand(child: image);
     }
@@ -193,14 +208,14 @@ class PhotoSource {
             ),
           );
         },
-        errorBuilder: (_, __, ___) => const _BrokenImagePlaceholder(),
+        errorBuilder: (_, _, _) => const _BrokenImagePlaceholder(),
       );
     }
     if (localFile != null) {
       return Image.file(
         File(localFile!),
         fit: fit,
-        errorBuilder: (_, __, ___) => const _BrokenImagePlaceholder(),
+        errorBuilder: (_, _, _) => const _BrokenImagePlaceholder(),
       );
     }
     return const _BrokenImagePlaceholder();

@@ -34,7 +34,7 @@ class TrailPanel extends ConsumerWidget {
     final user = ref.watch(authProvider).requireValue!;
 
     final webPhotos = trail.photos
-        .map((p) => trail.getFileUrl(user.serverUrl, p, thumb: '600x0') ?? '')
+        .map((p) => trail.getFileUrl(user.serverUrl, p, thumb: '1200x0') ?? '')
         .toList();
 
     final totals = trail.expand?.gpx?.getTotals();
