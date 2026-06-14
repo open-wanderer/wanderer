@@ -93,11 +93,14 @@ class Navigation extends _$Navigation {
 
     // Clamp beginShapeIndex to valid range (Pitfall 3 out-of-bounds guard,
     // T-02-01 mitigation).
+    // Clamp against shapeAsLatLng (not shape) — shapeAsLatLng may be shorter
+    // than shape when the server returns malformed entries with < 2 elements.
     final rawIndex = state.response.maneuvers[next].beginShapeIndex;
-    final clampedIndex =
-        rawIndex.clamp(0, state.response.shape.length - 1).toInt();
+    final validShape = state.response.shapeAsLatLng;
+    if (validShape.isEmpty) return;
+    final clampedIndex = rawIndex.clamp(0, validShape.length - 1).toInt();
 
-    final targetLatLng = state.response.shapeAsLatLng[clampedIndex];
+    final targetLatLng = validShape[clampedIndex];
     final meters =
         _distance.as(LengthUnit.Meter, pos, targetLatLng);
 
