@@ -258,6 +258,18 @@ class AppLocalizationsDe extends AppLocalizations {
       'Navigation konnte nicht gestartet werden. Prüfe deine Verbindung und versuche es erneut.';
 
   @override
+  String get location_services_disabled =>
+      'Ortungsdienste sind deaktiviert. Bitte aktiviere GPS, um die Navigation zu nutzen.';
+
+  @override
+  String get location_permission_denied =>
+      'Für die Navigation wird eine Standortberechtigung benötigt.';
+
+  @override
+  String get location_permission_permanently_denied =>
+      'Die Standortberechtigung wurde dauerhaft verweigert. Bitte aktiviere sie in den Einstellungen.';
+
+  @override
   String get copy_link => 'Link kopieren';
 
   @override

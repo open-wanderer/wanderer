@@ -542,6 +542,24 @@ abstract class AppLocalizations {
   /// **'Couldn\'t start navigation. Check your connection and try again.'**
   String get couldnt_start_navigation;
 
+  /// No description provided for @location_services_disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Location services are disabled. Please enable GPS to use navigation.'**
+  String get location_services_disabled;
+
+  /// No description provided for @location_permission_denied.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission is required for navigation.'**
+  String get location_permission_denied;
+
+  /// No description provided for @location_permission_permanently_denied.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission is permanently denied. Please enable it in Settings.'**
+  String get location_permission_permanently_denied;
+
   /// No description provided for @copy_link.
   ///
   /// In en, this message translates to:

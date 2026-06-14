@@ -61,23 +61,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   void initState() {
     super.initState();
 
-    // ONE broadcast geolocator stream shared by CurrentLocationLayer + notifier
-    // (D-13: no second stream allowed — battery + position divergence risk)
     _positionStream = Geolocator.getPositionStream().asBroadcastStream();
-
-    // Subscribe the navigation notifier to raw Position (lat/lon for D-12 + D-18).
-    // Also drive camera follow: emit to _recenterTrigger when _followEnabled so
-    // CurrentLocationLayer snaps to each new GPS fix. This avoids AlignOnUpdate.always,
-    // which races against setState(_followEnabled=false) and re-centers the camera
-    // before the rebuild lands — making the recenter button impossible to reach.
     _sub = _positionStream.listen(
       (pos) {
         ref
             .read(navigationProvider(widget.response).notifier)
             .onPosition(LatLng(pos.latitude, pos.longitude));
-        // Feed the SAME single GPS fix to the stats notifier (D-13 — no second
-        // stream). The stats provider needs altitude + speed, so pass the raw
-        // geolocator Position rather than a LatLng.
         ref
             .read(navigationStatsProvider(widget.response).notifier)
             .onPosition(pos);
@@ -86,9 +75,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         }
       },
       onError: (Object error) {
-        // PlatformException from Geolocator (e.g. permission denied mid-session)
-        // is swallowed here so it does not escape to the Flutter error handler.
-        // The GPS dot simply stops updating — the user can exit via the X button.
         debugPrint('NavigationScreen: GPS stream error — $error');
       },
     );
@@ -96,9 +82,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
   @override
   void dispose() {
-    // T-02-04 mitigation: cancel subscription, close controllers, dispose map
-    // controller to prevent background GPS drain and setState-after-dispose
-    // (Pitfall 6 — mirror map_screen.dart:103-111)
     _sub?.cancel();
     _recenterTrigger.close();
     _sheetController.dispose();
@@ -147,8 +130,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                   initialCenter: widget.response.shapeAsLatLng.isNotEmpty
                       ? widget.response.shapeAsLatLng.first
                       : const LatLng(0, 0),
-                  // D-10: sensible hiking zoom ~15–16; do NOT lock with minZoom
-                  // so pinch-zoom stays user-adjustable
                   initialZoom: 15,
                   maxZoom: 22,
                   interactionOptions: const InteractionOptions(
@@ -188,11 +169,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                     error: (err, st) => const SizedBox.shrink(),
                   ),
 
-                  // (3) Breadcrumb polyline (actual traveled path — crimson
-                  // #DC2626, 3.5px, thinner than trail so trail stays dominant
-                  // D-18, D-20, T-02-05)
-                  // Guard: PolylineLayer crashes on empty points list (flutter_map
-                  // calls LatLngBounds.fromPoints which asserts isNotEmpty).
                   if (navState.breadcrumb.isNotEmpty)
                     PolylineLayer(
                       polylines: [
@@ -204,12 +180,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                       ],
                     ),
 
-                  // (4) GPS dot — position stream shared with notifier (D-13)
-                  // alignPositionOnUpdate is always Never; follow is driven
-                  // manually by emitting to _recenterTrigger from the GPS
-                  // listener when _followEnabled=true. This avoids the race
-                  // where AlignOnUpdate.always fires a mapController move
-                  // before the setState(_followEnabled=false) rebuild lands.
                   CurrentLocationLayer(
                     positionStream: const LocationMarkerDataStreamFactory()
                         .fromGeolocatorPositionStream(stream: _positionStream),
@@ -220,10 +190,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                         : AlignOnUpdate.never,
                   ),
 
-                  // (5) Map controls column — bottom-right.
-                  // Must live inside FlutterMap.children so MapCamera.of()
-                  // resolves for MapCompass. Recenter is disabled (not hidden)
-                  // when the camera is already following the user.
                   Positioned(
                     top: 96,
                     right: 8,
@@ -259,11 +225,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                 ],
               ),
 
-              // ----------------------------------------------------------------
-              // Overlay chrome (above map)
-              // ----------------------------------------------------------------
-
-              // Maneuver / completion banner — top, SafeArea, 24px horizontal
               SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
@@ -277,15 +238,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                 ),
               ),
 
-              // ----------------------------------------------------------------
-              // Stats sheet — bottom band only (Pitfall 4: must NOT cover the
-              // whole screen, so the map + bottom-right controls stay reachable).
-              // ----------------------------------------------------------------
               _buildStatsSheet(context, localizations, stats, trailAsync),
 
-              // Button row floats above the sheet as a Positioned overlay so the
-              // sheet itself can be a plain SingleChildScrollView (no LayoutBuilder
-              // hack needed to anchor the row at the sheet bottom).
               Positioned(
                 left: 16,
                 right: 16,
@@ -327,7 +281,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _ => Icons.navigation,
   };
 
-  /// Builds the maneuver banner (active nav) or completion banner (arrived).
   Widget _buildBanner(
     BuildContext context,
     AppLocalizations localizations,
@@ -353,7 +306,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  /// Active maneuver: leading accent icon + instruction + distance sub-label.
   Widget _buildActiveBannerContent(
     BuildContext context,
     AppLocalizations localizations,
@@ -402,7 +354,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  /// Completion banner: "You've arrived" heading + body text (D-14, D-15).
   Widget _buildCompletionBannerContent(
     BuildContext context,
     AppLocalizations localizations,
@@ -424,10 +375,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  /// Bottom stats sheet. Standard [DraggableScrollableSheet] usage: the sheet's
-  /// [scrollController] drives a [SingleChildScrollView] so drag-to-expand works
-  /// out of the box. The button row lives in the outer [Stack] as a [Positioned]
-  /// overlay, so no [LayoutBuilder]/[Stack] trick is needed here.
   Widget _buildStatsSheet(
     BuildContext context,
     AppLocalizations localizations,
@@ -544,8 +491,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  /// Additional stats that fade in as the sheet expands: elevation loss,
-  /// current speed, and average speed.
   Widget _buildAdditionalStats(
     BuildContext context,
     AppLocalizations localizations,
@@ -581,8 +526,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  /// A single stat cell: subdued label above, large bold value below
-  /// (CONTEXT specifics: value fontSize 24, FontWeight.bold).
   Widget _buildStatCell(BuildContext context, String label, String value) {
     final theme = Theme.of(context);
     return Expanded(
@@ -637,9 +580,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  /// Button row (always visible below the PageView): elevation-profile switch
-  /// (left), dominant Pause/Resume (center), Exit (right). Exit consolidates
-  /// the old top-left X overlay (NAV-07).
   Widget _buildButtonRow(
     BuildContext context,
     AppLocalizations localizations,

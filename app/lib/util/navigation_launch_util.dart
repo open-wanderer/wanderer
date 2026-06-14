@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/navigate_response.dart';
@@ -46,6 +47,36 @@ Future<void> launchNavigation({
   required WidgetRef ref,
   required Trail trail,
 }) async {
+  // (0) Guard: location services must be enabled and permission granted.
+  final l10n = AppLocalizations.of(context)!;
+
+  void showError(String text) => ref.read(toastProvider.notifier).add(
+        ToastMessage(
+          type: ToastType.error,
+          icon: FontAwesomeIcons.triangleExclamation,
+          text: text,
+        ),
+      );
+
+  if (!await Geolocator.isLocationServiceEnabled()) {
+    showError(l10n.location_services_disabled);
+    return;
+  }
+
+  var permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.deniedForever) {
+    showError(l10n.location_permission_permanently_denied);
+    return;
+  }
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      showError(l10n.location_permission_denied);
+      return;
+    }
+  }
+
   // (1) Guard: must have a parsed GPX with at least 2 points (V5, T-02-08)
   final gpx = trail.expand?.gpx;
   if (gpx == null) {
@@ -55,7 +86,7 @@ Future<void> launchNavigation({
           ToastMessage(
             type: ToastType.error,
             icon: FontAwesomeIcons.triangleExclamation,
-            text: AppLocalizations.of(context)!.couldnt_start_navigation,
+            text: l10n.couldnt_start_navigation,
           ),
         );
     return;
@@ -69,7 +100,7 @@ Future<void> launchNavigation({
           ToastMessage(
             type: ToastType.error,
             icon: FontAwesomeIcons.triangleExclamation,
-            text: AppLocalizations.of(context)!.couldnt_start_navigation,
+            text: l10n.couldnt_start_navigation,
           ),
         );
     return;
@@ -128,7 +159,7 @@ Future<void> launchNavigation({
             ToastMessage(
               type: ToastType.error,
               icon: FontAwesomeIcons.triangleExclamation,
-              text: AppLocalizations.of(context)!.couldnt_start_navigation,
+              text: l10n.couldnt_start_navigation,
             ),
           );
       return;
@@ -149,7 +180,7 @@ Future<void> launchNavigation({
           ToastMessage(
             type: ToastType.error,
             icon: FontAwesomeIcons.triangleExclamation,
-            text: AppLocalizations.of(context)!.couldnt_start_navigation,
+            text: l10n.couldnt_start_navigation,
           ),
         );
   }

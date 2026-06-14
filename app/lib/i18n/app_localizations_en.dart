@@ -259,6 +259,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t start navigation. Check your connection and try again.';
 
   @override
+  String get location_services_disabled =>
+      'Location services are disabled. Please enable GPS to use navigation.';
+
+  @override
+  String get location_permission_denied =>
+      'Location permission is required for navigation.';
+
+  @override
+  String get location_permission_permanently_denied =>
+      'Location permission is permanently denied. Please enable it in Settings.';
+
+  @override
   String get copy_link => 'Copy Link';
 
   @override
