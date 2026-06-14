@@ -25,6 +25,7 @@ type NavigateManeuver = {
   length: number;
   begin_shape_index: number;
   bearing: number;
+  type: number;
 };
 
 type NavigateResponse = {

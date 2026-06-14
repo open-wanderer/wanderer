@@ -299,6 +299,34 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
+  /// Maps a Valhalla maneuver type (0–38) to the closest Material icon.
+  /// https://valhalla.github.io/valhalla/api/turn-by-turn/api-reference/#maneuver-types
+  static IconData _iconForManeuverType(int type) => switch (type) {
+    1 || 2 || 3 => Icons.navigation, // start / start-right / start-left
+    4 || 5 || 6 => Icons.flag, // destination
+    7 || 8 => Icons.straight, // becomes / continue
+    9 => Icons.turn_slight_right,
+    10 => Icons.turn_right,
+    11 => Icons.turn_sharp_right,
+    12 => Icons.u_turn_right,
+    13 => Icons.u_turn_left,
+    14 => Icons.turn_sharp_left,
+    15 => Icons.turn_left,
+    16 => Icons.turn_slight_left,
+    17 || 22 => Icons.straight, // ramp straight / stay straight
+    18 ||
+    20 ||
+    23 => Icons.turn_slight_right, // ramp-right / exit-right / stay-right
+    19 ||
+    21 ||
+    24 => Icons.turn_slight_left, // ramp-left / exit-left / stay-left
+    26 || 27 => Icons.roundabout_right, // roundabout enter / exit
+    28 || 29 => Icons.directions_boat, // ferry
+    37 => Icons.turn_slight_right, // merge right
+    38 => Icons.turn_slight_left, // merge left
+    _ => Icons.navigation,
+  };
+
   /// Builds the maneuver banner (active nav) or completion banner (arrived).
   Widget _buildBanner(
     BuildContext context,
@@ -343,10 +371,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 2.0, right: 8.0),
-          child: FaIcon(
-            FontAwesomeIcons.locationArrow,
-            color: Theme.of(context).colorScheme.primary,
-            size: 18,
+          child: Icon(
+            _iconForManeuverType(maneuver.type),
+            color: Theme.of(context).colorScheme.onSurface,
+            size: 24,
           ),
         ),
         Expanded(

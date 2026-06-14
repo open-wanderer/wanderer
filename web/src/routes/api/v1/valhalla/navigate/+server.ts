@@ -129,6 +129,7 @@ export async function POST(event: RequestEvent) {
           length: m.length,
           begin_shape_index: offset + m.begin_shape_index,
           bearing: m.bearing_after ?? m.bearing_before ?? 0,
+          type: m.type ?? 0,
         });
       }
     }

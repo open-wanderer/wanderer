@@ -12,6 +12,7 @@ _NavigateManeuver _$NavigateManeuverFromJson(Map<String, dynamic> json) =>
       length: (json['length'] as num).toDouble(),
       beginShapeIndex: (json['begin_shape_index'] as num).toInt(),
       bearing: (json['bearing'] as num?)?.toDouble() ?? 0.0,
+      type: (json['type'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$NavigateManeuverToJson(_NavigateManeuver instance) =>
@@ -20,6 +21,7 @@ Map<String, dynamic> _$NavigateManeuverToJson(_NavigateManeuver instance) =>
       'length': instance.length,
       'begin_shape_index': instance.beginShapeIndex,
       'bearing': instance.bearing,
+      'type': instance.type,
     };
 
 _NavigateResponse _$NavigateResponseFromJson(Map<String, dynamic> json) =>

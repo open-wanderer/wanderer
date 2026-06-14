@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$NavigateManeuver {
 
- String get instruction; double get length;@JsonKey(name: 'begin_shape_index') int get beginShapeIndex; double get bearing;
+ String get instruction; double get length;@JsonKey(name: 'begin_shape_index') int get beginShapeIndex; double get bearing; int get type;
 /// Create a copy of NavigateManeuver
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $NavigateManeuverCopyWith<NavigateManeuver> get copyWith => _$NavigateManeuverCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigateManeuver&&(identical(other.instruction, instruction) || other.instruction == instruction)&&(identical(other.length, length) || other.length == length)&&(identical(other.beginShapeIndex, beginShapeIndex) || other.beginShapeIndex == beginShapeIndex)&&(identical(other.bearing, bearing) || other.bearing == bearing));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigateManeuver&&(identical(other.instruction, instruction) || other.instruction == instruction)&&(identical(other.length, length) || other.length == length)&&(identical(other.beginShapeIndex, beginShapeIndex) || other.beginShapeIndex == beginShapeIndex)&&(identical(other.bearing, bearing) || other.bearing == bearing)&&(identical(other.type, type) || other.type == type));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,instruction,length,beginShapeIndex,bearing);
+int get hashCode => Object.hash(runtimeType,instruction,length,beginShapeIndex,bearing,type);
 
 @override
 String toString() {
-  return 'NavigateManeuver(instruction: $instruction, length: $length, beginShapeIndex: $beginShapeIndex, bearing: $bearing)';
+  return 'NavigateManeuver(instruction: $instruction, length: $length, beginShapeIndex: $beginShapeIndex, bearing: $bearing, type: $type)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $NavigateManeuverCopyWith<$Res>  {
   factory $NavigateManeuverCopyWith(NavigateManeuver value, $Res Function(NavigateManeuver) _then) = _$NavigateManeuverCopyWithImpl;
 @useResult
 $Res call({
- String instruction, double length,@JsonKey(name: 'begin_shape_index') int beginShapeIndex, double bearing
+ String instruction, double length,@JsonKey(name: 'begin_shape_index') int beginShapeIndex, double bearing, int type
 });
 
 
@@ -65,13 +65,14 @@ class _$NavigateManeuverCopyWithImpl<$Res>
 
 /// Create a copy of NavigateManeuver
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? instruction = null,Object? length = null,Object? beginShapeIndex = null,Object? bearing = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? instruction = null,Object? length = null,Object? beginShapeIndex = null,Object? bearing = null,Object? type = null,}) {
   return _then(_self.copyWith(
 instruction: null == instruction ? _self.instruction : instruction // ignore: cast_nullable_to_non_nullable
 as String,length: null == length ? _self.length : length // ignore: cast_nullable_to_non_nullable
 as double,beginShapeIndex: null == beginShapeIndex ? _self.beginShapeIndex : beginShapeIndex // ignore: cast_nullable_to_non_nullable
 as int,bearing: null == bearing ? _self.bearing : bearing // ignore: cast_nullable_to_non_nullable
-as double,
+as double,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -156,10 +157,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String instruction,  double length, @JsonKey(name: 'begin_shape_index')  int beginShapeIndex,  double bearing)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String instruction,  double length, @JsonKey(name: 'begin_shape_index')  int beginShapeIndex,  double bearing,  int type)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _NavigateManeuver() when $default != null:
-return $default(_that.instruction,_that.length,_that.beginShapeIndex,_that.bearing);case _:
+return $default(_that.instruction,_that.length,_that.beginShapeIndex,_that.bearing,_that.type);case _:
   return orElse();
 
 }
@@ -177,10 +178,10 @@ return $default(_that.instruction,_that.length,_that.beginShapeIndex,_that.beari
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String instruction,  double length, @JsonKey(name: 'begin_shape_index')  int beginShapeIndex,  double bearing)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String instruction,  double length, @JsonKey(name: 'begin_shape_index')  int beginShapeIndex,  double bearing,  int type)  $default,) {final _that = this;
 switch (_that) {
 case _NavigateManeuver():
-return $default(_that.instruction,_that.length,_that.beginShapeIndex,_that.bearing);case _:
+return $default(_that.instruction,_that.length,_that.beginShapeIndex,_that.bearing,_that.type);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -197,10 +198,10 @@ return $default(_that.instruction,_that.length,_that.beginShapeIndex,_that.beari
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String instruction,  double length, @JsonKey(name: 'begin_shape_index')  int beginShapeIndex,  double bearing)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String instruction,  double length, @JsonKey(name: 'begin_shape_index')  int beginShapeIndex,  double bearing,  int type)?  $default,) {final _that = this;
 switch (_that) {
 case _NavigateManeuver() when $default != null:
-return $default(_that.instruction,_that.length,_that.beginShapeIndex,_that.bearing);case _:
+return $default(_that.instruction,_that.length,_that.beginShapeIndex,_that.bearing,_that.type);case _:
   return null;
 
 }
@@ -212,13 +213,14 @@ return $default(_that.instruction,_that.length,_that.beginShapeIndex,_that.beari
 @JsonSerializable()
 
 class _NavigateManeuver implements NavigateManeuver {
-  const _NavigateManeuver({required this.instruction, required this.length, @JsonKey(name: 'begin_shape_index') required this.beginShapeIndex, this.bearing = 0.0});
+  const _NavigateManeuver({required this.instruction, required this.length, @JsonKey(name: 'begin_shape_index') required this.beginShapeIndex, this.bearing = 0.0, this.type = 0});
   factory _NavigateManeuver.fromJson(Map<String, dynamic> json) => _$NavigateManeuverFromJson(json);
 
 @override final  String instruction;
 @override final  double length;
 @override@JsonKey(name: 'begin_shape_index') final  int beginShapeIndex;
 @override@JsonKey() final  double bearing;
+@override@JsonKey() final  int type;
 
 /// Create a copy of NavigateManeuver
 /// with the given fields replaced by the non-null parameter values.
@@ -233,16 +235,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigateManeuver&&(identical(other.instruction, instruction) || other.instruction == instruction)&&(identical(other.length, length) || other.length == length)&&(identical(other.beginShapeIndex, beginShapeIndex) || other.beginShapeIndex == beginShapeIndex)&&(identical(other.bearing, bearing) || other.bearing == bearing));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigateManeuver&&(identical(other.instruction, instruction) || other.instruction == instruction)&&(identical(other.length, length) || other.length == length)&&(identical(other.beginShapeIndex, beginShapeIndex) || other.beginShapeIndex == beginShapeIndex)&&(identical(other.bearing, bearing) || other.bearing == bearing)&&(identical(other.type, type) || other.type == type));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,instruction,length,beginShapeIndex,bearing);
+int get hashCode => Object.hash(runtimeType,instruction,length,beginShapeIndex,bearing,type);
 
 @override
 String toString() {
-  return 'NavigateManeuver(instruction: $instruction, length: $length, beginShapeIndex: $beginShapeIndex, bearing: $bearing)';
+  return 'NavigateManeuver(instruction: $instruction, length: $length, beginShapeIndex: $beginShapeIndex, bearing: $bearing, type: $type)';
 }
 
 
@@ -253,7 +255,7 @@ abstract mixin class _$NavigateManeuverCopyWith<$Res> implements $NavigateManeuv
   factory _$NavigateManeuverCopyWith(_NavigateManeuver value, $Res Function(_NavigateManeuver) _then) = __$NavigateManeuverCopyWithImpl;
 @override @useResult
 $Res call({
- String instruction, double length,@JsonKey(name: 'begin_shape_index') int beginShapeIndex, double bearing
+ String instruction, double length,@JsonKey(name: 'begin_shape_index') int beginShapeIndex, double bearing, int type
 });
 
 
@@ -270,13 +272,14 @@ class __$NavigateManeuverCopyWithImpl<$Res>
 
 /// Create a copy of NavigateManeuver
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? instruction = null,Object? length = null,Object? beginShapeIndex = null,Object? bearing = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? instruction = null,Object? length = null,Object? beginShapeIndex = null,Object? bearing = null,Object? type = null,}) {
   return _then(_NavigateManeuver(
 instruction: null == instruction ? _self.instruction : instruction // ignore: cast_nullable_to_non_nullable
 as String,length: null == length ? _self.length : length // ignore: cast_nullable_to_non_nullable
 as double,beginShapeIndex: null == beginShapeIndex ? _self.beginShapeIndex : beginShapeIndex // ignore: cast_nullable_to_non_nullable
 as int,bearing: null == bearing ? _self.bearing : bearing // ignore: cast_nullable_to_non_nullable
-as double,
+as double,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

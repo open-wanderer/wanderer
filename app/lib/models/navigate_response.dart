@@ -11,6 +11,7 @@ abstract class NavigateManeuver with _$NavigateManeuver {
     required double length,
     @JsonKey(name: 'begin_shape_index') required int beginShapeIndex,
     @Default(0.0) double bearing,
+    @Default(0) int type,
   }) = _NavigateManeuver;
 
   factory NavigateManeuver.fromJson(Map<String, dynamic> json) =>
