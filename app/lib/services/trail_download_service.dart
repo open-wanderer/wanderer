@@ -114,7 +114,9 @@ class TrailDownloadService {
           }
         }
       }
-    } catch (_) {
+    } catch (e) {
+      // Re-throw if the download was cancelled — must not write a partial entity.
+      if (e is DioException && CancelToken.isCancel(e)) rethrow;
       // Best-effort: Valhalla outage must not block download (D-06).
     }
 
