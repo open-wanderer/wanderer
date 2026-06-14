@@ -28,16 +28,13 @@ class TrailDropdown extends ConsumerWidget {
     return PopupMenuButton<TrailAction>(
       offset: const Offset(0, 48),
       borderRadius: BorderRadius.all(Radius.circular(56)),
-      child: IconButton(
-        onPressed: null,
-        icon: FaIcon(
-          FontAwesomeIcons.ellipsisVertical,
-          color: Theme.of(context).colorScheme.onSurface,
-          size: 18,
-        ),
-        style: IconButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.surface,
-        ),
+      icon: FaIcon(
+        FontAwesomeIcons.ellipsisVertical,
+        color: Theme.of(context).colorScheme.onSurface,
+        size: 18,
+      ),
+      style: IconButton.styleFrom(
+        backgroundColor: Theme.of(context).colorScheme.surface,
       ),
       itemBuilder: (BuildContext context) => <PopupMenuEntry<TrailAction>>[
         PopupMenuItem<TrailAction>(
