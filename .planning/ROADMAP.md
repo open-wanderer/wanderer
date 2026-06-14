@@ -129,7 +129,16 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. When navigation falls back to the cache, a distinct icon appears in the NavigationScreen AppBar indicating offline mode (OFFLINE-04)
   4. A Valhalla outage during trail download does not block or error the download — the cache step is best-effort and silent (OFFLINE-01)
 
-**Plans**: TBD
+**Plans**: 4 plans
+**Wave 1**
+
+- [ ] 05-01-PLAN.md — Extract shared buildNavShape downsampling helper into gpx_util.dart + unit tests (foundational contract for OFFLINE-01/02)
+- [ ] 05-02-PLAN.md — NavigationScreen isOffline param + wifi-off banner icon + navigate route (NavigateResponse, bool) record unpacking (OFFLINE-04)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 05-03-PLAN.md — launchNavigation DioException cache fallback + isOffline propagation + unawaited silent re-cache (OFFLINE-02, OFFLINE-03)
+- [ ] 05-04-PLAN.md — Best-effort silent Valhalla cache write in TrailDownloadService.downloadTrail (OFFLINE-01)
 
 ## Progress
 
@@ -142,4 +151,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Navigation Screen | 3/3 | Complete | 2026-06-13 |
 | 3. Stats Sheet | 2/2 | Complete | 2026-06-13 |
 | 4. Serialization Fix + Entity Schema | 2/2 | Complete   | 2026-06-14 |
-| 5. Cache Write + Fallback + UI | 0/TBD | Not started | - |
+| 5. Cache Write + Fallback + UI | 0/4 | Not started | - |
