@@ -392,7 +392,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(6, 5034082009762803572),
     name: 'TrailEntity',
-    lastPropertyId: const obx_int.IdUid(25, 5606963275384491232),
+    lastPropertyId: const obx_int.IdUid(26, 4841945116984417903),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -550,6 +550,12 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(25, 5606963275384491232),
         name: 'minLon',
         type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(26, 4841945116984417903),
+        name: 'navCacheJson',
+        type: 9,
         flags: 0,
       ),
     ],
@@ -1131,7 +1137,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final pmTilesOffset = fbb.writeList(
           object.pmTiles.map(fbb.writeString).toList(growable: false),
         );
-        fbb.startTable(26);
+        final navCacheJsonOffset = object.navCacheJson == null
+            ? null
+            : fbb.writeString(object.navCacheJson!);
+        fbb.startTable(27);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1157,6 +1166,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addFloat64(22, object.maxLon);
         fbb.addFloat64(23, object.minLat);
         fbb.addFloat64(24, object.minLon);
+        fbb.addOffset(25, navCacheJsonOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1251,6 +1261,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final gpxDataParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 28);
+        final navCacheJsonParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 54);
         final descriptionParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 30);
@@ -1274,6 +1287,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 minLat: minLatParam,
                 minLon: minLonParam,
                 gpxData: gpxDataParam,
+                navCacheJson: navCacheJsonParam,
                 description: descriptionParam,
               )
               ..obxId = const fb.Int64Reader().vTableGet(
@@ -1757,6 +1771,11 @@ class TrailEntity_ {
   /// See [TrailEntity.minLon].
   static final minLon = obx.QueryDoubleProperty<TrailEntity>(
     _entities[4].properties[24],
+  );
+
+  /// See [TrailEntity.navCacheJson].
+  static final navCacheJson = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[25],
   );
 
   /// see [TrailEntity.waypoints]

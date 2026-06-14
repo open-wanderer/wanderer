@@ -30,6 +30,7 @@ class TrailEntity {
   double minLat;
   double minLon;
   String? gpxData;
+  String? navCacheJson;
   String? description;
   @Property(type: PropertyType.dateUtc)
   DateTime created;
@@ -79,6 +80,7 @@ class TrailEntity {
     this.minLat = 0,
     this.minLon = 0,
     this.gpxData,
+    this.navCacheJson,
     this.description = "",
   });
 
