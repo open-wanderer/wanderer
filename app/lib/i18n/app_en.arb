@@ -165,6 +165,7 @@
   "explore": "Explore",
   "explore_some_trails": "Explore some trails",
   "exit_navigation": "Exit",
+  "stop_navigation_confirm": "Stop navigation and return to the trail?",
   "export": "Export",
   "export_all_trails": "Export all trails",
   "favourite_sport": "Favourite sport",

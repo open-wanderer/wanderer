@@ -1088,6 +1088,12 @@ abstract class AppLocalizations {
   /// **'Exit'**
   String get exit_navigation;
 
+  /// No description provided for @stop_navigation_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop navigation and return to the trail?'**
+  String get stop_navigation_confirm;
+
   /// No description provided for @export.
   ///
   /// In en, this message translates to:

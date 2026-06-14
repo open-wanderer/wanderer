@@ -555,6 +555,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get exit_navigation => 'Beenden';
 
   @override
+  String get stop_navigation_confirm =>
+      'Navigation beenden und zur Route zurückkehren?';
+
+  @override
   String get export => 'Exportieren';
 
   @override

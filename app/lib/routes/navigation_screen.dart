@@ -198,7 +198,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                   ),
 
                   Positioned(
-                    top: 96,
+                    top: 128,
                     right: 8,
                     child: SafeArea(
                       child: Column(
@@ -258,6 +258,29 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         },
       ),
     );
+  }
+
+  void _confirmExit(BuildContext context, AppLocalizations localizations) {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(localizations.stop_navigation_confirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(localizations.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(localizations.exit_navigation),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true && context.mounted) {
+        context.pop();
+      }
+    });
   }
 
   /// Maps a Valhalla maneuver type (0–38) to the closest Material icon.
@@ -605,14 +628,14 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          // Left — Exit pops the route.
+          // Left — Exit prompts for confirmation before popping.
           FloatingActionButton.small(
             heroTag: 'nav_exit',
             tooltip: localizations.exit_navigation,
             elevation: 2,
             shape: StadiumBorder(),
             backgroundColor: Theme.of(context).colorScheme.surface,
-            onPressed: () => context.pop(),
+            onPressed: () => _confirmExit(context, localizations),
             child: FaIcon(
               FontAwesomeIcons.xmark,
               color: Theme.of(context).colorScheme.onSurface,

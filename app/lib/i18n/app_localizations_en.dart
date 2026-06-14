@@ -553,6 +553,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exit_navigation => 'Exit';
 
   @override
+  String get stop_navigation_confirm =>
+      'Stop navigation and return to the trail?';
+
+  @override
   String get export => 'Export';
 
   @override
