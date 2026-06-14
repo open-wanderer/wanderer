@@ -36,7 +36,10 @@ class TrailDownloadService {
     }
 
     final List<String> localPaths = await _downloadPhotos(
-      trail.photos.map((p) => trail.getFileUrl(baseUrl, p)!).toList(),
+      trail.photos
+          .map((p) => trail.getFileUrl(baseUrl, p))
+          .whereType<String>()
+          .toList(),
       trailDir,
       cancelToken: cancelToken,
     );
@@ -47,7 +50,10 @@ class TrailDownloadService {
       if (waypoint.photos.isEmpty) continue;
       final waypointDir = Directory('${trailDir.path}/waypoints/${waypoint.id}');
       waypointLocalPhotos[waypoint.id] = await _downloadPhotos(
-        waypoint.photos.map((p) => waypoint.getFileUrl(baseUrl, p)!).toList(),
+        waypoint.photos
+            .map((p) => waypoint.getFileUrl(baseUrl, p))
+            .whereType<String>()
+            .toList(),
         waypointDir,
         cancelToken: cancelToken,
       );
