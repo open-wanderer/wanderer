@@ -132,8 +132,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 4 plans
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Extract shared buildNavShape downsampling helper into gpx_util.dart + unit tests (foundational contract for OFFLINE-01/02)
-- [ ] 05-02-PLAN.md — NavigationScreen isOffline param + wifi-off banner icon + navigate route (NavigateResponse, bool) record unpacking (OFFLINE-04)
+- [x] 05-01-PLAN.md — Extract shared buildNavShape downsampling helper into gpx_util.dart + unit tests (foundational contract for OFFLINE-01/02)
+- [x] 05-02-PLAN.md — NavigationScreen isOffline param + wifi-off banner icon + navigate route (NavigateResponse, bool) record unpacking (OFFLINE-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -151,4 +151,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Navigation Screen | 3/3 | Complete | 2026-06-13 |
 | 3. Stats Sheet | 2/2 | Complete | 2026-06-13 |
 | 4. Serialization Fix + Entity Schema | 2/2 | Complete   | 2026-06-14 |
-| 5. Cache Write + Fallback + UI | 0/4 | Not started | - |
+| 5. Cache Write + Fallback + UI | 2/4 | In Progress|  |
