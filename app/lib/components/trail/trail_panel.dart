@@ -24,12 +24,10 @@ class TrailPanel extends ConsumerWidget {
     super.key,
     required this.trail,
     required this.scrollController,
-    this.actionMenu,
   });
 
   final Trail trail;
   final ScrollController scrollController;
-  final Widget? actionMenu;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -50,25 +48,11 @@ class TrailPanel extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Stack(
-              children: [
-                if (trail.localPhotos.isNotEmpty || webPhotos.isNotEmpty)
-                  PhotoCollage(
-                    webPhotos: webPhotos,
-                    localPhotos: trail.localPhotos,
-                  ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: IconButton(
-                    icon: FaIcon(FontAwesomeIcons.arrowLeft, size: 20),
-                    onPressed: () => context.pop(),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Theme.of(context).canvasColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            if (trail.localPhotos.isNotEmpty || webPhotos.isNotEmpty)
+              PhotoCollage(
+                webPhotos: webPhotos,
+                localPhotos: trail.localPhotos,
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Column(
@@ -120,19 +104,11 @@ class TrailPanel extends ConsumerWidget {
                       ],
                     ],
                   ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          trail.name,
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      ?actionMenu,
-                    ],
+                  Text(
+                    trail.name,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   InkWell(
                     onTap: () => context.push(
@@ -222,18 +198,19 @@ class TrailPanel extends ConsumerWidget {
             const SizedBox(height: 16),
 
             const Divider(height: 1, thickness: 1),
-            TabBar(
-              labelStyle: Theme.of(
-                context,
-              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-              unselectedLabelStyle: Theme.of(context).textTheme.labelLarge,
-              dividerHeight: 0,
-              tabs: [
-                Tab(text: l18n.about),
-                Tab(text: l18n.summit_book),
-                Tab(text: l18n.comment(2)),
-              ],
-            ),
+            if (!trail.isOffline)
+              TabBar(
+                labelStyle: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                unselectedLabelStyle: Theme.of(context).textTheme.labelLarge,
+                dividerHeight: 0,
+                tabs: [
+                  Tab(text: l18n.about),
+                  Tab(text: l18n.summit_book),
+                  Tab(text: l18n.comment(2)),
+                ],
+              ),
 
             _TabContent(
               children: [
