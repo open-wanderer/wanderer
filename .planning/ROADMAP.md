@@ -2,7 +2,9 @@
 
 ## Overview
 
-Three phases deliver turn-by-turn trail navigation from nothing to a complete in-app experience. Phase 1 builds the SvelteKit API endpoint that fetches Valhalla maneuvers. Phase 2 wires the Flutter navigation screen — entry points, full-screen map, GPS centering, maneuver display, orientation toggle, automatic advancement, and exit. Phase 3 adds the DraggableScrollableSheet stats panel with live distance/elevation/speed stats and a reused elevation-profile page.
+**v1.0 (Complete):** Three phases deliver turn-by-turn trail navigation from nothing to a complete in-app experience. Phase 1 built the SvelteKit API endpoint that fetches Valhalla maneuvers. Phase 2 wired the Flutter navigation screen — entry points, full-screen map, GPS centering, maneuver display, orientation toggle, automatic advancement, and exit. Phase 3 added the DraggableScrollableSheet stats panel with live distance/elevation/speed stats and a reused elevation-profile page.
+
+**v1.1 (Active):** Two phases deliver offline navigation. Phase 4 fixes the serialization bug that blocks ObjectBox caching and adds the `navCacheJson` field to `TrailEntity`. Phase 5 wires the cache write into the download service, adds the DioException fallback in `launchNavigation`, fires a silent re-cache after successful online sessions, and shows an offline indicator in the NavigationScreen AppBar.
 
 ## Phases
 
@@ -16,6 +18,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Backend API** - SvelteKit POST /api/v1/valhalla/navigate endpoint returns structured maneuver list (completed 2026-06-12)
 - [x] **Phase 2: Navigation Screen** - Full-screen Flutter navigation screen with map, maneuvers, GPS, and orientation toggle (completed 2026-06-13)
 - [x] **Phase 3: Stats Sheet** - DraggableScrollableSheet with live distance/elevation/speed stats and a reused elevation-profile page (completed 2026-06-13)
+- [ ] **Phase 4: Serialization Fix + Entity Schema** - Fix NavigateResponse.toJson() serialization bug, add navCacheJson to TrailEntity, extract shared shape helper
+- [ ] **Phase 5: Cache Write + Fallback + UI** - Cache navigation instructions at download time, fall back to cache when offline, re-cache after online sessions, show offline indicator
 
 ## Phase Details
 
@@ -93,13 +97,42 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **UI hint**: yes
 
+### Phase 4: Serialization Fix + Entity Schema
+
+**Goal**: The infrastructure required for ObjectBox caching is in place — NavigateResponse serializes correctly, TrailEntity has the cache field, and a shared shape-building helper is extracted
+**Depends on**: Phase 3
+**Requirements**: (prerequisite phase — all OFFLINE-xx requirements deliver in Phase 5)
+**Success Criteria** (what must be TRUE):
+
+  1. A roundtrip unit test passes: `jsonEncode(response.toJson())` followed by `NavigateResponse.fromJson(jsonDecode(...))` reconstructs all maneuver fields without throwing
+  2. `objectbox-model.json` contains a `navCacheJson` property entry under `TrailEntity` after build_runner runs
+  3. Existing navigation flows (online path) are unaffected — all Phase 2 and Phase 3 behaviors still work
+
+**Plans**: TBD
+
+### Phase 5: Cache Write + Fallback + UI
+
+**Goal**: Hikers can follow downloaded trails step-by-step without a network connection, and the app silently keeps the cache current after each online session
+**Depends on**: Phase 4
+**Requirements**: OFFLINE-01, OFFLINE-02, OFFLINE-03, OFFLINE-04
+**Success Criteria** (what must be TRUE):
+
+  1. After a trail is downloaded, navigation can be launched without a network connection and the maneuver list is served from ObjectBox (OFFLINE-01, OFFLINE-02)
+  2. When the network call succeeds, navigation launches normally with no user-visible change; the local cache is silently updated for future offline use (OFFLINE-03)
+  3. When navigation falls back to the cache, a distinct icon appears in the NavigationScreen AppBar indicating offline mode (OFFLINE-04)
+  4. A Valhalla outage during trail download does not block or error the download — the cache step is best-effort and silent (OFFLINE-01)
+
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Backend API | 1/1 | Complete    | 2026-06-12 |
-| 2. Navigation Screen | 3/3 | Complete   | 2026-06-13 |
-| 3. Stats Sheet | 2/2 | Complete    | 2026-06-13 |
+| 1. Backend API | 1/1 | Complete | 2026-06-12 |
+| 2. Navigation Screen | 3/3 | Complete | 2026-06-13 |
+| 3. Stats Sheet | 2/2 | Complete | 2026-06-13 |
+| 4. Serialization Fix + Entity Schema | 0/TBD | Not started | - |
+| 5. Cache Write + Fallback + UI | 0/TBD | Not started | - |

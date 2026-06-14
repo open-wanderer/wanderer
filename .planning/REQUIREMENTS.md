@@ -66,10 +66,12 @@
 | API-02 | Phase 1 (v1.0) | Complete |
 | NAV-01–NAV-08 | Phase 2 (v1.0) | Complete |
 | STATS-01–STATS-05 | Phase 3 (v1.0) | Complete |
-| OFFLINE-01 | Phase 4 (v1.1) | Pending |
-| OFFLINE-02 | Phase 4 (v1.1) | Pending |
-| OFFLINE-03 | Phase 4 (v1.1) | Pending |
-| OFFLINE-04 | Phase 4 (v1.1) | Pending |
+| OFFLINE-01 | Phase 5 (v1.1) | Pending |
+| OFFLINE-02 | Phase 5 (v1.1) | Pending |
+| OFFLINE-03 | Phase 5 (v1.1) | Pending |
+| OFFLINE-04 | Phase 5 (v1.1) | Pending |
+
+> **Note:** Phase 4 (v1.1) is a prerequisite infrastructure phase (serialization fix + entity schema). It carries no OFFLINE-xx requirements of its own; all four OFFLINE requirements deliver in Phase 5.
 
 **Coverage:**
 
@@ -79,4 +81,4 @@
 
 ---
 *Requirements defined: 2026-06-12*
-*Last updated: 2026-06-14 — v1.1 requirements added (OFFLINE-01 through OFFLINE-04)*
+*Last updated: 2026-06-14 — v1.1 traceability updated: OFFLINE-01–04 moved to Phase 5; Phase 4 is prerequisite infra*
