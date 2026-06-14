@@ -1094,6 +1094,12 @@ abstract class AppLocalizations {
   /// **'Stop navigation and return to the trail?'**
   String get stop_navigation_confirm;
 
+  /// No description provided for @search_this_area.
+  ///
+  /// In en, this message translates to:
+  /// **'Search this area'**
+  String get search_this_area;
+
   /// No description provided for @export.
   ///
   /// In en, this message translates to:

@@ -557,6 +557,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Stop navigation and return to the trail?';
 
   @override
+  String get search_this_area => 'Search this area';
+
+  @override
   String get export => 'Export';
 
   @override

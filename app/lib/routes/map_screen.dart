@@ -42,6 +42,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   late final ValueNotifier<double> _sheetSize;
   late final AnimationController _mapButtonController;
   late final Animation<double> _mapButtonScale;
+  late final AnimationController _searchAreaController;
+  late final Animation<double> _searchAreaScale;
   ScrollController? _sheetScrollController;
 
   final sheetMinSize = 0.2;
@@ -60,6 +62,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
     _mapButtonScale = CurvedAnimation(
       parent: _mapButtonController,
+      curve: Curves.elasticOut,
+      reverseCurve: Curves.easeOut,
+    );
+    _searchAreaController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+      reverseDuration: const Duration(milliseconds: 200),
+    );
+    _searchAreaScale = CurvedAnimation(
+      parent: _searchAreaController,
       curve: Curves.elasticOut,
       reverseCurve: Curves.easeOut,
     );
@@ -107,6 +119,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _sheetController.dispose();
     _sheetSize.dispose();
     _mapButtonController.dispose();
+    _searchAreaController.dispose();
     super.dispose();
   }
 
@@ -179,13 +192,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
             maxZoom: 22,
             onMapEvent: (event) {
               if (event is MapEventMoveEnd) {
-                final bounds = event.camera.visibleBounds;
-                ref
-                    .read(mapTrailSearchProvider.notifier)
-                    .searchInBounds(bounds);
                 ref
                     .read(mapCameraProvider.notifier)
                     .save(event.camera.center, event.camera.zoom);
+                const userGestures = {
+                  MapEventSource.dragEnd,
+                  MapEventSource.flingAnimationController,
+                  MapEventSource.multiFingerEnd,
+                  MapEventSource.doubleTap,
+                  MapEventSource.doubleTapZoomAnimationController,
+                  MapEventSource.scrollWheel,
+                };
+                if (userGestures.contains(event.source)) {
+                  _searchAreaController.forward();
+                }
               }
             },
             onTap: (tapPosition, point) {
@@ -288,6 +308,29 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
           ],
+        ),
+
+        Positioned(
+          bottom: MediaQuery.of(context).size.height * sheetMinSize + 12,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: ScaleTransition(
+              scale: _searchAreaScale,
+              child: FilledButton.icon(
+                onPressed: () {
+                  _searchAreaController.reverse();
+                  final bounds =
+                      _animatedMapController.mapController.camera.visibleBounds;
+                  ref
+                      .read(mapTrailSearchProvider.notifier)
+                      .searchInBounds(bounds);
+                },
+                icon: const FaIcon(FontAwesomeIcons.magnifyingGlass, size: 14),
+                label: Text(AppLocalizations.of(context)!.search_this_area),
+              ),
+            ),
+          ),
         ),
 
         if (_selectedTrail == null && trails.isNotEmpty)
