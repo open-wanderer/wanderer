@@ -143,15 +143,16 @@ class TrailDownloadService {
       await tilesDir.create(recursive: true);
     }
 
-    var completed = 0;
     final total = infoList.cells.length;
 
+    // Tile downloads run concurrently via Future.wait. Progress is reported
+    // monotonically after all tasks finish to avoid non-monotonic counter
+    // updates caused by interleaving at await points (WR-02).
     final downloadTasks = infoList.cells.map((cell) async {
       final key = cell.key;
       final localPath = '${tilesDir.path}/$key.pmtiles';
 
       if (await File(localPath).exists()) {
-        onProgress?.call(++completed, total);
         return localPath;
       }
 
@@ -172,7 +173,6 @@ class TrailDownloadService {
           localPath,
           cancelToken: cancelToken,
         );
-        onProgress?.call(++completed, total);
         return localPath;
       } on DioException {
         if (await File(localPath).exists()) {
@@ -183,6 +183,11 @@ class TrailDownloadService {
     }).toList();
 
     final results = await Future.wait(downloadTasks);
+    // Report final progress after all concurrent tasks complete.
+    if (onProgress != null) {
+      final done = results.whereType<String>().length;
+      onProgress(done, total);
+    }
     return results.whereType<String>().toList();
   }
 
