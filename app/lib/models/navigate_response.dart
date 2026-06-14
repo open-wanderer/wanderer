@@ -1,3 +1,5 @@
+// ignore_for_file: invalid_annotation_target
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -20,6 +22,7 @@ abstract class NavigateManeuver with _$NavigateManeuver {
 
 @freezed
 abstract class NavigateResponse with _$NavigateResponse {
+  @JsonSerializable(explicitToJson: true)
   const factory NavigateResponse({
     required List<NavigateManeuver> maneuvers,
     required List<List<double>> shape,

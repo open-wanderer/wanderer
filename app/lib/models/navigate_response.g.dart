@@ -38,4 +38,7 @@ _NavigateResponse _$NavigateResponseFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$NavigateResponseToJson(_NavigateResponse instance) =>
-    <String, dynamic>{'maneuvers': instance.maneuvers, 'shape': instance.shape};
+    <String, dynamic>{
+      'maneuvers': instance.maneuvers.map((e) => e.toJson()).toList(),
+      'shape': instance.shape,
+    };

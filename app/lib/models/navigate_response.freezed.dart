@@ -482,8 +482,8 @@ return $default(_that.maneuvers,_that.shape);case _:
 }
 
 /// @nodoc
-@JsonSerializable()
 
+@JsonSerializable(explicitToJson: true)
 class _NavigateResponse implements NavigateResponse {
   const _NavigateResponse({required final  List<NavigateManeuver> maneuvers, required final  List<List<double>> shape}): _maneuvers = maneuvers,_shape = shape;
   factory _NavigateResponse.fromJson(Map<String, dynamic> json) => _$NavigateResponseFromJson(json);
