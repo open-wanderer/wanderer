@@ -198,13 +198,15 @@ class Router extends _$Router {
               path: 'navigate',
               builder: (context, state) {
                 final trailId = state.pathParameters['id']!;
-                final response = state.extra;
-                if (response is! NavigateResponse) {
+                final extra = state.extra;
+                if (extra is! (NavigateResponse, bool)) {
                   // extra is lost across process restart / deep-link — fall back
                   // to trail detail so the user isn't left on a blank screen.
                   return TrailDetailScreen(id: trailId);
                 }
-                return NavigationScreen(id: trailId, response: response);
+                final (response, isOffline) = extra;
+                return NavigationScreen(
+                    id: trailId, response: response, isOffline: isOffline);
               },
             ),
           ],
