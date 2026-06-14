@@ -1,14 +1,70 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wanderer/entities/trail_entity.dart';
+import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
+
+/// Reads the cached [NavigateResponse] for [trailId] from ObjectBox.
+///
+/// Returns null if:
+/// - No [TrailEntity] is found for [trailId]
+/// - The entity's [navCacheJson] field is null
+/// - The JSON cannot be decoded (treat as cache miss — D-11)
+NavigateResponse? _readCachedNav(Store store, String trailId) {
+  final box = store.box<TrailEntity>();
+  final query = box.query(TrailEntity_.id.equals(trailId)).build();
+  final entity = query.findFirst();
+  query.close();
+
+  if (entity == null) return null;
+  final json = entity.navCacheJson;
+  if (json == null) return null;
+
+  try {
+    return NavigateResponse.fromJson(jsonDecode(json) as Map<String, dynamic>);
+  } catch (_) {
+    // Undecodable cache treated as miss (D-11)
+    return null;
+  }
+}
+
+/// Silently re-caches [response] for [trailId] in ObjectBox.
+///
+/// Reads the existing entity by [trailId] and updates [navCacheJson] with
+/// the JSON-encoded [response]. Uses a write transaction (D-12). Swallows
+/// all errors — a re-cache failure must never surface to the user (D-13).
+/// If the trail entity is not found (trail not downloaded), does nothing.
+Future<void> _recacheNav(
+    Store store, String trailId, NavigateResponse response) async {
+  try {
+    final box = store.box<TrailEntity>();
+    final query = box.query(TrailEntity_.id.equals(trailId)).build();
+    final entity = query.findFirst();
+    query.close();
+
+    if (entity == null) return;
+
+    entity.navCacheJson = jsonEncode(response.toJson());
+    store.runInTransaction(TxMode.write, () {
+      box.put(entity);
+    });
+  } catch (_) {
+    // Swallow errors: cache write is best-effort (D-13)
+  }
+}
 
 /// Derives the Valhalla costing string from the trail category name.
 ///
@@ -30,18 +86,23 @@ String _costingFor(String? category) {
 /// Flow:
 /// 1. Guards: needs a parsed GPX with ≥2 points (shows error toast + returns on failure).
 /// 2. Derives costing from [trail.expand?.category?.name].
-/// 3. Builds the waypoint list `[{'lat': p.latitude, 'lon': p.longitude}]`;
-///    downsamples to ≤2000 by taking every Nth point while always keeping
-///    the first and last (A4 — the server also caps at 2000, so this is
-///    defense-in-depth per T-02-07).
+/// 3. Builds the waypoint list via [buildNavShape] (downsamples to ≤500,
+///    preserving first and last — OFFLINE-01/D-08).
 /// 4. POSTs to `/valhalla/navigate` via [apiProvider].
 /// 5. Parses [NavigateResponse] from the response body; guards for
 ///    non-empty maneuvers + shape (V5/T-02-08).
 /// 6. Checks `context.mounted` (Pitfall 5 from 02-RESEARCH.md).
-/// 7. Pushes `/trail/:id/navigate` with [response] as extra.
+/// 7. Pushes `/trail/:id/navigate` with `(response, false)` as extra (D-03).
+/// 8. Fires an unawaited background re-cache write of the fresh response (D-12, D-13).
 ///
-/// On any error, shows an error toast and returns without navigating (D-07).
-/// The caller owns the loading state — this function does not manage spinners.
+/// On [DioException] (network failure): reads cached [NavigateResponse] from
+/// ObjectBox. If valid (non-empty maneuvers + shape), pushes navigation with
+/// `(cached, true)` — isOffline:true (D-09, OFFLINE-02). Otherwise falls
+/// through to the error toast.
+///
+/// On any error when no usable cache exists, shows an error toast and returns
+/// without navigating (D-07). The caller owns the loading state — this
+/// function does not manage spinners.
 Future<void> launchNavigation({
   required BuildContext context,
   required WidgetRef ref,
@@ -109,33 +170,10 @@ Future<void> launchNavigation({
   // (2) Derive costing from the trail category (Pattern 4, T-02-09)
   final costing = _costingFor(trail.expand?.category?.name);
 
-  // (3) Build shape list — downsample to ≤500 preserving first+last (A4)
-  // trace_route accepts up to ~500 shape points. step = ceil(n/499) guarantees
-  // at most 499 regularly-sampled points, so the appended last point can never
-  // push the total above 500. Using 499 (not 500) prevents step=1 for n=501.
-  List<Map<String, double>> shape;
-  if (points.length > 500) {
-    final step = (points.length / 499).ceil();
-    final sampled = <Map<String, double>>[];
-    for (int i = 0; i < points.length; i++) {
-      if (i % step == 0) {
-        sampled.add({'lat': points[i].latitude, 'lon': points[i].longitude});
-      }
-    }
-    // Always include the last point; deduplicate if already present.
-    final lastPoint = {
-      'lat': points.last.latitude,
-      'lon': points.last.longitude,
-    };
-    if (sampled.isEmpty || sampled.last != lastPoint) {
-      sampled.add(lastPoint);
-    }
-    shape = sampled;
-  } else {
-    shape = points
-        .map((p) => {'lat': p.latitude, 'lon': p.longitude})
-        .toList();
-  }
+  // (3) Build shape list via shared helper — downsamples to ≤500, preserves
+  //     first+last (OFFLINE-01/D-08). Shared with downloadTrail so the cached
+  //     and online shapes are byte-identical.
+  final shape = buildNavShape(points);
 
   try {
     // (4) POST to /valhalla/navigate (baseUrl already includes /api/v1)
@@ -168,10 +206,37 @@ Future<void> launchNavigation({
     // (6) Guard against async gap where widget may have been unmounted (Pitfall 5)
     if (!context.mounted) return;
 
-    // (7) Navigate to the navigation screen, passing the response as extra (D-05)
-    context.push('/trail/${trail.id}/navigate', extra: response);
-  } catch (e) {
-    // D-07: on any error (network, parse, etc.) show toast and stay
+    // (7) Navigate to the navigation screen; isOffline:false for online path (D-03)
+    context.push('/trail/${trail.id}/navigate', extra: (response, false));
+
+    // (8) Silently re-cache the fresh response in the background (D-12, D-13)
+    final store = ref.read(objectBoxProvider);
+    unawaited(_recacheNav(store, trail.id, response));
+  } on DioException catch (_) {
+    // D-09: network failure — attempt cache fallback (OFFLINE-02)
+    // Guard mounted before using context after async gap (Pitfall 5)
+    if (!context.mounted) return;
+    final store = ref.read(objectBoxProvider);
+    final cached = _readCachedNav(store, trail.id);
+    if (cached != null &&
+        cached.maneuvers.isNotEmpty &&
+        cached.shape.isNotEmpty) {
+      // Valid cache — push with isOffline:true (D-03, OFFLINE-02)
+      context.push('/trail/${trail.id}/navigate', extra: (cached, true));
+      return;
+    }
+    // No usable cache — fall through to show error toast (D-11)
+    ref
+        .read(toastProvider.notifier)
+        .add(
+          ToastMessage(
+            type: ToastType.error,
+            icon: FontAwesomeIcons.triangleExclamation,
+            text: l10n.couldnt_start_navigation,
+          ),
+        );
+  } catch (_) {
+    // D-07: non-Dio errors (parse failures, etc.) show toast and stay
     // Guard mounted before using context after await (Pitfall 5)
     if (!context.mounted) return;
     ref
