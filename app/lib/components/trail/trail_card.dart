@@ -392,7 +392,7 @@ class _CategoryIcon extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        getTrailIcon(value),
+        getTrailIcon(value, color: Theme.of(context).colorScheme.onSurface),
         const SizedBox(width: 6),
         Text(value, style: TextStyle(fontSize: 16)),
       ],

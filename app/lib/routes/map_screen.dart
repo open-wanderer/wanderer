@@ -540,7 +540,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   double _getDynamicPadding(double currentSize) {
     const double minPadding = 0.0;
-    const double maxPadding = 128.0;
+    const double maxPadding = 156.0;
 
     double startThreshold = sheetMediumsize;
     double endThreshold = sheetMaxSize;

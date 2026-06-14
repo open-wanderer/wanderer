@@ -223,6 +223,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                               backgroundColor: Theme.of(
                                 context,
                               ).colorScheme.surface,
+                              disabledBackgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.surface,
+                              disabledForegroundColor: Colors.grey,
                             ),
                           ),
                         ],
@@ -383,7 +387,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         if (widget.isOffline) ...[
           const SizedBox(width: 8),
           Icon(
-            Icons.wifi_off,
+            Icons.cloud_off,
             color: Theme.of(context).colorScheme.onSurface,
             size: 20,
           ),
