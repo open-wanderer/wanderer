@@ -10,6 +10,7 @@ import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/provider/search/global_search_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/polyline_util.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class GlobalSearchScreen extends ConsumerStatefulWidget {
   const GlobalSearchScreen({super.key});
@@ -185,7 +186,11 @@ class _ResultsList extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey.shade300),
+            SvgPicture.asset(
+              "assets/svgs/empty_state_search_${Theme.of(context).brightness.name}.svg",
+              semanticsLabel: 'wanderer comment empty state',
+              height: 120,
+            ),
             const SizedBox(height: 12),
             Text(
               'No results for "${state.query}"',
