@@ -62,7 +62,11 @@ class WandererButton extends StatelessWidget {
       buttonStyle =
           OutlinedButton.styleFrom(
             foregroundColor: theme.colorScheme.onSurface,
-            side: BorderSide(color: Theme.of(context).primaryColor),
+            side: BorderSide(
+              color: Theme.of(context).brightness == Brightness.light
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outlineVariant,
+            ),
             minimumSize: Size(0, large ? 56 : 40),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             shape: RoundedRectangleBorder(

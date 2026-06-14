@@ -15,6 +15,7 @@ import 'package:wanderer/routes/profile_trail_screen.dart';
 import 'package:wanderer/routes/register_screen.dart';
 import 'package:wanderer/routes/server_selection_screen.dart';
 import 'package:wanderer/routes/global_search_screen.dart';
+import 'package:wanderer/routes/settings_account_screen.dart';
 import 'package:wanderer/routes/trail_detail_map_screen.dart';
 import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/settings_appearance_screen.dart';
@@ -157,6 +158,10 @@ class Router extends _$Router {
           path: '/settings',
           builder: (context, state) => const SettingsScreen(),
           routes: [
+            GoRoute(
+              path: 'account',
+              builder: (context, state) => const SettingsAccountScreen(),
+            ),
             GoRoute(
               path: 'appearance',
               builder: (context, state) => const SettingsAppearanceScreen(),

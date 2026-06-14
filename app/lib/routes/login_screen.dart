@@ -68,7 +68,7 @@ class LoginScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 SvgPicture.asset(
-                  "assets/svgs/logo_text_twoline_dark.svg",
+                  "assets/svgs/logo_text_twoline_${Theme.of(context).brightness.name}.svg",
                   semanticsLabel: 'wanderer logo with text',
                 ),
                 Text(

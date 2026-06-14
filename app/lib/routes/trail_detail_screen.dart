@@ -81,6 +81,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
           elevation: _appBarOpacity > 0 ? 2 : 0,
 
           scrolledUnderElevation: 0,
+
           actions: [TrailDropdown(trail: trail)],
         ),
         body: Stack(

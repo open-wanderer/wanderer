@@ -109,6 +109,7 @@ class Auth extends _$Auth {
   }
 
   Future<void> logout() async {
+    state = const AsyncLoading();
     final jar = ref.read(cookieJarProvider);
     await jar.deleteAll();
     _box.removeAll();

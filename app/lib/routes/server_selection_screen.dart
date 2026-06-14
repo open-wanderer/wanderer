@@ -52,9 +52,12 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _urlController,
+              cursorColor: Theme.of(context).colorScheme.onSurface,
               decoration: InputDecoration(
                 hintText: "Enter server URL (e.g. wanderer.to)",
+                hintStyle: TextStyle(color: Colors.grey),
                 prefixIcon: const Icon(Icons.link),
+
                 suffixIcon: IconButton(
                   icon: const FaIcon(FontAwesomeIcons.chevronRight, size: 16),
                   onPressed: () {
@@ -65,8 +68,17 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                     }
                   },
                 ),
-                border: OutlineInputBorder(
+                enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
                 ),
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
@@ -177,13 +189,13 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
+        color: Theme.of(context).colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         text,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSecondaryContainer,
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
           fontSize: 10,
         ),
       ),
