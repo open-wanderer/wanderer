@@ -16,6 +16,7 @@ dependencies:
     sdk: flutter
   flutter_form_builder: ^10.3.0+2
   flutter_html: ^3.0.0
+  flutter_launcher_icons: ^0.14.4
   flutter_local_notifications: ^18.0.0
   flutter_localizations:
     sdk: flutter
