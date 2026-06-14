@@ -1,16 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: Offline Navigation
-status: planning
-last_updated: "2026-06-14T00:00:00.000Z"
-last_activity: 2026-06-14
+milestone_name: milestone
+status: verifying
+stopped_at: Phase 4 context gathered
+last_updated: "2026-06-14T10:46:08.461Z"
+last_activity: 2026-06-14 -- Phase 04 execution started
 progress:
-  total_phases: 2
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 5
+  completed_phases: 4
+  total_plans: 8
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 04 — Serialization Fix + Entity Schema
+**Current focus:** Phase 04 — serialization-fix-entity-schema
 
 ## Current Position
 
-Phase: 4 — Serialization Fix + Entity Schema
-Plan: —
-Status: Ready to plan
-Last activity: 2026-06-14 — v1.1 roadmap created (Phase 4 and Phase 5 defined)
+Phase: 04 (serialization-fix-entity-schema) — EXECUTING
+Plan: 2 of 2
+Status: Phase complete — ready for verification
+Last activity: 2026-06-14 -- Phase 04 execution started
 
 ## Performance Metrics
 
@@ -53,6 +54,8 @@ Last activity: 2026-06-14 — v1.1 roadmap created (Phase 4 and Phase 5 defined)
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 04 P01 | 17 | 2 tasks | 4 files |
+| Phase 04 P02 | 13 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -68,15 +71,18 @@ Recent decisions affecting current work:
 - Dio try-catch as sole offline gate — connectivity packages have false-positive/negative failure modes (captive portals, VPN); catch DioException is simpler and covers all failure modes
 - `String? navCacheJson` on TrailEntity — follows `gpxData` precedent; List<List<double>> and List<NavigateManeuver> are unsupported as ObjectBox native types
 - Best-effort cache write in downloadTrail — sequential try/catch, never in Future.wait, Valhalla outage cannot block tile download
+- [Phase ?]: freezed 3.x: @JsonSerializable(explicitToJson: true) must be placed on the factory constructor, not above @freezed; class-level placement breaks json_serializable codegen
+- [Phase ?]: NavigateResponse.toJson() serialization fixed (nested maneuvers now serialized) — Phase 4 blocker resolved; unblocks Phase 5 ObjectBox navCacheJson caching
+- [Phase ?]: navCacheJson added as entity-only nullable String on TrailEntity (follows gpxData precedent); objectbox-model.json regenerated and committed together to avoid UID conflicts
 
 ### Pending Todos
 
-- Fix NavigateResponse.toJson() serialization bug before any ObjectBox work (Phase 4)
-- Commit objectbox-model.json immediately after build_runner to prevent UID conflicts
+- ~~Fix NavigateResponse.toJson() serialization bug before any ObjectBox work (Phase 4)~~ — DONE in plan 04-01 (7eace683)
+- Commit objectbox-model.json immediately after build_runner to prevent UID conflicts (applies to plan 04-02)
 
 ### Blockers/Concerns
 
-- `NavigateResponse.toJson()` missing `@JsonSerializable(explicitToJson: true)` — BLOCKING for Phase 4; identified in generated navigate_response.g.dart
+- ~~`NavigateResponse.toJson()` missing `@JsonSerializable(explicitToJson: true)` — BLOCKING for Phase 4~~ — RESOLVED in plan 04-01: annotation added on the factory constructor, `_$NavigateResponseToJson` now serializes nested maneuvers; roundtrip test proves lossless encode/decode.
 
 ## Deferred Items
 
@@ -91,6 +97,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-06-14T00:00:00.000Z
-Stopped at: v1.1 roadmap created — Phase 4 ready to plan
-Resume file: None
+Last session: 2026-06-14T10:46:03.002Z
+Stopped at: Phase 4 context gathered
+Resume file: .planning/phases/04-serialization-fix-entity-schema/04-CONTEXT.md
