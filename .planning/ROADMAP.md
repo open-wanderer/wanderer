@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Backend API** - SvelteKit POST /api/v1/valhalla/navigate endpoint returns structured maneuver list (completed 2026-06-12)
 - [x] **Phase 2: Navigation Screen** - Full-screen Flutter navigation screen with map, maneuvers, GPS, and orientation toggle (completed 2026-06-13)
 - [x] **Phase 3: Stats Sheet** - DraggableScrollableSheet with live distance/elevation/speed stats and a reused elevation-profile page (completed 2026-06-13)
-- [ ] **Phase 4: Serialization Fix + Entity Schema** - Fix NavigateResponse.toJson() serialization bug, add navCacheJson to TrailEntity, extract shared shape helper
+- [ ] **Phase 4: Serialization Fix + Entity Schema** - Fix NavigateResponse.toJson() serialization bug, add navCacheJson to TrailEntity
 - [ ] **Phase 5: Cache Write + Fallback + UI** - Cache navigation instructions at download time, fall back to cache when offline, re-cache after online sessions, show offline indicator
 
 ## Phase Details
@@ -99,7 +99,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ### Phase 4: Serialization Fix + Entity Schema
 
-**Goal**: The infrastructure required for ObjectBox caching is in place — NavigateResponse serializes correctly, TrailEntity has the cache field, and a shared shape-building helper is extracted
+**Goal**: The infrastructure required for ObjectBox caching is in place — NavigateResponse serializes correctly and TrailEntity has the navCacheJson cache field (the shape helper is NOT extracted per locked decision D-05; the existing `shapeAsLatLng` extension already serves both online and cache paths)
 **Depends on**: Phase 3
 **Requirements**: (prerequisite phase — all OFFLINE-xx requirements deliver in Phase 5)
 **Success Criteria** (what must be TRUE):
@@ -108,7 +108,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `objectbox-model.json` contains a `navCacheJson` property entry under `TrailEntity` after build_runner runs
   3. Existing navigation flows (online path) are unaffected — all Phase 2 and Phase 3 behaviors still work
 
-**Plans**: TBD
+**Plans**: 2 plans
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — Fix NavigateResponse serialization: add @JsonSerializable(explicitToJson: true), regenerate .g.dart, add roundtrip test group (full/empty/minimal cases)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-02-PLAN.md — Add String? navCacheJson to TrailEntity (entity-only, gpxData precedent), regenerate + commit objectbox-model.json, verify Trail model / fromModel / toModel untouched + full analyze/test pass
 
 ### Phase 5: Cache Write + Fallback + UI
 
@@ -134,5 +141,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Backend API | 1/1 | Complete | 2026-06-12 |
 | 2. Navigation Screen | 3/3 | Complete | 2026-06-13 |
 | 3. Stats Sheet | 2/2 | Complete | 2026-06-13 |
-| 4. Serialization Fix + Entity Schema | 0/TBD | Not started | - |
+| 4. Serialization Fix + Entity Schema | 0/2 | Not started | - |
 | 5. Cache Write + Fallback + UI | 0/TBD | Not started | - |
