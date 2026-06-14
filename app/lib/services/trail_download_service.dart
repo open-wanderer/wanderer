@@ -92,17 +92,10 @@ class TrailDownloadService {
           // requests send byte-identical shape payloads to Valhalla.
           final shape = buildNavShape(points);
 
-          // Derive costing from category — mirrors _costingFor in
-          // navigation_launch_util.dart (Pattern 4 from 02-RESEARCH.md).
-          // Inlined here because _costingFor is private to the other file.
-          final categoryName = trail.expand?.category?.name ?? '';
-          final lower = categoryName.toLowerCase();
-          final costing =
-              (lower.contains('bike') ||
-                      lower.contains('cycling') ||
-                      lower.contains('bicycle'))
-                  ? 'bicycle'
-                  : 'pedestrian';
+          // Derive costing from category via shared helper (Pattern 4,
+          // RESEARCH.md). Shared with launchNavigation so cache and live
+          // requests use the same costing string (D-08).
+          final costing = costingForCategory(trail.expand?.category?.name);
 
           final res = await _api.post(
             '/valhalla/navigate',

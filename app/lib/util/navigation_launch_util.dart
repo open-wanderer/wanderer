@@ -66,20 +66,6 @@ Future<void> _recacheNav(
   }
 }
 
-/// Derives the Valhalla costing string from the trail category name.
-///
-/// Returns `'bicycle'` when the category name (case-insensitive) contains
-/// `'bike'`, `'cycling'`, or `'bicycle'`; otherwise returns `'pedestrian'`.
-/// Pattern 4 from 02-RESEARCH.md.
-String _costingFor(String? category) {
-  final lower = (category ?? '').toLowerCase();
-  if (lower.contains('bike') ||
-      lower.contains('cycling') ||
-      lower.contains('bicycle')) {
-    return 'bicycle';
-  }
-  return 'pedestrian';
-}
 
 /// Launches turn-by-turn navigation for [trail] from either detail screen.
 ///
@@ -167,8 +153,9 @@ Future<void> launchNavigation({
     return;
   }
 
-  // (2) Derive costing from the trail category (Pattern 4, T-02-09)
-  final costing = _costingFor(trail.expand?.category?.name);
+  // (2) Derive costing from the trail category via shared helper (Pattern 4,
+  //     T-02-09). Shared with downloadTrail so cache and live costing match.
+  final costing = costingForCategory(trail.expand?.category?.name);
 
   // (3) Build shape list via shared helper — downsamples to ≤500, preserves
   //     first+last (OFFLINE-01/D-08). Shared with downloadTrail so the cached

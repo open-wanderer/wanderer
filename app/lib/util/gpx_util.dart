@@ -2,6 +2,23 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:gpx/gpx.dart';
 import 'package:latlong2/latlong.dart';
 
+/// Derives the Valhalla costing string from a trail category name.
+///
+/// Returns `'bicycle'` when [category] (case-insensitive) contains `'bike'`,
+/// `'cycling'`, or `'bicycle'`; otherwise returns `'pedestrian'`.
+///
+/// Shared by [launchNavigation] (online path) and [downloadTrail]
+/// (cache-write path) so the two costing derivations can never diverge.
+String costingForCategory(String? category) {
+  final lower = (category ?? '').toLowerCase();
+  if (lower.contains('bike') ||
+      lower.contains('cycling') ||
+      lower.contains('bicycle')) {
+    return 'bicycle';
+  }
+  return 'pedestrian';
+}
+
 /// Builds a Valhalla shape list from [points], downsampling to ≤500 entries
 /// while always preserving the first and last point (OFFLINE-01 / D-08).
 ///
