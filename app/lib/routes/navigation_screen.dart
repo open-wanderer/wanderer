@@ -25,8 +25,14 @@ import 'package:wanderer/util/format_util.dart';
 class NavigationScreen extends ConsumerStatefulWidget {
   final String id;
   final NavigateResponse response;
+  final bool isOffline;
 
-  const NavigationScreen({super.key, required this.id, required this.response});
+  const NavigationScreen({
+    super.key,
+    required this.id,
+    required this.response,
+    this.isOffline = false,
+  });
 
   @override
   ConsumerState<NavigationScreen> createState() => _NavigationScreenState();
@@ -350,6 +356,14 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
             ],
           ),
         ),
+        if (widget.isOffline) ...[
+          const SizedBox(width: 8),
+          Icon(
+            Icons.wifi_off,
+            color: Theme.of(context).colorScheme.onSurface,
+            size: 20,
+          ),
+        ],
       ],
     );
   }
