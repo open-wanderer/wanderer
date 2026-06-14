@@ -2,6 +2,45 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:gpx/gpx.dart';
 import 'package:latlong2/latlong.dart';
 
+/// Builds a Valhalla shape list from [points], downsampling to ≤500 entries
+/// while always preserving the first and last point (OFFLINE-01 / D-08).
+///
+/// Shared by [launchNavigation] (online path, plan 05-03) and
+/// [downloadTrail] (cache-write path, plan 05-04) so the two paths can never
+/// diverge on shape sampling.
+///
+/// When `points.length > 500`:
+///   - `step = (points.length / 499).ceil()` → at most 499 regularly-sampled
+///     entries, so appending the last point never exceeds 500 total.
+///   - The last point is appended only if it is not already the last sampled
+///     entry (dedup).
+///
+/// When `points.length ≤ 500`: all points are mapped without change.
+List<Map<String, double>> buildNavShape(List<LatLng> points) {
+  if (points.length > 500) {
+    final step = (points.length / 499).ceil();
+    final sampled = <Map<String, double>>[];
+    for (int i = 0; i < points.length; i++) {
+      if (i % step == 0) {
+        sampled.add({'lat': points[i].latitude, 'lon': points[i].longitude});
+      }
+    }
+    // Always include the last point; deduplicate if already present.
+    final lastPoint = {
+      'lat': points.last.latitude,
+      'lon': points.last.longitude,
+    };
+    if (sampled.isEmpty || sampled.last != lastPoint) {
+      sampled.add(lastPoint);
+    }
+    return sampled;
+  } else {
+    return points
+        .map((p) => {'lat': p.latitude, 'lon': p.longitude})
+        .toList();
+  }
+}
+
 class GpxStats {
   final double totalDistance;
   final double totalDuration;
