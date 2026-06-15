@@ -48,7 +48,7 @@ export default defineConfig({
           label: 'Authentication',
           link: '/use/authentication/'
         }, {
-          label: 'Create a trail',
+          label: 'Create/Edit a trail',
           link: '/use/create-a-trail/'
         },
         {
