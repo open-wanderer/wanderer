@@ -247,11 +247,19 @@ class TrailCard extends ConsumerWidget {
                                 ],
                               ),
                             ),
-                          _CategoryIcon(
-                            value: _getDifficultyLabel(
-                              context,
-                              trail.summaryDifficulty,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FaIcon(FontAwesomeIcons.gauge),
+                              const SizedBox(width: 6),
+                              Text(
+                                _getDifficultyLabel(
+                                  context,
+                                  trail.summaryDifficulty,
+                                ),
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ],
                           ),
                         ],
                       ),
