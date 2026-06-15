@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -75,11 +76,44 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   // mid-animation.
   bool _sheetAtElevationSize = false;
 
+  LocationSettings _buildLocationSettings() {
+    if (Platform.isAndroid) {
+      return AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+        intervalDuration: const Duration(seconds: 1),
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: 'Wanderer Navigation',
+          notificationText:
+              'Your location is being tracked for turn-by-turn navigation.',
+          notificationChannelName: 'Navigation',
+          enableWakeLock: true,
+          setOngoing: true,
+        ),
+      );
+    } else if (Platform.isIOS || Platform.isMacOS) {
+      return AppleSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+        allowBackgroundLocationUpdates: true,
+        showBackgroundLocationIndicator: true,
+        pauseLocationUpdatesAutomatically: false,
+      );
+    }
+    // Web / other platforms — minimal settings
+    return const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 5,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
 
-    _positionStream = Geolocator.getPositionStream().asBroadcastStream();
+    _positionStream = Geolocator.getPositionStream(
+      locationSettings: _buildLocationSettings(),
+    ).asBroadcastStream();
     _sub = _positionStream.listen(
       (pos) {
         ref

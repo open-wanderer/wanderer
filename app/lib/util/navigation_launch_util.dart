@@ -123,6 +123,18 @@ Future<void> launchNavigation({
       return;
     }
   }
+  // Two-step iOS Always upgrade: if the user granted WhenInUse, call
+  // requestPermission() again. On iOS this triggers the system prompt
+  // asking "Change to Always Allow?" only when
+  // NSLocationAlwaysAndWhenInUseUsageDescription is present in Info.plist.
+  // On Android this call is a no-op (already granted fine/background).
+  // The result may still be whileInUse if the user declines the upgrade —
+  // navigation proceeds either way (background tracking still works via
+  // allowBackgroundLocationUpdates on iOS and the foreground service on Android).
+  if (permission == LocationPermission.whileInUse) {
+    permission = await Geolocator.requestPermission();
+    // Do not block navigation if Always is declined — proceed with whileInUse.
+  }
 
   // (1) Guard: must have a parsed GPX with at least 2 points (V5, T-02-08)
   final gpx = trail.expand?.gpx;
