@@ -19,6 +19,7 @@ import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
 import 'package:wanderer/util/icon_util.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   final LatLng? initialCenter;
@@ -68,7 +69,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _searchAreaController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
-      reverseDuration: const Duration(milliseconds: 200),
+      reverseDuration: const Duration(milliseconds: 0),
     );
     _searchAreaScale = CurvedAnimation(
       parent: _searchAreaController,
@@ -181,6 +182,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
           key: ObjectKey(style),
           mapController: _animatedMapController.mapController,
           options: MapOptions(
+            backgroundColor: Theme.of(context).colorScheme.surface,
             initialCenter:
                 widget.initialCenter ??
                 savedCamera?.center ??
@@ -310,30 +312,33 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ],
         ),
 
-        Positioned(
-          bottom: MediaQuery.of(context).size.height * sheetMinSize + 12,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: ScaleTransition(
-              scale: _searchAreaScale,
-              child: FilledButton.icon(
-                onPressed: () {
-                  _searchAreaController.reverse();
-                  final bounds =
-                      _animatedMapController.mapController.camera.visibleBounds;
-                  ref
-                      .read(mapTrailSearchProvider.notifier)
-                      .searchInBounds(bounds);
-                },
-                icon: const FaIcon(FontAwesomeIcons.magnifyingGlass, size: 14),
-                label: Text(AppLocalizations.of(context)!.search_this_area),
+        if (_selectedTrail == null)
+          Positioned(
+            bottom: MediaQuery.of(context).size.height * sheetMinSize + 12,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: ScaleTransition(
+                scale: _searchAreaScale,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    _searchAreaController.reverse();
+                    final bounds = _animatedMapController
+                        .mapController
+                        .camera
+                        .visibleBounds;
+                    ref
+                        .read(mapTrailSearchProvider.notifier)
+                        .searchInBounds(bounds);
+                  },
+                  icon: const FaIcon(FontAwesomeIcons.mapLocationDot, size: 14),
+                  label: Text(AppLocalizations.of(context)!.search_this_area),
+                ),
               ),
             ),
           ),
-        ),
 
-        if (_selectedTrail == null && trails.isNotEmpty)
+        if (_selectedTrail == null)
           DraggableScrollableSheet(
             controller: _sheetController,
             initialChildSize: sheetMinSize,
@@ -366,60 +371,63 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     child: child,
                   ),
                 ),
-                child: ListView.builder(
-                  itemCount: trails.length + 2,
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  controller: scrollController,
-                  itemBuilder: (context, index) {
-                    if (index == 0 || index == 1) {
-                      return ValueListenableBuilder<double>(
-                        valueListenable: _sheetSize,
-                        builder: (context, size, child) {
-                          double fadeStart = sheetMediumsize;
-                          double opacity = 1.0;
+                child: Skeletonizer(
+                  enabled: searchResultAsync.isLoading,
+                  child: ListView.builder(
+                    itemCount: trails.length + 2,
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    controller: scrollController,
+                    itemBuilder: (context, index) {
+                      if (index == 0 || index == 1) {
+                        return ValueListenableBuilder<double>(
+                          valueListenable: _sheetSize,
+                          builder: (context, size, child) {
+                            double fadeStart = sheetMediumsize;
+                            double opacity = 1.0;
 
-                          if (size > fadeStart) {
-                            opacity =
-                                1.0 - ((size - fadeStart) / (1 - fadeStart));
-                            opacity = opacity.clamp(0.0, 1.0);
-                          }
+                            if (size > fadeStart) {
+                              opacity =
+                                  1.0 - ((size - fadeStart) / (1 - fadeStart));
+                              opacity = opacity.clamp(0.0, 1.0);
+                            }
 
-                          if (opacity == 0.0) return const SizedBox.shrink();
+                            if (opacity == 0.0) return const SizedBox.shrink();
 
-                          Widget child = index == 0
-                              ? Center(
-                                  child: Container(
-                                    width: 30,
-                                    height: 5,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[300],
-                                      borderRadius: BorderRadius.circular(10),
+                            Widget child = index == 0
+                                ? Center(
+                                    child: Container(
+                                      width: 30,
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
                                     ),
-                                  ),
-                                )
-                              : Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Center(
-                                    child: Text(
-                                      "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.labelLarge,
+                                  )
+                                : Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Center(
+                                      child: Text(
+                                        "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.labelLarge,
+                                      ),
                                     ),
-                                  ),
-                                );
+                                  );
 
-                          return Opacity(opacity: opacity, child: child);
-                        },
+                            return Opacity(opacity: opacity, child: child);
+                          },
+                        );
+                      }
+                      final trail = trails[index - 2];
+                      return TrailCard(
+                        trail: trail,
+                        onTrailSelect: () =>
+                            context.push("/trail/${trail.id}", extra: trail),
                       );
-                    }
-                    final trail = trails[index - 2];
-                    return TrailCard(
-                      trail: trail,
-                      onTrailSelect: () =>
-                          context.push("/trail/${trail.id}", extra: trail),
-                    );
-                  },
+                    },
+                  ),
                 ),
               );
             },
@@ -488,7 +496,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       ActionChip(
                         onPressed: () => context.push('/trail/sort'),
                         avatar: FaIcon(
-                          FontAwesomeIcons.arrowsUpDown,
+                          FontAwesomeIcons.arrowDownShortWide,
                           size: 14,
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
@@ -506,29 +514,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
           ),
         ),
-
-        if (searchResultAsync.isLoading)
-          Positioned(
-            top: 16,
-            right: 16,
-            child: Card(
-              elevation: 4,
-              shape: const CircleBorder(),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).primaryColor,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
 
         Positioned(
           bottom: 24,

@@ -559,7 +559,7 @@ class AppLocalizationsDe extends AppLocalizations {
       'Navigation beenden und zur Route zurückkehren?';
 
   @override
-  String get search_this_area => 'Diesen Bereich durchsuchen';
+  String get search_this_area => 'In diesem Bereich suchen';
 
   @override
   String get export => 'Exportieren';

@@ -43,6 +43,7 @@ dependencies:
   qr_flutter: ^4.1.0
   riverpod_annotation: ^4.0.2
   share_plus: ^13.1.0
+  skeletonizer: ^2.1.3
   textfield_tags: ^3.0.1
   timeago: ^3.7.1
   url_launcher: ^6.3.2

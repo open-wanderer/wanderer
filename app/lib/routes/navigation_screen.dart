@@ -22,6 +22,7 @@ import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
 
 class NavigationScreen extends ConsumerStatefulWidget {
   final String id;
@@ -56,6 +57,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   static const _kSheetStatsSize = 0.3;
   static const _kSheetElevationSize = 0.45;
 
+  MultiPmTilesVectorTileProvider? _offlineTileProvider;
+  Object? _offlineTileError;
+  bool _offlineInitialized = false;
+
   bool _followEnabled = true;
   bool _headingUp = false;
   bool _showingElevation = false;
@@ -87,6 +92,19 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
+  Future<void> _initOffline(List<String> pmTiles) async {
+    if (_offlineInitialized || pmTiles.isEmpty) return;
+    _offlineInitialized = true;
+    try {
+      final provider = await MultiPmTilesVectorTileProvider.fromSources(
+        pmTiles,
+      );
+      if (mounted) setState(() => _offlineTileProvider = provider);
+    } catch (e) {
+      if (mounted) setState(() => _offlineTileError = e);
+    }
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
@@ -107,6 +125,24 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _recenterTrigger.add(null);
   }
 
+  VectorTileLayer _buildTileLayer(Style style) {
+    if (widget.isOffline && _offlineTileProvider != null) {
+      return VectorTileLayer(
+        fileCacheTtl: Duration.zero,
+        theme: style.theme,
+        tileProviders: TileProviders({'protomaps': _offlineTileProvider!}),
+        tileOffset: TileOffset.DEFAULT,
+        concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
+      );
+    }
+    return VectorTileLayer(
+      tileProviders: style.providers,
+      theme: style.theme,
+      tileOffset: TileOffset.DEFAULT,
+      concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final styleAsync = ref.watch(mapStyleProvider);
@@ -114,6 +150,16 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final stats = ref.watch(navigationStatsProvider(widget.response));
     final trailAsync = ref.watch(trailProvider(widget.id));
     final localizations = AppLocalizations.of(context)!;
+
+    if (widget.isOffline && !_offlineInitialized) {
+      trailAsync.whenData((trail) {
+        if (trail.pmTiles.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _initOffline(trail.pmTiles);
+          });
+        }
+      });
+    }
 
     final maneuvers = widget.response.maneuvers;
     final currentIndex = navState.currentManeuverIndex;
@@ -134,6 +180,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                 key: ObjectKey(style),
                 mapController: _animatedMapController.mapController,
                 options: MapOptions(
+                  backgroundColor: Theme.of(context).colorScheme.surface,
                   initialCenter: widget.response.shapeAsLatLng.isNotEmpty
                       ? widget.response.shapeAsLatLng.first
                       : const LatLng(0, 0),
@@ -153,16 +200,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                 ),
                 children: [
                   // (1) Vector tile layer (map background)
-                  SizedBox.expand(
-                    child: VectorTileLayer(
-                      tileProviders: style.providers,
-                      theme: style.theme,
-                      tileOffset: TileOffset.DEFAULT,
-                      concurrency: kDebugMode
-                          ? 0
-                          : VectorTileLayer.defaultConcurrency,
-                    ),
-                  ),
+                  SizedBox.expand(child: _buildTileLayer(style)),
 
                   // (2) Trail polyline (planned route — blue #3549BB, 5px)
                   trailAsync.when(

@@ -107,64 +107,68 @@ class _WandererMapState extends ConsumerState<WandererMap> {
           return const Center(child: CircularProgressIndicator());
         }
         return FlutterMap(
-      key: ObjectKey(style),
-      mapController: widget.mapController,
-      options: MapOptions(
-        onTap: widget.onTap,
-        onMapEvent: (e) => widget.onMapEvent,
-        interactionOptions: widget.disabled
-            ? const InteractionOptions(flags: InteractiveFlag.none)
-            : const InteractionOptions(enableMultiFingerGestureRace: true),
-        initialCameraFit: _bounds != null
-            ? CameraFit.bounds(
-                bounds: _bounds!,
-                padding: widget.initialCameraFitPadding,
-              )
-            : null,
-        initialCenter: LatLng(widget.trail.lat ?? 0, widget.trail.lon ?? 0),
-        initialZoom: 18,
-      ),
-      children: [
-        _buildTileLayer(style),
+          key: ObjectKey(style),
+          mapController: widget.mapController,
+          options: MapOptions(
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            onTap: widget.onTap,
+            onMapEvent: (e) => widget.onMapEvent,
+            interactionOptions: widget.disabled
+                ? const InteractionOptions(flags: InteractiveFlag.none)
+                : const InteractionOptions(enableMultiFingerGestureRace: true),
+            initialCameraFit: _bounds != null
+                ? CameraFit.bounds(
+                    bounds: _bounds!,
+                    padding: widget.initialCameraFitPadding,
+                  )
+                : null,
+            initialCenter: LatLng(widget.trail.lat ?? 0, widget.trail.lon ?? 0),
+            initialZoom: 18,
+          ),
+          children: [
+            _buildTileLayer(style),
 
-        if (widget.trail.expand?.gpx != null && widget.showTrail)
-          TrailLayer(trail: widget.trail, onWaypointTap: widget.onWaypointTap),
-
-        if (widget.showLocation) const CurrentLocationLayer(),
-
-        if (widget.elevationMarkerPosition != null)
-          MarkerLayer(
-            markers: [
-              Marker(
-                width: 12,
-                height: 12,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: .2),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                    border: Border.all(color: Colors.black, width: 2),
-                  ),
-                ),
-                point: widget.elevationMarkerPosition!,
+            if (widget.trail.expand?.gpx != null && widget.showTrail)
+              TrailLayer(
+                trail: widget.trail,
+                onWaypointTap: widget.onWaypointTap,
               ),
-            ],
-          ),
 
-        Align(
-          alignment: Alignment.topRight,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: widget.controls!,
-          ),
-        ),
-      ],
+            if (widget.showLocation) const CurrentLocationLayer(),
+
+            if (widget.elevationMarkerPosition != null)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    width: 12,
+                    height: 12,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: .2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                        border: Border.all(color: Colors.black, width: 2),
+                      ),
+                    ),
+                    point: widget.elevationMarkerPosition!,
+                  ),
+                ],
+              ),
+
+            Align(
+              alignment: Alignment.topRight,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: widget.controls!,
+              ),
+            ),
+          ],
         );
       },
     );
