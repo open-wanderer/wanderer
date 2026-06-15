@@ -54,10 +54,16 @@ NavigateResponse _buildSampleResponse() {
 /// shape[3] = LatLng(47.003, 9.000). Offset by ~0.0001° lat ≈ 11 m.
 const _nearManeuver1 = LatLng(47.00301, 9.000);
 
-/// A position far from shape[3] — clearly > 30 m away.
+/// A position clearly off-route near the start — large cross-track distance so
+/// its along-track projection stays at ~0 m (well short of maneuver 1).
 ///
-/// shape[3] = LatLng(47.003, 9.000). Offset by 0.01° lat ≈ 1110 m.
-const _farFromManeuver1 = LatLng(47.010, 9.000);
+/// The route runs north along lon 9.000; this point sits ~760 m east at the
+/// start latitude (47.000, 9.010). Under along-track projection it projects
+/// onto shape[0], so [currentManeuverIndex] must remain at 0. (Previously this
+/// fixture used (47.010, 9.000), which is collinear with and 445 m *beyond* the
+/// route end — that legitimately advances under projection, so it no longer
+/// represents a "not yet progressed" position.)
+const _farFromManeuver1 = LatLng(47.000, 9.010);
 
 /// A position very close to shape[6] (maneuver 2 begin) — within 30 m.
 ///

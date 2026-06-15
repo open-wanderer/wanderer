@@ -191,37 +191,54 @@ class Navigation extends _$Navigation {
   ///
   /// Per call this method:
   /// 1. Appends [pos] to the in-memory breadcrumb (D-18).
-  /// 2. Checks whether the user is within [_kManeuverAdvanceThresholdMeters]
-  ///    of the next maneuver's begin-shape point and, if so, advances
-  ///    [currentManeuverIndex] by 1 (forward-only, D-12).
-  /// 3. Returns early without error when already at the last maneuver (D-14).
+  /// 2. Projects [pos] orthogonally onto the route polyline (via
+  ///    [_projectAlongTrack]) to obtain an along-track distance from the route
+  ///    start, then advances [currentManeuverIndex] to the highest maneuver
+  ///    whose cumulative along-track distance is at or before that projection
+  ///    (within [_kManeuverAdvanceThresholdMeters] of along-track lookahead).
+  ///    This lets a single fix skip past every maneuver the user shortcut past
+  ///    (research Failure mode A), unlike the old single-next-waypoint
+  ///    proximity check.
+  /// 3. Advancement is forward-only — [currentManeuverIndex] never decrements
+  ///    (D-12 / T-02-02) and never exceeds the last maneuver (D-14).
   void onPosition(LatLng pos) {
     // (1) Append position to breadcrumb (D-18 / NAV-08).
     state = state.copyWith(breadcrumb: [...state.breadcrumb, pos]);
 
-    // (2) Compute index of the next maneuver.
-    final next = state.currentManeuverIndex + 1;
+    // (2) Empty-shape / uninitialized-table guard (Pitfall 3): nothing to
+    //     project against.
+    final shape = state.response.shapeAsLatLng;
+    if (shape.isEmpty || _maneuverCumulativeMeters.isEmpty) return;
 
-    // (3) Completion guard (D-14 / Pitfall 3): already at or past the last
-    //     maneuver — do nothing.
-    if (next >= state.response.maneuvers.length) return;
+    // (3) Forward-only scan starting at the current maneuver's begin-shape
+    //     index so the projection cannot snap to an earlier leg the route
+    //     doubles back near (research Failure mode B mitigation).
+    final maneuvers = state.response.maneuvers;
+    final current = state.currentManeuverIndex;
+    final fromShapeIndex = maneuvers[current]
+        .beginShapeIndex
+        .clamp(0, shape.length - 1)
+        .toInt();
 
-    // Clamp beginShapeIndex to valid range (Pitfall 3 out-of-bounds guard,
-    // T-02-01 mitigation).
-    // Clamp against shapeAsLatLng (not shape) — shapeAsLatLng may be shorter
-    // than shape when the server returns malformed entries with < 2 elements.
-    final rawIndex = state.response.maneuvers[next].beginShapeIndex;
-    final validShape = state.response.shapeAsLatLng;
-    if (validShape.isEmpty) return;
-    final clampedIndex = rawIndex.clamp(0, validShape.length - 1).toInt();
+    final atd = _projectAlongTrack(pos, shape, fromShapeIndex);
 
-    final targetLatLng = validShape[clampedIndex];
-    final meters =
-        _distance.as(LengthUnit.Meter, pos, targetLatLng);
+    // (4) Advance to the highest maneuver reached by the projected along-track
+    //     distance. Maneuvers are ordered by cumulative distance, so we can
+    //     break on the first not-yet-reached one.
+    var newIndex = current;
+    final lastIndex = maneuvers.length - 1;
+    for (var i = current + 1; i <= lastIndex; i++) {
+      if (_maneuverCumulativeMeters[i] <=
+          atd + _kManeuverAdvanceThresholdMeters) {
+        newIndex = i;
+      } else {
+        break;
+      }
+    }
 
-    // (4) Advance forward-only (T-02-02 mitigation: never decrement).
-    if (meters <= _kManeuverAdvanceThresholdMeters) {
-      state = state.copyWith(currentManeuverIndex: next);
+    // (5) Forward-only assignment (never decrement, never exceed last).
+    if (newIndex > current) {
+      state = state.copyWith(currentManeuverIndex: newIndex);
     }
   }
 }
