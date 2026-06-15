@@ -525,18 +525,26 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     BuildContext context,
     AppLocalizations localizations,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+    return Row(
       children: [
-        Text(
-          localizations.you_have_arrived,
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          localizations.reached_end_of_trail,
-          style: Theme.of(context).textTheme.bodyMedium,
+        FaIcon(FontAwesomeIcons.circleCheck, color: Colors.greenAccent),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                localizations.you_have_arrived,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                localizations.reached_end_of_trail,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
         ),
       ],
     );
