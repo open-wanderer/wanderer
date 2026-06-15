@@ -58,7 +58,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   static const _kSheetElevationSize = 0.45;
 
   MultiPmTilesVectorTileProvider? _offlineTileProvider;
-  Object? _offlineTileError;
   bool _offlineInitialized = false;
 
   bool _followEnabled = true;
@@ -101,7 +100,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       );
       if (mounted) setState(() => _offlineTileProvider = provider);
     } catch (e) {
-      if (mounted) setState(() => _offlineTileError = e);
+      debugPrint(e.toString());
     }
   }
 
@@ -166,138 +165,146 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final isArrived =
         currentIndex >= maneuvers.length - 1 && maneuvers.isNotEmpty;
 
-    return Scaffold(
-      body: styleAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(e.toString())),
-        data: (style) {
-          return Stack(
-            children: [
-              // ----------------------------------------------------------------
-              // Full-screen map
-              // ----------------------------------------------------------------
-              FlutterMap(
-                key: ObjectKey(style),
-                mapController: _animatedMapController.mapController,
-                options: MapOptions(
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  initialCenter: widget.response.shapeAsLatLng.isNotEmpty
-                      ? widget.response.shapeAsLatLng.first
-                      : const LatLng(0, 0),
-                  initialZoom: 15,
-                  maxZoom: 22,
-                  interactionOptions: const InteractionOptions(
-                    enableMultiFingerGestureRace: true,
-                  ),
-                  onMapEvent: (event) {
-                    // Only drag events disable follow — pinch-zoom events must
-                    // NOT pause follow (D-09 free-pan; D-10 zoom must stay free)
-                    if (event is MapEventMoveStart &&
-                        event.source == MapEventSource.dragStart) {
-                      _onPanStart();
-                    }
-                  },
-                ),
-                children: [
-                  // (1) Vector tile layer (map background)
-                  SizedBox.expand(child: _buildTileLayer(style)),
-
-                  // (2) Trail polyline (planned route — blue #3549BB, 5px)
-                  trailAsync.when(
-                    data: (trail) {
-                      if (trail.expand?.gpx != null) {
-                        return TrailLayer(trail: trail, showWaypoints: false);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmExit(context, localizations);
+      },
+      child: Scaffold(
+        body: styleAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text(e.toString())),
+          data: (style) {
+            return Stack(
+              children: [
+                // ----------------------------------------------------------------
+                // Full-screen map
+                // ----------------------------------------------------------------
+                FlutterMap(
+                  key: ObjectKey(style),
+                  mapController: _animatedMapController.mapController,
+                  options: MapOptions(
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                    initialCenter: widget.response.shapeAsLatLng.isNotEmpty
+                        ? widget.response.shapeAsLatLng.first
+                        : const LatLng(0, 0),
+                    initialZoom: 15,
+                    maxZoom: 22,
+                    interactionOptions: const InteractionOptions(
+                      enableMultiFingerGestureRace: true,
+                    ),
+                    onMapEvent: (event) {
+                      // Only drag events disable follow — pinch-zoom events must
+                      // NOT pause follow (D-09 free-pan; D-10 zoom must stay free)
+                      if (event is MapEventMoveStart &&
+                          event.source == MapEventSource.dragStart) {
+                        _onPanStart();
                       }
-                      return const SizedBox.shrink();
                     },
-                    loading: () => const SizedBox.shrink(),
-                    error: (err, st) => const SizedBox.shrink(),
                   ),
+                  children: [
+                    // (1) Vector tile layer (map background)
+                    SizedBox.expand(child: _buildTileLayer(style)),
 
-                  if (navState.breadcrumb.isNotEmpty)
-                    PolylineLayer(
-                      polylines: [
-                        Polyline(
-                          points: navState.breadcrumb,
-                          color: const Color(0xFFDC2626),
-                          strokeWidth: 3.5,
-                        ),
-                      ],
+                    // (2) Trail polyline (planned route — blue #3549BB, 5px)
+                    trailAsync.when(
+                      data: (trail) {
+                        if (trail.expand?.gpx != null) {
+                          return TrailLayer(trail: trail, showWaypoints: false);
+                        }
+                        return const SizedBox.shrink();
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (err, st) => const SizedBox.shrink(),
                     ),
 
-                  CurrentLocationLayer(
-                    positionStream: const LocationMarkerDataStreamFactory()
-                        .fromGeolocatorPositionStream(stream: _positionStream),
-                    alignPositionStream: _recenterTrigger.stream,
-                    alignPositionOnUpdate: AlignOnUpdate.never,
-                    alignDirectionOnUpdate: _headingUp
-                        ? AlignOnUpdate.always
-                        : AlignOnUpdate.never,
-                  ),
-
-                  Positioned(
-                    top: 128,
-                    right: 8,
-                    child: SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          MapCompass(
-                            hideIfRotatedNorth: false,
-                            onPressed: () {
-                              setState(() => _headingUp = !_headingUp);
-                              if (!_headingUp) {
-                                _animatedMapController.animateTo(rotation: 0);
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 4),
-                          IconButton(
-                            onPressed: _followEnabled ? null : _onRecenter,
-                            icon: const FaIcon(
-                              FontAwesomeIcons.locationCrosshairs,
-                            ),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.surface,
-                              disabledBackgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.surface,
-                              disabledForegroundColor: Colors.grey,
-                            ),
+                    if (navState.breadcrumb.isNotEmpty)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: navState.breadcrumb,
+                            color: const Color(0xFFDC2626),
+                            strokeWidth: 3.5,
                           ),
                         ],
                       ),
+
+                    CurrentLocationLayer(
+                      positionStream: const LocationMarkerDataStreamFactory()
+                          .fromGeolocatorPositionStream(
+                            stream: _positionStream,
+                          ),
+                      alignPositionStream: _recenterTrigger.stream,
+                      alignPositionOnUpdate: AlignOnUpdate.never,
+                      alignDirectionOnUpdate: _headingUp
+                          ? AlignOnUpdate.always
+                          : AlignOnUpdate.never,
+                    ),
+
+                    Positioned(
+                      top: 128,
+                      right: 8,
+                      child: SafeArea(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            MapCompass(
+                              hideIfRotatedNorth: false,
+                              onPressed: () {
+                                setState(() => _headingUp = !_headingUp);
+                                if (!_headingUp) {
+                                  _animatedMapController.animateTo(rotation: 0);
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 4),
+                            IconButton(
+                              onPressed: _followEnabled ? null : _onRecenter,
+                              icon: const FaIcon(
+                                FontAwesomeIcons.locationCrosshairs,
+                              ),
+                              style: IconButton.styleFrom(
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.surface,
+                                disabledBackgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.surface,
+                                disabledForegroundColor: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                    child: _buildBanner(
+                      context,
+                      localizations,
+                      maneuvers,
+                      currentIndex,
+                      isArrived,
                     ),
                   ),
-                ],
-              ),
-
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                  child: _buildBanner(
-                    context,
-                    localizations,
-                    maneuvers,
-                    currentIndex,
-                    isArrived,
-                  ),
                 ),
-              ),
 
-              _buildStatsSheet(context, localizations, stats, trailAsync),
+                _buildStatsSheet(context, localizations, stats, trailAsync),
 
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: MediaQuery.of(context).padding.bottom,
-                child: _buildButtonRow(context, localizations, stats),
-              ),
-            ],
-          );
-        },
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: MediaQuery.of(context).padding.bottom,
+                  child: _buildButtonRow(context, localizations, stats),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
