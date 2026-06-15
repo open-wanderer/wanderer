@@ -11,7 +11,7 @@ class AppColors {
   static final inputBorderLight = _rgb(209, 213, 219);
 
   // Dark Mode
-  static final primaryDark = _rgb(36, 39, 52);
+  static final primaryDark = _rgb(62, 67, 91);
   static final secondaryDark = _rgb(45, 50, 65);
   static final backgroundDark = _rgb(18, 20, 28);
   static final contentDark = _rgb(255, 255, 255);

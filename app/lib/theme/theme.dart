@@ -52,6 +52,14 @@ class AppTheme {
         ),
       ),
 
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: isDark
+              ? AppColors.contentDark
+              : AppColors.contentLight,
+        ),
+      ),
+
       dividerTheme: DividerThemeData(
         color: isDark
             ? const Color.fromRGBO(55, 65, 81, 1)
