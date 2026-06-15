@@ -59,6 +59,21 @@ const _nearManeuver1 = LatLng(47.00301, 9.000);
 /// shape[3] = LatLng(47.003, 9.000). Offset by 0.01° lat ≈ 1110 m.
 const _farFromManeuver1 = LatLng(47.010, 9.000);
 
+/// A position very close to shape[6] (maneuver 2 begin) — within 30 m.
+///
+/// shape[6] = LatLng(47.006, 9.000). Offset by ~0.00001° lat ≈ 1 m. Its
+/// projected along-track distance is ~667 m, past maneuver 1's ~333 m.
+const _nearManeuver2 = LatLng(47.00601, 9.000);
+
+/// A position projecting to roughly the route midpoint between maneuver 0
+/// (~0 m) and maneuver 1 (~333 m) — about ~178 m along-track. It lies on the
+/// route between shape[1] and shape[2] and is > 30 m short of maneuver 1.
+const _midpointBeforeManeuver1 = LatLng(47.0016, 9.000);
+
+/// A position exactly on shape[6] (the maneuver 2 vertex). Its along-track
+/// projection must equal maneuver 2's cumulative distance (~667 m).
+const _exactlyManeuver2 = LatLng(47.006, 9.000);
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -150,6 +165,48 @@ void main() {
       notifier.onPosition(const LatLng(47.000, 9.000));
       expect(
           container.read(navigationProvider(response)).currentManeuverIndex, 1);
+    });
+
+    test(
+        'onPosition near maneuver 2 from index 0 skips maneuver 1 and advances directly to index 2',
+        () {
+      final notifier =
+          container.read(navigationProvider(response).notifier);
+
+      // Single fix near shape[6] (maneuver 2 begin) while still at index 0.
+      // Along-track projection must advance past the skipped maneuver 1.
+      notifier.onPosition(_nearManeuver2);
+
+      expect(container.read(navigationProvider(response)).currentManeuverIndex,
+          2);
+    });
+
+    test(
+        'onPosition projecting to route midpoint before maneuver 1 does not advance',
+        () {
+      final notifier =
+          container.read(navigationProvider(response).notifier);
+
+      // ~178 m along-track — well under maneuver 1's ~333 m minus the 30 m
+      // along-track buffer.
+      notifier.onPosition(_midpointBeforeManeuver1);
+
+      expect(container.read(navigationProvider(response)).currentManeuverIndex,
+          0);
+    });
+
+    test(
+        'onPosition exactly on maneuver 2 vertex projects to its cumulative distance and advances to index 2',
+        () {
+      final notifier =
+          container.read(navigationProvider(response).notifier);
+
+      // A position exactly on shape[6] projects to ~667 m along-track (within
+      // a few meters of maneuver 2's cumulative distance), reaching maneuver 2.
+      notifier.onPosition(_exactlyManeuver2);
+
+      expect(container.read(navigationProvider(response)).currentManeuverIndex,
+          2);
     });
 
     test('each onPosition call appends exactly one LatLng to breadcrumb', () {
