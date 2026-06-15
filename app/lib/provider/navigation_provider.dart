@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:latlong2/latlong.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/navigate_response.dart';
@@ -65,12 +67,125 @@ class Navigation extends _$Navigation {
   /// latlong2 geodesic-distance primitive (same instance used in gpx_util.dart).
   final _distance = const Distance();
 
+  /// Cumulative along-track Haversine distance (meters) from the route start to
+  /// each entry in [NavigateResponse.shapeAsLatLng].
+  ///
+  /// `_shapeCumulativeMeters[i]` is the total path length walking
+  /// `shapeAsLatLng[0] -> shapeAsLatLng[i]`. Precomputed once in [build] per the
+  /// constraint that the table is never recomputed on a per-GPS-fix basis.
+  late final List<double> _shapeCumulativeMeters;
+
+  /// Cumulative along-track distance (meters) to each maneuver's begin-shape
+  /// point. `_maneuverCumulativeMeters[m]` equals
+  /// `_shapeCumulativeMeters[clampedBeginShapeIndex(m)]`.
+  ///
+  /// Precomputed once in [build]; used by [onPosition] for forward maneuver
+  /// scanning against a projected along-track distance.
+  late final List<double> _maneuverCumulativeMeters;
+
   @override
-  NavigationState build(NavigateResponse response) => NavigationState(
-        response: response,
-        currentManeuverIndex: 0,
-        breadcrumb: const [],
-      );
+  NavigationState build(NavigateResponse response) {
+    final shape = response.shapeAsLatLng;
+
+    if (shape.isEmpty) {
+      // Empty-shape guard: nothing to project against.
+      _shapeCumulativeMeters = const [];
+      _maneuverCumulativeMeters = const [];
+    } else {
+      // (1) Cumulative path length to each shape vertex.
+      final shapeCumulative = List<double>.filled(shape.length, 0.0);
+      for (var i = 1; i < shape.length; i++) {
+        shapeCumulative[i] = shapeCumulative[i - 1] +
+            _distance.as(LengthUnit.Meter, shape[i - 1], shape[i]);
+      }
+      _shapeCumulativeMeters = shapeCumulative;
+
+      // (2) Cumulative distance to each maneuver's (clamped) begin-shape point.
+      _maneuverCumulativeMeters = response.maneuvers.map((m) {
+        final clamped = m.beginShapeIndex.clamp(0, shape.length - 1).toInt();
+        return shapeCumulative[clamped];
+      }).toList(growable: false);
+    }
+
+    return NavigationState(
+      response: response,
+      currentManeuverIndex: 0,
+      breadcrumb: const [],
+    );
+  }
+
+  /// Forward-only nearest-segment projection of [pos] onto the route polyline.
+  ///
+  /// Iterates segments `(shape[i], shape[i + 1])` starting at [fromShapeIndex]
+  /// (so the projection can never snap back to an earlier leg the route doubles
+  /// back near — research Failure mode B mitigation). For each segment the
+  /// scalar projection parameter `t` of [pos] onto the segment is computed in a
+  /// local equirectangular frame (lat/lon deltas converted to meters), clamped
+  /// to `[0, 1]`, and the cross-track distance to the projected foot is
+  /// measured. The segment with the smallest cross-track distance wins.
+  ///
+  /// Returns the along-track distance from the route start to the projected
+  /// foot: `_shapeCumulativeMeters[bestSegmentStart] + t * segmentLengthMeters`.
+  double _projectAlongTrack(LatLng pos, List<LatLng> shape, int fromShapeIndex) {
+    if (shape.length < 2) {
+      // Degenerate route: only the start vertex (if any) is reachable.
+      return shape.isEmpty ? 0.0 : _shapeCumulativeMeters[0];
+    }
+
+    const metersPerDegree = 111320.0;
+
+    final start = fromShapeIndex.clamp(0, shape.length - 2).toInt();
+
+    var bestCrossTrack = double.infinity;
+    var bestSegmentStart = start;
+    var bestT = 0.0;
+    var bestSegmentMeters = 0.0;
+
+    for (var i = start; i < shape.length - 1; i++) {
+      final a = shape[i];
+      final b = shape[i + 1];
+
+      // Local equirectangular projection around the segment midpoint.
+      final midLatRad = ((a.latitude + b.latitude) / 2.0) * math.pi / 180.0;
+      final cosMidLat = math.cos(midLatRad);
+
+      // Segment vector (meters).
+      final abX = (b.longitude - a.longitude) * metersPerDegree * cosMidLat;
+      final abY = (b.latitude - a.latitude) * metersPerDegree;
+
+      // Vector from segment start to the position (meters).
+      final apX = (pos.longitude - a.longitude) * metersPerDegree * cosMidLat;
+      final apY = (pos.latitude - a.latitude) * metersPerDegree;
+
+      final segLenSq = abX * abX + abY * abY;
+
+      double t;
+      if (segLenSq <= 0.0) {
+        // Zero-length segment: project onto its start vertex.
+        t = 0.0;
+      } else {
+        t = (apX * abX + apY * abY) / segLenSq;
+        t = t.clamp(0.0, 1.0);
+      }
+
+      // Cross-track distance from pos to the projected foot (meters).
+      final footX = apX - t * abX;
+      final footY = apY - t * abY;
+      final crossTrack = math.sqrt(footX * footX + footY * footY);
+
+      if (crossTrack < bestCrossTrack) {
+        bestCrossTrack = crossTrack;
+        bestSegmentStart = i;
+        bestT = t;
+        // Use the geodesic segment length for consistency with the cumulative
+        // table (which is built from _distance.as).
+        bestSegmentMeters = _distance.as(LengthUnit.Meter, a, b);
+      }
+    }
+
+    return _shapeCumulativeMeters[bestSegmentStart] +
+        bestT * bestSegmentMeters;
+  }
 
   /// Called on each GPS position event.
   ///
