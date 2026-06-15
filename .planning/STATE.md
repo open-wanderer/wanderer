@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 Phase: 05 (cache-write-fallback-ui) — EXECUTING
 Plan: 1 of 4
 Status: Executing Phase 05
-Last activity: 2026-06-15 - Completed quick task 260615-ktn: Research flutter_background_geolocation for background navigation support when phone is locked
+Last activity: 2026-06-15 - Completed quick task 260615-mxk: Implement background navigation so location tracking continues when the phone screen locks
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ Recent decisions affecting current work:
 |---|-------------|------|--------|-----------|
 | 260615-k0w | Implement along-track projection for waypoint advancement in navigation | 2026-06-15 | 84dac0dd | [260615-k0w-implement-along-track-projection-for-way](.planning/quick/260615-k0w-implement-along-track-projection-for-way/) |
 | 260615-ktn | Research flutter_background_geolocation for background navigation support when phone is locked | 2026-06-15 | 6efe690c | [260615-ktn-research-flutter-background-geolocation-](.planning/quick/260615-ktn-research-flutter-background-geolocation-/) |
+| 260615-mxk | Implement background navigation so location tracking continues when the phone screen locks | 2026-06-15 | 61591bc7 | [260615-mxk-implement-background-navigation-so-locat](.planning/quick/260615-mxk-implement-background-navigation-so-locat/) |
 
 ### Blockers/Concerns
 
