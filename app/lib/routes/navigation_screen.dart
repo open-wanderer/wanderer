@@ -14,9 +14,12 @@ import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:wanderer/components/map/map_compass.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
+import 'package:wanderer/components/trail/waypoint_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/waypoint.dart';
+import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
@@ -52,6 +55,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
+  final DraggableScrollableController _waypointSheetController =
+      DraggableScrollableController();
+
+  Waypoint? _selectedWaypoint;
 
   static const _kSheetMinSize = 0.2;
   static const _kSheetStatsSize = 0.3;
@@ -109,8 +116,22 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _sub?.cancel();
     _recenterTrigger.close();
     _sheetController.dispose();
+    _waypointSheetController.dispose();
     _animatedMapController.dispose();
     super.dispose();
+  }
+
+  void _onWaypointSelected(Waypoint wp) {
+    setState(() => _selectedWaypoint = wp);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _waypointSheetController.isAttached) {
+        _waypointSheetController.animateTo(
+          0.35,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   void _onPanStart() {
@@ -148,6 +169,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final navState = ref.watch(navigationProvider(widget.response));
     final stats = ref.watch(navigationStatsProvider(widget.response));
     final trailAsync = ref.watch(trailProvider(widget.id));
+    final user = ref.watch(authProvider).requireValue;
     final localizations = AppLocalizations.of(context)!;
 
     if (widget.isOffline && !_offlineInitialized) {
@@ -193,6 +215,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                     interactionOptions: const InteractionOptions(
                       enableMultiFingerGestureRace: true,
                     ),
+                    onTap: (_, _) {
+                      setState(() {
+                        _selectedWaypoint = null;
+                      });
+                    },
                     onMapEvent: (event) {
                       // Only drag events disable follow — pinch-zoom events must
                       // NOT pause follow (D-09 free-pan; D-10 zoom must stay free)
@@ -206,11 +233,16 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                     // (1) Vector tile layer (map background)
                     SizedBox.expand(child: _buildTileLayer(style)),
 
-                    // (2) Trail polyline (planned route — blue #3549BB, 5px)
+                    // (2) Trail polyline + waypoints
                     trailAsync.when(
                       data: (trail) {
                         if (trail.expand?.gpx != null) {
-                          return TrailLayer(trail: trail, showWaypoints: false);
+                          return TrailLayer(
+                            trail: trail,
+                            showWaypoints: true,
+                            selectedWaypoint: _selectedWaypoint,
+                            onWaypointTap: _onWaypointSelected,
+                          );
                         }
                         return const SizedBox.shrink();
                       },
@@ -301,6 +333,14 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                   bottom: MediaQuery.of(context).padding.bottom,
                   child: _buildButtonRow(context, localizations, stats),
                 ),
+
+                if (_selectedWaypoint != null)
+                  WaypointSheet(
+                    waypoint: _selectedWaypoint!,
+                    user: user,
+                    controller: _waypointSheetController,
+                    onClose: () => setState(() => _selectedWaypoint = null),
+                  ),
               ],
             );
           },

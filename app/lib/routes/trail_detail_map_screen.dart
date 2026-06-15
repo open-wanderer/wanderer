@@ -7,13 +7,12 @@ import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/base/wanderer_map.dart';
 import 'package:wanderer/components/map/map_compass.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
-import 'package:wanderer/components/trail/photo_collage.dart';
+import 'package:wanderer/components/trail/waypoint_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
-import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/navigation_launch_util.dart';
 
 class TrailDetailMapScreen extends ConsumerStatefulWidget {
@@ -204,192 +203,11 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                   ),
 
                 if (selectedWaypoint != null)
-                  NotificationListener<DraggableScrollableNotification>(
-                    onNotification: (notification) {
-                      if (notification.extent <= notification.minExtent) {
-                        setState(() => selectedWaypoint = null);
-                      }
-                      return true;
-                    },
-                    child: DraggableScrollableSheet(
-                      controller: _sheetController,
-                      initialChildSize: 0.35,
-                      minChildSize: 0.0,
-                      maxChildSize: 0.7,
-                      snap: true,
-                      builder: (context, scrollController) {
-                        final theme = Theme.of(context);
-
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: theme.canvasColor,
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(16),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                blurRadius: 10,
-                                offset: const Offset(0, -2),
-                              ),
-                            ],
-                          ),
-                          child: ListView(
-                            controller: scrollController,
-                            children: [
-                              Stack(
-                                children: [
-                                  if (selectedWaypoint!
-                                          .localPhotos
-                                          .isNotEmpty ||
-                                      selectedWaypoint!.photos.isNotEmpty &&
-                                          user != null)
-                                    ClipRRect(
-                                      borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(16),
-                                      ),
-                                      child: PhotoCollage(
-                                        localPhotos:
-                                            selectedWaypoint!.localPhotos,
-                                        webPhotos: selectedWaypoint!.photos
-                                            .map(
-                                              (p) =>
-                                                  selectedWaypoint!.getFileUrl(
-                                                    user!.serverUrl,
-                                                    p,
-                                                    thumb: '200x0',
-                                                  ) ??
-                                                  '',
-                                            )
-                                            .toList(),
-                                      ),
-                                    ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const SizedBox(width: 40),
-                                        Container(
-                                          width: 30,
-                                          height: 5,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[300],
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-                                        ),
-                                        IconButton(
-                                          onPressed: () => setState(
-                                            () => selectedWaypoint = null,
-                                          ),
-                                          icon: const FaIcon(
-                                            FontAwesomeIcons.xmark,
-                                            size: 14,
-                                          ),
-                                          visualDensity: VisualDensity.compact,
-                                          style: IconButton.styleFrom(
-                                            backgroundColor: Colors.white,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0,
-                                ),
-                                child: Row(
-                                  children: [
-                                    FaIcon(
-                                      selectedWaypoint!.icon,
-                                      color: theme.primaryColor,
-                                      size: 22,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        selectedWaypoint!.name?.isNotEmpty ==
-                                                true
-                                            ? selectedWaypoint!.name!
-                                            : AppLocalizations.of(
-                                                context,
-                                              )!.waypoints(1),
-                                        style: theme.textTheme.titleLarge
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              if (selectedWaypoint!.distanceFromStart !=
-                                  null) ...[
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const FaIcon(
-                                        FontAwesomeIcons.route,
-                                        size: 14,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '${AppLocalizations.of(context)!.after} ${formatDistance(selectedWaypoint?.distanceFromStart ?? 0)}',
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(color: Colors.grey[600]),
-                                      ),
-                                      const SizedBox(width: 24),
-                                      const FaIcon(
-                                        FontAwesomeIcons.locationDot,
-                                        size: 14,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 8),
-
-                                      Text(
-                                        '${selectedWaypoint!.lat.toStringAsFixed(5)}, ${selectedWaypoint!.lon.toStringAsFixed(5)}',
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(color: Colors.grey[600]),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              const Divider(height: 24),
-
-                              if (selectedWaypoint!.description?.isNotEmpty ==
-                                  true)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0,
-                                  ),
-                                  child: Text(
-                                    selectedWaypoint!.description!,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          height: 1.5,
-                                          color: Colors.grey[800],
-                                        ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+                  WaypointSheet(
+                    waypoint: selectedWaypoint!,
+                    user: user,
+                    controller: _sheetController,
+                    onClose: () => setState(() => selectedWaypoint = null),
                   ),
               ],
             );
