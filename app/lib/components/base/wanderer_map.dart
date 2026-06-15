@@ -22,6 +22,7 @@ class WandererMap extends ConsumerStatefulWidget {
 
   final bool showTrail;
   final bool showLocation;
+  final Waypoint? selectedWaypoint;
 
   final TapCallback? onTap;
   final Function(MapEvent)? onMapEvent;
@@ -39,6 +40,7 @@ class WandererMap extends ConsumerStatefulWidget {
     this.controls = const [],
     this.showTrail = true,
     this.showLocation = false,
+    this.selectedWaypoint,
     this.elevationMarkerPosition,
     this.initialCameraFitPadding = const EdgeInsets.all(40),
   });
@@ -132,6 +134,7 @@ class _WandererMapState extends ConsumerState<WandererMap> {
               TrailLayer(
                 trail: widget.trail,
                 onWaypointTap: widget.onWaypointTap,
+                selectedWaypoint: widget.selectedWaypoint,
               ),
 
             if (widget.showLocation) const CurrentLocationLayer(),

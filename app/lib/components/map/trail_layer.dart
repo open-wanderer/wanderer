@@ -12,6 +12,7 @@ class TrailLayer extends StatefulWidget {
   final Color routeColor;
   final double strokeWidth;
   final bool showWaypoints;
+  final Waypoint? selectedWaypoint;
 
   final Function(Waypoint wp)? onWaypointTap;
 
@@ -21,6 +22,7 @@ class TrailLayer extends StatefulWidget {
     this.routeColor = const Color(0xff3549bb),
     this.strokeWidth = 5.0,
     this.showWaypoints = true,
+    this.selectedWaypoint,
     this.onWaypointTap,
   }) : assert(
          trail.expand?.gpx != null,
@@ -121,16 +123,23 @@ class _TrailLayerState extends State<TrailLayer>
     if (widget.showWaypoints &&
         widget.trail.expand?.waypointsViaTrail != null) {
       for (var wp in widget.trail.expand!.waypointsViaTrail!) {
+        final isSelected = widget.selectedWaypoint?.id == wp.id;
         staticMarkers.add(
           Marker(
             point: LatLng(wp.lat, wp.lon),
-            width: 28,
-            height: 28,
+            width: 32,
+            height: 32,
             child: GestureDetector(
               onTap: () => widget.onWaypointTap?.call(wp),
-              child: _buildCircularMarker(
-                wp.icon,
-                color: Theme.of(context).primaryColor,
+              child: AnimatedScale(
+                scale: isSelected ? 1.0 : 0.875,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutBack,
+                child: _buildCircularMarker(
+                  wp.icon,
+                  color: Theme.of(context).primaryColor,
+                  selected: isSelected,
+                ),
               ),
             ),
           ),
@@ -138,11 +147,26 @@ class _TrailLayerState extends State<TrailLayer>
       }
     }
     if (pathPoints.isNotEmpty) {
+      Alignment startAlignment = Alignment.center;
+      Alignment endAlignment = Alignment.center;
+
+      if (pathPoints.length > 1) {
+        final startPx = camera.latLngToScreenOffset(pathPoints.first);
+        final endPx = camera.latLngToScreenOffset(pathPoints.last);
+        final dx = startPx.dx - endPx.dx;
+        final dy = startPx.dy - endPx.dy;
+        if (math.sqrt(dx * dx + dy * dy) < 36) {
+          startAlignment = Alignment(1, 0);
+          endAlignment = Alignment(-1, 0);
+        }
+      }
+
       staticMarkers.add(
         Marker(
           point: pathPoints.first,
           width: 28,
           height: 28,
+          alignment: startAlignment,
           child: _buildCircularMarker(
             FontAwesomeIcons.bullseye,
             color: Colors.greenAccent,
@@ -154,6 +178,7 @@ class _TrailLayerState extends State<TrailLayer>
           point: pathPoints.last,
           width: 28,
           height: 28,
+          alignment: endAlignment,
           child: _buildCircularMarker(
             FontAwesomeIcons.flagCheckered,
             color: Colors.redAccent,
@@ -219,10 +244,11 @@ class _TrailLayerState extends State<TrailLayer>
   Widget _buildCircularMarker(
     FaIconData faIcon, {
     Color color = Colors.blueGrey,
+    bool selected = false,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: color,
+        color: selected ? Colors.white : color,
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
@@ -231,9 +257,15 @@ class _TrailLayerState extends State<TrailLayer>
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(color: Colors.white, width: 2),
+        border: Border.all(color: selected ? color : Colors.white, width: 2),
       ),
-      child: Center(child: FaIcon(faIcon, color: Colors.white, size: 14)),
+      child: Center(
+        child: FaIcon(
+          faIcon,
+          color: selected ? color : Colors.white,
+          size: selected ? 16 : 14,
+        ),
+      ),
     );
   }
 }

@@ -84,6 +84,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                     showTrail: showTrail,
                     elevationMarkerPosition: elevationMarkerPosition,
                     onWaypointTap: _onWaypointSelected,
+                    selectedWaypoint: selectedWaypoint,
                     showLocation: true,
                     offline: trail.isOffline,
                     initialCameraFitPadding: EdgeInsets.only(
@@ -106,8 +107,12 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                 Positioned(
                   left: 16,
                   right: 16,
-                  bottom: trail.expand?.gpx != null && showElevationProfile
-                      ? 258
+                  bottom:
+                      trail.expand?.gpx != null &&
+                          (showElevationProfile || selectedWaypoint != null)
+                      ? showElevationProfile
+                            ? 258
+                            : 286
                       : 16,
                   child: SizedBox(
                     width: double.infinity,
