@@ -77,6 +77,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   bool _sheetAtElevationSize = false;
 
   LocationSettings _buildLocationSettings() {
+    if (kIsWeb) {
+      return const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      );
+    }
     if (Platform.isAndroid) {
       return AndroidSettings(
         accuracy: LocationAccuracy.high,

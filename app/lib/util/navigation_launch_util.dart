@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -131,7 +132,7 @@ Future<void> launchNavigation({
   // The result may still be whileInUse if the user declines the upgrade —
   // navigation proceeds either way (background tracking still works via
   // allowBackgroundLocationUpdates on iOS and the foreground service on Android).
-  if (permission == LocationPermission.whileInUse) {
+  if (permission == LocationPermission.whileInUse && Platform.isIOS) {
     permission = await Geolocator.requestPermission();
     // Do not block navigation if Always is declined — proceed with whileInUse.
   }
