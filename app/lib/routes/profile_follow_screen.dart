@@ -36,20 +36,33 @@ class _ProfileFollowScreenState extends ConsumerState<ProfileFollowScreen> {
     super.dispose();
   }
 
+  void _maybeLoadNextPage() {
+    final s = ref.read(profileFollowsProvider(widget.handle, widget.type));
+    if (s.value?.hasMore == true && !s.isLoading) {
+      ref
+          .read(profileFollowsProvider(widget.handle, widget.type).notifier)
+          .loadNextPage();
+    }
+  }
+
   void _onScroll() {
     final pos = _scrollController.position;
     if (!pos.hasContentDimensions) return;
     if (pos.maxScrollExtent <= 0) return;
     if (pos.pixels / pos.maxScrollExtent >= 0.8) {
-      final s = ref.read(
-        profileFollowsProvider(widget.handle, widget.type),
-      );
-      if (s.value?.hasMore == true && !s.isLoading) {
-        ref
-            .read(profileFollowsProvider(widget.handle, widget.type).notifier)
-            .loadNextPage();
-      }
+      _maybeLoadNextPage();
     }
+  }
+
+  void _checkFillsViewport() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_scrollController.hasClients) return;
+      final pos = _scrollController.position;
+      if (pos.hasContentDimensions && pos.maxScrollExtent <= 0) {
+        _maybeLoadNextPage();
+      }
+    });
   }
 
   String _title(BuildContext context) {
@@ -62,6 +75,10 @@ class _ProfileFollowScreenState extends ConsumerState<ProfileFollowScreen> {
     final followsAsync = ref.watch(
       profileFollowsProvider(widget.handle, widget.type),
     );
+
+    ref.listen(profileFollowsProvider(widget.handle, widget.type), (_, next) {
+      if (next.hasValue) _checkFillsViewport();
+    });
 
     return Scaffold(
       appBar: AppBar(
