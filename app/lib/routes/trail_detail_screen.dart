@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
+import 'package:wanderer/components/trail/like_button.dart';
 import 'package:wanderer/components/trail/trail_dropdown.dart';
 import 'package:wanderer/components/trail/trail_panel.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -82,7 +83,11 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
 
           scrolledUnderElevation: 0,
 
-          actions: [TrailDropdown(trail: trail)],
+          actions: [
+            LikeButton(trail: trail),
+            const SizedBox(width: 8),
+            TrailDropdown(trail: trail),
+          ],
         ),
         body: Stack(
           children: [
@@ -135,7 +140,10 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
           ],
         ),
       ),
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => Container(
+        color: Theme.of(context).colorScheme.surface,
+        child: const Center(child: CircularProgressIndicator()),
+      ),
       error: (err, stack) => WandererError(err: err, stack: stack),
     );
   }

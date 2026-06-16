@@ -13,6 +13,7 @@ import 'package:wanderer/routes/list_screen.dart';
 import 'package:wanderer/routes/list_sort_screen.dart';
 import 'package:wanderer/routes/login_screen.dart';
 import 'package:wanderer/routes/map_screen.dart';
+import 'package:wanderer/routes/profile_list_screen.dart';
 import 'package:wanderer/routes/profile_screen.dart';
 import 'package:wanderer/routes/profile_share_screen.dart';
 import 'package:wanderer/routes/profile_trail_screen.dart';
@@ -254,6 +255,13 @@ class Router extends _$Router {
               builder: (context, state) {
                 final handle = state.pathParameters['handle']!;
                 return ProfileTrailScreen(handle: handle);
+              },
+            ),
+            GoRoute(
+              path: 'lists',
+              builder: (context, state) {
+                final handle = state.pathParameters['handle']!;
+                return ProfileListScreen(handle: handle);
               },
             ),
           ],

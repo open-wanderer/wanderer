@@ -278,6 +278,7 @@ class _ListTile extends StatelessWidget {
         ),
         child: Center(child: FaIcon(FontAwesomeIcons.layerGroup, size: 18)),
       ),
+      onTap: () => context.push('/list/${list.id}'),
       title: Text(list.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         '${list.trails} ${l10n.trail(list.trails)}${list.authorName.isNotEmpty ? ' · ${list.authorName}' : ''}',

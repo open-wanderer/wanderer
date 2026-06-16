@@ -16,6 +16,7 @@ import 'package:wanderer/provider/profile/profile_counts_provider.dart';
 import 'package:wanderer/provider/profile/profile_feed_provider.dart';
 import 'package:wanderer/provider/profile/profile_lists_provider.dart';
 import 'package:wanderer/provider/profile/profile_provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final String? handle;
@@ -351,8 +352,12 @@ class _ListsPreview extends ConsumerWidget {
                   scrollDirection: Axis.horizontal,
                   itemCount: lists.length,
                   separatorBuilder: (context, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) =>
-                      ListCard(list: lists[index], mini: true),
+                  itemBuilder: (context, index) => ListCard(
+                    list: lists[index],
+                    mini: true,
+                    onListSelect: () =>
+                        context.push('/list/${lists[index].id}'),
+                  ),
                 ),
               ),
             ],
@@ -446,7 +451,7 @@ class _CountsRow extends ConsumerWidget {
               icon: FontAwesomeIcons.layerGroup,
               label: AppLocalizations.of(context)!.list(2),
               count: countsAsync.value?.listCount,
-              onTap: null, // wire to lists detail screen
+              onTap: () => context.push('/profile/$handle/lists'),
             ),
           ),
         ],
@@ -498,19 +503,16 @@ class _CountCard extends StatelessWidget {
                       ).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
-                  count == null
-                      ? const SizedBox(
-                          width: 24,
-                          height: 20,
-                          child: LinearProgressIndicator(),
-                        )
-                      : Text(
-                          '$count',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                  Skeletonizer(
+                    enabled: count == null,
+                    child: Text(
+                      '$count',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],

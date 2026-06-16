@@ -15,16 +15,25 @@ import 'package:wanderer/provider/trail/trail_library_provider.dart';
 
 enum TrailAction { open, directions, download, delete }
 
-class TrailDropdown extends ConsumerWidget {
+class TrailDropdown extends ConsumerStatefulWidget {
   final Trail trail;
   const TrailDropdown({super.key, required this.trail});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TrailDropdown> createState() => _TrailDropdownState();
+}
+
+class _TrailDropdownState extends ConsumerState<TrailDropdown> {
+  bool _isDownloading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final trail = widget.trail;
     final l18n = AppLocalizations.of(context)!;
     final isOffline = ref
         .watch(trailLibraryProvider)
         .any((t) => t.id == trail.id);
+    final downloadEnabled = !isOffline && !_isDownloading;
     return PopupMenuButton<TrailAction>(
       offset: const Offset(0, 48),
       borderRadius: BorderRadius.all(Radius.circular(56)),
@@ -69,16 +78,22 @@ class TrailDropdown extends ConsumerWidget {
         const PopupMenuDivider(),
         PopupMenuItem<TrailAction>(
           value: TrailAction.download,
-          onTap: isOffline ? null : () => _downloadTrail(context, ref, trail),
-          enabled: !isOffline,
+          onTap: downloadEnabled ? () => _downloadTrail(context, ref, trail) : null,
+          enabled: downloadEnabled,
           child: ListTile(
-            leading: FaIcon(
-              isOffline
-                  ? FontAwesomeIcons.circleCheck
-                  : FontAwesomeIcons.download,
-              size: 18,
-              color: isOffline ? Colors.green : null,
-            ),
+            leading: _isDownloading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : FaIcon(
+                    isOffline
+                        ? FontAwesomeIcons.circleCheck
+                        : FontAwesomeIcons.download,
+                    size: 18,
+                    color: isOffline ? Colors.green : null,
+                  ),
             title: Text(
               isOffline ? 'Available offline' : l18n.download,
               style: isOffline ? const TextStyle(color: Colors.green) : null,
@@ -108,7 +123,7 @@ class TrailDropdown extends ConsumerWidget {
   bool _allowDelete(WidgetRef ref) {
     return false;
     final user = ref.watch(authProvider).value;
-    return user != null && user.actorId == trail.author;
+    return user != null && user.actorId == widget.trail.author;
   }
 
   Future<void> _openDirections(double lat, double lon) async {
@@ -126,6 +141,8 @@ class TrailDropdown extends ConsumerWidget {
   }
 
   void _downloadTrail(BuildContext context, WidgetRef ref, Trail trail) async {
+    setState(() => _isDownloading = true);
+
     final trailDownloadService = ref.read(trailDownloadServiceProvider);
     final notificationService = ref.read(downloadNotificationServiceProvider);
 
@@ -167,6 +184,8 @@ class TrailDropdown extends ConsumerWidget {
               text: 'Error saving trail',
             ),
           );
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
     }
   }
 }

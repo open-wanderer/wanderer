@@ -20,35 +20,48 @@ class LikeButton extends ConsumerWidget {
 
     final count = trail.likeCount;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: () {
-        final notifier = ref.read(trailProvider(trail.id).notifier);
-        if (isLiked) {
-          notifier.unlike(actorId);
-        } else {
-          notifier.like(actorId);
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.grey.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          onPressed: () {
+            final notifier = ref.read(trailProvider(trail.id).notifier);
+            if (isLiked) {
+              notifier.unlike(actorId);
+            } else {
+              notifier.like(actorId);
+            }
+          },
+          icon: FaIcon(
+            isLiked ? FontAwesomeIcons.solidHeart : FontAwesomeIcons.heart,
+            size: 22,
+            color: isLiked ? Colors.red : Colors.blueGrey,
+          ),
+          style: IconButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.surface,
+          ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FaIcon(
-              isLiked ? FontAwesomeIcons.solidHeart : FontAwesomeIcons.heart,
-              size: 16,
-              color: isLiked ? Colors.red : Colors.blueGrey,
+        if (count > 0)
+          Positioned(
+            top: 2,
+            right: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count > 99 ? '99+' : '$count',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-            const SizedBox(height: 4),
-            Text("$count", style: Theme.of(context).textTheme.bodySmall),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 }

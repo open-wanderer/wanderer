@@ -23,11 +23,20 @@ abstract class ProfileListsState with _$ProfileListsState {
 @riverpod
 class ProfileListsNotifier extends _$ProfileListsNotifier {
   late String _handle;
+  String _q = '';
 
   @override
   FutureOr<ProfileListsState> build(String handle) async {
     _handle = handle;
-    return await _fetchPage(handle: handle, page: 1);
+    return await _fetchPage(handle: handle, page: 1, q: _q);
+  }
+
+  Future<void> search(String q) async {
+    _q = q;
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _fetchPage(handle: _handle, page: 1, q: _q),
+    );
   }
 
   Future<void> loadNextPage() async {
@@ -42,7 +51,11 @@ class ProfileListsNotifier extends _$ProfileListsNotifier {
     // to an empty spinner. State transitions directly AsyncData -> AsyncData.
     state = await AsyncValue.guard(() async {
       final nextPage = currentState.page + 1;
-      final responseState = await _fetchPage(handle: _handle, page: nextPage);
+      final responseState = await _fetchPage(
+        handle: _handle,
+        page: nextPage,
+        q: _q,
+      );
       return currentState.copyWith(
         lists: [...currentState.lists, ...responseState.lists],
         page: responseState.page,
@@ -54,6 +67,7 @@ class ProfileListsNotifier extends _$ProfileListsNotifier {
   Future<ProfileListsState> _fetchPage({
     required String handle,
     required int page,
+    required String q,
   }) async {
     final api = ref.read(apiProvider);
     const int perPage = kProfileSearchPerPage;
@@ -61,7 +75,7 @@ class ProfileListsNotifier extends _$ProfileListsNotifier {
     final response = await api.post(
       '/profile/$handle/lists',
       data: {
-        'q': '',
+        'q': q,
         'options': {'hitsPerPage': perPage, 'page': page},
       },
     );

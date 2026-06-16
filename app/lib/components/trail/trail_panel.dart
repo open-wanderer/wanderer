@@ -8,7 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:wanderer/components/base/wanderer_map.dart';
 import 'package:wanderer/components/trail/comment_list.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
-import 'package:wanderer/components/trail/like_button.dart';
 import 'package:wanderer/components/trail/photo_collage.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/components/trail/summit_log_list.dart';
@@ -192,7 +191,6 @@ class TrailPanel extends ConsumerWidget {
                         icon: FontAwesomeIcons.arrowTrendDown,
                         label: formatElevation(trail.elevationLoss),
                       ),
-                      LikeButton(trail: trail),
                     ],
                   ),
                 ],

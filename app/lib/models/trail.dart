@@ -18,6 +18,19 @@ import 'waypoint.dart';
 part 'trail.freezed.dart';
 part 'trail.g.dart';
 
+class _NullableDateTimeConverter implements JsonConverter<DateTime?, Object?> {
+  const _NullableDateTimeConverter();
+
+  @override
+  DateTime? fromJson(Object? value) {
+    if (value == null || value == '') return null;
+    return DateTime.parse(value as String);
+  }
+
+  @override
+  Object? toJson(DateTime? date) => date?.toIso8601String();
+}
+
 enum TrailDifficulty {
   @JsonValue('easy')
   easy,
@@ -54,7 +67,7 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     @Default('trails') String collectionId,
     required String name,
     String? location,
-    DateTime? date,
+    @_NullableDateTimeConverter() DateTime? date,
     @Default(false) bool public,
     @Default(0) double distance,
     @JsonKey(name: 'elevation_gain') @Default(0) double elevationGain,
