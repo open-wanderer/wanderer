@@ -28,7 +28,7 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 		return err
 	}
 
-	if !author.GetBool("isLocal") {
+	if !author.GetBool("is_local") {
 		return nil
 	}
 

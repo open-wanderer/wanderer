@@ -194,12 +194,20 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 
 		dbActor.Set("last_fetched", time.Now())
 
+		// an empty privacy field is the default for users who never touched
+		// their privacy settings and is treated as public. A non-empty but
+		// corrupt value fails closed (private) so a broken setting can't
+		// silently expose a profile.
 		privacy := settings.GetString("privacy")
-		result := make(map[string]interface{})
-		if err := json.Unmarshal([]byte(privacy), &result); err == nil {
-			// check that it's not our own profile
-			actorVal, _ := ctx.Value("actor").(string)
-			private = result["account"] == "private" && dbActor.Id != strings.TrimPrefix(actorVal, "actor:")
+		if privacy != "" {
+			result := make(map[string]interface{})
+			if err := json.Unmarshal([]byte(privacy), &result); err != nil {
+				private = true
+			} else {
+				// check that it's not our own profile
+				actorVal, _ := ctx.Value("actor").(string)
+				private = result["account"] == "private" && dbActor.Id != strings.TrimPrefix(actorVal, "actor:")
+			}
 		}
 
 	} else {
