@@ -1074,7 +1074,7 @@ as double,
 mixin _$TrailFilter {
 
  String get q; List<Category> get category; List<Tag> get tags; List<int> get difficulty;// 0, 1, 2
- String? get author; bool? get public; bool? get shared; bool? get private; TrailNear get near; double get distanceMin; double get distanceMax; double get distanceLimit; double get elevationGainMin; double get elevationGainMax; double get elevationGainLimit; double get elevationLossMin; double get elevationLossMax; double get elevationLossLimit; DateTime? get startDate; DateTime? get endDate; bool? get completed; bool? get liked; TrailFilterSort get sort;// "name" | "distance" | "elevation_gain" | "created"
+ ActorSearchResult? get author; bool? get public; bool? get shared; bool? get private; TrailNear get near; double get distanceMin; double get distanceMax; double get distanceLimit; double get elevationGainMin; double get elevationGainMax; double get elevationGainLimit; double get elevationLossMin; double get elevationLossMax; double get elevationLossLimit; DateTime? get startDate; DateTime? get endDate; bool? get completed; bool? get liked; TrailFilterSort get sort;// "name" | "distance" | "elevation_gain" | "created"
  SortOrder get sortOrder;
 /// Create a copy of TrailFilter
 /// with the given fields replaced by the non-null parameter values.
@@ -1106,11 +1106,11 @@ abstract mixin class $TrailFilterCopyWith<$Res>  {
   factory $TrailFilterCopyWith(TrailFilter value, $Res Function(TrailFilter) _then) = _$TrailFilterCopyWithImpl;
 @useResult
 $Res call({
- String q, List<Category> category, List<Tag> tags, List<int> difficulty, String? author, bool? public, bool? shared, bool? private, TrailNear near, double distanceMin, double distanceMax, double distanceLimit, double elevationGainMin, double elevationGainMax, double elevationGainLimit, double elevationLossMin, double elevationLossMax, double elevationLossLimit, DateTime? startDate, DateTime? endDate, bool? completed, bool? liked, TrailFilterSort sort, SortOrder sortOrder
+ String q, List<Category> category, List<Tag> tags, List<int> difficulty, ActorSearchResult? author, bool? public, bool? shared, bool? private, TrailNear near, double distanceMin, double distanceMax, double distanceLimit, double elevationGainMin, double elevationGainMax, double elevationGainLimit, double elevationLossMin, double elevationLossMax, double elevationLossLimit, DateTime? startDate, DateTime? endDate, bool? completed, bool? liked, TrailFilterSort sort, SortOrder sortOrder
 });
 
 
-$TrailNearCopyWith<$Res> get near;
+$ActorSearchResultCopyWith<$Res>? get author;$TrailNearCopyWith<$Res> get near;
 
 }
 /// @nodoc
@@ -1130,7 +1130,7 @@ as String,category: null == category ? _self.category : category // ignore: cast
 as List<Category>,tags: null == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
 as List<Tag>,difficulty: null == difficulty ? _self.difficulty : difficulty // ignore: cast_nullable_to_non_nullable
 as List<int>,author: freezed == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
-as String?,public: freezed == public ? _self.public : public // ignore: cast_nullable_to_non_nullable
+as ActorSearchResult?,public: freezed == public ? _self.public : public // ignore: cast_nullable_to_non_nullable
 as bool?,shared: freezed == shared ? _self.shared : shared // ignore: cast_nullable_to_non_nullable
 as bool?,private: freezed == private ? _self.private : private // ignore: cast_nullable_to_non_nullable
 as bool?,near: null == near ? _self.near : near // ignore: cast_nullable_to_non_nullable
@@ -1153,6 +1153,18 @@ as SortOrder,
   ));
 }
 /// Create a copy of TrailFilter
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$ActorSearchResultCopyWith<$Res>? get author {
+    if (_self.author == null) {
+    return null;
+  }
+
+  return $ActorSearchResultCopyWith<$Res>(_self.author!, (value) {
+    return _then(_self.copyWith(author: value));
+  });
+}/// Create a copy of TrailFilter
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
@@ -1243,7 +1255,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  String? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  DateTime? startDate,  DateTime? endDate,  bool? completed,  bool? liked,  TrailFilterSort sort,  SortOrder sortOrder)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  ActorSearchResult? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  DateTime? startDate,  DateTime? endDate,  bool? completed,  bool? liked,  TrailFilterSort sort,  SortOrder sortOrder)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _TrailFilter() when $default != null:
 return $default(_that.q,_that.category,_that.tags,_that.difficulty,_that.author,_that.public,_that.shared,_that.private,_that.near,_that.distanceMin,_that.distanceMax,_that.distanceLimit,_that.elevationGainMin,_that.elevationGainMax,_that.elevationGainLimit,_that.elevationLossMin,_that.elevationLossMax,_that.elevationLossLimit,_that.startDate,_that.endDate,_that.completed,_that.liked,_that.sort,_that.sortOrder);case _:
@@ -1264,7 +1276,7 @@ return $default(_that.q,_that.category,_that.tags,_that.difficulty,_that.author,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  String? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  DateTime? startDate,  DateTime? endDate,  bool? completed,  bool? liked,  TrailFilterSort sort,  SortOrder sortOrder)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  ActorSearchResult? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  DateTime? startDate,  DateTime? endDate,  bool? completed,  bool? liked,  TrailFilterSort sort,  SortOrder sortOrder)  $default,) {final _that = this;
 switch (_that) {
 case _TrailFilter():
 return $default(_that.q,_that.category,_that.tags,_that.difficulty,_that.author,_that.public,_that.shared,_that.private,_that.near,_that.distanceMin,_that.distanceMax,_that.distanceLimit,_that.elevationGainMin,_that.elevationGainMax,_that.elevationGainLimit,_that.elevationLossMin,_that.elevationLossMax,_that.elevationLossLimit,_that.startDate,_that.endDate,_that.completed,_that.liked,_that.sort,_that.sortOrder);case _:
@@ -1284,7 +1296,7 @@ return $default(_that.q,_that.category,_that.tags,_that.difficulty,_that.author,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  String? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  DateTime? startDate,  DateTime? endDate,  bool? completed,  bool? liked,  TrailFilterSort sort,  SortOrder sortOrder)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String q,  List<Category> category,  List<Tag> tags,  List<int> difficulty,  ActorSearchResult? author,  bool? public,  bool? shared,  bool? private,  TrailNear near,  double distanceMin,  double distanceMax,  double distanceLimit,  double elevationGainMin,  double elevationGainMax,  double elevationGainLimit,  double elevationLossMin,  double elevationLossMax,  double elevationLossLimit,  DateTime? startDate,  DateTime? endDate,  bool? completed,  bool? liked,  TrailFilterSort sort,  SortOrder sortOrder)?  $default,) {final _that = this;
 switch (_that) {
 case _TrailFilter() when $default != null:
 return $default(_that.q,_that.category,_that.tags,_that.difficulty,_that.author,_that.public,_that.shared,_that.private,_that.near,_that.distanceMin,_that.distanceMax,_that.distanceLimit,_that.elevationGainMin,_that.elevationGainMax,_that.elevationGainLimit,_that.elevationLossMin,_that.elevationLossMax,_that.elevationLossLimit,_that.startDate,_that.endDate,_that.completed,_that.liked,_that.sort,_that.sortOrder);case _:
@@ -1325,7 +1337,7 @@ class _TrailFilter extends TrailFilter {
 }
 
 // 0, 1, 2
-@override final  String? author;
+@override final  ActorSearchResult? author;
 @override final  bool? public;
 @override final  bool? shared;
 @override final  bool? private;
@@ -1377,11 +1389,11 @@ abstract mixin class _$TrailFilterCopyWith<$Res> implements $TrailFilterCopyWith
   factory _$TrailFilterCopyWith(_TrailFilter value, $Res Function(_TrailFilter) _then) = __$TrailFilterCopyWithImpl;
 @override @useResult
 $Res call({
- String q, List<Category> category, List<Tag> tags, List<int> difficulty, String? author, bool? public, bool? shared, bool? private, TrailNear near, double distanceMin, double distanceMax, double distanceLimit, double elevationGainMin, double elevationGainMax, double elevationGainLimit, double elevationLossMin, double elevationLossMax, double elevationLossLimit, DateTime? startDate, DateTime? endDate, bool? completed, bool? liked, TrailFilterSort sort, SortOrder sortOrder
+ String q, List<Category> category, List<Tag> tags, List<int> difficulty, ActorSearchResult? author, bool? public, bool? shared, bool? private, TrailNear near, double distanceMin, double distanceMax, double distanceLimit, double elevationGainMin, double elevationGainMax, double elevationGainLimit, double elevationLossMin, double elevationLossMax, double elevationLossLimit, DateTime? startDate, DateTime? endDate, bool? completed, bool? liked, TrailFilterSort sort, SortOrder sortOrder
 });
 
 
-@override $TrailNearCopyWith<$Res> get near;
+@override $ActorSearchResultCopyWith<$Res>? get author;@override $TrailNearCopyWith<$Res> get near;
 
 }
 /// @nodoc
@@ -1401,7 +1413,7 @@ as String,category: null == category ? _self._category : category // ignore: cas
 as List<Category>,tags: null == tags ? _self._tags : tags // ignore: cast_nullable_to_non_nullable
 as List<Tag>,difficulty: null == difficulty ? _self._difficulty : difficulty // ignore: cast_nullable_to_non_nullable
 as List<int>,author: freezed == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
-as String?,public: freezed == public ? _self.public : public // ignore: cast_nullable_to_non_nullable
+as ActorSearchResult?,public: freezed == public ? _self.public : public // ignore: cast_nullable_to_non_nullable
 as bool?,shared: freezed == shared ? _self.shared : shared // ignore: cast_nullable_to_non_nullable
 as bool?,private: freezed == private ? _self.private : private // ignore: cast_nullable_to_non_nullable
 as bool?,near: null == near ? _self.near : near // ignore: cast_nullable_to_non_nullable
@@ -1425,6 +1437,18 @@ as SortOrder,
 }
 
 /// Create a copy of TrailFilter
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$ActorSearchResultCopyWith<$Res>? get author {
+    if (_self.author == null) {
+    return null;
+  }
+
+  return $ActorSearchResultCopyWith<$Res>(_self.author!, (value) {
+    return _then(_self.copyWith(author: value));
+  });
+}/// Create a copy of TrailFilter
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')

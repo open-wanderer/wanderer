@@ -7,16 +7,14 @@ import 'package:wanderer/provider/api_provider.dart';
 
 class WandererActorSearch extends ConsumerStatefulWidget {
   final String? hintText;
-  final String? initialAuthorId;
-  final String? initialAuthorLabel;
+  final ActorSearchResult? initialActor;
   final void Function(ActorSearchResult actor) onSelected;
   final VoidCallback onCleared;
 
   const WandererActorSearch({
     super.key,
     this.hintText,
-    this.initialAuthorId,
-    this.initialAuthorLabel,
+    this.initialActor,
     required this.onSelected,
     required this.onCleared,
   });
@@ -39,11 +37,9 @@ class _WandererActorSearchState extends ConsumerState<WandererActorSearch> {
   @override
   void initState() {
     super.initState();
+    debugPrint(widget.initialActor.toString());
     _controller = TextEditingController(
-      text: (widget.initialAuthorLabel != null &&
-              widget.initialAuthorLabel!.isNotEmpty)
-          ? widget.initialAuthorLabel
-          : '',
+      text: (widget.initialActor != null) ? widget.initialActor!.username : '',
     );
   }
 
@@ -83,9 +79,11 @@ class _WandererActorSearchState extends ConsumerState<WandererActorSearch> {
     List<ActorSearchResult> results = [];
     try {
       final api = ref.read(apiProvider);
-      final response =
-          await api.get('/search/actor', queryParameters: {'q': query});
-      results = ((response.data['items'] as List<dynamic>?) ?? [])
+      final response = await api.get(
+        '/search/actor',
+        queryParameters: {'q': query},
+      );
+      results = ((response.data['hits'] as List<dynamic>?) ?? [])
           .map((e) => ActorSearchResult.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (_) {
@@ -101,8 +99,9 @@ class _WandererActorSearchState extends ConsumerState<WandererActorSearch> {
   }
 
   void _onSelect(ActorSearchResult actor) {
-    final displayName =
-        actor.username.isNotEmpty ? actor.username : actor.preferredUsername;
+    final displayName = actor.username.isNotEmpty
+        ? actor.username
+        : actor.preferredUsername;
     setState(() {
       _selected = actor;
       _controller.text = displayName;
@@ -142,10 +141,7 @@ class _WandererActorSearchState extends ConsumerState<WandererActorSearch> {
             contentPadding: const EdgeInsets.all(12),
             prefixIcon: Icon(Icons.search, color: Colors.grey.shade300),
             suffixIcon: showClear
-                ? IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: _onClear,
-                  )
+                ? IconButton(icon: const Icon(Icons.close), onPressed: _onClear)
                 : null,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(56),
@@ -187,10 +183,10 @@ class _WandererActorSearchState extends ConsumerState<WandererActorSearch> {
                     backgroundColor: Colors.grey.shade300,
                     backgroundImage:
                         actor.icon != null && actor.icon!.isNotEmpty
-                            ? NetworkImage(actor.icon!)
-                            : NetworkImage(
-                                'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
-                              ),
+                        ? NetworkImage(actor.icon!)
+                        : NetworkImage(
+                            'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
+                          ),
                   ),
                   title: Text(
                     displayName,

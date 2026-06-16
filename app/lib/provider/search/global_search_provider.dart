@@ -217,7 +217,7 @@ class GlobalSearchNotifier extends _$GlobalSearchNotifier {
         api
             .get('/search/actor', queryParameters: {'q': q})
             .then((response) {
-              actors = ((response.data['items'] as List<dynamic>?) ?? [])
+              actors = ((response.data['hits'] as List<dynamic>?) ?? [])
                   .map(
                     (e) =>
                         ActorSearchResult.fromJson(e as Map<String, dynamic>),

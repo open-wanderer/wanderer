@@ -118,16 +118,13 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
 
                 WandererActorSearch(
                   hintText: l10n.author,
-                  initialAuthorId: filter.value?.author,
-                  initialAuthorLabel: "",
+                  initialActor: filter.value?.author,
                   onSelected: (actor) => ref
                       .read(trailFilterProvider.notifier)
-                      .updateFilter(
-                        (filter) => filter.copyWith(author: actor.id),
-                      ),
+                      .updateFilter((filter) => filter.copyWith(author: actor)),
                   onCleared: () => ref
                       .read(trailFilterProvider.notifier)
-                      .updateFilter((filter) => filter.copyWith(author: "")),
+                      .updateFilter((filter) => filter.copyWith(author: null)),
                 ),
                 const SizedBox(height: 16),
 

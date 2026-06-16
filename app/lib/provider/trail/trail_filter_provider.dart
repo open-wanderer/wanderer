@@ -26,7 +26,7 @@ class TrailFilterNotifier extends _$TrailFilterNotifier {
         category: [],
         tags: [],
         difficulty: [0, 1, 2],
-        author: "",
+        author: null,
         public: true,
         shared: true,
         liked: false,

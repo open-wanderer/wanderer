@@ -2,6 +2,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:gpx/gpx.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/record.dart';
 import 'package:wanderer/models/trail_summary.dart';
 
@@ -149,7 +150,7 @@ abstract class TrailFilter with _$TrailFilter {
     required List<Category> category,
     required List<Tag> tags,
     required List<int> difficulty, // 0, 1, 2
-    String? author,
+    ActorSearchResult? author,
     bool? public,
     bool? shared,
     bool? private,
@@ -198,8 +199,8 @@ abstract class TrailFilter with _$TrailFilter {
     }
 
     // Author
-    if (author != null && author!.isNotEmpty) {
-      parts.add('author = $author');
+    if (author != null) {
+      parts.add('author = ${author!.id}');
     }
 
     // Visibility Logic (Public / Private / Shared)
@@ -213,12 +214,11 @@ abstract class TrailFilter with _$TrailFilter {
       if (showPublic) {
         String publicBlock = "public = TRUE";
         // If showing private trails and user is the author (or no specific author requested)
-        if (showPrivate &&
-            (author == null || author!.isEmpty || author == actor)) {
+        if (showPrivate && (author == null || author!.id == actor)) {
           publicBlock = "($publicBlock OR author = $actor)";
         }
         visibilityOrBlocks.add(publicBlock);
-      } else if (author == null || author!.isEmpty || author == actor) {
+      } else if (author == null || author!.id == actor) {
         visibilityOrBlocks.add("(public = FALSE AND author = $actor)");
       }
 
