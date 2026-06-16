@@ -21,7 +21,7 @@ abstract class TrailSearchState with _$TrailSearchState {
   bool get hasMore => page < totalPages;
 }
 
-@riverpod
+@Riverpod(keepAlive: true)
 class TrailSearchNotifier extends _$TrailSearchNotifier {
   @override
   FutureOr<TrailSearchState> build() async {

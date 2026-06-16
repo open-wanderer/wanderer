@@ -20,7 +20,7 @@ final class TrailFilterNotifierProvider
         argument: null,
         retry: null,
         name: r'trailFilterProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -34,7 +34,7 @@ final class TrailFilterNotifierProvider
 }
 
 String _$trailFilterNotifierHash() =>
-    r'809c899cb07e1257913da80c9126325c9f750fb3';
+    r'12ac339cffdb8acafd70bf6393d619eb1cf03426';
 
 abstract class _$TrailFilterNotifier extends $AsyncNotifier<TrailFilter> {
   FutureOr<TrailFilter> build();

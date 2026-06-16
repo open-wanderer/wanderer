@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:textfield_tags/textfield_tags.dart';
 import 'package:wanderer/components/base/wanderer_actor_search.dart';
 import 'package:wanderer/components/base/wanderer_autocomplete.dart';
@@ -50,7 +51,16 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
     final categories = ref.watch(categoryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.filter_trails)),
+      appBar: AppBar(
+        title: Text(l10n.filter_trails),
+        actions: [
+          IconButton(
+            onPressed: () =>
+                ref.read(trailFilterProvider.notifier).resetFilter(),
+            icon: FaIcon(FontAwesomeIcons.filterCircleXmark, size: 18),
+          ),
+        ],
+      ),
       body: filter.when(
         data: (f) {
           return Padding(

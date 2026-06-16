@@ -5,8 +5,10 @@ import 'package:wanderer/provider/api_provider.dart';
 
 part 'trail_filter_provider.g.dart';
 
-@riverpod
+@Riverpod(keepAlive: true)
 class TrailFilterNotifier extends _$TrailFilterNotifier {
+  late final TrailFilter defaultFilter;
+
   @override
   Future<TrailFilter> build() async {
     final api = ref.watch(apiProvider);
@@ -21,7 +23,7 @@ class TrailFilterNotifier extends _$TrailFilterNotifier {
         response.data,
       );
 
-      return TrailFilter(
+      defaultFilter = TrailFilter(
         q: "",
         category: [],
         tags: [],
@@ -44,9 +46,15 @@ class TrailFilterNotifier extends _$TrailFilterNotifier {
         sort: TrailFilterSort.created,
         sortOrder: SortOrder.desc,
       );
+
+      return defaultFilter;
     } catch (e) {
       throw Exception('Failed to fetch trail filters: $e');
     }
+  }
+
+  void resetFilter() {
+    state = AsyncData(defaultFilter);
   }
 
   void updateFilter(TrailFilter Function(TrailFilter current) updater) {

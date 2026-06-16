@@ -20,7 +20,7 @@ final class TrailSearchNotifierProvider
         argument: null,
         retry: null,
         name: r'trailSearchProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -34,7 +34,7 @@ final class TrailSearchNotifierProvider
 }
 
 String _$trailSearchNotifierHash() =>
-    r'da74e07e677b97397f9151ef4242d7789e695d90';
+    r'a4c804186a1b5dcd56d7f15f304a41b01b797cd6';
 
 abstract class _$TrailSearchNotifier extends $AsyncNotifier<TrailSearchState> {
   FutureOr<TrailSearchState> build();
