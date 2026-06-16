@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class WandererActorSearch extends ConsumerStatefulWidget {
   final String? hintText;
@@ -27,54 +28,73 @@ class WandererActorSearch extends ConsumerStatefulWidget {
 class _WandererActorSearchState extends ConsumerState<WandererActorSearch> {
   late final TextEditingController _controller;
   final FocusNode _focusNode = FocusNode();
+  final LayerLink _layerLink = LayerLink();
   Timer? _debounce;
+  OverlayEntry? _overlayEntry;
 
   List<ActorSearchResult> _results = [];
   bool _isLoading = false;
-  bool _showDropdown = false;
-  ActorSearchResult? _selected;
 
   @override
   void initState() {
     super.initState();
-    debugPrint(widget.initialActor.toString());
-    _controller = TextEditingController(
-      text: (widget.initialActor != null) ? widget.initialActor!.username : '',
-    );
+    _controller = TextEditingController();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) _removeOverlay();
+    });
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _removeOverlay();
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _showOverlay() {
+    _removeOverlay();
+    final overlay = Overlay.of(context);
+    _overlayEntry = OverlayEntry(
+      builder: (_) => CompositedTransformFollower(
+        link: _layerLink,
+        showWhenUnlinked: false,
+        offset: const Offset(0, 52),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: _DropdownPanel(
+            results: _results,
+            isLoading: _isLoading,
+            onSelect: _onSelect,
+          ),
+        ),
+      ),
+    );
+    overlay.insert(_overlayEntry!);
+  }
+
   void _onChanged(String value) {
-    if (_debounce?.isActive ?? false) {
-      _debounce!.cancel();
-    }
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
 
     if (value.isEmpty) {
-      setState(() {
-        _results = [];
-        _showDropdown = false;
-        _selected = null;
-      });
+      setState(() => _results = []);
+      _removeOverlay();
       widget.onCleared();
       return;
     }
 
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      _search(value);
-    });
+    _debounce = Timer(const Duration(milliseconds: 500), () => _search(value));
   }
 
   Future<void> _search(String query) async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
+    _showOverlay();
 
     List<ActorSearchResult> results = [];
     try {
@@ -94,20 +114,21 @@ class _WandererActorSearchState extends ConsumerState<WandererActorSearch> {
     setState(() {
       _isLoading = false;
       _results = results;
-      _showDropdown = true;
     });
+
+    if (results.isEmpty) {
+      _removeOverlay();
+    } else {
+      _showOverlay();
+    }
   }
 
   void _onSelect(ActorSearchResult actor) {
-    final displayName = actor.username.isNotEmpty
-        ? actor.username
-        : actor.preferredUsername;
     setState(() {
-      _selected = actor;
-      _controller.text = displayName;
-      _showDropdown = false;
+      _controller.clear();
       _results = [];
     });
+    _removeOverlay();
     _focusNode.unfocus();
     widget.onSelected(actor);
   }
@@ -115,62 +136,79 @@ class _WandererActorSearchState extends ConsumerState<WandererActorSearch> {
   void _onClear() {
     setState(() {
       _controller.clear();
-      _selected = null;
       _results = [];
-      _showDropdown = false;
     });
+    _removeOverlay();
     widget.onCleared();
   }
 
   @override
   Widget build(BuildContext context) {
-    final showClear = _selected != null || _controller.text.isNotEmpty;
+    final showClear = _controller.text.isNotEmpty;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: _controller,
-          focusNode: _focusNode,
-          onChanged: _onChanged,
-          decoration: InputDecoration(
-            hintText: widget.hintText,
-            hintStyle: const TextStyle(color: Colors.grey),
-            filled: true,
-            fillColor: Theme.of(context).inputDecorationTheme.fillColor,
-            contentPadding: const EdgeInsets.all(12),
-            prefixIcon: Icon(Icons.search, color: Colors.grey.shade300),
-            suffixIcon: showClear
-                ? IconButton(icon: const Icon(Icons.close), onPressed: _onClear)
-                : null,
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(56),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.outline,
-              ),
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        onChanged: _onChanged,
+        decoration: InputDecoration(
+          hintText: widget.hintText,
+          hintStyle: const TextStyle(color: Colors.grey),
+          filled: true,
+          fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+          contentPadding: const EdgeInsets.all(12),
+          prefixIcon: Icon(Icons.search, color: Colors.grey.shade300),
+          suffixIcon: showClear
+              ? IconButton(icon: const Icon(Icons.close), onPressed: _onClear)
+              : null,
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(56),
+            borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.outline,
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(56),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.onSurface,
-                width: 1.5,
-              ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(56),
+            borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.onSurface,
+              width: 1.5,
             ),
           ),
         ),
-        if (_isLoading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8.0),
-            child: LinearProgressIndicator(),
-          ),
-        if (_showDropdown && _results.isNotEmpty)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 280),
+      ),
+    );
+  }
+}
+
+class _DropdownPanel extends StatelessWidget {
+  final List<ActorSearchResult> results;
+  final bool isLoading;
+  final void Function(ActorSearchResult) onSelect;
+
+  const _DropdownPanel({
+    required this.results,
+    required this.isLoading,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(12),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 280, maxWidth: 400),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Skeletonizer(
+            enabled: isLoading,
             child: ListView.builder(
               shrinkWrap: true,
-              itemCount: _results.length,
+              padding: EdgeInsets.zero,
+              itemCount: results.length,
               itemBuilder: (context, index) {
-                final actor = _results[index];
+                final actor = results[index];
                 final displayName = actor.username.isNotEmpty
                     ? actor.username
                     : actor.preferredUsername;
@@ -181,8 +219,7 @@ class _WandererActorSearchState extends ConsumerState<WandererActorSearch> {
                   leading: CircleAvatar(
                     radius: 20,
                     backgroundColor: Colors.grey.shade300,
-                    backgroundImage:
-                        actor.icon != null && actor.icon!.isNotEmpty
+                    backgroundImage: actor.icon != null && actor.icon!.isNotEmpty
                         ? NetworkImage(actor.icon!)
                         : NetworkImage(
                             'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
@@ -194,12 +231,13 @@ class _WandererActorSearchState extends ConsumerState<WandererActorSearch> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   subtitle: Text(subtitle),
-                  onTap: () => _onSelect(actor),
+                  onTap: () => onSelect(actor),
                 );
               },
             ),
           ),
-      ],
+        ),
+      ),
     );
   }
 }

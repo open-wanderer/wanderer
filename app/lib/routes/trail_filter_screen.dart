@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:textfield_tags/textfield_tags.dart';
+import 'package:wanderer/components/base/wanderer_actor_search.dart';
 import 'package:wanderer/components/base/wanderer_autocomplete.dart';
 import 'package:wanderer/components/base/wanderer_date_picker.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/base/wanderer_filter_chip.dart';
-import 'package:wanderer/components/base/wanderer_actor_search.dart';
 import 'package:wanderer/components/base/wanderer_radio_group.dart';
-import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/tag.dart';
-import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/tag_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
@@ -48,7 +47,6 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
     final l10n = AppLocalizations.of(context)!;
 
     final filter = ref.watch(trailFilterProvider);
-    final UserEntity user = ref.watch(authProvider).value!;
     final categories = ref.watch(categoryProvider);
 
     return Scaffold(
@@ -59,10 +57,6 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: ListView(
               children: [
-                Text(
-                  filter.value?.toFilterText(actor: user.actorId) ??
-                      "Filter loading...",
-                ),
                 Text(l10n.categories, style: TextTheme.of(context).labelLarge),
                 const SizedBox(height: 8),
 
@@ -116,16 +110,32 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 Text(l10n.author, style: TextTheme.of(context).labelLarge),
                 const SizedBox(height: 8),
 
-                WandererActorSearch(
-                  hintText: l10n.author,
-                  initialActor: filter.value?.author,
-                  onSelected: (actor) => ref
-                      .read(trailFilterProvider.notifier)
-                      .updateFilter((filter) => filter.copyWith(author: actor)),
-                  onCleared: () => ref
-                      .read(trailFilterProvider.notifier)
-                      .updateFilter((filter) => filter.copyWith(author: null)),
-                ),
+                if (f.author != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _AuthorChip(
+                      actor: f.author!,
+                      onDeleted: () => ref
+                          .read(trailFilterProvider.notifier)
+                          .updateFilter(
+                            (filter) => filter.copyWith(author: null),
+                          ),
+                    ),
+                  )
+                else
+                  WandererActorSearch(
+                    hintText: l10n.author,
+                    onSelected: (actor) => ref
+                        .read(trailFilterProvider.notifier)
+                        .updateFilter(
+                          (filter) => filter.copyWith(author: actor),
+                        ),
+                    onCleared: () => ref
+                        .read(trailFilterProvider.notifier)
+                        .updateFilter(
+                          (filter) => filter.copyWith(author: null),
+                        ),
+                  ),
                 const SizedBox(height: 16),
 
                 Text(
@@ -362,6 +372,38 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
         loading: () => Center(child: CircularProgressIndicator()),
         error: (err, stack) => WandererError(err: err, stack: stack),
       ),
+    );
+  }
+}
+
+class _AuthorChip extends StatelessWidget {
+  final ActorSearchResult actor;
+  final VoidCallback onDeleted;
+
+  const _AuthorChip({required this.actor, required this.onDeleted});
+
+  @override
+  Widget build(BuildContext context) {
+    final displayName = actor.username.isNotEmpty
+        ? actor.username
+        : actor.preferredUsername;
+    final handle =
+        '@${actor.preferredUsername}${actor.isLocal ? "" : "@${actor.domain}"}';
+    final ImageProvider avatarImage =
+        actor.icon != null && actor.icon!.isNotEmpty
+        ? NetworkImage(actor.icon!)
+        : NetworkImage(
+            'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
+          );
+
+    return InputChip(
+      avatar: CircleAvatar(
+        backgroundImage: avatarImage,
+        backgroundColor: Colors.grey.shade300,
+      ),
+      shape: StadiumBorder(),
+      label: Text(handle),
+      onDeleted: onDeleted,
     );
   }
 }
