@@ -14,9 +14,11 @@ import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
+import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/map_camera_provider.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
+import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
 import 'package:wanderer/util/icon_util.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -142,6 +144,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
         });
       }
     });
+
+    final filterAsync = ref.watch(trailFilterProvider);
+    final activeFilterCount = filterAsync.hasValue
+        ? _countActiveFilters(
+            filterAsync.value!,
+            ref.read(trailFilterProvider.notifier).defaultFilter,
+          )
+        : 0;
 
     final searchResultAsync = ref.watch(mapTrailSearchProvider);
     final trails = searchResultAsync.value ?? [];
@@ -473,19 +483,49 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      ActionChip(
-                        onPressed: () => context.push('/trail/filter'),
-                        avatar: FaIcon(
-                          FontAwesomeIcons.filter,
-                          size: 14,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        shape: StadiumBorder(
-                          side: BorderSide(color: Colors.transparent),
-                        ),
-                        label: const Text('Filter'),
-                        backgroundColor: Theme.of(context).colorScheme.surface,
-                        elevation: 4,
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          ActionChip(
+                            onPressed: () => context.push('/trail/filter'),
+                            avatar: FaIcon(
+                              FontAwesomeIcons.filter,
+                              size: 14,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            shape: StadiumBorder(
+                              side: BorderSide(color: Colors.transparent),
+                            ),
+                            label: const Text('Filter'),
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.surface,
+                            elevation: 4,
+                          ),
+                          if (activeFilterCount > 0)
+                            Positioned(
+                              top: -2,
+                              right: 3,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).primaryColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '$activeFilterCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(width: 8),
                       ActionChip(
@@ -576,5 +616,29 @@ class _MapScreenState extends ConsumerState<MapScreen>
         (currentSize - startThreshold) / (endThreshold - startThreshold);
 
     return minPadding + (percentage * (maxPadding - minPadding));
+  }
+
+  int _countActiveFilters(TrailFilter current, TrailFilter defaultFilter) {
+    int count = 0;
+    if (current.category.isNotEmpty) count++;
+    if (current.tags.isNotEmpty) count++;
+    if (current.difficulty.length != defaultFilter.difficulty.length ||
+        !current.difficulty.every(defaultFilter.difficulty.contains)) {
+      count++;
+    }
+    if (current.author != null) count++;
+    if (current.public != defaultFilter.public) count++;
+    if (current.private != defaultFilter.private) count++;
+    if (current.shared != defaultFilter.shared) count++;
+    if (current.liked != defaultFilter.liked) count++;
+    if (current.distanceMin > 0) count++;
+    if (current.distanceMax < current.distanceLimit) count++;
+    if (current.elevationGainMin > 0) count++;
+    if (current.elevationGainMax < current.elevationGainLimit) count++;
+    if (current.elevationLossMin > 0) count++;
+    if (current.elevationLossMax < current.elevationLossLimit) count++;
+    if (current.startDate != null) count++;
+    if (current.endDate != null) count++;
+    return count;
   }
 }

@@ -653,18 +653,21 @@ class _EmptyState extends StatelessWidget {
     return Container(
       height: 200,
       decoration: BoxDecoration(
-        color: const Color(0xFF12121A),
+        color: Theme.of(context).colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(16),
       ),
       alignment: Alignment.center,
-      child: const Column(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.terrain, color: Color(0xFF333344), size: 48),
+          Icon(Icons.terrain, size: 48),
           SizedBox(height: 8),
           Text(
             'No track data',
-            style: TextStyle(color: Color(0xFF555566), fontSize: 14),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: 14,
+            ),
           ),
         ],
       ),

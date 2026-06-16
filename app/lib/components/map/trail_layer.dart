@@ -204,18 +204,18 @@ class _TrailLayerState extends State<TrailLayer>
     showArrows = false;
     return Stack(
       children: [
-        // Base Trail Line Layer
-        PolylineLayer(
-          polylines: [
-            Polyline(
-              points: pathPoints,
-              color: widget.routeColor,
-              strokeWidth: widget.strokeWidth,
-              borderColor: Colors.white,
-              borderStrokeWidth: 2,
-            ),
-          ],
-        ),
+        if (pathPoints.length > 1)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: pathPoints,
+                color: widget.routeColor,
+                strokeWidth: widget.strokeWidth,
+                borderColor: Colors.white,
+                borderStrokeWidth: 2,
+              ),
+            ],
+          ),
 
         if (pathPoints.length > 1 && showArrows)
           AnimatedBuilder(

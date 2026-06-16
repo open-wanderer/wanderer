@@ -386,7 +386,7 @@ class _StatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -434,7 +434,7 @@ class _CountsRow extends ConsumerWidget {
     final countsAsync = ref.watch(profileCountsProvider(actorId));
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: [
           Expanded(

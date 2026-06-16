@@ -62,12 +62,13 @@ class TrailPanel extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        DateFormat.yMMMMd(
-                          Localizations.localeOf(context).toString(),
-                        ).format(trail.summaryDate!),
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
+                      if (trail.summaryDate != null)
+                        Text(
+                          DateFormat.yMMMMd(
+                            Localizations.localeOf(context).toString(),
+                          ).format(trail.summaryDate!),
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
                       if (trail.isOffline) ...[
                         const SizedBox(width: 8),
                         Container(
