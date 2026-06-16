@@ -5,8 +5,8 @@ import 'package:wanderer/components/base/wanderer_autocomplete.dart';
 import 'package:wanderer/components/base/wanderer_date_picker.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/base/wanderer_filter_chip.dart';
+import 'package:wanderer/components/base/wanderer_actor_search.dart';
 import 'package:wanderer/components/base/wanderer_radio_group.dart';
-import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
@@ -116,10 +116,18 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 Text(l10n.author, style: TextTheme.of(context).labelLarge),
                 const SizedBox(height: 8),
 
-                WandererSearchBar(
-                  onChanged: (value) => ref
+                WandererActorSearch(
+                  hintText: l10n.author,
+                  initialAuthorId: filter.value?.author,
+                  initialAuthorLabel: "",
+                  onSelected: (actor) => ref
                       .read(trailFilterProvider.notifier)
-                      .updateFilter((filter) => filter.copyWith(author: value)),
+                      .updateFilter(
+                        (filter) => filter.copyWith(author: actor.id),
+                      ),
+                  onCleared: () => ref
+                      .read(trailFilterProvider.notifier)
+                      .updateFilter((filter) => filter.copyWith(author: "")),
                 ),
                 const SizedBox(height: 16),
 
