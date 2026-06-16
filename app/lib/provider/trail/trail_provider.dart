@@ -2,6 +2,7 @@ import 'package:gpx/gpx.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_like.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
@@ -56,6 +57,62 @@ class TrailNotifier extends _$TrailNotifier {
 
       if (entity != null) return entity.toModel();
       rethrow;
+    }
+  }
+
+  Future<void> like(String actorId) async {
+    final trail = state.value;
+    if (trail == null) return;
+
+    final api = ref.read(apiProvider);
+
+    try {
+      await api.put("/trail-like", data: {"actor": actorId, "trail": trail.id});
+
+      final newLike = TrailLike(actor: actorId, trail: trail.id);
+
+      state = AsyncData(
+        trail.copyWith(
+          likeCount: trail.likeCount + 1,
+          expand: (trail.expand ?? const TrailExpand()).copyWith(
+            trailLikeViaTrail: [
+              ...(trail.expand?.trailLikeViaTrail ?? []),
+              newLike,
+            ],
+          ),
+        ),
+      );
+    } catch (_) {
+      // Leave state unchanged on failure (graceful degradation).
+    }
+  }
+
+  Future<void> unlike(String actorId) async {
+    final trail = state.value;
+    if (trail == null) return;
+
+    final api = ref.read(apiProvider);
+
+    try {
+      await api.post(
+        "/trail-like/delete",
+        data: {"actor": actorId, "trail": trail.id},
+      );
+
+      final remaining = (trail.expand?.trailLikeViaTrail ?? [])
+          .where((l) => l.actor != actorId)
+          .toList();
+
+      state = AsyncData(
+        trail.copyWith(
+          likeCount: trail.likeCount > 0 ? trail.likeCount - 1 : 0,
+          expand: (trail.expand ?? const TrailExpand()).copyWith(
+            trailLikeViaTrail: remaining,
+          ),
+        ),
+      );
+    } catch (_) {
+      // Leave state unchanged on failure (graceful degradation).
     }
   }
 }
