@@ -136,7 +136,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
           // Stats row — follower/following counts + follow button
           SliverToBoxAdapter(
-            child: _StatsRow(actor: actor, isOwn: isOwn),
+            child: _StatsRow(actor: actor, isOwn: isOwn, handle: _handle),
           ),
 
           if (h != null)
@@ -380,7 +380,12 @@ class _ListsPreview extends ConsumerWidget {
 class _StatsRow extends StatelessWidget {
   final Actor actor;
   final bool isOwn;
-  const _StatsRow({required this.actor, required this.isOwn});
+  final String? handle;
+  const _StatsRow({
+    required this.actor,
+    required this.isOwn,
+    required this.handle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -395,7 +400,9 @@ class _StatsRow extends StatelessWidget {
               icon: FontAwesomeIcons.userGroup,
               label: l.followers,
               count: actor.followerCount,
-              onTap: null,
+              onTap: handle != null
+                  ? () => context.push('/profile/$handle/followers')
+                  : null,
             ),
           ),
           const SizedBox(width: 12),
@@ -404,7 +411,9 @@ class _StatsRow extends StatelessWidget {
               icon: FontAwesomeIcons.userCheck,
               label: l.following,
               count: actor.followingCount,
-              onTap: null,
+              onTap: handle != null
+                  ? () => context.push('/profile/$handle/following')
+                  : null,
             ),
           ),
           if (!isOwn) ...[
