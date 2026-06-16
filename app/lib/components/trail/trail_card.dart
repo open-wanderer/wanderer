@@ -250,7 +250,7 @@ class TrailCard extends ConsumerWidget {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              FaIcon(FontAwesomeIcons.gauge),
+                              FaIcon(FontAwesomeIcons.gauge, size: 14),
                               const SizedBox(width: 6),
                               Text(
                                 _getDifficultyLabel(

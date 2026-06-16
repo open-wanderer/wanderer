@@ -48,6 +48,8 @@ class TrailPanel extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (trail.localPhotos.isEmpty && webPhotos.isEmpty)
+              const SizedBox(height: kToolbarHeight + 16),
             if (trail.localPhotos.isNotEmpty || webPhotos.isNotEmpty)
               PhotoCollage(
                 webPhotos: webPhotos,

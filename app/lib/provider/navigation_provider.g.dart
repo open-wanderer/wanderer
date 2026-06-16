@@ -8,27 +8,12 @@ part of 'navigation_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Riverpod notifier that owns the live navigation state for a single
-/// [NavigateResponse] session.
-///
-/// Family-keyed on [response] so each navigation session is isolated and
-/// testable via a plain [ProviderContainer] (D-17).
 
 @ProviderFor(Navigation)
 final navigationProvider = NavigationFamily._();
 
-/// Riverpod notifier that owns the live navigation state for a single
-/// [NavigateResponse] session.
-///
-/// Family-keyed on [response] so each navigation session is isolated and
-/// testable via a plain [ProviderContainer] (D-17).
 final class NavigationProvider
     extends $NotifierProvider<Navigation, NavigationState> {
-  /// Riverpod notifier that owns the live navigation state for a single
-  /// [NavigateResponse] session.
-  ///
-  /// Family-keyed on [response] so each navigation session is isolated and
-  /// testable via a plain [ProviderContainer] (D-17).
   NavigationProvider._({
     required NavigationFamily super.from,
     required NavigateResponse super.argument,
@@ -73,13 +58,7 @@ final class NavigationProvider
   }
 }
 
-String _$navigationHash() => r'32b47d025c9eccbff4739be15bf38b1aebef5298';
-
-/// Riverpod notifier that owns the live navigation state for a single
-/// [NavigateResponse] session.
-///
-/// Family-keyed on [response] so each navigation session is isolated and
-/// testable via a plain [ProviderContainer] (D-17).
+String _$navigationHash() => r'9fff8311bcfa9517373d5dad98908dc29f15fe55';
 
 final class NavigationFamily extends $Family
     with
@@ -99,24 +78,12 @@ final class NavigationFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// Riverpod notifier that owns the live navigation state for a single
-  /// [NavigateResponse] session.
-  ///
-  /// Family-keyed on [response] so each navigation session is isolated and
-  /// testable via a plain [ProviderContainer] (D-17).
-
   NavigationProvider call(NavigateResponse response) =>
       NavigationProvider._(argument: response, from: this);
 
   @override
   String toString() => r'navigationProvider';
 }
-
-/// Riverpod notifier that owns the live navigation state for a single
-/// [NavigateResponse] session.
-///
-/// Family-keyed on [response] so each navigation session is isolated and
-/// testable via a plain [ProviderContainer] (D-17).
 
 abstract class _$Navigation extends $Notifier<NavigationState> {
   late final _$args = ref.$arg as NavigateResponse;

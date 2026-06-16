@@ -125,7 +125,7 @@ abstract class TrailNear with _$TrailNear {
       _TrailNear;
 }
 
-enum TrailFilterSortOrder { asc, desc }
+enum SortOrder { asc, desc }
 
 enum TrailFilterSort {
   created,
@@ -169,7 +169,7 @@ abstract class TrailFilter with _$TrailFilter {
     bool? liked,
     required TrailFilterSort
     sort, // "name" | "distance" | "elevation_gain" | "created"
-    required TrailFilterSortOrder sortOrder,
+    required SortOrder sortOrder,
   }) = _TrailFilter;
 
   const TrailFilter._();

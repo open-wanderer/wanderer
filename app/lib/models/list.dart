@@ -8,11 +8,9 @@ import 'actor.dart';
 part 'list.freezed.dart';
 part 'list.g.dart';
 
-enum ListSort {
+enum ListFilterSort {
   @JsonValue('name')
   name,
-  @JsonValue('size')
-  size,
   @JsonValue('created')
   created,
 }
@@ -35,10 +33,6 @@ abstract class WandererList
     required String name,
     @Default(false) bool public,
     String? description,
-    @JsonKey(name: 'elevation_gain') double? elevationGain,
-    @JsonKey(name: 'elevation_loss') double? elevationLoss,
-    double? distance,
-    double? duration,
     String? avatar,
     @Default([]) List<String> trails,
     String? iri,
@@ -53,6 +47,28 @@ abstract class WandererList
   @override
   int get trailCount => expand?.trails?.length ?? 0;
 
+  @override
+  double? get elevationGain =>
+      expand?.trails?.fold<double>(0.0, (s, t) => s + t.elevationGain);
+
+  @override
+  double? get elevationLoss =>
+      expand?.trails?.fold<double>(0.0, (s, t) => s + t.elevationLoss);
+
+  @override
+  double? get distance =>
+      expand?.trails?.fold<double>(0.0, (s, t) => s + t.distance);
+
+  @override
+  double? get duration =>
+      expand?.trails?.fold<double>(0.0, (s, t) => s + t.duration);
+
+  @override
+  String get summaryAuthorName => expand?.author?.username ?? "Unknown";
+
+  @override
+  String get summaryAuthorAvatar => expand?.author?.icon ?? "";
+
   factory WandererList.fromJson(Map<String, dynamic> json) =>
       _$WandererListFromJson(json);
 }
@@ -61,10 +77,45 @@ abstract class WandererList
 abstract class ListFilter with _$ListFilter {
   const factory ListFilter({
     required String q,
-    ListSort? sort,
     String? author,
     bool? public,
     bool? shared,
-    String? sortOrder,
+    required ListFilterSort sort,
+    required SortOrder sortOrder,
   }) = _ListFilter;
+
+  // ignore: unused_element
+  const ListFilter._();
+
+  String toFilterText({String? actorId}) {
+    String filterText = '';
+
+    if (author != null && author!.isNotEmpty) {
+      filterText += 'author = $author';
+    }
+
+    if (public != null || shared != null) {
+      if (filterText.isNotEmpty) {
+        filterText += ' AND ';
+      }
+      filterText += '(';
+      if (public != null) {
+        filterText += '(public = $public';
+        if (author == null || author!.isEmpty || author == actorId) {
+          filterText += ' OR author = $actorId';
+        }
+        filterText += ')';
+      }
+      if (shared != null) {
+        if (shared == true) {
+          filterText += ' OR shares = $actorId';
+        } else {
+          filterText += ' AND NOT shares = $actorId';
+        }
+      }
+      filterText += ')';
+    }
+
+    return filterText;
+  }
 }

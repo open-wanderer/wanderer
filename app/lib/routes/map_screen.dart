@@ -143,12 +143,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
       }
     });
 
-    if (style == null) {
-      return SizedBox.expand(
-        child: ColoredBox(color: Theme.of(context).colorScheme.surface),
-      );
-    }
-
     final searchResultAsync = ref.watch(mapTrailSearchProvider);
     final trails = searchResultAsync.value ?? [];
 
@@ -226,16 +220,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
             },
           ),
           children: [
-            SizedBox.expand(
-              child: VectorTileLayer(
-                tileProviders: style.providers,
-                theme: style.theme,
-                tileOffset: TileOffset.DEFAULT,
-                concurrency: kDebugMode
-                    ? 0
-                    : VectorTileLayer.defaultConcurrency,
+            if (style != null)
+              SizedBox.expand(
+                child: VectorTileLayer(
+                  tileProviders: style.providers,
+                  theme: style.theme,
+                  tileOffset: TileOffset.DEFAULT,
+                  concurrency: kDebugMode
+                      ? 0
+                      : VectorTileLayer.defaultConcurrency,
+                ),
               ),
-            ),
             const CurrentLocationLayer(),
 
             if (_selectedPolyline != null)

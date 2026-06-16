@@ -351,7 +351,8 @@ class _ListsPreview extends ConsumerWidget {
                   scrollDirection: Axis.horizontal,
                   itemCount: lists.length,
                   separatorBuilder: (context, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) => ListCard(list: lists[index]),
+                  itemBuilder: (context, index) =>
+                      ListCard(list: lists[index], mini: true),
                 ),
               ),
             ],
@@ -492,7 +493,9 @@ class _CountCard extends StatelessWidget {
                     label,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   count == null

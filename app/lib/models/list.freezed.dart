@@ -313,7 +313,7 @@ $ActorCopyWith<$Res>? get author {
 /// @nodoc
 mixin _$WandererList {
 
- String get id; String get collectionId; String get name; bool get public; String? get description;@JsonKey(name: 'elevation_gain') double? get elevationGain;@JsonKey(name: 'elevation_loss') double? get elevationLoss; double? get distance; double? get duration; String? get avatar; List<String> get trails; String? get iri; ListExpand? get expand; DateTime? get created; DateTime? get updated; String get author;
+ String get id; String get collectionId; String get name; bool get public; String? get description; String? get avatar; List<String> get trails; String? get iri; ListExpand? get expand; DateTime? get created; DateTime? get updated; String get author;
 /// Create a copy of WandererList
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -326,16 +326,16 @@ $WandererListCopyWith<WandererList> get copyWith => _$WandererListCopyWithImpl<W
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is WandererList&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.public, public) || other.public == public)&&(identical(other.description, description) || other.description == description)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&const DeepCollectionEquality().equals(other.trails, trails)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.author, author) || other.author == author));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is WandererList&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.public, public) || other.public == public)&&(identical(other.description, description) || other.description == description)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&const DeepCollectionEquality().equals(other.trails, trails)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.author, author) || other.author == author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,collectionId,name,public,description,elevationGain,elevationLoss,distance,duration,avatar,const DeepCollectionEquality().hash(trails),iri,expand,created,updated,author);
+int get hashCode => Object.hash(runtimeType,id,collectionId,name,public,description,avatar,const DeepCollectionEquality().hash(trails),iri,expand,created,updated,author);
 
 @override
 String toString() {
-  return 'WandererList(id: $id, collectionId: $collectionId, name: $name, public: $public, description: $description, elevationGain: $elevationGain, elevationLoss: $elevationLoss, distance: $distance, duration: $duration, avatar: $avatar, trails: $trails, iri: $iri, expand: $expand, created: $created, updated: $updated, author: $author)';
+  return 'WandererList(id: $id, collectionId: $collectionId, name: $name, public: $public, description: $description, avatar: $avatar, trails: $trails, iri: $iri, expand: $expand, created: $created, updated: $updated, author: $author)';
 }
 
 
@@ -346,7 +346,7 @@ abstract mixin class $WandererListCopyWith<$Res>  {
   factory $WandererListCopyWith(WandererList value, $Res Function(WandererList) _then) = _$WandererListCopyWithImpl;
 @useResult
 $Res call({
- String id, String collectionId, String name, bool public, String? description,@JsonKey(name: 'elevation_gain') double? elevationGain,@JsonKey(name: 'elevation_loss') double? elevationLoss, double? distance, double? duration, String? avatar, List<String> trails, String? iri, ListExpand? expand, DateTime? created, DateTime? updated, String author
+ String id, String collectionId, String name, bool public, String? description, String? avatar, List<String> trails, String? iri, ListExpand? expand, DateTime? created, DateTime? updated, String author
 });
 
 
@@ -363,18 +363,14 @@ class _$WandererListCopyWithImpl<$Res>
 
 /// Create a copy of WandererList
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? collectionId = null,Object? name = null,Object? public = null,Object? description = freezed,Object? elevationGain = freezed,Object? elevationLoss = freezed,Object? distance = freezed,Object? duration = freezed,Object? avatar = freezed,Object? trails = null,Object? iri = freezed,Object? expand = freezed,Object? created = freezed,Object? updated = freezed,Object? author = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? collectionId = null,Object? name = null,Object? public = null,Object? description = freezed,Object? avatar = freezed,Object? trails = null,Object? iri = freezed,Object? expand = freezed,Object? created = freezed,Object? updated = freezed,Object? author = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,public: null == public ? _self.public : public // ignore: cast_nullable_to_non_nullable
 as bool,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
-as String?,elevationGain: freezed == elevationGain ? _self.elevationGain : elevationGain // ignore: cast_nullable_to_non_nullable
-as double?,elevationLoss: freezed == elevationLoss ? _self.elevationLoss : elevationLoss // ignore: cast_nullable_to_non_nullable
-as double?,distance: freezed == distance ? _self.distance : distance // ignore: cast_nullable_to_non_nullable
-as double?,duration: freezed == duration ? _self.duration : duration // ignore: cast_nullable_to_non_nullable
-as double?,avatar: freezed == avatar ? _self.avatar : avatar // ignore: cast_nullable_to_non_nullable
+as String?,avatar: freezed == avatar ? _self.avatar : avatar // ignore: cast_nullable_to_non_nullable
 as String?,trails: null == trails ? _self.trails : trails // ignore: cast_nullable_to_non_nullable
 as List<String>,iri: freezed == iri ? _self.iri : iri // ignore: cast_nullable_to_non_nullable
 as String?,expand: freezed == expand ? _self.expand : expand // ignore: cast_nullable_to_non_nullable
@@ -478,10 +474,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String collectionId,  String name,  bool public,  String? description, @JsonKey(name: 'elevation_gain')  double? elevationGain, @JsonKey(name: 'elevation_loss')  double? elevationLoss,  double? distance,  double? duration,  String? avatar,  List<String> trails,  String? iri,  ListExpand? expand,  DateTime? created,  DateTime? updated,  String author)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String collectionId,  String name,  bool public,  String? description,  String? avatar,  List<String> trails,  String? iri,  ListExpand? expand,  DateTime? created,  DateTime? updated,  String author)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _WandererList() when $default != null:
-return $default(_that.id,_that.collectionId,_that.name,_that.public,_that.description,_that.elevationGain,_that.elevationLoss,_that.distance,_that.duration,_that.avatar,_that.trails,_that.iri,_that.expand,_that.created,_that.updated,_that.author);case _:
+return $default(_that.id,_that.collectionId,_that.name,_that.public,_that.description,_that.avatar,_that.trails,_that.iri,_that.expand,_that.created,_that.updated,_that.author);case _:
   return orElse();
 
 }
@@ -499,10 +495,10 @@ return $default(_that.id,_that.collectionId,_that.name,_that.public,_that.descri
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String collectionId,  String name,  bool public,  String? description, @JsonKey(name: 'elevation_gain')  double? elevationGain, @JsonKey(name: 'elevation_loss')  double? elevationLoss,  double? distance,  double? duration,  String? avatar,  List<String> trails,  String? iri,  ListExpand? expand,  DateTime? created,  DateTime? updated,  String author)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String collectionId,  String name,  bool public,  String? description,  String? avatar,  List<String> trails,  String? iri,  ListExpand? expand,  DateTime? created,  DateTime? updated,  String author)  $default,) {final _that = this;
 switch (_that) {
 case _WandererList():
-return $default(_that.id,_that.collectionId,_that.name,_that.public,_that.description,_that.elevationGain,_that.elevationLoss,_that.distance,_that.duration,_that.avatar,_that.trails,_that.iri,_that.expand,_that.created,_that.updated,_that.author);case _:
+return $default(_that.id,_that.collectionId,_that.name,_that.public,_that.description,_that.avatar,_that.trails,_that.iri,_that.expand,_that.created,_that.updated,_that.author);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -519,10 +515,10 @@ return $default(_that.id,_that.collectionId,_that.name,_that.public,_that.descri
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String collectionId,  String name,  bool public,  String? description, @JsonKey(name: 'elevation_gain')  double? elevationGain, @JsonKey(name: 'elevation_loss')  double? elevationLoss,  double? distance,  double? duration,  String? avatar,  List<String> trails,  String? iri,  ListExpand? expand,  DateTime? created,  DateTime? updated,  String author)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String collectionId,  String name,  bool public,  String? description,  String? avatar,  List<String> trails,  String? iri,  ListExpand? expand,  DateTime? created,  DateTime? updated,  String author)?  $default,) {final _that = this;
 switch (_that) {
 case _WandererList() when $default != null:
-return $default(_that.id,_that.collectionId,_that.name,_that.public,_that.description,_that.elevationGain,_that.elevationLoss,_that.distance,_that.duration,_that.avatar,_that.trails,_that.iri,_that.expand,_that.created,_that.updated,_that.author);case _:
+return $default(_that.id,_that.collectionId,_that.name,_that.public,_that.description,_that.avatar,_that.trails,_that.iri,_that.expand,_that.created,_that.updated,_that.author);case _:
   return null;
 
 }
@@ -534,7 +530,7 @@ return $default(_that.id,_that.collectionId,_that.name,_that.public,_that.descri
 @JsonSerializable()
 
 class _WandererList extends WandererList {
-  const _WandererList({required this.id, this.collectionId = 'lists', required this.name, this.public = false, this.description, @JsonKey(name: 'elevation_gain') this.elevationGain, @JsonKey(name: 'elevation_loss') this.elevationLoss, this.distance, this.duration, this.avatar, final  List<String> trails = const [], this.iri, this.expand, this.created, this.updated, this.author = '000000000000000'}): _trails = trails,super._();
+  const _WandererList({required this.id, this.collectionId = 'lists', required this.name, this.public = false, this.description, this.avatar, final  List<String> trails = const [], this.iri, this.expand, this.created, this.updated, this.author = '000000000000000'}): _trails = trails,super._();
   factory _WandererList.fromJson(Map<String, dynamic> json) => _$WandererListFromJson(json);
 
 @override final  String id;
@@ -542,10 +538,6 @@ class _WandererList extends WandererList {
 @override final  String name;
 @override@JsonKey() final  bool public;
 @override final  String? description;
-@override@JsonKey(name: 'elevation_gain') final  double? elevationGain;
-@override@JsonKey(name: 'elevation_loss') final  double? elevationLoss;
-@override final  double? distance;
-@override final  double? duration;
 @override final  String? avatar;
  final  List<String> _trails;
 @override@JsonKey() List<String> get trails {
@@ -573,16 +565,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WandererList&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.public, public) || other.public == public)&&(identical(other.description, description) || other.description == description)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&const DeepCollectionEquality().equals(other._trails, _trails)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.author, author) || other.author == author));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WandererList&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.public, public) || other.public == public)&&(identical(other.description, description) || other.description == description)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&const DeepCollectionEquality().equals(other._trails, _trails)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.author, author) || other.author == author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,collectionId,name,public,description,elevationGain,elevationLoss,distance,duration,avatar,const DeepCollectionEquality().hash(_trails),iri,expand,created,updated,author);
+int get hashCode => Object.hash(runtimeType,id,collectionId,name,public,description,avatar,const DeepCollectionEquality().hash(_trails),iri,expand,created,updated,author);
 
 @override
 String toString() {
-  return 'WandererList(id: $id, collectionId: $collectionId, name: $name, public: $public, description: $description, elevationGain: $elevationGain, elevationLoss: $elevationLoss, distance: $distance, duration: $duration, avatar: $avatar, trails: $trails, iri: $iri, expand: $expand, created: $created, updated: $updated, author: $author)';
+  return 'WandererList(id: $id, collectionId: $collectionId, name: $name, public: $public, description: $description, avatar: $avatar, trails: $trails, iri: $iri, expand: $expand, created: $created, updated: $updated, author: $author)';
 }
 
 
@@ -593,7 +585,7 @@ abstract mixin class _$WandererListCopyWith<$Res> implements $WandererListCopyWi
   factory _$WandererListCopyWith(_WandererList value, $Res Function(_WandererList) _then) = __$WandererListCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String collectionId, String name, bool public, String? description,@JsonKey(name: 'elevation_gain') double? elevationGain,@JsonKey(name: 'elevation_loss') double? elevationLoss, double? distance, double? duration, String? avatar, List<String> trails, String? iri, ListExpand? expand, DateTime? created, DateTime? updated, String author
+ String id, String collectionId, String name, bool public, String? description, String? avatar, List<String> trails, String? iri, ListExpand? expand, DateTime? created, DateTime? updated, String author
 });
 
 
@@ -610,18 +602,14 @@ class __$WandererListCopyWithImpl<$Res>
 
 /// Create a copy of WandererList
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? collectionId = null,Object? name = null,Object? public = null,Object? description = freezed,Object? elevationGain = freezed,Object? elevationLoss = freezed,Object? distance = freezed,Object? duration = freezed,Object? avatar = freezed,Object? trails = null,Object? iri = freezed,Object? expand = freezed,Object? created = freezed,Object? updated = freezed,Object? author = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? collectionId = null,Object? name = null,Object? public = null,Object? description = freezed,Object? avatar = freezed,Object? trails = null,Object? iri = freezed,Object? expand = freezed,Object? created = freezed,Object? updated = freezed,Object? author = null,}) {
   return _then(_WandererList(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,public: null == public ? _self.public : public // ignore: cast_nullable_to_non_nullable
 as bool,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
-as String?,elevationGain: freezed == elevationGain ? _self.elevationGain : elevationGain // ignore: cast_nullable_to_non_nullable
-as double?,elevationLoss: freezed == elevationLoss ? _self.elevationLoss : elevationLoss // ignore: cast_nullable_to_non_nullable
-as double?,distance: freezed == distance ? _self.distance : distance // ignore: cast_nullable_to_non_nullable
-as double?,duration: freezed == duration ? _self.duration : duration // ignore: cast_nullable_to_non_nullable
-as double?,avatar: freezed == avatar ? _self.avatar : avatar // ignore: cast_nullable_to_non_nullable
+as String?,avatar: freezed == avatar ? _self.avatar : avatar // ignore: cast_nullable_to_non_nullable
 as String?,trails: null == trails ? _self._trails : trails // ignore: cast_nullable_to_non_nullable
 as List<String>,iri: freezed == iri ? _self.iri : iri // ignore: cast_nullable_to_non_nullable
 as String?,expand: freezed == expand ? _self.expand : expand // ignore: cast_nullable_to_non_nullable
@@ -650,7 +638,7 @@ $ListExpandCopyWith<$Res>? get expand {
 /// @nodoc
 mixin _$ListFilter {
 
- String get q; ListSort? get sort; String? get author; bool? get public; bool? get shared; String? get sortOrder;
+ String get q; String? get author; bool? get public; bool? get shared; ListFilterSort get sort; SortOrder get sortOrder;
 /// Create a copy of ListFilter
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -661,16 +649,16 @@ $ListFilterCopyWith<ListFilter> get copyWith => _$ListFilterCopyWithImpl<ListFil
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListFilter&&(identical(other.q, q) || other.q == q)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.author, author) || other.author == author)&&(identical(other.public, public) || other.public == public)&&(identical(other.shared, shared) || other.shared == shared)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListFilter&&(identical(other.q, q) || other.q == q)&&(identical(other.author, author) || other.author == author)&&(identical(other.public, public) || other.public == public)&&(identical(other.shared, shared) || other.shared == shared)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,q,sort,author,public,shared,sortOrder);
+int get hashCode => Object.hash(runtimeType,q,author,public,shared,sort,sortOrder);
 
 @override
 String toString() {
-  return 'ListFilter(q: $q, sort: $sort, author: $author, public: $public, shared: $shared, sortOrder: $sortOrder)';
+  return 'ListFilter(q: $q, author: $author, public: $public, shared: $shared, sort: $sort, sortOrder: $sortOrder)';
 }
 
 
@@ -681,7 +669,7 @@ abstract mixin class $ListFilterCopyWith<$Res>  {
   factory $ListFilterCopyWith(ListFilter value, $Res Function(ListFilter) _then) = _$ListFilterCopyWithImpl;
 @useResult
 $Res call({
- String q, ListSort? sort, String? author, bool? public, bool? shared, String? sortOrder
+ String q, String? author, bool? public, bool? shared, ListFilterSort sort, SortOrder sortOrder
 });
 
 
@@ -698,15 +686,15 @@ class _$ListFilterCopyWithImpl<$Res>
 
 /// Create a copy of ListFilter
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? q = null,Object? sort = freezed,Object? author = freezed,Object? public = freezed,Object? shared = freezed,Object? sortOrder = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? q = null,Object? author = freezed,Object? public = freezed,Object? shared = freezed,Object? sort = null,Object? sortOrder = null,}) {
   return _then(_self.copyWith(
 q: null == q ? _self.q : q // ignore: cast_nullable_to_non_nullable
-as String,sort: freezed == sort ? _self.sort : sort // ignore: cast_nullable_to_non_nullable
-as ListSort?,author: freezed == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
+as String,author: freezed == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
 as String?,public: freezed == public ? _self.public : public // ignore: cast_nullable_to_non_nullable
 as bool?,shared: freezed == shared ? _self.shared : shared // ignore: cast_nullable_to_non_nullable
-as bool?,sortOrder: freezed == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
-as String?,
+as bool?,sort: null == sort ? _self.sort : sort // ignore: cast_nullable_to_non_nullable
+as ListFilterSort,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
+as SortOrder,
   ));
 }
 
@@ -791,10 +779,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String q,  ListSort? sort,  String? author,  bool? public,  bool? shared,  String? sortOrder)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String q,  String? author,  bool? public,  bool? shared,  ListFilterSort sort,  SortOrder sortOrder)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ListFilter() when $default != null:
-return $default(_that.q,_that.sort,_that.author,_that.public,_that.shared,_that.sortOrder);case _:
+return $default(_that.q,_that.author,_that.public,_that.shared,_that.sort,_that.sortOrder);case _:
   return orElse();
 
 }
@@ -812,10 +800,10 @@ return $default(_that.q,_that.sort,_that.author,_that.public,_that.shared,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String q,  ListSort? sort,  String? author,  bool? public,  bool? shared,  String? sortOrder)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String q,  String? author,  bool? public,  bool? shared,  ListFilterSort sort,  SortOrder sortOrder)  $default,) {final _that = this;
 switch (_that) {
 case _ListFilter():
-return $default(_that.q,_that.sort,_that.author,_that.public,_that.shared,_that.sortOrder);case _:
+return $default(_that.q,_that.author,_that.public,_that.shared,_that.sort,_that.sortOrder);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -832,10 +820,10 @@ return $default(_that.q,_that.sort,_that.author,_that.public,_that.shared,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String q,  ListSort? sort,  String? author,  bool? public,  bool? shared,  String? sortOrder)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String q,  String? author,  bool? public,  bool? shared,  ListFilterSort sort,  SortOrder sortOrder)?  $default,) {final _that = this;
 switch (_that) {
 case _ListFilter() when $default != null:
-return $default(_that.q,_that.sort,_that.author,_that.public,_that.shared,_that.sortOrder);case _:
+return $default(_that.q,_that.author,_that.public,_that.shared,_that.sort,_that.sortOrder);case _:
   return null;
 
 }
@@ -846,16 +834,16 @@ return $default(_that.q,_that.sort,_that.author,_that.public,_that.shared,_that.
 /// @nodoc
 
 
-class _ListFilter implements ListFilter {
-  const _ListFilter({required this.q, this.sort, this.author, this.public, this.shared, this.sortOrder});
+class _ListFilter extends ListFilter {
+  const _ListFilter({required this.q, this.author, this.public, this.shared, required this.sort, required this.sortOrder}): super._();
   
 
 @override final  String q;
-@override final  ListSort? sort;
 @override final  String? author;
 @override final  bool? public;
 @override final  bool? shared;
-@override final  String? sortOrder;
+@override final  ListFilterSort sort;
+@override final  SortOrder sortOrder;
 
 /// Create a copy of ListFilter
 /// with the given fields replaced by the non-null parameter values.
@@ -867,16 +855,16 @@ _$ListFilterCopyWith<_ListFilter> get copyWith => __$ListFilterCopyWithImpl<_Lis
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListFilter&&(identical(other.q, q) || other.q == q)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.author, author) || other.author == author)&&(identical(other.public, public) || other.public == public)&&(identical(other.shared, shared) || other.shared == shared)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListFilter&&(identical(other.q, q) || other.q == q)&&(identical(other.author, author) || other.author == author)&&(identical(other.public, public) || other.public == public)&&(identical(other.shared, shared) || other.shared == shared)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,q,sort,author,public,shared,sortOrder);
+int get hashCode => Object.hash(runtimeType,q,author,public,shared,sort,sortOrder);
 
 @override
 String toString() {
-  return 'ListFilter(q: $q, sort: $sort, author: $author, public: $public, shared: $shared, sortOrder: $sortOrder)';
+  return 'ListFilter(q: $q, author: $author, public: $public, shared: $shared, sort: $sort, sortOrder: $sortOrder)';
 }
 
 
@@ -887,7 +875,7 @@ abstract mixin class _$ListFilterCopyWith<$Res> implements $ListFilterCopyWith<$
   factory _$ListFilterCopyWith(_ListFilter value, $Res Function(_ListFilter) _then) = __$ListFilterCopyWithImpl;
 @override @useResult
 $Res call({
- String q, ListSort? sort, String? author, bool? public, bool? shared, String? sortOrder
+ String q, String? author, bool? public, bool? shared, ListFilterSort sort, SortOrder sortOrder
 });
 
 
@@ -904,15 +892,15 @@ class __$ListFilterCopyWithImpl<$Res>
 
 /// Create a copy of ListFilter
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? q = null,Object? sort = freezed,Object? author = freezed,Object? public = freezed,Object? shared = freezed,Object? sortOrder = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? q = null,Object? author = freezed,Object? public = freezed,Object? shared = freezed,Object? sort = null,Object? sortOrder = null,}) {
   return _then(_ListFilter(
 q: null == q ? _self.q : q // ignore: cast_nullable_to_non_nullable
-as String,sort: freezed == sort ? _self.sort : sort // ignore: cast_nullable_to_non_nullable
-as ListSort?,author: freezed == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
+as String,author: freezed == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
 as String?,public: freezed == public ? _self.public : public // ignore: cast_nullable_to_non_nullable
 as bool?,shared: freezed == shared ? _self.shared : shared // ignore: cast_nullable_to_non_nullable
-as bool?,sortOrder: freezed == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
-as String?,
+as bool?,sort: null == sort ? _self.sort : sort // ignore: cast_nullable_to_non_nullable
+as ListFilterSort,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
+as SortOrder,
   ));
 }
 

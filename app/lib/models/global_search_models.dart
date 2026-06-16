@@ -117,6 +117,12 @@ abstract class ListSearchResult
   @override
   int get trailCount => trails;
 
+  @override
+  String get summaryAuthorName => authorName;
+
+  @override
+  String get summaryAuthorAvatar => authorAvatar;
+
   factory ListSearchResult.fromJson(Map<String, dynamic> json) =>
       _$ListSearchResultFromJson(json);
 }

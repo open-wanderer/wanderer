@@ -7,6 +7,10 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/routes/library_detail_screen.dart';
 import 'package:wanderer/routes/library_screen.dart';
 import 'package:wanderer/routes/home_screen.dart';
+import 'package:wanderer/routes/list_detail_map_screen.dart';
+import 'package:wanderer/routes/list_detail_screen.dart';
+import 'package:wanderer/routes/list_screen.dart';
+import 'package:wanderer/routes/list_sort_screen.dart';
 import 'package:wanderer/routes/login_screen.dart';
 import 'package:wanderer/routes/map_screen.dart';
 import 'package:wanderer/routes/profile_screen.dart';
@@ -130,6 +134,10 @@ class Router extends _$Router {
               },
             ),
             GoRoute(
+              path: '/list',
+              builder: (context, state) => const ListScreen(),
+            ),
+            GoRoute(
               path: '/profile',
               builder: (context, state) => const ProfileScreen(handle: null),
               routes: [
@@ -206,7 +214,30 @@ class Router extends _$Router {
                 }
                 final (response, isOffline) = extra;
                 return NavigationScreen(
-                    id: trailId, response: response, isOffline: isOffline);
+                  id: trailId,
+                  response: response,
+                  isOffline: isOffline,
+                );
+              },
+            ),
+          ],
+        ),
+        GoRoute(
+          path: '/list/sort',
+          builder: (context, state) => const ListSortScreen(),
+        ),
+        GoRoute(
+          path: '/list/:id',
+          builder: (context, state) {
+            final listId = state.pathParameters['id']!;
+            return ListDetailScreen(id: listId);
+          },
+          routes: [
+            GoRoute(
+              path: 'map',
+              builder: (context, state) {
+                final listId = state.pathParameters['id']!;
+                return ListDetailMapScreen(id: listId);
               },
             ),
           ],

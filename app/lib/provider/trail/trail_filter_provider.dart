@@ -42,7 +42,7 @@ class TrailFilterNotifier extends _$TrailFilterNotifier {
         elevationLossMax: filterValues.maxElevationLoss,
         elevationLossLimit: filterValues.maxElevationLoss,
         sort: TrailFilterSort.created,
-        sortOrder: TrailFilterSortOrder.desc,
+        sortOrder: SortOrder.desc,
       );
     } catch (e) {
       throw Exception('Failed to fetch trail filters: $e');

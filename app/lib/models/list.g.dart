@@ -25,10 +25,6 @@ _WandererList _$WandererListFromJson(Map<String, dynamic> json) =>
       name: json['name'] as String,
       public: json['public'] as bool? ?? false,
       description: json['description'] as String?,
-      elevationGain: (json['elevation_gain'] as num?)?.toDouble(),
-      elevationLoss: (json['elevation_loss'] as num?)?.toDouble(),
-      distance: (json['distance'] as num?)?.toDouble(),
-      duration: (json['duration'] as num?)?.toDouble(),
       avatar: json['avatar'] as String?,
       trails:
           (json['trails'] as List<dynamic>?)
@@ -55,10 +51,6 @@ Map<String, dynamic> _$WandererListToJson(_WandererList instance) =>
       'name': instance.name,
       'public': instance.public,
       'description': instance.description,
-      'elevation_gain': instance.elevationGain,
-      'elevation_loss': instance.elevationLoss,
-      'distance': instance.distance,
-      'duration': instance.duration,
       'avatar': instance.avatar,
       'trails': instance.trails,
       'iri': instance.iri,

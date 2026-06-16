@@ -1,13 +1,25 @@
+import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:wanderer/components/trail/stat_chip.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/list_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/util/format_util.dart';
 
 class ListCard extends ConsumerWidget {
   final ListSummary list;
+  final bool mini;
+  final VoidCallback? onListSelect;
 
-  const ListCard({super.key, required this.list});
+  const ListCard({
+    super.key,
+    required this.list,
+    this.mini = false,
+    this.onListSelect,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,7 +33,7 @@ class ListCard extends ConsumerWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
-      width: 160,
+      width: mini ? 160 : double.infinity,
       child: Material(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
@@ -36,52 +48,48 @@ class ListCard extends ConsumerWidget {
               width: 1,
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: list.avatar?.isNotEmpty == true
-                      ? Image(
-                          image: NetworkImage(avatarUrl!),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _placeholder(context),
-                        )
-                      : _placeholder(context),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: InkWell(
+            onTap: onListSelect,
+            borderRadius: BorderRadius.circular(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
                   children: [
-                    Text(
-                      list.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${list.trailCount} trails',
-                      style: TextStyle(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.6),
-                        fontSize: 12,
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: list.avatar?.isNotEmpty == true
+                            ? Image(
+                                image: NetworkImage(avatarUrl!),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    _placeholder(context),
+                              )
+                            : _placeholder(context),
                       ),
                     ),
+                    if (list.public)
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: _BadgeWrapper(
+                          child: FaIcon(FontAwesomeIcons.globe, size: 16),
+                        ),
+                      ),
                   ],
                 ),
-              ),
-            ],
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: mini
+                      ? _MiniContent(list: list)
+                      : _FullContent(list: list),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -93,6 +101,161 @@ class ListCard extends ConsumerWidget {
       "assets/svgs/empty_state_trail_${Theme.of(context).brightness.name}.svg",
       semanticsLabel: 'wanderer logo',
       height: 80,
+    );
+  }
+}
+
+class _MiniContent extends StatelessWidget {
+  final ListSummary list;
+  const _MiniContent({required this.list});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          list.name,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${list.trailCount} trails',
+          style: TextStyle(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.6),
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FullContent extends StatelessWidget {
+  final ListSummary list;
+  const _FullContent({required this.list});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          list.name,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '${list.trailCount} ${AppLocalizations.of(context)!.trail(list.trailCount)}',
+          style: TextStyle(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.6),
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Text(
+              AppLocalizations.of(context)?.by ?? "by",
+              style: TextStyle(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(width: 6),
+            CircleAvatar(
+              radius: 12,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+              backgroundImage: NetworkImage(
+                list.summaryAuthorAvatar.isNotEmpty
+                    ? list.summaryAuthorAvatar
+                    : "https://api.dicebear.com/7.x/initials/png?seed=${list.summaryAuthorName}&backgroundType=gradientLinear",
+              ),
+              onBackgroundImageError: (_, _) =>
+                  const FaIcon(FontAwesomeIcons.user),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              list.summaryAuthorName,
+              style: TextStyle(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            StatChip(
+              icon: FontAwesomeIcons.ruler,
+              label: formatDistance(list.distance),
+            ),
+            if (list.duration != null)
+              StatChip(
+                icon: FontAwesomeIcons.clock,
+                label: Duration(
+                  seconds: list.duration!.toInt(),
+                ).pretty(abbreviated: true, tersity: DurationTersity.minute),
+              ),
+            StatChip(
+              icon: FontAwesomeIcons.arrowTrendUp,
+              label: formatElevation(list.elevationGain),
+            ),
+            StatChip(
+              icon: FontAwesomeIcons.arrowTrendDown,
+              label: formatElevation(list.elevationLoss),
+            ),
+          ],
+        ),
+        if (list.description?.isNotEmpty == true) ...[
+          const SizedBox(height: 8),
+          Text(
+            list.description!.replaceAll(RegExp(r'<[^>]*>'), '').trim(),
+            style: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.7),
+              fontSize: 13,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _BadgeWrapper extends StatelessWidget {
+  final Widget child;
+  const _BadgeWrapper({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainer,
+        shape: BoxShape.circle,
+      ),
+      child: child,
     );
   }
 }

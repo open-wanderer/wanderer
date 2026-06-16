@@ -1,0 +1,408 @@
+import 'package:duration/duration.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart' as html;
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:vector_map_tiles/vector_map_tiles.dart';
+import 'package:wanderer/components/base/wanderer_error.dart';
+import 'package:wanderer/components/trail/stat_chip.dart';
+import 'package:wanderer/components/trail/trail_list_item.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/models/list.dart';
+import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/map_style_provider.dart';
+import 'package:wanderer/provider/trail/list_provider.dart';
+import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/icon_util.dart';
+import 'package:wanderer/util/polyline_util.dart';
+
+class ListDetailScreen extends ConsumerStatefulWidget {
+  final String id;
+  const ListDetailScreen({super.key, required this.id});
+
+  @override
+  ConsumerState<ListDetailScreen> createState() => _ListDetailScreenState();
+}
+
+class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
+  late final ScrollController _scrollController = ScrollController();
+  double _appBarOpacity = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients) {
+      const maxScrollDistance = 128.0;
+      final newOpacity = (_scrollController.offset / maxScrollDistance).clamp(
+        0.0,
+        1.0,
+      );
+      if (newOpacity != _appBarOpacity) {
+        setState(() => _appBarOpacity = newOpacity);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final listAsync = ref.watch(listProvider(widget.id));
+    final theme = Theme.of(context);
+
+    return listAsync.when(
+      data: (list) => Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+            onPressed: () => context.pop(),
+            style: IconButton.styleFrom(
+              backgroundColor: theme.colorScheme.surface.withValues(
+                alpha: 1.0 - _appBarOpacity,
+              ),
+            ),
+          ),
+          backgroundColor: theme.colorScheme.surface.withValues(
+            alpha: _appBarOpacity,
+          ),
+          shadowColor: Colors.black.withValues(alpha: _appBarOpacity * 0.15),
+          elevation: _appBarOpacity > 0 ? 2 : 0,
+          scrolledUnderElevation: 0,
+        ),
+        body: SingleChildScrollView(
+          controller: _scrollController,
+          child: _ListHeader(list: list),
+        ),
+      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, stack) => Scaffold(
+        body: WandererError(err: err, stack: stack),
+      ),
+    );
+  }
+}
+
+class _ListHeader extends ConsumerWidget {
+  final WandererList list;
+  const _ListHeader({required this.list});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).requireValue!;
+    final theme = Theme.of(context);
+    final l18n = AppLocalizations.of(context)!;
+
+    final avatarUrl = list.getFileUrl(
+      user.serverUrl,
+      list.avatar,
+      thumb: '1200x0',
+    );
+    final author = list.expand?.author;
+    final trails = list.expand?.trails ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (avatarUrl == null) const SizedBox(height: kToolbarHeight + 16),
+        if (avatarUrl != null)
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Image.network(
+              avatarUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    list.name,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (list.public) FaIcon(FontAwesomeIcons.globe, size: 18),
+                ],
+              ),
+
+              if (author != null) ...[
+                const SizedBox(height: 4),
+                InkWell(
+                  onTap: () => context.push(
+                    '/profile/@${author.preferredUsername}@${author.domain}',
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.grey.shade300,
+                          backgroundImage: NetworkImage(
+                            list.summaryAuthorAvatar.isNotEmpty
+                                ? list.summaryAuthorAvatar
+                                : "https://api.dicebear.com/7.x/initials/png?seed=${list.summaryAuthorName}&backgroundType=gradientLinear",
+                          ),
+                          onBackgroundImageError: (_, _) =>
+                              const FaIcon(FontAwesomeIcons.user),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "@${author.preferredUsername}@${author.domain}",
+                          style: theme.textTheme.labelLarge,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 8),
+
+              Text(
+                '${list.trailCount} ${l18n.trail(list.trailCount)}',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontSize: 13,
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  StatChip(
+                    icon: FontAwesomeIcons.ruler,
+                    label: formatDistance(list.distance),
+                  ),
+                  if (list.duration != null && list.duration! > 0)
+                    StatChip(
+                      icon: FontAwesomeIcons.clock,
+                      label: Duration(seconds: list.duration!.toInt()).pretty(
+                        abbreviated: true,
+                        tersity: DurationTersity.minute,
+                      ),
+                    ),
+                  StatChip(
+                    icon: FontAwesomeIcons.arrowTrendUp,
+                    label: formatElevation(list.elevationGain),
+                  ),
+                  StatChip(
+                    icon: FontAwesomeIcons.arrowTrendDown,
+                    label: formatElevation(list.elevationLoss),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+        const Divider(height: 1, thickness: 1),
+
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (list.description?.isNotEmpty == true) ...[
+                Text(
+                  l18n.description,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                html.Html(data: list.description),
+              ],
+              Text(
+                l18n.map,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (trails.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: SizedBox(
+                    height: 200,
+                    child: Material(
+                      child: Stack(
+                        children: [
+                          _ListMap(list: list, trails: trails),
+                          Align(
+                            alignment: Alignment.topRight,
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: IconButton(
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).canvasColor,
+                                ),
+                                icon: FaIcon(
+                                  FontAwesomeIcons.upRightAndDownLeftFromCenter,
+                                  size: 18,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                ),
+                                onPressed: () =>
+                                    context.push('/list/${list.id}/map'),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  l18n.trail(2),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...(trails.map(
+                  (t) => TrailListItem(
+                    trail: t,
+                    onTrailSelect: () => context.push('/trail/${t.id}'),
+                  ),
+                )),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ListMap extends ConsumerWidget {
+  final WandererList list;
+  final List<Trail> trails;
+  const _ListMap({required this.list, required this.trails});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final styleAsync = ref.watch(mapStyleProvider);
+
+    final polylines = trails
+        .where((t) => t.polyline != null && t.polyline!.isNotEmpty)
+        .map((t) => PolylineTools.decode(t.polyline!))
+        .toList();
+
+    final markers = trails
+        .where((t) => t.lat != null && t.lon != null)
+        .map(
+          (t) => Marker(
+            point: LatLng(t.lat!, t.lon!),
+            width: 36,
+            height: 36,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Center(child: getTrailIcon(t.summaryCategory)),
+            ),
+          ),
+        )
+        .toList();
+
+    final combinedBounds = _combinedBounds(trails);
+
+    return styleAsync.when(
+      loading: () => ColoredBox(color: Theme.of(context).colorScheme.surface),
+      error: (e, _) => Center(child: Text(e.toString())),
+      data: (style) => FlutterMap(
+        key: ObjectKey(style),
+        options: MapOptions(
+          onTap: (_, _) => context.push('/list/${list.id}/map'),
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          interactionOptions: const InteractionOptions(
+            flags: InteractiveFlag.none,
+          ),
+          initialCameraFit: combinedBounds != null
+              ? CameraFit.bounds(
+                  bounds: combinedBounds,
+                  padding: const EdgeInsets.all(32),
+                )
+              : null,
+          initialCenter: const LatLng(0, 0),
+          initialZoom: 3,
+        ),
+        children: [
+          VectorTileLayer(
+            tileProviders: style.providers,
+            theme: style.theme,
+            tileOffset: TileOffset.DEFAULT,
+            concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
+          ),
+          if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
+          if (markers.isNotEmpty) MarkerLayer(markers: markers),
+        ],
+      ),
+    );
+  }
+
+  LatLngBounds? _combinedBounds(List<Trail> trails) {
+    final withBounds = trails.where(
+      (t) => t.minLat != 0 || t.maxLat != 0 || t.minLon != 0 || t.maxLon != 0,
+    );
+    if (withBounds.isEmpty) return null;
+
+    double minLat = double.infinity;
+    double maxLat = double.negativeInfinity;
+    double minLon = double.infinity;
+    double maxLon = double.negativeInfinity;
+
+    for (final t in withBounds) {
+      if (t.minLat < minLat) minLat = t.minLat;
+      if (t.maxLat > maxLat) maxLat = t.maxLat;
+      if (t.minLon < minLon) minLon = t.minLon;
+      if (t.maxLon > maxLon) maxLon = t.maxLon;
+    }
+
+    return LatLngBounds(LatLng(minLat, minLon), LatLng(maxLat, maxLon));
+  }
+}
