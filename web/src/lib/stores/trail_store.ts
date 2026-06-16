@@ -725,7 +725,7 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
             expand: {
                 author: {
                     collectionId: "activitypub_actors",
-                    isLocal: (h.domain?.length ?? 0) == 0,
+                    is_local: (h.domain?.length ?? 0) == 0,
                     id: h.author,
                     icon: h.author_avatar,
                     preferred_username: h.author_name,

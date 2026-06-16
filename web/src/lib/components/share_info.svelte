@@ -55,7 +55,7 @@
                                         alt="avatar"
                                     />
                                     <p class="font-semibold text-base">
-                                        {`@${share.expand.actor.username}${share.expand.actor.isLocal ? "" : "@" + share.expand.actor.domain}`}
+                                        {`@${share.expand.actor.username}${share.expand.actor.is_local ? "" : "@" + share.expand.actor.domain}`}
                                     </p>
                                     <span class="mx-2 text-sm text-gray-500"
                                         >{$_("can")}</span

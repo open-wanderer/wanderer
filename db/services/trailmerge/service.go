@@ -1516,7 +1516,7 @@ func buildMergedCommentText(app core.App, comment *core.Record) string {
 	if authorID := comment.GetString("author"); authorID != "" {
 		if author, err := app.FindRecordById("activitypub_actors", authorID); err == nil {
 			authorHandle = "@" + author.GetString("preferred_username")
-			if !author.GetBool("isLocal") && author.GetString("domain") != "" {
+			if !author.GetBool("is_local") && author.GetString("domain") != "" {
 				authorHandle += "@" + author.GetString("domain")
 			}
 		}

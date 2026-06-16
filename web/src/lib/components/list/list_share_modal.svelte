@@ -84,7 +84,7 @@
     }
 
     async function shareList(item: SelectItem) {
-        if (!item.value.isLocal && !list.public) {
+        if (!item.value.is_local && !list.public) {
             displayShareError = true;
             return;
         }
@@ -162,7 +162,7 @@
                                 alt="avatar"
                             />
                             <p>
-                                {`@${share.expand.actor.preferred_username}${share.expand.actor.isLocal ? "" : "@" + share.expand.actor.domain}`}
+                                {`@${share.expand.actor.preferred_username}${share.expand.actor.is_local ? "" : "@" + share.expand.actor.domain}`}
                             </p>
                             <span
                                 class="basis-full text-sm text-center text-gray-500"
@@ -170,13 +170,13 @@
                             >
                             <div
                                 class="shrink-0"
-                                class:tooltip={!share.expand.actor.isLocal}
+                                class:tooltip={!share.expand.actor.is_local}
                                 data-title={$_("remote-users-cannot-edit")}
                             >
                                 <Select
                                     bind:value={share.permission}
                                     items={permissionSelectItems}
-                                    disabled={!share.expand.actor.isLocal}
+                                    disabled={!share.expand.actor.is_local}
                                     onchange={(value) =>
                                         updateSharePermission(share, value)}
                                 ></Select>

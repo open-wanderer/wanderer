@@ -76,7 +76,7 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 	// a remote actor has requested the follow
 	// this means we have not yet created a follow entry in our db
 	// we accept it immediately
-	if !actor.GetBool("isLocal") {
+	if !actor.GetBool("is_local") {
 		followCollection, err := app.FindCollectionByNameOrId("follows")
 		if err != nil {
 			return err

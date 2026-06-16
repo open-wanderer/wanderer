@@ -69,7 +69,7 @@ func GetActorByHandle(app core.App, ctx context.Context, handle string, includeF
 	if domain != "" {
 		filter += "domain={:domain}"
 	} else {
-		filter += "isLocal=true"
+		filter += "is_local=true"
 	}
 
 	var dbActor *core.Record
@@ -81,7 +81,7 @@ func GetActorByHandle(app core.App, ctx context.Context, handle string, includeF
 		}
 
 		dbActor = core.NewRecord(collection)
-		dbActor.Set("isLocal", false)
+		dbActor.Set("is_local", false)
 		iri, err := iriFromHandle(ctx, domain, username)
 		if err != nil {
 			return nil, err
@@ -105,7 +105,7 @@ func GetActorByIRI(app core.App, ctx context.Context, iri string, includeFollows
 		}
 
 		dbActor = core.NewRecord(collection)
-		dbActor.Set("isLocal", false)
+		dbActor.Set("is_local", false)
 		dbActor.Set("iri", iri)
 
 	} else if err != nil {
@@ -167,7 +167,7 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 	}
 
 	private := false
-	if dbActor.GetBool("isLocal") {
+	if dbActor.GetBool("is_local") {
 		user, err := app.FindRecordById("users", dbActor.GetString("user"))
 		if err != nil {
 			return nil, err

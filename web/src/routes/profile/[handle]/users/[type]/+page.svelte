@@ -62,7 +62,7 @@
     <ul class="space-y-4">
         {#each follows.items as follow}
             <a
-                href="/profile/@{follow.preferred_username}{follow.isLocal
+                href="/profile/@{follow.preferred_username}{follow.is_local
                     ? ''
                     : '@' + follow.domain}"
             >

@@ -90,6 +90,10 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordAfterCreateSuccess("users").BindFunc(hooks.CreateUserHandler(client))
 	app.OnRecordAfterUpdateSuccess("users").BindFunc(hooks.UpdateUserHandler(client))
 
+	app.OnRecordAfterCreateSuccess("activitypub_actors").BindFunc(hooks.CreateActorHandler(client))
+	app.OnRecordAfterUpdateSuccess("activitypub_actors").BindFunc(hooks.UpdateActorHandler(client))
+	app.OnRecordAfterDeleteSuccess("activitypub_actors").BindFunc(hooks.DeleteActorHandler(client))
+
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client))
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client))
 	app.OnRecordAfterDeleteSuccess("trails").BindFunc(hooks.DeleteTrailHandler(client))
@@ -315,6 +319,12 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 			SortableAttributes:   []string{"created", "name"},
 			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
 		},
+		"actors": {
+			SearchableAttributes: []string{"username", "preferred_username", "domain"},
+			FilterableAttributes: []string{"id"},
+			SortableAttributes:   []string{},
+			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
+		},
 	}
 
 	for indexName, settings := range configs {
@@ -398,6 +408,33 @@ func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) e
 
 		if err := util.IndexLists(app, lists, client); err != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to index list page %d: %v", page, err))
+			continue
+		}
+
+		page++
+	}
+
+	// --- Actors ---
+	if _, err := client.Index("actors").DeleteAllDocuments(nil); err != nil {
+		return err
+	}
+
+	page = 0
+	for {
+		actors := []*core.Record{}
+		err := app.RecordQuery("activitypub_actors").
+			Limit(pageSize).
+			Offset(page * pageSize).
+			All(&actors)
+		if err != nil {
+			return err
+		}
+		if len(actors) == 0 {
+			break
+		}
+
+		if err := util.IndexActors(actors, client); err != nil {
+			app.Logger().Warn(fmt.Sprintf("Unable to index actor page %d: %v", page, err))
 			continue
 		}
 
