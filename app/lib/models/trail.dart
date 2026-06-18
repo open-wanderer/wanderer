@@ -286,6 +286,60 @@ abstract class TrailFilter with _$TrailFilter {
 
     return parts.join(" AND ");
   }
+
+  /// Filter text for profile trail search — excludes author, visibility, and
+  /// geo parts since the API route enforces author and those are irrelevant.
+  String toProfileFilterText() {
+    final List<String> parts = [];
+
+    if (distanceMax < distanceLimit) {
+      parts.add('distance <= ${distanceMax.ceil()}');
+    }
+    if (distanceMin > 0) {
+      parts.add('distance >= ${distanceMin.floor()}');
+    }
+    if (elevationGainMax < elevationGainLimit) {
+      parts.add('elevation_gain <= ${elevationGainMax.ceil()}');
+    }
+    if (elevationGainMin > 0) {
+      parts.add('elevation_gain >= ${elevationGainMin.floor()}');
+    }
+    if (elevationLossMax < elevationLossLimit) {
+      parts.add('elevation_loss <= ${elevationLossMax.ceil()}');
+    }
+    if (elevationLossMin > 0) {
+      parts.add('elevation_loss >= ${elevationLossMin.floor()}');
+    }
+
+    if (difficulty.isNotEmpty && difficulty.length < 3) {
+      parts.add('difficulty IN [${difficulty.join(",")}]');
+    }
+
+    if (startDate != null) {
+      final seconds = startDate!.millisecondsSinceEpoch ~/ 1000;
+      parts.add('date >= $seconds');
+    }
+    if (endDate != null) {
+      final seconds = endDate!.millisecondsSinceEpoch ~/ 1000;
+      parts.add('date <= $seconds');
+    }
+
+    if (category.isNotEmpty) {
+      final catList = category.map((c) => "'${c.name}'").join(', ');
+      parts.add('category IN [$catList]');
+    }
+
+    if (tags.isNotEmpty) {
+      final tagList = tags.map((t) => "tags = '${t.name}'").join(' OR ');
+      parts.add('($tagList)');
+    }
+
+    if (completed != null) {
+      parts.add('completed = $completed');
+    }
+
+    return parts.join(' AND ');
+  }
 }
 
 @freezed

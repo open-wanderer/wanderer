@@ -1,8 +1,10 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/global_search_models.dart';
+import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/profile/profile_constants.dart';
+import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 
 part 'profile_trails_provider.freezed.dart';
 part 'profile_trails_provider.g.dart';
@@ -28,14 +30,24 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
   @override
   FutureOr<ProfileTrailsState> build(String handle) async {
     _handle = handle;
-    return await _fetchPage(handle: handle, page: 1, q: _q);
+
+    // Watch the filter so we rebuild and re-fetch when it changes.
+    final filterAsync = ref.watch(
+      trailFilterProvider('profile_trail_$handle'),
+    );
+    final filter = filterAsync.value;
+
+    return await _fetchPage(handle: handle, page: 1, q: _q, filter: filter);
   }
 
   Future<void> search(String q) async {
     _q = q;
     state = const AsyncLoading();
+    final filter = ref
+        .read(trailFilterProvider('profile_trail_$_handle'))
+        .value;
     state = await AsyncValue.guard(
-      () => _fetchPage(handle: _handle, page: 1, q: _q),
+      () => _fetchPage(handle: _handle, page: 1, q: _q, filter: filter),
     );
   }
 
@@ -46,15 +58,16 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
       return;
     }
 
-    // Do NOT set AsyncLoading here — stay in AsyncData while fetching the
-    // next page so the UI keeps showing the existing list without flickering
-    // to an empty spinner. State transitions directly AsyncData -> AsyncData.
     state = await AsyncValue.guard(() async {
+      final filter = ref
+          .read(trailFilterProvider('profile_trail_$_handle'))
+          .value;
       final nextPage = currentState.page + 1;
       final responseState = await _fetchPage(
         handle: _handle,
         page: nextPage,
         q: _q,
+        filter: filter,
       );
       return currentState.copyWith(
         trails: [...currentState.trails, ...responseState.trails],
@@ -68,15 +81,26 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
     required String handle,
     required int page,
     required String q,
+    TrailFilter? filter,
   }) async {
     final api = ref.read(apiProvider);
     const int perPage = kProfileSearchPerPage;
+
+    final filterText = filter?.toProfileFilterText() ?? '';
+    final sortParam = filter != null
+        ? '${filter.sort.name}:${filter.sortOrder.name}'
+        : 'created:desc';
 
     final response = await api.post(
       '/profile/$handle/trails',
       data: {
         'q': q,
-        'options': {'hitsPerPage': perPage, 'page': page},
+        'options': {
+          'hitsPerPage': perPage,
+          'page': page,
+          if (filterText.isNotEmpty) 'filter': filterText,
+          'sort': [sortParam],
+        },
       },
     );
 
