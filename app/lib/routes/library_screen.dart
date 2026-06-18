@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
+import 'package:wanderer/components/trail/trail_quick_filter_bar.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/router_provider.dart';
+import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -24,20 +26,28 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     super.dispose();
   }
 
-  List<Trail> _filtered(List<Trail> trails) {
+  List<Trail> _filtered(List<Trail> trails, TrailFilter? filter) {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return trails;
-    return trails.where((t) {
-      return t.name.toLowerCase().contains(q) ||
-          t.description.toLowerCase().contains(q);
-    }).toList();
+    List<Trail> result = q.isEmpty
+        ? trails
+        : trails.where((t) {
+            return t.name.toLowerCase().contains(q) ||
+                t.description.toLowerCase().contains(q);
+          }).toList();
+
+    if (filter != null) {
+      result = applyTrailFilter(result, filter);
+    }
+
+    return result;
   }
 
   @override
   Widget build(BuildContext context) {
     final trailLibrary = ref.watch(trailLibraryProvider);
     final router = ref.watch(routerProvider);
-    final visible = _filtered(trailLibrary);
+    final filterAsync = ref.watch(trailFilterProvider('library'));
+    final visible = _filtered(trailLibrary, filterAsync.value);
 
     return Scaffold(
       body: SafeArea(
@@ -80,6 +90,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   ),
                 ),
               ),
+              const TrailQuickFilterBar(filterId: 'library'),
               Expanded(
                 child: ListView.builder(
                   itemCount: visible.length,
