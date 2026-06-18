@@ -49,12 +49,13 @@ class WaypointCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    waypoint.name ?? 'Unnamed Waypoint',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  if (waypoint.name?.isNotEmpty == true)
+                    Text(
+                      waypoint.name!,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
 
                   const SizedBox(height: 6),
 
@@ -64,7 +65,7 @@ class WaypointCard extends ConsumerWidget {
                       FaIcon(
                         FontAwesomeIcons.locationDot,
                         size: 13,
-                        color: Theme.of(context).primaryColor,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -72,7 +73,7 @@ class WaypointCard extends ConsumerWidget {
                         '${waypoint.lon.toStringAsFixed(5)}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).primaryColor,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontWeight: FontWeight.w500,
                         ),
                       ),

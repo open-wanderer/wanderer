@@ -144,7 +144,9 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         color: Theme.of(context).colorScheme.surface,
         child: const Center(child: CircularProgressIndicator()),
       ),
-      error: (err, stack) => WandererError(err: err, stack: stack),
+      error: (err, stack) => Scaffold(
+        body: WandererError(err: err, stack: stack),
+      ),
     );
   }
 }
