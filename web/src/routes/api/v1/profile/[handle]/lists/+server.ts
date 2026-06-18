@@ -60,7 +60,12 @@ export async function POST(event: RequestEvent) {
 
         let r: SearchResponse<ListSearchResult>;
         if (actor.is_local) {
-            r = await event.locals.ms.index("lists").search(data.q, { ...data.options, filter: `author = ${actor.id}` });
+            const authorFilter = `author = ${actor.id}`;
+            const clientFilter = data.options?.filter;
+            const combinedFilter = clientFilter
+                ? [authorFilter, clientFilter]
+                : authorFilter;
+            r = await event.locals.ms.index("lists").search(data.q, { ...data.options, filter: combinedFilter });
         } else {
             const origin = new URL(actor.iri).origin
             const url = `${origin}/api/v1/profile/${actor.preferred_username}/lists?` + event.url.searchParams
