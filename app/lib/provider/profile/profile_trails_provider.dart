@@ -86,7 +86,7 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
     final api = ref.read(apiProvider);
     const int perPage = kProfileSearchPerPage;
 
-    final filterText = filter?.toProfileFilterText() ?? '';
+    final filterText = filter?.toFilterText() ?? '';
     final sortParam = filter != null
         ? '${filter.sort.name}:${filter.sortOrder.name}'
         : 'created:desc';

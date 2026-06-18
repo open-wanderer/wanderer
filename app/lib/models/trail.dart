@@ -188,7 +188,13 @@ abstract class TrailFilter with _$TrailFilter {
 
   const TrailFilter._();
 
-  String toFilterText({required String actor, bool includeGeo = true}) {
+  /// Builds a Meilisearch filter string from this filter.
+  ///
+  /// Pass [actor] (the current user's actor ID) to include author, visibility,
+  /// and liked constraints. Omit it (or pass null) when the caller does not
+  /// need user-scoped filtering — e.g. profile trail searches where the server
+  /// already enforces the author constraint.
+  String toFilterText({String? actor, bool includeGeo = true}) {
     List<String> parts = [];
 
     // Basic Numeric Filters
@@ -211,46 +217,48 @@ abstract class TrailFilter with _$TrailFilter {
       parts.add('difficulty IN [${difficulty.join(",")}]');
     }
 
-    // Author
-    if (author != null) {
-      parts.add('author = ${author!.id}');
-    }
+    if (actor != null) {
+      // Author
+      if (author != null) {
+        parts.add('author = ${author!.id}');
+      }
 
-    // Visibility Logic (Public / Private / Shared)
-    if (public != null || private != null || shared != null) {
-      List<String> visibilityOrBlocks = [];
+      // Visibility Logic (Public / Private / Shared)
+      if (public != null || private != null || shared != null) {
+        List<String> visibilityOrBlocks = [];
 
-      final bool showPublic = public ?? true;
-      final bool showPrivate = private ?? true;
-      final bool showShared = shared ?? false;
+        final bool showPublic = public ?? true;
+        final bool showPrivate = private ?? true;
+        final bool showShared = shared ?? false;
 
-      if (showPublic) {
-        String publicBlock = "public = TRUE";
-        // If showing private trails and user is the author (or no specific author requested)
-        if (showPrivate && (author == null || author!.id == actor)) {
-          publicBlock = "($publicBlock OR author = $actor)";
+        if (showPublic) {
+          String publicBlock = "public = TRUE";
+          // If showing private trails and user is the author (or no specific author requested)
+          if (showPrivate && (author == null || author!.id == actor)) {
+            publicBlock = "($publicBlock OR author = $actor)";
+          }
+          visibilityOrBlocks.add(publicBlock);
+        } else if (author == null || author!.id == actor) {
+          visibilityOrBlocks.add("(public = FALSE AND author = $actor)");
         }
-        visibilityOrBlocks.add(publicBlock);
-      } else if (author == null || author!.id == actor) {
-        visibilityOrBlocks.add("(public = FALSE AND author = $actor)");
-      }
 
-      if (shared != null) {
-        if (showShared) {
-          visibilityOrBlocks.add("shares = $actor");
-        } else {
-          parts.add("NOT shares = $actor");
+        if (shared != null) {
+          if (showShared) {
+            visibilityOrBlocks.add("shares = $actor");
+          } else {
+            parts.add("NOT shares = $actor");
+          }
+        }
+
+        if (visibilityOrBlocks.isNotEmpty) {
+          parts.add("(${visibilityOrBlocks.join(" OR ")})");
         }
       }
 
-      if (visibilityOrBlocks.isNotEmpty) {
-        parts.add("(${visibilityOrBlocks.join(" OR ")})");
+      // Liked
+      if (liked == true) {
+        parts.add('likes = $actor');
       }
-    }
-
-    // Liked
-    if (liked == true) {
-      parts.add('likes = $actor');
     }
 
     // Dates
@@ -285,60 +293,6 @@ abstract class TrailFilter with _$TrailFilter {
     }
 
     return parts.join(" AND ");
-  }
-
-  /// Filter text for profile trail search — excludes author, visibility, and
-  /// geo parts since the API route enforces author and those are irrelevant.
-  String toProfileFilterText() {
-    final List<String> parts = [];
-
-    if (distanceMax < distanceLimit) {
-      parts.add('distance <= ${distanceMax.ceil()}');
-    }
-    if (distanceMin > 0) {
-      parts.add('distance >= ${distanceMin.floor()}');
-    }
-    if (elevationGainMax < elevationGainLimit) {
-      parts.add('elevation_gain <= ${elevationGainMax.ceil()}');
-    }
-    if (elevationGainMin > 0) {
-      parts.add('elevation_gain >= ${elevationGainMin.floor()}');
-    }
-    if (elevationLossMax < elevationLossLimit) {
-      parts.add('elevation_loss <= ${elevationLossMax.ceil()}');
-    }
-    if (elevationLossMin > 0) {
-      parts.add('elevation_loss >= ${elevationLossMin.floor()}');
-    }
-
-    if (difficulty.isNotEmpty && difficulty.length < 3) {
-      parts.add('difficulty IN [${difficulty.join(",")}]');
-    }
-
-    if (startDate != null) {
-      final seconds = startDate!.millisecondsSinceEpoch ~/ 1000;
-      parts.add('date >= $seconds');
-    }
-    if (endDate != null) {
-      final seconds = endDate!.millisecondsSinceEpoch ~/ 1000;
-      parts.add('date <= $seconds');
-    }
-
-    if (category.isNotEmpty) {
-      final catList = category.map((c) => "'${c.name}'").join(', ');
-      parts.add('category IN [$catList]');
-    }
-
-    if (tags.isNotEmpty) {
-      final tagList = tags.map((t) => "tags = '${t.name}'").join(' OR ');
-      parts.add('($tagList)');
-    }
-
-    if (completed != null) {
-      parts.add('completed = $completed');
-    }
-
-    return parts.join(' AND ');
   }
 }
 
