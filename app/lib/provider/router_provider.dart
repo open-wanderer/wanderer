@@ -10,7 +10,6 @@ import 'package:wanderer/routes/home_screen.dart';
 import 'package:wanderer/routes/list_detail_map_screen.dart';
 import 'package:wanderer/routes/list_detail_screen.dart';
 import 'package:wanderer/routes/list_screen.dart';
-import 'package:wanderer/routes/list_sort_screen.dart';
 import 'package:wanderer/routes/login_screen.dart';
 import 'package:wanderer/routes/map_screen.dart';
 import 'package:wanderer/routes/profile_follow_screen.dart';
@@ -223,10 +222,6 @@ class Router extends _$Router {
               },
             ),
           ],
-        ),
-        GoRoute(
-          path: '/list/sort',
-          builder: (context, state) => const ListSortScreen(),
         ),
         GoRoute(
           path: '/list/:id',

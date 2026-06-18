@@ -50,7 +50,7 @@ class ListSearchNotifier extends _$ListSearchNotifier {
 
   Future<ListSearchState> _fetchPage({required int page}) async {
     final api = ref.read(apiProvider);
-    final filter = await ref.watch(listFilterProvider.future);
+    final filter = await ref.watch(listFilterProvider('lists').future);
     final user = ref.read(authProvider).value;
 
     const int perPage = 20;

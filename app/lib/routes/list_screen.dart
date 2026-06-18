@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/list/list_card.dart';
-import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/components/list/list_quick_filter_bar.dart';
 import 'package:wanderer/provider/list/list_filter_provider.dart';
 import 'package:wanderer/provider/list/list_search_provider.dart';
 
@@ -45,7 +44,7 @@ class _ListScreenState extends ConsumerState<ListScreen> {
 
   void _onQueryChanged(String value) {
     ref
-        .read(listFilterProvider.notifier)
+        .read(listFilterProvider('lists').notifier)
         .updateFilter((f) => f.copyWith(q: value));
     ref.invalidate(listSearchProvider);
   }
@@ -96,22 +95,7 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                   ),
                 ),
               ),
-              ActionChip(
-                onPressed: () => context.push('/list/sort'),
-                avatar: FaIcon(
-                  FontAwesomeIcons.arrowDownShortWide,
-                  size: 14,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-                shape: StadiumBorder(
-                  side: BorderSide(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                ),
-                label: Text(AppLocalizations.of(context)!.sort),
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                elevation: 4,
-              ),
+              const ListQuickFilterBar(filterId: 'lists'),
               Expanded(
                 child: searchState.when(
                   loading: () =>

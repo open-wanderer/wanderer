@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/list/list_filter_provider.dart';
 import 'package:wanderer/provider/profile/profile_constants.dart';
 
 part 'profile_lists_provider.g.dart';
@@ -28,6 +29,7 @@ class ProfileListsNotifier extends _$ProfileListsNotifier {
   @override
   FutureOr<ProfileListsState> build(String handle) async {
     _handle = handle;
+    ref.watch(listFilterProvider('profile_list_$handle'));
     return await _fetchPage(handle: handle, page: 1, q: _q);
   }
 
@@ -70,13 +72,19 @@ class ProfileListsNotifier extends _$ProfileListsNotifier {
     required String q,
   }) async {
     final api = ref.read(apiProvider);
+    final filter = ref.read(listFilterProvider('profile_list_$handle')).value;
     const int perPage = kProfileSearchPerPage;
 
     final response = await api.post(
       '/profile/$handle/lists',
       data: {
         'q': q,
-        'options': {'hitsPerPage': perPage, 'page': page},
+        'options': {
+          'hitsPerPage': perPage,
+          'page': page,
+          if (filter != null)
+            'sort': ['${filter.sort.name}:${filter.sortOrder.name}'],
+        },
       },
     );
 

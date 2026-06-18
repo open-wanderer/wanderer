@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/components/list/list_list_item.dart';
+import 'package:wanderer/components/list/list_quick_filter_bar.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/profile/profile_lists_provider.dart';
 
@@ -63,6 +64,7 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
                   .search(q),
             ),
           ),
+          ListQuickFilterBar(filterId: 'profile_list_${widget.handle}'),
           Expanded(
             child: listsAsync.when(
               data: (state) => RefreshIndicator(
