@@ -49,7 +49,7 @@ class TrailSearchNotifier extends _$TrailSearchNotifier {
 
   Future<TrailSearchState> _fetchPage({required int page}) async {
     final api = ref.read(apiProvider);
-    final filter = await ref.watch(trailFilterProvider.future);
+    final filter = await ref.watch(trailFilterProvider('map').future);
     final user = await ref.watch(authProvider.future);
 
     const int perPage = 20;

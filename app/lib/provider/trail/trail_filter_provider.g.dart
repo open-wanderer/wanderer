@@ -10,34 +10,79 @@ part of 'trail_filter_provider.dart';
 // ignore_for_file: type=lint, type=warning
 
 @ProviderFor(TrailFilterNotifier)
-final trailFilterProvider = TrailFilterNotifierProvider._();
+final trailFilterProvider = TrailFilterNotifierFamily._();
 
 final class TrailFilterNotifierProvider
     extends $AsyncNotifierProvider<TrailFilterNotifier, TrailFilter> {
-  TrailFilterNotifierProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'trailFilterProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
+  TrailFilterNotifierProvider._({
+    required TrailFilterNotifierFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'trailFilterProvider',
+         isAutoDispose: false,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
   @override
   String debugGetCreateSourceHash() => _$trailFilterNotifierHash();
 
+  @override
+  String toString() {
+    return r'trailFilterProvider'
+        ''
+        '($argument)';
+  }
+
   @$internal
   @override
   TrailFilterNotifier create() => TrailFilterNotifier();
+
+  @override
+  bool operator ==(Object other) {
+    return other is TrailFilterNotifierProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
 }
 
 String _$trailFilterNotifierHash() =>
     r'12ac339cffdb8acafd70bf6393d619eb1cf03426';
 
+final class TrailFilterNotifierFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          TrailFilterNotifier,
+          AsyncValue<TrailFilter>,
+          TrailFilter,
+          FutureOr<TrailFilter>,
+          String
+        > {
+  TrailFilterNotifierFamily._()
+    : super(
+        retry: null,
+        name: r'trailFilterProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: false,
+      );
+
+  TrailFilterNotifierProvider call(String filterId) =>
+      TrailFilterNotifierProvider._(argument: filterId, from: this);
+
+  @override
+  String toString() => r'trailFilterProvider';
+}
+
 abstract class _$TrailFilterNotifier extends $AsyncNotifier<TrailFilter> {
-  FutureOr<TrailFilter> build();
+  late final _$args = ref.$arg as String;
+  String get filterId => _$args;
+
+  FutureOr<TrailFilter> build(String filterId);
   @$mustCallSuper
   @override
   void runBuild() {
@@ -50,6 +95,6 @@ abstract class _$TrailFilterNotifier extends $AsyncNotifier<TrailFilter> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    element.handleCreate(ref, () => build(_$args));
   }
 }

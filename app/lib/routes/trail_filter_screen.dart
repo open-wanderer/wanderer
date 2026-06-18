@@ -18,7 +18,8 @@ import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 
 class TrailFilterScreen extends ConsumerStatefulWidget {
-  const TrailFilterScreen({super.key});
+  final String filterId;
+  const TrailFilterScreen({super.key, this.filterId = 'map'});
 
   @override
   ConsumerState<TrailFilterScreen> createState() => _TrailFilterScreenState();
@@ -47,7 +48,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    final filter = ref.watch(trailFilterProvider);
+    final filter = ref.watch(trailFilterProvider(widget.filterId));
     final categories = ref.watch(categoryProvider);
 
     return Scaffold(
@@ -56,7 +57,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
         actions: [
           IconButton(
             onPressed: () =>
-                ref.read(trailFilterProvider.notifier).resetFilter(),
+                ref.read(trailFilterProvider(widget.filterId).notifier).resetFilter(),
             icon: FaIcon(FontAwesomeIcons.filterCircleXmark, size: 18),
           ),
         ],
@@ -76,7 +77,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   labelBuilder: (c) => c.name,
                   onChanged: (categories) {
                     ref
-                        .read(trailFilterProvider.notifier)
+                        .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
                           (filter) => filter.copyWith(category: categories),
                         );
@@ -106,13 +107,13 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   onSubmitted: (value) {
                     final newTag = Tag(name: value);
 
-                    ref.read(trailFilterProvider.notifier).addTag(newTag);
+                    ref.read(trailFilterProvider(widget.filterId).notifier).addTag(newTag);
                     return DynamicTagData(value, Tag(name: value));
                   },
                   onSelected: (value) =>
-                      ref.read(trailFilterProvider.notifier).addTag(value.data),
+                      ref.read(trailFilterProvider(widget.filterId).notifier).addTag(value.data),
                   onDeleted: (value) => ref
-                      .read(trailFilterProvider.notifier)
+                      .read(trailFilterProvider(widget.filterId).notifier)
                       .removeTag(value.data),
                 ),
                 const SizedBox(height: 16),
@@ -126,7 +127,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                     child: _AuthorChip(
                       actor: f.author!,
                       onDeleted: () => ref
-                          .read(trailFilterProvider.notifier)
+                          .read(trailFilterProvider(widget.filterId).notifier)
                           .updateFilter(
                             (filter) => filter.copyWith(author: null),
                           ),
@@ -136,12 +137,12 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   WandererActorSearch(
                     hintText: l10n.author,
                     onSelected: (actor) => ref
-                        .read(trailFilterProvider.notifier)
+                        .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
                           (filter) => filter.copyWith(author: actor),
                         ),
                     onCleared: () => ref
-                        .read(trailFilterProvider.notifier)
+                        .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
                           (filter) => filter.copyWith(author: null),
                         ),
@@ -158,7 +159,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   value: filter.value?.public,
                   title: Text(l10n.public),
                   onChanged: (value) => ref
-                      .read(trailFilterProvider.notifier)
+                      .read(trailFilterProvider(widget.filterId).notifier)
                       .updateFilter((filter) => filter.copyWith(public: value)),
                 ),
                 CheckboxListTile(
@@ -166,7 +167,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   value: filter.value?.private,
                   title: Text(l10n.private),
                   onChanged: (value) => ref
-                      .read(trailFilterProvider.notifier)
+                      .read(trailFilterProvider(widget.filterId).notifier)
                       .updateFilter(
                         (filter) => filter.copyWith(private: value),
                       ),
@@ -177,7 +178,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   title: Text(l10n.shared),
 
                   onChanged: (value) => ref
-                      .read(trailFilterProvider.notifier)
+                      .read(trailFilterProvider(widget.filterId).notifier)
                       .updateFilter((filter) => filter.copyWith(shared: value)),
                 ),
                 const SizedBox(height: 16),
@@ -205,7 +206,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   },
                   onChanged: (difficulty) {
                     ref
-                        .read(trailFilterProvider.notifier)
+                        .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
                           (filter) => filter.copyWith(difficulty: difficulty),
                         );
@@ -228,7 +229,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   ),
                   onChanged: (RangeValues values) {
                     ref
-                        .read(trailFilterProvider.notifier)
+                        .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
                           (filter) => filter.copyWith(
                             distanceMin: values.start,
@@ -257,7 +258,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   ),
                   onChanged: (RangeValues values) {
                     ref
-                        .read(trailFilterProvider.notifier)
+                        .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
                           (filter) => filter.copyWith(
                             elevationGainMin: values.start,
@@ -285,7 +286,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   ),
                   onChanged: (RangeValues values) {
                     ref
-                        .read(trailFilterProvider.notifier)
+                        .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
                           (filter) => filter.copyWith(
                             elevationLossMin: values.start,
@@ -304,7 +305,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   initialValue: filter.value?.startDate,
                   onChanged: (value) {
                     ref
-                        .read(trailFilterProvider.notifier)
+                        .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
                           (filter) => filter.copyWith(startDate: value),
                         );
@@ -320,7 +321,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   initialValue: filter.value?.endDate,
                   onChanged: (value) {
                     ref
-                        .read(trailFilterProvider.notifier)
+                        .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
                           (filter) => filter.copyWith(endDate: value),
                         );
@@ -334,7 +335,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   value: filter.value?.liked,
                   title: Text(l10n.liked),
                   onChanged: (value) => ref
-                      .read(trailFilterProvider.notifier)
+                      .read(trailFilterProvider(widget.filterId).notifier)
                       .updateFilter((filter) => filter.copyWith(liked: value)),
                 ),
                 const SizedBox(height: 16),
@@ -368,7 +369,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
 
                   onValueChanged: (status) {
                     ref
-                        .read(trailFilterProvider.notifier)
+                        .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
                           (f) => f.copyWith(completed: status?.toBool()),
                         );

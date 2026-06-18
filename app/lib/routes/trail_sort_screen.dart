@@ -6,12 +6,13 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 
 class TrailSortScreen extends ConsumerWidget {
-  const TrailSortScreen({super.key});
+  final String filterId;
+  const TrailSortScreen({super.key, this.filterId = 'map'});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final filterState = ref.watch(trailFilterProvider);
+    final filterState = ref.watch(trailFilterProvider(filterId));
 
     final currentSort = filterState.value?.sort ?? TrailFilterSort.name;
     final currentOrder = filterState.value?.sortOrder ?? SortOrder.desc;
@@ -50,7 +51,7 @@ class TrailSortScreen extends ConsumerWidget {
               sortOrder: currentOrder,
               onSortChanged: (newSort, newOrder) {
                 ref
-                    .read(trailFilterProvider.notifier)
+                    .read(trailFilterProvider(filterId).notifier)
                     .updateFilter(
                       (filter) =>
                           filter.copyWith(sort: newSort, sortOrder: newOrder),

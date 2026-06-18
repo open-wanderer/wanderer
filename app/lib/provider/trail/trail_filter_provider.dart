@@ -10,7 +10,7 @@ class TrailFilterNotifier extends _$TrailFilterNotifier {
   late final TrailFilter defaultFilter;
 
   @override
-  Future<TrailFilter> build() async {
+  Future<TrailFilter> build(String filterId) async {
     final api = ref.watch(apiProvider);
 
     try {

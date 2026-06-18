@@ -19,7 +19,7 @@ class MapTrailSearch extends _$MapTrailSearch {
   FutureOr<List<TrailSearchResult>> build() async {
     ref.onDispose(() => _debounce?.cancel());
 
-    ref.listen(trailFilterProvider, (previous, next) {
+    ref.listen(trailFilterProvider('map'), (previous, next) {
       if (_lastBounds != null && next.hasValue && !next.isLoading) {
         final currentFilter = next.value;
         if (currentFilter != null) {
@@ -45,7 +45,7 @@ class MapTrailSearch extends _$MapTrailSearch {
     TrailFilter? passedFilter,
   }) async {
     final TrailFilter filter =
-        passedFilter ?? await ref.read(trailFilterProvider.future);
+        passedFilter ?? await ref.read(trailFilterProvider('map').future);
     final user = await ref.read(authProvider.future);
     final api = ref.read(apiProvider);
 

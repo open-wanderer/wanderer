@@ -145,11 +145,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
       }
     });
 
-    final filterAsync = ref.watch(trailFilterProvider);
+    final filterAsync = ref.watch(trailFilterProvider('map'));
     final activeFilterCount = filterAsync.hasValue
         ? _countActiveFilters(
             filterAsync.value!,
-            ref.read(trailFilterProvider.notifier).defaultFilter,
+            ref.read(trailFilterProvider('map').notifier).defaultFilter,
           )
         : 0;
 
