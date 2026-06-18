@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/base/wanderer_date_picker.dart';
 import 'package:wanderer/components/base/wanderer_filter_chip.dart';
 import 'package:wanderer/components/base/wanderer_radio_group.dart';
@@ -191,9 +192,9 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               l10n.sort,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            TextButton(
+                            IconButton(
                               onPressed: () => Navigator.of(context).pop(),
-                              child: Text(l10n.close),
+                              icon: FaIcon(FontAwesomeIcons.xmark, size: 18),
                             ),
                           ],
                         ),
@@ -264,9 +265,9 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               l10n.categories,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            TextButton(
+                            IconButton(
                               onPressed: () => Navigator.of(context).pop(),
-                              child: Text(l10n.close),
+                              icon: FaIcon(FontAwesomeIcons.xmark, size: 18),
                             ),
                           ],
                         ),
@@ -333,9 +334,9 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               l10n.difficulty,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            TextButton(
+                            IconButton(
                               onPressed: () => Navigator.of(context).pop(),
-                              child: Text(l10n.close),
+                              icon: FaIcon(FontAwesomeIcons.xmark, size: 18),
                             ),
                           ],
                         ),
@@ -413,9 +414,9 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               l10n.elevation_gain,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            TextButton(
+                            IconButton(
                               onPressed: () => Navigator.of(context).pop(),
-                              child: Text(l10n.close),
+                              icon: FaIcon(FontAwesomeIcons.xmark, size: 18),
                             ),
                           ],
                         ),
@@ -523,9 +524,9 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               l10n.date,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            TextButton(
+                            IconButton(
                               onPressed: () => Navigator.of(context).pop(),
-                              child: Text(l10n.close),
+                              icon: FaIcon(FontAwesomeIcons.xmark, size: 18),
                             ),
                           ],
                         ),
@@ -619,9 +620,9 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               l10n.completion_status,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            TextButton(
+                            IconButton(
                               onPressed: () => Navigator.of(context).pop(),
-                              child: Text(l10n.close),
+                              icon: FaIcon(FontAwesomeIcons.xmark, size: 18),
                             ),
                           ],
                         ),
@@ -677,7 +678,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     Color chipBg(bool active) =>
-        active ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest;
+        active ? colorScheme.primaryContainer : colorScheme.secondaryContainer;
 
     Color chipLabelColor(bool active) =>
         active ? colorScheme.onPrimaryContainer : colorScheme.onSurface;
@@ -694,6 +695,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
         avatar: Icon(icon, size: 16, color: chipLabelColor(active)),
         label: Text(label),
         onPressed: onPressed,
+        shape: StadiumBorder(side: BorderSide(color: Colors.transparent)),
       );
     }
 
@@ -770,21 +772,12 @@ class TrailQuickFilterBar extends ConsumerWidget {
                     : () {},
               ),
               if (anyActive) ...[
-                const SizedBox(width: 8),
-                ActionChip(
-                  backgroundColor: chipBg(false),
-                  labelStyle: TextStyle(color: chipLabelColor(false)),
-                  avatar: Icon(
-                    Icons.filter_alt_off_outlined,
-                    size: 16,
-                    color: chipLabelColor(false),
-                  ),
-                  label: Text(l10n.reset),
-                  onPressed: () {
-                    ref
-                        .read(trailFilterProvider(filterId).notifier)
-                        .resetFilter();
-                  },
+                const SizedBox(width: 4),
+                TextButton(
+                  onPressed: () => ref
+                      .read(trailFilterProvider(filterId).notifier)
+                      .resetFilter(),
+                  child: Text(l10n.reset),
                 ),
               ],
             ],
