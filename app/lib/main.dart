@@ -62,11 +62,12 @@ class MainApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [Locale('en'), Locale('de')],
+      supportedLocales: AppLocalizations.supportedLocales,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.createTheme(Brightness.light),
       darkTheme: AppTheme.createTheme(Brightness.dark),
       themeMode: ref.watch(themeModeProvider),
+      locale: ref.watch(localeProvider),
 
       routerConfig: goRouter,
 
