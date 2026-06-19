@@ -1,40 +1,40 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
+milestone: v1.2
 milestone_name: milestone
-status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-06-14T15:10:40.359Z"
-last_activity: 2026-06-14 -- Phase 05 execution started
+status: planning
+stopped_at: Phase 6 context gathered
+last_updated: "2026-06-19T17:59:41.894Z"
+last_activity: 2026-06-19 — v1.2 roadmap created (Phases 6-9), 20/20 requirements mapped
 progress:
-  total_phases: 5
-  completed_phases: 4
-  total_plans: 12
-  completed_plans: 8
-  percent: 67
+  total_phases: 9
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-14)
+See: .planning/PROJECT.md (updated 2026-06-19)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 05 — cache-write-fallback-ui
+**Current focus:** Phase 6 — Settings Navigation + Language & Units (v1.2 roadmap created)
 
 ## Current Position
 
-Phase: 05 (cache-write-fallback-ui) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 05
-Last activity: 2026-06-19 - Completed quick task 260619-okw: Use tracelet to facilitate background location tracking in the navigation screen
+Phase: Not started (roadmap complete — ready to plan Phase 6)
+Plan: —
+Status: Roadmap complete; awaiting Phase 6 planning
+Last activity: 2026-06-19 — v1.2 roadmap created (Phases 6-9), 20/20 requirements mapped
 
 ## Performance Metrics
 
-**Velocity (v1.0):**
+**Velocity (v1.0 + v1.1):**
 
-- Total plans completed: 6
+- Total plans completed: 12
 - Average duration: — min
 - Total execution time: 0 hours
 
@@ -45,8 +45,12 @@ Last activity: 2026-06-19 - Completed quick task 260619-okw: Use tracelet to fac
 | 01 | 1 | - | - |
 | 02 | 3 | - | - |
 | 03 | 2 | - | - |
-| 04 | TBD | - | - |
-| 05 | TBD | - | - |
+| 04 | 2 | - | - |
+| 05 | 4 | - | - |
+| 06 | TBD | - | - |
+| 07 | TBD | - | - |
+| 08 | TBD | - | - |
+| 09 | TBD | - | - |
 
 **Recent Trend:**
 
@@ -64,6 +68,9 @@ Last activity: 2026-06-19 - Completed quick task 260619-okw: Use tracelet to fac
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [v1.2 roadmap] Phase 6 combines settings navigation wiring (SETNAV-01) with the Language & Units screen (LANG-01, LANG-02) — avoids a thin standalone navigation phase; coarse granularity favors folding small wiring work into the first concrete screen
+- [v1.2 roadmap] Phases 7 (Privacy), 8 (Account), 9 (Notifications) each depend only on Phase 6 and are independent of one another — they can be planned/executed in any order after the navigation wiring lands
+- [v1.2 roadmap] ACCT-01..05 ship as one combined Account & Profile screen (avatar, bio, email, password, delete) per PROJECT.md target features — matches the existing blank SettingsAccountScreen scaffold
 - Extend SvelteKit Valhalla API (not direct Flutter→Valhalla) — keeps credentials server-side
 - DraggableScrollableSheet for stats — matches MapScreen pattern
 - TTS deferred to v2 — audio complexity not needed for navigation core
@@ -71,14 +78,14 @@ Recent decisions affecting current work:
 - Dio try-catch as sole offline gate — connectivity packages have false-positive/negative failure modes (captive portals, VPN); catch DioException is simpler and covers all failure modes
 - `String? navCacheJson` on TrailEntity — follows `gpxData` precedent; List<List<double>> and List<NavigateManeuver> are unsupported as ObjectBox native types
 - Best-effort cache write in downloadTrail — sequential try/catch, never in Future.wait, Valhalla outage cannot block tile download
-- [Phase ?]: freezed 3.x: @JsonSerializable(explicitToJson: true) must be placed on the factory constructor, not above @freezed; class-level placement breaks json_serializable codegen
-- [Phase ?]: NavigateResponse.toJson() serialization fixed (nested maneuvers now serialized) — Phase 4 blocker resolved; unblocks Phase 5 ObjectBox navCacheJson caching
-- [Phase ?]: navCacheJson added as entity-only nullable String on TrailEntity (follows gpxData precedent); objectbox-model.json regenerated and committed together to avoid UID conflicts
+- freezed 3.x: @JsonSerializable(explicitToJson: true) must be placed on the factory constructor, not above @freezed; class-level placement breaks json_serializable codegen
+- NavigateResponse.toJson() serialization fixed (nested maneuvers now serialized) — Phase 4 blocker resolved; unblocked Phase 5 ObjectBox navCacheJson caching
+- navCacheJson added as entity-only nullable String on TrailEntity (follows gpxData precedent); objectbox-model.json regenerated and committed together to avoid UID conflicts
 
 ### Pending Todos
 
-- ~~Fix NavigateResponse.toJson() serialization bug before any ObjectBox work (Phase 4)~~ — DONE in plan 04-01 (7eace683)
-- Commit objectbox-model.json immediately after build_runner to prevent UID conflicts (applies to plan 04-02)
+- Plan Phase 6 first — it wires the routes (/settings/privacy, /settings/language, /settings/notifications) and list entries that Phases 7-9 depend on
+- Reuse the existing `Settings` freezed model (bio, language, privacy, notifications map) and `settingsProvider.saveToServer()` for all four screens — no new persistence layer needed
 
 ### Quick Tasks Completed
 
@@ -95,7 +102,7 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- ~~`NavigateResponse.toJson()` missing `@JsonSerializable(explicitToJson: true)` — BLOCKING for Phase 4~~ — RESOLVED in plan 04-01: annotation added on the factory constructor, `_$NavigateResponseToJson` now serializes nested maneuvers; roundtrip test proves lossless encode/decode.
+- None for v1.2 — the `Settings` freezed model, `settingsProvider`, and `/settings/*` route scaffold already exist; v1.2 is primarily UI + wiring on top of existing infrastructure.
 
 ## Deferred Items
 
@@ -107,9 +114,11 @@ Recent decisions affecting current work:
 | Offline | Stale-cache dialogs, "cached N days ago" UI | Out of scope | v1.1 research |
 | Offline | User-initiated cache refresh | Out of scope | v1.1 research |
 | Offline | Offline re-routing | Out of scope | v1.1 research |
+| Account | API token management (ACCT-F01) | Future | v1.2 requirements |
+| Settings | Favourite sport picker, Export, Integrations, Maintenance, Map settings | Out of scope | v1.2 requirements |
 
 ## Session Continuity
 
-Last session: 2026-06-14T14:50:45.414Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-cache-write-fallback-ui/05-CONTEXT.md
+Last session: 2026-06-19T17:59:41.881Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-settings-navigation-language-units/06-CONTEXT.md
