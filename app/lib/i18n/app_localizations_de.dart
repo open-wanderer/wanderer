@@ -503,6 +503,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get error_saving_list => 'Fehler beim Speichern der Liste';
 
   @override
+  String get error_saving_settings => 'Fehler beim Speichern der Einstellungen';
+
+  @override
   String get error_saving_trail => 'Fehler beim Speichern der Route';
 
   @override

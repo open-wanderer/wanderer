@@ -998,6 +998,12 @@ abstract class AppLocalizations {
   /// **'Error saving list'**
   String get error_saving_list;
 
+  /// No description provided for @error_saving_settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Error saving settings'**
+  String get error_saving_settings;
+
   /// No description provided for @error_saving_trail.
   ///
   /// In en, this message translates to:

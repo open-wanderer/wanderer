@@ -502,6 +502,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get error_saving_list => 'Error saving list';
 
   @override
+  String get error_saving_settings => 'Error saving settings';
+
+  @override
   String get error_saving_trail => 'Error saving trail';
 
   @override

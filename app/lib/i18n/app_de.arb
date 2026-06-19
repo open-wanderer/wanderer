@@ -151,6 +151,7 @@
   "error_printing_map": "Fehler beim Drucken der Karte",
   "error_reading_file": "Fehler beim Lesen der Datei",
   "error_saving_list": "Fehler beim Speichern der Liste",
+  "error_saving_settings": "Fehler beim Speichern der Einstellungen",
   "error_saving_trail": "Fehler beim Speichern der Route",
   "error_setting_up_integration": "Fehler beim Einrichten der {provider}_Integration",
   "error_updating_hammerhead_integration": "Fehler bei Aktualisierung der Hammerhead_Integration",

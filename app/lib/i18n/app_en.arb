@@ -150,6 +150,7 @@
   "error_printing_map": "Error printing map",
   "error_reading_file": "Error reading file",
   "error_saving_list": "Error saving list",
+  "error_saving_settings": "Error saving settings",
   "error_saving_trail": "Error saving trail",
   "error_setting_up_integration": "Error setting up {provider} integration",
   "error_updating_hammerhead_integration": "Error updating Hammerhead integration",
