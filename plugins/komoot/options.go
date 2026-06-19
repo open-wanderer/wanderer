@@ -1,12 +1,10 @@
-//go:build tinygo
-
 package main
 
 import (
 	"time"
 )
 
-func changedAfter(changedAt string, after string) bool {
+func tourDateAfter(tourDate string, after string) bool {
 	if after == "" {
 		return true
 	}
@@ -14,9 +12,16 @@ func changedAfter(changedAt string, after string) bool {
 	if err != nil {
 		return true
 	}
-	changed, err := time.Parse(time.RFC3339, changedAt)
+	date, err := parseKomootDate(tourDate)
 	if err != nil {
 		return true
 	}
-	return !changed.Before(limit)
+	return !date.Before(limit)
+}
+
+func parseKomootDate(value string) (time.Time, error) {
+	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
+		return parsed, nil
+	}
+	return time.Parse("2006-01-02", value)
 }

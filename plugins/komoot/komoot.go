@@ -3,7 +3,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,12 +12,8 @@ import (
 	"github.com/open-wanderer/wanderer/plugins/sdk"
 )
 
-type komootClient struct {
-	userID string
-	token  string
-}
-
 const komootJSONMaxBytes int64 = 16 * 1024 * 1024
+const komootMaxHighlightTipRequests = 20
 
 var komootJSONContentTypes = []string{"application/json", "application/hal+json"}
 
@@ -55,7 +50,11 @@ func login(email string, password string) (*komootClient, error) {
 	if parsed.Username == "" || parsed.Password == "" {
 		return nil, fmt.Errorf("komoot login response did not contain credentials")
 	}
-	return &komootClient{userID: parsed.Username, token: parsed.Password}, nil
+	client := &komootClient{userID: parsed.Username, token: parsed.Password, locale: parsed.Locale}
+	if client.locale == "" {
+		client.locale = client.profileLocale()
+	}
+	return client, nil
 }
 
 func loginClient(auth map[string]any) (*komootClient, error) {
@@ -68,30 +67,52 @@ func loginClient(auth map[string]any) (*komootClient, error) {
 }
 
 func (c *komootClient) get(path string, query []sdk.QueryParam, out any) error {
+	body, err := c.getRawFromConnector("api", path, query)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(body, out)
+}
+
+func (c *komootClient) getFromConnector(connector string, path string, query []sdk.QueryParam, out any) error {
+	body, err := c.getRawFromConnector(connector, path, query)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(body, out)
+}
+
+func (c *komootClient) getRawFromConnector(connector string, path string, query []sdk.QueryParam) ([]byte, error) {
+	headers := c.requestHeaders(connector)
 	response, body, err := sdk.HostRequest(sdk.HostRequestSpec{
 		Method: "GET",
 		Target: sdk.RequestTarget{
 			Type:      "connector",
-			Connector: "api",
+			Connector: connector,
 			Path:      path,
 			Query:     query,
 		},
-		Headers: map[string]string{
-			sdk.AuthHeaderAuthorization: basicAuth(c.userID, c.token),
-			"Accept":                    "application/hal+json",
-		},
+		Headers: headers,
 		Expect: sdk.ResponseExpect{
 			ContentTypes: komootJSONContentTypes,
 			MaxBytes:     komootJSONMaxBytes,
 		},
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if response.Status != 200 {
-		return fmt.Errorf("komoot request failed (%d): %s", response.Status, string(body))
+		return body, fmt.Errorf("komoot request failed (%d): %s", response.Status, string(body))
 	}
-	return json.Unmarshal(body, out)
+	return body, nil
+}
+
+func (c *komootClient) profileLocale() string {
+	var data userProfile
+	if err := c.get("/v007/users/"+url.PathEscape(c.userID), nil, &data); err != nil {
+		return ""
+	}
+	return data.Locale
 }
 
 func (c *komootClient) tours(page int, limit int) ([]tour, int, error) {
@@ -115,7 +136,98 @@ func (c *komootClient) detailedTour(id int64) (*detailedTour, error) {
 		{Name: "timeline_highlights_fields", Value: "tips,recommenders"},
 		{Name: "page", Value: "2"},
 	}, &data)
-	return &data, err
+	if err != nil {
+		return &data, err
+	}
+	if len(data.Embedded.WayPoints.Embedded.Items) == 0 && len(data.Embedded.Timeline.Embedded.Items) == 0 {
+		if timeline, err := c.webTimeline(id); err == nil {
+			data.Embedded.WayPoints = timeline
+		}
+	}
+	return &data, nil
+}
+
+func (c *komootClient) webTimeline(id int64) (timeline, error) {
+	var data timeline
+	token := c.shareToken(id)
+	var query []sdk.QueryParam
+	if token != "" {
+		query = []sdk.QueryParam{{Name: "share_token", Value: token}}
+	}
+	err := c.getFromConnector("web", fmt.Sprintf("/webapi/v007/tours/%d/timeline/", id), query, &data)
+	if err != nil {
+		return data, err
+	}
+	c.addHighlightTips(data.Embedded.Items)
+	return data, nil
+}
+
+func (c *komootClient) shareToken(id int64) string {
+	token, err := c.shareTokenWithQuery(id, nil)
+	if err == nil && token != "" {
+		return token
+	}
+	token, _ = c.shareTokenWithQuery(id, []sdk.QueryParam{{Name: "token_name", Value: "invite"}})
+	return token
+}
+
+func (c *komootClient) shareTokenWithQuery(id int64, query []sdk.QueryParam) (string, error) {
+	body, err := c.getRawFromConnector("api", fmt.Sprintf("/v007/tours/%d/share_token", id), query)
+	if err != nil {
+		return "", err
+	}
+	var value any
+	if err := json.Unmarshal(body, &value); err != nil {
+		return "", err
+	}
+	if token, ok := value.(string); ok {
+		return token, nil
+	}
+	return findShareToken(value), nil
+}
+
+func findShareToken(value any) string {
+	switch typed := value.(type) {
+	case map[string]any:
+		for _, key := range []string{"token", "share_token", "shareToken"} {
+			if token, ok := typed[key].(string); ok {
+				return token
+			}
+		}
+		for _, nested := range typed {
+			if token := findShareToken(nested); token != "" {
+				return token
+			}
+		}
+	case []any:
+		for _, nested := range typed {
+			if token := findShareToken(nested); token != "" {
+				return token
+			}
+		}
+	}
+	return ""
+}
+
+func (c *komootClient) addHighlightTips(items []timelineItem) {
+	requests := 0
+	for i := range items {
+		if items[i].Type != "highlight" {
+			continue
+		}
+		ref := &items[i].Embedded.Reference
+		if ref.ID.String() == "" || len(ref.Embedded.Tips.Embedded.Items) > 0 {
+			continue
+		}
+		if requests >= komootMaxHighlightTipRequests {
+			return
+		}
+		requests++
+		var data tips
+		if err := c.get(fmt.Sprintf("/v007/highlights/%s/tips/", url.PathEscape(ref.ID.String())), nil, &data); err == nil {
+			ref.Embedded.Tips = data
+		}
+	}
 }
 
 func (c *komootClient) coverImages(id int64) ([]imageItem, error) {
@@ -134,7 +246,7 @@ func syncTours(client *komootClient, input listInput, wantKind string) (listOutp
 
 	items := make([]trailSummary, 0, maxItems)
 	for _, row := range rows {
-		if !changedAfter(row.ChangedAt, sdk.StringOption(input.Options, "after")) {
+		if !tourDateAfter(row.Date, sdk.StringOption(input.Options, "after")) {
 			continue
 		}
 		if wantKind == "planned" && row.Type != "tour_planned" {
@@ -186,8 +298,4 @@ func tourDetail(client *komootClient, externalID string, wantKind string) (trail
 		return trailImport{}, fmt.Errorf("map tour %d: %w", id, err)
 	}
 	return item, nil
-}
-
-func basicAuth(username string, password string) string {
-	return "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
 }

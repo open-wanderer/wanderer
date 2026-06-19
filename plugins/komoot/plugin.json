@@ -60,6 +60,14 @@
             "/v006",
             "/v007"
           ]
+        },
+        {
+          "name": "web",
+          "type": "public_api",
+          "fixedBaseURL": "https://www.komoot.com",
+          "allowedPathPrefixes": [
+            "/webapi/v007"
+          ]
         }
       ]
     },

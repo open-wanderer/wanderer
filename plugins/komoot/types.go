@@ -23,6 +23,12 @@ type mediaSource = sdk.MediaSource
 
 type pluginError = sdk.PluginError
 
+type komootClient struct {
+	userID string
+	token  string
+	locale string
+}
+
 type flexibleID string
 
 func (id *flexibleID) UnmarshalJSON(data []byte) error {
@@ -46,6 +52,11 @@ func (id flexibleID) String() string {
 type loginResponse struct {
 	Password string `json:"password"`
 	Username string `json:"username"`
+	Locale   string `json:"locale"`
+}
+
+type userProfile struct {
+	Locale string `json:"locale"`
 }
 
 type toursResponse struct {
@@ -101,6 +112,7 @@ type mapImage struct {
 type detailedTourEmbedded struct {
 	Coordinates coordinates `json:"coordinates"`
 	Timeline    timeline    `json:"timeline"`
+	WayPoints   timeline    `json:"way_points"`
 	CoverImages coverImages `json:"cover_images"`
 }
 
@@ -124,6 +136,7 @@ type timelineEmbedded struct {
 }
 
 type timelineItem struct {
+	Type     string               `json:"type"`
 	Embedded timelineItemEmbedded `json:"_embedded"`
 }
 
@@ -135,6 +148,7 @@ type waypointReference struct {
 	ID         flexibleID          `json:"id"`
 	Name       string              `json:"name"`
 	StartPoint point               `json:"start_point"`
+	Location   point               `json:"location"`
 	Embedded   waypointSubEmbedded `json:"_embedded"`
 }
 
@@ -145,8 +159,9 @@ type point struct {
 }
 
 type waypointSubEmbedded struct {
-	Tips   tips        `json:"tips"`
-	Images coverImages `json:"images"`
+	Tips       tips        `json:"tips"`
+	Images     coverImages `json:"images"`
+	FrontImage imageItem   `json:"front_image"`
 }
 
 type tips struct {

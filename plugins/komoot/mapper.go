@@ -1,5 +1,3 @@
-//go:build tinygo
-
 package main
 
 import (
@@ -69,30 +67,56 @@ func tourGPX(tour *detailedTour) ([]byte, error) {
 }
 
 func waypoints(tour *detailedTour) []waypoint {
-	result := make([]waypoint, 0, len(tour.Embedded.Timeline.Embedded.Items))
-	for _, item := range tour.Embedded.Timeline.Embedded.Items {
+	result := make([]waypoint, 0, len(tour.Embedded.WayPoints.Embedded.Items)+len(tour.Embedded.Timeline.Embedded.Items))
+	seen := map[string]bool{}
+	result = appendWaypoints(result, seen, tour.Embedded.WayPoints.Embedded.Items)
+	result = appendWaypoints(result, seen, tour.Embedded.Timeline.Embedded.Items)
+	return result
+}
+
+func appendWaypoints(result []waypoint, seen map[string]bool, items []timelineItem) []waypoint {
+	for _, item := range items {
 		ref := item.Embedded.Reference
-		if ref.Name == "" || ref.StartPoint.Lat == 0 && ref.StartPoint.Lng == 0 {
+		point, ok := waypointPoint(ref)
+		if ref.Name == "" || !ok {
 			continue
 		}
+		key := ref.ID.String()
+		if key == "" {
+			key = fmt.Sprintf("%s:%0.7f:%0.7f", ref.Name, point.Lat, point.Lng)
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
 
 		description := ""
 		if len(ref.Embedded.Tips.Embedded.Items) > 0 {
 			description = ref.Embedded.Tips.Embedded.Items[0].Text
 		}
-		ele := ref.StartPoint.Alt
+		ele := point.Alt
 		result = append(result, waypoint{
 			ExternalID:  ref.ID.String(),
 			Name:        ref.Name,
 			Description: description,
-			Lat:         ref.StartPoint.Lat,
-			Lon:         ref.StartPoint.Lng,
+			Lat:         point.Lat,
+			Lon:         point.Lng,
 			Ele:         &ele,
 			Icon:        "circle",
 			Photos:      waypointPhotos(item),
 		})
 	}
 	return result
+}
+
+func waypointPoint(ref waypointReference) (point, bool) {
+	if ref.StartPoint.Lat != 0 || ref.StartPoint.Lng != 0 {
+		return ref.StartPoint, true
+	}
+	if ref.Location.Lat != 0 || ref.Location.Lng != 0 {
+		return ref.Location, true
+	}
+	return point{}, false
 }
 
 func photos(tour *detailedTour, routeImages []imageItem) []photo {
@@ -107,16 +131,30 @@ func photos(tour *detailedTour, routeImages []imageItem) []photo {
 }
 
 func waypointPhotos(item timelineItem) []photo {
-	return photosFromImages(item.Embedded.Reference.Embedded.Images.Embedded.Items, "komoot-waypoint-photo.jpg")
+	ref := item.Embedded.Reference
+	images := ref.Embedded.Images.Embedded.Items
+	if ref.Embedded.FrontImage.Src != "" {
+		images = append([]imageItem{ref.Embedded.FrontImage}, images...)
+	}
+	return photosFromImages(images, "komoot-waypoint-photo.jpg")
 }
 
 func photosFromImages(images []imageItem, fallbackFilename string) []photo {
 	result := make([]photo, 0, len(images))
+	seen := map[string]bool{}
 	for _, image := range images {
 		source := expandImageURL(image.Src)
 		if source == "" || strings.HasSuffix(strings.ToLower(source), ".gif") {
 			continue
 		}
+		key := image.ID.String()
+		if key == "" {
+			key = source
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
 		result = append(result, photo{
 			ExternalID:  image.ID.String(),
 			Filename:    filenameForImage(image.ID, fallbackFilename),
