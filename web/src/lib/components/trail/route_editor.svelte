@@ -23,6 +23,7 @@
         onRecalculateElevationData: () => void;
         onUndo: () => void;
         onRedo: () => void;
+        showWaypoints?: boolean;
         resetLabel?: string;
         resetAriaLabel?: string;
     }
@@ -37,6 +38,7 @@
         onRecalculateElevationData,
         onUndo,
         onRedo,
+        showWaypoints = $bindable(true),
         resetLabel = "reset",
         resetAriaLabel = "reset-route",
     }: Props = $props();
@@ -148,6 +150,15 @@
             class:bg-secondary-hover={recalculateElevationData}
             aria-label="recalculate elevation data"
             onclick={async () => await togglePanels(false, false, !recalculateElevationData)}><i class="fa fa-mountain text-sm"></i></button
+        >
+        <button
+            class="btn-icon tooltip"
+            class:bg-secondary-hover={showWaypoints}
+            type="button"
+            aria-label={$_("waypoints", { values: { n: 2 } })}
+            data-title={$_("waypoints", { values: { n: 2 } })}
+            onclick={() => (showWaypoints = !showWaypoints)}
+            ><i class="fa fa-location-dot text-sm"></i></button
         >
         <button
             class="btn-icon tooltip hover:text-red-500"

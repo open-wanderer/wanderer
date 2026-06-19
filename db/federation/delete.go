@@ -9,7 +9,6 @@ import (
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/meilisearch/meilisearch-go"
-	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
 )
@@ -27,6 +26,10 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 	author, err := app.FindRecordById("activitypub_actors", r.GetString("author"))
 	if err != nil {
 		return err
+	}
+
+	if !author.GetBool("is_local") {
+		return nil
 	}
 
 	collection, err := app.FindCollectionByNameOrId("activitypub_activities")
@@ -62,18 +65,9 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 	activity.CC = pub.ItemCollection{pub.IRI(cc)}
 	activity.Published = time.Now()
 
-	follows, err := app.FindRecordsByFilter("follows", "followee={:followee}&&status='accepted'", "", -1, 0, dbx.Params{"followee": author.Id})
+	recipients, err := followerInboxes(app, author.Id)
 	if err != nil {
 		return err
-	}
-
-	recipients := []string{}
-	for _, f := range follows {
-		follower, err := app.FindRecordById("activitypub_actors", f.GetString("follower"))
-		if err != nil {
-			return err
-		}
-		recipients = append(recipients, follower.GetString("inbox"))
 	}
 
 	return PostActivity(app, author, activity, recipients)
@@ -185,19 +179,9 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 	activity.CC = cc
 	activity.Published = time.Now()
 
-	follows, err := app.FindRecordsByFilter("follows", "followee={:followee}&&status='accepted'", "", -1, 0, dbx.Params{"followee": author.Id})
+	recipients, err := followerInboxes(app, author.Id)
 	if err != nil {
 		return err
-	}
-
-	recipients := []string{}
-
-	for _, f := range follows {
-		follower, err := app.FindRecordById("activitypub_actors", f.GetString("follower"))
-		if err != nil {
-			return err
-		}
-		recipients = append(recipients, follower.GetString("inbox"))
 	}
 
 	if author.Id != summitLogTrailAuthor.Id {
@@ -256,18 +240,9 @@ func CreateListDeleteActivity(app core.App, r *core.Record) error {
 	activity.CC = pub.ItemCollection{pub.IRI(cc)}
 	activity.Published = time.Now()
 
-	follows, err := app.FindRecordsByFilter("follows", "followee={:followee}&&status='accepted'", "", -1, 0, dbx.Params{"followee": author.Id})
+	recipients, err := followerInboxes(app, author.Id)
 	if err != nil {
 		return err
-	}
-
-	recipients := []string{}
-	for _, f := range follows {
-		follower, err := app.FindRecordById("activitypub_actors", f.GetString("follower"))
-		if err != nil {
-			return err
-		}
-		recipients = append(recipients, follower.GetString("inbox"))
 	}
 
 	err = PostActivity(app, author, activity, recipients)

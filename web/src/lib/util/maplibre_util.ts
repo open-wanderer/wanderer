@@ -73,6 +73,11 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
         marker.on("dragend", () => onDragEnd(marker, waypoint.id,));
     }
 
+    marker.getElement().addEventListener("click", (e) => {
+        e.stopPropagation();
+        marker.togglePopup();
+    });
+
     return marker;
 }
 

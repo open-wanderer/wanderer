@@ -37,6 +37,7 @@
         markers?: M.Marker[];
         map?: M.Map | null;
         drawing?: boolean;
+        displayWaypoints?: boolean;
         showElevation?: boolean;
         showInfoPopup?: boolean;
         showGrid?: boolean;
@@ -65,6 +66,7 @@
         onmoveend?: (map: M.Map) => void;
         onzoom?: (map: M.Map) => void;
         onclick?: (event: M.MapMouseEvent & Object) => void;
+        oncontextmenu?: (event: M.MapMouseEvent & Object) => void;
         onUnclusteredClick?: (
             event: M.MapMouseEvent & Object,
             trail: Trail,
@@ -81,6 +83,7 @@
         markers = $bindable([]),
         map = $bindable(),
         drawing = false,
+        displayWaypoints = true,
         showElevation = true,
         showInfoPopup = false,
         showGrid = false,
@@ -101,6 +104,7 @@
         onmoveend,
         onzoom,
         onclick,
+        oncontextmenu,
         onUnclusteredClick,
         oninit,
         autoGeolocateOnDrawing = false,
@@ -190,8 +194,9 @@
     });
     $effect(() => {
         waypoints;
+        displayWaypoints;
         untrack(() => {
-            showWaypoints();
+            syncWaypointMarkers();
             refreshElevationProfile();
         });
     });
@@ -668,7 +673,7 @@
             if (showElevation) {
                 epc?.showProfile();
             }
-            showWaypoints();
+            syncWaypointMarkers();
             if (trail.id && gpxDataMap[trail.id]) {
                 addCaretLayer(gpxDataMap[trail.id]);
             }
@@ -698,7 +703,6 @@
         if (!map) {
             return;
         }
-        hideWaypoints();
         activeTrail ??= 0;
         map.getCanvas().style.cursor = "crosshair";
         if (trails[activeTrail]) {
@@ -714,7 +718,7 @@
         if (!map) {
             return;
         }
-        showWaypoints();
+        syncWaypointMarkers();
         map.getCanvas().style.cursor = "inherit";
 
         if (activeTrail !== null && trails[activeTrail] && !clusterTrails) {
@@ -792,7 +796,7 @@
     }
 
     function showWaypoints() {
-        if (!map || drawing) {
+        if (!map) {
             return;
         }
 
@@ -814,6 +818,14 @@
             }
             return true;
         });
+    }
+
+    function syncWaypointMarkers() {
+        if (displayWaypoints) {
+            showWaypoints();
+        } else {
+            hideWaypoints();
+        }
     }
 
     function hideWaypoints() {
@@ -1015,6 +1027,10 @@
             onclick?.(e);
         });
 
+        map.on("contextmenu", (e) => {
+            oncontextmenu?.(e);
+        });
+
         map.on("load", () => {
             layerManager.init();
             initMap(true);
@@ -1022,7 +1038,7 @@
             mapLoaded = true;
         });
 
-        showWaypoints();
+        syncWaypointMarkers();
     });
 
     function geolocate() {
