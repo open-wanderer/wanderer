@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/trail/photo_collage.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/waypoint.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 
-class WaypointSheet extends StatelessWidget {
+class WaypointSheet extends ConsumerWidget {
   final Waypoint waypoint;
   final UserEntity? user;
   final DraggableScrollableController controller;
@@ -21,9 +23,10 @@ class WaypointSheet extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final localizations = AppLocalizations.of(context)!;
+    final unit = ref.watch(unitProvider);
 
     return NotificationListener<DraggableScrollableNotification>(
       onNotification: (n) {
@@ -148,7 +151,7 @@ class WaypointSheet extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '${localizations.after} ${formatDistance(waypoint.distanceFromStart ?? 0)}',
+                          '${localizations.after} ${formatDistance(waypoint.distanceFromStart ?? 0, unit: unit)}',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: Colors.grey[600],
                           ),

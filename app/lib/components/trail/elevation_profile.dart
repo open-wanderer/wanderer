@@ -3,14 +3,16 @@ import 'dart:math';
 import 'package:duration/duration.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
-class ElevationProfile extends StatefulWidget {
+class ElevationProfile extends ConsumerStatefulWidget {
   final Trail trail;
   final Gpx gpx;
 
@@ -29,12 +31,13 @@ class ElevationProfile extends StatefulWidget {
   });
 
   @override
-  State<ElevationProfile> createState() => _ElevationProfileState();
+  ConsumerState<ElevationProfile> createState() => _ElevationProfileState();
 }
 
-class _ElevationProfileState extends State<ElevationProfile> {
+class _ElevationProfileState extends ConsumerState<ElevationProfile> {
   late List<TrackPoint> _points;
   int? _selectedIndex;
+  String _unit = 'metric';
 
   @override
   void initState() {
@@ -104,6 +107,8 @@ class _ElevationProfileState extends State<ElevationProfile> {
 
   @override
   Widget build(BuildContext context) {
+    _unit = ref.watch(unitProvider);
+
     if (_points.isEmpty) {
       return const _EmptyState();
     }
@@ -137,9 +142,12 @@ class _ElevationProfileState extends State<ElevationProfile> {
             ),
             FontAwesomeIcons.clock,
           ),
-          _buildStatText(formatDistance(pt.distanceM), FontAwesomeIcons.ruler),
           _buildStatText(
-            formatElevation(pt.elevationM),
+            formatDistance(pt.distanceM, unit: _unit),
+            FontAwesomeIcons.ruler,
+          ),
+          _buildStatText(
+            formatElevation(pt.elevationM, unit: _unit),
             FontAwesomeIcons.mountain,
           ),
           _buildStatText(
@@ -158,13 +166,16 @@ class _ElevationProfileState extends State<ElevationProfile> {
             maxDur.pretty(abbreviated: true, tersity: DurationTersity.minute),
             FontAwesomeIcons.clock,
           ),
-          _buildStatText(formatDistance(maxDist), FontAwesomeIcons.ruler),
           _buildStatText(
-            formatElevation(widget.trail.elevationGain),
+            formatDistance(maxDist, unit: _unit),
+            FontAwesomeIcons.ruler,
+          ),
+          _buildStatText(
+            formatElevation(widget.trail.elevationGain, unit: _unit),
             FontAwesomeIcons.arrowTrendUp,
           ),
           _buildStatText(
-            formatElevation(widget.trail.elevationLoss),
+            formatElevation(widget.trail.elevationLoss, unit: _unit),
             FontAwesomeIcons.arrowTrendDown,
           ),
         ],
@@ -281,7 +292,7 @@ class _ElevationProfileState extends State<ElevationProfile> {
                           return const SizedBox.shrink();
                         }
                         return Text(
-                          formatElevation(value),
+                          formatElevation(value, unit: _unit),
                           style: const TextStyle(
                             color: Color(0xFF888899),
                             fontSize: 10,
@@ -301,7 +312,7 @@ class _ElevationProfileState extends State<ElevationProfile> {
                         return Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            formatDistance(value),
+                            formatDistance(value, unit: _unit),
                             style: const TextStyle(
                               color: Color(0xFF888899),
                               fontSize: 10,

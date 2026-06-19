@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/trail/waypoint_card.dart';
 import 'package:wanderer/models/waypoint.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 
 const double _kLineX = 20;
 const double _kLeftColWidth = 40.0;
 const double _kRowGap = 16.0;
 
-class TrailTimeline extends StatelessWidget {
+class TrailTimeline extends ConsumerWidget {
   final List<Waypoint> waypoints;
   final double? totalDistance;
 
   const TrailTimeline({super.key, required this.waypoints, this.totalDistance});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (waypoints.isEmpty) return const SizedBox.shrink();
+
+    final unit = ref.watch(unitProvider);
 
     final rows = <_RowData>[
       _RowData.cap(icon: FontAwesomeIcons.bullseye, label: 'Start'),
@@ -25,7 +29,7 @@ class TrailTimeline extends StatelessWidget {
         icon: FontAwesomeIcons.flagCheckered,
         label: 'Finish',
         distanceLabel: totalDistance != null
-            ? formatDistance(totalDistance)
+            ? formatDistance(totalDistance, unit: unit)
             : null,
       ),
     ];
@@ -43,7 +47,7 @@ class TrailTimeline extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               for (int i = 0; i < rows.length; i++) ...[
-                _TimelineRow(data: rows[i]),
+                _TimelineRow(data: rows[i], unit: unit),
                 if (i < rows.length - 1) const SizedBox(height: _kRowGap),
               ],
             ],
@@ -76,15 +80,16 @@ class _RowData {
 
 class _TimelineRow extends StatelessWidget {
   final _RowData data;
+  final String unit;
 
-  const _TimelineRow({super.key, required this.data});
+  const _TimelineRow({required this.data, required this.unit});
 
   @override
   Widget build(BuildContext context) {
     final wp = data.waypoint;
     final icon = wp?.icon ?? data.icon;
     final distLabel = wp?.distanceFromStart != null
-        ? formatDistance(wp!.distanceFromStart!)
+        ? formatDistance(wp!.distanceFromStart!, unit: unit)
         : data.distanceLabel;
 
     return Row(

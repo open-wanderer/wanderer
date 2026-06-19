@@ -9,6 +9,28 @@ import 'package:wanderer/util/format_util.dart';
 // ---------------------------------------------------------------------------
 
 void main() {
+  group('formatDistance', () {
+    test('metric (default) formats meters >= 1000 as km', () {
+      expect(formatDistance(1000), '1.00 km');
+    });
+
+    test('imperial converts meters to miles (×0.000621371)', () {
+      // 1000 * 0.000621371 = 0.621371 → "0.62 mi"
+      expect(formatDistance(1000, unit: 'imperial'), '0.62 mi');
+    });
+  });
+
+  group('formatElevation', () {
+    test('metric (default) formats meters with m suffix', () {
+      expect(formatElevation(100), '100 m');
+    });
+
+    test('imperial converts meters to feet (×3.28084)', () {
+      // 100 * 3.28084 = 328.084 → "328 ft"
+      expect(formatElevation(100, unit: 'imperial'), '328 ft');
+    });
+  });
+
   group('formatSpeed', () {
     test('null returns "-"', () {
       expect(formatSpeed(null), '-');
