@@ -254,6 +254,7 @@
   "plugin-oauth-needs-connect-hint": "Save and connect this plugin before enabling sync.",
   "plugin-privacy-hint-original": "Imported trails will maintain the same visibility they have on the external platform. For example, if the original trail was public, it will be public in wanderer, even if trails are private by default according to your privacy settings.",
   "plugin-privacy-hint-user": "The original trail's visibility is discarded. Instead, the local privacy settings for trails are applied to all imported trails.",
+  "plugin-setup-error": "Setup error",
   "invalid-date": "Invalid Date",
   "invalid-username": "Invalid username",
   "italian": "Italian",

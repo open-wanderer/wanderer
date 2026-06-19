@@ -41,24 +41,40 @@ func PluginDir() string {
 }
 
 // LoadLocalPlugins reads direct child directories from the plugin directory and
-// returns every valid bundle. Direct children without plugin.json are ignored so
-// an empty or partially prepared plugin directory is harmless.
+// returns every valid bundle. Invalid direct children are ignored by this
+// compatibility helper; callers that need UI-visible errors should use
+// DiscoverLocalPlugins.
 func LoadLocalPlugins(dir string) ([]LocalPlugin, error) {
+	plugins, _, err := DiscoverLocalPlugins(dir)
+	return plugins, err
+}
+
+type LocalPluginIssue struct {
+	ID    string
+	Name  string
+	Dir   string
+	Error string
+}
+
+// DiscoverLocalPlugins reads direct child directories from the plugin directory
+// and returns valid bundles plus per-directory load issues.
+func DiscoverLocalPlugins(dir string) ([]LocalPlugin, []LocalPluginIssue, error) {
 	if dir == "" {
 		dir = PluginDir()
 	}
 	if _, err := os.Stat(dir); err != nil {
 		if os.IsNotExist(err) {
-			return []LocalPlugin{}, nil
+			return []LocalPlugin{}, nil, nil
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
 	plugins := make([]LocalPlugin, 0)
+	issues := make([]LocalPluginIssue, 0)
 	seen := map[string]bool{}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, entry := range entries {
 		if !entry.IsDir() {
@@ -67,13 +83,16 @@ func LoadLocalPlugins(dir string) ([]LocalPlugin, error) {
 		pluginDir := filepath.Join(dir, entry.Name())
 		plugin, err := LoadLocalPlugin(pluginDir)
 		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
 			if errors.Is(err, ErrUnsupportedPluginType) {
 				continue
 			}
-			return nil, fmt.Errorf("%s: %w", pluginDir, err)
+			issues = append(issues, LocalPluginIssue{
+				ID:    entry.Name(),
+				Name:  entry.Name(),
+				Dir:   pluginDir,
+				Error: fmt.Sprintf("%s: %v", entry.Name(), err),
+			})
+			continue
 		}
 		if seen[plugin.Manifest.ID] {
 			continue
@@ -82,7 +101,7 @@ func LoadLocalPlugins(dir string) ([]LocalPlugin, error) {
 		plugins = append(plugins, *plugin)
 	}
 
-	return plugins, nil
+	return plugins, issues, nil
 }
 
 // LoadLocalPlugin reads one plugin bundle, validates its manifest, and resolves

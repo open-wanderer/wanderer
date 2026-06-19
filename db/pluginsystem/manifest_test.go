@@ -3,6 +3,7 @@ package pluginsystem
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -54,6 +55,46 @@ func TestLoadLocalPluginsFindsDirectChildPlugins(t *testing.T) {
 	}
 	if len(plugins) != 2 {
 		t.Fatalf("got %d plugins, want 2", len(plugins))
+	}
+}
+
+func TestDiscoverLocalPluginsReportsMissingManifest(t *testing.T) {
+	root := t.TempDir()
+	brokenDir := filepath.Join(root, "komoot")
+	if err := os.MkdirAll(brokenDir, 0o700); err != nil {
+		t.Fatalf("mkdir plugin dir: %v", err)
+	}
+
+	plugins, issues, err := DiscoverLocalPlugins(root)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(plugins) != 0 {
+		t.Fatalf("got %d plugins, want 0", len(plugins))
+	}
+	if len(issues) != 1 {
+		t.Fatalf("got %d issues, want 1", len(issues))
+	}
+	if issues[0].ID != "komoot" || issues[0].Name != "komoot" || issues[0].Dir != brokenDir {
+		t.Fatalf("unexpected issue: %#v", issues[0])
+	}
+	if issues[0].Error == "" || !strings.Contains(issues[0].Error, "plugin.json") {
+		t.Fatalf("expected useful plugin.json error, got %#v", issues[0])
+	}
+}
+
+func TestLoadLocalPluginsIgnoresMissingManifestForCompatibility(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "komoot"), 0o700); err != nil {
+		t.Fatalf("mkdir plugin dir: %v", err)
+	}
+
+	plugins, err := LoadLocalPlugins(root)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(plugins) != 0 {
+		t.Fatalf("got %d plugins, want 0", len(plugins))
 	}
 }
 

@@ -155,6 +155,18 @@ func createInstalledPluginsCollection(app core.App) error {
 			},
 			{
 				"hidden": false,
+				"id": "textplginerr",
+				"max": 0,
+				"min": 0,
+				"name": "error",
+				"pattern": "",
+				"presentable": false,
+				"required": false,
+				"system": false,
+				"type": "text"
+			},
+			{
+				"hidden": false,
 				"id": "autoplgcreate",
 				"name": "created",
 				"onCreate": true,

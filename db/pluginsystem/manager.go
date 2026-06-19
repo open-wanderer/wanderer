@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,6 +60,7 @@ func (m *Manager) ListLocalPlugins(context.Context) ([]PluginInfo, error) {
 		return nil, err
 	}
 	infos := make([]PluginInfo, 0, len(plugins))
+	infoByPath := map[string]int{}
 	for _, plugin := range plugins {
 		status := "available"
 		record, _ := m.App.FindFirstRecordByFilter(
@@ -68,6 +70,10 @@ func (m *Manager) ListLocalPlugins(context.Context) ([]PluginInfo, error) {
 		)
 		if record != nil && record.GetString("status") != "" {
 			status = record.GetString("status")
+		}
+		errorMessage := ""
+		if record != nil {
+			errorMessage = record.GetString("error")
 		}
 		icon, iconDark := pluginIcons(plugin)
 		infos = append(infos, PluginInfo{
@@ -83,7 +89,38 @@ func (m *Manager) ListLocalPlugins(context.Context) ([]PluginInfo, error) {
 			Path:         plugin.Dir,
 			Capabilities: capabilityNames(plugin.Manifest.Capabilities),
 			Status:       status,
+			Error:        errorMessage,
 			Manifest:     plugin.Manifest,
+		})
+		infoByPath[filepath.Clean(plugin.Dir)] = len(infos) - 1
+	}
+
+	_, issues, err := DiscoverLocalPlugins(m.Dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, issue := range issues {
+		if index, ok := infoByPath[filepath.Clean(issue.Dir)]; ok {
+			infos[index].Status = "error"
+			infos[index].Error = issue.Error
+			continue
+		}
+		infos = append(infos, PluginInfo{
+			ID:      issue.ID,
+			Type:    PluginTypeTrails,
+			Name:    issue.Name,
+			Path:    issue.Dir,
+			Status:  "error",
+			Error:   issue.Error,
+			Runtime: RuntimeWASM,
+			Manifest: Manifest{
+				ID:   issue.ID,
+				Type: PluginTypeTrails,
+				Name: issue.Name,
+				Runtime: RuntimeManifest{
+					Type: RuntimeWASM,
+				},
+			},
 		})
 	}
 	return infos, nil
@@ -132,7 +169,7 @@ func pluginIcon(pluginDir string, iconPath string) string {
 // This keeps the manifest snapshot available even when later code paths should
 // avoid repeated disk IO.
 func (m *Manager) SyncInstalledPlugins(ctx context.Context) error {
-	plugins, err := LoadLocalPlugins(m.Dir)
+	plugins, issues, err := DiscoverLocalPlugins(m.Dir)
 	if err != nil {
 		return err
 	}
@@ -140,39 +177,193 @@ func (m *Manager) SyncInstalledPlugins(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if len(plugins) > 0 || len(issues) > 0 {
+		activePaths := activePluginPaths(plugins, issues)
+		if err := m.deleteStaleInstalledPlugins(ctx, activePaths); err != nil {
+			return err
+		}
+	}
+	for _, issue := range issues {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		m.App.Logger().Warn("plugin setup error", "plugin", issue.ID, "path", issue.Dir, "error", issue.Error)
+		if err := m.savePluginIssue(collection, issue); err != nil {
+			return err
+		}
+	}
 	for _, plugin := range plugins {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		record, _ := m.App.FindFirstRecordByFilter(
-			"installed_plugins",
-			"plugin_id={:plugin_id}",
-			dbx.Params{"plugin_id": plugin.Manifest.ID},
-		)
-		if record == nil {
-			record = core.NewRecord(collection)
-			record.Set("plugin_id", plugin.Manifest.ID)
-			record.Set("status", "available")
+		record, err := m.findPluginRecord(collection, plugin)
+		if err != nil {
+			return err
 		}
+		record.Set("plugin_id", plugin.Manifest.ID)
 		record.Set("name", plugin.Manifest.Name)
 		record.Set("type", plugin.Manifest.Type)
 		record.Set("version", plugin.Manifest.Version)
 		record.Set("runtime", plugin.Manifest.Runtime.Type)
 		record.Set("path", plugin.Dir)
+		record.Set("status", "available")
+		record.Set("error", "")
 		manifestJSON, err := marshalManifest(plugin.Manifest)
 		if err != nil {
 			return fmt.Errorf("encode installed plugin %s manifest: %w", plugin.Manifest.ID, err)
 		}
 		record.Set("manifest", manifestJSON)
 		record.Set("config", mergeDefaultConfig(defaultConfig(plugin.Manifest), JSONMapFromRecord(record, "config")))
-		if record.GetString("status") == "" {
-			record.Set("status", "available")
-		}
 		if err := m.App.Save(record); err != nil {
 			return fmt.Errorf("save installed plugin %s: %w", plugin.Manifest.ID, err)
 		}
 	}
 	return nil
+}
+
+func activePluginPaths(plugins []LocalPlugin, issues []LocalPluginIssue) map[string]bool {
+	paths := make(map[string]bool, len(plugins)+len(issues))
+	for _, plugin := range plugins {
+		if plugin.Dir != "" {
+			paths[filepath.Clean(plugin.Dir)] = true
+		}
+	}
+	for _, issue := range issues {
+		if issue.Dir != "" {
+			paths[filepath.Clean(issue.Dir)] = true
+		}
+	}
+	return paths
+}
+
+func (m *Manager) deleteStaleInstalledPlugins(ctx context.Context, activePaths map[string]bool) error {
+	records, err := m.App.FindRecordsByFilter("installed_plugins", "", "", -1, 0)
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		path := strings.TrimSpace(record.GetString("path"))
+		if path != "" && activePaths[filepath.Clean(path)] {
+			continue
+		}
+		if err := m.App.Delete(record); err != nil {
+			return fmt.Errorf("delete stale installed plugin %s: %w", record.GetString("plugin_id"), err)
+		}
+	}
+	return nil
+}
+
+func (m *Manager) findPluginRecord(collection *core.Collection, plugin LocalPlugin) (*core.Record, error) {
+	recordByID, _ := m.App.FindFirstRecordByFilter(
+		"installed_plugins",
+		"plugin_id={:plugin_id}",
+		dbx.Params{"plugin_id": plugin.Manifest.ID},
+	)
+	var recordByPath *core.Record
+	if plugin.Dir != "" {
+		recordByPath, _ = m.App.FindFirstRecordByFilter(
+			"installed_plugins",
+			"path={:path}",
+			dbx.Params{"path": plugin.Dir},
+		)
+	}
+	if recordByID != nil && recordByPath != nil && recordByID.Id != recordByPath.Id {
+		if err := m.App.Delete(recordByPath); err != nil {
+			return nil, fmt.Errorf("delete superseded installed plugin %s: %w", recordByPath.GetString("plugin_id"), err)
+		}
+	}
+	if recordByID != nil {
+		return recordByID, nil
+	}
+	if recordByPath != nil {
+		return recordByPath, nil
+	}
+	return core.NewRecord(collection), nil
+}
+
+func (m *Manager) savePluginIssue(collection *core.Collection, issue LocalPluginIssue) error {
+	recordID := pluginIssueRecordID(issue)
+	record, _ := m.App.FindFirstRecordByFilter(
+		"installed_plugins",
+		"plugin_id={:plugin_id}",
+		dbx.Params{"plugin_id": recordID},
+	)
+	if record == nil && issue.Dir != "" {
+		record, _ = m.App.FindFirstRecordByFilter(
+			"installed_plugins",
+			"path={:path}",
+			dbx.Params{"path": issue.Dir},
+		)
+	}
+	if record == nil {
+		record = core.NewRecord(collection)
+		record.Set("plugin_id", recordID)
+	}
+	record.Set("name", issue.Name)
+	record.Set("type", PluginTypeTrails)
+	record.Set("version", "unknown")
+	record.Set("runtime", RuntimeWASM)
+	record.Set("path", issue.Dir)
+	record.Set("manifest", map[string]any{
+		"id":   record.GetString("plugin_id"),
+		"type": PluginTypeTrails,
+		"name": issue.Name,
+	})
+	record.Set("status", "error")
+	record.Set("error", issue.Error)
+	if err := m.App.Save(record); err != nil {
+		return fmt.Errorf("save plugin setup error %s: %w", issue.ID, err)
+	}
+	return nil
+}
+
+func pluginIssueRecordID(issue LocalPluginIssue) string {
+	originalID := strings.TrimSpace(issue.ID)
+	id := strings.ToLower(originalID)
+	var builder strings.Builder
+	for _, r := range id {
+		switch {
+		case r >= 'a' && r <= 'z':
+			builder.WriteRune(r)
+		case r >= '0' && r <= '9':
+			builder.WriteRune(r)
+		case r == '_' || r == '-':
+			builder.WriteRune(r)
+		default:
+			builder.WriteRune('-')
+		}
+	}
+	result := strings.Trim(builder.String(), "-_")
+	if result == "" {
+		result = "plugin-setup-error"
+	}
+	if originalID != result || !pluginIDPattern.MatchString(result) {
+		result = strings.Trim(result, "-_")
+		if result == "" {
+			result = "plugin-setup-error"
+		}
+		result = result + "-" + pluginIssueHash(issue)
+	}
+	if len(result) > 128 {
+		hash := pluginIssueHash(issue)
+		prefixLength := 128 - len(hash) - 1
+		result = strings.Trim(result[:prefixLength], "-_") + "-" + hash
+	}
+	if pluginIDPattern.MatchString(result) {
+		return result
+	}
+	return "plugin-setup-error-" + pluginIssueHash(issue)
+}
+
+func pluginIssueHash(issue LocalPluginIssue) string {
+	hash := fnv.New32a()
+	_, _ = hash.Write([]byte(issue.Dir))
+	_, _ = hash.Write([]byte{0})
+	_, _ = hash.Write([]byte(issue.ID))
+	return fmt.Sprintf("%08x", hash.Sum32())
 }
 
 func marshalManifest(manifest Manifest) (map[string]any, error) {

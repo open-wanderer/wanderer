@@ -75,7 +75,7 @@
                     class:text-red-400={error}
                     class="inline-flex min-w-0 items-center gap-2"
                     title={error
-                        ? error
+                        ? $_("plugin-setup-error")
                         : `${$_("last-sync")}: ${formatLastSyncAt(lastSyncAt)}`}
                 >
                     {#if error}
@@ -92,12 +92,12 @@
                     <span class="truncate">{formatLastSyncAt(lastSyncAt)}</span>
                 </span>
             {:else if error}
-                <span class="inline-flex items-center gap-2 text-red-400" title={error}>
+                <span class="inline-flex items-center gap-2 text-red-400" title={$_("plugin-setup-error")}>
                     <i
                         class="fa fa-triangle-exclamation shrink-0 text-[0.8rem]"
                         aria-hidden="true"
                     ></i>
-                    <span>Sync</span>
+                    <span class="truncate">{$_("plugin-setup-error")}</span>
                 </span>
             {/if}
         </div>
