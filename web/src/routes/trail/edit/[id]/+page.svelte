@@ -137,6 +137,7 @@
     let gpxFile: File | Blob | null = null;
 
     let drawingActive = $state(false);
+    let showWaypointsWhileDrawing = $state(true);
     let replacingRoute = $state(false);
     let isNewTrail = $derived(page.params.id === "new");
 
@@ -887,6 +888,16 @@
         }
     }
 
+    function openWaypointActionPopup(lngLat: M.LngLat) {
+        mapPopup?.remove();
+
+        mapPopup = createEditTrailMapPopup(lngLat, () => {
+            mapPopup?.remove();
+            beforeWaypointModalOpen(lngLat.lat, lngLat.lng);
+        });
+        mapPopup.addTo(map!);
+    }
+
     async function handleMapClick(e: M.MapMouseEvent) {
         if (!drawingActive) {
             if (
@@ -896,13 +907,7 @@
             ) {
                 return;
             }
-            mapPopup?.remove();
-
-            mapPopup = createEditTrailMapPopup(e.lngLat, () => {
-                mapPopup?.remove();
-                beforeWaypointModalOpen(e.lngLat.lat, e.lngLat.lng);
-            });
-            mapPopup.addTo(map!);
+            openWaypointActionPopup(e.lngLat);
         } else {
             const anchorCount = valhallaStore.anchors.length;
             if (anchorCount == 0) {
@@ -915,6 +920,20 @@
                 await addAnchorAndRecalculate(e.lngLat.lat, e.lngLat.lng);
             }
         }
+    }
+
+    function handleMapContextMenu(e: M.MapMouseEvent) {
+        if (!drawingActive || !showWaypointsWhileDrawing) {
+            return;
+        }
+        if (
+            (e.originalEvent.target as HTMLElement).tagName.toLowerCase() !==
+            "canvas"
+        ) {
+            return;
+        }
+        e.preventDefault();
+        openWaypointActionPopup(e.lngLat);
     }
 
     async function addAnchorAndRecalculate(lat: number, lon: number) {
@@ -1830,8 +1849,10 @@
             </div>
         {/if}
         <hr class="border-input-border" />
-        {#if isNewTrail || replacingRoute}
-            <h3 class="text-xl font-semibold">{$_("pick-a-trail")}</h3>
+        {#if isNewTrail || replacingRoute || drawingActive || $formData.expand?.gpx_data}
+            {#if isNewTrail || replacingRoute}
+                <h3 class="text-xl font-semibold">{$_("pick-a-trail")}</h3>
+            {/if}
             <button
                 class="btn-primary"
                 type="button"
@@ -2155,6 +2176,7 @@
                     onRecalculateElevationData={recalculateElevationData}
                     onUndo={undoRouteEdit}
                     onRedo={redoRouteEdit}
+                    bind:showWaypoints={showWaypointsWhileDrawing}
                 ></RouteEditor>
             </div>
         {/if}
@@ -2163,6 +2185,7 @@
                 trails={mapTrail}
                 waypoints={$formData.expand?.waypoints_via_trail}
                 drawing={drawingActive}
+                displayWaypoints={!drawingActive || showWaypointsWhileDrawing}
                 showTerrain={true}
                 autoGeolocateOnDrawing={page.params.id === "new"}
                 onmarkerdragend={moveMarker}
@@ -2170,6 +2193,7 @@
                 bind:map
                 oninit={handleMapInit}
                 onclick={(target) => handleMapClick(target)}
+                oncontextmenu={(target) => handleMapContextMenu(target)}
                 onsegmentclick={(data) => handleSegmentClick(data)}
                 onsegmentdragend={(data) => handleSegmentDragEnd(data)}
                 mapOptions={{ preserveDrawingBuffer: true }}
