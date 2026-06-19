@@ -15,6 +15,7 @@ import 'package:wanderer/components/trail/trail_timeline.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/icon_util.dart';
@@ -32,6 +33,7 @@ class TrailPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).requireValue!;
+    final unit = ref.watch(unitProvider);
 
     final webPhotos = trail.photos
         .map((p) => trail.getFileUrl(user.serverUrl, p, thumb: '1200x0') ?? '')
@@ -173,7 +175,7 @@ class TrailPanel extends ConsumerWidget {
                         ),
                       StatChip(
                         icon: FontAwesomeIcons.ruler,
-                        label: formatDistance(trail.distance),
+                        label: formatDistance(trail.distance, unit: unit),
                       ),
                       if (trail.duration > 0)
                         StatChip(
@@ -186,11 +188,11 @@ class TrailPanel extends ConsumerWidget {
                         ),
                       StatChip(
                         icon: FontAwesomeIcons.arrowTrendUp,
-                        label: formatElevation(trail.elevationGain),
+                        label: formatElevation(trail.elevationGain, unit: unit),
                       ),
                       StatChip(
                         icon: FontAwesomeIcons.arrowTrendDown,
-                        label: formatElevation(trail.elevationLoss),
+                        label: formatElevation(trail.elevationLoss, unit: unit),
                       ),
                     ],
                   ),

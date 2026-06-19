@@ -10,6 +10,7 @@ import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/icon_util.dart';
 
@@ -23,6 +24,7 @@ class TrailListItem extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final trailIsShared = trail.summaryShares?.isNotEmpty ?? false;
     final user = ref.watch(authProvider).value!;
+    final unit = ref.watch(unitProvider);
 
     final String? localPath = trail.localPhotos.isNotEmpty
         ? trail.localPhotos.first
@@ -189,7 +191,7 @@ class TrailListItem extends ConsumerWidget {
                         ],
 
                         // Stats row
-                        _StatsRow(trail: trail),
+                        _StatsRow(trail: trail, unit: unit),
                       ],
                     ),
                   ),
@@ -357,7 +359,8 @@ class _Chip extends StatelessWidget {
 
 class _StatsRow extends StatelessWidget {
   final TrailSummary trail;
-  const _StatsRow({required this.trail});
+  final String unit;
+  const _StatsRow({required this.trail, required this.unit});
 
   @override
   Widget build(BuildContext context) {
@@ -367,7 +370,7 @@ class _StatsRow extends StatelessWidget {
       children: [
         StatChip(
           icon: FontAwesomeIcons.ruler,
-          label: formatDistance(trail.distance),
+          label: formatDistance(trail.distance, unit: unit),
         ),
         StatChip(
           icon: FontAwesomeIcons.clock,
@@ -377,11 +380,11 @@ class _StatsRow extends StatelessWidget {
         ),
         StatChip(
           icon: FontAwesomeIcons.arrowTrendUp,
-          label: formatElevation(trail.elevationGain),
+          label: formatElevation(trail.elevationGain, unit: unit),
         ),
         StatChip(
           icon: FontAwesomeIcons.arrowTrendDown,
-          label: formatElevation(trail.elevationLoss),
+          label: formatElevation(trail.elevationLoss, unit: unit),
         ),
       ],
     );

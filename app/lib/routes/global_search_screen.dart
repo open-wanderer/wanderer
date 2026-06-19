@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/search/global_search_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/polyline_util.dart';
@@ -40,6 +41,7 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
     final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(globalSearchProvider);
     final notifier = ref.read(globalSearchProvider.notifier);
+    final unit = ref.watch(unitProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -87,7 +89,7 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
           _CategoryChips(state: state, notifier: notifier, l10n: l10n),
           const Divider(height: 1),
           Expanded(
-            child: _ResultsList(state: state, l10n: l10n),
+            child: _ResultsList(state: state, l10n: l10n, unit: unit),
           ),
         ],
       ),
@@ -156,8 +158,13 @@ class _CategoryChips extends StatelessWidget {
 class _ResultsList extends StatelessWidget {
   final GlobalSearchState state;
   final AppLocalizations l10n;
+  final String unit;
 
-  const _ResultsList({required this.state, required this.l10n});
+  const _ResultsList({
+    required this.state,
+    required this.l10n,
+    required this.unit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -203,7 +210,7 @@ class _ResultsList extends StatelessWidget {
 
     return ListView(
       children: [
-        ...state.visibleTrails.map((t) => _TrailTile(trail: t)),
+        ...state.visibleTrails.map((t) => _TrailTile(trail: t, unit: unit)),
         ...state.visibleLists.map((l) => _ListTile(list: l)),
         ...state.visibleLocations.map((l) => _LocationTile(location: l)),
         ...state.visibleActors.map((a) => _ActorTile(actor: a)),
@@ -214,8 +221,9 @@ class _ResultsList extends StatelessWidget {
 
 class _TrailTile extends StatelessWidget {
   final TrailSearchResult trail;
+  final String unit;
 
-  const _TrailTile({required this.trail});
+  const _TrailTile({required this.trail, required this.unit});
 
   String _difficultyLabel(BuildContext context, int difficulty) {
     final l10n = AppLocalizations.of(context)!;
@@ -240,7 +248,7 @@ class _TrailTile extends StatelessWidget {
         [
           if (trail.category.isNotEmpty) trail.category,
           _difficultyLabel(context, trail.difficulty),
-          formatDistance(trail.distance),
+          formatDistance(trail.distance, unit: unit),
         ].join(' · '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,

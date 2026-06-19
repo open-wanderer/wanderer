@@ -9,6 +9,7 @@ import 'package:wanderer/components/base/wanderer_sort_chip_group.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
@@ -398,6 +399,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
               builder: (context, ref, _) {
                 final filterAsync = ref.watch(trailFilterProvider(filterId));
                 final currentFilter = filterAsync.value ?? filter;
+                final unit = ref.watch(unitProvider);
                 final l10n = AppLocalizations.of(context)!;
 
                 return SingleChildScrollView(
@@ -435,8 +437,11 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               ? currentFilter.elevationGainLimit
                               : 1,
                           labels: RangeLabels(
-                            formatElevation(currentFilter.elevationGainMin),
-                            '${formatElevation(currentFilter.elevationGainMax)}${currentFilter.elevationGainMax >= currentFilter.elevationGainLimit ? "+" : ""}',
+                            formatElevation(
+                              currentFilter.elevationGainMin,
+                              unit: unit,
+                            ),
+                            '${formatElevation(currentFilter.elevationGainMax, unit: unit)}${currentFilter.elevationGainMax >= currentFilter.elevationGainLimit ? "+" : ""}',
                           ),
                           onChanged: (values) {
                             ref
@@ -464,8 +469,11 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               ? currentFilter.elevationLossLimit
                               : 1,
                           labels: RangeLabels(
-                            formatElevation(currentFilter.elevationLossMin),
-                            '${formatElevation(currentFilter.elevationLossMax)}${currentFilter.elevationLossMax >= currentFilter.elevationLossLimit ? "+" : ""}',
+                            formatElevation(
+                              currentFilter.elevationLossMin,
+                              unit: unit,
+                            ),
+                            '${formatElevation(currentFilter.elevationLossMax, unit: unit)}${currentFilter.elevationLossMax >= currentFilter.elevationLossLimit ? "+" : ""}',
                           ),
                           onChanged: (values) {
                             ref

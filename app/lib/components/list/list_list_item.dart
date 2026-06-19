@@ -6,6 +6,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/models/list_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 
 class ListListItem extends ConsumerWidget {
@@ -17,6 +18,7 @@ class ListListItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).value!;
+    final unit = ref.watch(unitProvider);
 
     final String? avatarUrl = list.getFileUrl(
       user.serverUrl,
@@ -94,7 +96,7 @@ class ListListItem extends ConsumerWidget {
                         const SizedBox(height: 8),
 
                         // Stats row
-                        _StatsRow(list: list),
+                        _StatsRow(list: list, unit: unit),
                       ],
                     ),
                   ),
@@ -149,7 +151,8 @@ class _Thumbnail extends StatelessWidget {
 
 class _StatsRow extends StatelessWidget {
   final ListSummary list;
-  const _StatsRow({required this.list});
+  final String unit;
+  const _StatsRow({required this.list, required this.unit});
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +163,7 @@ class _StatsRow extends StatelessWidget {
         if (list.distance != null)
           StatChip(
             icon: FontAwesomeIcons.ruler,
-            label: formatDistance(list.distance!),
+            label: formatDistance(list.distance!, unit: unit),
           ),
         if (list.duration != null)
           StatChip(
@@ -172,12 +175,12 @@ class _StatsRow extends StatelessWidget {
         if (list.elevationGain != null)
           StatChip(
             icon: FontAwesomeIcons.arrowTrendUp,
-            label: formatElevation(list.elevationGain!),
+            label: formatElevation(list.elevationGain!, unit: unit),
           ),
         if (list.elevationLoss != null)
           StatChip(
             icon: FontAwesomeIcons.arrowTrendDown,
-            label: formatElevation(list.elevationLoss!),
+            label: formatElevation(list.elevationLoss!, unit: unit),
           ),
       ],
     );

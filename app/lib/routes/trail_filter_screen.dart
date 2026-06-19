@@ -12,6 +12,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/tag.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/tag_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
@@ -50,6 +51,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
 
     final filter = ref.watch(trailFilterProvider(widget.filterId));
     final categories = ref.watch(categoryProvider);
+    final unit = ref.watch(unitProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -224,8 +226,8 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   min: 0,
                   max: filter.value?.distanceLimit ?? 0,
                   labels: RangeLabels(
-                    formatDistance(filter.value?.distanceMin),
-                    "${formatElevation(filter.value?.distanceMax)}${filter.value?.distanceMax == filter.value?.distanceLimit ? "+" : ""}",
+                    formatDistance(filter.value?.distanceMin, unit: unit),
+                    "${formatElevation(filter.value?.distanceMax, unit: unit)}${filter.value?.distanceMax == filter.value?.distanceLimit ? "+" : ""}",
                   ),
                   onChanged: (RangeValues values) {
                     ref
@@ -253,8 +255,8 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   min: 0,
                   max: filter.value?.elevationGainLimit ?? 0,
                   labels: RangeLabels(
-                    formatElevation(filter.value?.elevationGainMin),
-                    "${formatElevation(filter.value?.elevationGainMax)}${filter.value?.elevationGainMax == filter.value?.elevationGainLimit ? "+" : ""}",
+                    formatElevation(filter.value?.elevationGainMin, unit: unit),
+                    "${formatElevation(filter.value?.elevationGainMax, unit: unit)}${filter.value?.elevationGainMax == filter.value?.elevationGainLimit ? "+" : ""}",
                   ),
                   onChanged: (RangeValues values) {
                     ref
@@ -281,8 +283,8 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   min: 0,
                   max: filter.value?.elevationLossLimit ?? 0,
                   labels: RangeLabels(
-                    formatElevation(filter.value?.elevationLossMin),
-                    "${formatElevation(filter.value?.elevationLossMax)}${filter.value?.elevationLossMax == filter.value?.elevationLossLimit ? "+" : ""}",
+                    formatElevation(filter.value?.elevationLossMin, unit: unit),
+                    "${formatElevation(filter.value?.elevationLossMax, unit: unit)}${filter.value?.elevationLossMax == filter.value?.elevationLossLimit ? "+" : ""}",
                   ),
                   onChanged: (RangeValues values) {
                     ref

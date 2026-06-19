@@ -10,6 +10,7 @@ import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/summit_log.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/routes/photo_gallery_screen.dart';
 import 'package:wanderer/util/format_util.dart';
 
@@ -21,6 +22,7 @@ class SummitLogCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).value!;
+    final unit = ref.watch(unitProvider);
     final author = summitLog.expand?.author;
 
     final bool hasStats =
@@ -222,7 +224,10 @@ class SummitLogCard extends ConsumerWidget {
                                   summitLog.distance! > 0)
                                 StatChip(
                                   icon: FontAwesomeIcons.ruler,
-                                  label: formatDistance(summitLog.distance!),
+                                  label: formatDistance(
+                                    summitLog.distance!,
+                                    unit: unit,
+                                  ),
                                 ),
                               if (summitLog.duration != null &&
                                   summitLog.duration! > 0)
@@ -242,6 +247,7 @@ class SummitLogCard extends ConsumerWidget {
                                   icon: FontAwesomeIcons.arrowTrendUp,
                                   label: formatElevation(
                                     summitLog.elevationGain!,
+                                    unit: unit,
                                   ),
                                 ),
                               if (summitLog.elevationLoss != null &&
@@ -250,6 +256,7 @@ class SummitLogCard extends ConsumerWidget {
                                   icon: FontAwesomeIcons.arrowTrendDown,
                                   label: formatElevation(
                                     summitLog.elevationLoss!,
+                                    unit: unit,
                                   ),
                                 ),
                             ],

@@ -15,6 +15,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/list.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/list_provider.dart';
 import 'package:wanderer/util/format_util.dart';
@@ -105,6 +106,7 @@ class _ListHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).requireValue!;
+    final unit = ref.watch(unitProvider);
     final theme = Theme.of(context);
     final l18n = AppLocalizations.of(context)!;
 
@@ -201,7 +203,7 @@ class _ListHeader extends ConsumerWidget {
                 children: [
                   StatChip(
                     icon: FontAwesomeIcons.ruler,
-                    label: formatDistance(list.distance),
+                    label: formatDistance(list.distance, unit: unit),
                   ),
                   if (list.duration != null && list.duration! > 0)
                     StatChip(
@@ -213,11 +215,11 @@ class _ListHeader extends ConsumerWidget {
                     ),
                   StatChip(
                     icon: FontAwesomeIcons.arrowTrendUp,
-                    label: formatElevation(list.elevationGain),
+                    label: formatElevation(list.elevationGain, unit: unit),
                   ),
                   StatChip(
                     icon: FontAwesomeIcons.arrowTrendDown,
-                    label: formatElevation(list.elevationLoss),
+                    label: formatElevation(list.elevationLoss, unit: unit),
                   ),
                 ],
               ),

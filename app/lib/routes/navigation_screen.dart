@@ -20,6 +20,7 @@ import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
@@ -176,6 +177,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final trailAsync = ref.watch(trailProvider(widget.id));
     final user = ref.watch(authProvider).requireValue;
     final localizations = AppLocalizations.of(context)!;
+    final unit = ref.watch(unitProvider);
 
     if (widget.isOffline && !_offlineInitialized) {
       trailAsync.whenData((trail) {
@@ -326,11 +328,18 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                       maneuvers,
                       currentIndex,
                       isArrived,
+                      unit,
                     ),
                   ),
                 ),
 
-                _buildStatsSheet(context, localizations, stats, trailAsync),
+                _buildStatsSheet(
+                  context,
+                  localizations,
+                  stats,
+                  trailAsync,
+                  unit,
+                ),
 
                 Positioned(
                   left: 16,
@@ -411,6 +420,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     List<NavigateManeuver> maneuvers,
     int currentIndex,
     bool isArrived,
+    String unit,
   ) {
     return Card(
       elevation: 4,
@@ -425,6 +435,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                 localizations,
                 maneuvers,
                 currentIndex,
+                unit,
               ),
       ),
     );
@@ -435,6 +446,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     AppLocalizations localizations,
     List<NavigateManeuver> maneuvers,
     int currentIndex,
+    String unit,
   ) {
     if (maneuvers.isEmpty) {
       return const SizedBox.shrink();
@@ -467,7 +479,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               const SizedBox(height: 4),
               Text(
                 localizations.in_distance(
-                  formatDistance(maneuver.length * 1000),
+                  formatDistance(maneuver.length * 1000, unit: unit),
                 ),
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
@@ -520,6 +532,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     AppLocalizations localizations,
     NavigationStats stats,
     AsyncValue<Trail> trailAsync,
+    String unit,
   ) {
     final theme = Theme.of(context);
     final maxSize = _sheetAtElevationSize
@@ -577,12 +590,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                       _buildStatCell(
                         context,
                         localizations.distance,
-                        formatDistance(stats.distanceMeters),
+                        formatDistance(stats.distanceMeters, unit: unit),
                       ),
                       _buildStatCell(
                         context,
                         localizations.elevation_gain,
-                        formatElevation(stats.elevationGainMeters),
+                        formatElevation(stats.elevationGainMeters, unit: unit),
                       ),
                     ],
                   ),
@@ -616,6 +629,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                               context,
                               localizations,
                               stats,
+                              unit,
                             ),
                           ),
                   ),
@@ -635,6 +649,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     BuildContext context,
     AppLocalizations localizations,
     NavigationStats stats,
+    String unit,
   ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
@@ -647,17 +662,17 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               _buildStatCell(
                 context,
                 localizations.elevation_loss,
-                formatElevation(stats.elevationLossMeters),
+                formatElevation(stats.elevationLossMeters, unit: unit),
               ),
               _buildStatCell(
                 context,
                 localizations.speed,
-                formatSpeed(stats.currentSpeedKmh),
+                formatSpeed(stats.currentSpeedKmh, unit: unit),
               ),
               _buildStatCell(
                 context,
                 localizations.average_speed,
-                formatSpeed(stats.averageSpeedKmh),
+                formatSpeed(stats.averageSpeedKmh, unit: unit),
               ),
             ],
           ),

@@ -7,6 +7,7 @@ import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/list_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 
 class ListCard extends ConsumerWidget {
@@ -24,6 +25,7 @@ class ListCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).value!;
+    final unit = ref.watch(unitProvider);
 
     final avatarUrl = list.getFileUrl(
       user.serverUrl,
@@ -86,7 +88,7 @@ class ListCard extends ConsumerWidget {
                   padding: const EdgeInsets.all(12),
                   child: mini
                       ? _MiniContent(list: list)
-                      : _FullContent(list: list),
+                      : _FullContent(list: list, unit: unit),
                 ),
               ],
             ),
@@ -137,7 +139,8 @@ class _MiniContent extends StatelessWidget {
 
 class _FullContent extends StatelessWidget {
   final ListSummary list;
-  const _FullContent({required this.list});
+  final String unit;
+  const _FullContent({required this.list, required this.unit});
 
   @override
   Widget build(BuildContext context) {
@@ -205,7 +208,7 @@ class _FullContent extends StatelessWidget {
           children: [
             StatChip(
               icon: FontAwesomeIcons.ruler,
-              label: formatDistance(list.distance),
+              label: formatDistance(list.distance, unit: unit),
             ),
             if (list.duration != null)
               StatChip(
@@ -216,11 +219,11 @@ class _FullContent extends StatelessWidget {
               ),
             StatChip(
               icon: FontAwesomeIcons.arrowTrendUp,
-              label: formatElevation(list.elevationGain),
+              label: formatElevation(list.elevationGain, unit: unit),
             ),
             StatChip(
               icon: FontAwesomeIcons.arrowTrendDown,
-              label: formatElevation(list.elevationLoss),
+              label: formatElevation(list.elevationLoss, unit: unit),
             ),
           ],
         ),
