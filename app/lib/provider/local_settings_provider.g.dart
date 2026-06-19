@@ -102,3 +102,84 @@ final class ThemeModeProvider
 }
 
 String _$themeModeHash() => r'688b55e2c54c3ee17b0d204c96143c1ca617264f';
+
+@ProviderFor(locale)
+final localeProvider = LocaleProvider._();
+
+final class LocaleProvider
+    extends $FunctionalProvider<Locale?, Locale?, Locale?>
+    with $Provider<Locale?> {
+  LocaleProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'localeProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$localeHash();
+
+  @$internal
+  @override
+  $ProviderElement<Locale?> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  Locale? create(Ref ref) {
+    return locale(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(Locale? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<Locale?>(value),
+    );
+  }
+}
+
+String _$localeHash() => r'91fb75995faecbb71c068dbc8c7cd89d4f22a974';
+
+@ProviderFor(unit)
+final unitProvider = UnitProvider._();
+
+final class UnitProvider extends $FunctionalProvider<String, String, String>
+    with $Provider<String> {
+  UnitProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'unitProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$unitHash();
+
+  @$internal
+  @override
+  $ProviderElement<String> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  String create(Ref ref) {
+    return unit(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(String value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<String>(value),
+    );
+  }
+}
+
+String _$unitHash() => r'61cb2b8e04879730d2520f184f8c89b7c5d086a9';

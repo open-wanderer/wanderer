@@ -3,6 +3,7 @@ import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/local_settings_entity.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/provider/settings_provider.dart';
 
 part 'local_settings_provider.g.dart';
 
@@ -39,4 +40,17 @@ ThemeMode themeMode(Ref ref) {
     'dark' => ThemeMode.dark,
     _ => ThemeMode.system,
   };
+}
+
+@Riverpod(keepAlive: true)
+Locale? locale(Ref ref) {
+  final lang = ref.watch(settingsProvider)?.language;
+  if (lang == null) return null;
+  return Locale(lang.name);
+}
+
+@Riverpod(keepAlive: true)
+String unit(Ref ref) {
+  final settings = ref.watch(settingsProvider);
+  return settings?.unit ?? 'metric';
 }
