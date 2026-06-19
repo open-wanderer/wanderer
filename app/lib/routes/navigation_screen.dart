@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +25,7 @@ import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
 
 class NavigationScreen extends ConsumerStatefulWidget {
@@ -51,6 +51,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   final StreamController<double?> _recenterTrigger =
       StreamController<double?>.broadcast();
 
+  late final TraceletPositionSource _positionSource;
   late final Stream<Position> _positionStream;
   StreamSubscription<Position>? _sub;
 
@@ -76,50 +77,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   // mid-animation.
   bool _sheetAtElevationSize = false;
 
-  LocationSettings _buildLocationSettings() {
-    if (kIsWeb) {
-      return const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5,
-      );
-    }
-    if (Platform.isAndroid) {
-      return AndroidSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5,
-        intervalDuration: const Duration(seconds: 1),
-        foregroundNotificationConfig: const ForegroundNotificationConfig(
-          notificationTitle: 'Wanderer Navigation',
-          notificationText:
-              'Your location is being tracked for turn-by-turn navigation.',
-          notificationChannelName: 'Navigation',
-          enableWakeLock: true,
-          setOngoing: true,
-        ),
-      );
-    } else if (Platform.isIOS || Platform.isMacOS) {
-      return AppleSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5,
-        allowBackgroundLocationUpdates: true,
-        showBackgroundLocationIndicator: true,
-        pauseLocationUpdatesAutomatically: false,
-      );
-    }
-    // Web / other platforms — minimal settings
-    return const LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 5,
-    );
-  }
-
   @override
   void initState() {
     super.initState();
 
-    _positionStream = Geolocator.getPositionStream(
-      locationSettings: _buildLocationSettings(),
-    ).asBroadcastStream();
+    _positionSource = TraceletPositionSource();
+    _positionStream = _positionSource.stream;
+    unawaited(_positionSource.start());
     _sub = _positionStream.listen(
       (pos) {
         ref
@@ -154,6 +118,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   @override
   void dispose() {
     _sub?.cancel();
+    unawaited(_positionSource.dispose());
     _recenterTrigger.close();
     _sheetController.dispose();
     _waypointSheetController.dispose();
