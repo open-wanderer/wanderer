@@ -4,7 +4,9 @@
 
 **v1.0 (Complete):** Three phases deliver turn-by-turn trail navigation from nothing to a complete in-app experience. Phase 1 built the SvelteKit API endpoint that fetches Valhalla maneuvers. Phase 2 wired the Flutter navigation screen — entry points, full-screen map, GPS centering, maneuver display, orientation toggle, automatic advancement, and exit. Phase 3 added the DraggableScrollableSheet stats panel with live distance/elevation/speed stats and a reused elevation-profile page.
 
-**v1.1 (Active):** Two phases deliver offline navigation. Phase 4 fixes the serialization bug that blocks ObjectBox caching and adds the `navCacheJson` field to `TrailEntity`. Phase 5 wires the cache write into the download service, adds the DioException fallback in `launchNavigation`, fires a silent re-cache after successful online sessions, and shows an offline indicator in the NavigationScreen AppBar.
+**v1.1 (Complete):** Two phases deliver offline navigation. Phase 4 fixed the serialization bug that blocked ObjectBox caching and added the `navCacheJson` field to `TrailEntity`. Phase 5 wired the cache write into the download service, added the DioException fallback in `launchNavigation`, fires a silent re-cache after successful online sessions, and shows an offline indicator in the NavigationScreen AppBar.
+
+**v1.2 (Active):** Four phases port the web client's settings screens into the Flutter app. Phase 6 wires the settings navigation (Privacy, Language, Notifications list entries + routes) and ships the Language & Units screen as the foundational first screen. Phase 7 adds the Privacy screen with account/trails/lists visibility controls. Phase 8 builds the combined Account & Profile screen (avatar, bio, email, password, delete account). Phase 9 adds the Notifications screen with web + email toggles for all nine notification types.
 
 ## Phases
 
@@ -20,6 +22,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Stats Sheet** - DraggableScrollableSheet with live distance/elevation/speed stats and a reused elevation-profile page (completed 2026-06-13)
 - [x] **Phase 4: Serialization Fix + Entity Schema** - Fix NavigateResponse.toJson() serialization bug, add navCacheJson to TrailEntity (completed 2026-06-14)
 - [x] **Phase 5: Cache Write + Fallback + UI** - Cache navigation instructions at download time, fall back to cache when offline, re-cache after online sessions, show offline indicator (completed 2026-06-14)
+- [ ] **Phase 6: Settings Navigation + Language & Units** - Add Privacy/Language/Notifications list entries and routes, ship the Language & Units screen
+- [ ] **Phase 7: Privacy** - Privacy screen with account, trails, and lists visibility controls
+- [ ] **Phase 8: Account & Profile** - Combined account screen: avatar, bio, change email, change password, delete account
+- [ ] **Phase 9: Notifications** - Notifications screen with web + email toggles for all nine notification types
 
 ## Phase Details
 
@@ -140,15 +146,92 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 05-03-PLAN.md — launchNavigation DioException cache fallback + isOffline propagation + unawaited silent re-cache (OFFLINE-02, OFFLINE-03)
 - [x] 05-04-PLAN.md — Best-effort silent Valhalla cache write in TrailDownloadService.downloadTrail (OFFLINE-01)
 
+### Phase 6: Settings Navigation + Language & Units
+
+**Goal**: Users can reach every settings sub-screen from the Settings list and can set their preferred language and unit system
+**Depends on**: Nothing new (extends existing settings infrastructure; first phase of v1.2)
+**Requirements**: SETNAV-01, LANG-01, LANG-02
+**Success Criteria** (what must be TRUE):
+
+  1. The Settings screen lists entries for Account, Privacy, Language, and Notifications alongside the existing Appearance entry, and each entry navigates to its screen
+  2. Tapping Language opens a screen where the user can pick from the 14 supported locales, and the selection persists after leaving and reopening the screen
+  3. The Language screen lets the user toggle between metric and imperial units, and the choice persists across app restarts
+  4. Changing language or units saves to the server and the existing Settings, Account, and Appearance screens remain reachable and unbroken
+
+**Plans**: 4 plans
+Plans:
+**Wave 1**
+
+- [ ] 06-01-PLAN.md — localeProvider + unitProvider derived providers, MaterialApp.router live-locale wiring + 14 supportedLocales, Wave 0 test scaffolds (LANG-01, LANG-02)
+
+**Wave 2** *(blocked on Wave 1 completion; the three Wave 2 plans run in parallel — no file overlap)*
+
+- [ ] 06-02-PLAN.md — Settings nav rows + 3 routes + Privacy/Notifications stubs + Language & Units screen (SETNAV-01, LANG-01, LANG-02)
+- [ ] 06-03-PLAN.md — Wire unitProvider into all ~14 format_util call sites (incl. 3 non-Consumer conversions) + imperial format tests (LANG-02)
+- [ ] 06-04-PLAN.md — Port 12 missing locale ARB files from web JSON + regenerate AppLocalizations (LANG-01)
+
+**UI hint**: yes
+
+### Phase 7: Privacy
+
+**Goal**: Users can control the default visibility of their account, trails, and lists from a dedicated Privacy screen
+**Depends on**: Phase 6
+**Requirements**: PRIV-01, PRIV-02, PRIV-03
+**Success Criteria** (what must be TRUE):
+
+  1. Tapping Privacy from the Settings screen opens the Privacy screen
+  2. User can set account visibility to public or private, and the selection is saved and reflected when the screen is reopened
+  3. User can set the default trails visibility to public or private, and the selection persists
+  4. User can set the default lists visibility to public or private, and the selection persists
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 8: Account & Profile
+
+**Goal**: Users can manage their profile and account credentials — avatar, bio, email, password, and account deletion — from a single Account screen
+**Depends on**: Phase 6
+**Requirements**: ACCT-01, ACCT-02, ACCT-03, ACCT-04, ACCT-05
+**Success Criteria** (what must be TRUE):
+
+  1. User can upload or replace their avatar and the new image is shown after saving
+  2. User can edit and save their bio, and the updated text persists after reopening the screen
+  3. User can change their email address, with the change taking effect after saving
+  4. User can change their password by providing the required credentials, and a clear error is shown if the change is rejected
+  5. User can delete their account, but only after passing an explicit confirmation step
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 9: Notifications
+
+**Goal**: Users can independently toggle web and email delivery for each of the nine notification types from a Notifications screen
+**Depends on**: Phase 6
+**Requirements**: NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04, NOTIF-05, NOTIF-06, NOTIF-07, NOTIF-08, NOTIF-09
+**Success Criteria** (what must be TRUE):
+
+  1. Tapping Notifications from the Settings screen opens a screen listing all nine notification types (trail comments, new followers, trail shares, trail likes, list shares, summit log creates, trail mentions, comment mentions, summit log mentions)
+  2. Each notification type exposes an independent web toggle and email toggle
+  3. Toggling any switch saves the change to the server and the new state persists after the screen is reopened
+
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
+
+Phases 7, 8, and 9 each depend only on Phase 6 and are otherwise independent of one another.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Backend API | 1/1 | Complete | 2026-06-12 |
 | 2. Navigation Screen | 3/3 | Complete | 2026-06-13 |
 | 3. Stats Sheet | 2/2 | Complete | 2026-06-13 |
-| 4. Serialization Fix + Entity Schema | 2/2 | Complete   | 2026-06-14 |
-| 5. Cache Write + Fallback + UI | 4/4 | Complete   | 2026-06-14 |
+| 4. Serialization Fix + Entity Schema | 2/2 | Complete | 2026-06-14 |
+| 5. Cache Write + Fallback + UI | 4/4 | Complete | 2026-06-14 |
+| 6. Settings Navigation + Language & Units | 0/0 | Not started | - |
+| 7. Privacy | 0/0 | Not started | - |
+| 8. Account & Profile | 0/0 | Not started | - |
+| 9. Notifications | 0/0 | Not started | - |

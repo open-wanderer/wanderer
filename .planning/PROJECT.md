@@ -8,15 +8,16 @@ Turn-by-turn trail navigation for the Wanderer Flutter mobile app. Users launch 
 
 A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
 
-## Current Milestone: v1.1 Offline Navigation
+## Current Milestone: v1.2 Settings Screens
 
-**Goal:** Hikers can follow downloaded trails step-by-step without a network connection.
+**Goal:** Port the settings screens from the web client into the Flutter app so users can manage profile, account credentials, privacy, language/units, and notification preferences on mobile.
 
 **Target features:**
-- Cache Valhalla navigation instructions to ObjectBox at trail download time
-- `launchNavigation` falls back to cached instructions when offline
-- Online sessions still fetch fresh instructions (no behavior change)
-- Silently use cached version if trail updated since caching
+- Combined Account + Profile screen: avatar upload, bio editor, change email, change password, delete account
+- Privacy screen: account/trails/lists visibility radio groups
+- Language screen: 14-language picker + metric/imperial unit toggle
+- Notifications screen: 9 notification types × web + email toggles
+- Settings screen: add Privacy, Language, Notifications list entries
 
 ## Requirements
 
@@ -32,8 +33,11 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 
 ### Active
 
-- [ ] Cache Valhalla navigation instructions to ObjectBox at trail download time
-- [ ] Navigation falls back to cached instructions when offline
+- [ ] SettingsAccountScreen: avatar upload, bio editor, change email, change password, delete account
+- [ ] SettingsPrivacyScreen: account, trails, and lists visibility toggles
+- [ ] SettingsLanguageScreen: language picker and metric/imperial unit toggle
+- [ ] SettingsNotificationsScreen: per-type web and email notification toggles
+- [ ] SettingsScreen: add Privacy, Language, Notifications list entries
 
 ### Out of Scope
 
@@ -86,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-14 — Milestone v1.1 started: Offline Navigation. v1.0 complete (all 3 phases shipped).*
+*Last updated: 2026-06-19 — Milestone v1.2 started: Settings Screens. v1.1 complete (all 5 phases shipped).*
