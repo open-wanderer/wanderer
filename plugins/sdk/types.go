@@ -48,6 +48,7 @@ type FormField struct {
 type MultipartPart struct {
 	Name        string `json:"name"`
 	Source      string `json:"source,omitempty"`
+	Filename    string `json:"filename,omitempty"`
 	ContentType string `json:"contentType,omitempty"`
 	JSON        any    `json:"json,omitempty"`
 }

@@ -80,3 +80,18 @@ func TestGPXBytesEscapesTrackName(t *testing.T) {
 		t.Fatalf("expected track point, got %s", gpx)
 	}
 }
+
+func TestTrailGPXFilename(t *testing.T) {
+	tests := map[string]string{
+		"":                    "trail.gpx",
+		"My Route":            "My Route.gpx",
+		"My Route.gpx":        "My Route.gpx",
+		"../Bad/Route\\Name ": "Bad-Route-Name.gpx",
+	}
+
+	for input, want := range tests {
+		if got := trailGPXFilename(input); got != want {
+			t.Fatalf("trailGPXFilename(%q) = %q, want %q", input, got, want)
+		}
+	}
+}

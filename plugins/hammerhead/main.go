@@ -158,6 +158,7 @@ func prepareTrailSendV1() int32 {
 					{
 						Name:        "file",
 						Source:      sdk.MultipartSourceTrail,
+						Filename:    trailGPXFilename(input.Name),
 						ContentType: "application/gpx+xml",
 					},
 				},

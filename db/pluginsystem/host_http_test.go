@@ -199,11 +199,14 @@ func TestExecuteHostRequestBuildsMultipartTrailSend(t *testing.T) {
 		if mediaType := strings.Split(r.Header.Get("Content-Type"), ";")[0]; mediaType != "multipart/form-data" {
 			t.Fatalf("unexpected content type %q", r.Header.Get("Content-Type"))
 		}
-		file, _, err := r.FormFile("file")
+		file, header, err := r.FormFile("file")
 		if err != nil {
 			t.Fatalf("expected file part: %v", err)
 		}
 		defer file.Close()
+		if header.Filename != "My Route.gpx" {
+			t.Fatalf("unexpected filename %q", header.Filename)
+		}
 		data, _ := io.ReadAll(file)
 		if string(data) != "<gpx />" {
 			t.Fatalf("unexpected trail body %q", string(data))
@@ -219,8 +222,9 @@ func TestExecuteHostRequestBuildsMultipartTrailSend(t *testing.T) {
 		Body: &HostRequestBody{
 			Type: HostRequestBodyTypeMultipart,
 			Parts: []MultipartPart{{
-				Name:   "file",
-				Source: MultipartSourceTrail,
+				Name:     "file",
+				Source:   MultipartSourceTrail,
+				Filename: "My Route.gpx",
 			}},
 		},
 		Expect: ResponseExpect{

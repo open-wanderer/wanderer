@@ -301,7 +301,11 @@ func hostRequestBody(spec HostRequestSpec, options HostRequestOptions) (io.Reade
 				if len(options.Trail) == 0 {
 					return nil, "", 0, fmt.Errorf("multipart part %q requires trail content", part.Name)
 				}
-				partWriter, err := writer.CreateFormFile(part.Name, MultipartTrailFilename)
+				filename := part.Filename
+				if filename == "" {
+					filename = MultipartTrailFilename
+				}
+				partWriter, err := writer.CreateFormFile(part.Name, filename)
 				if err != nil {
 					return nil, "", 0, err
 				}
