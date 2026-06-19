@@ -256,6 +256,19 @@ func TestPublicFromPrivacy(t *testing.T) {
 	}
 }
 
+func TestCategoryIDForImportDoesNotFallbackWhenProviderMappingIsBlank(t *testing.T) {
+	item := pluginsystem.TrailImport{
+		ActivityType: "biking",
+		Metadata: map[string]any{
+			"providerCategory": "Ride",
+		},
+	}
+
+	if got := categoryIDForImport(nil, item, map[string]string{"Ride": ""}); got != "" {
+		t.Fatalf("expected blank provider mapping to suppress activity fallback, got %q", got)
+	}
+}
+
 func TestDateFromImport(t *testing.T) {
 	started := time.Date(2025, 6, 1, 8, 0, 0, 0, time.UTC)
 

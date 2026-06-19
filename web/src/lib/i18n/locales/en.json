@@ -71,6 +71,7 @@
   "categories": "Categories",
   "category": "Category",
   "category-mapping": "Category mapping",
+  "category-mapping-help": "Removed provider categories are intentionally left unmapped and will be imported without a category.",
   "change": "Change",
   "change-email": "Change email",
   "change-password": "Change password",

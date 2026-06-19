@@ -71,6 +71,7 @@
   "categories": "Kategorien",
   "category": "Kategorie",
   "category-mapping": "Kategorie-Zuordnung",
+  "category-mapping-help": "Entfernte Provider-Kategorien werden bewusst nicht zugeordnet und erhalten beim Import keine Kategorie.",
   "change": "Ändern",
   "change-email": "Email ändern",
   "change-password": "Passwort ändern",

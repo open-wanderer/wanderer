@@ -136,10 +136,12 @@
     }
 
     function initialCategoryMappingRows(): CategoryMappingRow[] {
-        return Object.entries(categoryMapping()).map(([providerCategory, category]) => ({
-            providerCategory,
-            category: categoryTargetValue(category),
-        }));
+        return Object.entries(categoryMapping())
+            .filter(([, category]) => category !== "")
+            .map(([providerCategory, category]) => ({
+                providerCategory,
+                category: categoryTargetValue(category),
+            }));
     }
 
     function manifestCategoryMapping(): Record<string, string> {
@@ -370,18 +372,24 @@
             enabled: mergeAvailable && mergeEnabled,
         };
         const categoryMappingConfig: Record<string, string> = {};
+        const assignedProviderCategories = new Set<string>();
         for (const row of categoryMappingRows) {
             const providerCategory = row.providerCategory.trim();
             if (!providerCategory || !row.category) {
                 continue;
             }
+            assignedProviderCategories.add(providerCategory);
             categoryMappingConfig[providerCategory] = row.category;
         }
-        if (Object.keys(categoryMappingConfig).length > 0) {
-            pluginHostConfig.categoryMapping = categoryMappingConfig;
-        } else {
-            delete pluginHostConfig.categoryMapping;
+        for (const providerCategory of [
+            ...Object.keys(manifestCategoryMapping()),
+            ...Object.keys(categoryMapping()),
+        ]) {
+            if (!assignedProviderCategories.has(providerCategory)) {
+                categoryMappingConfig[providerCategory] = "";
+            }
         }
+        pluginHostConfig.categoryMapping = categoryMappingConfig;
         for (const field of configSchema) {
             const val = extraConfig[field.key];
             if (val !== undefined && val !== "") {
@@ -613,7 +621,12 @@
             {#if supportsCategoryMapping && categorySelectItems.length > 0}
                 <div class="space-y-2 pt-4 border-t border-input-border">
                     <div class="flex items-center justify-between gap-3">
-                        <h4 class="text-sm font-medium">{$_("category-mapping")}</h4>
+                        <div>
+                            <h4 class="text-sm font-medium">{$_("category-mapping")}</h4>
+                            <p class="text-xs text-secondary mt-1">
+                                {$_("category-mapping-help")}
+                            </p>
+                        </div>
                         <button
                             class="btn-primary text-sm"
                             class:btn-disabled={!canAddCategoryMappingRow}

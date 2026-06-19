@@ -489,13 +489,13 @@ func boolOption(config map[string]any, key string, fallback bool) bool {
 
 func categoryMapping(config map[string]any) map[string]string {
 	raw, ok := config["categoryMapping"].(map[string]any)
-	if !ok || len(raw) == 0 {
+	if !ok {
 		return nil
 	}
 	result := make(map[string]string, len(raw))
 	for key, value := range raw {
 		category, ok := value.(string)
-		if ok && category != "" {
+		if ok {
 			result[key] = category
 		}
 	}

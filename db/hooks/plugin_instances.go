@@ -86,7 +86,7 @@ func mergePluginInstanceDefaultConfig(app core.App, r *core.Record) {
 		return
 	}
 	merged := pluginsystem.CloneJSONMap(defaults)
-	pluginsystem.DeepMergeConfig(merged, pluginsystem.JSONMapFromRecord(r, "config"))
+	pluginsystem.MergePluginConfig(merged, pluginsystem.JSONMapFromRecord(r, "config"))
 	r.Set("config", merged)
 }
 

@@ -27,11 +27,22 @@ func JSONMapFromRecord(record *core.Record, field string) map[string]any {
 // DeepMergeConfig recursively overlays src onto dst and clones JSON-like values
 // so caller-owned config maps cannot be mutated through shared references.
 func DeepMergeConfig(dst map[string]any, src map[string]any) {
+	DeepMergeConfigWithReplaceKeys(dst, src, nil)
+}
+
+// DeepMergeConfigWithReplaceKeys behaves like DeepMergeConfig, but map values
+// whose key is listed in replaceKeys replace the destination map instead of
+// being recursively merged.
+func DeepMergeConfigWithReplaceKeys(dst map[string]any, src map[string]any, replaceKeys map[string]bool) {
 	for key, value := range src {
 		srcMap, srcIsMap := value.(map[string]any)
 		dstMap, dstIsMap := dst[key].(map[string]any)
 		if srcIsMap && dstIsMap {
-			DeepMergeConfig(dstMap, srcMap)
+			if replaceKeys[key] {
+				dst[key] = CloneJSONMap(srcMap)
+				continue
+			}
+			DeepMergeConfigWithReplaceKeys(dstMap, srcMap, replaceKeys)
 			continue
 		}
 		dst[key] = CloneJSONValue(value)

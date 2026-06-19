@@ -211,8 +211,14 @@ func mergeDefaultConfig(defaults map[string]any, current map[string]any) map[str
 		return current
 	}
 	merged := CloneJSONMap(defaults)
-	DeepMergeConfig(merged, current)
+	MergePluginConfig(merged, current)
 	return merged
+}
+
+func MergePluginConfig(dst map[string]any, src map[string]any) {
+	DeepMergeConfigWithReplaceKeys(dst, src, map[string]bool{
+		"categoryMapping": true,
+	})
 }
 
 func capabilityNames(capabilities []CapabilityManifest) []string {

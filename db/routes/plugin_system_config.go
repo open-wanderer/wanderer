@@ -9,7 +9,7 @@ import (
 
 func effectivePluginConfig(app core.App, pluginID string, instance *core.Record) map[string]any {
 	config := installedPluginConfig(app, pluginID)
-	pluginsystem.DeepMergeConfig(config, pluginsystem.JSONMapFromRecord(instance, "config"))
+	pluginsystem.MergePluginConfig(config, pluginsystem.JSONMapFromRecord(instance, "config"))
 	return config
 }
 
