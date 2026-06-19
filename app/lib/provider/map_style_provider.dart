@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
-import 'package:wanderer/provider/theme_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 
 part 'map_style_provider.g.dart';
 

@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:7780573664962685596",
-      "lastPropertyId": "16:3428765833145641366",
+      "lastPropertyId": "17:3792668263909473854",
       "name": "UserEntity",
       "properties": [
         {
@@ -75,6 +75,14 @@
           "id": "16:3428765833145641366",
           "name": "collectionName",
           "type": 9
+        },
+        {
+          "id": "17:3792668263909473854",
+          "name": "settingsId",
+          "indexId": "14:6564329935493948317",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "SettingsEntity"
         }
       ],
       "relations": []
@@ -464,7 +472,7 @@
     },
     {
       "id": "7:7624156081543730552",
-      "lastPropertyId": "2:5096657038833034963",
+      "lastPropertyId": "12:1392396091350786512",
       "name": "SettingsEntity",
       "properties": [
         {
@@ -474,7 +482,71 @@
           "flags": 1
         },
         {
-          "id": "2:5096657038833034963",
+          "id": "3:5779793722438796365",
+          "name": "id",
+          "indexId": "13:5651349155198270293",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "4:4191464783654371072",
+          "name": "unit",
+          "type": 9
+        },
+        {
+          "id": "5:6587722155465911148",
+          "name": "languageCode",
+          "type": 9
+        },
+        {
+          "id": "6:4891406185376558126",
+          "name": "bio",
+          "type": 9
+        },
+        {
+          "id": "7:7753087457254100397",
+          "name": "locationJson",
+          "type": 9
+        },
+        {
+          "id": "8:6208667096274902561",
+          "name": "category",
+          "type": 9
+        },
+        {
+          "id": "10:4126653197482212680",
+          "name": "privacyJson",
+          "type": 9
+        },
+        {
+          "id": "11:4579483818578345590",
+          "name": "notificationsJson",
+          "type": 9
+        },
+        {
+          "id": "12:1392396091350786512",
+          "name": "userId",
+          "indexId": "15:4235871213533179134",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "UserEntity"
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "8:5734302023385580278",
+      "lastPropertyId": "2:293543109978045611",
+      "name": "LocalSettingsEntity",
+      "properties": [
+        {
+          "id": "1:6916182731366758331",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:293543109978045611",
           "name": "themeMode",
           "type": 9
         }
@@ -482,8 +554,8 @@
       "relations": []
     }
   ],
-  "lastEntityId": "7:7624156081543730552",
-  "lastIndexId": "12:5788203279492778612",
+  "lastEntityId": "8:5734302023385580278",
+  "lastIndexId": "15:4235871213533179134",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,
@@ -526,7 +598,9 @@
     1547099082488576745,
     3333678685559283574,
     35962998092108439,
-    3550785788891250678
+    3550785788891250678,
+    7446729006448357631,
+    5096657038833034963
   ],
   "retiredRelationUids": [],
   "version": 1

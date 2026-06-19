@@ -51,7 +51,7 @@ final class ListFilterNotifierProvider
 }
 
 String _$listFilterNotifierHash() =>
-    r'94efc1a2395a5d280962710468bec242743a2965';
+    r'518957fd6f24cb8a345b8e7272859aed99afe8ea';
 
 final class ListFilterNotifierFamily extends $Family
     with

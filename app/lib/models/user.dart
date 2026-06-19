@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:wanderer/entities/settings_entity.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/models/record.dart';
+import 'package:wanderer/models/settings.dart';
 
 part 'user.freezed.dart';
 part 'user.g.dart';
@@ -45,7 +47,7 @@ abstract class User with _$User, RecordFunctions implements IRecord {
     final userIri = Uri.parse(expand!.actor!.iri);
     final rootUri = Uri(scheme: userIri.scheme, host: userIri.host);
 
-    return UserEntity(
+    final entity = UserEntity(
       id: id,
       collectionId: collectionId,
       collectionName: collectionName,
@@ -59,6 +61,12 @@ abstract class User with _$User, RecordFunctions implements IRecord {
       iri: expand!.actor!.iri,
       serverUrl: rootUri.toString(),
     );
+
+    if (expand?.settings != null) {
+      entity.settings.target = SettingsEntity.fromModel(expand!.settings!);
+    }
+
+    return entity;
   }
 }
 
@@ -66,6 +74,7 @@ abstract class User with _$User, RecordFunctions implements IRecord {
 abstract class UserExpand with _$UserExpand {
   const factory UserExpand({
     @JsonKey(name: 'activitypub_actors_via_user') Actor? actor,
+    @JsonKey(name: 'settings_via_user') Settings? settings,
   }) = _UserExpand;
 
   factory UserExpand.fromJson(Map<String, dynamic> json) =>

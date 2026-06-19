@@ -332,7 +332,7 @@ $UserExpandCopyWith<$Res>? get expand {
 /// @nodoc
 mixin _$UserExpand {
 
-@JsonKey(name: 'activitypub_actors_via_user') Actor? get actor;
+@JsonKey(name: 'activitypub_actors_via_user') Actor? get actor;@JsonKey(name: 'settings_via_user') Settings? get settings;
 /// Create a copy of UserExpand
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -345,16 +345,16 @@ $UserExpandCopyWith<UserExpand> get copyWith => _$UserExpandCopyWithImpl<UserExp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserExpand&&(identical(other.actor, actor) || other.actor == actor));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserExpand&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.settings, settings) || other.settings == settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,actor);
+int get hashCode => Object.hash(runtimeType,actor,settings);
 
 @override
 String toString() {
-  return 'UserExpand(actor: $actor)';
+  return 'UserExpand(actor: $actor, settings: $settings)';
 }
 
 
@@ -365,11 +365,11 @@ abstract mixin class $UserExpandCopyWith<$Res>  {
   factory $UserExpandCopyWith(UserExpand value, $Res Function(UserExpand) _then) = _$UserExpandCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'activitypub_actors_via_user') Actor? actor
+@JsonKey(name: 'activitypub_actors_via_user') Actor? actor,@JsonKey(name: 'settings_via_user') Settings? settings
 });
 
 
-$ActorCopyWith<$Res>? get actor;
+$ActorCopyWith<$Res>? get actor;$SettingsCopyWith<$Res>? get settings;
 
 }
 /// @nodoc
@@ -382,10 +382,11 @@ class _$UserExpandCopyWithImpl<$Res>
 
 /// Create a copy of UserExpand
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? actor = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? actor = freezed,Object? settings = freezed,}) {
   return _then(_self.copyWith(
 actor: freezed == actor ? _self.actor : actor // ignore: cast_nullable_to_non_nullable
-as Actor?,
+as Actor?,settings: freezed == settings ? _self.settings : settings // ignore: cast_nullable_to_non_nullable
+as Settings?,
   ));
 }
 /// Create a copy of UserExpand
@@ -399,6 +400,18 @@ $ActorCopyWith<$Res>? get actor {
 
   return $ActorCopyWith<$Res>(_self.actor!, (value) {
     return _then(_self.copyWith(actor: value));
+  });
+}/// Create a copy of UserExpand
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$SettingsCopyWith<$Res>? get settings {
+    if (_self.settings == null) {
+    return null;
+  }
+
+  return $SettingsCopyWith<$Res>(_self.settings!, (value) {
+    return _then(_self.copyWith(settings: value));
   });
 }
 }
@@ -482,10 +495,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'activitypub_actors_via_user')  Actor? actor)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'activitypub_actors_via_user')  Actor? actor, @JsonKey(name: 'settings_via_user')  Settings? settings)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserExpand() when $default != null:
-return $default(_that.actor);case _:
+return $default(_that.actor,_that.settings);case _:
   return orElse();
 
 }
@@ -503,10 +516,10 @@ return $default(_that.actor);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'activitypub_actors_via_user')  Actor? actor)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'activitypub_actors_via_user')  Actor? actor, @JsonKey(name: 'settings_via_user')  Settings? settings)  $default,) {final _that = this;
 switch (_that) {
 case _UserExpand():
-return $default(_that.actor);case _:
+return $default(_that.actor,_that.settings);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -523,10 +536,10 @@ return $default(_that.actor);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'activitypub_actors_via_user')  Actor? actor)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'activitypub_actors_via_user')  Actor? actor, @JsonKey(name: 'settings_via_user')  Settings? settings)?  $default,) {final _that = this;
 switch (_that) {
 case _UserExpand() when $default != null:
-return $default(_that.actor);case _:
+return $default(_that.actor,_that.settings);case _:
   return null;
 
 }
@@ -538,10 +551,11 @@ return $default(_that.actor);case _:
 @JsonSerializable()
 
 class _UserExpand implements UserExpand {
-  const _UserExpand({@JsonKey(name: 'activitypub_actors_via_user') this.actor});
+  const _UserExpand({@JsonKey(name: 'activitypub_actors_via_user') this.actor, @JsonKey(name: 'settings_via_user') this.settings});
   factory _UserExpand.fromJson(Map<String, dynamic> json) => _$UserExpandFromJson(json);
 
 @override@JsonKey(name: 'activitypub_actors_via_user') final  Actor? actor;
+@override@JsonKey(name: 'settings_via_user') final  Settings? settings;
 
 /// Create a copy of UserExpand
 /// with the given fields replaced by the non-null parameter values.
@@ -556,16 +570,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserExpand&&(identical(other.actor, actor) || other.actor == actor));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserExpand&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.settings, settings) || other.settings == settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,actor);
+int get hashCode => Object.hash(runtimeType,actor,settings);
 
 @override
 String toString() {
-  return 'UserExpand(actor: $actor)';
+  return 'UserExpand(actor: $actor, settings: $settings)';
 }
 
 
@@ -576,11 +590,11 @@ abstract mixin class _$UserExpandCopyWith<$Res> implements $UserExpandCopyWith<$
   factory _$UserExpandCopyWith(_UserExpand value, $Res Function(_UserExpand) _then) = __$UserExpandCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'activitypub_actors_via_user') Actor? actor
+@JsonKey(name: 'activitypub_actors_via_user') Actor? actor,@JsonKey(name: 'settings_via_user') Settings? settings
 });
 
 
-@override $ActorCopyWith<$Res>? get actor;
+@override $ActorCopyWith<$Res>? get actor;@override $SettingsCopyWith<$Res>? get settings;
 
 }
 /// @nodoc
@@ -593,10 +607,11 @@ class __$UserExpandCopyWithImpl<$Res>
 
 /// Create a copy of UserExpand
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? actor = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? actor = freezed,Object? settings = freezed,}) {
   return _then(_UserExpand(
 actor: freezed == actor ? _self.actor : actor // ignore: cast_nullable_to_non_nullable
-as Actor?,
+as Actor?,settings: freezed == settings ? _self.settings : settings // ignore: cast_nullable_to_non_nullable
+as Settings?,
   ));
 }
 
@@ -611,6 +626,18 @@ $ActorCopyWith<$Res>? get actor {
 
   return $ActorCopyWith<$Res>(_self.actor!, (value) {
     return _then(_self.copyWith(actor: value));
+  });
+}/// Create a copy of UserExpand
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$SettingsCopyWith<$Res>? get settings {
+    if (_self.settings == null) {
+    return null;
+  }
+
+  return $SettingsCopyWith<$Res>(_self.settings!, (value) {
+    return _then(_self.copyWith(settings: value));
   });
 }
 }

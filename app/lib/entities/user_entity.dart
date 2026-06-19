@@ -1,4 +1,5 @@
 import 'package:objectbox/objectbox.dart';
+import 'package:wanderer/entities/settings_entity.dart';
 import 'package:wanderer/models/record.dart';
 
 @Entity()
@@ -28,6 +29,8 @@ class UserEntity with RecordFunctions implements IRecord {
   final String serverUrl;
 
   final String? avatar;
+
+  final settings = ToOne<SettingsEntity>();
 
   UserEntity({
     required this.id,

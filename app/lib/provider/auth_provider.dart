@@ -7,6 +7,7 @@ import 'package:wanderer/models/user.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/provider/settings_provider.dart';
 
 part 'auth_provider.g.dart';
 
@@ -121,11 +122,20 @@ class Auth extends _$Auth {
         .read(apiProvider)
         .get(
           "/user/$id",
-          queryParameters: {"expand": "activitypub_actors_via_user"},
+          queryParameters: {
+            "expand": "activitypub_actors_via_user, settings_via_user",
+          },
         );
+
     final userData = User.fromJson(userResponse.data);
 
     final UserEntity userEntity = userData.toEntity();
+
+    if (userData.expand?.settings != null) {
+      await ref
+          .read(settingsProvider.notifier)
+          .updateFromServer(userData.expand!.settings!);
+    }
     _box.put(userEntity);
 
     return userEntity;

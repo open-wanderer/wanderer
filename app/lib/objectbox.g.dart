@@ -16,6 +16,7 @@ import 'package:objectbox_flutter_libs/objectbox_flutter_libs.dart';
 
 import 'entities/actor_entity.dart';
 import 'entities/category_entity.dart';
+import 'entities/local_settings_entity.dart';
 import 'entities/settings_entity.dart';
 import 'entities/trail_entity.dart';
 import 'entities/user_entity.dart';
@@ -27,7 +28,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(1, 7780573664962685596),
     name: 'UserEntity',
-    lastPropertyId: const obx_int.IdUid(16, 3428765833145641366),
+    lastPropertyId: const obx_int.IdUid(17, 3792668263909473854),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -108,6 +109,15 @@ final _entities = <obx_int.ModelEntity>[
         name: 'collectionName',
         type: 9,
         flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(17, 3792668263909473854),
+        name: 'settingsId',
+        type: 11,
+        flags: 520,
+        indexId: const obx_int.IdUid(14, 6564329935493948317),
+        relationField: 'settings',
+        relationTarget: 'SettingsEntity',
       ),
     ],
     relations: <obx_int.ModelRelation>[],
@@ -571,7 +581,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(7, 7624156081543730552),
     name: 'SettingsEntity',
-    lastPropertyId: const obx_int.IdUid(2, 5096657038833034963),
+    lastPropertyId: const obx_int.IdUid(12, 1392396091350786512),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -581,7 +591,81 @@ final _entities = <obx_int.ModelEntity>[
         flags: 1,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(2, 5096657038833034963),
+        id: const obx_int.IdUid(3, 5779793722438796365),
+        name: 'id',
+        type: 9,
+        flags: 34848,
+        indexId: const obx_int.IdUid(13, 5651349155198270293),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 4191464783654371072),
+        name: 'unit',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 6587722155465911148),
+        name: 'languageCode',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 4891406185376558126),
+        name: 'bio',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 7753087457254100397),
+        name: 'locationJson',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(8, 6208667096274902561),
+        name: 'category',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 4126653197482212680),
+        name: 'privacyJson',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 4579483818578345590),
+        name: 'notificationsJson',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 1392396091350786512),
+        name: 'userId',
+        type: 11,
+        flags: 520,
+        indexId: const obx_int.IdUid(15, 4235871213533179134),
+        relationField: 'user',
+        relationTarget: 'UserEntity',
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(8, 5734302023385580278),
+    name: 'LocalSettingsEntity',
+    lastPropertyId: const obx_int.IdUid(2, 293543109978045611),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 6916182731366758331),
+        name: 'obxId',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 293543109978045611),
         name: 'themeMode',
         type: 9,
         flags: 0,
@@ -635,8 +719,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
     // Typically, this is done with `dart run build_runner build`.
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
-    lastEntityId: const obx_int.IdUid(7, 7624156081543730552),
-    lastIndexId: const obx_int.IdUid(12, 5788203279492778612),
+    lastEntityId: const obx_int.IdUid(8, 5734302023385580278),
+    lastIndexId: const obx_int.IdUid(15, 4235871213533179134),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [1110440324073703466],
@@ -674,6 +758,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
       3333678685559283574,
       35962998092108439,
       3550785788891250678,
+      7446729006448357631,
+      5096657038833034963,
     ],
     retiredRelationUids: const [],
     modelVersion: 5,
@@ -684,7 +770,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
   final bindings = <Type, obx_int.EntityDefinition>{
     UserEntity: obx_int.EntityDefinition<UserEntity>(
       model: _entities[0],
-      toOneRelations: (UserEntity object) => [],
+      toOneRelations: (UserEntity object) => [object.settings],
       toManyRelations: (UserEntity object) => {},
       getId: (UserEntity object) => object.obxId,
       setId: (UserEntity object, int id) {
@@ -705,7 +791,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final actorIdOffset = fbb.writeString(object.actorId);
         final collectionIdOffset = fbb.writeString(object.collectionId);
         final collectionNameOffset = fbb.writeString(object.collectionName);
-        fbb.startTable(17);
+        fbb.startTable(18);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, usernameOffset);
@@ -719,6 +805,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(13, actorIdOffset);
         fbb.addOffset(14, collectionIdOffset);
         fbb.addOffset(15, collectionNameOffset);
+        fbb.addInt64(16, object.settings.targetId);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -777,7 +864,13 @@ obx_int.ModelDefinition getObjectBoxModel() {
           updated: updatedParam,
           avatar: avatarParam,
         )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
-
+        object.settings.targetId = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          36,
+          0,
+        );
+        object.settings.attach(store);
         return object;
       },
     ),
@@ -1338,13 +1431,105 @@ obx_int.ModelDefinition getObjectBoxModel() {
     ),
     SettingsEntity: obx_int.EntityDefinition<SettingsEntity>(
       model: _entities[5],
-      toOneRelations: (SettingsEntity object) => [],
+      toOneRelations: (SettingsEntity object) => [object.user],
       toManyRelations: (SettingsEntity object) => {},
       getId: (SettingsEntity object) => object.obxId,
       setId: (SettingsEntity object, int id) {
         object.obxId = id;
       },
       objectToFB: (SettingsEntity object, fb.Builder fbb) {
+        final idOffset = fbb.writeString(object.id);
+        final unitOffset = object.unit == null
+            ? null
+            : fbb.writeString(object.unit!);
+        final languageCodeOffset = object.languageCode == null
+            ? null
+            : fbb.writeString(object.languageCode!);
+        final bioOffset = object.bio == null
+            ? null
+            : fbb.writeString(object.bio!);
+        final locationJsonOffset = object.locationJson == null
+            ? null
+            : fbb.writeString(object.locationJson!);
+        final categoryOffset = object.category == null
+            ? null
+            : fbb.writeString(object.category!);
+        final privacyJsonOffset = object.privacyJson == null
+            ? null
+            : fbb.writeString(object.privacyJson!);
+        final notificationsJsonOffset = object.notificationsJson == null
+            ? null
+            : fbb.writeString(object.notificationsJson!);
+        fbb.startTable(13);
+        fbb.addInt64(0, object.obxId);
+        fbb.addOffset(2, idOffset);
+        fbb.addOffset(3, unitOffset);
+        fbb.addOffset(4, languageCodeOffset);
+        fbb.addOffset(5, bioOffset);
+        fbb.addOffset(6, locationJsonOffset);
+        fbb.addOffset(7, categoryOffset);
+        fbb.addOffset(9, privacyJsonOffset);
+        fbb.addOffset(10, notificationsJsonOffset);
+        fbb.addInt64(11, object.user.targetId);
+        fbb.finish(fbb.endTable());
+        return object.obxId;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final idParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 8, '');
+        final unitParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 10);
+        final languageCodeParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 12);
+        final bioParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 14);
+        final locationJsonParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 16);
+        final categoryParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 18);
+        final privacyJsonParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 22);
+        final notificationsJsonParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 24);
+        final object = SettingsEntity(
+          id: idParam,
+          unit: unitParam,
+          languageCode: languageCodeParam,
+          bio: bioParam,
+          locationJson: locationJsonParam,
+          category: categoryParam,
+          privacyJson: privacyJsonParam,
+          notificationsJson: notificationsJsonParam,
+        )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+        object.user.targetId = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          26,
+          0,
+        );
+        object.user.attach(store);
+        return object;
+      },
+    ),
+    LocalSettingsEntity: obx_int.EntityDefinition<LocalSettingsEntity>(
+      model: _entities[6],
+      toOneRelations: (LocalSettingsEntity object) => [],
+      toManyRelations: (LocalSettingsEntity object) => {},
+      getId: (LocalSettingsEntity object) => object.obxId,
+      setId: (LocalSettingsEntity object, int id) {
+        object.obxId = id;
+      },
+      objectToFB: (LocalSettingsEntity object, fb.Builder fbb) {
         final themeModeOffset = fbb.writeString(object.themeMode);
         fbb.startTable(3);
         fbb.addInt64(0, object.obxId);
@@ -1358,7 +1543,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final themeModeParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 6, '');
-        final object = SettingsEntity(themeMode: themeModeParam)
+        final object = LocalSettingsEntity(themeMode: themeModeParam)
           ..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
@@ -1434,6 +1619,11 @@ class UserEntity_ {
   /// See [UserEntity.collectionName].
   static final collectionName = obx.QueryStringProperty<UserEntity>(
     _entities[0].properties[12],
+  );
+
+  /// See [UserEntity.settings].
+  static final settings = obx.QueryRelationToOne<UserEntity, SettingsEntity>(
+    _entities[0].properties[13],
   );
 }
 
@@ -1791,8 +1981,61 @@ class SettingsEntity_ {
     _entities[5].properties[0],
   );
 
-  /// See [SettingsEntity.themeMode].
-  static final themeMode = obx.QueryStringProperty<SettingsEntity>(
+  /// See [SettingsEntity.id].
+  static final id = obx.QueryStringProperty<SettingsEntity>(
     _entities[5].properties[1],
+  );
+
+  /// See [SettingsEntity.unit].
+  static final unit = obx.QueryStringProperty<SettingsEntity>(
+    _entities[5].properties[2],
+  );
+
+  /// See [SettingsEntity.languageCode].
+  static final languageCode = obx.QueryStringProperty<SettingsEntity>(
+    _entities[5].properties[3],
+  );
+
+  /// See [SettingsEntity.bio].
+  static final bio = obx.QueryStringProperty<SettingsEntity>(
+    _entities[5].properties[4],
+  );
+
+  /// See [SettingsEntity.locationJson].
+  static final locationJson = obx.QueryStringProperty<SettingsEntity>(
+    _entities[5].properties[5],
+  );
+
+  /// See [SettingsEntity.category].
+  static final category = obx.QueryStringProperty<SettingsEntity>(
+    _entities[5].properties[6],
+  );
+
+  /// See [SettingsEntity.privacyJson].
+  static final privacyJson = obx.QueryStringProperty<SettingsEntity>(
+    _entities[5].properties[7],
+  );
+
+  /// See [SettingsEntity.notificationsJson].
+  static final notificationsJson = obx.QueryStringProperty<SettingsEntity>(
+    _entities[5].properties[8],
+  );
+
+  /// See [SettingsEntity.user].
+  static final user = obx.QueryRelationToOne<SettingsEntity, UserEntity>(
+    _entities[5].properties[9],
+  );
+}
+
+/// [LocalSettingsEntity] entity fields to define ObjectBox queries.
+class LocalSettingsEntity_ {
+  /// See [LocalSettingsEntity.obxId].
+  static final obxId = obx.QueryIntegerProperty<LocalSettingsEntity>(
+    _entities[6].properties[0],
+  );
+
+  /// See [LocalSettingsEntity.themeMode].
+  static final themeMode = obx.QueryStringProperty<LocalSettingsEntity>(
+    _entities[6].properties[1],
   );
 }

@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'theme_provider.dart';
+part of 'settings_provider.dart';
 
 // **************************************************************************
 // RiverpodGenerator
@@ -9,51 +9,51 @@ part of 'theme_provider.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
-@ProviderFor(ThemeModeNotifier)
-final themeModeProvider = ThemeModeNotifierProvider._();
+@ProviderFor(SettingsNotifier)
+final settingsProvider = SettingsNotifierProvider._();
 
-final class ThemeModeNotifierProvider
-    extends $NotifierProvider<ThemeModeNotifier, ThemeMode> {
-  ThemeModeNotifierProvider._()
+final class SettingsNotifierProvider
+    extends $NotifierProvider<SettingsNotifier, Settings?> {
+  SettingsNotifierProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'themeModeProvider',
+        name: r'settingsProvider',
         isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$themeModeNotifierHash();
+  String debugGetCreateSourceHash() => _$settingsNotifierHash();
 
   @$internal
   @override
-  ThemeModeNotifier create() => ThemeModeNotifier();
+  SettingsNotifier create() => SettingsNotifier();
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(ThemeMode value) {
+  Override overrideWithValue(Settings? value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<ThemeMode>(value),
+      providerOverride: $SyncValueProvider<Settings?>(value),
     );
   }
 }
 
-String _$themeModeNotifierHash() => r'55d8261fad430dfd15c0b1da9e59713dfc5501d8';
+String _$settingsNotifierHash() => r'd518bfd735f9a5935533ee1e0dd6cbf3f2b136cd';
 
-abstract class _$ThemeModeNotifier extends $Notifier<ThemeMode> {
-  ThemeMode build();
+abstract class _$SettingsNotifier extends $Notifier<Settings?> {
+  Settings? build();
   @$mustCallSuper
   @override
   void runBuild() {
-    final ref = this.ref as $Ref<ThemeMode, ThemeMode>;
+    final ref = this.ref as $Ref<Settings?, Settings?>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<ThemeMode, ThemeMode>,
-              ThemeMode,
+              AnyNotifier<Settings?, Settings?>,
+              Settings?,
               Object?,
               Object?
             >;

@@ -13,7 +13,7 @@ import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'i18n/app_localizations.dart';
 import 'objectbox.g.dart';
 import 'provider/router_provider.dart';
-import 'provider/theme_provider.dart';
+import 'provider/local_settings_provider.dart';
 import 'theme/theme.dart';
 
 void main() async {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
-import 'package:wanderer/provider/theme_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 
 class SettingsAppearanceScreen extends ConsumerWidget {
   const SettingsAppearanceScreen({super.key});
@@ -28,7 +28,7 @@ class SettingsAppearanceScreen extends ConsumerWidget {
         groupValue: currentMode,
         onChanged: (value) {
           if (value != null) {
-            ref.read(themeModeProvider.notifier).setMode(value);
+            ref.read(localSettingsProvider.notifier).setThemeMode(value);
           }
         },
         child: ListView(

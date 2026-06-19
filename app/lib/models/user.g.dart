@@ -42,7 +42,13 @@ _UserExpand _$UserExpandFromJson(Map<String, dynamic> json) => _UserExpand(
       : Actor.fromJson(
           json['activitypub_actors_via_user'] as Map<String, dynamic>,
         ),
+  settings: json['settings_via_user'] == null
+      ? null
+      : Settings.fromJson(json['settings_via_user'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$UserExpandToJson(_UserExpand instance) =>
-    <String, dynamic>{'activitypub_actors_via_user': instance.actor};
+    <String, dynamic>{
+      'activitypub_actors_via_user': instance.actor,
+      'settings_via_user': instance.settings,
+    };
