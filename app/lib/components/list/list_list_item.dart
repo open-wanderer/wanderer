@@ -17,7 +17,8 @@ class ListListItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authProvider).value!;
+    final user = ref.watch(authProvider).valueOrNull;
+    if (user == null) return const SizedBox.shrink();
     final unit = ref.watch(unitProvider);
 
     final String? avatarUrl = list.getFileUrl(
