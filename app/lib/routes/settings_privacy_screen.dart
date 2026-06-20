@@ -41,9 +41,9 @@ class SettingsPrivacyScreen extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-          color: colorScheme.onSurfaceVariant,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant),
       ),
     );
   }
@@ -98,13 +98,23 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               children: [
                 RadioListTile<String>(
                   title: Text(l10n.public),
-                  subtitle: Text(l10n.settings_privacy_account_public),
+                  subtitle: Text(
+                    l10n.settings_privacy_account_public,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium!.copyWith(fontSize: 12),
+                  ),
                   value: "public",
                   activeColor: activeColor,
                 ),
                 RadioListTile<String>(
                   title: Text(l10n.private),
-                  subtitle: Text(l10n.settings_privacy_account_private),
+                  subtitle: Text(
+                    l10n.settings_privacy_account_private,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium!.copyWith(fontSize: 12),
+                  ),
                   value: "private",
                   activeColor: activeColor,
                 ),
@@ -142,13 +152,23 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               children: [
                 RadioListTile<String>(
                   title: Text(l10n.public),
-                  subtitle: Text(l10n.settings_privacy_trails_public),
+                  subtitle: Text(
+                    l10n.settings_privacy_trails_public,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium!.copyWith(fontSize: 12),
+                  ),
                   value: "public",
                   activeColor: activeColor,
                 ),
                 RadioListTile<String>(
                   title: Text(l10n.only_me),
-                  subtitle: Text(l10n.settings_privacy_trails_private),
+                  subtitle: Text(
+                    l10n.settings_privacy_trails_private,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium!.copyWith(fontSize: 12),
+                  ),
                   value: "private",
                   activeColor: activeColor,
                 ),
@@ -186,13 +206,23 @@ class SettingsPrivacyScreen extends ConsumerWidget {
               children: [
                 RadioListTile<String>(
                   title: Text(l10n.public),
-                  subtitle: Text(l10n.settings_privacy_lists_public),
+                  subtitle: Text(
+                    l10n.settings_privacy_lists_public,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium!.copyWith(fontSize: 12),
+                  ),
                   value: "public",
                   activeColor: activeColor,
                 ),
                 RadioListTile<String>(
                   title: Text(l10n.only_me),
-                  subtitle: Text(l10n.settings_privacy_lists_private),
+                  subtitle: Text(
+                    l10n.settings_privacy_lists_private,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium!.copyWith(fontSize: 12),
+                  ),
                   value: "private",
                   activeColor: activeColor,
                 ),
