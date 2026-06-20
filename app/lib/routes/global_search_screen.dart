@@ -359,8 +359,12 @@ class _ActorTile extends StatelessWidget {
       ),
       title: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitle),
-      onTap: () =>
-          context.push('/profile/@${actor.preferredUsername}@${actor.domain}'),
+      onTap: () {
+        final route = actor.isLocal
+            ? '/profile/@${actor.preferredUsername}'
+            : '/profile/@${actor.preferredUsername}@${actor.domain}';
+        context.push(route);
+      },
     );
   }
 }
