@@ -647,6 +647,7 @@ double _haversine(Wpt a, Wpt b) {
 double _deg2rad(double deg) => deg * pi / 180;
 
 double _niceInterval(double range, int targetCount) {
+  if (range <= 0) return 1.0; // guard against flat/zero-range data
   final raw = range / targetCount;
   final magnitude = pow(10, (log(raw) / ln10).floor()).toDouble();
   final residual = raw / magnitude;
