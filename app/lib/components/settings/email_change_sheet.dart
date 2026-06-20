@@ -34,23 +34,27 @@ class _EmailChangeSheetState extends ConsumerState<EmailChangeSheet> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(apiProvider).post(
-        '/user/${widget.userId}/email',
-        data: {
-          'email': v['email'],
-          'currentPassword': v['currentPassword'],
-        },
-      );
+      await ref
+          .read(apiProvider)
+          .post(
+            '/user/${widget.userId}/email',
+            data: {
+              'email': v['email'],
+              'currentPassword': v['currentPassword'],
+            },
+          );
 
       if (!mounted) return;
 
-      ref.read(toastProvider.notifier).add(
-        ToastMessage(
-          type: ToastType.success,
-          icon: FontAwesomeIcons.check,
-          text: AppLocalizations.of(context)!.email_updated,
-        ),
-      );
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.success,
+              icon: FontAwesomeIcons.check,
+              text: AppLocalizations.of(context)!.email_updated,
+            ),
+          );
 
       Navigator.of(context).pop();
 
@@ -66,13 +70,15 @@ class _EmailChangeSheetState extends ConsumerState<EmailChangeSheet> {
 
       if (!mounted) return;
 
-      ref.read(toastProvider.notifier).add(
-        ToastMessage(
-          type: ToastType.error,
-          icon: FontAwesomeIcons.circleExclamation,
-          text: message,
-        ),
-      );
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: message,
+            ),
+          );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

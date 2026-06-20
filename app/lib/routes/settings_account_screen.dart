@@ -10,24 +10,20 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/settings.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/profile/profile_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 
-class SettingsAccountScreen extends ConsumerWidget {
+class SettingsAccountScreen extends ConsumerStatefulWidget {
   const SettingsAccountScreen({super.key});
 
-  Widget _sectionHeader(BuildContext context, String label) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        label,
-        style: Theme.of(
-          context,
-        ).textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-      ),
-    );
-  }
+  @override
+  ConsumerState<SettingsAccountScreen> createState() =>
+      _SettingsAccountScreenState();
+}
+
+class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
+  bool _avatarLoading = false;
 
   Future<void> _pickAndUploadAvatar(
     BuildContext context,
@@ -42,30 +38,30 @@ class SettingsAccountScreen extends ConsumerWidget {
       final formData = FormData.fromMap({
         'avatar': await MultipartFile.fromFile(picked.path),
       });
+      setState(() {
+        _avatarLoading = true;
+      });
       await ref.read(apiProvider).post('/user/$userId/file', data: formData);
 
       if (!context.mounted) return;
 
       await ref.read(authProvider.notifier).refresh();
-
-      if (!context.mounted) return;
-
-      ref.read(toastProvider.notifier).add(
-        ToastMessage(
-          type: ToastType.success,
-          icon: FontAwesomeIcons.check,
-          text: l10n.avatar,
-        ),
-      );
+      ref.invalidate(ownProfileProvider);
     } catch (_) {
       if (!context.mounted) return;
-      ref.read(toastProvider.notifier).add(
-        ToastMessage(
-          type: ToastType.error,
-          icon: FontAwesomeIcons.circleExclamation,
-          text: l10n.error_saving_settings,
-        ),
-      );
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: l10n.error_saving_settings,
+            ),
+          );
+    } finally {
+      setState(() {
+        _avatarLoading = false;
+      });
     }
   }
 
@@ -108,18 +104,30 @@ class SettingsAccountScreen extends ConsumerWidget {
       await ref.read(authProvider.notifier).logout();
     } catch (_) {
       if (!context.mounted) return;
-      ref.read(toastProvider.notifier).add(
-        ToastMessage(
-          type: ToastType.error,
-          icon: FontAwesomeIcons.circleExclamation,
-          text: l10n.error_saving_settings,
-        ),
-      );
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: l10n.error_saving_settings,
+            ),
+          );
     }
   }
 
+  Widget _sectionHeader(BuildContext context, String label, Color color) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(color: color),
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(authProvider).value;
     final settings = ref.watch(settingsProvider);
@@ -141,41 +149,44 @@ class SettingsAccountScreen extends ConsumerWidget {
           // --- Avatar row (ACCT-01) ---
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: user == null
-                      ? null
-                      : () => _pickAndUploadAvatar(
-                            context,
-                            ref,
-                            l10n,
-                            user.id,
-                          ),
-                  child: CircleAvatar(
-                    radius: 40,
+            child: GestureDetector(
+              onTap: user == null
+                  ? null
+                  : () => _pickAndUploadAvatar(context, ref, l10n, user.id),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 64,
                     backgroundImage: NetworkImage(avatarUrl ?? fallbackUrl),
                     onBackgroundImageError: (e, _) {},
                   ),
-                ),
-                const SizedBox(width: 16),
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: user == null
-                      ? null
-                      : () => _pickAndUploadAvatar(
-                            context,
-                            ref,
-                            l10n,
-                            user.id,
-                          ),
-                ),
-              ],
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withValues(
+                          alpha: 0.4,
+                        ), // Adjust alpha (0.0 to 1.0) for darkness
+                      ),
+                    ),
+                  ),
+                  if (_avatarLoading) ...{
+                    CircularProgressIndicator(color: Colors.white),
+                  } else ...{
+                    FaIcon(FontAwesomeIcons.pen, color: Colors.white),
+                  },
+                ],
+              ),
             ),
           ),
 
           // --- Bio section (ACCT-02) ---
-          _sectionHeader(context, l10n.add_bio),
+          _sectionHeader(
+            context,
+            "${l10n.about} ${user?.username}",
+            Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           _BioSection(settings: settings, l10n: l10n),
 
           // --- Change email (ACCT-03) ---
@@ -207,13 +218,11 @@ class SettingsAccountScreen extends ConsumerWidget {
                     );
                   },
           ),
-
+          Divider(),
+          _sectionHeader(context, l10n.danger_zone, Colors.redAccent),
           // --- Delete account (ACCT-05) ---
           ListTile(
-            leading: Icon(
-              Icons.delete_outline,
-              color: Colors.red.shade400,
-            ),
+            leading: Icon(Icons.delete_outline, color: Colors.redAccent),
             title: Text(
               l10n.delete_account,
               style: TextStyle(color: Colors.red.shade400),
@@ -283,13 +292,15 @@ class _BioSectionState extends ConsumerState<_BioSection> {
           .saveToServer(settings.copyWith(bio: _controller.text));
     } catch (_) {
       if (!mounted) return;
-      ref.read(toastProvider.notifier).add(
-        ToastMessage(
-          type: ToastType.error,
-          icon: FontAwesomeIcons.circleExclamation,
-          text: widget.l10n.error_saving_settings,
-        ),
-      );
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: widget.l10n.error_saving_settings,
+            ),
+          );
     }
   }
 
@@ -304,9 +315,7 @@ class _BioSectionState extends ConsumerState<_BioSection> {
             controller: _controller,
             maxLines: 4,
             onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: widget.l10n.add_bio,
-            ),
+            decoration: InputDecoration(hintText: widget.l10n.add_bio),
           ),
           const SizedBox(height: 8),
           ElevatedButton(
