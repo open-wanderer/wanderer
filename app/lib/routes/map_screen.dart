@@ -379,7 +379,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ),
                 child: AsyncLoader(
                   asyncValue: searchResultAsync,
-                  mockData: [],
+                  mockData: List.generate(5, (_) => TrailSearchResult.mock()),
                   builder: (trails) => ListView.builder(
                     itemCount: trails.length + 2,
                     padding: EdgeInsets.fromLTRB(16, 8, 16, 16),

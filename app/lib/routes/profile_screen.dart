@@ -82,11 +82,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildProfile(Actor actor) {
     final h = _handle;
-    final feedAsync = h != null ? ref.watch(profileFeedProvider(h)) : null;
-    final feedItems = feedAsync?.value?.items ?? [];
-    final feedHasMore = feedAsync?.value?.hasMore ?? false;
-    final feedIsInitialLoading =
-        feedAsync?.isLoading == true && feedItems.isEmpty;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -181,48 +176,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // Lists heading + preview
           if (h != null) SliverToBoxAdapter(child: _ListsPreview(handle: h)),
 
-          // Feed — loaded items
-          if (!feedIsInitialLoading && feedItems.isNotEmpty) ...[
-            // Feed heading
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text(
-                  "Feed",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) =>
-                    FeedItemCard(item: feedItems[index], profileActor: actor),
-                childCount: feedItems.length,
-              ),
-            ),
-          ],
-
-          // Feed — loading next page footer
-          if (!feedIsInitialLoading && feedHasMore)
-            const SliverToBoxAdapter(
-              child: Center(child: CircularProgressIndicator()),
-            ),
-
-          // Feed — error state
-          if (feedAsync?.hasError == true)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Failed to load feed.',
-                  style: TextStyle(color: Colors.grey[600]),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
+          // Feed
+          if (h != null)
+            SliverToBoxAdapter(child: _FeedSection(handle: h, actor: actor)),
 
           // Bottom padding
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -397,6 +353,53 @@ class _ListsPreview extends ConsumerWidget {
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Feed section — skeleton on initial load, list of FeedItemCards when ready
+// ---------------------------------------------------------------------------
+
+class _FeedSection extends ConsumerWidget {
+  final String handle;
+  final Actor actor;
+
+  const _FeedSection({required this.handle, required this.actor});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final feedAsync = ref.watch(profileFeedProvider(handle));
+
+    return AsyncLoader<ProfileFeedState>(
+      asyncValue: feedAsync,
+      mockData: ProfileFeedState.mock(),
+      builder: (state) {
+        if (state.items.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Feed',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            ...state.items.map(
+              (item) => FeedItemCard(item: item, profileActor: actor),
+            ),
+            if (state.hasMore)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+          ],
         );
       },
     );

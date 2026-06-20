@@ -29,6 +29,23 @@ sealed class FeedItem with _$FeedItem {
   // Callers MUST pre-filter summit_log items before calling fromJson
   // (see profile_feed_provider.dart). Unknown types throw UnsupportedError
   // rather than silently corrupting state (mitigates T-01-01).
+  factory FeedItem.mock() => FeedItem.trail(
+        id: 'mock-feed-id',
+        actor: 'mock-actor-id',
+        type: 'trail',
+        created: '2024-01-01 00:00:00.000Z',
+        trail: Trail(
+          id: 'mock-trail-id',
+          name: 'Mock Trail Name',
+          created: DateTime(2024, 1, 1),
+          updated: DateTime(2024, 1, 1),
+          distance: 8000,
+          elevationGain: 350,
+          elevationLoss: 350,
+          duration: 120,
+        ),
+      );
+
   factory FeedItem.fromJson(Map<String, dynamic> json) {
     final type = json['type'] as String?;
     final expandRaw = json['expand'];

@@ -86,6 +86,30 @@ abstract class TrailSearchResult
 
   factory TrailSearchResult.fromJson(Map<String, dynamic> json) =>
       _$TrailSearchResultFromJson(json);
+
+  factory TrailSearchResult.mock() => const TrailSearchResult(
+    id: 'mock-trail-id',
+    author: 'mock-author-id',
+    authorName: 'Mock Author',
+    authorAvatar: '',
+    name: 'Mock Trail Name',
+    description: 'A placeholder trail for skeleton loading',
+    location: 'Mock Location',
+    distance: 9500.0,
+    elevationGain: 420.0,
+    elevationLoss: 420.0,
+    duration: 150.0,
+    difficulty: 1,
+    category: '',
+    completed: false,
+    date: 0,
+    created: 0,
+    public: false,
+    thumbnail: '',
+    likeCount: 0,
+    gpx: '',
+    geo: GeoLocation(lat: 0, lng: 0),
+  );
 }
 
 @freezed
@@ -127,19 +151,19 @@ abstract class ListSearchResult
       _$ListSearchResultFromJson(json);
 
   factory ListSearchResult.mock() => const ListSearchResult(
-        id: 'mock-list-id',
-        author: 'mock-author-id',
-        authorName: 'Mock Author',
-        authorAvatar: '',
-        name: 'Mock Trail List',
-        description: 'A placeholder list for skeleton loading',
-        elevationGain: 450.0,
-        elevationLoss: 450.0,
-        distance: 12000.0,
-        duration: 180.0,
-        public: true,
-        trails: 5,
-      );
+    id: 'mock-list-id',
+    author: 'mock-author-id',
+    authorName: 'Mock Author',
+    authorAvatar: '',
+    name: 'Mock Trail List',
+    description: 'A placeholder list for skeleton loading',
+    elevationGain: 450.0,
+    elevationLoss: 450.0,
+    distance: 12000.0,
+    duration: 180.0,
+    public: true,
+    trails: 5,
+  );
 }
 
 @freezed

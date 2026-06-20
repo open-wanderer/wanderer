@@ -19,6 +19,13 @@ abstract class ListSearchState with _$ListSearchState {
 
   const ListSearchState._();
   bool get hasMore => page < totalPages;
+
+  factory ListSearchState.mock() => ListSearchState(
+        lists: List.generate(5, (_) => ListSearchResult.mock()),
+        page: 1,
+        perPage: 20,
+        totalPages: 1,
+      );
 }
 
 @riverpod

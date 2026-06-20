@@ -31,7 +31,7 @@ class AsyncLoader<T> extends StatelessWidget {
     };
 
     return Skeletonizer(
-      enabled: !asyncValue.hasValue,
+      enabled: asyncValue.isLoading,
       enableSwitchAnimation: true,
       child: builder(data),
     );

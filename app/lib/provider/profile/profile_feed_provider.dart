@@ -19,6 +19,14 @@ abstract class ProfileFeedState with _$ProfileFeedState {
 
   const ProfileFeedState._();
   bool get hasMore => page < totalPages;
+
+  factory ProfileFeedState.mock() => ProfileFeedState(
+        items: List.generate(3, (_) => FeedItem.mock()),
+        page: 1,
+        perPage: 10,
+        totalPages: 1,
+        totalItems: 3,
+      );
 }
 
 @riverpod

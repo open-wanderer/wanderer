@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/list/list_card.dart';
 import 'package:wanderer/components/list/list_quick_filter_bar.dart';
 import 'package:wanderer/provider/list/list_filter_provider.dart';
@@ -97,36 +98,36 @@ class _ListScreenState extends ConsumerState<ListScreen> {
               ),
               const ListQuickFilterBar(filterId: 'lists'),
               Expanded(
-                child: searchState.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text(e.toString())),
-                  data: (state) => RefreshIndicator(
-                    onRefresh: () async => ref.invalidate(listSearchProvider),
-                    child: state.lists.isEmpty
-                        ? const Center(child: Text('No lists found'))
-                        : ListView.builder(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
-                            itemCount:
-                                state.lists.length + (state.hasMore ? 1 : 0),
-                            itemBuilder: (context, i) {
-                              if (i == state.lists.length) {
-                                return const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
-                              }
-                              return ListCard(
-                                list: state.lists[i],
-                                mini: false,
-                                onListSelect: () =>
-                                    context.push('/list/${state.lists[i].id}'),
-                              );
-                            },
-                          ),
+                child: RefreshIndicator(
+                  onRefresh: () async => ref.invalidate(listSearchProvider),
+                  child: AsyncLoader<ListSearchState>(
+                    asyncValue: searchState,
+                    mockData: ListSearchState.mock(),
+                    builder: (state) {
+                      if (state.lists.isEmpty) {
+                        return const Center(child: Text('No lists found'));
+                      }
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
+                        itemCount:
+                            state.lists.length + (state.hasMore ? 1 : 0),
+                        itemBuilder: (context, i) {
+                          if (i == state.lists.length) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          return ListCard(
+                            list: state.lists[i],
+                            mini: false,
+                            onListSelect: () =>
+                                context.push('/list/${state.lists[i].id}'),
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
               ),
