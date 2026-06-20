@@ -24,6 +24,9 @@ class AppLocalizationsHu extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get account => 'Account';
+
+  @override
   String get account_delete_confirm =>
       'Ön most a profilját készül törölni. Minden nyomvonala törlődik. Szeretné folytatni?';
 

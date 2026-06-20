@@ -24,6 +24,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get account => 'Account';
+
+  @override
   String get account_delete_confirm =>
       'Chystáte se odstranit svůj účet. Všechny vaše záznamy budou odstraněny též. Chcete pokračovat?';
 

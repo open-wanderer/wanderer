@@ -24,6 +24,9 @@ class AppLocalizationsEu extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get account => 'Account';
+
+  @override
   String get account_delete_confirm =>
       'Zure kontua ezabatzera zoaz. Zure ibilbide guztiak ere ezabatu egingo dira. Jarraitu nahi duzu?';
 

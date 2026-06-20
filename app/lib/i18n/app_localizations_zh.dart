@@ -24,6 +24,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get account => 'Account';
+
+  @override
   String get account_delete_confirm => '您现在要删除当前账户，所有的路线都会删除无法恢复，确认继续操作吗？';
 
   @override

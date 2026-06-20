@@ -24,6 +24,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get appearance => 'Darstellung';
 
   @override
+  String get account => 'Account';
+
+  @override
   String get account_delete_confirm =>
       'Du bist dabei, dein Konto zu löschen. Alle deine Routen werden ebenfalls gelöscht. Möchtest du fortfahren?';
 

@@ -24,6 +24,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get account => 'Account';
+
+  @override
   String get account_delete_confirm =>
       'Está prestes a excluir a sua conta. Todos os seus percursos também serão excluídos. Quer continuar?';
 

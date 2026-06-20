@@ -152,6 +152,12 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get appearance;
 
+  /// No description provided for @account.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get account;
+
   /// No description provided for @account_delete_confirm.
   ///
   /// In en, this message translates to:

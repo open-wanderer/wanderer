@@ -24,6 +24,9 @@ class AppLocalizationsNl extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get account => 'Account';
+
+  @override
   String get account_delete_confirm =>
       'Je staat op het punt je account te verwijderen. Al je routes worden hierdoor eveneens verwijderd. Wil je doorgaan?';
 

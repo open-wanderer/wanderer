@@ -24,6 +24,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get account => 'Account';
+
+  @override
   String get account_delete_confirm =>
       'Вы собираетесь удалить аккаунт. Все ваши треки также будут удалены. Продолжить?';
 

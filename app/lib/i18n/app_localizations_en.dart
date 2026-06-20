@@ -24,6 +24,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get account => 'Account';
+
+  @override
   String get account_delete_confirm =>
       'You are about to delete your account. All your trails will also be deleted. Do you want to proceed?';
 

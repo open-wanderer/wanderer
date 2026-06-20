@@ -24,6 +24,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get account => 'Account';
+
+  @override
   String get account_delete_confirm =>
       'Estás al punto de borrar tu cuenta. Todas tus rutas también serán borradas. ¿Quieres proceder?';
 

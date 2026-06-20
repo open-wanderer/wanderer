@@ -24,6 +24,9 @@ class AppLocalizationsNo extends AppLocalizations {
   String get appearance => 'Appearance';
 
   @override
+  String get account => 'Account';
+
+  @override
   String get account_delete_confirm =>
       'Du er i ferd med å slette kontoen din. Alle sporene dine vil også bli slettet. Ønsker du å fortsette?';
 
