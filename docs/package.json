@@ -19,7 +19,7 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "@tailwindcss/vite": "^4.3.0",
-    "astro": "^6.4.2",
+    "astro": "^6.4.8",
     "sharp": "^0.34.5",
     "starlight-openapi": "^0.25.3",
     "svelte": "^5.56.0",
