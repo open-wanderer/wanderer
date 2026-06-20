@@ -42,7 +42,7 @@ void main() {
     // The five English labels are present (SETNAV-01).
     expect(find.text('My Account'), findsOneWidget);
     expect(find.text('Privacy'), findsOneWidget);
-    expect(find.text('Language'), findsOneWidget);
+    expect(find.text('Language & Units'), findsOneWidget);
     expect(find.text('Notifications'), findsOneWidget);
     expect(find.text('Appearance'), findsOneWidget);
   });
