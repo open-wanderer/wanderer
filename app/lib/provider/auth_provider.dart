@@ -36,13 +36,14 @@ class Auth extends _$Auth {
     final pbAuthCookie = cookies.where((c) => c.name == 'pb_auth').firstOrNull;
 
     if (pbAuthCookie != null) {
-      _updateUserEntity(savedUserEntity.id).catchError((err) {
-        if (err is DioException && err.response?.statusCode == 404) {
+      try {
+        await _updateUserEntity(savedUserEntity.id);
+      } on DioException catch (err) {
+        if (err.response?.statusCode == 404) {
           logout();
+          return null;
         }
-        return null;
-      });
-
+      }
       return savedUserEntity;
     }
     return null;
