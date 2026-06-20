@@ -90,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-19 — Milestone v1.2 started: Settings Screens. v1.1 complete (all 5 phases shipped).*
+*Last updated: 2026-06-20 — Phase 6 complete: Settings Navigation, Language & Units shipped (sub-nav, 14-locale picker, metric/imperial radio, app-wide unit wiring, 12 locale ARB files).*

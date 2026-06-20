@@ -18,14 +18,14 @@ Requirements for the Settings Screens milestone. Each maps to roadmap phases.
 
 ### Privacy
 
-- [ ] **PRIV-01**: User can set their account visibility to public or private
-- [ ] **PRIV-02**: User can set their trails default visibility to public or private
-- [ ] **PRIV-03**: User can set their lists default visibility to public or private
+- [x] **PRIV-01**: User can set their account visibility to public or private
+- [x] **PRIV-02**: User can set their trails default visibility to public or private
+- [x] **PRIV-03**: User can set their lists default visibility to public or private
 
 ### Language & Units
 
-- [ ] **LANG-01**: User can select their preferred language from the 14 supported locales
-- [ ] **LANG-02**: User can toggle between metric and imperial units
+- [x] **LANG-01**: User can select their preferred language from the 14 supported locales
+- [x] **LANG-02**: User can toggle between metric and imperial units
 
 ### Notifications
 
@@ -41,7 +41,7 @@ Requirements for the Settings Screens milestone. Each maps to roadmap phases.
 
 ### Settings Navigation
 
-- [ ] **SETNAV-01**: Settings screen lists entries for Account, Privacy, Language, Notifications, and Appearance
+- [x] **SETNAV-01**: Settings screen lists entries for Account, Privacy, Language, Notifications, and Appearance
 
 ## Future Requirements
 
@@ -66,12 +66,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SETNAV-01 | Phase 6 | Pending |
-| LANG-01 | Phase 6 | Pending |
-| LANG-02 | Phase 6 | Pending |
-| PRIV-01 | Phase 7 | Pending |
-| PRIV-02 | Phase 7 | Pending |
-| PRIV-03 | Phase 7 | Pending |
+| SETNAV-01 | Phase 6 | Complete |
+| LANG-01 | Phase 6 | Complete |
+| LANG-02 | Phase 6 | Complete |
+| PRIV-01 | Phase 7 | Complete |
+| PRIV-02 | Phase 7 | Complete |
+| PRIV-03 | Phase 7 | Complete |
 | ACCT-01 | Phase 8 | Pending |
 | ACCT-02 | Phase 8 | Pending |
 | ACCT-03 | Phase 8 | Pending |
@@ -88,6 +88,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NOTIF-09 | Phase 9 | Pending |
 
 **Coverage:**
+
 - v1.2 requirements: 20 total
 - Mapped to phases: 20
 - Unmapped: 0 ✓

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: milestone
-status: planning
-stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-06-19T19:08:32.592Z"
-last_activity: 2026-06-19 — v1.2 roadmap created (Phases 6-9), 20/20 requirements mapped
+status: verifying
+stopped_at: Phase 7 UI-SPEC approved
+last_updated: "2026-06-20T09:01:20.936Z"
+last_activity: 2026-06-20 -- Phase 07 execution started
 progress:
   total_phases: 9
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 2
+  total_plans: 5
+  completed_plans: 5
+  percent: 22
 ---
 
 # Project State
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 6 — Settings Navigation + Language & Units (v1.2 roadmap created)
+**Current focus:** Phase 07 — privacy
 
 ## Current Position
 
-Phase: Not started (roadmap complete — ready to plan Phase 6)
-Plan: —
-Status: Roadmap complete; awaiting Phase 6 planning
-Last activity: 2026-06-19 — v1.2 roadmap created (Phases 6-9), 20/20 requirements mapped
+Phase: 07 (privacy) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-06-20 -- Phase 07 execution started
 
 ## Performance Metrics
 
 **Velocity (v1.0 + v1.1):**
 
-- Total plans completed: 12
+- Total plans completed: 16
 - Average duration: — min
 - Total execution time: 0 hours
 
@@ -47,7 +47,7 @@ Last activity: 2026-06-19 — v1.2 roadmap created (Phases 6-9), 20/20 requireme
 | 03 | 2 | - | - |
 | 04 | 2 | - | - |
 | 05 | 4 | - | - |
-| 06 | TBD | - | - |
+| 06 | 4 | - | - |
 | 07 | TBD | - | - |
 | 08 | TBD | - | - |
 | 09 | TBD | - | - |
@@ -60,6 +60,11 @@ Last activity: 2026-06-19 — v1.2 roadmap created (Phases 6-9), 20/20 requireme
 *Updated after each plan completion*
 | Phase 04 P01 | 17 | 2 tasks | 4 files |
 | Phase 04 P02 | 13 | 2 tasks | 3 files |
+| Phase 06 P01 | 6 | 3 tasks | 5 files |
+| Phase 06 P02 | 14 | 3 tasks | 12 files |
+| Phase 06 P03 | 22 | 2 tasks | 15 files |
+| Phase 06 P04 | 10 | 1 tasks | 25 files |
+| Phase 07 P01 | 15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -81,6 +86,14 @@ Recent decisions affecting current work:
 - freezed 3.x: @JsonSerializable(explicitToJson: true) must be placed on the factory constructor, not above @freezed; class-level placement breaks json_serializable codegen
 - NavigateResponse.toJson() serialization fixed (nested maneuvers now serialized) — Phase 4 blocker resolved; unblocked Phase 5 ObjectBox navCacheJson caching
 - navCacheJson added as entity-only nullable String on TrailEntity (follows gpxData precedent); objectbox-model.json regenerated and committed together to avoid UID conflicts
+- [Phase ?]: localeProvider returns null when language is null so Flutter falls back to device locale (Phase 6 live-switch infra)
+- [Phase ?]: unitProvider falls back to 'metric' on null settings or null unit, matching format_util.dart default
+- [Phase ?]: [Phase 6 P02]: Units switch polarity — imperial = on-position, metric = off (UI-SPEC D-10)
+- [Phase ?]: [Phase 6 P02]: RadioGroup<Language> with hardcoded native-name map (the single approved hardcoded-string exception)
+- [Phase ?]: [Phase 6 P03]: Single ref.watch(unitProvider) per build path, threaded to private stat widgets/helpers via constructor or method param
+- [Phase ?]: [Phase 6 P03]: elevation_profile stores unit in a _unit instance field set at top of build so fl_chart axis closures read the live value during the same build
+- [Phase ?]: [Phase 7 P01]: Plural ARB getters use positional args (l10n.trail(2)) not named — plan/UI-SPEC syntax was wrong
+- [Phase ?]: [Phase 7 P01]: Widget tests set a tall (1080x4000) viewport so all six long-subtitle tiles mount in the lazy ListView
 
 ### Pending Todos
 
@@ -119,6 +132,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-06-19T18:47:13.092Z
-Stopped at: Phase 6 UI-SPEC approved
-Resume file: .planning/phases/06-settings-navigation-language-units/06-UI-SPEC.md
+Last session: 2026-06-20T09:01:05.891Z
+Stopped at: Phase 7 UI-SPEC approved
+Resume file: .planning/phases/07-privacy/07-UI-SPEC.md

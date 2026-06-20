@@ -22,8 +22,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Stats Sheet** - DraggableScrollableSheet with live distance/elevation/speed stats and a reused elevation-profile page (completed 2026-06-13)
 - [x] **Phase 4: Serialization Fix + Entity Schema** - Fix NavigateResponse.toJson() serialization bug, add navCacheJson to TrailEntity (completed 2026-06-14)
 - [x] **Phase 5: Cache Write + Fallback + UI** - Cache navigation instructions at download time, fall back to cache when offline, re-cache after online sessions, show offline indicator (completed 2026-06-14)
-- [ ] **Phase 6: Settings Navigation + Language & Units** - Add Privacy/Language/Notifications list entries and routes, ship the Language & Units screen
-- [ ] **Phase 7: Privacy** - Privacy screen with account, trails, and lists visibility controls
+- [x] **Phase 6: Settings Navigation + Language & Units** - Add Privacy/Language/Notifications list entries and routes, ship the Language & Units screen (completed 2026-06-19)
+- [x] **Phase 7: Privacy** - Privacy screen with account, trails, and lists visibility controls (completed 2026-06-20)
 - [ ] **Phase 8: Account & Profile** - Combined account screen: avatar, bio, change email, change password, delete account
 - [ ] **Phase 9: Notifications** - Notifications screen with web + email toggles for all nine notification types
 
@@ -162,13 +162,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — localeProvider + unitProvider derived providers, MaterialApp.router live-locale wiring + 14 supportedLocales, Wave 0 test scaffolds (LANG-01, LANG-02)
+- [x] 06-01-PLAN.md — localeProvider + unitProvider derived providers, MaterialApp.router live-locale wiring + 14 supportedLocales, Wave 0 test scaffolds (LANG-01, LANG-02)
 
 **Wave 2** *(blocked on Wave 1 completion; the three Wave 2 plans run in parallel — no file overlap)*
 
-- [ ] 06-02-PLAN.md — Settings nav rows + 3 routes + Privacy/Notifications stubs + Language & Units screen (SETNAV-01, LANG-01, LANG-02)
-- [ ] 06-03-PLAN.md — Wire unitProvider into all ~14 format_util call sites (incl. 3 non-Consumer conversions) + imperial format tests (LANG-02)
-- [ ] 06-04-PLAN.md — Port 12 missing locale ARB files from web JSON + regenerate AppLocalizations (LANG-01)
+- [x] 06-02-PLAN.md — Settings nav rows + 3 routes + Privacy/Notifications stubs + Language & Units screen (SETNAV-01, LANG-01, LANG-02)
+- [x] 06-03-PLAN.md — Wire unitProvider into all ~14 format_util call sites (incl. 3 non-Consumer conversions) + imperial format tests (LANG-02)
+- [x] 06-04-PLAN.md — Port 12 missing locale ARB files from web JSON + regenerate AppLocalizations (LANG-01)
 
 **UI hint**: yes
 
@@ -184,7 +184,11 @@ Plans:
   3. User can set the default trails visibility to public or private, and the selection persists
   4. User can set the default lists visibility to public or private, and the selection persists
 
-**Plans**: TBD
+**Plans**: 1 plan
+**Wave 1**
+
+- [x] 07-01-PLAN.md — Fill SettingsPrivacyScreen stub: three RadioGroup<String> visibility sections (account/trails/lists) with subtitle descriptions + auto-save via settingsProvider; mirrors SettingsLanguageScreen (PRIV-01, PRIV-02, PRIV-03) + widget test
+
 **UI hint**: yes
 
 ### Phase 8: Account & Profile
@@ -231,7 +235,7 @@ Phases 7, 8, and 9 each depend only on Phase 6 and are otherwise independent of 
 | 3. Stats Sheet | 2/2 | Complete | 2026-06-13 |
 | 4. Serialization Fix + Entity Schema | 2/2 | Complete | 2026-06-14 |
 | 5. Cache Write + Fallback + UI | 4/4 | Complete | 2026-06-14 |
-| 6. Settings Navigation + Language & Units | 0/0 | Not started | - |
-| 7. Privacy | 0/0 | Not started | - |
+| 6. Settings Navigation + Language & Units | 4/4 | Complete    | 2026-06-20 |
+| 7. Privacy | 1/1 | Complete   | 2026-06-20 |
 | 8. Account & Profile | 0/0 | Not started | - |
 | 9. Notifications | 0/0 | Not started | - |
