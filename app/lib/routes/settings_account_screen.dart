@@ -268,8 +268,7 @@ class _BioSectionState extends ConsumerState<_BioSection> {
       _persisted = newPersisted;
       // Only update the controller if the text is still equal to the old
       // persisted value (i.e. the user has not started editing).
-      if (_controller.text == _persisted ||
-          _controller.text == (oldWidget.settings?.bio ?? '')) {
+      if (_controller.text == _persisted) {
         _controller.text = newPersisted;
       }
     }
