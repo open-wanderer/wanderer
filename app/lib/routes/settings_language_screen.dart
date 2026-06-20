@@ -75,9 +75,20 @@ class SettingsLanguageScreen extends ConsumerWidget {
           RadioGroup<Language>(
             groupValue: settings?.language,
             onChanged: (value) {
-              if (value != null && settings != null) {
-                _save(ref, l10n, settings.copyWith(language: value));
+              if (value == null) return;
+              if (settings == null) {
+                ref
+                    .read(toastProvider.notifier)
+                    .add(
+                      ToastMessage(
+                        type: ToastType.error,
+                        icon: FontAwesomeIcons.circleExclamation,
+                        text: l10n.error_saving_settings,
+                      ),
+                    );
+                return;
               }
+              _save(ref, l10n, settings.copyWith(language: value));
             },
             child: Column(
               children: [
