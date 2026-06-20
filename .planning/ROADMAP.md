@@ -204,7 +204,19 @@ Plans:
   4. User can change their password by providing the required credentials, and a clear error is shown if the change is rejected
   5. User can delete their account, but only after passing an explicit confirmation step
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+**Wave 1**
+
+- [ ] 08-01-PLAN.md — Foundation: add image_picker + iOS photo-library permission, add `account` l10n key, add public `Auth.refresh()` (ACCT-01, ACCT-03)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 08-02-PLAN.md — EmailChangeSheet + PasswordChangeSheet bottom-sheet forms (FormBuilder + WandererTextField; email re-fetch, password oldPassword fix) (ACCT-03, ACCT-04)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 08-03-PLAN.md — Fill SettingsAccountScreen: avatar upload, change-aware bio Save, email/password sheet rows, confirm-gated delete + widget test (ACCT-01..05)
 **UI hint**: yes
 
 ### Phase 9: Notifications
@@ -236,6 +248,6 @@ Phases 7, 8, and 9 each depend only on Phase 6 and are otherwise independent of 
 | 4. Serialization Fix + Entity Schema | 2/2 | Complete | 2026-06-14 |
 | 5. Cache Write + Fallback + UI | 4/4 | Complete | 2026-06-14 |
 | 6. Settings Navigation + Language & Units | 4/4 | Complete    | 2026-06-20 |
-| 7. Privacy | 1/1 | Complete   | 2026-06-20 |
+| 7. Privacy | 1/1 | Complete    | 2026-06-20 |
 | 8. Account & Profile | 0/0 | Not started | - |
 | 9. Notifications | 0/0 | Not started | - |
