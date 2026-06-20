@@ -39,7 +39,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           ListTile(
             leading: const FaIcon(FontAwesomeIcons.globe, size: 18),
-            title: Text(l10n.language),
+            title: Text("${l10n.language} & ${l10n.units}"),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/language'),
           ),
