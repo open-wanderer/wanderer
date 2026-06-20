@@ -331,12 +331,23 @@ class _TabContent extends StatefulWidget {
 
 class _TabContentState extends State<_TabContent> {
   int _index = 0;
+  TabController? _controller;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final controller = DefaultTabController.of(context);
-    controller.addListener(_onTabChanged);
+    if (_controller != controller) {
+      _controller?.removeListener(_onTabChanged);
+      _controller = controller;
+      _controller!.addListener(_onTabChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onTabChanged);
+    super.dispose();
   }
 
   void _onTabChanged() {
