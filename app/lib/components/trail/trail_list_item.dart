@@ -246,7 +246,7 @@ class _Thumbnail extends StatelessWidget {
       color: Colors.grey[200],
       child: Center(
         child: SvgPicture.asset(
-          "assets/svgs/empty_state_trail_${Brightness.light.name}.svg",
+          "assets/svgs/empty_state_trail_${Theme.of(context).brightness.name}.svg",
           semanticsLabel: 'wanderer logo',
           height: 40,
         ),

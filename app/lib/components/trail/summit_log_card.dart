@@ -276,7 +276,7 @@ class SummitLogCard extends ConsumerWidget {
 
   Widget _buildPlaceholder(BuildContext context) {
     return SvgPicture.asset(
-      "assets/svgs/empty_state_trail_${Brightness.light.name}.svg",
+      "assets/svgs/empty_state_trail_${Theme.of(context).brightness.name}.svg",
       semanticsLabel: 'wanderer logo',
       height: 80,
     );
