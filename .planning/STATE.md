@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 7 UI-SPEC approved
-last_updated: "2026-06-20T09:01:20.936Z"
-last_activity: 2026-06-20 -- Phase 07 execution started
+status: executing
+stopped_at: Phase 8 Plan 02 complete — ready for Plan 03 (SettingsAccountScreen)
+last_updated: "2026-06-20T13:00:00.000Z"
+last_activity: 2026-06-20 -- Phase 08 Plan 02 complete (EmailChangeSheet + PasswordChangeSheet)
 progress:
   total_phases: 9
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 8
+  completed_plans: 7
   percent: 22
 ---
 
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 07 — privacy
+**Current focus:** Phase 08 — account-profile
 
 ## Current Position
 
-Phase: 07 (privacy) — EXECUTING
-Plan: 1 of 1
-Status: Phase complete — ready for verification
-Last activity: 2026-06-20 -- Phase 07 execution started
+Phase: 08 (account-profile) — EXECUTING
+Plan: 3 of 3
+Status: Ready to execute
+Last activity: 2026-06-20 -- Phase 08 Plan 02 complete (EmailChangeSheet + PasswordChangeSheet)
 
 ## Performance Metrics
 
 **Velocity (v1.0 + v1.1):**
 
-- Total plans completed: 16
+- Total plans completed: 17
 - Average duration: — min
 - Total execution time: 0 hours
 
@@ -51,6 +51,7 @@ Last activity: 2026-06-20 -- Phase 07 execution started
 | 07 | TBD | - | - |
 | 08 | TBD | - | - |
 | 09 | TBD | - | - |
+| 7 | 1 | - | - |
 
 **Recent Trend:**
 
@@ -94,6 +95,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 6 P03]: elevation_profile stores unit in a _unit instance field set at top of build so fl_chart axis closures read the live value during the same build
 - [Phase ?]: [Phase 7 P01]: Plural ARB getters use positional args (l10n.trail(2)) not named — plan/UI-SPEC syntax was wrong
 - [Phase ?]: [Phase 7 P01]: Widget tests set a tall (1080x4000) viewport so all six long-subtitle tiles mount in the lazy ListView
+- [Phase 08 P02]: PasswordChangeSheet payload must include oldPassword — PocketBase's native password-change rule enforces it; {password, passwordConfirm}-only payload returns 400
+- [Phase 08 P02]: State.mounted used (not context.mounted) for async BuildContext guards in ConsumerState — IDE linter use_build_context_synchronously requires mounted check on the State object
+- [Phase 08 P02]: PasswordChangeSheet uses generic l10n.error_updating_password (no server internals) per T-08-07; EmailChangeSheet surfaces ApiError.message only
 
 ### Pending Todos
 
@@ -132,6 +136,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-06-20T09:01:05.891Z
-Stopped at: Phase 7 UI-SPEC approved
-Resume file: .planning/phases/07-privacy/07-UI-SPEC.md
+Last session: 2026-06-20T12:53:07.487Z
+Stopped at: Phase 8 UI-SPEC approved
+Resume file: .planning/phases/08-account-profile/08-UI-SPEC.md
