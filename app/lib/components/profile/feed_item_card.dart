@@ -74,25 +74,6 @@ class _AuthorRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.surfaceContainerHighest,
-            backgroundImage: NetworkImage(
-              actor.icon != null && actor.icon!.isNotEmpty
-                  ? actor.icon!
-                  : 'https://api.dicebear.com/7.x/initials/png?seed=${actor.preferredUsername}&backgroundType=gradientLinear',
-            ),
-            onBackgroundImageError: (_, _) =>
-                const FaIcon(FontAwesomeIcons.user),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '@${actor.preferredUsername}',
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(width: 8),
           Text(
             _formatCreated(created),
             style: TextStyle(

@@ -9,6 +9,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
+import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/map/map_compass.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
@@ -376,9 +377,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     child: child,
                   ),
                 ),
-                child: Skeletonizer(
-                  enabled: searchResultAsync.isLoading,
-                  child: ListView.builder(
+                child: AsyncLoader(
+                  asyncValue: searchResultAsync,
+                  mockData: [],
+                  builder: (trails) => ListView.builder(
                     itemCount: trails.length + 2,
                     padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
                     controller: scrollController,

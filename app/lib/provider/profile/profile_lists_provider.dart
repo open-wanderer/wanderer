@@ -18,6 +18,16 @@ abstract class ProfileListsState with _$ProfileListsState {
   }) = _ProfileListsState;
 
   const ProfileListsState._();
+
+  factory ProfileListsState.mock() {
+    return ProfileListsState(
+      lists: List.generate(5, (_) => ListSearchResult.mock()),
+      page: 1,
+      perPage: 5,
+      totalPages: 1,
+    );
+  }
+
   bool get hasMore => page < totalPages;
 }
 

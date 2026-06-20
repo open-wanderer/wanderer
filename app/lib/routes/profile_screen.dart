@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/list/list_card.dart';
@@ -16,7 +18,6 @@ import 'package:wanderer/provider/profile/profile_counts_provider.dart';
 import 'package:wanderer/provider/profile/profile_feed_provider.dart';
 import 'package:wanderer/provider/profile/profile_lists_provider.dart';
 import 'package:wanderer/provider/profile/profile_provider.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final String? handle;
@@ -105,7 +106,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           SliverAppBar(
             pinned: true,
             expandedHeight: 200,
+            surfaceTintColor: Theme.of(context).colorScheme.surface,
             flexibleSpace: FlexibleSpaceBar(
+              titlePadding: EdgeInsets.fromLTRB(isOwn ? 16 : 72, 0, 0, 12),
               title: Builder(
                 builder: (context) {
                   final settings = context
@@ -121,7 +124,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 .clamp(0.0, 1.0);
                   return Opacity(
                     opacity: opacity,
-                    child: Text(actor.preferredUsername),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.grey.shade300,
+                          backgroundImage: NetworkImage(
+                            actor.icon?.isNotEmpty == true
+                                ? actor.icon!
+                                : 'https://api.dicebear.com/7.x/initials/png?seed=${actor.preferredUsername}&backgroundType=gradientLinear',
+                          ),
+                          onBackgroundImageError: (e, _) {},
+                        ),
+                        const SizedBox(width: 16),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              actor.preferredUsername,
+                              style: Theme.of(context).textTheme.bodyLarge!
+                                  .copyWith(fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              '@${actor.preferredUsername}${(actor.domain?.isNotEmpty == true) ? '@${actor.domain}' : ''}',
+                              style: Theme.of(context).textTheme.labelMedium!
+                                  .copyWith(fontWeight: FontWeight.normal),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -330,8 +363,10 @@ class _ListsPreview extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final listsAsync = ref.watch(profileListsProvider(handle));
 
-    return listsAsync.when(
-      data: (state) {
+    return AsyncLoader<ProfileListsState>(
+      asyncValue: listsAsync,
+      mockData: ProfileListsState.mock(),
+      builder: (state) {
         final lists = state.lists;
         if (lists.isEmpty) return const SizedBox.shrink();
         return Padding(
@@ -364,11 +399,6 @@ class _ListsPreview extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const SizedBox(
-        height: 170,
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (err, _) => const SizedBox.shrink(),
     );
   }
 }

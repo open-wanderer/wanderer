@@ -125,6 +125,21 @@ abstract class ListSearchResult
 
   factory ListSearchResult.fromJson(Map<String, dynamic> json) =>
       _$ListSearchResultFromJson(json);
+
+  factory ListSearchResult.mock() => const ListSearchResult(
+        id: 'mock-list-id',
+        author: 'mock-author-id',
+        authorName: 'Mock Author',
+        authorAvatar: '',
+        name: 'Mock Trail List',
+        description: 'A placeholder list for skeleton loading',
+        elevationGain: 450.0,
+        elevationLoss: 450.0,
+        distance: 12000.0,
+        duration: 180.0,
+        public: true,
+        trails: 5,
+      );
 }
 
 @freezed
