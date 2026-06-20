@@ -109,6 +109,12 @@ class Auth extends _$Auth {
     return state.value;
   }
 
+  Future<void> refresh() async {
+    final id = state.value?.id;
+    if (id == null) return;
+    state = await AsyncValue.guard(() => _updateUserEntity(id));
+  }
+
   Future<void> logout() async {
     state = const AsyncLoading();
     final jar = ref.read(cookieJarProvider);
