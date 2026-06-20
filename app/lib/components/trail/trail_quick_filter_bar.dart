@@ -545,7 +545,6 @@ class TrailQuickFilterBar extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         FormBuilder(
-                          key: GlobalKey<FormBuilderState>(),
                           child: WandererDatePicker(
                             name: 'startDate_$filterId',
                             initialValue: currentFilter.startDate,
@@ -565,7 +564,6 @@ class TrailQuickFilterBar extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         FormBuilder(
-                          key: GlobalKey<FormBuilderState>(),
                           child: WandererDatePicker(
                             name: 'endDate_$filterId',
                             initialValue: currentFilter.endDate,
@@ -636,7 +634,6 @@ class TrailQuickFilterBar extends ConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         FormBuilder(
-                          key: GlobalKey<FormBuilderState>(),
                           child: WandererRadioGroup<CompletionStatus>(
                             name: 'completion_$filterId',
                             initialValue: CompletionStatus.fromBool(
