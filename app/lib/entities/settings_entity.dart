@@ -33,8 +33,8 @@ class SettingsEntity {
     this.notificationsJson,
   });
 
-  factory SettingsEntity.fromModel(Settings settings) {
-    return SettingsEntity(
+  factory SettingsEntity.fromModel(Settings settings, {UserEntity? userEntity}) {
+    final entity = SettingsEntity(
       id: settings.id ?? '',
       unit: settings.unit,
       languageCode: settings.language?.name,
@@ -52,6 +52,10 @@ class SettingsEntity {
             )
           : null,
     );
+    if (userEntity != null) {
+      entity.user.target = userEntity;
+    }
+    return entity;
   }
 }
 

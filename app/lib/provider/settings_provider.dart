@@ -1,6 +1,7 @@
 import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/settings_entity.dart';
+import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/settings.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
@@ -21,7 +22,11 @@ class SettingsNotifier extends _$SettingsNotifier {
   /// Persists settings received from the server into ObjectBox and updates state.
   Future<void> updateFromServer(Settings settings) async {
     final existing = _box.getAll().firstOrNull;
-    final entity = SettingsEntity.fromModel(settings);
+    final userBox = ref.read(objectBoxProvider).box<UserEntity>();
+    final userEntity = settings.user != null
+        ? userBox.getAll().where((u) => u.id == settings.user).firstOrNull
+        : null;
+    final entity = SettingsEntity.fromModel(settings, userEntity: userEntity);
     if (existing != null) {
       entity.obxId = existing.obxId;
     }
