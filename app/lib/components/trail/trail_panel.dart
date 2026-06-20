@@ -115,34 +115,35 @@ class TrailPanel extends ConsumerWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  InkWell(
-                    onTap: () => context.push(
-                      '/profile/@${trail.expand!.author!.preferredUsername}@${trail.expand!.author!.domain}',
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4.0),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Colors.grey.shade300,
-                            backgroundImage: NetworkImage(
-                              trail.summaryAuthorAvatar.isNotEmpty
-                                  ? trail.summaryAuthorAvatar
-                                  : "https://api.dicebear.com/7.x/initials/png?seed=${trail.summaryAuthorName}&backgroundType=gradientLinear",
+                  if (trail.expand?.author != null)
+                    InkWell(
+                      onTap: () => context.push(
+                        '/profile/@${trail.expand!.author!.preferredUsername}@${trail.expand!.author!.domain}',
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Colors.grey.shade300,
+                              backgroundImage: NetworkImage(
+                                trail.summaryAuthorAvatar.isNotEmpty
+                                    ? trail.summaryAuthorAvatar
+                                    : "https://api.dicebear.com/7.x/initials/png?seed=${trail.summaryAuthorName}&backgroundType=gradientLinear",
+                              ),
+                              onBackgroundImageError: (_, _) =>
+                                  FaIcon(FontAwesomeIcons.user),
                             ),
-                            onBackgroundImageError: (_, _) =>
-                                FaIcon(FontAwesomeIcons.user),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            "@${trail.expand!.author!.preferredUsername}@${trail.expand!.author!.domain}",
-                            style: Theme.of(context).textTheme.labelLarge,
-                          ),
-                        ],
+                            const SizedBox(width: 6),
+                            Text(
+                              "@${trail.expand!.author!.preferredUsername}@${trail.expand!.author!.domain}",
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 10,
