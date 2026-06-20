@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Wanderer needs access to your photo library so you can choose a profile avatar.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Your location is shown on the map to help you navigate trails.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
