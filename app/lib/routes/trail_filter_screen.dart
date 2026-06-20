@@ -227,7 +227,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   max: filter.value?.distanceLimit ?? 0,
                   labels: RangeLabels(
                     formatDistance(filter.value?.distanceMin, unit: unit),
-                    "${formatElevation(filter.value?.distanceMax, unit: unit)}${filter.value?.distanceMax == filter.value?.distanceLimit ? "+" : ""}",
+                    "${formatDistance(filter.value?.distanceMax, unit: unit)}${filter.value?.distanceMax == filter.value?.distanceLimit ? "+" : ""}",
                   ),
                   onChanged: (RangeValues values) {
                     ref
