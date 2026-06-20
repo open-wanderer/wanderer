@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: milestone
 status: executing
-stopped_at: Phase 8 Plan 02 complete — ready for Plan 03 (SettingsAccountScreen)
-last_updated: "2026-06-20T13:00:00.000Z"
-last_activity: 2026-06-20 -- Phase 08 Plan 02 complete (EmailChangeSheet + PasswordChangeSheet)
+stopped_at: Phase 8 Plan 03 complete — Phase 08 account-profile fully shipped
+last_updated: "2026-06-20T13:23:00.000Z"
+last_activity: 2026-06-20 -- Phase 08 Plan 03 complete (SettingsAccountScreen all five ACCT sections + widget test)
 progress:
   total_phases: 9
   completed_phases: 2
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-19)
 
 ## Current Position
 
-Phase: 08 (account-profile) — EXECUTING
-Plan: 3 of 3
-Status: Ready to execute
-Last activity: 2026-06-20 -- Phase 08 Plan 02 complete (EmailChangeSheet + PasswordChangeSheet)
+Phase: 08 (account-profile) — COMPLETE
+Plan: 3 of 3 (all complete)
+Status: Phase 08 complete — all ACCT-01..05 requirements shipped
+Last activity: 2026-06-20 -- Phase 08 Plan 03 complete (SettingsAccountScreen all five ACCT sections + widget test)
 
 ## Performance Metrics
 
@@ -98,6 +98,10 @@ Recent decisions affecting current work:
 - [Phase 08 P02]: PasswordChangeSheet payload must include oldPassword — PocketBase's native password-change rule enforces it; {password, passwordConfirm}-only payload returns 400
 - [Phase 08 P02]: State.mounted used (not context.mounted) for async BuildContext guards in ConsumerState — IDE linter use_build_context_synchronously requires mounted check on the State object
 - [Phase 08 P02]: PasswordChangeSheet uses generic l10n.error_updating_password (no server internals) per T-08-07; EmailChangeSheet surfaces ApiError.message only
+- [Phase 08 P03]: _BioSection extracted as ConsumerStatefulWidget so outer ConsumerWidget can hold controller state without converting the full screen to StatefulWidget
+- [Phase 08 P03]: hintText reuse means 'Add Bio' appears twice in widget tree (header + hint); test uses findsWidgets not findsOneWidget
+- [Phase 08 P03]: Colors.red.shade400 for destructive foreground — colorScheme.error maps to #FEF2F2 (background token) which is illegible as foreground text
+- [Phase 08 P03]: context.mounted (not mounted) used in ConsumerWidget helper methods — mounted refers to State object only in ConsumerState subclasses
 
 ### Pending Todos
 
@@ -136,6 +140,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-06-20T12:53:07.487Z
-Stopped at: Phase 8 UI-SPEC approved
-Resume file: .planning/phases/08-account-profile/08-UI-SPEC.md
+Last session: 2026-06-20T13:23:00.000Z
+Stopped at: Phase 8 Plan 03 complete — SettingsAccountScreen all five ACCT sections + widget test
+Resume file: .planning/phases/08-account-profile/08-03-SUMMARY.md

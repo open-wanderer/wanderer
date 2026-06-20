@@ -24,7 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Cache Write + Fallback + UI** - Cache navigation instructions at download time, fall back to cache when offline, re-cache after online sessions, show offline indicator (completed 2026-06-14)
 - [x] **Phase 6: Settings Navigation + Language & Units** - Add Privacy/Language/Notifications list entries and routes, ship the Language & Units screen (completed 2026-06-19)
 - [x] **Phase 7: Privacy** - Privacy screen with account, trails, and lists visibility controls (completed 2026-06-20)
-- [ ] **Phase 8: Account & Profile** - Combined account screen: avatar, bio, change email, change password, delete account
+- [x] **Phase 8: Account & Profile** - Combined account screen: avatar, bio, change email, change password, delete account (completed 2026-06-20)
 - [ ] **Phase 9: Notifications** - Notifications screen with web + email toggles for all nine notification types
 
 ## Phase Details
@@ -216,7 +216,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 08-03-PLAN.md — Fill SettingsAccountScreen: avatar upload, change-aware bio Save, email/password sheet rows, confirm-gated delete + widget test (ACCT-01..05)
+- [x] 08-03-PLAN.md — Fill SettingsAccountScreen: avatar upload, change-aware bio Save, email/password sheet rows, confirm-gated delete + widget test (ACCT-01..05)
 
 **UI hint**: yes
 
@@ -250,5 +250,5 @@ Phases 7, 8, and 9 each depend only on Phase 6 and are otherwise independent of 
 | 5. Cache Write + Fallback + UI | 4/4 | Complete | 2026-06-14 |
 | 6. Settings Navigation + Language & Units | 4/4 | Complete    | 2026-06-20 |
 | 7. Privacy | 1/1 | Complete    | 2026-06-20 |
-| 8. Account & Profile | 2/3 | In Progress|  |
+| 8. Account & Profile | 3/3 | Complete | 2026-06-20 |
 | 9. Notifications | 0/0 | Not started | - |

@@ -10,11 +10,11 @@ Requirements for the Settings Screens milestone. Each maps to roadmap phases.
 
 ### Account & Profile
 
-- [ ] **ACCT-01**: User can view and update their avatar from the Account settings screen
-- [ ] **ACCT-02**: User can view and edit their bio from the Account settings screen
-- [ ] **ACCT-03**: User can change their email address from the Account settings screen
-- [ ] **ACCT-04**: User can change their password from the Account settings screen
-- [ ] **ACCT-05**: User can delete their account from the Account settings screen with a confirmation step
+- [x] **ACCT-01**: User can view and update their avatar from the Account settings screen
+- [x] **ACCT-02**: User can view and edit their bio from the Account settings screen
+- [x] **ACCT-03**: User can change their email address from the Account settings screen
+- [x] **ACCT-04**: User can change their password from the Account settings screen
+- [x] **ACCT-05**: User can delete their account from the Account settings screen with a confirmation step
 
 ### Privacy
 
@@ -72,11 +72,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PRIV-01 | Phase 7 | Complete |
 | PRIV-02 | Phase 7 | Complete |
 | PRIV-03 | Phase 7 | Complete |
-| ACCT-01 | Phase 8 | Pending |
-| ACCT-02 | Phase 8 | Pending |
-| ACCT-03 | Phase 8 | Pending |
-| ACCT-04 | Phase 8 | Pending |
-| ACCT-05 | Phase 8 | Pending |
+| ACCT-01 | Phase 8 | Complete |
+| ACCT-02 | Phase 8 | Complete |
+| ACCT-03 | Phase 8 | Complete |
+| ACCT-04 | Phase 8 | Complete |
+| ACCT-05 | Phase 8 | Complete |
 | NOTIF-01 | Phase 9 | Pending |
 | NOTIF-02 | Phase 9 | Pending |
 | NOTIF-03 | Phase 9 | Pending |
