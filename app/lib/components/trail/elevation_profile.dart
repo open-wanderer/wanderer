@@ -37,7 +37,6 @@ class ElevationProfile extends ConsumerStatefulWidget {
 class _ElevationProfileState extends ConsumerState<ElevationProfile> {
   late List<TrackPoint> _points;
   int? _selectedIndex;
-  String _unit = 'metric';
 
   @override
   void initState() {
@@ -107,7 +106,9 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
 
   @override
   Widget build(BuildContext context) {
-    _unit = ref.watch(unitProvider);
+    // Establish the rebuild dependency on the unit provider; helper methods
+    // read the same value synchronously via ref.read during this frame.
+    ref.watch(unitProvider);
 
     if (_points.isEmpty) {
       return const _EmptyState();
@@ -143,11 +144,11 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
             FontAwesomeIcons.clock,
           ),
           _buildStatText(
-            formatDistance(pt.distanceM, unit: _unit),
+            formatDistance(pt.distanceM, unit: ref.read(unitProvider)),
             FontAwesomeIcons.ruler,
           ),
           _buildStatText(
-            formatElevation(pt.elevationM, unit: _unit),
+            formatElevation(pt.elevationM, unit: ref.read(unitProvider)),
             FontAwesomeIcons.mountain,
           ),
           _buildStatText(
@@ -167,15 +168,21 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
             FontAwesomeIcons.clock,
           ),
           _buildStatText(
-            formatDistance(maxDist, unit: _unit),
+            formatDistance(maxDist, unit: ref.read(unitProvider)),
             FontAwesomeIcons.ruler,
           ),
           _buildStatText(
-            formatElevation(widget.trail.elevationGain, unit: _unit),
+            formatElevation(
+              widget.trail.elevationGain,
+              unit: ref.read(unitProvider),
+            ),
             FontAwesomeIcons.arrowTrendUp,
           ),
           _buildStatText(
-            formatElevation(widget.trail.elevationLoss, unit: _unit),
+            formatElevation(
+              widget.trail.elevationLoss,
+              unit: ref.read(unitProvider),
+            ),
             FontAwesomeIcons.arrowTrendDown,
           ),
         ],
@@ -292,7 +299,7 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
                           return const SizedBox.shrink();
                         }
                         return Text(
-                          formatElevation(value, unit: _unit),
+                          formatElevation(value, unit: ref.read(unitProvider)),
                           style: const TextStyle(
                             color: Color(0xFF888899),
                             fontSize: 10,
@@ -312,7 +319,7 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
                         return Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            formatDistance(value, unit: _unit),
+                            formatDistance(value, unit: ref.read(unitProvider)),
                             style: const TextStyle(
                               color: Color(0xFF888899),
                               fontSize: 10,
