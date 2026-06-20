@@ -731,7 +731,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => const SizedBox.shrink(),
+      error: (e, _) => Center(
+        child: Text(
+          AppLocalizations.of(context)!.error_reading_file,
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ),
+      ),
     );
   }
 
