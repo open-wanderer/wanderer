@@ -319,7 +319,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 const SizedBox(height: 8),
 
                 WandererDatePicker(
-                  name: "start",
+                  name: "end",
                   initialValue: filter.value?.endDate,
                   onChanged: (value) {
                     ref
