@@ -68,10 +68,19 @@ class SettingsLanguageScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: Text(l10n.language),
+        title: Text("${l10n.language} & ${l10n.units}"),
       ),
       body: ListView(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              l10n.language,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
           RadioGroup<Language>(
             groupValue: settings?.language,
             onChanged: (value) {
@@ -110,18 +119,26 @@ class SettingsLanguageScreen extends ConsumerWidget {
               ),
             ),
           ),
-          SwitchListTile(
-            title: Text(l10n.imperial),
-            value: settings?.unit == 'imperial',
-            onChanged: (isImperial) {
-              if (settings != null) {
-                _save(
-                  ref,
-                  l10n,
-                  settings.copyWith(unit: isImperial ? 'imperial' : 'metric'),
-                );
-              }
+          RadioGroup<String>(
+            groupValue: settings?.unit ?? 'metric',
+            onChanged: (value) {
+              if (value == null || settings == null) return;
+              _save(ref, l10n, settings.copyWith(unit: value));
             },
+            child: Column(
+              children: [
+                RadioListTile<String>(
+                  title: Text(l10n.metric),
+                  value: 'metric',
+                  activeColor: activeColor,
+                ),
+                RadioListTile<String>(
+                  title: Text(l10n.imperial),
+                  value: 'imperial',
+                  activeColor: activeColor,
+                ),
+              ],
+            ),
           ),
         ],
       ),
