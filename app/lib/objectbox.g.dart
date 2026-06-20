@@ -581,7 +581,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(7, 7624156081543730552),
     name: 'SettingsEntity',
-    lastPropertyId: const obx_int.IdUid(12, 1392396091350786512),
+    lastPropertyId: const obx_int.IdUid(13, 5568817240500151872),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -640,13 +640,10 @@ final _entities = <obx_int.ModelEntity>[
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(12, 1392396091350786512),
-        name: 'userId',
-        type: 11,
-        flags: 520,
-        indexId: const obx_int.IdUid(15, 4235871213533179134),
-        relationField: 'user',
-        relationTarget: 'UserEntity',
+        id: const obx_int.IdUid(13, 5568817240500151872),
+        name: 'user',
+        type: 9,
+        flags: 0,
       ),
     ],
     relations: <obx_int.ModelRelation>[],
@@ -724,7 +721,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [1110440324073703466],
-    retiredIndexUids: const [3377491348144337262],
+    retiredIndexUids: const [3377491348144337262, 4235871213533179134],
     retiredPropertyUids: const [
       1147012112998304753,
       3896929027028370202,
@@ -760,6 +757,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
       3550785788891250678,
       7446729006448357631,
       5096657038833034963,
+      1392396091350786512,
     ],
     retiredRelationUids: const [],
     modelVersion: 5,
@@ -1431,7 +1429,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
     ),
     SettingsEntity: obx_int.EntityDefinition<SettingsEntity>(
       model: _entities[5],
-      toOneRelations: (SettingsEntity object) => [object.user],
+      toOneRelations: (SettingsEntity object) => [],
       toManyRelations: (SettingsEntity object) => {},
       getId: (SettingsEntity object) => object.obxId,
       setId: (SettingsEntity object, int id) {
@@ -1460,7 +1458,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final notificationsJsonOffset = object.notificationsJson == null
             ? null
             : fbb.writeString(object.notificationsJson!);
-        fbb.startTable(13);
+        final userOffset = object.user == null
+            ? null
+            : fbb.writeString(object.user!);
+        fbb.startTable(14);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(2, idOffset);
         fbb.addOffset(3, unitOffset);
@@ -1470,7 +1471,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(7, categoryOffset);
         fbb.addOffset(9, privacyJsonOffset);
         fbb.addOffset(10, notificationsJsonOffset);
-        fbb.addInt64(11, object.user.targetId);
+        fbb.addOffset(12, userOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1495,6 +1496,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final categoryParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 18);
+        final userParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 28);
         final privacyJsonParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 22);
@@ -1508,16 +1512,11 @@ obx_int.ModelDefinition getObjectBoxModel() {
           bio: bioParam,
           locationJson: locationJsonParam,
           category: categoryParam,
+          user: userParam,
           privacyJson: privacyJsonParam,
           notificationsJson: notificationsJsonParam,
         )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
-        object.user.targetId = const fb.Int64Reader().vTableGet(
-          buffer,
-          rootOffset,
-          26,
-          0,
-        );
-        object.user.attach(store);
+
         return object;
       },
     ),
@@ -2022,7 +2021,7 @@ class SettingsEntity_ {
   );
 
   /// See [SettingsEntity.user].
-  static final user = obx.QueryRelationToOne<SettingsEntity, UserEntity>(
+  static final user = obx.QueryStringProperty<SettingsEntity>(
     _entities[5].properties[9],
   );
 }

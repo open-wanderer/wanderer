@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:objectbox/objectbox.dart';
-import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/settings.dart';
 
 @Entity()
@@ -18,7 +17,7 @@ class SettingsEntity {
   String? bio;
   String? locationJson;
   String? category;
-  final user = ToOne<UserEntity>();
+  String? user;
   String? privacyJson;
   String? notificationsJson;
 
@@ -29,12 +28,13 @@ class SettingsEntity {
     this.bio,
     this.locationJson,
     this.category,
+    this.user,
     this.privacyJson,
     this.notificationsJson,
   });
 
-  factory SettingsEntity.fromModel(Settings settings, {UserEntity? userEntity}) {
-    final entity = SettingsEntity(
+  factory SettingsEntity.fromModel(Settings settings) {
+    return SettingsEntity(
       id: settings.id ?? '',
       unit: settings.unit,
       languageCode: settings.language?.name,
@@ -43,6 +43,7 @@ class SettingsEntity {
           ? jsonEncode(settings.location!.toJson())
           : null,
       category: settings.category,
+      user: settings.user,
       privacyJson: settings.privacy != null
           ? jsonEncode(settings.privacy!.toJson())
           : null,
@@ -52,10 +53,6 @@ class SettingsEntity {
             )
           : null,
     );
-    if (userEntity != null) {
-      entity.user.target = userEntity;
-    }
-    return entity;
   }
 }
 
@@ -101,7 +98,7 @@ extension SettingsEntityMapping on SettingsEntity {
       bio: bio,
       location: loc,
       category: category,
-      user: user.target?.id,
+      user: user,
       privacy: priv,
       notifications: notifs,
     );
