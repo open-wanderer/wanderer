@@ -5,6 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/components/base/wanderer_text_field.dart';
+import 'package:wanderer/models/api_error.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 
@@ -37,7 +38,7 @@ class _PasswordChangeSheetState extends ConsumerState<PasswordChangeSheet> {
         data: {
           'oldPassword': v['currentPassword'],
           'password': v['newPassword'],
-          'passwordConfirm': v['newPassword'],
+          'passwordConfirm': v['confirmNewPassword'],
         },
       );
 
@@ -52,9 +53,24 @@ class _PasswordChangeSheetState extends ConsumerState<PasswordChangeSheet> {
       );
 
       Navigator.of(context).pop();
+    } on DioException catch (error) {
+      String message;
+      try {
+        final apiError = ApiError.fromJson(error.response?.data);
+        message = apiError.message;
+      } catch (_) {
+        message = error.message ?? AppLocalizations.of(context)!.error_updating_password;
+      }
+      if (!mounted) return;
+      ref.read(toastProvider.notifier).add(
+        ToastMessage(
+          type: ToastType.error,
+          icon: FontAwesomeIcons.circleExclamation,
+          text: message,
+        ),
+      );
     } catch (_) {
       if (!mounted) return;
-
       ref.read(toastProvider.notifier).add(
         ToastMessage(
           type: ToastType.error,
@@ -99,6 +115,19 @@ class _PasswordChangeSheetState extends ConsumerState<PasswordChangeSheet> {
               label: l10n.new_password,
               isPassword: true,
               validator: FormBuilderValidators.required(),
+            ),
+            WandererTextField(
+              name: 'confirmNewPassword',
+              label: l10n.password_confirm,
+              isPassword: true,
+              validator: FormBuilderValidators.compose([
+                FormBuilderValidators.required(),
+                (val) {
+                  final pw = _formKey.currentState?.fields['newPassword']?.value
+                      as String?;
+                  return (val != pw) ? l10n.passwords_must_match : null;
+                },
+              ]),
             ),
             WandererButton(
               primary: true,
