@@ -24,7 +24,7 @@ class ListCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authProvider).valueOrNull;
+    final user = ref.watch(authProvider).value;
     if (user == null) return const SizedBox.shrink();
     final unit = ref.watch(unitProvider);
 

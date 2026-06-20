@@ -23,7 +23,7 @@ class TrailListItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trailIsShared = trail.summaryShares?.isNotEmpty ?? false;
-    final user = ref.watch(authProvider).valueOrNull;
+    final user = ref.watch(authProvider).value;
     if (user == null) return const SizedBox.shrink();
     final unit = ref.watch(unitProvider);
 
@@ -234,7 +234,7 @@ class _Thumbnail extends StatelessWidget {
             ? Image(
                 image: imageProvider!,
                 fit: BoxFit.cover,
-                errorBuilder: (context, _, __) => _placeholder(context),
+                errorBuilder: (context, _, _) => _placeholder(context),
               )
             : _placeholder(context),
       ),

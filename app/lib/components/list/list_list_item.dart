@@ -17,7 +17,7 @@ class ListListItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authProvider).valueOrNull;
+    final user = ref.watch(authProvider).value;
     if (user == null) return const SizedBox.shrink();
     final unit = ref.watch(unitProvider);
 
@@ -27,8 +27,9 @@ class ListListItem extends ConsumerWidget {
       thumb: "600x0",
     );
 
-    final ImageProvider? imageProvider =
-        avatarUrl != null ? NetworkImage(avatarUrl) : null;
+    final ImageProvider? imageProvider = avatarUrl != null
+        ? NetworkImage(avatarUrl)
+        : null;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 5),
