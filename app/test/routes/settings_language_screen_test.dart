@@ -43,14 +43,13 @@ void main() {
       expect(find.text('English'), findsOneWidget);
       expect(find.text('中文'), findsOneWidget);
 
-      // The units switch sits below the 14 lazily-built radio tiles; scroll it
-      // into view before asserting. It is OFF for metric (imperial = on).
-      await tester.scrollUntilVisible(find.byType(SwitchListTile), 300);
+      // The units section uses RadioListTile<String> (metric/imperial), not SwitchListTile.
+      // Scroll the metric tile into view and assert both unit tiles render.
+      await tester.scrollUntilVisible(find.text('Metric'), 300);
       await tester.pumpAndSettle();
-      final switchTile = tester.widget<SwitchListTile>(
-        find.byType(SwitchListTile),
-      );
-      expect(switchTile.value, isFalse);
+      expect(find.byType(RadioListTile<String>), findsNWidgets(2));
+      expect(find.text('Metric'), findsOneWidget);
+      expect(find.text('Imperial'), findsOneWidget);
 
       // TODO: tap-to-save assertion requires an apiProvider/HTTP override
       // fixture that the current test harness does not provide. The save path
