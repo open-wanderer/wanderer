@@ -31,9 +31,13 @@ class SettingsNotifier extends _$SettingsNotifier {
 
   /// POSTs updated settings to the server, then syncs the response locally.
   Future<void> saveToServer(Settings settings) async {
+    final id = settings.id;
+    if (id == null || id.isEmpty) {
+      throw StateError('Cannot save settings: id is null or empty');
+    }
     final response = await ref
         .read(apiProvider)
-        .post('/settings/${settings.id}', data: settings.toJson());
+        .post('/settings/$id', data: settings.toJson());
     final updated = Settings.fromJson(response.data as Map<String, dynamic>);
     await updateFromServer(updated);
   }

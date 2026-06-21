@@ -2486,12 +2486,6 @@ abstract class AppLocalizations {
   /// **'Someone mentioned you in a comment'**
   String get settings_notification_comment_mention;
 
-  /// No description provided for @settings_notification_list_create.
-  ///
-  /// In en, this message translates to:
-  /// **'A user who you follow has created a list'**
-  String get settings_notification_list_create;
-
   /// No description provided for @settings_notification_list_share.
   ///
   /// In en, this message translates to:
@@ -2521,12 +2515,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Someone left a comment on your trail'**
   String get settings_notification_trail_comment;
-
-  /// No description provided for @settings_notification_trail_create.
-  ///
-  /// In en, this message translates to:
-  /// **'A user who you follow has created a trail'**
-  String get settings_notification_trail_create;
 
   /// No description provided for @settings_notification_trail_like.
   ///
