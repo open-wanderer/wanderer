@@ -231,7 +231,11 @@ Plans:
   2. Each notification type exposes an independent web toggle and email toggle
   3. Toggling any switch saves the change to the server and the new state persists after the screen is reopened
 
-**Plans**: TBD
+**Plans**: 1 plan
+**Wave 1**
+
+- [ ] 09-01-PLAN.md — Fill SettingsNotificationsScreen: 9 section headers + 18 SwitchListTiles (Web/Email per type) with auto-save, add "web" ARB key + gen-l10n, widget test (NOTIF-01..09)
+
 **UI hint**: yes
 
 ## Progress
@@ -251,4 +255,4 @@ Phases 7, 8, and 9 each depend only on Phase 6 and are otherwise independent of 
 | 6. Settings Navigation + Language & Units | 4/4 | Complete    | 2026-06-20 |
 | 7. Privacy | 1/1 | Complete    | 2026-06-20 |
 | 8. Account & Profile | 3/3 | Complete    | 2026-06-20 |
-| 9. Notifications | 0/0 | Not started | - |
+| 9. Notifications | 0/1 | Not started | - |
