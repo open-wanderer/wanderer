@@ -11,6 +11,7 @@
     import type { ConfigField, PluginProvider } from "$lib/models/plugin_provider";
     import { plugin_auth_validate, plugin_oauth_start } from "$lib/stores/plugin_instance_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
+    import { translatePluginAPIError } from "$lib/util/plugin_error_i18n";
     import {
         configFieldDescription,
         configFieldLabel,
@@ -104,7 +105,7 @@
         return Object.fromEntries(
             (plugin.auth.fields ?? []).map((field) => [
                 field,
-                (instance?.auth?.[field] as string | undefined) ?? "",
+                instance?.auth?.[field] == null ? "" : String(instance.auth[field]),
             ]),
         );
     }
@@ -445,7 +446,7 @@
             await validateAuthIfNeeded();
         } catch (e) {
             show_toast({
-                text: e instanceof Error ? e.message : $_("error-setting-up-plugin", { values: { provider: pluginTitle() } }),
+                text: translatePluginAPIError(e, $_("error-setting-up-plugin", { values: { provider: pluginTitle() } })),
                 icon: "close",
                 type: "error",
             });

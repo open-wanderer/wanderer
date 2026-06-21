@@ -177,11 +177,9 @@ func (m *Manager) SyncInstalledPlugins(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if len(plugins) > 0 || len(issues) > 0 {
-		activePaths := activePluginPaths(plugins, issues)
-		if err := m.deleteStaleInstalledPlugins(ctx, activePaths); err != nil {
-			return err
-		}
+	activePaths := activePluginPaths(plugins, issues)
+	if err := m.deleteStaleInstalledPlugins(ctx, activePaths); err != nil {
+		return err
 	}
 	for _, issue := range issues {
 		if err := ctx.Err(); err != nil {

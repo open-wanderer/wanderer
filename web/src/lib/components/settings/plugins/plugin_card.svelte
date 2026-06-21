@@ -6,7 +6,8 @@
         onclick: () => void;
         ontoggle: (value: boolean) => void;
         active: boolean;
-        disabled: boolean;
+        toggleDisabled?: boolean;
+        settingsDisabled?: boolean;
         img?: string;
         title: string;
         description?: string;
@@ -18,7 +19,8 @@
         onclick,
         ontoggle,
         active = $bindable(),
-        disabled,
+        toggleDisabled = false,
+        settingsDisabled = false,
         img,
         title,
         description = "",
@@ -62,11 +64,15 @@
     </div>
     <div class="flex shrink-0 flex-col gap-2 md:items-start">
         <div class="flex items-center justify-between gap-4 md:justify-end">
-            <button class="btn-secondary" {onclick}
+            <button
+                class="btn-secondary"
+                class:btn-disabled={settingsDisabled}
+                {onclick}
+                disabled={settingsDisabled}
                 ><i class="fa fa-cogs mr-2"></i>{$_("settings")}</button
             >
             <div class="plugin-card-toggle">
-                <Toggle bind:value={active} onchange={ontoggle} {disabled}></Toggle>
+                <Toggle bind:value={active} onchange={ontoggle} disabled={toggleDisabled}></Toggle>
             </div>
         </div>
         <div class="min-h-5 max-w-56 text-xs text-gray-500">
@@ -105,12 +111,9 @@
 </div>
 
 <style>
-    .plugin-card-toggle :global(label) {
-        margin: -0.5rem;
-        padding: 0.5rem;
-    }
-
-    .plugin-card-toggle :global(label > div) {
-        position: relative;
+    .plugin-card-toggle :global(label)::before {
+        content: "";
+        position: absolute;
+        inset: -0.5rem;
     }
 </style>

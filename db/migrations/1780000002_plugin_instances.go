@@ -2,6 +2,8 @@ package migrations
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -453,6 +455,7 @@ func legacyPluginAuthComplete(pluginID string, auth map[string]any) bool {
 }
 
 func legacyNormalizeStravaAuth(auth map[string]any) {
+	legacyStringAuthFields(auth, "clientId", "clientSecret", "accessToken", "refreshToken", "tokenType", "scope")
 	switch value := auth["expiresAt"].(type) {
 	case float64:
 		if value > 0 {
@@ -465,6 +468,25 @@ func legacyNormalizeStravaAuth(auth map[string]any) {
 	case int:
 		if value > 0 {
 			auth["expiresAt"] = time.Unix(int64(value), 0).UTC().Format(time.RFC3339)
+		}
+	}
+}
+
+func legacyStringAuthFields(auth map[string]any, keys ...string) {
+	for _, key := range keys {
+		switch value := auth[key].(type) {
+		case string:
+			// already normalized
+		case float64:
+			auth[key] = strconv.FormatFloat(value, 'f', -1, 64)
+		case int64:
+			auth[key] = strconv.FormatInt(value, 10)
+		case int:
+			auth[key] = strconv.Itoa(value)
+		case nil:
+			// leave absent/null values untouched so completeness checks still fail
+		default:
+			auth[key] = fmt.Sprint(value)
 		}
 	}
 }

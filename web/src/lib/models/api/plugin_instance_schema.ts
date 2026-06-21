@@ -17,7 +17,20 @@ const OptionalJsonRecordSchema = z.preprocess(
     z.record(z.string(), z.unknown()).optional(),
 );
 const OptionalAuthSchema = z.preprocess(
-    (value) => (value === null ? undefined : value),
+    (value) => {
+        if (value === null) {
+            return undefined;
+        }
+        if (!value || typeof value !== "object" || Array.isArray(value)) {
+            return value;
+        }
+        return Object.fromEntries(
+            Object.entries(value).map(([key, fieldValue]) => [
+                key,
+                fieldValue == null ? "" : String(fieldValue),
+            ]),
+        );
+    },
     z.record(z.string(), z.string()).optional(),
 );
 

@@ -13,6 +13,7 @@
         pluginDescription as localizedPluginDescription,
         pluginTitle as localizedPluginTitle,
     } from "$lib/util/plugin_i18n";
+    import { translatePluginError } from "$lib/util/plugin_error_i18n";
     import { onMount, tick, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
     import { theme } from "$lib/stores/theme_store";
@@ -128,7 +129,10 @@
     }
 
     function instanceError(instance: PluginInstance | undefined) {
-        return instance?.last_error?.message ?? "";
+        if (!instance?.last_error) {
+            return "";
+        }
+        return translatePluginError(instance.last_error.code, instance.last_error.message);
     }
 
     function instanceForPlugin(plugin: PluginProvider) {
@@ -190,8 +194,33 @@
 <h3 class="text-2xl font-semibold">{$_("plugins")}</h3>
 <hr class="mt-4 mb-6 border-input-border" />
 
-<div class="space-y-8">
-    {#each pluginGroups as group (group.type)}
+{#if pluginGroups.length === 0}
+    <div
+        class="rounded-xl border border-dashed border-input-border bg-input-background px-6 py-10 text-center"
+    >
+        <div
+            class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-input-border text-xl text-gray-500"
+            aria-hidden="true"
+        >
+            <i class="fa fa-plug"></i>
+        </div>
+        <h4 class="text-lg font-semibold">{$_("plugins-empty-title")}</h4>
+        <p class="mx-auto mt-2 max-w-xl text-sm text-gray-500">
+            {$_("plugins-empty-description")}
+        </p>
+        <a
+            class="btn-secondary mt-6 inline-flex items-center justify-center gap-2"
+            href="https://wanderer.to/run/installation/plugins"
+            target="_blank"
+            rel="noreferrer"
+        >
+            <i class="fa fa-book" aria-hidden="true"></i>
+            {$_("plugins-empty-docs-link")}
+        </a>
+    </div>
+{:else}
+    <div class="space-y-8">
+        {#each pluginGroups as group (group.type)}
         <section>
             <div class="mb-4 space-y-2">
                 <h4 class="text-xl font-medium">{pluginTypeTitle(group.type)}</h4>
@@ -202,11 +231,13 @@
             <div class="space-y-3">
                 {#each group.plugins as plugin (plugin.id)}
                     {@const instance = instanceForPlugin(plugin)}
+                    {@const settingsDisabled = !instance || plugin.status != "available"}
                     <PluginCard
                         img={pluginLogo(plugin)}
                         title={pluginTitle(plugin)}
                         description={pluginDescription(plugin)}
-                        disabled={!instance || plugin.status != "available" || pluginRequiresConnection(plugin, instance)}
+                        {settingsDisabled}
+                        toggleDisabled={settingsDisabled || pluginRequiresConnection(plugin, instance)}
                         active={instance?.enabled ?? false}
                         lastSyncAt={instance?.last_sync_at}
                         error={pluginCardError(plugin, instance)}
@@ -216,8 +247,9 @@
                 {/each}
             </div>
         </section>
-    {/each}
-</div>
+        {/each}
+    </div>
+{/if}
 
 {#if selectedPlugin}
     {#key selectedPlugin.id}
