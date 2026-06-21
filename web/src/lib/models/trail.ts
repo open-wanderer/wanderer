@@ -256,4 +256,3 @@ export const defaultTrailSearchAttributes = [
 export { Trail };
 
 export type { TrailBoundingBox, TrailFilter, TrailFilterValues, TrailSearchResult };
-

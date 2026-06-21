@@ -22,19 +22,24 @@
     import { tick } from "svelte";
     import { _, locale } from "svelte-i18n";
 
-    interface Props {
-        plugin: PluginProvider;
-        categories?: Category[];
-        instance?: PluginInstance;
-        onsave?: (instance: Partial<PluginInstance>) => Promise<PluginInstance | void> | PluginInstance | void;
-    }
-
     interface CategoryMappingRow {
         providerCategory: string;
         category: string;
     }
 
-    let { plugin, categories = [], instance, onsave }: Props = $props();
+    type PluginInstanceForm = Partial<PluginInstance> & {
+        mappingChanged?: boolean;
+    };
+
+    interface Props {
+        plugin: PluginProvider;
+        categories?: Category[];
+        instance?: PluginInstance;
+        onbeforecategorymappingsave?: (instance: PluginInstanceForm) => Promise<boolean> | boolean;
+        onsave?: (instance: Partial<PluginInstance>) => Promise<PluginInstance | void> | PluginInstance | void;
+    }
+
+    let { plugin, categories = [], instance, onbeforecategorymappingsave, onsave }: Props = $props();
 
     let modal: Modal;
     let auth: Record<string, string> = $state(initialAuth());
@@ -159,6 +164,18 @@
             return {};
         }
         return stringMapping(raw as Record<string, unknown>);
+    }
+
+    function categoryMappingsEqual(
+        left: Record<string, string>,
+        right: Record<string, string>,
+    ) {
+        const leftKeys = Object.keys(left).sort();
+        const rightKeys = Object.keys(right).sort();
+        if (leftKeys.length !== rightKeys.length) {
+            return false;
+        }
+        return leftKeys.every((key, index) => key === rightKeys[index] && left[key] === right[key]);
     }
 
     function stringMapping(raw: Record<string, unknown>): Record<string, string> {
@@ -343,7 +360,7 @@
         modal.openModal();
     }
 
-    function pluginInstanceFromForm(): Partial<PluginInstance> {
+    function pluginInstanceFromForm(): PluginInstanceForm {
         const submittedAuth: Record<string, string> = {};
         for (const field of authFields) {
             submittedAuth[field] = auth[field] ?? "";
@@ -390,6 +407,10 @@
                 categoryMappingConfig[providerCategory] = "";
             }
         }
+        const mappingChanged = !categoryMappingsEqual(categoryMapping(), categoryMappingConfig);
+        if (mappingChanged) {
+            pluginHostConfig.categoryMappingUpdatedAt = new Date().toISOString();
+        }
         pluginHostConfig.categoryMapping = categoryMappingConfig;
         for (const field of configSchema) {
             const val = extraConfig[field.key];
@@ -423,6 +444,7 @@
             auth: submittedAuth,
             config,
             status,
+            mappingChanged,
         };
     }
 
@@ -455,7 +477,15 @@
         }
 
         try {
-            await onsave?.(pluginInstanceFromForm());
+            const candidate = pluginInstanceFromForm();
+            if (candidate.mappingChanged) {
+                const shouldSave = await onbeforecategorymappingsave?.(candidate);
+                if (shouldSave === false) {
+                    return;
+                }
+                delete candidate.mappingChanged;
+            }
+            await onsave?.(candidate as Partial<PluginInstance>);
             modal.closeModal();
         } catch {
             // onsave owns persistence error reporting so the modal does not
@@ -474,7 +504,9 @@
             return;
         }
         try {
-            const saved = await onsave?.(pluginInstanceFromForm());
+            const candidate = pluginInstanceFromForm();
+            delete candidate.mappingChanged;
+            const saved = await onsave?.(candidate);
             const instanceId = saved?.id ?? instance?.id;
             if (!instanceId) {
                 return;

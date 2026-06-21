@@ -260,12 +260,25 @@ func TestCategoryIDForImportDoesNotFallbackWhenProviderMappingIsBlank(t *testing
 	item := pluginsystem.TrailImport{
 		ActivityType: "biking",
 		Metadata: map[string]any{
-			"providerCategory": "Ride",
+			"providerCategory": " Ride ",
 		},
 	}
 
 	if got := categoryIDForImport(nil, item, map[string]string{"Ride": ""}); got != "" {
 		t.Fatalf("expected blank provider mapping to suppress activity fallback, got %q", got)
+	}
+}
+
+func TestRemoteCategoryFromImport(t *testing.T) {
+	if got := RemoteCategoryFromImport(pluginsystem.TrailImport{
+		Metadata: map[string]any{"providerCategory": " Ride "},
+	}); got != "Ride" {
+		t.Fatalf("got %q", got)
+	}
+	if got := RemoteCategoryFromImport(pluginsystem.TrailImport{
+		Metadata: map[string]any{"sourceSport": " hiking "},
+	}); got != "hiking" {
+		t.Fatalf("got %q", got)
 	}
 }
 

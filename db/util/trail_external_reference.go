@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
@@ -117,7 +118,7 @@ func FindExistingExternalReferenceIDsForUser(app core.App, userID string, provid
 	return existingIDs, nil
 }
 
-func EnsureTrailExternalReference(app core.App, trailID string, provider string, externalID string) error {
+func EnsureTrailExternalReference(app core.App, trailID string, provider string, externalID string, pluginID string, remoteCategory string) error {
 	if trailID == "" || provider == "" || externalID == "" {
 		return nil
 	}
@@ -147,6 +148,19 @@ func EnsureTrailExternalReference(app core.App, trailID string, provider string,
 	}
 	if len(refs) > 0 {
 		if refs[0].GetString("trail") == trailID {
+			changed := false
+			if pluginID != "" && refs[0].GetString("plugin_id") == "" {
+				refs[0].Set("plugin_id", pluginID)
+				changed = true
+			}
+			if refs[0].GetDateTime("remote_category_checked_at").IsZero() {
+				refs[0].Set("remote_category", remoteCategory)
+				refs[0].Set("remote_category_checked_at", time.Now())
+				changed = true
+			}
+			if changed {
+				return app.Save(refs[0])
+			}
 			return nil
 		}
 		return fmt.Errorf("trail external reference already exists for another trail")
@@ -159,10 +173,13 @@ func EnsureTrailExternalReference(app core.App, trailID string, provider string,
 
 	record := core.NewRecord(collection)
 	record.Load(map[string]any{
-		"trail":       trailID,
-		"user":        userID,
-		"provider":    provider,
-		"external_id": externalID,
+		"trail":                      trailID,
+		"user":                       userID,
+		"provider":                   provider,
+		"external_id":                externalID,
+		"plugin_id":                  pluginID,
+		"remote_category":            remoteCategory,
+		"remote_category_checked_at": time.Now(),
 	})
 
 	return app.Save(record)

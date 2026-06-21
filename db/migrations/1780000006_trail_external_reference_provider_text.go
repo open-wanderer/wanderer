@@ -8,6 +8,7 @@ import (
 )
 
 const providerBackupColumn1780000006 = "provider_backup_1780000006"
+const userPluginIndex1780000006 = "CREATE INDEX `idx_trail_external_reference_user_plugin_id` ON `trail_external_reference` (`user`, `plugin_id`)"
 
 func init() {
 	m.Register(func(app core.App) error {
@@ -43,6 +44,57 @@ func init() {
 		}`)); err != nil {
 			return err
 		}
+		if collection.Fields.GetByName("plugin_id") == nil {
+			if err := collection.Fields.AddMarshaledJSONAt(4, []byte(`{
+				"autogeneratePattern": "",
+				"hidden": false,
+				"id": "textpluginref",
+				"max": 64,
+				"min": 0,
+				"name": "plugin_id",
+				"pattern": "^[a-z0-9][a-z0-9_-]*$",
+				"presentable": false,
+				"primaryKey": false,
+				"required": false,
+				"system": false,
+				"type": "text"
+			}`)); err != nil {
+				return err
+			}
+		}
+		if collection.Fields.GetByName("remote_category") == nil {
+			if err := collection.Fields.AddMarshaledJSONAt(6, []byte(`{
+				"autogeneratePattern": "",
+				"hidden": false,
+				"id": "txtrmtecat01",
+				"max": 255,
+				"min": 0,
+				"name": "remote_category",
+				"pattern": "",
+				"presentable": false,
+				"primaryKey": false,
+				"required": false,
+				"system": false,
+				"type": "text"
+			}`)); err != nil {
+				return err
+			}
+		}
+		if collection.Fields.GetByName("remote_category_checked_at") == nil {
+			if err := collection.Fields.AddMarshaledJSONAt(7, []byte(`{
+				"hidden": false,
+				"id": "datermtecat1",
+				"max": "",
+				"min": "",
+				"name": "remote_category_checked_at",
+				"presentable": false,
+				"required": false,
+				"system": false,
+				"type": "date"
+			}`)); err != nil {
+				return err
+			}
+		}
 
 		if err := app.Save(collection); err != nil {
 			return err
@@ -53,7 +105,27 @@ func init() {
 		}
 
 		collection.Indexes = append(collection.Indexes, removedIndexes...)
-		return app.Save(collection)
+		if !hasIndex1780000006(collection, userPluginIndex1780000006) {
+			collection.Indexes = append(collection.Indexes, userPluginIndex1780000006)
+		}
+		if err := app.Save(collection); err != nil {
+			return err
+		}
+
+		refs, err := app.FindAllRecords("trail_external_reference")
+		if err != nil {
+			return err
+		}
+		for _, ref := range refs {
+			if ref.GetString("plugin_id") != "" {
+				continue
+			}
+			ref.Set("plugin_id", ref.GetString("provider"))
+			if err := app.Save(ref); err != nil {
+				return err
+			}
+		}
+		return nil
 	}, func(app core.App) error {
 		if err := backupProviderColumn1780000006(app); err != nil {
 			return err
@@ -65,7 +137,11 @@ func init() {
 		}
 
 		removedIndexes := stripProviderIndexes1780000006(collection)
+		removeIndex1780000006(collection, userPluginIndex1780000006)
 
+		collection.Fields.RemoveByName("remote_category_checked_at")
+		collection.Fields.RemoveByName("remote_category")
+		collection.Fields.RemoveByName("plugin_id")
 		collection.Fields.RemoveByName("provider")
 		if err := collection.Fields.AddMarshaledJSONAt(3, []byte(`{
 			"hidden": false,
@@ -115,6 +191,26 @@ func stripProviderIndexes1780000006(collection *core.Collection) []string {
 	}
 	collection.Indexes = kept
 	return removed
+}
+
+func hasIndex1780000006(collection *core.Collection, index string) bool {
+	for _, existing := range collection.Indexes {
+		if existing == index {
+			return true
+		}
+	}
+	return false
+}
+
+func removeIndex1780000006(collection *core.Collection, index string) {
+	indexes := collection.Indexes[:0]
+	for _, existing := range collection.Indexes {
+		if existing == index {
+			continue
+		}
+		indexes = append(indexes, existing)
+	}
+	collection.Indexes = indexes
 }
 
 func backupProviderColumn1780000006(app core.App) error {

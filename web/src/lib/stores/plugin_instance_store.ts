@@ -146,3 +146,38 @@ export async function plugin_oauth_revoke(
 
     return (await r.json()) as { ok: boolean };
 }
+
+export async function plugin_category_remap_preview(
+    instanceId: string,
+    config?: Record<string, unknown>,
+    f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch,
+) {
+    const r = await f("/api/v1/plugin-system/category-remap/preview", {
+        method: "POST",
+        body: JSON.stringify({ instanceId, config }),
+    });
+
+    if (!r.ok) {
+        const response = await r.json();
+        throw new APIError(r.status, response.message, response.detail);
+    }
+
+    return (await r.json()) as { count: number; backfilledSinceMapping?: number };
+}
+
+export async function plugin_category_remap_apply(
+    instanceId: string,
+    f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch,
+) {
+    const r = await f("/api/v1/plugin-system/category-remap/apply", {
+        method: "POST",
+        body: JSON.stringify({ instanceId }),
+    });
+
+    if (!r.ok) {
+        const response = await r.json();
+        throw new APIError(r.status, response.message, response.detail);
+    }
+
+    return (await r.json()) as { count: number; remapped?: number };
+}

@@ -109,11 +109,3 @@
         </div>
     </div>
 </div>
-
-<style>
-    .plugin-card-toggle :global(label)::before {
-        content: "";
-        position: absolute;
-        inset: -0.5rem;
-    }
-</style>

@@ -108,7 +108,7 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		return nil, err
 	}
 
-	if err := util.EnsureTrailExternalReference(app, record.Id, item.Source.Provider, item.Source.ExternalID); err != nil {
+	if err := util.EnsureTrailExternalReference(app, record.Id, item.Source.Provider, item.Source.ExternalID, opts.Manifest.ID, RemoteCategoryFromImport(item)); err != nil {
 		return nil, err
 	}
 
@@ -773,23 +773,24 @@ func createSummitLog(app core.App, trailID string, actorID string, date time.Tim
 }
 
 func categoryIDForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]string) string {
-	if category, matched := categoryFromProviderMapping(app, providerCategory(item), mapping); matched {
+	if category, matched := CategoryFromProviderMapping(app, RemoteCategoryFromImport(item), mapping); matched {
 		return category
 	}
 	return categoryIDForActivityType(app, item.ActivityType)
 }
 
-func providerCategory(item pluginsystem.TrailImport) string {
+func RemoteCategoryFromImport(item pluginsystem.TrailImport) string {
 	value, _ := item.Metadata["providerCategory"].(string)
 	if strings.TrimSpace(value) != "" {
-		return value
+		return strings.TrimSpace(value)
 	}
 	value, _ = item.Metadata["sourceSport"].(string)
-	return value
+	return strings.TrimSpace(value)
 }
 
-func categoryFromProviderMapping(app core.App, providerCategory string, mapping map[string]string) (string, bool) {
-	if strings.TrimSpace(providerCategory) == "" || len(mapping) == 0 {
+func CategoryFromProviderMapping(app core.App, providerCategory string, mapping map[string]string) (string, bool) {
+	providerCategory = strings.TrimSpace(providerCategory)
+	if providerCategory == "" || len(mapping) == 0 {
 		return "", false
 	}
 	rawTarget, matched := mapping[providerCategory]
