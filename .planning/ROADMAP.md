@@ -25,7 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Settings Navigation + Language & Units** - Add Privacy/Language/Notifications list entries and routes, ship the Language & Units screen (completed 2026-06-19)
 - [x] **Phase 7: Privacy** - Privacy screen with account, trails, and lists visibility controls (completed 2026-06-20)
 - [x] **Phase 8: Account & Profile** - Combined account screen: avatar, bio, change email, change password, delete account (completed 2026-06-20)
-- [ ] **Phase 9: Notifications** - Notifications screen with web + email toggles for all nine notification types
+- [x] **Phase 9: Notifications** - Notifications screen with web + email toggles for all nine notification types (completed 2026-06-21)
 
 ## Phase Details
 
@@ -234,7 +234,7 @@ Plans:
 **Plans**: 1 plan
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — Fill SettingsNotificationsScreen: 9 section headers + 18 SwitchListTiles (Web/Email per type) with auto-save, add "web" ARB key + gen-l10n, widget test (NOTIF-01..09)
+- [x] 09-01-PLAN.md — Fill SettingsNotificationsScreen: 9 section headers + 18 SwitchListTiles (Web/Email per type) with auto-save, add "web" ARB key + gen-l10n, widget test (NOTIF-01..09)
 
 **UI hint**: yes
 
@@ -255,4 +255,4 @@ Phases 7, 8, and 9 each depend only on Phase 6 and are otherwise independent of 
 | 6. Settings Navigation + Language & Units | 4/4 | Complete    | 2026-06-20 |
 | 7. Privacy | 1/1 | Complete    | 2026-06-20 |
 | 8. Account & Profile | 3/3 | Complete    | 2026-06-20 |
-| 9. Notifications | 0/1 | Not started | - |
+| 9. Notifications | 1/1 | Complete   | 2026-06-21 |
