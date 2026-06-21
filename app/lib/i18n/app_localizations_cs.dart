@@ -1340,10 +1340,6 @@ class AppLocalizationsCs extends AppLocalizations {
       'Někdo vás zmínil v komentáři';
 
   @override
-  String get settings_notification_list_create =>
-      'Uživatel, kterého sledujete, vytvořil/a seznam';
-
-  @override
   String get settings_notification_list_share => 'Někdo s vámi sdílel seznam';
 
   @override
@@ -1360,10 +1356,6 @@ class AppLocalizationsCs extends AppLocalizations {
   @override
   String get settings_notification_trail_comment =>
       'Někdo zanechal komentář k vaší trase';
-
-  @override
-  String get settings_notification_trail_create =>
-      'Uživatel, kterého sledujete, vytvořil/a trasu';
 
   @override
   String get settings_notification_trail_like => 'Někomu se líbí vaše trasa';

@@ -1316,9 +1316,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_notification_comment_mention => '有人在评论中提到您';
 
   @override
-  String get settings_notification_list_create => '您关注的用户创建了一个列表';
-
-  @override
   String get settings_notification_list_share => '有人与您分享了一个列表';
 
   @override
@@ -1332,9 +1329,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_notification_trail_comment => '有人在你的轨迹上留下了一条评论';
-
-  @override
-  String get settings_notification_trail_create => '您关注的用户创建了一条轨迹';
 
   @override
   String get settings_notification_trail_like => 'Somone liked your trail';

@@ -1332,10 +1332,6 @@ class AppLocalizationsPt extends AppLocalizations {
       'Someone mentioned you in a comment';
 
   @override
-  String get settings_notification_list_create =>
-      'A user who you follow has created a list';
-
-  @override
   String get settings_notification_list_share =>
       'Someone shared a list with you';
 
@@ -1353,10 +1349,6 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get settings_notification_trail_comment =>
       'Someone left a comment on your trail';
-
-  @override
-  String get settings_notification_trail_create =>
-      'A user who you follow has created a trail';
 
   @override
   String get settings_notification_trail_like => 'Somone liked your trail';

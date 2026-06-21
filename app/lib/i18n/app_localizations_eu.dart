@@ -1336,10 +1336,6 @@ class AppLocalizationsEu extends AppLocalizations {
       'Norbaitek iruzkin baten aipatu zaitu';
 
   @override
-  String get settings_notification_list_create =>
-      'Jarraitzen duzun erabiltzaile batek zerrenda bat sortu du';
-
-  @override
   String get settings_notification_list_share =>
       'Norbaitek zerrenda bat partekatu du zurekin';
 
@@ -1358,10 +1354,6 @@ class AppLocalizationsEu extends AppLocalizations {
   @override
   String get settings_notification_trail_comment =>
       'Norbaitek iruzkina utzi du zure ibilbide baten';
-
-  @override
-  String get settings_notification_trail_create =>
-      'Jarraitzen duzun erabiltzaile batek ibilbide bat sortu du';
 
   @override
   String get settings_notification_trail_like => 'Somone liked your trail';

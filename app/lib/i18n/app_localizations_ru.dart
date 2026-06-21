@@ -1327,10 +1327,6 @@ class AppLocalizationsRu extends AppLocalizations {
       'Кто-то упомянул вас в комментариях';
 
   @override
-  String get settings_notification_list_create =>
-      'Пользователь, на которого вы подписаны, создал список';
-
-  @override
   String get settings_notification_list_share =>
       'Вам предоставили доступ к списку';
 
@@ -1348,10 +1344,6 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get settings_notification_trail_comment =>
       'Кто-то прокомментировал ваш трек';
-
-  @override
-  String get settings_notification_trail_create =>
-      'Пользователь, на которого вы подписаны, создал трек';
 
   @override
   String get settings_notification_trail_like => 'Кто-то лайкнул ваш трек';

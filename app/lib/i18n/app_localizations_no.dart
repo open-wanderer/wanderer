@@ -1333,10 +1333,6 @@ class AppLocalizationsNo extends AppLocalizations {
       'Noen nevnte deg i en kommentar';
 
   @override
-  String get settings_notification_list_create =>
-      'En bruker du følger har opprettet en liste';
-
-  @override
   String get settings_notification_list_share => 'Noen delte en liste med deg';
 
   @override
@@ -1353,10 +1349,6 @@ class AppLocalizationsNo extends AppLocalizations {
   @override
   String get settings_notification_trail_comment =>
       'Noen la igjen en kommentar på din sti';
-
-  @override
-  String get settings_notification_trail_create =>
-      'En bruker du følger har opprettet en sti';
 
   @override
   String get settings_notification_trail_like => 'Noen likte din sti';
