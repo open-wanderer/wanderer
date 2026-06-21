@@ -484,6 +484,7 @@
   "visibilty_status": "Visibility status",
   "walking_speed": "Walking speed",
   "water": "Water",
+  "web": "Web",
   "waypoints": "{n, plural, =1 {Waypoint} other {Waypoints}}",
   "welcome_to": "Welcome to",
   "width": "Width",

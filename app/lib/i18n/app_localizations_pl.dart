@@ -1609,6 +1609,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get water => 'Water';
 
   @override
+  String get web => 'Web';
+
+  @override
   String waypoints(num n) {
     String _temp0 = intl.Intl.pluralLogic(
       n,

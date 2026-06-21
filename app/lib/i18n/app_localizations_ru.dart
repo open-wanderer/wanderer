@@ -1601,6 +1601,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get water => 'Вода';
 
   @override
+  String get web => 'Web';
+
+  @override
   String waypoints(num n) {
     String _temp0 = intl.Intl.pluralLogic(
       n,

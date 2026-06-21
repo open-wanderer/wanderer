@@ -1612,6 +1612,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get water => 'Voda';
 
   @override
+  String get web => 'Web';
+
+  @override
   String waypoints(num n) {
     String _temp0 = intl.Intl.pluralLogic(
       n,

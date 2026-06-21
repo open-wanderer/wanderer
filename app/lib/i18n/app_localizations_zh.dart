@@ -1582,6 +1582,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get water => '水';
 
   @override
+  String get web => 'Web';
+
+  @override
   String waypoints(num n) {
     String _temp0 = intl.Intl.pluralLogic(
       n,

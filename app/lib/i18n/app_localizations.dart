@@ -2984,6 +2984,12 @@ abstract class AppLocalizations {
   /// **'Water'**
   String get water;
 
+  /// No description provided for @web.
+  ///
+  /// In en, this message translates to:
+  /// **'Web'**
+  String get web;
+
   /// No description provided for @waypoints.
   ///
   /// In en, this message translates to:
