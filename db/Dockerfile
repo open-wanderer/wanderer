@@ -36,11 +36,13 @@ COPY . .
 
 RUN go mod download
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/pocketbase
+RUN install -d -m 1777 /rootfs/tmp
 
 FROM scratch
 
 WORKDIR /
 
+COPY --from=build /rootfs/ /
 COPY --from=build /app/pocketbase /pocketbase
 COPY --from=build /etc/ssl/certs /etc/ssl/certs
 COPY --from=download-env /tmp/curl /curl
