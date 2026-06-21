@@ -62,14 +62,14 @@ func init() {
 				return err
 			}
 		}
-		if collection.Fields.GetByName("remote_category") == nil {
+		if collection.Fields.GetByName("provider_category") == nil {
 			if err := collection.Fields.AddMarshaledJSONAt(6, []byte(`{
 				"autogeneratePattern": "",
 				"hidden": false,
 				"id": "txtrmtecat01",
 				"max": 255,
 				"min": 0,
-				"name": "remote_category",
+				"name": "provider_category",
 				"pattern": "",
 				"presentable": false,
 				"primaryKey": false,
@@ -80,13 +80,13 @@ func init() {
 				return err
 			}
 		}
-		if collection.Fields.GetByName("remote_category_checked_at") == nil {
+		if collection.Fields.GetByName("provider_category_checked_at") == nil {
 			if err := collection.Fields.AddMarshaledJSONAt(7, []byte(`{
 				"hidden": false,
 				"id": "datermtecat1",
 				"max": "",
 				"min": "",
-				"name": "remote_category_checked_at",
+				"name": "provider_category_checked_at",
 				"presentable": false,
 				"required": false,
 				"system": false,
@@ -139,8 +139,8 @@ func init() {
 		removedIndexes := stripProviderIndexes1780000006(collection)
 		removeIndex1780000006(collection, userPluginIndex1780000006)
 
-		collection.Fields.RemoveByName("remote_category_checked_at")
-		collection.Fields.RemoveByName("remote_category")
+		collection.Fields.RemoveByName("provider_category_checked_at")
+		collection.Fields.RemoveByName("provider_category")
 		collection.Fields.RemoveByName("plugin_id")
 		collection.Fields.RemoveByName("provider")
 		if err := collection.Fields.AddMarshaledJSONAt(3, []byte(`{

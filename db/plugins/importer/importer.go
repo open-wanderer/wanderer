@@ -108,7 +108,7 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		return nil, err
 	}
 
-	if err := util.EnsureTrailExternalReference(app, record.Id, item.Source.Provider, item.Source.ExternalID, opts.Manifest.ID, RemoteCategoryFromImport(item)); err != nil {
+	if err := util.EnsureTrailExternalReference(app, record.Id, item.Source.Provider, item.Source.ExternalID, opts.Manifest.ID, ProviderCategoryFromImport(item)); err != nil {
 		return nil, err
 	}
 
@@ -773,13 +773,13 @@ func createSummitLog(app core.App, trailID string, actorID string, date time.Tim
 }
 
 func categoryIDForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]string) string {
-	if category, matched := CategoryFromProviderMapping(app, RemoteCategoryFromImport(item), mapping); matched {
+	if category, matched := CategoryFromProviderMapping(app, ProviderCategoryFromImport(item), mapping); matched {
 		return category
 	}
 	return categoryIDForActivityType(app, item.ActivityType)
 }
 
-func RemoteCategoryFromImport(item pluginsystem.TrailImport) string {
+func ProviderCategoryFromImport(item pluginsystem.TrailImport) string {
 	value, _ := item.Metadata["providerCategory"].(string)
 	if strings.TrimSpace(value) != "" {
 		return strings.TrimSpace(value)

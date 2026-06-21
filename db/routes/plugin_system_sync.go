@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	defaultPluginSyncBatchLimit              = 50
-	defaultPluginSyncMaxBatches              = 100
-	defaultPluginRemoteCategoryBackfillLimit = 10
+	defaultPluginSyncBatchLimit                = 50
+	defaultPluginSyncMaxBatches                = 100
+	defaultPluginProviderCategoryBackfillLimit = 10
 )
 
 var syncCapabilityDescriptors = []syncCapabilityDescriptor{
@@ -282,9 +282,9 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 	state := map[string]any{}
 	hasMore := true
 	policy := sessions.policy
-	remoteCategoryBackfillsRemaining := 0
+	providerCategoryBackfillsRemaining := 0
 	if hasUsableCategoryMapping(categoryMapping(hostConfig)) {
-		remoteCategoryBackfillsRemaining = defaultPluginRemoteCategoryBackfillLimit
+		providerCategoryBackfillsRemaining = defaultPluginProviderCategoryBackfillLimit
 	}
 	for batch := 0; hasMore && batch < defaultPluginSyncMaxBatches; batch++ {
 		input := pluginSystemListInput{
@@ -326,19 +326,19 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 			externalIDsByProvider[summaries[i].Source.Provider] = append(externalIDsByProvider[summaries[i].Source.Provider], summaries[i].Source.ExternalID)
 		}
 		existingIDsByProvider := map[string]map[string]bool{}
-		remoteCategoryBackfillCandidatesByProvider := map[string]map[string]*core.Record{}
+		providerCategoryBackfillCandidatesByProvider := map[string]map[string]*core.Record{}
 		for provider, externalIDs := range externalIDsByProvider {
 			existingIDs, err := util.FindExistingExternalReferenceIDsForUser(app, instance.GetString("user"), provider, externalIDs)
 			if err != nil {
 				return nil, err
 			}
 			existingIDsByProvider[provider] = existingIDs
-			if remoteCategoryBackfillsRemaining > 0 && len(existingIDs) > 0 {
-				candidates, err := remoteCategoryBackfillCandidatesForSync(app, instance.GetString("user"), provider, externalIDs, remoteCategoryBackfillsRemaining)
+			if providerCategoryBackfillsRemaining > 0 && len(existingIDs) > 0 {
+				candidates, err := providerCategoryBackfillCandidatesForSync(app, instance.GetString("user"), provider, externalIDs, providerCategoryBackfillsRemaining)
 				if err != nil {
 					return nil, err
 				}
-				remoteCategoryBackfillCandidatesByProvider[provider] = candidates
+				providerCategoryBackfillCandidatesByProvider[provider] = candidates
 			}
 		}
 
@@ -348,14 +348,14 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 			}
 			if existingIDsByProvider[summary.Source.Provider][summary.Source.ExternalID] {
 				result.Skipped++
-				if remoteCategoryBackfillsRemaining > 0 {
-					ref := remoteCategoryBackfillCandidatesByProvider[summary.Source.Provider][summary.Source.ExternalID]
-					attempted, err := backfillRemoteCategoryDuringSync(ctx, app, sessions, plugin, detailCapability, instance, auth, pluginConfig, summary, ref)
+				if providerCategoryBackfillsRemaining > 0 {
+					ref := providerCategoryBackfillCandidatesByProvider[summary.Source.Provider][summary.Source.ExternalID]
+					attempted, err := backfillProviderCategoryDuringSync(ctx, app, sessions, plugin, detailCapability, instance, auth, pluginConfig, summary, ref)
 					if err != nil {
 						return nil, err
 					}
 					if attempted {
-						remoteCategoryBackfillsRemaining--
+						providerCategoryBackfillsRemaining--
 					}
 				}
 				continue
@@ -413,7 +413,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 	return result, nil
 }
 
-func remoteCategoryBackfillCandidatesForSync(app core.App, userID string, provider string, externalIDs []string, limit int) (map[string]*core.Record, error) {
+func providerCategoryBackfillCandidatesForSync(app core.App, userID string, provider string, externalIDs []string, limit int) (map[string]*core.Record, error) {
 	candidates := map[string]*core.Record{}
 	if userID == "" || provider == "" || len(externalIDs) == 0 || limit <= 0 {
 		return candidates, nil
@@ -448,7 +448,7 @@ func remoteCategoryBackfillCandidatesForSync(app core.App, userID string, provid
 		if len(candidates) >= limit {
 			break
 		}
-		if ref.GetString("remote_category") != "" || !ref.GetDateTime("remote_category_checked_at").IsZero() {
+		if ref.GetString("provider_category") != "" || !ref.GetDateTime("provider_category_checked_at").IsZero() {
 			continue
 		}
 		candidates[ref.GetString("external_id")] = ref
@@ -456,14 +456,14 @@ func remoteCategoryBackfillCandidatesForSync(app core.App, userID string, provid
 	return candidates, nil
 }
 
-func backfillRemoteCategoryDuringSync(ctx context.Context, app core.App, sessions *pluginSyncRuntimeSession, plugin pluginsystem.LocalPlugin, detailCapability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, pluginConfig map[string]any, summary pluginsystem.TrailSummary, ref *core.Record) (bool, error) {
+func backfillProviderCategoryDuringSync(ctx context.Context, app core.App, sessions *pluginSyncRuntimeSession, plugin pluginsystem.LocalPlugin, detailCapability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, pluginConfig map[string]any, summary pluginsystem.TrailSummary, ref *core.Record) (bool, error) {
 	if ref == nil {
 		return false, nil
 	}
 
 	item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, summary)
 	if err != nil {
-		app.Logger().Warn("skipping remote category backfill after detail fetch failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "provider", summary.Source.Provider, "external_id", summary.Source.ExternalID, "error", err)
+		app.Logger().Warn("skipping provider category backfill after detail fetch failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "provider", summary.Source.Provider, "external_id", summary.Source.ExternalID, "error", err)
 		if pluginsystem.IsRuntimeSessionFatalError(err) {
 			if reopenErr := sessions.reopen(ctx); reopenErr != nil {
 				return true, reopenErr
@@ -472,8 +472,8 @@ func backfillRemoteCategoryDuringSync(ctx context.Context, app core.App, session
 		return true, nil
 	}
 
-	ref.Set("remote_category", importer.RemoteCategoryFromImport(item))
-	ref.Set("remote_category_checked_at", time.Now())
+	ref.Set("provider_category", importer.ProviderCategoryFromImport(item))
+	ref.Set("provider_category_checked_at", time.Now())
 	if err := app.Save(ref); err != nil {
 		return false, err
 	}

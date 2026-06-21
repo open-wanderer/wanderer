@@ -6,7 +6,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  * /api/v1/plugin-system/category-remap/apply:
  *   post:
  *     summary: Apply plugin category remap
- *     description: Updates imported trails to the category configured for their stored remote category in the current plugin instance mapping.
+ *     description: Updates imported trails to the category configured for their stored provider category in the current plugin instance mapping.
  *     tags:
  *       - Plugins
  *     requestBody:

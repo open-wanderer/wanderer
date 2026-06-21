@@ -118,7 +118,7 @@ func FindExistingExternalReferenceIDsForUser(app core.App, userID string, provid
 	return existingIDs, nil
 }
 
-func EnsureTrailExternalReference(app core.App, trailID string, provider string, externalID string, pluginID string, remoteCategory string) error {
+func EnsureTrailExternalReference(app core.App, trailID string, provider string, externalID string, pluginID string, providerCategory string) error {
 	if trailID == "" || provider == "" || externalID == "" {
 		return nil
 	}
@@ -153,9 +153,9 @@ func EnsureTrailExternalReference(app core.App, trailID string, provider string,
 				refs[0].Set("plugin_id", pluginID)
 				changed = true
 			}
-			if refs[0].GetDateTime("remote_category_checked_at").IsZero() {
-				refs[0].Set("remote_category", remoteCategory)
-				refs[0].Set("remote_category_checked_at", time.Now())
+			if refs[0].GetDateTime("provider_category_checked_at").IsZero() {
+				refs[0].Set("provider_category", providerCategory)
+				refs[0].Set("provider_category_checked_at", time.Now())
 				changed = true
 			}
 			if changed {
@@ -173,13 +173,13 @@ func EnsureTrailExternalReference(app core.App, trailID string, provider string,
 
 	record := core.NewRecord(collection)
 	record.Load(map[string]any{
-		"trail":                      trailID,
-		"user":                       userID,
-		"provider":                   provider,
-		"external_id":                externalID,
-		"plugin_id":                  pluginID,
-		"remote_category":            remoteCategory,
-		"remote_category_checked_at": time.Now(),
+		"trail":                        trailID,
+		"user":                         userID,
+		"provider":                     provider,
+		"external_id":                  externalID,
+		"plugin_id":                    pluginID,
+		"provider_category":            providerCategory,
+		"provider_category_checked_at": time.Now(),
 	})
 
 	return app.Save(record)

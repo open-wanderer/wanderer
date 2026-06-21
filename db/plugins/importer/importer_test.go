@@ -269,13 +269,13 @@ func TestCategoryIDForImportDoesNotFallbackWhenProviderMappingIsBlank(t *testing
 	}
 }
 
-func TestRemoteCategoryFromImport(t *testing.T) {
-	if got := RemoteCategoryFromImport(pluginsystem.TrailImport{
+func TestProviderCategoryFromImport(t *testing.T) {
+	if got := ProviderCategoryFromImport(pluginsystem.TrailImport{
 		Metadata: map[string]any{"providerCategory": " Ride "},
 	}); got != "Ride" {
 		t.Fatalf("got %q", got)
 	}
-	if got := RemoteCategoryFromImport(pluginsystem.TrailImport{
+	if got := ProviderCategoryFromImport(pluginsystem.TrailImport{
 		Metadata: map[string]any{"sourceSport": " hiking "},
 	}); got != "hiking" {
 		t.Fatalf("got %q", got)

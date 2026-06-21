@@ -34,7 +34,7 @@ type pluginCategoryTrailReference struct {
 	ExternalID string
 }
 
-// PluginSystemCategoryRemapPreview counts imported trails whose stored remote
+// PluginSystemCategoryRemapPreview counts imported trails whose stored provider
 // category can be mapped with the current plugin instance configuration.
 func PluginSystemCategoryRemapPreview(e *core.RequestEvent) error {
 	instance, mapping, err := pluginCategoryRemapInput(e)
@@ -54,7 +54,7 @@ func PluginSystemCategoryRemapPreview(e *core.RequestEvent) error {
 }
 
 // PluginSystemCategoryRemapApply updates the local category of imported trails
-// whose stored remote category matches the current plugin instance mapping.
+// whose stored provider category matches the current plugin instance mapping.
 func PluginSystemCategoryRemapApply(e *core.RequestEvent) error {
 	instance, mapping, err := pluginCategoryRemapInput(e)
 	if err != nil {
@@ -129,8 +129,8 @@ func pluginCategoryRemapCandidatesFromRefs(app core.App, refs []pluginCategoryTr
 
 	candidates := make([]pluginCategoryRemapCandidate, 0, len(refs))
 	for _, ref := range refs {
-		remoteCategory := strings.TrimSpace(ref.Ref.GetString("remote_category"))
-		categoryID, matched := importer.CategoryFromProviderMapping(app, remoteCategory, mapping)
+		providerCategory := strings.TrimSpace(ref.Ref.GetString("provider_category"))
+		categoryID, matched := importer.CategoryFromProviderMapping(app, providerCategory, mapping)
 		if !matched || categoryID == "" || ref.Trail.GetString("category") == categoryID {
 			continue
 		}
@@ -150,12 +150,12 @@ func pluginCategoryBackfilledSinceMappingCountFromRefs(app core.App, instance *c
 
 	count := 0
 	for _, ref := range refs {
-		checkedAt := ref.Ref.GetDateTime("remote_category_checked_at")
+		checkedAt := ref.Ref.GetDateTime("provider_category_checked_at")
 		if checkedAt.IsZero() || !checkedAt.Time().After(mappingUpdatedAt) {
 			continue
 		}
-		remoteCategory := strings.TrimSpace(ref.Ref.GetString("remote_category"))
-		categoryID, matched := importer.CategoryFromProviderMapping(app, remoteCategory, mapping)
+		providerCategory := strings.TrimSpace(ref.Ref.GetString("provider_category"))
+		categoryID, matched := importer.CategoryFromProviderMapping(app, providerCategory, mapping)
 		if matched && categoryID != "" && ref.Trail.GetString("category") != categoryID {
 			count++
 		}
