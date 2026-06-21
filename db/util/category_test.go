@@ -929,8 +929,8 @@ func setupCategoryValidationTestApp(t *testing.T) *pbtests.TestApp {
 	trails.Fields.Add(
 		&core.RelationField{Name: "category", CollectionId: categories.Id, MaxSelect: 1},
 		&core.RelationField{Name: "subcategory", CollectionId: subcategories.Id, MaxSelect: 1},
-		&core.TextField{Name: "remote_category"},
-		&core.TextField{Name: "remote_subcategory"},
+		&core.TextField{Name: "federated_category_name"},
+		&core.TextField{Name: "federated_subcategory_name"},
 	)
 	if err := app.Save(trails); err != nil {
 		app.Cleanup()
@@ -991,14 +991,14 @@ func createTestSubcategory(t *testing.T, app core.App, categoryID string, name s
 	return record
 }
 
-func createTestTrail(t *testing.T, app core.App, categoryID string, subcategoryID string, remoteCategory string, remoteSubcategory string) *core.Record {
+func createTestTrail(t *testing.T, app core.App, categoryID string, subcategoryID string, federatedCategoryName string, federatedSubcategoryName string) *core.Record {
 	t.Helper()
 
 	record := core.NewRecord(mustFindTestCollection(t, app, "trails"))
 	record.Set("category", categoryID)
 	record.Set("subcategory", subcategoryID)
-	record.Set("remote_category", remoteCategory)
-	record.Set("remote_subcategory", remoteSubcategory)
+	record.Set("federated_category_name", federatedCategoryName)
+	record.Set("federated_subcategory_name", federatedSubcategoryName)
 	if err := app.Save(record); err != nil {
 		t.Fatal(err)
 	}

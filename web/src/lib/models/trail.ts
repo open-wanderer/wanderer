@@ -218,8 +218,8 @@ interface TrailSearchResult {
     category_icon?: string;
     subcategory_id?: string | null;
     is_federated?: boolean;
-    remote_category?: string | null;
-    remote_subcategory?: string | null;
+    federated_category_name?: string | null;
+    federated_subcategory_name?: string | null;
     completed: boolean;
     date: number;
     created: number;
@@ -258,8 +258,8 @@ export const defaultTrailSearchAttributes = [
     "category_icon",
     "subcategory_id",
     "is_federated",
-    "remote_category",
-    "remote_subcategory",
+    "federated_category_name",
+    "federated_subcategory_name",
     "completed",
     "date",
     "created",

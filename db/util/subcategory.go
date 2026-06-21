@@ -129,7 +129,7 @@ func BackfillRemoteTrailCategory(app core.App, category *core.Record) error {
 
 	trails, err := app.FindRecordsByFilter(
 		"trails",
-		"remote_category != '' && category = ''",
+		"federated_category_name != '' && category = ''",
 		"",
 		0,
 		0,
@@ -141,12 +141,12 @@ func BackfillRemoteTrailCategory(app core.App, category *core.Record) error {
 
 	normalizedCategoryName := NormalizeCategoryName(category.GetString("name"))
 	for _, trail := range trails {
-		if NormalizeCategoryName(trail.GetString("remote_category")) != normalizedCategoryName {
+		if NormalizeCategoryName(trail.GetString("federated_category_name")) != normalizedCategoryName {
 			continue
 		}
 
 		trail.Set("category", category.Id)
-		if subcategory, ok := subcategoriesByName[NormalizeCategoryName(trail.GetString("remote_subcategory"))]; ok {
+		if subcategory, ok := subcategoriesByName[NormalizeCategoryName(trail.GetString("federated_subcategory_name"))]; ok {
 			trail.Set("subcategory", subcategory.Id)
 		}
 
@@ -170,7 +170,7 @@ func BackfillRemoteTrailSubcategory(app core.App, subcategory *core.Record) erro
 
 	trails, err := app.FindRecordsByFilter(
 		"trails",
-		"remote_subcategory != '' && subcategory = '' && (category = {:category} || category = '')",
+		"federated_subcategory_name != '' && subcategory = '' && (category = {:category} || category = '')",
 		"",
 		0,
 		0,
@@ -185,13 +185,13 @@ func BackfillRemoteTrailSubcategory(app core.App, subcategory *core.Record) erro
 	for _, trail := range trails {
 		categoryID := trail.GetString("category")
 		if categoryID == "" {
-			if NormalizeCategoryName(trail.GetString("remote_category")) != normalizedCategoryName {
+			if NormalizeCategoryName(trail.GetString("federated_category_name")) != normalizedCategoryName {
 				continue
 			}
 			trail.Set("category", category.Id)
 		}
 
-		if NormalizeCategoryName(trail.GetString("remote_subcategory")) != normalizedSubcategoryName {
+		if NormalizeCategoryName(trail.GetString("federated_subcategory_name")) != normalizedSubcategoryName {
 			continue
 		}
 

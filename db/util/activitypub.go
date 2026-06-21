@@ -257,10 +257,10 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	record.Set("needs_full_sync", true)
 
 	if category != "" {
-		record.Set("remote_category", category)
+		record.Set("federated_category_name", category)
 	}
 	if subcategory != "" {
-		record.Set("remote_subcategory", subcategory)
+		record.Set("federated_subcategory_name", subcategory)
 	}
 
 	categoryRecord, subcategoryRecord, err := ResolveCategoryAndSubcategoryByNormalizedNames(app, category, subcategory)

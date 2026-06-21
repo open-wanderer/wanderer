@@ -237,29 +237,29 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 // --- Sub-Sync Helpers ---
 
 func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
-	var remoteCategory, remoteSubcategory string
+	var federatedCategoryName, federatedSubcategoryName string
 
 	if expand, ok := data["expand"].(map[string]any); ok {
 		if cat, ok := expand["category"].(map[string]any); ok {
 			if name, ok := cat["name"].(string); ok {
-				remoteCategory = name
+				federatedCategoryName = name
 			}
 		}
 		if subcat, ok := expand["subcategory"].(map[string]any); ok {
 			if name, ok := subcat["name"].(string); ok {
-				remoteSubcategory = name
+				federatedSubcategoryName = name
 			}
 		}
 	}
 
-	if remoteCategory != "" {
-		record.Set("remote_category", remoteCategory)
+	if federatedCategoryName != "" {
+		record.Set("federated_category_name", federatedCategoryName)
 	}
-	if remoteSubcategory != "" {
-		record.Set("remote_subcategory", remoteSubcategory)
+	if federatedSubcategoryName != "" {
+		record.Set("federated_subcategory_name", federatedSubcategoryName)
 	}
 
-	category, subcategory, err := util.ResolveCategoryAndSubcategoryByNormalizedNames(app, remoteCategory, remoteSubcategory)
+	category, subcategory, err := util.ResolveCategoryAndSubcategoryByNormalizedNames(app, federatedCategoryName, federatedSubcategoryName)
 	if err == nil && category != nil {
 		record.Set("category", category.Id)
 		if subcategory != nil {
@@ -267,7 +267,7 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 		} else {
 			record.Set("subcategory", "")
 		}
-	} else if err == nil && remoteCategory != "" {
+	} else if err == nil && federatedCategoryName != "" {
 		record.Set("category", "")
 		record.Set("subcategory", "")
 	}
@@ -287,8 +287,8 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 	delete(data, "subcategory")
 	delete(data, "tags")
 	delete(data, "iri")
-	delete(data, "remote_category")
-	delete(data, "remote_subcategory")
+	delete(data, "federated_category_name")
+	delete(data, "federated_subcategory_name")
 
 	record.Load(data)
 }
