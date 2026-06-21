@@ -90,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-20 — Phase 6 complete: Settings Navigation, Language & Units shipped (sub-nav, 14-locale picker, metric/imperial radio, app-wide unit wiring, 12 locale ARB files).*
+*Last updated: 2026-06-21 — Phase 9 complete: Notifications settings sub-screen shipped (9 notification types, independent Web/Email toggles, auto-save, "web" ARB key). v1.2 Settings milestone complete.*
