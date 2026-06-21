@@ -29,15 +29,15 @@ Requirements for the Settings Screens milestone. Each maps to roadmap phases.
 
 ### Notifications
 
-- [ ] **NOTIF-01**: User can toggle web and email notifications for trail comments
-- [ ] **NOTIF-02**: User can toggle web and email notifications for new followers
-- [ ] **NOTIF-03**: User can toggle web and email notifications for trail shares
-- [ ] **NOTIF-04**: User can toggle web and email notifications for trail likes
-- [ ] **NOTIF-05**: User can toggle web and email notifications for list shares
-- [ ] **NOTIF-06**: User can toggle web and email notifications for summit log creates
-- [ ] **NOTIF-07**: User can toggle web and email notifications for trail mentions
-- [ ] **NOTIF-08**: User can toggle web and email notifications for comment mentions
-- [ ] **NOTIF-09**: User can toggle web and email notifications for summit log mentions
+- [x] **NOTIF-01**: User can toggle web and email notifications for trail comments
+- [x] **NOTIF-02**: User can toggle web and email notifications for new followers
+- [x] **NOTIF-03**: User can toggle web and email notifications for trail shares
+- [x] **NOTIF-04**: User can toggle web and email notifications for trail likes
+- [x] **NOTIF-05**: User can toggle web and email notifications for list shares
+- [x] **NOTIF-06**: User can toggle web and email notifications for summit log creates
+- [x] **NOTIF-07**: User can toggle web and email notifications for trail mentions
+- [x] **NOTIF-08**: User can toggle web and email notifications for comment mentions
+- [x] **NOTIF-09**: User can toggle web and email notifications for summit log mentions
 
 ### Settings Navigation
 
@@ -77,15 +77,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ACCT-03 | Phase 8 | Complete |
 | ACCT-04 | Phase 8 | Complete |
 | ACCT-05 | Phase 8 | Complete |
-| NOTIF-01 | Phase 9 | Pending |
-| NOTIF-02 | Phase 9 | Pending |
-| NOTIF-03 | Phase 9 | Pending |
-| NOTIF-04 | Phase 9 | Pending |
-| NOTIF-05 | Phase 9 | Pending |
-| NOTIF-06 | Phase 9 | Pending |
-| NOTIF-07 | Phase 9 | Pending |
-| NOTIF-08 | Phase 9 | Pending |
-| NOTIF-09 | Phase 9 | Pending |
+| NOTIF-01 | Phase 9 | Complete |
+| NOTIF-02 | Phase 9 | Complete |
+| NOTIF-03 | Phase 9 | Complete |
+| NOTIF-04 | Phase 9 | Complete |
+| NOTIF-05 | Phase 9 | Complete |
+| NOTIF-06 | Phase 9 | Complete |
+| NOTIF-07 | Phase 9 | Complete |
+| NOTIF-08 | Phase 9 | Complete |
+| NOTIF-09 | Phase 9 | Complete |
 
 **Coverage:**
 

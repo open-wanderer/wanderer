@@ -255,4 +255,4 @@ Phases 7, 8, and 9 each depend only on Phase 6 and are otherwise independent of 
 | 6. Settings Navigation + Language & Units | 4/4 | Complete    | 2026-06-20 |
 | 7. Privacy | 1/1 | Complete    | 2026-06-20 |
 | 8. Account & Profile | 3/3 | Complete    | 2026-06-20 |
-| 9. Notifications | 1/1 | Complete   | 2026-06-21 |
+| 9. Notifications | 1/1 | Complete    | 2026-06-21 |
