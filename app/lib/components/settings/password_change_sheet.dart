@@ -5,6 +5,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/components/base/wanderer_text_field.dart';
+import 'package:dio/dio.dart';
 import 'package:wanderer/models/api_error.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
