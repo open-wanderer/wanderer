@@ -1,0 +1,310 @@
+{
+  "manifestVersion": "1.0",
+  "id": "komoot",
+  "type": "trails",
+  "name": "komoot",
+  "description": "Imports planned and completed komoot tours, including photos and waypoints, into wanderer.",
+  "version": "0.1.0",
+  "runtime": {
+    "type": "wasm",
+    "entrypoint": "plugin.wasm"
+  },
+  "capabilities": [
+    {
+      "name": "list_routes",
+      "version": "v1",
+      "export": "list_routes_v1"
+    },
+    {
+      "name": "get_route_detail",
+      "version": "v1",
+      "export": "get_route_detail_v1"
+    },
+    {
+      "name": "list_activities",
+      "version": "v1",
+      "export": "list_activities_v1"
+    },
+    {
+      "name": "get_activity_detail",
+      "version": "v1",
+      "export": "get_activity_detail_v1"
+    }
+  ],
+  "auth": {
+    "contexts": {
+      "provider_session": {
+        "type": "session",
+        "fields": [
+          "email",
+          "password"
+        ],
+        "secretFields": [
+          "password"
+        ],
+        "refresh": {
+          "mode": "plugin",
+          "function": "refresh_session_v1"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "network": {
+      "connectors": [
+        {
+          "name": "api",
+          "type": "public_api",
+          "fixedBaseURL": "https://api.komoot.de",
+          "allowedPathPrefixes": [
+            "/v006",
+            "/v007"
+          ]
+        },
+        {
+          "name": "web",
+          "type": "public_api",
+          "fixedBaseURL": "https://www.komoot.com",
+          "allowedPathPrefixes": [
+            "/webapi/v007"
+          ]
+        }
+      ]
+    },
+    "auth": [
+      "provider_session"
+    ],
+    "downloads": {
+      "maxBytes": 16777216,
+      "contentTypes": [
+        "application/json",
+        "application/hal+json"
+      ]
+    }
+  },
+  "configSchema": [
+    {
+      "key": "after",
+      "type": "date",
+      "label": "Start date",
+      "labels": {
+        "de": "Startdatum",
+        "en": "Start date"
+      },
+      "description": "Ignore tours before this date.",
+      "descriptions": {
+        "de": "Touren vor diesem Datum ignorieren.",
+        "en": "Ignore tours before this date."
+      }
+    }
+  ],
+  "hostConfig": {
+    "categoryMapping": {
+      "hike": "Hiking",
+      "mountaineering": "Hiking",
+      "racebike": "Biking",
+      "e_racebike": "Biking",
+      "touringbicycle": "Biking",
+      "e_touringbicycle": "Biking",
+      "mtb": "Biking",
+      "e_mtb": "Biking",
+      "mtb_easy": "Biking",
+      "e_mtb_easy": "Biking",
+      "mtb_advanced": "Biking",
+      "e_mtb_advanced": "Biking",
+      "downhillbike": "Biking",
+      "unicycle": "Biking",
+      "citybike": "Biking",
+      "jogging": "Walking",
+      "nordicwalking": "Walking",
+      "skaten": "Walking",
+      "other": "Walking",
+      "climbing": "Climbing",
+      "nordic": "Skiing",
+      "skialpin": "Skiing",
+      "skitour": "Skiing",
+      "sled": "Skiing",
+      "snowboard": "Skiing",
+      "snowshoe": "Skiing"
+    }
+  },
+  "metadata": {
+    "descriptions": {
+      "cs": "Synchronizuje vaše trasy z aplikace Komoot s Wandererem v pravidelných intervalech.",
+      "de": "Importiert geplante und abgeschlossene komoot-Touren inklusive Fotos und Wegpunkten in wanderer.",
+      "en": "Imports planned and completed komoot tours, including photos and waypoints, into wanderer.",
+      "es": "Sincroniza tus recorridos de Komoot con Wanderer en intervalos regulares.",
+      "eu": "Zure komooteko ibilbideak wandererekin sinkronizatzen ditu aldian behin.",
+      "fr": "Synchronisez vos Tours Komoot avec wanderer à intervalles réguliers.",
+      "it": "Syncs your komoot tours with wanderer in regular intervals.",
+      "hu": "Syncs your komoot tours with wanderer in regular intervals.",
+      "nl": "Synchroniseert je Komoot-tochten met Wanderer op regelmatige tijdstippen.",
+      "no": "Synkroniserer dine Komoot-turer med Wanderer med jevne mellomrom.",
+      "pl": "Synchronizuje trasy kamoot z wanderer w równych odstępach.",
+      "pt": "Syncs your komoot tours with wanderer in regular intervals.",
+      "ru": "Синхронизирует ваши данные с Komoot.",
+      "zh": "定期与komoot同步您的wanderer。"
+    },
+    "icons": {
+      "light": "icon.svg"
+    },
+    "providerCategories": {
+      "hike": {
+        "labels": {
+          "de": "Wandern",
+          "en": "Hiking"
+        }
+      },
+      "mountaineering": {
+        "labels": {
+          "de": "Bergsteigen",
+          "en": "Mountaineering"
+        }
+      },
+      "racebike": {
+        "labels": {
+          "de": "Rennrad",
+          "en": "Road bike"
+        }
+      },
+      "e_racebike": {
+        "labels": {
+          "de": "E-Rennrad",
+          "en": "E-road bike"
+        }
+      },
+      "touringbicycle": {
+        "labels": {
+          "de": "Tourenrad",
+          "en": "Touring bike"
+        }
+      },
+      "e_touringbicycle": {
+        "labels": {
+          "de": "E-Tourenrad",
+          "en": "E-touring bike"
+        }
+      },
+      "mtb": {
+        "labels": {
+          "de": "Mountainbike",
+          "en": "Mountain bike"
+        }
+      },
+      "e_mtb": {
+        "labels": {
+          "de": "E-Mountainbike",
+          "en": "E-mountain bike"
+        }
+      },
+      "mtb_easy": {
+        "labels": {
+          "de": "Mountainbike einfach",
+          "en": "Easy mountain bike"
+        }
+      },
+      "e_mtb_easy": {
+        "labels": {
+          "de": "E-Mountainbike einfach",
+          "en": "Easy e-mountain bike"
+        }
+      },
+      "mtb_advanced": {
+        "labels": {
+          "de": "Mountainbike anspruchsvoll",
+          "en": "Advanced mountain bike"
+        }
+      },
+      "e_mtb_advanced": {
+        "labels": {
+          "de": "E-Mountainbike anspruchsvoll",
+          "en": "Advanced e-mountain bike"
+        }
+      },
+      "downhillbike": {
+        "labels": {
+          "de": "Downhill-Bike",
+          "en": "Downhill bike"
+        }
+      },
+      "unicycle": {
+        "labels": {
+          "de": "Einrad",
+          "en": "Unicycle"
+        }
+      },
+      "citybike": {
+        "labels": {
+          "de": "Citybike",
+          "en": "City bike"
+        }
+      },
+      "jogging": {
+        "labels": {
+          "de": "Joggen",
+          "en": "Jogging"
+        }
+      },
+      "nordicwalking": {
+        "labels": {
+          "de": "Nordic Walking",
+          "en": "Nordic walking"
+        }
+      },
+      "skaten": {
+        "labels": {
+          "de": "Skaten",
+          "en": "Skating"
+        }
+      },
+      "other": {
+        "labels": {
+          "de": "Sonstiges",
+          "en": "Other"
+        }
+      },
+      "climbing": {
+        "labels": {
+          "de": "Klettern",
+          "en": "Climbing"
+        }
+      },
+      "nordic": {
+        "labels": {
+          "de": "Langlauf",
+          "en": "Cross-country skiing"
+        }
+      },
+      "skialpin": {
+        "labels": {
+          "de": "Ski alpin",
+          "en": "Alpine skiing"
+        }
+      },
+      "skitour": {
+        "labels": {
+          "de": "Skitour",
+          "en": "Ski touring"
+        }
+      },
+      "sled": {
+        "labels": {
+          "de": "Schlitten",
+          "en": "Sledding"
+        }
+      },
+      "snowboard": {
+        "labels": {
+          "de": "Snowboard",
+          "en": "Snowboard"
+        }
+      },
+      "snowshoe": {
+        "labels": {
+          "de": "Schneeschuhwandern",
+          "en": "Snowshoeing"
+        }
+      }
+    }
+  }
+}

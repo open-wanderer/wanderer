@@ -41,7 +41,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.22'
+          go-version: '1.25'
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -74,8 +74,24 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      TINYGO_VERSION: '0.39.0'
     steps:
       - uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Install TinyGo
+        run: |
+          curl -fsSL "https://github.com/tinygo-org/tinygo/releases/download/v${TINYGO_VERSION}/tinygo_${TINYGO_VERSION}_amd64.deb" -o /tmp/tinygo.deb
+          sudo dpkg -i /tmp/tinygo.deb
+          tinygo version
+
+      - name: Build Plugin Release Assets
+        run: make plugins-package
       
       - name: Extract release notes
         id: changelog
@@ -93,5 +109,8 @@ jobs:
         with:
           tag_name: ${{ needs.publish.outputs.version }}
           body: ${{ steps.changelog.outputs.changelog }}
+          files: |
+            plugin_dist/*.tar.gz
+            plugin_dist/SHA256SUMS
           draft: false
           prerelease: false

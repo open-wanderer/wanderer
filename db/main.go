@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -15,9 +16,7 @@ import (
 
 	"pocketbase/commands"
 	"pocketbase/hooks"
-	"pocketbase/integrations/hammerhead"
-	"pocketbase/integrations/komoot"
-	"pocketbase/integrations/strava"
+	"pocketbase/pluginsystem"
 	"pocketbase/routes"
 
 	_ "pocketbase/migrations"
@@ -56,6 +55,9 @@ func verifySettings(app core.App) {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "plugin-worker" {
+		os.Exit(pluginsystem.RunPluginWorker(context.Background(), os.Stdin, os.Stdout, os.Stderr))
+	}
 
 	app := pocketbase.New()
 	client := initializeMeilisearch()
@@ -124,11 +126,12 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordCreateRequest("follows").BindFunc(hooks.CreateFollowHandler())
 	app.OnRecordDeleteRequest("follows").BindFunc(hooks.DeleteFollowHandler())
 
-	app.OnRecordsListRequest("integrations").BindFunc(hooks.ListIntegrationHandler())
-	app.OnRecordCreate("integrations").BindFunc(hooks.CreateIntegrationHandler())
-	app.OnRecordAfterCreateSuccess("integrations").BindFunc(hooks.CreateUpdateIntegrationSuccessHandler())
-	app.OnRecordUpdate("integrations").BindFunc(hooks.UpdateIntegrationHandler())
-	app.OnRecordAfterUpdateSuccess("integrations").BindFunc(hooks.CreateUpdateIntegrationSuccessHandler())
+	app.OnRecordsListRequest("plugin_instances").BindFunc(hooks.ListPluginInstanceHandler())
+	app.OnRecordViewRequest("plugin_instances").BindFunc(hooks.ViewPluginInstanceHandler())
+	app.OnRecordCreate("plugin_instances").BindFunc(hooks.CreatePluginInstanceHandler())
+	app.OnRecordAfterCreateSuccess("plugin_instances").BindFunc(hooks.CreateUpdatePluginInstanceSuccessHandler())
+	app.OnRecordUpdate("plugin_instances").BindFunc(hooks.UpdatePluginInstanceHandler())
+	app.OnRecordAfterUpdateSuccess("plugin_instances").BindFunc(hooks.CreateUpdatePluginInstanceSuccessHandler())
 
 	app.OnRecordsListRequest("feed", "profile_feed").BindFunc(hooks.ListFeedHandler())
 
@@ -169,10 +172,14 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 	se.Router.GET("/search/token", routes.SearchToken(client))
 
-	se.Router.POST("/integration/strava/token", routes.IntegrationStravaToken)
-	se.Router.POST("/integration/hammerhead/upload", routes.IntegrationHammerheadUpload)
-	se.Router.GET("/integration/hammerhead/login", routes.IntegrationHammerheadLogin)
-	se.Router.GET("/integration/komoot/login", routes.IntegrationKommotLogin)
+	se.Router.GET("/plugins", routes.PluginSystemPluginsList)
+	se.Router.POST("/plugins/trail-send", routes.PluginSystemTrailSend)
+	se.Router.POST("/plugins/auth/validate", routes.PluginSystemSessionAuthValidate)
+	se.Router.POST("/plugins/category-remap/preview", routes.PluginSystemCategoryRemapPreview)
+	se.Router.POST("/plugins/category-remap/apply", routes.PluginSystemCategoryRemapApply)
+	se.Router.POST("/plugins/oauth/start", routes.PluginSystemOAuthStart)
+	se.Router.POST("/plugins/oauth/callback", routes.PluginSystemOAuthCallback)
+	se.Router.POST("/plugins/oauth/revoke", routes.PluginSystemOAuthRevoke)
 
 	se.Router.POST("/activitypub/activity/process", routes.ActivitypubActivityProcess)
 	se.Router.GET("/activitypub/actor", routes.ActivitypubActor)
@@ -195,22 +202,9 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 		schedule = "0 2 * * *"
 	}
 
-	app.Cron().MustAdd("integrations", schedule, func() {
-		err := strava.SyncStrava(app, client)
-		if err != nil {
-			warning := fmt.Sprintf("Error syncing with strava: %v", err)
-			fmt.Println(warning)
-			app.Logger().Error(warning)
-		}
-		err = komoot.SyncKomoot(app, client)
-		if err != nil {
-			warning := fmt.Sprintf("Error syncing with komoot: %v", err)
-			fmt.Println(warning)
-			app.Logger().Error(warning)
-		}
-		err = hammerhead.SyncHammerhead(app, client)
-		if err != nil {
-			warning := fmt.Sprintf("Error syncing with hammerhead: %v", err)
+	app.Cron().MustAdd("plugin-sync", schedule, func() {
+		if err := routes.PluginSystemSyncConfigured(context.Background(), app, client); err != nil {
+			warning := fmt.Sprintf("Error syncing with WASM plugins: %v", err)
 			fmt.Println(warning)
 			app.Logger().Error(warning)
 		}
@@ -219,12 +213,22 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 
 func initData(app core.App, client meilisearch.ServiceManager) error {
 	initCategories(app)
+	initPlugins(app)
 	initMeilisearchConfig(client)
 	go func() {
 		backfillPolylines(app)
 		initMeilisearchDocuments(app, client)
 	}()
 	return nil
+}
+
+func initPlugins(app core.App) {
+	manager := pluginsystem.NewManager(app, "")
+	if err := manager.SyncInstalledPlugins(context.Background()); err != nil {
+		warning := fmt.Sprintf("Error discovering WASM plugins: %v", err)
+		fmt.Println(warning)
+		app.Logger().Error(warning)
+	}
 }
 
 func backfillPolylines(app core.App) {
@@ -276,23 +280,28 @@ func initCategories(app core.App) error {
 	if err := query.All(&records); err != nil {
 		return err
 	}
-	if len(records) == 0 {
-		collection, _ := app.FindCollectionByNameOrId("categories")
+	if len(records) != 0 {
+		return nil
+	}
 
-		categories := []string{"Hiking", "Walking", "Climbing", "Skiing", "Canoeing", "Biking"}
-		for _, element := range categories {
-			record := core.NewRecord(collection)
-			record.Set("name", element)
-			record.Set("settings", map[string]any{
-				"wp_merge_enabled": true,
-				"wp_merge_radius":  50,
-			})
-			f, _ := filesystem.NewFileFromPath("migrations/initial_data/" + strings.ToLower(element) + ".jpg")
+	collection, err := app.FindCollectionByNameOrId("categories")
+	if err != nil {
+		return err
+	}
+
+	categories := []string{"Hiking", "Walking", "Climbing", "Skiing", "Canoeing", "Biking", "Other"}
+	for _, element := range categories {
+		record := core.NewRecord(collection)
+		record.Set("name", element)
+		record.Set("settings", map[string]any{
+			"wp_merge_enabled": true,
+			"wp_merge_radius":  50,
+		})
+		if f, err := filesystem.NewFileFromPath("migrations/initial_data/" + strings.ToLower(element) + ".jpg"); err == nil {
 			record.Set("img", f)
-			err := app.Save(record)
-			if err != nil {
-				return err
-			}
+		}
+		if err := app.Save(record); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -28,7 +28,7 @@ Before the merge is executed, <span class="-tracking-[0.075em]">wanderer</span> 
 The target suggestion currently considers:
 
 - existing summit logs
-- external references from integrations
+- external references from plugins
 - content richness such as comments, photos, waypoints and descriptions
 - how centrally the trail geometry fits within the candidate set
 - trail age as a deterministic fallback
@@ -50,11 +50,11 @@ The maintenance page groups potentially repeated or duplicate trails so that you
 
 This page is especially useful after large imports or when you want to consolidate older data.
 
-## Integrations
+## Plugins
 
-Integrations can optionally auto-merge imported trails, but only when the backend finds exactly one clear target candidate. This keeps imports conservative and avoids accidentally merging different routes.
+Plugins can optionally auto-merge imported trails, but only when the backend finds exactly one clear target candidate. This keeps imports conservative and avoids accidentally merging different routes.
 
-External references from integrations are preserved during merges, so future imports can still recognize already-linked trails correctly.
+External references from plugins are preserved during merges, so future imports can still recognize already-linked trails correctly.
 
 ## What Happens During a Merge
 

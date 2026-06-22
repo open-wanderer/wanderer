@@ -1,0 +1,541 @@
+{
+  "manifestVersion": "1.0",
+  "id": "strava",
+  "type": "trails",
+  "name": "Strava",
+  "description": "Imports Strava routes, activities and photos into wanderer.",
+  "version": "0.1.0",
+  "runtime": {
+    "type": "wasm",
+    "entrypoint": "plugin.wasm"
+  },
+  "capabilities": [
+    {
+      "name": "list_routes",
+      "version": "v1",
+      "export": "list_routes_v1"
+    },
+    {
+      "name": "get_route_detail",
+      "version": "v1",
+      "export": "get_route_detail_v1"
+    },
+    {
+      "name": "list_activities",
+      "version": "v1",
+      "export": "list_activities_v1"
+    },
+    {
+      "name": "get_activity_detail",
+      "version": "v1",
+      "export": "get_activity_detail_v1"
+    }
+  ],
+  "auth": {
+    "contexts": {
+      "oauth_access_token": {
+        "type": "oauth2",
+        "fields": [
+          "clientId",
+          "clientSecret"
+        ],
+        "secretFields": [
+          "clientSecret",
+          "accessToken",
+          "refreshToken"
+        ],
+        "authorizationUrl": "https://www.strava.com/oauth/authorize",
+        "tokenUrl": "https://www.strava.com/oauth/token",
+        "scopes": [
+          "read_all",
+          "activity:read_all"
+        ],
+        "scopeSeparator": ",",
+        "tokenRequestFormat": "json",
+        "tokenAuth": "client_secret_post",
+        "authorizationParams": {
+          "approval_prompt": "auto"
+        },
+        "refresh": {
+          "mode": "host",
+          "grantType": "refresh_token"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "network": {
+      "connectors": [
+        {
+          "name": "api",
+          "type": "public_api",
+          "fixedBaseURL": "https://www.strava.com/api/v3",
+          "allowedPathPrefixes": [
+            "/"
+          ],
+          "auth": [
+            "oauth_access_token"
+          ]
+        },
+        {
+          "name": "api_next",
+          "type": "public_api",
+          "fixedBaseURL": "https://www.api-v3.strava.com",
+          "allowedPathPrefixes": [
+            "/"
+          ],
+          "auth": [
+            "oauth_access_token"
+          ]
+        },
+        {
+          "name": "oauth",
+          "type": "public_api",
+          "fixedBaseURL": "https://www.strava.com/oauth",
+          "allowedPathPrefixes": [
+            "/"
+          ]
+        }
+      ]
+    },
+    "auth": [
+      "oauth_access_token"
+    ],
+    "downloads": {
+      "maxBytes": 1048576,
+      "contentTypes": [
+        "application/json",
+        "application/gpx+xml",
+        "application/xml",
+        "text/xml",
+        "application/octet-stream"
+      ]
+    }
+  },
+  "configSchema": [
+    {
+      "key": "after",
+      "type": "date",
+      "label": "Start date",
+      "labels": {
+        "de": "Startdatum",
+        "en": "Start date"
+      },
+      "description": "Ignore routes and activities before this date.",
+      "descriptions": {
+        "cs": "Pokud váš účet obsahuje velké množství aktivit, můžete narazit na limit API služby Strava, což znemožní synchronizaci všech aktivit najednou. Tomuto problému předejdete nastavením data \"Od\" a dále - synchronizují se tak pouze aktivity zaznamenané po tomto datu.",
+        "de": "Wenn Ihr Konto eine große Anzahl von Aktivitäten enthält, kann es vorkommen, dass Sie aufgrund der API-Restriktionen von Strava nicht alle Aktivitäten auf einmal synchronisieren können. Um dieses Problem zu umgehen, können Sie unten ein Startdatum festlegen, sodass nur Aktivitäten synchronisiert werden, die nach diesem Datum aufgezeichnet wurden.",
+        "en": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an start date below so that only activities that were recorded after this date are synced.",
+        "es": "Si tu cuenta tiene una gran cantidad de actividades, es posible que alcances el límite de peticiones de la API de Strava, lo que impedirá la sincronización de todas las actividades a la vez. Para mitigar este problema, puedes establecer una fecha \"Posterior a\" a continuación, de modo que solo se sincronicen las actividades que se registraron después de esa fecha.",
+        "eu": "Zure kontuak ekintza esko baditu Stravaren APIaren mugekin topo egin dezakezu eta agian ezingo dituzu zure ekintza guztiak aldi berean inportatu. Horretarako data jakin batetik aurrerako ekintzak sinkronizatzeko aukera duzu.",
+        "fr": "Si votre compte a une grande quantité d'activités, vous pouvez rencontrer la limite d'utilisation de l'API de Strava vous empêchant de synchroniser toutes les activités en même temps. Pour atténuer ce problème, vous pouvez définir une date \"Après-\" ci-dessous afin que seules les activités qui ont été enregistrées après cette date soient synchronisées.",
+        "it": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced.",
+        "hu": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced.",
+        "nl": "Als uw account een grote hoeveelheid activiteiten heeft, kunt u op de API-limiet van Strava botsen voorkomend dat u alle activiteiten tegelijk synchroniseert. Om dit probleem te omzeilen kunt u een \"Later\" datum hieronder instellen, zodat alleen activiteiten die na deze datum werden opgenomen worden gesynchroniseerd.",
+        "no": "Hvis kontoen din har en stor mengde aktiviteter kan du støte på Stravas API-hastighetsgrense som hindrer deg i å synkronisere alle aktiviteter samtidig. For å redusere dette problemet kan du sette en \"Etter\" dato nedenfor slik at bare aktiviteter som ble registrert etter denne datoen blir synkronisert.",
+        "pl": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced.",
+        "pt": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced.",
+        "ru": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced.",
+        "zh": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced."
+      }
+    }
+  ],
+  "hostConfig": {
+    "categoryMapping": {
+      "route:1": "Biking",
+      "route:2": "Walking",
+      "AlpineSki": "Skiing",
+      "BackcountrySki": "Skiing",
+      "Badminton": "Other",
+      "Canoeing": "Canoeing",
+      "Crossfit": "Workout",
+      "EBikeRide": "Biking",
+      "EMountainBikeRide": "Biking",
+      "Elliptical": "Workout",
+      "Golf": "Other",
+      "GravelRide": "Biking",
+      "Handcycle": "Biking",
+      "HighIntensityIntervalTraining": "Other",
+      "Hike": "Hiking",
+      "IceSkate": "Skiing",
+      "InlineSkate": "Walking",
+      "Kayaking": "Canoeing",
+      "Kitesurf": "Canoeing",
+      "MountainBikeRide": "Biking",
+      "NordicSki": "Skiing",
+      "Pickleball": "Other",
+      "Pilates": "Other",
+      "Racquetball": "Other",
+      "Ride": "Biking",
+      "RockClimbing": "Climbing",
+      "RollerSki": "Skiing",
+      "Rowing": "Canoeing",
+      "Run": "Walking",
+      "Sail": "Canoeing",
+      "Skateboard": "Walking",
+      "Snowboard": "Skiing",
+      "Snowshoe": "Hiking",
+      "Soccer": "Other",
+      "Squash": "Other",
+      "StairStepper": "Workout",
+      "StandUpPaddling": "Canoeing",
+      "Surfing": "Canoeing",
+      "Swim": "Other",
+      "TableTennis": "Other",
+      "Tennis": "Other",
+      "TrailRun": "Other",
+      "Training": "Other",
+      "Velomobile": "Biking",
+      "VirtualRide": "Biking",
+      "VirtualRow": "Other",
+      "VirtualRun": "Walking",
+      "Walk": "Walking",
+      "WeightTraining": "Workout",
+      "Wheelchair": "Walking",
+      "Windsurf": "Canoeing",
+      "Workout": "Workout",
+      "Yoga": "Workout"
+    }
+  },
+  "metadata": {
+    "descriptions": {
+      "cs": "Synchronizuje vaše trasy a aktivity z aplikace Strava s Wandererem v pravidelných intervalech.",
+      "de": "Importiert Strava-Routen, Aktivitäten und Fotos in wanderer.",
+      "en": "Imports Strava routes, activities and photos into wanderer.",
+      "es": "Sincroniza tus recorridos y actividades de Strava con Wanderer en intervalos regulares.",
+      "eu": "Zure stravako ibilbideak wandererekin sinkronizatzen ditu aldian behin.",
+      "fr": "Synchronisez vos itinéraires et vos activités Strava avec wanderer à intervalles réguliers.",
+      "it": "Syncs your strava routes & activities with wanderer in regular intervals.",
+      "hu": "Syncs your strava routes & activities with wanderer in regular intervals.",
+      "nl": "Synchroniseert je Strava-routes en -activiteiten met Wanderer op regelmatige tijdstippen.",
+      "no": "Synkroniserer dine Strava-ruter og aktiviteter med Wanderer med jevne mellomrom.",
+      "pl": "Synchronizuje trasy i aktywność z wanderer w równych odstępach.",
+      "pt": "Syncs your strava routes & activities with wanderer in regular intervals.",
+      "ru": "Синхронизирует ваши данные со Strava.",
+      "zh": "定期与strava同步您的wanderer路线和活动。"
+    },
+    "icons": {
+      "light": "icon.svg"
+    },
+    "providerCategories": {
+      "route:1": {
+        "labels": {
+          "de": "Strava-Route: Radfahren",
+          "en": "Strava route: cycling"
+        }
+      },
+      "route:2": {
+        "labels": {
+          "de": "Strava-Route: Laufen",
+          "en": "Strava route: running"
+        }
+      },
+      "AlpineSki": {
+        "labels": {
+          "de": "Ski alpin",
+          "en": "Alpine ski"
+        }
+      },
+      "BackcountrySki": {
+        "labels": {
+          "de": "Skitour",
+          "en": "Backcountry ski"
+        }
+      },
+      "Badminton": {
+        "labels": {
+          "de": "Badminton",
+          "en": "Badminton"
+        }
+      },
+      "Canoeing": {
+        "labels": {
+          "de": "Kanufahren",
+          "en": "Canoeing"
+        }
+      },
+      "Crossfit": {
+        "labels": {
+          "de": "Crossfit",
+          "en": "Crossfit"
+        }
+      },
+      "EBikeRide": {
+        "labels": {
+          "de": "E-Bike-Fahrt",
+          "en": "E-bike ride"
+        }
+      },
+      "EMountainBikeRide": {
+        "labels": {
+          "de": "E-Mountainbike-Fahrt",
+          "en": "E-mountain bike ride"
+        }
+      },
+      "Elliptical": {
+        "labels": {
+          "de": "Crosstrainer",
+          "en": "Elliptical"
+        }
+      },
+      "Golf": {
+        "labels": {
+          "de": "Golf",
+          "en": "Golf"
+        }
+      },
+      "GravelRide": {
+        "labels": {
+          "de": "Gravel-Fahrt",
+          "en": "Gravel ride"
+        }
+      },
+      "Handcycle": {
+        "labels": {
+          "de": "Handbike",
+          "en": "Handcycle"
+        }
+      },
+      "HighIntensityIntervalTraining": {
+        "labels": {
+          "de": "HIIT",
+          "en": "High-intensity interval training"
+        }
+      },
+      "Hike": {
+        "labels": {
+          "de": "Wandern",
+          "en": "Hike"
+        }
+      },
+      "IceSkate": {
+        "labels": {
+          "de": "Schlittschuhlaufen",
+          "en": "Ice skate"
+        }
+      },
+      "InlineSkate": {
+        "labels": {
+          "de": "Inlineskaten",
+          "en": "Inline skate"
+        }
+      },
+      "Kayaking": {
+        "labels": {
+          "de": "Kajakfahren",
+          "en": "Kayaking"
+        }
+      },
+      "Kitesurf": {
+        "labels": {
+          "de": "Kitesurfen",
+          "en": "Kitesurf"
+        }
+      },
+      "MountainBikeRide": {
+        "labels": {
+          "de": "Mountainbike-Fahrt",
+          "en": "Mountain bike ride"
+        }
+      },
+      "NordicSki": {
+        "labels": {
+          "de": "Langlauf",
+          "en": "Nordic ski"
+        }
+      },
+      "Pickleball": {
+        "labels": {
+          "de": "Pickleball",
+          "en": "Pickleball"
+        }
+      },
+      "Pilates": {
+        "labels": {
+          "de": "Pilates",
+          "en": "Pilates"
+        }
+      },
+      "Racquetball": {
+        "labels": {
+          "de": "Racquetball",
+          "en": "Racquetball"
+        }
+      },
+      "Ride": {
+        "labels": {
+          "de": "Radfahren",
+          "en": "Ride"
+        }
+      },
+      "RockClimbing": {
+        "labels": {
+          "de": "Felsklettern",
+          "en": "Rock climbing"
+        }
+      },
+      "RollerSki": {
+        "labels": {
+          "de": "Rollski",
+          "en": "Roller ski"
+        }
+      },
+      "Rowing": {
+        "labels": {
+          "de": "Rudern",
+          "en": "Rowing"
+        }
+      },
+      "Run": {
+        "labels": {
+          "de": "Laufen",
+          "en": "Run"
+        }
+      },
+      "Sail": {
+        "labels": {
+          "de": "Segeln",
+          "en": "Sail"
+        }
+      },
+      "Skateboard": {
+        "labels": {
+          "de": "Skateboard",
+          "en": "Skateboard"
+        }
+      },
+      "Snowboard": {
+        "labels": {
+          "de": "Snowboard",
+          "en": "Snowboard"
+        }
+      },
+      "Snowshoe": {
+        "labels": {
+          "de": "Schneeschuhwandern",
+          "en": "Snowshoe"
+        }
+      },
+      "Soccer": {
+        "labels": {
+          "de": "Fussball",
+          "en": "Soccer"
+        }
+      },
+      "Squash": {
+        "labels": {
+          "de": "Squash",
+          "en": "Squash"
+        }
+      },
+      "StairStepper": {
+        "labels": {
+          "de": "Stepper",
+          "en": "Stair stepper"
+        }
+      },
+      "StandUpPaddling": {
+        "labels": {
+          "de": "Stand-up-Paddling",
+          "en": "Stand-up paddling"
+        }
+      },
+      "Surfing": {
+        "labels": {
+          "de": "Surfen",
+          "en": "Surfing"
+        }
+      },
+      "Swim": {
+        "labels": {
+          "de": "Schwimmen",
+          "en": "Swim"
+        }
+      },
+      "TableTennis": {
+        "labels": {
+          "de": "Tischtennis",
+          "en": "Table tennis"
+        }
+      },
+      "Tennis": {
+        "labels": {
+          "de": "Tennis",
+          "en": "Tennis"
+        }
+      },
+      "TrailRun": {
+        "labels": {
+          "de": "Trailrun",
+          "en": "Trail run"
+        }
+      },
+      "Training": {
+        "labels": {
+          "de": "Training",
+          "en": "Training"
+        }
+      },
+      "Velomobile": {
+        "labels": {
+          "de": "Velomobil",
+          "en": "Velomobile"
+        }
+      },
+      "VirtualRide": {
+        "labels": {
+          "de": "Virtuelle Radfahrt",
+          "en": "Virtual ride"
+        }
+      },
+      "VirtualRow": {
+        "labels": {
+          "de": "Virtuelles Rudern",
+          "en": "Virtual row"
+        }
+      },
+      "VirtualRun": {
+        "labels": {
+          "de": "Virtueller Lauf",
+          "en": "Virtual run"
+        }
+      },
+      "Walk": {
+        "labels": {
+          "de": "Gehen",
+          "en": "Walk"
+        }
+      },
+      "WeightTraining": {
+        "labels": {
+          "de": "Krafttraining",
+          "en": "Weight training"
+        }
+      },
+      "Wheelchair": {
+        "labels": {
+          "de": "Rollstuhl",
+          "en": "Wheelchair"
+        }
+      },
+      "Windsurf": {
+        "labels": {
+          "de": "Windsurfen",
+          "en": "Windsurf"
+        }
+      },
+      "Workout": {
+        "labels": {
+          "de": "Training",
+          "en": "Workout"
+        }
+      },
+      "Yoga": {
+        "labels": {
+          "de": "Yoga",
+          "en": "Yoga"
+        }
+      }
+    }
+  }
+}

@@ -25,7 +25,7 @@ export enum Collection {
     comments = "comments",
     feed = "feed",
     follows = "follows",
-    integrations = "integrations",
+    plugin_instances = "plugin_instances",
     list_share = "list_share",
     lists = "lists",
     notifications = "notifications",

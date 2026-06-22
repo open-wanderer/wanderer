@@ -83,8 +83,8 @@ export default defineConfig({
           link: '/use/import-export/'
         },
         {
-          label: 'Integrations',
-          link: '/use/integrations/'
+          label: 'Plugins',
+          link: '/use/plugins/'
         },
         ]
       },
@@ -97,6 +97,7 @@ export default defineConfig({
               { label: 'Quickstart', link: '/run/installation/quick' },
               { label: 'Manual Docker Setup', link: '/run/installation/docker' },
               { label: 'Install from Source', link: '/run/installation/from-source' },
+              { label: 'Plugin installation', link: '/run/installation/plugins' },
             ]
           },
           {
@@ -136,6 +137,10 @@ export default defineConfig({
           {
             label: 'Federation',
             link: '/develop/federation/'
+          },
+          {
+            label: 'Plugin System',
+            link: '/develop/plugin-system/'
           },
         ]
       },
