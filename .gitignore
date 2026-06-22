@@ -16,6 +16,6 @@ data*/
 plugins/*/dist/
 plugin_dist/
 
-.planning/
+# .planning/
 .claude/
 CLAUDE.md
