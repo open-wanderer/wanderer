@@ -1,0 +1,131 @@
+{
+  "manifestVersion": "1.0",
+  "id": "hammerhead",
+  "type": "trails",
+  "name": "Hammerhead",
+  "description": "Imports Hammerhead routes and activities, and can send wanderer routes to Hammerhead.",
+  "version": "0.1.0",
+  "runtime": {
+    "type": "wasm",
+    "entrypoint": "plugin.wasm"
+  },
+  "capabilities": [
+    {
+      "name": "list_routes",
+      "version": "v1",
+      "export": "list_routes_v1"
+    },
+    {
+      "name": "get_route_detail",
+      "version": "v1",
+      "export": "get_route_detail_v1"
+    },
+    {
+      "name": "list_activities",
+      "version": "v1",
+      "export": "list_activities_v1"
+    },
+    {
+      "name": "get_activity_detail",
+      "version": "v1",
+      "export": "get_activity_detail_v1"
+    },
+    {
+      "name": "prepare_trail_send",
+      "version": "v1",
+      "export": "prepare_trail_send_v1"
+    }
+  ],
+  "auth": {
+    "contexts": {
+      "provider_session": {
+        "type": "session",
+        "fields": [
+          "email",
+          "password"
+        ],
+        "secretFields": [
+          "password"
+        ],
+        "refresh": {
+          "mode": "plugin",
+          "function": "refresh_session_v1"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "network": {
+      "connectors": [
+        {
+          "name": "api",
+          "type": "public_api",
+          "fixedBaseURL": "https://dashboard.hammerhead.io",
+          "allowedPathPrefixes": [
+            "/v1"
+          ],
+          "auth": [
+            "provider_session"
+          ]
+        }
+      ]
+    },
+    "auth": [
+      "provider_session"
+    ],
+    "uploads": {
+      "maxBytes": 25000000,
+      "contentTypes": [
+        "application/json",
+        "multipart/form-data"
+      ]
+    },
+    "downloads": {
+      "maxBytes": 1048576,
+      "contentTypes": [
+        "application/json"
+      ]
+    }
+  },
+  "configSchema": [
+    {
+      "key": "after",
+      "type": "date",
+      "label": "Start date",
+      "labels": {
+        "de": "Startdatum",
+        "en": "Start date"
+      },
+      "description": "Ignore routes and activities before this date.",
+      "descriptions": {
+        "de": "Wenn Ihr Hammerhead Konto bereits mit anderen Trail-Datenbanken wie komoot oder Strava synchronisiert ist, kann die zusätzliche Synchronisierung Ihrer Hammerhead-Daten zu Duplikaten führen. Um dies zu vermeiden, können Sie unten ein Startdatum festlegen, sodass nur Aktivitäten synchronisiert werden, die nach diesem Datum aufgezeichnet wurden.",
+        "en": "If your hammerhead account is already synced with other trail databases, such as komoot or Strava, start syncing your Hammerhead data may result in duplicates. To avoid this, you can set an start date below, meaning only activities recorded after this date will be synced.",
+        "no": "Hvis Hammerhead-kontoen din allerede er synkronisert med andre stidatabaser, som Komoot eller Strava, kan synkronisering av Hammerhead-data føre til duplikater. For å unngå dette kan du angi en startdato nedenfor, slik at bare aktiviteter registrert etter denne datoen vil bli synkronisert."
+      }
+    }
+  ],
+  "hostConfig": {
+    "categoryMapping": {
+      "biking": "Biking"
+    }
+  },
+  "metadata": {
+    "descriptions": {
+      "de": "Importiert Hammerhead-Routen und Aktivitäten und kann wanderer-Routen an Hammerhead senden.",
+      "en": "Imports Hammerhead routes and activities, and can send wanderer routes to Hammerhead.",
+      "no": "Synkroniserer Hammerhead-turene dine med Wanderer med jevne mellomrom."
+    },
+    "icons": {
+      "light": "icon.svg",
+      "dark": "icon_dark.svg"
+    },
+    "providerCategories": {
+      "biking": {
+        "labels": {
+          "de": "Radfahren",
+          "en": "Biking"
+        }
+      }
+    }
+  }
+}

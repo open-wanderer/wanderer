@@ -7,9 +7,11 @@
         text: string;
         action?: string;
         deny?: string;
+        alternative?: string;
         id?: string;
         onconfirm?: () => void
         oncancel?: () => void
+        onalternative?: () => void
     }
 
     let {
@@ -17,9 +19,11 @@
         text,
         action = "delete",
         deny ="cancel",
+        alternative,
         id = "confirm-modal",
         onconfirm,
-        oncancel
+        oncancel,
+        onalternative
     }: Props = $props();
 
     let modal: Modal;
@@ -29,13 +33,18 @@
     }
 
     function cancel() {
-        oncancel?.();
         modal.closeModal!();
+        oncancel?.();
+    }
+
+    function alternativeAction() {
+        modal.closeModal!();
+        onalternative?.();
     }
     
     function confirm() {
-        onconfirm?.()
         modal.closeModal!();
+        onconfirm?.()
     }
 </script>
 
@@ -48,6 +57,11 @@
             <button class="btn-secondary" onclick={cancel}
                 >{$_(deny)}</button
             >
+            {#if alternative}
+                <button class="btn-secondary" type="button" onclick={alternativeAction}
+                    >{$_(alternative)}</button
+                >
+            {/if}
             <button
                 id="confirm"
                 class={action === "delete" ? "btn-danger" : "btn-primary"}
