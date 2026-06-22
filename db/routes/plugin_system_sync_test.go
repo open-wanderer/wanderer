@@ -1,6 +1,10 @@
 package routes
 
-import "testing"
+import (
+	"testing"
+
+	"pocketbase/plugins/importer"
+)
 
 func TestCategoryMappingPreservesExplicitEmptyMap(t *testing.T) {
 	mapping := categoryMapping(map[string]any{
@@ -29,7 +33,22 @@ func TestCategoryMappingPreservesBlankProviderMapping(t *testing.T) {
 	if mapping == nil {
 		t.Fatal("expected category mapping")
 	}
-	if value, ok := mapping["Ride"]; !ok || value != "" {
+	if value, ok := mapping["Ride"]; !ok || value != (importer.CategoryMappingValue{}) {
 		t.Fatalf("expected blank provider mapping to be preserved, got %#v", mapping)
+	}
+}
+
+func TestCategoryMappingParsesStructuredTarget(t *testing.T) {
+	mapping := categoryMapping(map[string]any{
+		"categoryMapping": map[string]any{
+			"TrailRun": map[string]any{
+				"category":    "Running",
+				"subcategory": "Trail",
+			},
+		},
+	})
+	want := importer.CategoryMappingValue{Category: "Running", Subcategory: "Trail"}
+	if value, ok := mapping["TrailRun"]; !ok || value != want {
+		t.Fatalf("structured provider mapping = %#v, want %#v", mapping, want)
 	}
 }

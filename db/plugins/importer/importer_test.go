@@ -267,7 +267,7 @@ func TestCategoryIDForImportDoesNotFallbackWhenProviderMappingIsBlank(t *testing
 		},
 	}
 
-	if got := categoryIDForImport(nil, item, map[string]string{"Ride": ""}); got != "" {
+	if got := categoryIDForImport(nil, item, map[string]CategoryMappingValue{"Ride": {}}); got != "" {
 		t.Fatalf("expected blank provider mapping to suppress activity fallback, got %q", got)
 	}
 }
@@ -313,12 +313,90 @@ func TestCategoryFromProviderMappingUsesNormalizedCategoryName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, matched := CategoryFromProviderMapping(app, "Run", map[string]string{"Run": "trail-running"})
+	got, matched := CategoryFromProviderMapping(app, "Run", map[string]CategoryMappingValue{"Run": {Category: "trail-running"}})
 	if !matched {
 		t.Fatal("expected provider mapping to match")
 	}
 	if got != category.Id {
 		t.Fatalf("CategoryFromProviderMapping() = %q, want %q", got, category.Id)
+	}
+}
+
+func TestCategoryTargetFromProviderMappingSupportsSubcategoryPath(t *testing.T) {
+	app := setupImporterCategoryTestApp(t)
+
+	category := core.NewRecord(mustFindImporterTestCollection(t, app, "categories"))
+	category.Set("name", "Running")
+	if err := app.Save(category); err != nil {
+		t.Fatal(err)
+	}
+
+	subcategory := core.NewRecord(mustFindImporterTestCollection(t, app, "subcategories"))
+	subcategory.Set("category", category.Id)
+	subcategory.Set("name", "Trail")
+	if err := app.Save(subcategory); err != nil {
+		t.Fatal(err)
+	}
+
+	target, matched := CategoryTargetFromProviderMapping(app, "TrailRun", map[string]CategoryMappingValue{"TrailRun": {Category: "Running", Subcategory: "Trail"}})
+	if !matched {
+		t.Fatal("expected provider mapping to match")
+	}
+	if target.CategoryID != category.Id || target.SubcategoryID != subcategory.Id {
+		t.Fatalf("CategoryTargetFromProviderMapping() = %#v, want category=%q subcategory=%q", target, category.Id, subcategory.Id)
+	}
+}
+
+func TestCategoryTargetFromProviderMappingPrefersLiteralCategoryWithSlash(t *testing.T) {
+	app := setupImporterCategoryTestApp(t)
+
+	slashCategory := core.NewRecord(mustFindImporterTestCollection(t, app, "categories"))
+	slashCategory.Set("name", "Foo/Bar")
+	if err := app.Save(slashCategory); err != nil {
+		t.Fatal(err)
+	}
+
+	parentCategory := core.NewRecord(mustFindImporterTestCollection(t, app, "categories"))
+	parentCategory.Set("name", "Foo")
+	if err := app.Save(parentCategory); err != nil {
+		t.Fatal(err)
+	}
+
+	subcategory := core.NewRecord(mustFindImporterTestCollection(t, app, "subcategories"))
+	subcategory.Set("category", parentCategory.Id)
+	subcategory.Set("name", "Bar")
+	if err := app.Save(subcategory); err != nil {
+		t.Fatal(err)
+	}
+
+	target, matched := CategoryTargetFromProviderMapping(app, "Provider", map[string]CategoryMappingValue{"Provider": {Category: "Foo/Bar"}})
+	if !matched {
+		t.Fatal("expected provider mapping to match")
+	}
+	if target.CategoryID != slashCategory.Id || target.SubcategoryID != "" {
+		t.Fatalf("CategoryTargetFromProviderMapping() = %#v, want literal category %q", target, slashCategory.Id)
+	}
+}
+
+func TestCategoryTargetFromProviderMappingDoesNotSplitSlashCategoryName(t *testing.T) {
+	app := setupImporterCategoryTestApp(t)
+
+	category := core.NewRecord(mustFindImporterTestCollection(t, app, "categories"))
+	category.Set("name", "Foo")
+	if err := app.Save(category); err != nil {
+		t.Fatal(err)
+	}
+
+	subcategory := core.NewRecord(mustFindImporterTestCollection(t, app, "subcategories"))
+	subcategory.Set("category", category.Id)
+	subcategory.Set("name", "Bar")
+	if err := app.Save(subcategory); err != nil {
+		t.Fatal(err)
+	}
+
+	target, matched := CategoryTargetFromProviderMapping(app, "Provider", map[string]CategoryMappingValue{"Provider": {Category: "Foo/Bar"}})
+	if matched {
+		t.Fatalf("CategoryTargetFromProviderMapping() = %#v, expected slash category name not to be split", target)
 	}
 }
 
@@ -482,6 +560,16 @@ func setupImporterCategoryTestApp(t *testing.T) *pbtests.TestApp {
 	categories := core.NewBaseCollection("categories")
 	categories.Fields.Add(&core.TextField{Name: "name", Required: true})
 	if err := app.Save(categories); err != nil {
+		app.Cleanup()
+		t.Fatal(err)
+	}
+
+	subcategories := core.NewBaseCollection("subcategories")
+	subcategories.Fields.Add(
+		&core.RelationField{Name: "category", CollectionId: categories.Id, MaxSelect: 1, Required: true},
+		&core.TextField{Name: "name", Required: true},
+	)
+	if err := app.Save(subcategories); err != nil {
 		app.Cleanup()
 		t.Fatal(err)
 	}

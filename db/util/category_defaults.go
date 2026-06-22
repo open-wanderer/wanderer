@@ -24,10 +24,51 @@ var supportedCategoryLocales = map[string]struct{}{
 	"zh": {},
 }
 
-var defaultCategoryNames = []string{"Hiking", "Walking", "Running", "Climbing", "Skiing", "Canoeing", "Biking"}
+var defaultCategoryNames = []string{"Hiking", "Walking", "Running", "Climbing", "Skiing", "Canoeing", "Biking", "Other"}
 
 func DefaultCategoryNames() []string {
 	return append([]string(nil), defaultCategoryNames...)
+}
+
+func SeedDefaultCategories(app core.App) error {
+	collection, err := app.FindCollectionByNameOrId("categories")
+	if err != nil {
+		return err
+	}
+
+	allCategories, err := app.FindAllRecords("categories")
+	if err != nil {
+		return err
+	}
+
+	existing := make(map[string]struct{}, len(allCategories))
+	for _, category := range allCategories {
+		existing[NormalizeCategoryName(category.GetString("name"))] = struct{}{}
+	}
+
+	for _, name := range defaultCategoryNames {
+		if _, ok := existing[NormalizeCategoryName(name)]; ok {
+			continue
+		}
+
+		record := core.NewRecord(collection)
+		record.Set("name", name)
+		if collection.Fields.GetByName("settings") != nil {
+			record.Set("settings", defaultCategorySettings())
+		}
+		if err := app.Save(record); err != nil {
+			return fmt.Errorf("failed to seed default category %q: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
+func defaultCategorySettings() map[string]any {
+	return map[string]any{
+		"wp_merge_enabled": true,
+		"wp_merge_radius":  50,
+	}
 }
 
 var defaultCategoryTranslations = map[string]map[string]string{
@@ -95,6 +136,22 @@ var defaultCategoryTranslations = map[string]map[string]string{
 		"ru": "Пеший туризм",
 		"zh": "徒步",
 	},
+	"Other": {
+		"cs": "Ostatní",
+		"de": "Sonstiges",
+		"en": "Other",
+		"es": "Otros",
+		"eu": "Bestelakoak",
+		"fr": "Autre",
+		"hu": "Egyéb",
+		"it": "Altro",
+		"nl": "Overig",
+		"no": "Annet",
+		"pl": "Inne",
+		"pt": "Outros",
+		"ru": "Другое",
+		"zh": "其他",
+	},
 	"Running": {
 		"cs": "Běh",
 		"de": "Laufen",
@@ -138,6 +195,7 @@ var defaultCategoryIcons = map[string]string{
 	"Canoeing": "sailboat",
 	"Climbing": "mountain",
 	"Hiking":   "person-hiking",
+	"Other":    "shapes",
 	"Running":  "person-running",
 	"Skiing":   "person-skiing-nordic",
 	"Walking":  "person-walking",

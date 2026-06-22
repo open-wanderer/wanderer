@@ -351,6 +351,10 @@ func ensureRunningCategory(app core.App) error {
 		return err
 	}
 
+	if len(allCategories) == 0 {
+		return util.SeedDefaultCategories(app)
+	}
+
 	for _, category := range allCategories {
 		if util.NormalizeCategoryName(category.GetString("name")) == util.NormalizeCategoryName("Running") {
 			return nil

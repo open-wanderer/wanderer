@@ -578,24 +578,31 @@ func boolOption(config map[string]any, key string, fallback bool) bool {
 	return value
 }
 
-func categoryMapping(config map[string]any) map[string]string {
+func categoryMapping(config map[string]any) map[string]importer.CategoryMappingValue {
 	raw, ok := config["categoryMapping"].(map[string]any)
 	if !ok {
 		return nil
 	}
-	result := make(map[string]string, len(raw))
+	result := make(map[string]importer.CategoryMappingValue, len(raw))
 	for key, value := range raw {
-		category, ok := value.(string)
-		if ok {
-			result[key] = category
+		switch typed := value.(type) {
+		case string:
+			result[key] = importer.CategoryMappingValue{Category: strings.TrimSpace(typed)}
+		case map[string]any:
+			category, _ := typed["category"].(string)
+			subcategory, _ := typed["subcategory"].(string)
+			result[key] = importer.CategoryMappingValue{
+				Category:    strings.TrimSpace(category),
+				Subcategory: strings.TrimSpace(subcategory),
+			}
 		}
 	}
 	return result
 }
 
-func hasUsableCategoryMapping(mapping map[string]string) bool {
-	for _, category := range mapping {
-		if strings.TrimSpace(category) != "" {
+func hasUsableCategoryMapping(mapping map[string]importer.CategoryMappingValue) bool {
+	for _, target := range mapping {
+		if strings.TrimSpace(target.Category) != "" || strings.TrimSpace(target.Subcategory) != "" {
 			return true
 		}
 	}

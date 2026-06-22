@@ -24,8 +24,9 @@ type pluginCategoryRemapResponse struct {
 }
 
 type pluginCategoryRemapCandidate struct {
-	Trail      *core.Record
-	CategoryID string
+	Trail         *core.Record
+	CategoryID    string
+	SubcategoryID string
 }
 
 type pluginCategoryTrailReference struct {
@@ -72,6 +73,7 @@ func PluginSystemCategoryRemapApply(e *core.RequestEvent) error {
 				return err
 			}
 			trail.Set("category", candidate.CategoryID)
+			trail.Set("subcategory", candidate.SubcategoryID)
 			if err := txApp.Save(trail); err != nil {
 				return err
 			}
@@ -84,7 +86,7 @@ func PluginSystemCategoryRemapApply(e *core.RequestEvent) error {
 	return e.JSON(http.StatusOK, pluginCategoryRemapResponse{Count: len(candidates), Remapped: remapped})
 }
 
-func pluginCategoryRemapInput(e *core.RequestEvent) (*core.Record, map[string]string, error) {
+func pluginCategoryRemapInput(e *core.RequestEvent) (*core.Record, map[string]importer.CategoryMappingValue, error) {
 	if e.Auth == nil {
 		return nil, nil, apis.NewUnauthorizedError("authentication required", nil)
 	}
@@ -109,7 +111,7 @@ func pluginCategoryRemapInput(e *core.RequestEvent) (*core.Record, map[string]st
 	return instance, categoryMapping(pluginHostConfig(config)), nil
 }
 
-func pluginCategoryRemapCandidates(app core.App, userID string, pluginID string, mapping map[string]string) ([]pluginCategoryRemapCandidate, error) {
+func pluginCategoryRemapCandidates(app core.App, userID string, pluginID string, mapping map[string]importer.CategoryMappingValue) ([]pluginCategoryRemapCandidate, error) {
 	if userID == "" || pluginID == "" || len(mapping) == 0 {
 		return nil, nil
 	}
@@ -122,7 +124,7 @@ func pluginCategoryRemapCandidates(app core.App, userID string, pluginID string,
 	return pluginCategoryRemapCandidatesFromRefs(app, refs, mapping), nil
 }
 
-func pluginCategoryRemapCandidatesFromRefs(app core.App, refs []pluginCategoryTrailReference, mapping map[string]string) []pluginCategoryRemapCandidate {
+func pluginCategoryRemapCandidatesFromRefs(app core.App, refs []pluginCategoryTrailReference, mapping map[string]importer.CategoryMappingValue) []pluginCategoryRemapCandidate {
 	if len(refs) == 0 || len(mapping) == 0 {
 		return nil
 	}
@@ -130,19 +132,23 @@ func pluginCategoryRemapCandidatesFromRefs(app core.App, refs []pluginCategoryTr
 	candidates := make([]pluginCategoryRemapCandidate, 0, len(refs))
 	for _, ref := range refs {
 		providerCategory := strings.TrimSpace(ref.Ref.GetString("provider_category"))
-		categoryID, matched := importer.CategoryFromProviderMapping(app, providerCategory, mapping)
-		if !matched || categoryID == "" || ref.Trail.GetString("category") == categoryID {
+		target, matched := importer.CategoryTargetFromProviderMapping(app, providerCategory, mapping)
+		if !matched || target.CategoryID == "" {
+			continue
+		}
+		if ref.Trail.GetString("category") == target.CategoryID && ref.Trail.GetString("subcategory") == target.SubcategoryID {
 			continue
 		}
 		candidates = append(candidates, pluginCategoryRemapCandidate{
-			Trail:      ref.Trail,
-			CategoryID: categoryID,
+			Trail:         ref.Trail,
+			CategoryID:    target.CategoryID,
+			SubcategoryID: target.SubcategoryID,
 		})
 	}
 	return candidates
 }
 
-func pluginCategoryBackfilledSinceMappingCountFromRefs(app core.App, instance *core.Record, refs []pluginCategoryTrailReference, mapping map[string]string) int {
+func pluginCategoryBackfilledSinceMappingCountFromRefs(app core.App, instance *core.Record, refs []pluginCategoryTrailReference, mapping map[string]importer.CategoryMappingValue) int {
 	mappingUpdatedAt := categoryMappingUpdatedAt(app, instance)
 	if mappingUpdatedAt.IsZero() || len(refs) == 0 || len(mapping) == 0 {
 		return 0
@@ -155,8 +161,8 @@ func pluginCategoryBackfilledSinceMappingCountFromRefs(app core.App, instance *c
 			continue
 		}
 		providerCategory := strings.TrimSpace(ref.Ref.GetString("provider_category"))
-		categoryID, matched := importer.CategoryFromProviderMapping(app, providerCategory, mapping)
-		if matched && categoryID != "" && ref.Trail.GetString("category") != categoryID {
+		target, matched := importer.CategoryTargetFromProviderMapping(app, providerCategory, mapping)
+		if matched && target.CategoryID != "" && (ref.Trail.GetString("category") != target.CategoryID || ref.Trail.GetString("subcategory") != target.SubcategoryID) {
 			count++
 		}
 	}

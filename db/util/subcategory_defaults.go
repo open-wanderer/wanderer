@@ -20,6 +20,13 @@ var defaultSubcategories = []defaultSubcategorySeed{
 	{parentCategory: "Biking", name: "Gravel", shortName: "GRVL"},
 	{
 		parentCategory: "Biking",
+		name:           "Touring",
+		shortName:      "TOUR",
+		aliases:        []string{"Touring Bike", "City Bike"},
+		translations:   subcategoryTranslations("Touring", "Tourenrad", "TOUR"),
+	},
+	{
+		parentCategory: "Biking",
 		name:           "Road",
 		shortName:      "ROAD",
 		badgeIcon:      "grip-lines-vertical",

@@ -117,6 +117,39 @@ func TestDefaultCategoryIconsAreNonEmpty(t *testing.T) {
 	}
 }
 
+func TestSeedDefaultCategoriesAddsMissingDefaults(t *testing.T) {
+	app := setupCategoryValidationTestApp(t)
+	defer app.Cleanup()
+
+	running := createTestCategory(t, app, "Running")
+
+	if err := SeedDefaultCategories(app); err != nil {
+		t.Fatalf("SeedDefaultCategories() error = %v", err)
+	}
+
+	categories, err := app.FindAllRecords("categories")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	byName := map[string]*core.Record{}
+	for _, category := range categories {
+		byName[category.GetString("name")] = category
+	}
+
+	for _, name := range DefaultCategoryNames() {
+		if byName[name] == nil {
+			t.Fatalf("default category %q was not seeded", name)
+		}
+	}
+	if byName["Running"].Id != running.Id {
+		t.Fatalf("existing Running category was replaced: got %q, want %q", byName["Running"].Id, running.Id)
+	}
+	if len(categories) != len(DefaultCategoryNames()) {
+		t.Fatalf("category count = %d, want %d", len(categories), len(DefaultCategoryNames()))
+	}
+}
+
 func TestMergeDefaultCategoryTranslations(t *testing.T) {
 	merged, changed := mergeDefaultCategoryTranslations(
 		map[string]string{
@@ -245,6 +278,7 @@ func TestDefaultSubcategories(t *testing.T) {
 		"Hiking/Snowshoeing":   {},
 		"Hiking/Family":        {},
 		"Hiking/Pilgrimage":    {},
+		"Biking/Touring":       {},
 		"Running/Trail":        {},
 		"Running/Road":         {},
 		"Skiing/Cross-country": {},
@@ -296,6 +330,11 @@ func TestDefaultSubcategories(t *testing.T) {
 		if subcategory.parentCategory == "Hiking" && subcategory.name == "Pilgrimage" {
 			if subcategory.translations["de"].Name != "Pilgern" {
 				t.Fatalf("Pilgrimage de translation = %q, want Pilgern", subcategory.translations["de"].Name)
+			}
+		}
+		if subcategory.parentCategory == "Biking" && subcategory.name == "Touring" {
+			if subcategory.translations["de"].Name != "Tourenrad" {
+				t.Fatalf("Touring de translation = %q, want Tourenrad", subcategory.translations["de"].Name)
 			}
 		}
 	}

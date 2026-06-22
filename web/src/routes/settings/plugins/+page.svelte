@@ -5,6 +5,7 @@
     import type { Category } from "$lib/models/category.js";
     import type { PluginInstance } from "$lib/models/plugin_instance.js";
     import type { PluginProvider } from "$lib/models/plugin_provider.js";
+    import type { Subcategory } from "$lib/models/subcategory.js";
     import {
         plugin_category_remap_apply,
         plugin_category_remap_preview,
@@ -30,6 +31,7 @@
         untrack(() => data.pluginProviders ?? []),
     );
     let categories: Category[] = $state(untrack(() => data.categories ?? []));
+    let subcategories: Subcategory[] = $state(untrack(() => data.subcategories ?? []));
 
     let pluginSettingsModal: PluginInstanceSettingsModal | undefined = $state();
     let categoryRemapConfirmModal: ConfirmModal | undefined = $state();
@@ -554,6 +556,7 @@
             plugin={selectedPlugin}
             instance={instanceForPlugin(selectedPlugin)}
             categories={categories}
+            subcategories={subcategories}
             onbeforecategorymappingsave={confirmCategoryMappingSave}
             onsave={savePluginInstance}
         ></PluginInstanceSettingsModal>

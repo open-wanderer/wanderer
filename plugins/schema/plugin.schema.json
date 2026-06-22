@@ -412,7 +412,17 @@
           "type": "boolean"
         },
         "categoryMapping": {
-          "$ref": "#/definitions/stringMap"
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/definitions/categoryMappingTarget"
+              }
+            ]
+          }
         },
         "connectors": {
           "type": "object",
@@ -474,6 +484,18 @@
       "properties": {
         "labels": {
           "$ref": "#/definitions/stringMap"
+        }
+      }
+    },
+    "categoryMappingTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "subcategory": {
+          "type": "string"
         }
       }
     }
