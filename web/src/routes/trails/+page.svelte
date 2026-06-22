@@ -227,7 +227,7 @@
     <TrailList
         bind:filter
         {loading}
-        {trails}
+        bind:trails
         {pagination}
         onupdate={() => handleFilterUpdate(false)}
         onpagination={paginate}

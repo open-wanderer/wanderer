@@ -54,7 +54,7 @@
         toggle?: Snippet<[any]>;
         onDelete?: () => void;
         onShare?: () => void;
-        onUpdate?: () => void;
+        onUpdate?: (updatedTrails?: Trail[]) => void;
         onMerge?: (result: MergeResult) => void;
     }
 
@@ -700,6 +700,7 @@
     async function updateTrailsBulk(changes: TrailBulkEditChanges) {
         loading = true;
         let updatedCount = 0;
+        const updatedTrails: Trail[] = [];
 
         for (const cTrail of trails ?? []) {
             if (!cTrail || !canEditTrail(cTrail)) continue;
@@ -723,13 +724,14 @@
             };
 
             try {
-                await trails_update(
+                const updated = await trails_update(
                     origTrail,
                     updatedTrail,
                     undefined,
                     undefined,
                     ["tags"],
                 );
+                updatedTrails.push(updated);
                 updatedCount += 1;
             } catch (e) {
                 console.error(e);
@@ -752,7 +754,7 @@
                 }),
             });
         }
-        onUpdate?.();
+        onUpdate?.(updatedTrails);
     }
 
     async function exportTrails(exportSettings: {

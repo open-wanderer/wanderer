@@ -71,7 +71,7 @@
     {pagination}
     {loading}
     fullWidthCards={true}
-    trails={trails.items}
+    bind:trails={trails.items}
     {filter}
     onupdate={handleFilterUpdate}
     onpagination={paginate}
