@@ -264,8 +264,8 @@ func TestPrepopulateDefaultCategoryIcons(t *testing.T) {
 	if got := walking.GetString("icon"); got != "custom-icon" {
 		t.Fatalf("walking icon = %q, want custom icon", got)
 	}
-	if got := canoeing.GetString("icon"); got != defaultCategoryIcons["Canoeing"] {
-		t.Fatalf("canoeing icon = %q, want %q", got, defaultCategoryIcons["Canoeing"])
+	if got := canoeing.GetString("icon"); got != "ship" {
+		t.Fatalf("canoeing icon = %q, want existing icon", got)
 	}
 }
 

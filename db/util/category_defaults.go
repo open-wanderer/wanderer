@@ -2,7 +2,6 @@ package util
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -201,18 +200,6 @@ var defaultCategoryIcons = map[string]string{
 	"Walking":  "person-walking",
 }
 
-var deprecatedDefaultCategoryIcons = map[string]map[string]struct{}{
-	"Canoeing": {
-		"ship": {},
-	},
-	"Climbing": {
-		"mountain-sun": {},
-	},
-	"Skiing": {
-		"person-skiing": {},
-	},
-}
-
 func PrepopulateDefaultCategoryTranslations(app core.App) error {
 	allCategories, err := app.FindAllRecords("categories")
 	if err != nil {
@@ -264,15 +251,8 @@ func PrepopulateDefaultCategoryIcons(app core.App) error {
 			continue
 		}
 
-		currentIcon := strings.TrimSpace(category.GetString("icon"))
-		if currentIcon == defaultIcon {
+		if category.GetString("icon") != "" {
 			continue
-		}
-		if currentIcon != "" {
-			deprecatedIcons := deprecatedDefaultCategoryIcons[categoryName]
-			if _, ok := deprecatedIcons[currentIcon]; !ok {
-				continue
-			}
 		}
 
 		category.Set("icon", defaultIcon)
