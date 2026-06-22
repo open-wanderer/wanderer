@@ -7,6 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pocketbase/pocketbase/core"
+	pbtests "github.com/pocketbase/pocketbase/tests"
+
 	pluginsystem "pocketbase/pluginsystem"
 	"pocketbase/util"
 )
@@ -282,6 +285,43 @@ func TestProviderCategoryFromImport(t *testing.T) {
 	}
 }
 
+func TestCategoryNameForActivityType(t *testing.T) {
+	cases := map[string]string{
+		"run":        "Running",
+		"running":    "Running",
+		"VirtualRun": "Running",
+		"trailrun":   "Running",
+		"jogging":    "Running",
+		"walk":       "Walking",
+		"hike":       "Hiking",
+		"unknown":    "",
+	}
+
+	for activityType, want := range cases {
+		if got := categoryNameForActivityType(activityType); got != want {
+			t.Fatalf("categoryNameForActivityType(%q) = %q, want %q", activityType, got, want)
+		}
+	}
+}
+
+func TestCategoryFromProviderMappingUsesNormalizedCategoryName(t *testing.T) {
+	app := setupImporterCategoryTestApp(t)
+
+	category := core.NewRecord(mustFindImporterTestCollection(t, app, "categories"))
+	category.Set("name", "Trail Running")
+	if err := app.Save(category); err != nil {
+		t.Fatal(err)
+	}
+
+	got, matched := CategoryFromProviderMapping(app, "Run", map[string]string{"Run": "trail-running"})
+	if !matched {
+		t.Fatal("expected provider mapping to match")
+	}
+	if got != category.Id {
+		t.Fatalf("CategoryFromProviderMapping() = %q, want %q", got, category.Id)
+	}
+}
+
 func TestDateFromImport(t *testing.T) {
 	started := time.Date(2025, 6, 1, 8, 0, 0, 0, time.UTC)
 
@@ -429,4 +469,33 @@ func TestRemoveRawQueryParamOrdered(t *testing.T) {
 	if got := removeRawQueryParamOrdered(raw, "api_key"); got != "z=last&a=first" {
 		t.Fatalf("unexpected query: %q", got)
 	}
+}
+
+func setupImporterCategoryTestApp(t *testing.T) *pbtests.TestApp {
+	t.Helper()
+
+	app, err := pbtests.NewTestApp(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	categories := core.NewBaseCollection("categories")
+	categories.Fields.Add(&core.TextField{Name: "name", Required: true})
+	if err := app.Save(categories); err != nil {
+		app.Cleanup()
+		t.Fatal(err)
+	}
+
+	return app
+}
+
+func mustFindImporterTestCollection(t *testing.T, app core.App, name string) *core.Collection {
+	t.Helper()
+
+	collection, err := app.FindCollectionByNameOrId(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return collection
 }

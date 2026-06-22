@@ -804,7 +804,7 @@ func CategoryFromProviderMapping(app core.App, providerCategory string, mapping 
 	if category, err := app.FindRecordById("categories", target); err == nil && category != nil {
 		return category.Id, true
 	}
-	category, _ := app.FindFirstRecordByData("categories", "name", target)
+	category, _ := util.FindCategoryByNormalizedName(app, target)
 	if category == nil {
 		return "", false
 	}
@@ -814,32 +814,39 @@ func CategoryFromProviderMapping(app core.App, providerCategory string, mapping 
 // categoryIDForActivityType maps common provider activity labels to wanderer's
 // built-in categories. Unknown labels intentionally leave the category empty.
 func categoryIDForActivityType(app core.App, activityType string) string {
-	categoryMap := map[string]string{
-		"hiking":   "Hiking",
-		"hike":     "Hiking",
-		"walking":  "Walking",
-		"walk":     "Walking",
-		"running":  "Walking",
-		"run":      "Walking",
-		"biking":   "Biking",
-		"cycling":  "Biking",
-		"ride":     "Biking",
-		"mtb":      "Biking",
-		"skiing":   "Skiing",
-		"canoeing": "Canoeing",
-		"climbing": "Climbing",
-	}
-
-	name := categoryMap[strings.ToLower(activityType)]
+	name := categoryNameForActivityType(activityType)
 	if name == "" {
 		return ""
 	}
 
-	category, _ := app.FindFirstRecordByData("categories", "name", name)
+	category, _ := util.FindCategoryByNormalizedName(app, name)
 	if category == nil {
 		return ""
 	}
 	return category.Id
+}
+
+func categoryNameForActivityType(activityType string) string {
+	categoryMap := map[string]string{
+		"hiking":     "Hiking",
+		"hike":       "Hiking",
+		"walking":    "Walking",
+		"walk":       "Walking",
+		"running":    "Running",
+		"run":        "Running",
+		"virtualrun": "Running",
+		"trailrun":   "Running",
+		"jogging":    "Running",
+		"biking":     "Biking",
+		"cycling":    "Biking",
+		"ride":       "Biking",
+		"mtb":        "Biking",
+		"skiing":     "Skiing",
+		"canoeing":   "Canoeing",
+		"climbing":   "Climbing",
+	}
+
+	return categoryMap[strings.ToLower(strings.TrimSpace(activityType))]
 }
 
 func fallbackName(name string) string {

@@ -208,21 +208,5 @@ func providerActivityType(activity *detailedActivity) string {
 }
 
 func activityType(activity *detailedActivity) string {
-	value := providerActivityType(activity)
-	switch value {
-	case "AlpineSki", "BackcountrySki", "IceSkate", "NordicSki", "RollerSki", "Snowboard":
-		return "skiing"
-	case "Canoeing", "Kayaking", "Kitesurf", "Rowing", "Sail", "StandUpPaddling", "Surfing", "Windsurf":
-		return "canoeing"
-	case "Hike", "Snowshoe":
-		return "hiking"
-	case "Run", "VirtualRun", "Walk", "Golf", "Skateboard", "Wheelchair":
-		return "walking"
-	case "Ride", "EBikeRide", "Handcycle", "InlineSkate", "Velomobile", "VirtualRide":
-		return "biking"
-	case "RockClimbing":
-		return "climbing"
-	default:
-		return value
-	}
+	return activityTypeFromProvider(providerActivityType(activity))
 }
