@@ -13,7 +13,11 @@
     import type { Subcategory } from "$lib/models/subcategory";
     import { plugin_auth_validate, plugin_oauth_start } from "$lib/stores/plugin_instance_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { normalizeCategoryName } from "$lib/util/category_util";
+    import {
+        categoryMappingTargetFromUnknown,
+        categoryMappingTargetToPickerValue,
+        type CategoryMappingTarget,
+    } from "$lib/util/category_util";
     import { translatePluginAPIError } from "$lib/util/plugin_error_i18n";
     import {
         configFieldDescription,
@@ -29,11 +33,6 @@
         providerCategory: string;
         category: string;
     }
-
-    type CategoryMappingTarget = string | {
-        category?: string;
-        subcategory?: string;
-    };
 
     type PluginInstanceForm = Partial<PluginInstance> & {
         mappingChanged?: boolean;
@@ -186,24 +185,12 @@
     function categoryTargetMapping(raw: Record<string, unknown>): Record<string, CategoryMappingTarget> {
         return Object.fromEntries(
             Object.entries(raw)
-                .map(([key, value]) => [key, categoryMappingTarget(value)])
+                .map(([key, value]) => [
+                    key,
+                    categoryMappingTargetFromUnknown(value),
+                ])
                 .filter(([, value]) => value !== undefined),
         );
-    }
-
-    function categoryMappingTarget(value: unknown): CategoryMappingTarget | undefined {
-        if (typeof value === "string") {
-            return value;
-        }
-        if (!value || typeof value !== "object" || Array.isArray(value)) {
-            return undefined;
-        }
-
-        const raw = value as Record<string, unknown>;
-        return {
-            category: typeof raw.category === "string" ? raw.category : "",
-            subcategory: typeof raw.subcategory === "string" ? raw.subcategory : "",
-        };
     }
 
     function isBlankCategoryMappingTarget(target: CategoryMappingTarget): boolean {
@@ -224,66 +211,11 @@
     }
 
     function categoryPickerValue(target: CategoryMappingTarget): string {
-        if (typeof target !== "string") {
-            const subcategoryValue = categoryTargetValue(target.subcategory ?? "");
-            if (subcategoryValue.startsWith("subcategory:")) {
-                return subcategoryValue;
-            }
-            const categoryValue = categoryTargetValue(target.category ?? "");
-            if (categoryValue && target.subcategory?.trim()) {
-                const rawSubcategory = target.subcategory;
-                const categoryId = categoryValue.replace("category:", "");
-                const subcategory = subcategories.find(
-                    (candidate) =>
-                        candidate.category === categoryId &&
-                        normalizeCategoryName(candidate.name) === normalizeCategoryName(rawSubcategory),
-                );
-                if (subcategory) {
-                    return `subcategory:${subcategory.id}`;
-                }
-            }
-            return categoryValue;
-        }
-
-        return categoryTargetValue(target);
-    }
-
-    function categoryTargetValue(value: string): string {
-        const trimmed = value.trim();
-        if (!trimmed) {
-            return "";
-        }
-
-        const directCategory = categories.find((category) => category.id === trimmed);
-        if (directCategory) {
-            return `category:${directCategory.id}`;
-        }
-
-        const directSubcategory = subcategories.find((subcategory) => subcategory.id === trimmed);
-        if (directSubcategory) {
-            return `subcategory:${directSubcategory.id}`;
-        }
-
-        if (trimmed.includes("/")) {
-            const [rawCategory, rawSubcategory] = trimmed.split("/", 2);
-            const category = categories.find(
-                (candidate) =>
-                    normalizeCategoryName(candidate.name) === normalizeCategoryName(rawCategory),
-            );
-            const subcategory = subcategories.find(
-                (candidate) =>
-                    candidate.category === category?.id &&
-                    normalizeCategoryName(candidate.name) === normalizeCategoryName(rawSubcategory),
-            );
-            if (subcategory) {
-                return `subcategory:${subcategory.id}`;
-            }
-        }
-
-        const namedCategory = categories.find(
-            (category) => normalizeCategoryName(category.name) === normalizeCategoryName(trimmed),
+        return categoryMappingTargetToPickerValue(
+            target,
+            categories,
+            subcategories,
         );
-        return namedCategory ? `category:${namedCategory.id}` : "";
     }
 
     function categoryMappingTargetFromPickerValue(value: string): CategoryMappingTarget {

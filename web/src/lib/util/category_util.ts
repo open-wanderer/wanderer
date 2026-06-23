@@ -9,6 +9,18 @@ type CategoryShortNameEntity = Pick<
     "name" | "short_name" | "translations"
 >;
 
+export type CategoryMappingTarget =
+    | string
+    | {
+          category?: string;
+          subcategory?: string;
+      };
+
+export type ResolvedCategoryMappingTarget = {
+    categoryId?: string;
+    subcategoryId?: string;
+};
+
 export function normalizeCategoryName(name: string): string {
     // Best-effort mirror of the backend normalization for resolving ?category= links.
     // Full Unicode casefold parity would require a dedicated frontend casefold implementation.
@@ -18,6 +30,132 @@ export function normalizeCategoryName(name: string): string {
         .toLowerCase()
         .replace(/[\s_-]+/g, " ")
         .trim();
+}
+
+export function categoryMappingTargetFromUnknown(
+    value: unknown,
+): CategoryMappingTarget | undefined {
+    if (typeof value === "string") {
+        return value;
+    }
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return undefined;
+    }
+
+    const raw = value as Record<string, unknown>;
+    return {
+        category: typeof raw.category === "string" ? raw.category : "",
+        subcategory: typeof raw.subcategory === "string" ? raw.subcategory : "",
+    };
+}
+
+function resolveCategoryTargetValue(
+    value: string,
+    categories: Category[],
+    subcategories: Subcategory[],
+): ResolvedCategoryMappingTarget {
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return {};
+    }
+
+    const directCategory = categories.find((category) => category.id === trimmed);
+    if (directCategory) {
+        return { categoryId: directCategory.id };
+    }
+
+    const directSubcategory = subcategories.find(
+        (subcategory) => subcategory.id === trimmed,
+    );
+    if (directSubcategory) {
+        return {
+            categoryId: directSubcategory.category,
+            subcategoryId: directSubcategory.id,
+        };
+    }
+
+    if (trimmed.includes("/")) {
+        const [rawCategory, rawSubcategory] = trimmed.split("/", 2);
+        const category = categories.find(
+            (candidate) =>
+                normalizeCategoryName(candidate.name) ===
+                normalizeCategoryName(rawCategory),
+        );
+        const subcategory = subcategories.find(
+            (candidate) =>
+                candidate.category === category?.id &&
+                normalizeCategoryName(candidate.name) ===
+                    normalizeCategoryName(rawSubcategory),
+        );
+        if (subcategory) {
+            return {
+                categoryId: subcategory.category,
+                subcategoryId: subcategory.id,
+            };
+        }
+    }
+
+    const namedCategory = categories.find(
+        (category) =>
+            normalizeCategoryName(category.name) === normalizeCategoryName(trimmed),
+    );
+    return namedCategory ? { categoryId: namedCategory.id } : {};
+}
+
+export function resolveCategoryMappingTarget(
+    target: CategoryMappingTarget,
+    categories: Category[],
+    subcategories: Subcategory[],
+): ResolvedCategoryMappingTarget {
+    if (typeof target === "string") {
+        return resolveCategoryTargetValue(target, categories, subcategories);
+    }
+
+    const categoryValue = resolveCategoryTargetValue(
+        target.category ?? "",
+        categories,
+        subcategories,
+    );
+    const subcategoryValue = resolveCategoryTargetValue(
+        target.subcategory ?? "",
+        categories,
+        subcategories,
+    );
+    if (subcategoryValue.subcategoryId) {
+        return subcategoryValue;
+    }
+
+    if (target.subcategory?.trim() && categoryValue.categoryId) {
+        const subcategory = subcategories.find(
+            (candidate) =>
+                candidate.category === categoryValue.categoryId &&
+                normalizeCategoryName(candidate.name) ===
+                    normalizeCategoryName(target.subcategory ?? ""),
+        );
+        if (subcategory) {
+            return {
+                categoryId: subcategory.category,
+                subcategoryId: subcategory.id,
+            };
+        }
+    }
+
+    return categoryValue;
+}
+
+export function categoryMappingTargetToPickerValue(
+    target: CategoryMappingTarget,
+    categories: Category[],
+    subcategories: Subcategory[],
+): string {
+    const resolved = resolveCategoryMappingTarget(target, categories, subcategories);
+    if (resolved.subcategoryId) {
+        return `subcategory:${resolved.subcategoryId}`;
+    }
+    if (resolved.categoryId) {
+        return `category:${resolved.categoryId}`;
+    }
+    return "";
 }
 
 function localeCandidates(locale?: string | null): string[] {

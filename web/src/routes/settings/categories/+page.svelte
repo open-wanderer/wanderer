@@ -1,7 +1,10 @@
 <script lang="ts">
+    import ConfirmModal from "$lib/components/confirm_modal.svelte";
     import Toggle from "$lib/components/base/toggle.svelte";
     import type { Category } from "$lib/models/category";
     import type { UserCategoryPreference } from "$lib/models/category_preference";
+    import type { PluginInstance } from "$lib/models/plugin_instance";
+    import type { PluginProvider } from "$lib/models/plugin_provider";
     import type { Subcategory } from "$lib/models/subcategory";
     import {
         categoryPreferences,
@@ -15,19 +18,43 @@
     } from "$lib/stores/subcategory_preference_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import {
+        categoryMappingTargetFromUnknown,
         displayCategoryName,
         displaySubcategoryLabel,
         preferenceForCategory,
+        resolveCategoryMappingTarget,
         sortedCategoriesByPreference,
         subcategoryVisible,
     } from "$lib/util/category_util";
+    import { pluginTitle } from "$lib/util/plugin_i18n";
     import { tick } from "svelte";
     import { _, locale } from "svelte-i18n";
 
     let { data } = $props();
 
+    type PendingDisable =
+        | {
+              type: "category";
+              category: Category;
+              patch: Partial<UserCategoryPreference>;
+          }
+        | {
+              type: "subcategory";
+              subcategory: Subcategory;
+          };
+
+    type PluginMappingReference = {
+        categoryId?: string;
+        subcategoryId?: string;
+        pluginName: string;
+        enabled: boolean;
+    };
+
     let savingCategory = $state<string | null>(null);
     let reordering = $state(false);
+    let pendingDisable = $state<PendingDisable | null>(null);
+    let categoryToggleResetKey = $state(0);
+    let disableConfirmModal: ConfirmModal;
     let listElement: HTMLOListElement;
     let dragIndex = $state<number | null>(null);
     let insertBefore = $state<number | null>(null);
@@ -38,6 +65,12 @@
             $categoryPreferences,
             $locale,
         ),
+    );
+    let pluginMappingTargets = $derived(resolvePluginMappingTargets());
+    let disableConfirmTitle = $derived(
+        pendingDisable?.type === "subcategory"
+            ? $_("confirm-disable-subcategory-with-trails-title")
+            : $_("confirm-disable-category-with-trails-title"),
     );
 
     function preference(category: Category): UserCategoryPreference | undefined {
@@ -64,12 +97,284 @@
         return subcategoryVisible(subcategory.id, $subcategoryPreferences);
     }
 
-    async function toggleSubcategoryVisibility(subcategory: Subcategory) {
+    function ownTrailCountForCategory(category: Category): number {
+        return data.trailUsage.categories[category.id] ?? 0;
+    }
+
+    function ownTrailCountForSubcategory(subcategory: Subcategory): number {
+        return data.trailUsage.subcategories[subcategory.id] ?? 0;
+    }
+
+    function hostConfig(instance: PluginInstance): Record<string, unknown> {
+        const host = instance.config?.host;
+        if (!host || typeof host !== "object" || Array.isArray(host)) {
+            return {};
+        }
+        return host as Record<string, unknown>;
+    }
+
+    function pluginProvider(instance: PluginInstance): PluginProvider | undefined {
+        return data.pluginProviders?.find(
+            (plugin: PluginProvider) => plugin.id === instance.plugin_id,
+        );
+    }
+
+    function pluginDisplayName(instance: PluginInstance): string {
+        const plugin = pluginProvider(instance);
+        return plugin ? pluginTitle(plugin, $locale) : instance.plugin_id;
+    }
+
+    function hasAuthInfo(instance: PluginInstance): boolean {
+        return Object.values(instance.auth ?? {}).some(
+            (value) => typeof value === "string" && value.trim().length > 0,
+        );
+    }
+
+    function shouldConsiderPluginInstance(instance: PluginInstance): boolean {
+        return instance.enabled || hasAuthInfo(instance);
+    }
+
+    function resolvePluginMappingTargets(): PluginMappingReference[] {
+        const targets: PluginMappingReference[] = [];
+        for (const instance of data.pluginInstances ?? []) {
+            if (!shouldConsiderPluginInstance(instance)) {
+                continue;
+            }
+
+            const mapping = hostConfig(instance).categoryMapping;
+            if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
+                continue;
+            }
+
+            for (const value of Object.values(mapping)) {
+                const target = categoryMappingTargetFromUnknown(value);
+                if (!target) {
+                    continue;
+                }
+                const resolved = resolveCategoryMappingTarget(
+                    target,
+                    data.categories,
+                    data.subcategories,
+                );
+                if (resolved.categoryId || resolved.subcategoryId) {
+                    targets.push({
+                        ...resolved,
+                        pluginName: pluginDisplayName(instance),
+                        enabled: instance.enabled,
+                    });
+                }
+            }
+        }
+        return targets;
+    }
+
+    function pluginMappingCountForCategory(category: Category): number {
+        return pluginMappingTargets.filter(
+            (target) => target.categoryId === category.id,
+        ).length;
+    }
+
+    function pluginMappingCountForSubcategory(subcategory: Subcategory): number {
+        return pluginMappingTargets.filter(
+            (target) => target.subcategoryId === subcategory.id,
+        ).length;
+    }
+
+    function uniquePluginNames(
+        references: PluginMappingReference[],
+    ): string[] {
+        return [...new Set(references.map((reference) => reference.pluginName))]
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b, $locale ?? undefined));
+    }
+
+    function pluginMappingsForCategory(
+        category: Category,
+    ): PluginMappingReference[] {
+        return pluginMappingTargets.filter(
+            (target) => target.categoryId === category.id,
+        );
+    }
+
+    function pluginMappingsForSubcategory(
+        subcategory: Subcategory,
+    ): PluginMappingReference[] {
+        return pluginMappingTargets.filter(
+            (target) => target.subcategoryId === subcategory.id,
+        );
+    }
+
+    function activePluginNamesForPendingDisable(): string[] {
+        if (!pendingDisable) {
+            return [];
+        }
+
+        if (pendingDisable.type === "subcategory") {
+            return uniquePluginNames(
+                pluginMappingsForSubcategory(pendingDisable.subcategory).filter(
+                    (reference) => reference.enabled,
+                ),
+            );
+        }
+
+        return uniquePluginNames(
+            pluginMappingsForCategory(pendingDisable.category).filter(
+                (reference) => reference.enabled,
+            ),
+        );
+    }
+
+    function inactivePluginNamesForPendingDisable(): string[] {
+        if (!pendingDisable) {
+            return [];
+        }
+
+        if (pendingDisable.type === "subcategory") {
+            return uniquePluginNames(
+                pluginMappingsForSubcategory(pendingDisable.subcategory).filter(
+                    (reference) => !reference.enabled,
+                ),
+            );
+        }
+
+        return uniquePluginNames(
+            pluginMappingsForCategory(pendingDisable.category).filter(
+                (reference) => !reference.enabled,
+            ),
+        );
+    }
+
+    function ownTrailCountForPendingDisable(): number {
+        if (!pendingDisable) {
+            return 0;
+        }
+
+        return pendingDisable.type === "subcategory"
+            ? ownTrailCountForSubcategory(pendingDisable.subcategory)
+            : ownTrailCountForCategory(pendingDisable.category);
+    }
+
+    function ownTrailMessageForPendingDisable(): string {
+        if (!pendingDisable) {
+            return "";
+        }
+
+        if (pendingDisable.type === "subcategory") {
+            return $_("confirm-disable-subcategory-with-trails", {
+                values: {
+                    count: ownTrailCountForSubcategory(
+                        pendingDisable.subcategory,
+                    ),
+                    name: displaySubcategoryLabel(
+                        pendingDisable.subcategory,
+                        $locale,
+                    ),
+                },
+            });
+        }
+
+        return $_("confirm-disable-category-with-trails", {
+            values: {
+                count: ownTrailCountForCategory(pendingDisable.category),
+                name: displayCategoryName(pendingDisable.category, $locale),
+            },
+        });
+    }
+
+    function trailListHrefForPendingDisable(): string {
+        if (!pendingDisable) {
+            return "/trails";
+        }
+
+        const params = new URLSearchParams();
+        if (data.user?.actor) {
+            params.set("author", data.user.actor);
+        }
+        if (pendingDisable.type === "subcategory") {
+            params.set("subcategory", pendingDisable.subcategory.id);
+        } else {
+            params.set("category", pendingDisable.category.id);
+        }
+        return `/trails?${params.toString()}`;
+    }
+
+    function activePluginMessageForPendingDisable(): string {
+        if (!pendingDisable) {
+            return "";
+        }
+
+        const plugins = activePluginNamesForPendingDisable().join(", ");
+        return pendingDisable.type === "subcategory"
+            ? $_("confirm-disable-subcategory-active-plugin-mappings", {
+                  values: { plugins },
+              })
+            : $_("confirm-disable-category-active-plugin-mappings", {
+                  values: { plugins },
+              });
+    }
+
+    function inactivePluginMessageForPendingDisable(): string {
+        if (!pendingDisable) {
+            return "";
+        }
+
+        const plugins = inactivePluginNamesForPendingDisable().join(", ");
+        return pendingDisable.type === "subcategory"
+            ? $_("confirm-disable-subcategory-inactive-plugin-mappings", {
+                  values: { plugins },
+              })
+            : $_("confirm-disable-category-inactive-plugin-mappings", {
+                  values: { plugins },
+              });
+    }
+
+    function disableAnywayTextForPendingDisable(): string {
+        return pendingDisable?.type === "subcategory"
+            ? $_("confirm-disable-subcategory-anyway")
+            : $_("confirm-disable-category-anyway");
+    }
+
+    function disableIntroTextForPendingDisable(): string {
+        return pendingDisable?.type === "subcategory"
+            ? $_("confirm-disable-subcategory-intro")
+            : $_("confirm-disable-category-intro");
+    }
+
+    function cancelDisable() {
+        pendingDisable = null;
+        categoryToggleResetKey += 1;
+    }
+
+    async function promptBeforeDisable(disable: PendingDisable) {
+        pendingDisable = disable;
+        await tick();
+        disableConfirmModal.openModal();
+    }
+
+    async function confirmDisable() {
+        const disable = pendingDisable;
+        pendingDisable = null;
+        if (!disable) {
+            return;
+        }
+
+        if (disable.type === "subcategory") {
+            await saveSubcategoryVisibility(disable.subcategory, false);
+            return;
+        }
+
+        await updatePreference(disable.category, disable.patch);
+    }
+
+    async function saveSubcategoryVisibility(
+        subcategory: Subcategory,
+        visible: boolean,
+    ) {
         savingCategory = subcategory.category;
         try {
             await subcategory_preferences_save({
                 subcategory: subcategory.id,
-                visible: !isSubcategoryVisible(subcategory),
+                visible,
             });
             show_toast({
                 type: "success",
@@ -86,6 +391,23 @@
         } finally {
             savingCategory = null;
         }
+    }
+
+    async function toggleSubcategoryVisibility(subcategory: Subcategory) {
+        const visible = !isSubcategoryVisible(subcategory);
+        if (
+            !visible &&
+            (ownTrailCountForSubcategory(subcategory) > 0 ||
+                pluginMappingCountForSubcategory(subcategory) > 0)
+        ) {
+            await promptBeforeDisable({
+                type: "subcategory",
+                subcategory,
+            });
+            return;
+        }
+
+        await saveSubcategoryVisibility(subcategory, visible);
     }
 
     async function updatePreference(
@@ -120,6 +442,34 @@
         } finally {
             savingCategory = null;
         }
+    }
+
+    async function toggleCategoryVisibility(category: Category, visible: boolean) {
+        const patch = visible
+            ? {
+                  exclude_search: false,
+                  hide_design: false,
+              }
+            : {
+                  exclude_search: true,
+                  hide_design: true,
+                  exclude_federated: true,
+              };
+
+        if (
+            !visible &&
+            (ownTrailCountForCategory(category) > 0 ||
+                pluginMappingCountForCategory(category) > 0)
+        ) {
+            await promptBeforeDisable({
+                type: "category",
+                category,
+                patch,
+            });
+            return;
+        }
+
+        await updatePreference(category, patch);
     }
 
     async function reorderCategory(fromIndex: number, toIndex: number) {
@@ -379,24 +729,14 @@
                         {$_("category-preference-federated")}
                     </span>
                     <div class="flex justify-center md:self-center">
-                        <Toggle
-                            value={!categoryHidden}
-                            disabled={savingCategory === category.id}
-                            onchange={(value) =>
-                                updatePreference(
-                                    category,
-                                    value
-                                        ? {
-                                              exclude_search: false,
-                                              hide_design: false,
-                                          }
-                                        : {
-                                              exclude_search: true,
-                                              hide_design: true,
-                                              exclude_federated: true,
-                                          },
-                                )}
-                        ></Toggle>
+                        {#key `${category.id}-${categoryHidden}-${categoryToggleResetKey}`}
+                            <Toggle
+                                value={!categoryHidden}
+                                disabled={savingCategory === category.id}
+                                onchange={(value) =>
+                                    toggleCategoryVisibility(category, value)}
+                            ></Toggle>
+                        {/key}
                     </div>
                     <div class="flex justify-center md:self-center">
                         <Toggle
@@ -413,6 +753,76 @@
         </li>
     {/each}
 </ol>
+
+<ConfirmModal
+    id="disable-category-confirm-modal"
+    bind:this={disableConfirmModal}
+    title={disableConfirmTitle}
+    text=""
+    action="confirm"
+    onconfirm={confirmDisable}
+    oncancel={cancelDisable}
+>
+    <div class="space-y-5 text-sm leading-6">
+        {#if pendingDisable}
+            {@const ownTrailCount = ownTrailCountForPendingDisable()}
+            {@const activePlugins = activePluginNamesForPendingDisable()}
+            {@const inactivePlugins = inactivePluginNamesForPendingDisable()}
+            <p class="text-gray-500">{disableIntroTextForPendingDisable()}</p>
+
+            <div class="space-y-3">
+                <h4 class="text-sm font-semibold">
+                    {$_("conflicts")}
+                </h4>
+                <ul class="space-y-3">
+                    {#if ownTrailCount > 0}
+                        <li class="grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 gap-y-2">
+                            <span
+                                class="flex h-7 w-7 items-center justify-center rounded-full bg-input-background text-xs text-content"
+                            >
+                                <i class="fa fa-route"></i>
+                            </span>
+                            <div class="min-w-0 self-center">
+                                <p>{ownTrailMessageForPendingDisable()}</p>
+                            </div>
+                            <div class="col-start-2">
+                                <a
+                                    class="btn-secondary inline-flex items-center gap-2"
+                                    href={trailListHrefForPendingDisable()}
+                                >
+                                    <i class="fa fa-list"></i>
+                                    {$_("view-affected-trails")}
+                                </a>
+                            </div>
+                        </li>
+                    {/if}
+                    {#if activePlugins.length > 0}
+                        <li class="grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3">
+                            <span
+                                class="flex h-7 w-7 items-center justify-center rounded-full bg-input-background text-xs text-content"
+                            >
+                                <i class="fa fa-plug"></i>
+                            </span>
+                            <p class="self-center">{activePluginMessageForPendingDisable()}</p>
+                        </li>
+                    {/if}
+                    {#if inactivePlugins.length > 0}
+                        <li class="grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3">
+                            <span
+                                class="flex h-7 w-7 items-center justify-center rounded-full bg-input-background text-xs text-content"
+                            >
+                                <i class="fa fa-plug-circle-xmark"></i>
+                            </span>
+                            <p class="self-center">{inactivePluginMessageForPendingDisable()}</p>
+                        </li>
+                    {/if}
+                </ul>
+            </div>
+
+            <p class="font-medium">{disableAnywayTextForPendingDisable()}</p>
+        {/if}
+    </div>
+</ConfirmModal>
 
 <style>
     li {
