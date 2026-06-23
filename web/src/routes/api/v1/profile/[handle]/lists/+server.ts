@@ -59,7 +59,7 @@ export async function POST(event: RequestEvent) {
         const data = await event.request.json()
 
         let r: SearchResponse<ListSearchResult>;
-        if (actor.isLocal) {
+        if (actor.is_local) {
             r = await event.locals.ms.index("lists").search(data.q, { ...data.options, filter: `author = ${actor.id}` });
         } else {
             const origin = new URL(actor.iri).origin

@@ -7,6 +7,7 @@
         type SelectItem,
     } from "$lib/components/base/select.svelte";
 
+    import Slider from "$lib/components/base/slider.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import {
         searchLocations,
@@ -15,7 +16,7 @@
     import { settings_update } from "$lib/stores/settings_store";
     import { currentUser } from "$lib/stores/user_store";
     import { getIconForLocation } from "$lib/util/icon_util";
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
     import Toggle from "$lib/components/base/toggle.svelte";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
@@ -25,20 +26,40 @@
     let allowAutoGeolocate = $state(
         page.data.settings.behavior?.allowAutoGeolocate ?? false,
     );
+    let mapClusteringMaxZoom = $state(
+        page.data.settings.behavior?.mapClusteringMaxZoom ?? 11,
+    );
+    let showTrailStartMarker = $state(
+        page.data.settings.behavior?.showTrailStartMarker ?? false,
+    );
 
-    async function handleAllowAutoGeolocateChange() {
+    $effect(() => {
+        const b = page.data.settings?.behavior;
+        if (b) {
+            untrack(() => {
+                allowAutoGeolocate = b.allowAutoGeolocate ?? false;
+                mapClusteringMaxZoom = b.mapClusteringMaxZoom ?? 11;
+                showTrailStartMarker = b.showTrailStartMarker ?? false;
+            });
+        }
+    });
+
+    async function handleBehaviorChange() {
         if (!settings) {
             return;
         }
 
         try {
-            if (!settings.behavior) {
-                settings.behavior = { allowAutoGeolocate: allowAutoGeolocate };
-            } else {
-                settings.behavior.allowAutoGeolocate = allowAutoGeolocate;
-            }
+            const updatedSettings = {
+                ...settings,
+                behavior: {
+                    allowAutoGeolocate: allowAutoGeolocate,
+                    mapClusteringMaxZoom: Number(mapClusteringMaxZoom),
+                    showTrailStartMarker: showTrailStartMarker,
+                },
+            };
 
-            await settings_update(settings);
+            await settings_update(updatedSettings);
         } catch (e) {
             show_toast({
                 type: "error",
@@ -166,16 +187,50 @@
                     ></Search>
                 </div>
             {/if}
-            <div
-                class="mt-4 grid gap-4"
-                style="grid-template-columns: 1fr min-content ;"
-            >
-                <p>{$_("allow-auto-geolocate")}</p>
-                <div>
-                    <Toggle
-                        bind:value={allowAutoGeolocate}
-                        onchange={handleAllowAutoGeolocateChange}
-                    ></Toggle>
+            <div class="mt-8 space-y-4">
+                <div
+                    class="grid gap-4 items-center"
+                    style="grid-template-columns: 1fr min-content ;"
+                >
+                    <p>{$_("allow-auto-geolocate")}</p>
+                    <div>
+                        <Toggle
+                            bind:value={allowAutoGeolocate}
+                            onchange={handleBehaviorChange}
+                        ></Toggle>
+                    </div>
+                </div>
+                <div
+                    class="grid gap-4 items-center"
+                    style="grid-template-columns: 1fr min-content ;"
+                >
+                    <p>{$_("map-trail-preview-zoom-level")}</p>
+                    <div class="flex items-center gap-4 w-56">
+                        <span class="w-8 text-right tabular-nums">
+                            {Math.round(Number(mapClusteringMaxZoom))}
+                        </span>
+                        <div class="w-44">
+                            <Slider
+                                minValue={0}
+                                maxValue={22}
+                                step={1}
+                                bind:currentValue={mapClusteringMaxZoom}
+                                onset={handleBehaviorChange}
+                            ></Slider>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    class="grid gap-4 items-center"
+                    style="grid-template-columns: 1fr min-content ;"
+                >
+                    <p>{$_("show-trail-start-marker")}</p>
+                    <div>
+                        <Toggle
+                            bind:value={showTrailStartMarker}
+                            onchange={handleBehaviorChange}
+                        ></Toggle>
+                    </div>
                 </div>
             </div>
         </div>

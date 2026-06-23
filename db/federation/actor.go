@@ -69,7 +69,7 @@ func GetActorByHandle(app core.App, ctx context.Context, handle string, includeF
 	if domain != "" {
 		filter += "domain={:domain}"
 	} else {
-		filter += "isLocal=true"
+		filter += "is_local=true"
 	}
 
 	var dbActor *core.Record
@@ -81,7 +81,7 @@ func GetActorByHandle(app core.App, ctx context.Context, handle string, includeF
 		}
 
 		dbActor = core.NewRecord(collection)
-		dbActor.Set("isLocal", false)
+		dbActor.Set("is_local", false)
 		iri, err := iriFromHandle(ctx, domain, username)
 		if err != nil {
 			return nil, err
@@ -105,7 +105,7 @@ func GetActorByIRI(app core.App, ctx context.Context, iri string, includeFollows
 		}
 
 		dbActor = core.NewRecord(collection)
-		dbActor.Set("isLocal", false)
+		dbActor.Set("is_local", false)
 		dbActor.Set("iri", iri)
 
 	} else if err != nil {
@@ -167,7 +167,7 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 	}
 
 	private := false
-	if dbActor.GetBool("isLocal") {
+	if dbActor.GetBool("is_local") {
 		user, err := app.FindRecordById("users", dbActor.GetString("user"))
 		if err != nil {
 			return nil, err
@@ -194,12 +194,21 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 
 		dbActor.Set("last_fetched", time.Now())
 
+		// an empty privacy field is the default for users who never touched
+		// their privacy settings and is treated as public. A non-empty but
+		// corrupt value fails closed (private) so a broken setting can't
+		// silently expose a profile.
 		privacy := settings.GetString("privacy")
-		result := make(map[string]interface{})
-		json.Unmarshal([]byte(privacy), &result)
-
-		// check that it's not our own profile
-		private = result["account"] == "private" && dbActor.Id != strings.TrimPrefix(ctx.Value("actor").(string), "actor:")
+		if privacy != "" {
+			result := make(map[string]interface{})
+			if err := json.Unmarshal([]byte(privacy), &result); err != nil {
+				private = true
+			} else {
+				// check that it's not our own profile
+				actorVal, _ := ctx.Value("actor").(string)
+				private = result["account"] == "private" && dbActor.Id != strings.TrimPrefix(actorVal, "actor:")
+			}
+		}
 
 	} else {
 
@@ -279,6 +288,9 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 	client := util.SafeHTTPClient()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", iri, nil)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	headers := map[string]string{
 		"Accept":       "application/ld+json",
@@ -291,7 +303,8 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 		req.Header.Add(k, v)
 	}
 
-	userActorId := strings.TrimPrefix(ctx.Value("actor").(string), "actor:")
+	actorVal, _ := ctx.Value("actor").(string)
+	userActorId := strings.TrimPrefix(actorVal, "actor:")
 	userActor, err := app.FindRecordById("activitypub_actors", userActorId)
 	if userActor != nil && userActor.GetString("private_key") != "" {
 		dbPrivateKey := userActor.GetString("private_key")
@@ -332,7 +345,7 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 	defer resp.Body.Close()
 
 	var pubActor pub.Actor
-	if err := json.NewDecoder(resp.Body).Decode(&pubActor); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&pubActor); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -365,6 +378,9 @@ func FetchCollection(app core.App, ctx context.Context, collectionURL string) (*
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", collectionURL, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	headers := map[string]string{
 		"Accept":       "application/ld+json",
@@ -376,7 +392,8 @@ func FetchCollection(app core.App, ctx context.Context, collectionURL string) (*
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
-	userActorId := strings.TrimPrefix(ctx.Value("actor").(string), "actor:")
+	actorVal, _ := ctx.Value("actor").(string)
+	userActorId := strings.TrimPrefix(actorVal, "actor:")
 	userActor, err := app.FindRecordById("activitypub_actors", userActorId)
 	if userActor != nil && userActor.GetString("private_key") != "" {
 		dbPrivateKey := userActor.GetString("private_key")

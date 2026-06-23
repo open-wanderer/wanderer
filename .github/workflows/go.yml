@@ -6,19 +6,30 @@ on:
     paths:
       - '.github/**'
       - 'db/**'
+      - 'plugins/**'
+      - 'Makefile'
   pull_request:
     paths:
       - '.github/**'
       - 'db/**'
+      - 'plugins/**'
+      - 'Makefile'
 
 jobs:
   db-test:
     runs-on: ubuntu-latest
+    env:
+      TINYGO_VERSION: '0.39.0'
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
+      - name: Install TinyGo
+        run: |
+          curl -fsSL "https://github.com/tinygo-org/tinygo/releases/download/v${TINYGO_VERSION}/tinygo_${TINYGO_VERSION}_amd64.deb" -o /tmp/tinygo.deb
+          sudo dpkg -i /tmp/tinygo.deb
+          tinygo version
 
       - run: make db-fmt
       - name: Ensure formatting
@@ -31,3 +42,5 @@ jobs:
         working-directory: db
       - run: make db-vet
       - run: make db-test
+      - run: make plugins-test
+      - run: make plugins-build

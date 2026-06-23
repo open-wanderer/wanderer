@@ -46,7 +46,7 @@ type MergeSettings struct {
 	Likes     bool `json:"likes"`
 }
 
-type IntegrationAutoMergeSettings struct {
+type PluginAutoMergeSettings struct {
 	Enabled bool `json:"enabled"`
 }
 
@@ -132,13 +132,13 @@ type targetSelectionResult struct {
 	Stats   map[string]targetSelectionStats
 }
 
-func DefaultIntegrationAutoMergeSettings() IntegrationAutoMergeSettings {
-	return IntegrationAutoMergeSettings{
+func DefaultPluginAutoMergeSettings() PluginAutoMergeSettings {
+	return PluginAutoMergeSettings{
 		Enabled: false,
 	}
 }
 
-func DefaultIntegrationAutoMergeMergeSettings() MergeSettings {
+func DefaultPluginAutoMergeMergeSettings() MergeSettings {
 	return MergeSettings{
 		SummitLog: true,
 		Photos:    true,
@@ -1516,7 +1516,7 @@ func buildMergedCommentText(app core.App, comment *core.Record) string {
 	if authorID := comment.GetString("author"); authorID != "" {
 		if author, err := app.FindRecordById("activitypub_actors", authorID); err == nil {
 			authorHandle = "@" + author.GetString("preferred_username")
-			if !author.GetBool("isLocal") && author.GetString("domain") != "" {
+			if !author.GetBool("is_local") && author.GetString("domain") != "" {
 				authorHandle += "@" + author.GetString("domain")
 			}
 		}

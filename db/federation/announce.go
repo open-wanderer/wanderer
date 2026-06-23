@@ -3,9 +3,7 @@ package federation
 import (
 	"database/sql"
 	"fmt"
-	"net/url"
 	"os"
-	"path"
 	"pocketbase/util"
 	"strings"
 	"time"
@@ -115,14 +113,12 @@ func ProcessAnnounceActivity(app core.App, actor *core.Record, activity pub.Acti
 	object := activity.Object.GetID().String()
 
 	if strings.Contains(object, "/api/v1/trail") {
-		processTrailAnnounceActivity(app, actor, activity)
-
+		return processTrailAnnounceActivity(app, actor, activity)
 	} else if strings.Contains(object, "/api/v1/list") {
-		processListAnnounceActivity(app, actor, activity)
+		return processListAnnounceActivity(app, actor, activity)
 	} else {
 		return fmt.Errorf("unknown announce type")
 	}
-	return nil
 
 }
 
@@ -134,7 +130,7 @@ func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub
 	}
 
 	var trail *core.Record
-	if !actor.GetBool("isLocal") {
+	if !actor.GetBool("is_local") {
 		trail, err = util.TrailFromActivity(activity, app, actor)
 		if err != nil {
 			return err
@@ -180,12 +176,7 @@ func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub
 			return err
 		}
 	} else {
-		trailUrl, err := url.Parse(activity.Object.GetID().String())
-		if err != nil {
-			return err
-		}
-		trailId := path.Base(trailUrl.Path)
-		trail, err = app.FindRecordById("trails", trailId)
+		trail, err = app.FindFirstRecordByData("trails", "iri", activity.Object.GetID().String())
 		if err != nil {
 			return err
 		}
@@ -217,7 +208,7 @@ func processListAnnounceActivity(app core.App, actor *core.Record, activity pub.
 	}
 
 	var list *core.Record
-	if !actor.GetBool("isLocal") {
+	if !actor.GetBool("is_local") {
 		list, err = util.ListFromActivity(activity, app, actor)
 		if err != nil {
 			return err
@@ -245,12 +236,7 @@ func processListAnnounceActivity(app core.App, actor *core.Record, activity pub.
 			return err
 		}
 	} else {
-		listUrl, err := url.Parse(activity.Object.GetID().String())
-		if err != nil {
-			return err
-		}
-		listId := path.Base(listUrl.Path)
-		list, err = app.FindRecordById("trails", listId)
+		list, err = app.FindFirstRecordByData("lists", "iri", activity.Object.GetID().String())
 		if err != nil {
 			return err
 		}

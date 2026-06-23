@@ -4,6 +4,7 @@
         value: any;
         icon?: string;
         separator?: boolean;
+        danger?: boolean;
     };
 </script>
 
@@ -138,6 +139,8 @@
                 {:else}
                     <li
                         class="menu-item flex items-center px-4 py-3 cursor-pointer hover:bg-menu-item-background-hover focus:bg-menu-item-background-focus transition-colors"
+                        class:hover:text-red-500={item.danger}
+                        class:focus:text-red-500={item.danger}
                         role="presentation"
                         onclick={(e) => handleItemClick(e, item as { text: string; value: any })}
                     >

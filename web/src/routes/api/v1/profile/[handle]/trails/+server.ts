@@ -58,7 +58,7 @@ export async function POST(event: RequestEvent) {
         const data = await event.request.json()
 
         let r: SearchResponse<TrailSearchResult>;
-        if (actor.isLocal) {
+        if (actor.is_local) {
             r = await event.locals.ms.index("trails").search(data.q, { ...data.options, filter: `author = ${actor.id}` });
         } else {
             const origin = new URL(actor.iri).origin

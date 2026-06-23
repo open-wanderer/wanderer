@@ -23,6 +23,9 @@
         onRecalculateElevationData: () => void;
         onUndo: () => void;
         onRedo: () => void;
+        showWaypoints?: boolean;
+        resetLabel?: string;
+        resetAriaLabel?: string;
     }
 
     let {
@@ -35,6 +38,9 @@
         onRecalculateElevationData,
         onUndo,
         onRedo,
+        showWaypoints = $bindable(true),
+        resetLabel = "reset",
+        resetAriaLabel = "reset-route",
     }: Props = $props();
 
     const modesOfTransport: SelectItem[] = [
@@ -146,6 +152,22 @@
             onclick={async () => await togglePanels(false, false, !recalculateElevationData)}><i class="fa fa-mountain text-sm"></i></button
         >
         <button
+            class="btn-icon tooltip"
+            class:bg-secondary-hover={showWaypoints}
+            type="button"
+            aria-label={$_("waypoints", { values: { n: 2 } })}
+            data-title={$_("waypoints", { values: { n: 2 } })}
+            onclick={() => (showWaypoints = !showWaypoints)}
+            ><i class="fa fa-location-dot text-sm"></i></button
+        >
+        <button
+            class="btn-icon tooltip hover:text-red-500"
+            type="button"
+            onclick={() => onReset()}
+            aria-label={$_(resetAriaLabel)}
+            data-title={$_(resetLabel)}><i class="fa fa-trash text-sm"></i></button
+        >
+        <button
             class="btn-icon"
             class:text-gray-500={valhallaStore.undoStack.length == 0}
             disabled={valhallaStore.undoStack.length == 0}
@@ -181,13 +203,6 @@
                     aria-label="Reverse trail direction"
                     data-title={$_("reverse-direction")}
                     ><i class="fa fa-arrow-right-arrow-left"></i></button
-                >
-                <button
-                    class="btn-icon tooltip"
-                    type="button"
-                    onclick={() => onReset()}
-                    aria-label="Reset route"
-                    data-title={$_("reset")}><i class="fa fa-trash"></i></button
                 >
                 <button
                     class="btn-icon tooltip"

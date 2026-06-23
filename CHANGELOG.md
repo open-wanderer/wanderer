@@ -1,3 +1,19 @@
+# [Unreleased]
+
+## Features
+- Server-side map clustering and zoom-aware polyline filtering: The world map now performs trail clustering on the server to improve performance. At lower zoom levels, smaller trails are clustered, while at higher zoom levels the largest routes in the current view are shown as detailed polylines. The maximum number of simultaneously visible polylines can be configured via the PUBLIC_MAP_MAX_POLYLINES environment variable.
+
+# v0.19.2
+## Documentation
+-  Add CONTRIBUTING guidelines
+  
+## Bug Fixes
+- All photos from strava activities are now synced, instead of just the first one
+- Shared trails are now displayed correctly in search results
+- Fixes bug that caused trails to be indexed multiple times causing high server load
+- Remaining likes are no correctly calculated when unliking a trail
+- Fix waypoint creation from photos
+
 # v0.19.1
 
 ## Features
@@ -63,7 +79,6 @@
 
 ## Maintenance
 - Meilisearch, PocketBase, Go, web/docs dependencies, CI actions, and Docker build setup updated.
-
 
 # v0.18.5
 ## Security
