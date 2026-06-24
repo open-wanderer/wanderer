@@ -26,6 +26,11 @@ func init() {
 			return err
 		}
 
+		// Save first so PocketBase alters the SQLite table and the column exists
+		if err := app.Save(collection); err != nil {
+			return err
+		}
+
 		// Backfill existing user actor rows to the 'person' select value
 		if _, err := app.DB().NewQuery(
 			"UPDATE activitypub_actors SET actor_type = 'person' WHERE actor_type = '' OR actor_type IS NULL",
@@ -33,7 +38,7 @@ func init() {
 			return err
 		}
 
-		return app.Save(collection)
+		return nil
 	}, func(app core.App) error {
 		collection, err := app.FindCollectionByNameOrId("pbc_1295301207")
 		if err != nil {
