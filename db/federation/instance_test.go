@@ -50,7 +50,7 @@ func newTestApp(t *testing.T) core.App {
 			{"autogeneratePattern":"","hidden":false,"id":"text3458754147","max":0,"min":0,"name":"summary","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
 			{"autogeneratePattern":"","hidden":false,"id":"text1727648867","max":0,"min":0,"name":"public_key","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
 			{"autogeneratePattern":"","hidden":true,"id":"text4160324774","max":0,"min":0,"name":"private_key","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
-			{"autogeneratePattern":"","hidden":false,"id":"text_actor_type_001","max":0,"min":0,"name":"actor_type","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
+			{"hidden":false,"id":"select_actor_type_001","maxSelect":1,"name":"actor_type","presentable":false,"required":false,"system":false,"type":"select","values":["person","instance"]},
 			{"hidden":false,"id":"bool2193750486","name":"is_local","presentable":false,"required":false,"system":false,"type":"bool"},
 			{"exceptDomains":null,"hidden":false,"id":"url126331327","name":"iri","onlyDomains":null,"presentable":false,"required":false,"system":false,"type":"url"},
 			{"exceptDomains":null,"hidden":false,"id":"url2115105593","name":"inbox","onlyDomains":null,"presentable":false,"required":false,"system":false,"type":"url"},
@@ -91,8 +91,8 @@ func TestInitInstanceActorCreatesApplicationActor(t *testing.T) {
 		t.Fatalf("actor record not found: %v", err)
 	}
 
-	if got := record.GetString("actor_type"); got != "Application" {
-		t.Errorf("actor_type = %q, want Application", got)
+	if got := record.GetString("actor_type"); got != "instance" {
+		t.Errorf("actor_type = %q, want instance", got)
 	}
 
 	if got := record.GetString("preferred_username"); got != "instance" {

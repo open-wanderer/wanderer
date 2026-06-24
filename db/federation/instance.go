@@ -95,7 +95,7 @@ func InitInstanceActor(app core.App) error {
 	}
 
 	record := core.NewRecord(collection)
-	record.Set("actor_type", "Application")
+	record.Set("actor_type", "instance")
 	record.Set("preferred_username", "instance")
 	record.Set("username", fmt.Sprintf("Wanderer at %s", domain))
 	record.Set("domain", domain)

@@ -13,25 +13,22 @@ func init() {
 		}
 
 		if err := collection.Fields.AddMarshaledJSONAt(len(collection.Fields), []byte(`{
-			"autogeneratePattern": "",
 			"hidden": false,
-			"id": "text_actor_type_001",
-			"max": 0,
-			"min": 0,
+			"id": "select_actor_type_001",
+			"maxSelect": 1,
 			"name": "actor_type",
-			"pattern": "",
 			"presentable": false,
-			"primaryKey": false,
 			"required": false,
 			"system": false,
-			"type": "text"
+			"type": "select",
+			"values": ["person", "instance"]
 		}`)); err != nil {
 			return err
 		}
 
-		// Backfill existing user actor rows so future queries on actor_type='Person' work
+		// Backfill existing user actor rows to the 'person' select value
 		if _, err := app.DB().NewQuery(
-			"UPDATE activitypub_actors SET actor_type = 'Person' WHERE actor_type = '' OR actor_type IS NULL",
+			"UPDATE activitypub_actors SET actor_type = 'person' WHERE actor_type = '' OR actor_type IS NULL",
 		).Execute(); err != nil {
 			return err
 		}
@@ -43,7 +40,7 @@ func init() {
 			return err
 		}
 
-		collection.Fields.RemoveById("text_actor_type_001")
+		collection.Fields.RemoveById("select_actor_type_001")
 
 		return app.Save(collection)
 	})
