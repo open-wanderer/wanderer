@@ -1,25 +1,28 @@
 package federation
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
 
-	_ "pocketbase/migrations"
+	// Register PocketBase system migrations (creates _collections and other system tables).
+	// These are required for Bootstrap() to succeed in tests.
+	_ "github.com/pocketbase/pocketbase/migrations"
 )
 
-// newTestApp creates a bootstrapped PocketBase app with all migrations applied,
-// using a temporary directory that is cleaned up after the test.
+// newTestApp creates a bootstrapped PocketBase app with an activitypub_actors
+// collection created programmatically. This avoids running the full migration
+// chain (which requires an external Meilisearch service) while still providing
+// a real database for testing InitInstanceActor.
+//
+// The collection schema matches the final state after all activitypub_actors
+// migrations (including the actor_type field added by this phase).
 func newTestApp(t *testing.T) core.App {
 	t.Helper()
 
-	dir := t.TempDir()
-
 	app := core.NewBaseApp(core.BaseAppConfig{
-		DataDir:       dir,
+		DataDir:       t.TempDir(),
 		EncryptionEnv: "POCKETBASE_ENCRYPTION_KEY",
 	})
 
@@ -27,13 +30,46 @@ func newTestApp(t *testing.T) core.App {
 		t.Fatalf("bootstrap: %v", err)
 	}
 
-	if err := app.RunAllMigrations(); err != nil {
-		t.Fatalf("migrations: %v", err)
+	// Create activitypub_actors collection with all fields needed by InitInstanceActor.
+	// Uses the stable collection ID pbc_1295301207 to match production schema.
+	jsonData := `[{
+		"id": "pbc_1295301207",
+		"name": "activitypub_actors",
+		"type": "base",
+		"system": false,
+		"listRule": null,
+		"viewRule": null,
+		"createRule": null,
+		"updateRule": null,
+		"deleteRule": null,
+		"fields": [
+			{"autogeneratePattern":"[a-z0-9]{15}","hidden":false,"id":"text3208210256","max":15,"min":15,"name":"id","pattern":"^[a-z0-9]+$","presentable":false,"primaryKey":true,"required":true,"system":true,"type":"text"},
+			{"autogeneratePattern":"","hidden":false,"id":"text4166911607","max":0,"min":0,"name":"username","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
+			{"autogeneratePattern":"","hidden":false,"id":"text4002953752","max":0,"min":0,"name":"preferred_username","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
+			{"autogeneratePattern":"","hidden":false,"id":"text2812878347","max":0,"min":0,"name":"domain","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
+			{"autogeneratePattern":"","hidden":false,"id":"text3458754147","max":0,"min":0,"name":"summary","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
+			{"autogeneratePattern":"","hidden":false,"id":"text1727648867","max":0,"min":0,"name":"public_key","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
+			{"autogeneratePattern":"","hidden":true,"id":"text4160324774","max":0,"min":0,"name":"private_key","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
+			{"autogeneratePattern":"","hidden":false,"id":"text_actor_type_001","max":0,"min":0,"name":"actor_type","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
+			{"hidden":false,"id":"bool2193750486","name":"is_local","presentable":false,"required":false,"system":false,"type":"bool"},
+			{"exceptDomains":null,"hidden":false,"id":"url126331327","name":"iri","onlyDomains":null,"presentable":false,"required":false,"system":false,"type":"url"},
+			{"exceptDomains":null,"hidden":false,"id":"url2115105593","name":"inbox","onlyDomains":null,"presentable":false,"required":false,"system":false,"type":"url"},
+			{"exceptDomains":null,"hidden":false,"id":"url1793578352","name":"outbox","onlyDomains":null,"presentable":false,"required":false,"system":false,"type":"url"},
+			{"hidden":false,"id":"date2062531289","max":"","min":"","name":"last_fetched","presentable":false,"required":false,"system":false,"type":"date"},
+			{"hidden":false,"id":"autodate2990389176","name":"created","onCreate":true,"onUpdate":false,"presentable":false,"system":false,"type":"autodate"},
+			{"hidden":false,"id":"autodate3332085495","name":"updated","onCreate":true,"onUpdate":true,"presentable":false,"system":false,"type":"autodate"}
+		],
+		"indexes": [
+			"CREATE UNIQUE INDEX ` + "`idx_rpT7QJwWTm`" + ` ON ` + "`activitypub_actors`" + ` (` + "`iri`" + `)"
+		]
+	}]`
+
+	if err := app.ImportCollectionsByMarshaledJSON([]byte(jsonData), false); err != nil {
+		t.Fatalf("create activitypub_actors collection: %v", err)
 	}
 
 	t.Cleanup(func() {
 		app.ResetBootstrapState()
-		os.RemoveAll(dir)
 	})
 
 	return app
@@ -76,7 +112,7 @@ func TestInitInstanceActorCreatesApplicationActor(t *testing.T) {
 		t.Error("public_key is empty")
 	}
 	if !strings.HasPrefix(pubKey, "-----BEGIN PUBLIC KEY-----") {
-		t.Errorf("public_key does not start with PEM header, got: %q", pubKey[:min(50, len(pubKey))])
+		t.Errorf("public_key does not start with PEM header, got: %q", pubKey[:minLen(50, len(pubKey))])
 	}
 }
 
@@ -236,17 +272,10 @@ func TestInstanceActorJSONShape(t *testing.T) {
 	}
 }
 
-func min(a, b int) int {
+// minLen returns the smaller of a and b (used for truncated error messages).
+func minLen(a, b int) int {
 	if a < b {
 		return a
 	}
 	return b
-}
-
-// Verify test data directory accessibility (guards against runtime.Caller issues)
-func TestTestDataDirAccessible(t *testing.T) {
-	dir := t.TempDir()
-	if _, err := os.Stat(filepath.Join(dir)); err != nil {
-		t.Fatalf("temp dir not accessible: %v", err)
-	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 
 	"pocketbase/commands"
+	"pocketbase/federation"
 	"pocketbase/hooks"
 	"pocketbase/pluginsystem"
 	"pocketbase/routes"
@@ -186,6 +187,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/activitypub/actor/{id}/{follow}", routes.ActivitypubActorFollow)
 	se.Router.GET("/activitypub/trail/{id}", routes.ActivitypubTrail)
 	se.Router.GET("/activitypub/comment/{id}", routes.ActivitypubComment)
+	se.Router.GET("/activitypub/instance", federation.InstanceActorGet)
 
 	se.Router.GET("/remote/trail/{id}", routes.RemoteTrailGet)
 	se.Router.GET("/remote/trail/{id}/comments", routes.RemoteTrailCommentsList)
@@ -215,6 +217,9 @@ func initData(app core.App, client meilisearch.ServiceManager) error {
 	initCategories(app)
 	initPlugins(app)
 	initMeilisearchConfig(client)
+	if err := federation.InitInstanceActor(app); err != nil {
+		app.Logger().Error(fmt.Sprintf("Failed to initialize instance actor: %v", err))
+	}
 	go func() {
 		backfillPolylines(app)
 		initMeilisearchDocuments(app, client)
