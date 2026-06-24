@@ -546,17 +546,15 @@ func initData(app core.App, client meilisearch.ServiceManager) error {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **`generateKeyPair()` accessibility**
+1. **`generateKeyPair()` accessibility** — RESOLVED: Option B (duplicate as private helper)
    - What we know: the function is unexported (`generateKeyPair`, lowercase) in `db/util/activitypub.go`.
-   - What's unclear: whether the planner prefers exporting it (touching `util/activitypub.go`) or duplicating it in `federation/instance.go` (no existing file touched beyond `main.go`).
-   - Recommendation: Export as `util.GenerateKeyPair()` and update the single call site in `ActorFromUser()`. This is 2 lines changed in an existing file and avoids duplicated code. Alternative: inline in `instance.go`.
+   - **Resolution:** Duplicate as a private `generateInstanceKeyPair()` helper inside `db/federation/instance.go`. Avoids touching `util/activitypub.go` and its call site; instance.go remains self-contained.
 
-2. **actor_type backfill for existing user actors**
+2. **actor_type backfill for existing user actors** — RESOLVED: Include backfill UPDATE
    - What we know: after migration, existing rows have `actor_type = ""` (empty string).
-   - What's unclear: whether Phase 2 or later phases will query `actor_type = 'Person'` to distinguish user actors from the instance actor.
-   - Recommendation: Include a backfill `UPDATE activitypub_actors SET actor_type = 'Person' WHERE actor_type = ''` in the migration's up function. Cost is negligible; prevents a future bug.
+   - **Resolution:** Include a backfill `UPDATE activitypub_actors SET actor_type = 'Person' WHERE actor_type = ''` in the migration's up function. Prevents future query ambiguity when filtering by `actor_type`.
 
 ---
 
