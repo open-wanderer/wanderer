@@ -29,7 +29,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A second server restart does not regenerate the keypair — the same public key is served each time
   3. GET `{ORIGIN}/api/v1/activitypub/instance` returns valid ActivityPub JSON containing `id`, `type: "Application"`, `inbox`, `outbox`, and `publicKey`
   4. The `activitypub_actors` schema has an `actor_type` column (default `"Person"`) without breaking existing user actor records
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 01-01-PLAN.md — Schema migration, idempotent instance actor init, and GET endpoint
 
 ### Phase 2: Follow Lifecycle
 **Goal**: An admin can connect two Wanderer instances by initiating or receiving a Follow, approving or rejecting it, and disconnecting later — with correct AP activities delivered at each step
@@ -74,7 +77,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Instance Actor | 0/? | Not started | - |
+| 1. Instance Actor | 0/1 | Planned | - |
 | 2. Follow Lifecycle | 0/? | Not started | - |
 | 3. Fanout and Safety | 0/? | Not started | - |
 | 4. NodeInfo | 0/? | Not started | - |
