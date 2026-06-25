@@ -14,7 +14,7 @@ Four phases take the Wanderer Go/PocketBase backend from zero instance-level fed
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Instance Actor** - Schema migration and idempotent instance actor initialization with GET endpoint (completed 2026-06-25)
-- [ ] **Phase 2: Follow Lifecycle** - Inbox endpoint + admin-gated Follow/Accept/Reject/Undo flow
+- [x] **Phase 2: Follow Lifecycle** - Inbox endpoint + admin-gated Follow/Accept/Reject/Undo flow (completed 2026-06-25)
 - [ ] **Phase 3: Fanout and Safety** - Content sync to instance followers, broadcast-loop deduplication, privacy gate, ownership fix
 - [ ] **Phase 4: NodeInfo** - Well-known NodeInfo endpoint so peers can identify this Wanderer instance
 
@@ -60,7 +60,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-03-PLAN.md — Admin lifecycle hooks: outgoing Follow, Accept, Reject, Undo (FLCL-01/03/04/05)
+- [x] 02-03-PLAN.md — Admin lifecycle hooks: outgoing Follow, Accept, Reject, Undo (FLCL-01/03/04/05)
 
 ### Phase 3: Fanout and Safety
 
@@ -99,6 +99,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Instance Actor | 1/1 | Complete    | 2026-06-25 |
-| 2. Follow Lifecycle | 2/3 | In Progress|  |
+| 2. Follow Lifecycle | 3/3 | Complete   | 2026-06-25 |
 | 3. Fanout and Safety | 0/? | Not started | - |
 | 4. NodeInfo | 0/? | Not started | - |
