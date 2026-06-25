@@ -11,6 +11,11 @@ import (
 
 func CreateFollowHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
+		// CR-01: skip user-level delivery for instance follows; the AfterSuccess
+		// handler (InstanceFollowCreateHandler) is the single delivery path.
+		if isInstanceFollow(e.App, e.Record) {
+			return e.Next()
+		}
 		e.Next()
 		federation.CreateFollowActivity(e.App, e.Record)
 
@@ -20,10 +25,29 @@ func CreateFollowHandler() func(e *core.RecordRequestEvent) error {
 
 func DeleteFollowHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
+		// CR-02: skip user-level delivery for instance follows; the AfterSuccess
+		// handler (InstanceFollowDeleteHandler) is the single delivery path.
+		if isInstanceFollow(e.App, e.Record) {
+			return e.Next()
+		}
 		federation.CreateUnfollowActivity(e.App, e.Record)
 
 		return e.Next()
 	}
+}
+
+// isOutboundInstanceFollow returns true only when the local instance actor is the
+// FOLLOWER in the given follows record. This distinguishes admin-initiated outbound
+// follows (where the local instance should sign and deliver a Follow activity) from
+// inbound follows saved by ProcessFollowActivity (where the instance is the followee
+// and no outgoing Follow should be sent — CR-03 fix).
+func isOutboundInstanceFollow(app core.App, follow *core.Record) bool {
+	instanceIRI := os.Getenv("ORIGIN") + "/api/v1/activitypub/instance"
+	followerActor, err := app.FindRecordById("activitypub_actors", follow.GetString("follower"))
+	if err != nil {
+		return false
+	}
+	return followerActor.GetString("iri") == instanceIRI
 }
 
 // isInstanceFollow returns true when either the follower or followee actor in the
@@ -67,7 +91,10 @@ func instanceFollowAction(oldStatus, newStatus string) string {
 // only needs to supply the remote IRI — no pre-created actor record required.
 func InstanceFollowCreateHandler() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
-		if !isInstanceFollow(e.App, e.Record) {
+		// CR-03: use the directional check — only fire when the local instance actor
+		// is the follower (admin-initiated outbound follow). Do NOT fire for inbound
+		// follows saved by ProcessFollowActivity where the instance is the followee.
+		if !isOutboundInstanceFollow(e.App, e.Record) {
 			return e.Next()
 		}
 
