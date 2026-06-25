@@ -143,7 +143,7 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 	// Look up the sender actor locally; fetch remotely on cache miss.
 	actor, err := e.App.FindFirstRecordByData("activitypub_actors", "iri", activity.Actor.GetID().String())
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			ctx, ctxErr := util.GetSafeActorContext(e.Request, recipient)
 			if ctxErr != nil {
 				return ctxErr
