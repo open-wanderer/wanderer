@@ -52,7 +52,12 @@ Plans:
   4. When an admin sets a pending instance follow to `rejected` in PocketBase, a `Reject{Follow}` activity is delivered to the remote instance's inbox
   5. An admin-initiated Undo removes the peer from the follows collection and sends an `Undo{Follow}` activity to the remote
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+
+- [ ] 02-01-PLAN.md — Migration: add "rejected" to follows.status (prereq for FLCL-04)
+- [ ] 02-02-PLAN.md — Instance inbox endpoint + incoming Follow → pending (INST-03, FLCL-02)
+- [ ] 02-03-PLAN.md — Admin lifecycle hooks: outgoing Follow, Accept, Reject, Undo (FLCL-01/03/04/05)
 
 ### Phase 3: Fanout and Safety
 
@@ -91,6 +96,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Instance Actor | 1/1 | Complete    | 2026-06-25 |
-| 2. Follow Lifecycle | 0/? | Not started | - |
+| 2. Follow Lifecycle | 0/3 | Planned     | - |
 | 3. Fanout and Safety | 0/? | Not started | - |
 | 4. NodeInfo | 0/? | Not started | - |
