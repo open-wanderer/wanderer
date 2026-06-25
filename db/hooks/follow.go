@@ -16,7 +16,11 @@ func CreateFollowHandler() func(e *core.RecordRequestEvent) error {
 		if isInstanceFollow(e.App, e.Record) {
 			return e.Next()
 		}
-		e.Next()
+		// Capture the error from e.Next() so we do not dispatch federation
+		// delivery when the underlying DB save failed.
+		if err := e.Next(); err != nil {
+			return err
+		}
 		federation.CreateFollowActivity(e.App, e.Record)
 
 		return nil
