@@ -1,0 +1,45 @@
+{
+  "phase": "03",
+  "phase_name": "Fanout and Safety",
+  "checkpoint_at": "2026-06-25T00:00:00Z",
+  "areas_completed": [
+    "Fanout injection",
+    "Broadcast-loop dedup"
+  ],
+  "areas_remaining": [
+    "Delete ownership",
+    "Comment privacy gate"
+  ],
+  "decisions": [
+    {
+      "area": "Fanout injection",
+      "question": "How should instance followers be merged into the fanout recipient list?",
+      "answer": "Shared helper (Recommended)",
+      "detail": "Add instanceFollowerInboxes(app) in activity.go; each Create*/Delete* function calls it and appends results."
+    },
+    {
+      "area": "Fanout injection",
+      "question": "How should instanceFollowerInboxes() resolve the instance actor record?",
+      "answer": "By IRI from env",
+      "detail": "Compute IRI as ORIGIN + /api/v1/activitypub/instance and call FindFirstRecordByData(activitypub_actors, iri, iri)."
+    },
+    {
+      "area": "Fanout injection",
+      "question": "What should instanceFollowerInboxes() do if the instance actor doesn't exist?",
+      "answer": "Return empty slice silently",
+      "detail": "If sql.ErrNoRows, return (nil, nil). Fanout proceeds with only user-level followers."
+    },
+    {
+      "area": "Broadcast-loop dedup",
+      "question": "Where should dedup live?",
+      "answer": "Per process* function",
+      "detail": "Each processCreate* function checks if content IRI already exists in the content collection (trails/comments/etc). If found, return nil silently."
+    },
+    {
+      "area": "Broadcast-loop dedup",
+      "question": "What to do on duplicate IRI?",
+      "answer": "Return nil silently",
+      "detail": "Idempotent delivery. Remote caller gets 200, no error."
+    }
+  ]
+}
