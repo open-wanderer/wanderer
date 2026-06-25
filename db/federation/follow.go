@@ -167,7 +167,13 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 	if err != nil {
 		return err
 	}
-	// send a notification to the followee
+	// Only send follow notifications for user-level follows (not instance actors).
+	// Guards against the actor_type field being absent or empty on the local instance
+	// actor — in that case the instance-actor branch above might not have fired and we
+	// must not call SendNotification with an instance-actor record (it expects a user record).
+	if object.GetString("actor_type") == "instance" {
+		return nil
+	}
 	notification := util.Notification{
 		Type: util.NewFollower,
 		Metadata: map[string]string{
