@@ -8,11 +8,15 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
+	"pocketbase/util"
 	"strings"
 	"time"
 
+	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
 )
@@ -63,7 +67,7 @@ func InitInstanceActor(app core.App) error {
 	}
 	domain := strings.TrimPrefix(parsedOrigin.Hostname(), "www.")
 
-	priv, pub, err := generateInstanceKeyPair()
+	priv, pubKey, err := generateInstanceKeyPair()
 	if err != nil {
 		return fmt.Errorf("generating keypair: %w", err)
 	}
@@ -74,7 +78,7 @@ func InitInstanceActor(app core.App) error {
 		return fmt.Errorf("encrypting private key: %w", err)
 	}
 
-	pubBytes, err := x509.MarshalPKIXPublicKey(pub)
+	pubBytes, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
 		return fmt.Errorf("marshaling public key: %w", err)
 	}
@@ -99,4 +103,78 @@ func InitInstanceActor(app core.App) error {
 	record.Set("last_fetched", time.Now())
 
 	return app.Save(record)
+}
+
+// InstanceInboxHandler is the PocketBase route handler for
+// POST /activitypub/instance/inbox.
+//
+// It mirrors ActivitypubActivityProcess in db/routes/activitypub.go but is
+// scoped to the instance actor's inbox and only dispatches Follow/Accept/Undo
+// activities (D-03: the instance inbox is isolated to the follow lifecycle).
+//
+// HTTP signature verification is performed via util.VerifySignature before any
+// activity processing (T-02-03: mitigate spoofing).
+func InstanceInboxHandler(e *core.RequestEvent) error {
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return fmt.Errorf("ORIGIN not set")
+	}
+
+	body, err := io.ReadAll(e.Request.Body)
+	if err != nil {
+		return err
+	}
+
+	var activity pub.Activity
+	if err = activity.UnmarshalJSON(body); err != nil {
+		return err
+	}
+
+	// Reconstruct the full inbox IRI from the X-Forwarded-Path header set by the
+	// SvelteKit proxy (T-02-04: header is set by the trusted SvelteKit layer, not
+	// accepted from the remote client).
+	inbox := fmt.Sprintf("%s%s", origin, e.Request.Header.Get("X-Forwarded-Path"))
+
+	recipient, err := e.App.FindFirstRecordByData("activitypub_actors", "inbox", inbox)
+	if err != nil {
+		return err
+	}
+
+	// Look up the sender actor locally; fetch remotely on cache miss.
+	actor, err := e.App.FindFirstRecordByData("activitypub_actors", "iri", activity.Actor.GetID().String())
+	if err != nil {
+		if err == sql.ErrNoRows {
+			ctx, ctxErr := util.GetSafeActorContext(e.Request, recipient)
+			if ctxErr != nil {
+				return ctxErr
+			}
+			actor, err = GetActorByIRI(e.App, ctx, activity.Actor.GetID().String(), false)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	// Verify HTTP signature against the sender actor's stored public key (T-02-03).
+	verified, err := util.VerifySignature(e.App, e.Request, actor.GetString("public_key"))
+	if err != nil || !verified {
+		e.App.Logger().Error("instance inbox: invalid http signature", "err", err)
+		return e.UnauthorizedError("Invalid http signature", err)
+	}
+
+	// Dispatch to the appropriate federation processor.
+	// Only Follow/Accept/Undo are handled here (D-03).
+	var procErr error
+	switch activity.Type {
+	case pub.FollowType:
+		procErr = ProcessFollowActivity(e.App, actor, activity)
+	case pub.AcceptType:
+		procErr = ProcessAcceptActivity(e.App, actor, activity)
+	case pub.UndoType:
+		procErr = ProcessUndoActivity(e.App, actor, activity)
+	}
+
+	return e.JSON(http.StatusOK, procErr)
 }
