@@ -162,6 +162,132 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 
 }
 
+// CreateAcceptFollowActivity delivers an Accept{Follow} to the remote instance that
+// sent the original Follow. It reloads the persisted incoming Follow activity from
+// activitypub_activities (stored by ProcessFollowActivity in Plan 02) and wraps it
+// in an Accept signed as the local instance actor.
+func CreateAcceptFollowActivity(app core.App, follow *core.Record) error {
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return fmt.Errorf("ORIGIN not set")
+	}
+
+	followerActor, err := app.FindRecordById("activitypub_actors", follow.GetString("follower"))
+	if err != nil {
+		return err
+	}
+
+	followeeActor, err := app.FindRecordById("activitypub_actors", follow.GetString("followee"))
+	if err != nil {
+		return err
+	}
+
+	// Reload the original incoming Follow activity persisted by ProcessFollowActivity.
+	// actor = remote sender IRI, object = local instance actor IRI.
+	followActivityRecord, err := app.FindFirstRecordByFilter(
+		"activitypub_activities",
+		"actor={:actor}&&object={:object}&&type={:type}",
+		dbx.Params{
+			"actor":  followerActor.GetString("iri"),
+			"object": followeeActor.GetString("iri"),
+			"type":   string(pub.FollowType),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	followActivity := pub.FollowNew(pub.IRI(followActivityRecord.GetString("iri")), pub.IRI(followeeActor.GetString("iri")))
+	followActivity.Actor = pub.IRI(followActivityRecord.GetString("actor"))
+
+	collection, err := app.FindCollectionByNameOrId("activitypub_activities")
+	if err != nil {
+		return err
+	}
+
+	recordId := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
+	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
+
+	acceptActivity := pub.AcceptNew(pub.IRI(id), followActivity)
+	acceptActivity.Actor = pub.IRI(followeeActor.GetString("iri"))
+
+	record := core.NewRecord(collection)
+	record.Set("id", recordId)
+	record.Set("iri", id)
+	record.Set("type", string(pub.AcceptType))
+	record.Set("object", followActivity)
+	record.Set("actor", followeeActor.GetString("iri"))
+	record.Set("published", time.Now())
+
+	if err = app.Save(record); err != nil {
+		return err
+	}
+
+	return PostActivity(app, followeeActor, acceptActivity, []string{followerActor.GetString("inbox")})
+}
+
+// CreateRejectFollowActivity delivers a Reject{Follow} to the remote instance that
+// sent the original Follow. Structurally identical to CreateAcceptFollowActivity but
+// wraps the original Follow in a Reject. Mandatory per D-08.
+func CreateRejectFollowActivity(app core.App, follow *core.Record) error {
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return fmt.Errorf("ORIGIN not set")
+	}
+
+	followerActor, err := app.FindRecordById("activitypub_actors", follow.GetString("follower"))
+	if err != nil {
+		return err
+	}
+
+	followeeActor, err := app.FindRecordById("activitypub_actors", follow.GetString("followee"))
+	if err != nil {
+		return err
+	}
+
+	// Reload the original incoming Follow activity persisted by ProcessFollowActivity.
+	followActivityRecord, err := app.FindFirstRecordByFilter(
+		"activitypub_activities",
+		"actor={:actor}&&object={:object}&&type={:type}",
+		dbx.Params{
+			"actor":  followerActor.GetString("iri"),
+			"object": followeeActor.GetString("iri"),
+			"type":   string(pub.FollowType),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	followActivity := pub.FollowNew(pub.IRI(followActivityRecord.GetString("iri")), pub.IRI(followeeActor.GetString("iri")))
+	followActivity.Actor = pub.IRI(followActivityRecord.GetString("actor"))
+
+	collection, err := app.FindCollectionByNameOrId("activitypub_activities")
+	if err != nil {
+		return err
+	}
+
+	recordId := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
+	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
+
+	rejectActivity := pub.RejectNew(pub.IRI(id), followActivity)
+	rejectActivity.Actor = pub.IRI(followeeActor.GetString("iri"))
+
+	record := core.NewRecord(collection)
+	record.Set("id", recordId)
+	record.Set("iri", id)
+	record.Set("type", string(pub.RejectType))
+	record.Set("object", followActivity)
+	record.Set("actor", followeeActor.GetString("iri"))
+	record.Set("published", time.Now())
+
+	if err = app.Save(record); err != nil {
+		return err
+	}
+
+	return PostActivity(app, followeeActor, rejectActivity, []string{followerActor.GetString("inbox")})
+}
+
 func ProcessAcceptActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 
 	followActivity := activity.Object.(*pub.Activity)
