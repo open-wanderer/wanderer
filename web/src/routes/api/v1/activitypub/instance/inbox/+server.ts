@@ -43,21 +43,17 @@ export async function POST(event: RequestEvent) {
         // (T-02-04: set by the trusted SvelteKit layer, not accepted from the remote client).
         originalHeaders['X-Forwarded-Path'] = event.url.pathname;
 
-        const success = await event.locals.pb.send("/activitypub/instance/inbox", {
+        const response = await event.locals.pb.send("/activitypub/instance/inbox", {
             method: "POST",
             fetch: event.fetch,
             headers: originalHeaders,
             body: JSON.stringify(activity)
         });
 
-        if (success === false) {
-            return json("Invalid header signature", { status: 400 });
-        }
-
         const headers = new Headers();
         headers.append("Content-Type", "application/activity+json");
 
-        return json("", { status: 200, headers });
+        return json(response, { status: 200, headers });
     } catch (e) {
         return handleError(e);
     }
