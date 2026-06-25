@@ -55,8 +55,8 @@ Plans:
 **Plans**: 3 plansPlans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Migration: add "rejected" to follows.status (prereq for FLCL-04)
-- [ ] 02-02-PLAN.md — Instance inbox endpoint + incoming Follow → pending (INST-03, FLCL-02)
+- [x] 02-01-PLAN.md — Migration: add "rejected" to follows.status (prereq for FLCL-04)
+- [x] 02-02-PLAN.md — Instance inbox endpoint + incoming Follow → pending (INST-03, FLCL-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -99,6 +99,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Instance Actor | 1/1 | Complete    | 2026-06-25 |
-| 2. Follow Lifecycle | 0/3 | Planned     | - |
+| 2. Follow Lifecycle | 2/3 | In Progress|  |
 | 3. Fanout and Safety | 0/? | Not started | - |
 | 4. NodeInfo | 0/? | Not started | - |
