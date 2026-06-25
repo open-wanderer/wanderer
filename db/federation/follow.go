@@ -289,8 +289,13 @@ func CreateRejectFollowActivity(app core.App, follow *core.Record) error {
 }
 
 func ProcessAcceptActivity(app core.App, actor *core.Record, activity pub.Activity) error {
-
-	followActivity := activity.Object.(*pub.Activity)
+	// CR-04: use comma-ok to guard against IRI-only Accept objects (common in
+	// real-world ActivityPub implementations). Return a descriptive error instead
+	// of panicking so a malformed remote Accept cannot crash the request goroutine.
+	followActivity, ok := activity.Object.(*pub.Activity)
+	if !ok {
+		return fmt.Errorf("ProcessAcceptActivity: object is not *pub.Activity, got %T", activity.Object)
+	}
 
 	follower, err := app.FindFirstRecordByData("activitypub_actors", "iri", followActivity.Actor)
 	if err != nil {
