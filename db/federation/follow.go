@@ -1,6 +1,8 @@
 package federation
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"pocketbase/util"
@@ -76,6 +78,22 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 	// a remote actor has requested the follow
 	// this means we have not yet created a follow entry in our db
 	if !actor.GetBool("is_local") {
+		// Idempotency: if a follow record already exists for this pair, skip creation.
+		// Duplicate Follow deliveries are normal in ActivityPub (network retries, etc.)
+		// and the unique composite index on (follower, followee) would cause a constraint
+		// violation on app.Save if we proceeded unconditionally.
+		existing, existErr := app.FindFirstRecordByFilter(
+			"follows",
+			"follower={:follower} && followee={:followee}",
+			dbx.Params{"follower": actor.Id, "followee": object.Id},
+		)
+		if existErr == nil && existing != nil {
+			return nil // already recorded; treat as duplicate delivery
+		}
+		if existErr != nil && !errors.Is(existErr, sql.ErrNoRows) {
+			return existErr
+		}
+
 		followCollection, err := app.FindCollectionByNameOrId("follows")
 		if err != nil {
 			return err
