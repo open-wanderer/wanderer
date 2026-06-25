@@ -75,7 +75,6 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 
 	// a remote actor has requested the follow
 	// this means we have not yet created a follow entry in our db
-	// we accept it immediately
 	if !actor.GetBool("is_local") {
 		followCollection, err := app.FindCollectionByNameOrId("follows")
 		if err != nil {
@@ -84,6 +83,36 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 		followRecord := core.NewRecord(followCollection)
 		followRecord.Set("follower", actor.Id)
 		followRecord.Set("followee", object.Id)
+
+		// Instance-actor branch: Follow directed at the local instance actor must be
+		// stored as "pending" (requires admin approval, D-05/FLCL-02).  Persist the
+		// incoming Follow activity so Plan 03 can reconstruct it for Accept/Reject,
+		// then return early — no Accept is sent back for instance follows.
+		if object.GetString("actor_type") == "instance" && object.GetBool("is_local") {
+			followRecord.Set("status", "pending")
+			if err = app.Save(followRecord); err != nil {
+				return err
+			}
+
+			// Persist the incoming Follow activity for later Accept/Reject.
+			activitiesCollection, err := app.FindCollectionByNameOrId("activitypub_activities")
+			if err != nil {
+				return err
+			}
+			activityRecord := core.NewRecord(activitiesCollection)
+			activityRecord.Set("iri", activity.GetID().String())
+			activityRecord.Set("type", string(pub.FollowType))
+			activityRecord.Set("actor", actor.GetString("iri"))
+			activityRecord.Set("object", object.GetString("iri"))
+			activityRecord.Set("published", time.Now())
+			if err = app.Save(activityRecord); err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		// Person-actor path: auto-accept as before.
 		followRecord.Set("status", "accepted")
 		err = app.Save(followRecord)
 		if err != nil {
