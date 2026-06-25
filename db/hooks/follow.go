@@ -139,7 +139,11 @@ func InstanceFollowCreateHandler() func(e *core.RecordEvent) error {
 // The handler is a no-op for user-level follows and for status-unchanged updates.
 func InstanceFollowUpdateHandler() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
-		if !isInstanceFollow(e.App, e.Record) {
+		// Accept/Reject only makes sense when the local instance is the FOLLOWEE
+		// (i.e., a remote instance's inbound Follow is being approved/denied).
+		// Skip if not an instance follow at all, or if the local instance is the
+		// FOLLOWER (outbound follow) — the remote already controls its own status.
+		if !isInstanceFollow(e.App, e.Record) || isOutboundInstanceFollow(e.App, e.Record) {
 			return e.Next()
 		}
 
