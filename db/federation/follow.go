@@ -237,11 +237,15 @@ func CreateAcceptFollowActivity(app core.App, follow *core.Record) error {
 	record.Set("actor", followeeActor.GetString("iri"))
 	record.Set("published", time.Now())
 
-	if err = app.Save(record); err != nil {
+	// Deliver first, persist after: ensures the DB record only exists when
+	// delivery has at least been enqueued. If PostActivity returns an error
+	// (unlikely today since it is fire-and-forget, but possible if the goroutine
+	// can't be spawned), we skip the Save so a stale accepted row is not left
+	// behind while the remote instance never received the Accept.
+	if err = PostActivity(app, followeeActor, acceptActivity, []string{followerActor.GetString("inbox")}); err != nil {
 		return err
 	}
-
-	return PostActivity(app, followeeActor, acceptActivity, []string{followerActor.GetString("inbox")})
+	return app.Save(record)
 }
 
 // CreateRejectFollowActivity delivers a Reject{Follow} to the remote instance that
@@ -299,11 +303,12 @@ func CreateRejectFollowActivity(app core.App, follow *core.Record) error {
 	record.Set("actor", followeeActor.GetString("iri"))
 	record.Set("published", time.Now())
 
-	if err = app.Save(record); err != nil {
+	// Deliver first, persist after: same ordering as CreateAcceptFollowActivity
+	// to avoid a stale rejected row when delivery has not yet been enqueued.
+	if err = PostActivity(app, followeeActor, rejectActivity, []string{followerActor.GetString("inbox")}); err != nil {
 		return err
 	}
-
-	return PostActivity(app, followeeActor, rejectActivity, []string{followerActor.GetString("inbox")})
+	return app.Save(record)
 }
 
 func ProcessAcceptActivity(app core.App, actor *core.Record, activity pub.Activity) error {
