@@ -187,7 +187,6 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/activitypub/actor/{id}/{follow}", routes.ActivitypubActorFollow)
 	se.Router.GET("/activitypub/trail/{id}", routes.ActivitypubTrail)
 	se.Router.GET("/activitypub/comment/{id}", routes.ActivitypubComment)
-	se.Router.GET("/activitypub/instance", federation.InstanceActorGet)
 
 	se.Router.GET("/remote/trail/{id}", routes.RemoteTrailGet)
 	se.Router.GET("/remote/trail/{id}/comments", routes.RemoteTrailCommentsList)

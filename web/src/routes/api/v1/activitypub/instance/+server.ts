@@ -3,6 +3,26 @@ import { env } from '$env/dynamic/private';
 import { handleError } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
+/**
+ * @swagger
+ * /api/v1/activitypub/instance:
+ *   get:
+ *     summary: Get the instance-level ActivityPub actor
+ *     description: Returns the Application-type ActivityPub actor representing this Wanderer instance. Used by peer instances to identify and federate with this server.
+ *     tags:
+ *       - ActivityPub
+ *     responses:
+ *       200:
+ *         description: ActivityPub Application actor with publicKey
+ *         content:
+ *           application/activity+json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: Instance actor not found (server not yet initialised)
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     try {
         const iri = `${env.ORIGIN}/api/v1/activitypub/instance`;

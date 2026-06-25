@@ -8,7 +8,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -25,8 +24,7 @@ func generateInstanceKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	pub := &priv.PublicKey
-	return priv, pub, nil
+	return priv, &priv.PublicKey, nil
 }
 
 // InitInstanceActor idempotently creates the Application-type instance actor in
@@ -59,35 +57,28 @@ func InitInstanceActor(app core.App) error {
 		return fmt.Errorf("checking instance actor existence: %w", err)
 	}
 
-	// Parse ORIGIN to derive the domain name (strip www. prefix)
 	parsedOrigin, err := url.Parse(origin)
 	if err != nil {
 		return fmt.Errorf("parsing ORIGIN: %w", err)
 	}
 	domain := strings.TrimPrefix(parsedOrigin.Hostname(), "www.")
 
-	// Generate RSA keypair
 	priv, pub, err := generateInstanceKeyPair()
 	if err != nil {
 		return fmt.Errorf("generating keypair: %w", err)
 	}
 
-	// Encode and encrypt private key
 	privBytes := x509.MarshalPKCS1PrivateKey(priv)
 	privEncrypted, err := security.Encrypt(privBytes, encryptionKey)
 	if err != nil {
 		return fmt.Errorf("encrypting private key: %w", err)
 	}
 
-	// Encode public key as PEM
 	pubBytes, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
 		return fmt.Errorf("marshaling public key: %w", err)
 	}
-	pubPem := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: pubBytes,
-	})
+	pubPem := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubBytes})
 
 	collection, err := app.FindCollectionByNameOrId("activitypub_actors")
 	if err != nil {
@@ -108,51 +99,4 @@ func InitInstanceActor(app core.App) error {
 	record.Set("last_fetched", time.Now())
 
 	return app.Save(record)
-}
-
-// buildInstanceActorJSON constructs the ActivityPub actor document for the instance
-// actor as a plain map so that manuallyApprovesFollowers (absent from the go-ap
-// Actor struct) can be included. This helper is separated from the HTTP handler so
-// that it can be exercised directly in tests.
-func buildInstanceActorJSON(record *core.Record, iri string) map[string]any {
-	return map[string]any{
-		"@context": []any{
-			"https://www.w3.org/ns/activitystreams",
-			"https://w3id.org/security/v1",
-		},
-		"id":                        iri,
-		"type":                      "Application",
-		"preferredUsername":         record.GetString("preferred_username"),
-		"name":                      record.GetString("username"),
-		"inbox":                     record.GetString("inbox"),
-		"outbox":                    record.GetString("outbox"),
-		"manuallyApprovesFollowers": true,
-		"publicKey": map[string]any{
-			"id":           iri + "#main-key",
-			"owner":        iri,
-			"publicKeyPem": record.GetString("public_key"),
-		},
-	}
-}
-
-// InstanceActorGet handles GET /activitypub/instance and returns the instance
-// actor as a valid ActivityPub JSON document.
-//
-// This handler looks up the actor record directly by IRI rather than going
-// through actor assembly helpers, because those helpers assume every is_local
-// actor has a non-empty user relation which is not true for the instance actor.
-func InstanceActorGet(e *core.RequestEvent) error {
-	origin := os.Getenv("ORIGIN")
-	if origin == "" {
-		return fmt.Errorf("ORIGIN not set")
-	}
-
-	iri := origin + "/api/v1/activitypub/instance"
-
-	record, err := e.App.FindFirstRecordByData("activitypub_actors", "iri", iri)
-	if err != nil {
-		return e.NotFoundError("Instance actor not found", err)
-	}
-
-	return e.JSON(http.StatusOK, buildInstanceActorJSON(record, iri))
 }
