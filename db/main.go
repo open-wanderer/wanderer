@@ -183,6 +183,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/plugins/oauth/revoke", routes.PluginSystemOAuthRevoke)
 
 	se.Router.POST("/activitypub/activity/process", routes.ActivitypubActivityProcess)
+	se.Router.POST("/activitypub/instance/inbox", federation.InstanceInboxHandler)
 	se.Router.GET("/activitypub/actor", routes.ActivitypubActor)
 	se.Router.GET("/activitypub/actor/{id}/{follow}", routes.ActivitypubActorFollow)
 	se.Router.GET("/activitypub/trail/{id}", routes.ActivitypubTrail)
