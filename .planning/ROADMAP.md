@@ -76,7 +76,19 @@ Plans:
   4. A trail with `is_public = false` is never included in outgoing fanout activities regardless of instance follow state
   5. A `Delete{Trail}` activity from a remote actor is only applied if the actor is the trail's original author — unauthorized delete attempts are rejected
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — instanceFollowerInboxes helper + unit tests (SYNC-01/02/03 foundation)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-02-PLAN.md — create.go fanout injection, SAFE-01 dedup guards, SAFE-03 comment privacy gate
+
+**Wave 3** *(blocked on Waves 1-2)*
+
+- [ ] 03-03-PLAN.md — SAFE-02 delete authorization, SYNC-03 delete fanout, D-10 instance inbox content dispatch
 
 ### Phase 4: NodeInfo
 
@@ -100,5 +112,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Instance Actor | 1/1 | Complete    | 2026-06-25 |
 | 2. Follow Lifecycle | 4/4 | Complete   | 2026-06-25 |
-| 3. Fanout and Safety | 0/? | Not started | - |
+| 3. Fanout and Safety | 0/3 | Not started | - |
 | 4. NodeInfo | 0/? | Not started | - |

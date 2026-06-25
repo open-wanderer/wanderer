@@ -30,7 +30,7 @@ Activate content synchronization so that public trails, comments, lists, and sum
 ### Broadcast-Loop Deduplication (SAFE-01)
 
 - **D-04:** Dedup is enforced inside each `processCreateOrUpdate*` function (trail, comment, summitLog, list), not at the inbox handler level. Each function checks whether a content record with the incoming object IRI already exists in the relevant collection (`trails`, `comments`, `summit_logs`, `lists`). If found: return `nil` silently (idempotent delivery — remote gets 200, no retry triggered).
-- **D-05:** No changes to `activitypub_activities` for incoming dedup tracking. Content records themselves serve as the dedup store (their `iri` field is the unique key). This is consistent with how `ProcessFollowActivity` already uses `FindFirstRecordByFilter("follows", ...)` for its own idempotency guard.
+- **D-05 [informational]:** No changes to `activitypub_activities` for incoming dedup tracking. Content records themselves serve as the dedup store (their `iri` field is the unique key). This is consistent with how `ProcessFollowActivity` already uses `FindFirstRecordByFilter("follows", ...)` for its own idempotency guard.
 
 ### Delete Authorization Fix (SAFE-02)
 

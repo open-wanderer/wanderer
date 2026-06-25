@@ -549,17 +549,11 @@ All other claims in this research were verified by direct codebase inspection. N
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **SAFE-01 dedup scope for Update activities**
-   - What we know: D-04 says "if found: return nil silently" for all activity types.
-   - What's unclear: Should an incoming Update for already-known content be deduplicated (dropped) or allowed through? The existing upsert paths in `processCreateOrUpdateCommentActivity` and `processCreateOrUpdateSummitLogActivity` already check for existing records and upsert. A dedup guard returning nil would prevent updates from remote peers from applying.
-   - Recommendation: Apply the dedup guard only on `pub.CreateType`. For `pub.UpdateType`, allow the existing upsert logic to run. The broadcast-loop scenario produces duplicate Creates, not duplicate Updates. Raise with user if D-04's "both types" interpretation is confirmed.
+1. **SAFE-01 dedup scope for Update activities** — RESOLVED: Apply the dedup guard only on `pub.CreateType`. Incoming Update activities always proceed (upsert runs normally). Resolved in 03-02-PLAN.md objective: "dedup guard applies ONLY when `activity.Type == pub.CreateType`".
 
-2. **`CreateCommentDeleteActivity` and instance fanout for comment deletes when trail author is local**
-   - What we know: `CreateCommentDeleteActivity` line 102-104 returns `nil` if the trail author is local (`commentTrailAuthor.GetBool("is_local")`). This guard would prevent instance fanout for comments on locally-authored trails.
-   - What's unclear: Should instance followers receive Delete{Comment} activities when a local user deletes a comment on a locally-authored trail?
-   - Recommendation: The existing early return at line 102 needs to be restructured: send the Delete to instance followers regardless of whether the trail author is local, but still gate sending to the trail author only when the trail author is remote. This requires splitting the "send to trail author" and "send to instance followers" paths.
+2. **`CreateCommentDeleteActivity` and instance fanout for comment deletes when trail author is local** — RESOLVED: Restructure `CreateCommentDeleteActivity` to always deliver to instance followers regardless of trail author locality; only gate the trail-author notification on `!commentTrailAuthor.GetBool("is_local")`. Resolved in 03-03-PLAN.md Task 1 action D.
 
 ---
 
