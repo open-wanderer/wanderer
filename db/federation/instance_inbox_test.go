@@ -1,6 +1,7 @@
 package federation
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -259,8 +260,12 @@ func TestProcessFollowInstanceFollowStored(t *testing.T) {
 	if got := rec.GetString("actor"); got != remoteActor.GetString("iri") {
 		t.Errorf("activity.actor = %q, want %q", got, remoteActor.GetString("iri"))
 	}
-	if got := rec.GetString("object"); got != instanceActor.GetString("iri") {
-		t.Errorf("activity.object = %q, want %q", got, instanceActor.GetString("iri"))
+	// The object field is of type json in PocketBase; GetString on a json field returns
+	// the raw JSON literal (e.g. `"https://..."` with surrounding quotes for a string).
+	// Use strings.Trim to compare the unquoted IRI value.
+	gotObject := strings.Trim(rec.GetString("object"), "\"")
+	if gotObject != instanceActor.GetString("iri") {
+		t.Errorf("activity.object = %q, want %q", gotObject, instanceActor.GetString("iri"))
 	}
 }
 
