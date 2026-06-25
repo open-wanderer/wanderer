@@ -166,15 +166,25 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 
 	// Dispatch to the appropriate federation processor.
 	// Only Follow/Accept/Undo are handled here (D-03).
-	var procErr error
+	// CR-05: each case propagates errors as 400 responses so the remote caller
+	// can detect failures; unknown activity types are rejected with 400 rather
+	// than silently accepted with 200 null.
 	switch activity.Type {
 	case pub.FollowType:
-		procErr = ProcessFollowActivity(e.App, actor, activity)
+		if err := ProcessFollowActivity(e.App, actor, activity); err != nil {
+			return e.BadRequestError("Failed to process Follow activity", err)
+		}
 	case pub.AcceptType:
-		procErr = ProcessAcceptActivity(e.App, actor, activity)
+		if err := ProcessAcceptActivity(e.App, actor, activity); err != nil {
+			return e.BadRequestError("Failed to process Accept activity", err)
+		}
 	case pub.UndoType:
-		procErr = ProcessUndoActivity(e.App, actor, activity)
+		if err := ProcessUndoActivity(e.App, actor, activity); err != nil {
+			return e.BadRequestError("Failed to process Undo activity", err)
+		}
+	default:
+		return e.BadRequestError("Unsupported activity type", nil)
 	}
 
-	return e.JSON(http.StatusOK, procErr)
+	return e.JSON(http.StatusOK, map[string]bool{"success": true})
 }
