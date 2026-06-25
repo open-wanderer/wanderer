@@ -15,6 +15,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 
 	"pocketbase/commands"
+	"pocketbase/federation"
 	"pocketbase/hooks"
 	"pocketbase/pluginsystem"
 	"pocketbase/routes"
@@ -215,6 +216,9 @@ func initData(app core.App, client meilisearch.ServiceManager) error {
 	initCategories(app)
 	initPlugins(app)
 	initMeilisearchConfig(client)
+	if err := federation.InitInstanceActor(app); err != nil {
+		app.Logger().Error(fmt.Sprintf("Failed to initialize instance actor: %v", err))
+	}
 	go func() {
 		backfillPolylines(app)
 		initMeilisearchDocuments(app, client)
