@@ -3,7 +3,6 @@
     import { Link } from "@tiptap/extension-link";
     import Mention from "@tiptap/extension-mention";
     import Placeholder from "@tiptap/extension-placeholder";
-    import { Underline } from "@tiptap/extension-underline";
     import StarterKit from "@tiptap/starter-kit";
     import { mount, onDestroy, onMount, unmount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
@@ -74,8 +73,9 @@
         editor = new Editor({
             element: element,
             extensions: [
-                StarterKit,
-                Underline,
+                StarterKit.configure({
+                    link: false,
+                }),
                 Placeholder.configure({
                     placeholder: placeholder,
                 }),
