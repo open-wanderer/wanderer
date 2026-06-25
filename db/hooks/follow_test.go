@@ -237,3 +237,75 @@ func TestInstanceFollowActionReject(t *testing.T) {
 		t.Errorf("instanceFollowAction(\"pending\", \"rejected\") = %q, want \"reject\"", got)
 	}
 }
+
+// TestIsOutboundInstanceFollowTrueWhenInstanceIsFollower verifies that a follows record
+// where the FOLLOWER actor's iri equals the local instance IRI returns true.
+// This is the admin-initiated outbound follow case (InstanceFollowCreateHandler must fire).
+func TestIsOutboundInstanceFollowTrueWhenInstanceIsFollower(t *testing.T) {
+	t.Setenv("ORIGIN", "https://trails.example.com")
+	t.Setenv("POCKETBASE_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+
+	app := newFollowTestApp(t)
+
+	instanceActor := createFollowTestActor(t, app,
+		"https://trails.example.com/api/v1/activitypub/instance",
+		"instance", true)
+	remoteActor := createFollowTestActor(t, app,
+		"https://remote.example.com/api/v1/activitypub/instance",
+		"", false)
+
+	// Instance is the follower (outbound follow initiated by admin).
+	follow := createFollowRecord(t, app, instanceActor.Id, remoteActor.Id, "pending")
+
+	if !isOutboundInstanceFollow(app, follow) {
+		t.Error("isOutboundInstanceFollow returned false — expected true when instance actor is the follower")
+	}
+}
+
+// TestIsOutboundInstanceFollowFalseWhenInstanceIsFollowee verifies that a follows record
+// where the FOLLOWEE actor's iri equals the local instance IRI (the shape saved by
+// ProcessFollowActivity for inbound follows) returns false.
+// This is the CR-03 regression: InstanceFollowCreateHandler must NOT fire here.
+func TestIsOutboundInstanceFollowFalseWhenInstanceIsFollowee(t *testing.T) {
+	t.Setenv("ORIGIN", "https://trails.example.com")
+	t.Setenv("POCKETBASE_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+
+	app := newFollowTestApp(t)
+
+	instanceActor := createFollowTestActor(t, app,
+		"https://trails.example.com/api/v1/activitypub/instance",
+		"instance", true)
+	remoteActor := createFollowTestActor(t, app,
+		"https://remote.example.com/api/v1/activitypub/instance",
+		"", false)
+
+	// Remote is the follower, instance is the followee (inbound follow saved by ProcessFollowActivity).
+	follow := createFollowRecord(t, app, remoteActor.Id, instanceActor.Id, "pending")
+
+	if isOutboundInstanceFollow(app, follow) {
+		t.Error("isOutboundInstanceFollow returned true — expected false when instance actor is the followee (inbound follow, CR-03 regression)")
+	}
+}
+
+// TestIsOutboundInstanceFollowFalseWhenNeitherIsInstance verifies that a follows record
+// between two non-instance actors (e.g., two person actors) returns false.
+func TestIsOutboundInstanceFollowFalseWhenNeitherIsInstance(t *testing.T) {
+	t.Setenv("ORIGIN", "https://trails.example.com")
+	t.Setenv("POCKETBASE_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+
+	app := newFollowTestApp(t)
+
+	alice := createFollowTestActor(t, app,
+		"https://trails.example.com/api/v1/activitypub/user/alice",
+		"person", true)
+	bob := createFollowTestActor(t, app,
+		"https://remote.example.com/users/bob",
+		"person", false)
+
+	// Neither actor is the local instance actor.
+	follow := createFollowRecord(t, app, bob.Id, alice.Id, "accepted")
+
+	if isOutboundInstanceFollow(app, follow) {
+		t.Error("isOutboundInstanceFollow returned true — expected false when neither actor is the instance actor")
+	}
+}
