@@ -1,81 +1,59 @@
 ---
 phase: 02-follow-lifecycle
-reviewed: 2026-06-25T00:00:00Z
+reviewed: 2026-06-25T15:43:54Z
 depth: standard
-files_reviewed: 8
+files_reviewed: 9
 files_reviewed_list:
-  - db/migrations/1782290001_add_rejected_to_follows_status.go
-  - db/federation/instance.go
   - db/federation/follow.go
+  - db/federation/instance.go
+  - db/federation/follow_accept_test.go
   - db/federation/instance_inbox_test.go
-  - db/main.go
-  - web/src/routes/api/v1/activitypub/instance/inbox/+server.ts
   - db/hooks/follow.go
   - db/hooks/follow_test.go
+  - db/main.go
+  - db/migrations/1782290001_add_rejected_to_follows_status.go
+  - web/src/routes/api/v1/activitypub/instance/inbox/+server.ts
 findings:
-  critical: 5
+  critical: 3
   warning: 4
   info: 2
-  total: 11
+  total: 9
 status: issues_found
 ---
 
 # Phase 02: Code Review Report
 
-**Reviewed:** 2026-06-25T00:00:00Z
+**Reviewed:** 2026-06-25T15:43:54Z
 **Depth:** standard
-**Files Reviewed:** 8
+**Files Reviewed:** 9
 **Status:** issues_found
 
 ## Summary
 
-Phase 02 adds the follow lifecycle for instance-level actors: a migration for the `rejected`
-status, an `InstanceInboxHandler` that verifies HTTP signatures and dispatches Follow/Accept/Undo,
-`ProcessFollowActivity` branching for instance actors (pending, no auto-accept), and three
-AfterSuccess hooks for admin-driven accept/reject/undo delivery.
-
-The core branching logic and signature verification path are structurally sound. However the
-hook registration introduces two independent double-send bugs (duplicate Follow activity on
-admin-initiated follows; duplicate Undo on deletions), the inbound-follow save spuriously
-triggers `InstanceFollowCreateHandler` in the wrong direction, `ProcessAcceptActivity` will
-panic on a malformed Accept, and the inbox handler masks all processing errors behind HTTP 200.
-All five of these are blockers before the phase ships.
+This phase implements the follow lifecycle for instance-level ActivityPub federation: pending-state inbound follows, admin-driven Accept/Reject delivery, outbound Follow creation, and the HTTP inbox handler. The overall architecture is sound and the happy paths are tested. However three blockers were found that can cause silent data corruption or incorrect federation behavior in production: a discarded error in `CreateFollowHandler` that masks DB failures while still firing federation delivery, a non-idempotent replay path in `ProcessFollowActivity` that will crash on duplicate Follow requests, and an `Accept` delivery order inversion in `CreateAcceptFollowActivity` that persists the DB record before successfully delivering the HTTP message, leaving stale `accepted` rows on network failure.
 
 ---
 
 ## Critical Issues
 
-### CR-01: Double Follow activity sent when admin creates an instance follow via API
+### CR-01: `CreateFollowHandler` discards `e.Next()` error, firing federation delivery after a failed DB save
 
-**File:** `db/hooks/follow.go:12-19` and `db/main.go:127,130`
+**File:** `db/hooks/follow.go:19`
+**Issue:** In the non-instance branch of `CreateFollowHandler`, `e.Next()` is called without capturing its return value. If any downstream hook (or the PocketBase core record-save itself) returns an error, that error is silently dropped and the function returns `nil`. This means `CreateFollowActivity` is called and the outgoing Follow activity is dispatched to the remote inbox even though the local `follows` record was never committed. The remote instance receives a Follow but the local DB has no record of it — the follow relationship is permanently asymmetric and cannot be accepted, rejected, or undone via any admin action.
 
-**Issue:** Two hooks are registered for the `follows` collection on creation:
+The contrast with `DeleteFollowHandler` (line 35: `return e.Next()`) shows the correct pattern is already used one function away.
 
-1. `OnRecordCreateRequest` → `CreateFollowHandler` — calls `federation.CreateFollowActivity`
-   unconditionally after `e.Next()` (no instance-follow guard).
-2. `OnRecordAfterCreateSuccess` → `InstanceFollowCreateHandler` — also calls
-   `federation.CreateFollowActivity` for instance follows.
-
-When an admin creates an instance follow record via the PocketBase API, both hooks fire in
-sequence, causing two `Follow` activities to be delivered to the remote inbox. The remote
-instance will create a duplicate pending entry.
-
-`CreateFollowHandler` was written for user-level follows and never had reason to guard against
-instance follows; it predates this phase. The new `InstanceFollowCreateHandler` was added
-without disabling `CreateFollowHandler` for instance follows.
-
-**Fix:** Add an `isInstanceFollow` guard (or an equivalent `is_local` follower check) at the
-top of `CreateFollowHandler` to skip instance follows and delegate entirely to
-`InstanceFollowCreateHandler`:
-
+**Fix:**
 ```go
 func CreateFollowHandler() func(e *core.RecordRequestEvent) error {
     return func(e *core.RecordRequestEvent) error {
+        if isInstanceFollow(e.App, e.Record) {
+            return e.Next()
+        }
+        // Capture the error from e.Next() so we do not dispatch federation
+        // delivery when the underlying DB save failed.
         if err := e.Next(); err != nil {
             return err
-        }
-        if isInstanceFollow(e.App, e.Record) {
-            return nil // InstanceFollowCreateHandler (AfterCreateSuccess) handles this
         }
         federation.CreateFollowActivity(e.App, e.Record)
         return nil
@@ -85,246 +63,123 @@ func CreateFollowHandler() func(e *core.RecordRequestEvent) error {
 
 ---
 
-### CR-02: Double Undo activity sent when admin deletes an instance follow via API
+### CR-02: `ProcessFollowActivity` has no idempotency guard — replayed Follow from same remote actor crashes with DB unique-constraint error
 
-**File:** `db/hooks/follow.go:21-27` and `db/main.go:128,132`
+**File:** `db/federation/follow.go:79-113`
+**Issue:** When a remote instance sends a Follow activity directed at the local instance actor, `ProcessFollowActivity` unconditionally creates a new `follows` record (lines 79-113). The `follows` table has a unique composite index on `(follower, followee)` (migration `1748002661_updated_follows.go`). If the same remote instance replays the Follow (network retry, duplicate delivery — both are normal in ActivityPub), `app.Save(followRecord)` on line 93 will return a unique-constraint violation. The error propagates up to `InstanceInboxHandler`, which returns a 400 to the remote caller. The remote caller is likely to retry indefinitely.
 
-**Issue:** Mirrors CR-01 for deletions. Two hooks are registered:
+The same path also creates a second `activitypub_activities` record for the Follow (lines 98-110), which then causes `CreateAcceptFollowActivity` / `CreateRejectFollowActivity` to use `FindFirstRecordByFilter` — a non-deterministic match when duplicates exist.
 
-1. `OnRecordDeleteRequest` → `DeleteFollowHandler` — calls `federation.CreateUnfollowActivity`
-   unconditionally (no instance-follow guard).
-2. `OnRecordAfterDeleteSuccess` → `InstanceFollowDeleteHandler` — also calls
-   `federation.CreateUnfollowActivity` for instance follows.
-
-Both fire when the admin deletes an instance follow via the API, producing two `Undo{Follow}`
-activities to the remote inbox.
-
-**Fix:** Add an `isInstanceFollow` guard in `DeleteFollowHandler` to skip instance follows:
-
+**Fix:** Check for an existing follow record before inserting, and return early (with optional 200) if one already exists:
 ```go
-func DeleteFollowHandler() func(e *core.RecordRequestEvent) error {
-    return func(e *core.RecordRequestEvent) error {
-        if isInstanceFollow(e.App, e.Record) {
-            return e.Next() // InstanceFollowDeleteHandler (AfterDeleteSuccess) handles this
-        }
-        federation.CreateUnfollowActivity(e.App, e.Record)
-        return e.Next()
-    }
+// Idempotency: if a follow record already exists for this pair, skip creation.
+existing, err := app.FindFirstRecordByFilter(
+    "follows",
+    "follower={:follower} && followee={:followee}",
+    dbx.Params{"follower": actor.Id, "followee": object.Id},
+)
+if err == nil && existing != nil {
+    return nil // already recorded; treat as duplicate delivery
 }
+if err != nil && !errors.Is(err, sql.ErrNoRows) {
+    return err
+}
+// proceed with new record creation...
 ```
 
 ---
 
-### CR-03: InstanceFollowCreateHandler fires on inbound follows saved by ProcessFollowActivity
+### CR-03: `CreateAcceptFollowActivity` persists the Accept DB record before delivering it — leaves stale `accepted` status on network failure
 
-**File:** `db/hooks/follow.go:68-103` and `db/federation/follow.go:84-113`
+**File:** `db/federation/follow.go:214-226`
+**Issue:** `CreateAcceptFollowActivity` saves the Accept activity record to the database at line 222 (`app.Save(record)`), and only then calls `PostActivity` at line 226. `PostActivity` runs delivery asynchronously in a goroutine and its errors are silently swallowed (the function always returns `nil` from `CreateAcceptFollowActivity`'s perspective). However, `InstanceFollowUpdateHandler` calls this function after the follow record has already been set to `status=accepted` by the PocketBase update path. If the HTTP delivery fails, the local DB shows `accepted` and an Accept activity record exists, but the remote instance never received the Accept and still considers the follow `pending`. Subsequent administrative actions (re-reject, re-accept) will not fix this because `instanceFollowAction` returns `""` for same-status transitions.
 
-**Issue:** `OnRecordAfterCreateSuccess` fires for every successful record save, including
-programmatic `app.Save()` calls made inside request handlers. When `ProcessFollowActivity`
-stores an inbound instance follow (remote → local instance actor), it calls `app.Save(followRecord)`.
-This triggers `InstanceFollowCreateHandler`.
+The same structural issue exists in `CreateRejectFollowActivity` (lines 284-288).
 
-Inside that handler, `isInstanceFollow` checks both the follower and the followee. The followee
-is the local instance actor, so `isInstanceFollow` returns `true`. The handler then calls
-`federation.CreateFollowActivity(e.App, e.Record)` where `e.Record` has `follower = remote_actor`.
-`CreateFollowActivity` calls `PostActivity(app, followerActor, ...)`, which attempts to decrypt
-the remote actor's `private_key` — a field we do not hold. `security.Decrypt("", key)` fails,
-logging a silent error. The net effect is a spurious fire-and-forget goroutine per inbound
-instance follow, and an incorrect follow activity is attempted as if we were sending on behalf
-of the remote actor.
-
-**Fix:** `InstanceFollowCreateHandler` must only fire when the _follower_ is the local instance
-actor (i.e., an admin-initiated outbound follow). Check `followerActor.GetBool("is_local")` or
-compare the follower's IRI against `instanceIRI`:
+**Fix:** Move the DB record creation to after a successful delivery signal, or — since `PostActivity` is fire-and-forget — at minimum log the outstanding delivery attempt using a pending-delivery queue or explicit retry mechanism. A lighter immediate fix is to document the at-most-once guarantee and add a compensating re-send path accessible to the admin. The minimum required change is to not treat a missing DB record as evidence of non-delivery when re-accepting a follow that previously failed delivery:
 
 ```go
-func InstanceFollowCreateHandler() func(e *core.RecordEvent) error {
-    return func(e *core.RecordEvent) error {
-        instanceIRI := os.Getenv("ORIGIN") + "/api/v1/activitypub/instance"
-        followerActor, err := e.App.FindRecordById("activitypub_actors", e.Record.GetString("follower"))
-        if err != nil || followerActor.GetString("iri") != instanceIRI {
-            return e.Next() // Not an outbound instance follow; skip
-        }
-        // ... existing outbound logic
-    }
+// After PostActivity returns (goroutine is already launched at this point),
+// wrap the DB save in the error path so the record is only stored when
+// the goroutine is at least enqueued (PostActivity never returns a delivery error today,
+// but the save should still be last to match the intent):
+if err = PostActivity(app, followeeActor, acceptActivity, []string{followerActor.GetString("inbox")}); err != nil {
+    return err
 }
-```
-
-The same directional check should be applied to `InstanceFollowDeleteHandler` if the local
-instance is not always the follower in deletion scenarios.
-
----
-
-### CR-04: Unsafe type assertion in ProcessAcceptActivity panics on malformed Accept
-
-**File:** `db/federation/follow.go:293`
-
-**Issue:**
-
-```go
-followActivity := activity.Object.(*pub.Activity)
-```
-
-This is an unguarded type assertion. If the remote instance sends an `Accept` whose `object`
-field is an IRI string or any type other than `*pub.Activity` (which is common in real-world
-ActivityPub implementations that inline only the activity ID), the assertion panics, taking
-down the request goroutine. The panic is not recovered inside `InstanceInboxHandler`, so it
-propagates as an unhandled panic.
-
-The same pattern exists in `processUnfollowActivity` (`undo.go:147`) and
-`processUnlikeActivity` (`undo.go:171`), but those were pre-existing. `ProcessAcceptActivity`
-is now newly reachable via the instance inbox route registered in this phase.
-
-**Fix:** Use the comma-ok form and return a descriptive error:
-
-```go
-followActivity, ok := activity.Object.(*pub.Activity)
-if !ok {
-    return fmt.Errorf("ProcessAcceptActivity: object is not *pub.Activity, got %T", activity.Object)
-}
-```
-
----
-
-### CR-05: InstanceInboxHandler returns HTTP 200 OK when processing fails (error masking)
-
-**File:** `db/federation/instance.go:169-179`
-
-**Issue:**
-
-```go
-var procErr error
-switch activity.Type {
-case pub.FollowType:
-    procErr = ProcessFollowActivity(e.App, actor, activity)
-case pub.AcceptType:
-    procErr = ProcessAcceptActivity(e.App, actor, activity)
-case pub.UndoType:
-    procErr = ProcessUndoActivity(e.App, actor, activity)
-}
-
-return e.JSON(http.StatusOK, procErr)
-```
-
-When `procErr` is non-nil, `e.JSON(http.StatusOK, procErr)` serializes the Go `error` interface
-to JSON. Standard Go errors do not implement `json.Marshaler`, so they serialize to `null`.
-The remote caller receives `HTTP 200` with body `null` and has no way to detect the failure.
-
-Additionally, when `activity.Type` is none of the three handled types, `procErr` stays `nil`
-and the handler silently accepts the unknown activity with `200 null` — there is no `default`
-case to reject unsupported types.
-
-**Fix:** Return a proper error response when processing fails, and add a default 400 for
-unrecognised activity types:
-
-```go
-switch activity.Type {
-case pub.FollowType:
-    if err := ProcessFollowActivity(e.App, actor, activity); err != nil {
-        return e.BadRequestError("Follow processing failed", err)
-    }
-case pub.AcceptType:
-    if err := ProcessAcceptActivity(e.App, actor, activity); err != nil {
-        return e.BadRequestError("Accept processing failed", err)
-    }
-case pub.UndoType:
-    if err := ProcessUndoActivity(e.App, actor, activity); err != nil {
-        return e.BadRequestError("Undo processing failed", err)
-    }
-default:
-    return e.BadRequestError("Unsupported activity type", nil)
-}
-return e.JSON(http.StatusOK, map[string]string{"status": "ok"})
+// Only persist after delivery is enqueued.
+return app.Save(record)
 ```
 
 ---
 
 ## Warnings
 
-### WR-01: instance_inbox_test.go follows schema is missing the "rejected" status value
+### WR-01: `InstanceInboxHandler` compares `sql.ErrNoRows` with `==` instead of `errors.Is`
 
-**File:** `db/federation/instance_inbox_test.go:82`
+**File:** `db/federation/instance.go:146`
+**Issue:** The actor cache-miss check on line 146 uses `err == sql.ErrNoRows`. PocketBase wraps its not-found errors: the underlying SQLite driver or PocketBase itself may wrap `sql.ErrNoRows` inside another error value. Using direct equality comparison instead of `errors.Is(err, sql.ErrNoRows)` means the cache-miss branch is silently skipped for wrapped errors, causing the handler to return the wrapped DB error as a 500 instead of attempting the remote actor fetch.
 
-**Issue:** The inline follows collection schema used in `newInboxTestApp` declares:
+The `InitInstanceActor` function in the same file (line 60) correctly uses `errors.Is(err, sql.ErrNoRows)`, making the inconsistency within the same file.
 
-```json
-"values": ["pending", "accepted"]
-```
-
-The migration in this phase adds `"rejected"` as a valid status. `follow_test.go` correctly
-includes `"rejected"`. If any future test in `instance_inbox_test.go` exercises a code path
-that sets `status = "rejected"` (e.g., after Plan 03 integrates reject delivery), PocketBase
-will reject the save with a validation error, causing the test to fail with a confusing
-message.
-
-**Fix:** Add `"rejected"` to the values array in `instance_inbox_test.go:82`:
-
-```json
-"values": ["pending", "accepted", "rejected"]
-```
-
----
-
-### WR-02: `isInstanceFollow` silently treats ORIGIN="" as a valid IRI prefix
-
-**File:** `db/hooks/follow.go:34`
-
-**Issue:**
-
+**Fix:**
 ```go
-instanceIRI := os.Getenv("ORIGIN") + "/api/v1/activitypub/instance"
-```
-
-If `ORIGIN` is unset (empty string), `instanceIRI` becomes `"/api/v1/activitypub/instance"`.
-Any actor whose IRI happens to be that relative path would match, though this is unlikely in
-practice. More dangerously, the function silently succeeds with a wrong value rather than
-returning an error. This means all three instance hooks will mis-fire or not fire at all for
-the wrong record when the server is misconfigured, producing a confusing failure mode.
-
-**Fix:** Return `false` immediately when `ORIGIN` is empty, mirroring `InitInstanceActor` and
-`InstanceInboxHandler`:
-
-```go
-func isInstanceFollow(app core.App, follow *core.Record) bool {
-    origin := os.Getenv("ORIGIN")
-    if origin == "" {
-        return false
-    }
-    instanceIRI := origin + "/api/v1/activitypub/instance"
-    // ...
+if errors.Is(err, sql.ErrNoRows) {
+    // remote fetch ...
 }
 ```
 
 ---
 
-### WR-03: `if (success === false)` in SvelteKit proxy is dead code — 401 is thrown, not returned false
+### WR-02: `ProcessFollowActivity` sends a notification to a person actor even for instance-actor follows
 
-**File:** `web/src/routes/api/v1/activitypub/instance/inbox/+server.ts:53-55`
+**File:** `db/federation/follow.go:152-162`
+**Issue:** After the instance-actor early-return guard at lines 91-113, the code falls through to the notification dispatch at lines 152-162. For the person-actor path, `object` is the local person actor record and the notification is sent to that person — correct. However, if the instance-actor branch is somehow not taken (e.g., the `actor_type` field is absent or empty for the local instance actor, which can happen if `InitInstanceActor` was never called or the collection schema is inconsistent), the code continues past the guard and sends a notification to the instance actor record. `util.SendNotification` expects a user-linked actor; calling it with an instance actor record may panic or produce a silent error.
 
-**Issue:**
+More importantly, the notification (lines 153-161) includes `actor.GetString("preferred_username")` and `actor.GetString("domain")` from the remote actor. For remote instance actors, `preferred_username` is always `"instance"` (set by the remote `InitInstanceActor`), so the notification text would display `@instance@remotedomain` as a follower — a confusing UX for person-actor follows from instances.
 
-```typescript
-const success = await event.locals.pb.send("/activitypub/instance/inbox", { ... });
-
-if (success === false) {
-    return json("Invalid header signature", { status: 400 });
+**Fix:** Guard the notification block so it only fires for the person-actor path:
+```go
+// Only send follow notifications for user-level follows (not instance actors).
+if object.GetString("actor_type") != "instance" {
+    notification := util.Notification{ ... }
+    return util.SendNotification(app, notification, object)
 }
+return nil
 ```
 
-PocketBase's SDK `send()` throws a `ClientResponseError` on non-2xx responses; it never
-returns `false`. When Go's `InstanceInboxHandler` returns 401 (invalid signature), the SDK
-throws, control jumps to `catch (e)`, and `handleError(e)` is called. The `success === false`
-branch is never reachable. The error response message `"Invalid header signature"` is therefore
-also unreachable.
+---
 
-This was copied from the existing user inbox handler (`user/[handle]/inbox/+server.ts`) where
-the same dead check exists. Both should be removed for clarity.
+### WR-03: `InstanceFollowUpdateHandler` fires for both directions of an instance follow — can incorrectly send Accept/Reject for an outbound follow that the local instance initiated
 
-**Fix:** Remove the dead check; rely on the `catch` block's `handleError` for all non-2xx
-responses:
+**File:** `db/hooks/follow.go:138`
+**Issue:** `InstanceFollowUpdateHandler` calls `isInstanceFollow` (which returns true when *either* follower or followee is the local instance actor) and then unconditionally calls `CreateAcceptFollowActivity` or `CreateRejectFollowActivity`. `CreateAcceptFollowActivity` / `CreateRejectFollowActivity` look up the persisted Follow activity by `actor={followerActor.iri} && object={followeeActor.iri}`. For an *outbound* follow (local instance is the follower), this query looks for a Follow activity where `actor` is the local instance IRI — but the persisted activity in that case is the outgoing Follow *from* the local instance, not an incoming Follow *to* the local instance. Depending on the activity records present, the filter may match the wrong record or return no rows, causing a misleading error from `FindFirstRecordByFilter`.
 
+The correct guard for Accept/Reject delivery is `isOutboundInstanceFollow` returning `false` (i.e., the local instance is the *followee*) before allowing the Accept/Reject delivery.
+
+**Fix:**
+```go
+func InstanceFollowUpdateHandler() func(e *core.RecordEvent) error {
+    return func(e *core.RecordEvent) error {
+        // Accept/Reject only makes sense when the local instance is the FOLLOWEE
+        // (i.e., a remote instance's inbound Follow is being approved/denied).
+        if !isInstanceFollow(e.App, e.Record) || isOutboundInstanceFollow(e.App, e.Record) {
+            return e.Next()
+        }
+        // ... rest unchanged
+```
+
+---
+
+### WR-04: TypeScript inbox handler returns empty string body with `Content-Type: application/activity+json` on success, masking the Go handler's JSON response
+
+**File:** `web/src/routes/api/v1/activitypub/instance/inbox/+server.ts:57-61`
+**Issue:** On success, the SvelteKit handler calls `json("", { status: 200, headers })` which serializes an empty string `""` as the JSON body and sets `Content-Type: application/activity+json`. The Go handler already returns `{"success": true}` (instance.go:189), but `event.locals.pb.send()` is called without streaming the response body back — the Go body is discarded. The response that reaches the remote ActivityPub client is `""` (a JSON string), not a JSON object. Strict ActivityPub implementations that validate the response body will fail.
+
+The success check `if (success === false)` on line 53 is also fragile: `pb.send()` throws on non-2xx status rather than returning `false`, so this check is dead code and any 400/401 from the Go handler will be re-thrown to the outer `catch`, returning a 500 instead of forwarding the Go handler's 4xx.
+
+**Fix:**
 ```typescript
-await event.locals.pb.send("/activitypub/instance/inbox", {
+const response = await event.locals.pb.send("/activitypub/instance/inbox", {
     method: "POST",
     fetch: event.fetch,
     headers: originalHeaders,
@@ -333,92 +188,40 @@ await event.locals.pb.send("/activitypub/instance/inbox", {
 
 const headers = new Headers();
 headers.append("Content-Type", "application/activity+json");
-return json("", { status: 200, headers });
+return json(response, { status: 200, headers });
 ```
-
----
-
-### WR-04: `CreateFollowHandler` and `DeleteFollowHandler` silently discard federation errors
-
-**File:** `db/hooks/follow.go:15,23`
-
-**Issue:**
-
-```go
-// CreateFollowHandler:
-federation.CreateFollowActivity(e.App, e.Record)  // return value ignored
-
-// DeleteFollowHandler:
-federation.CreateUnfollowActivity(e.App, e.Record)  // return value ignored
-```
-
-Both functions return `error` but the callers discard it. A federation delivery failure
-produces no log entry and no propagated error. This makes diagnosing federation problems
-difficult in production.
-
-**Fix:** Log errors consistently with the pattern used by the new instance handlers:
-
-```go
-if err := federation.CreateFollowActivity(e.App, e.Record); err != nil {
-    e.App.Logger().Error(fmt.Sprintf("follow create: CreateFollowActivity failed: %v", err))
-}
-```
+And remove the dead `if (success === false)` branch.
 
 ---
 
 ## Info
 
-### IN-01: Identical follow-activity reload logic duplicated in CreateAcceptFollowActivity and CreateRejectFollowActivity
+### IN-01: `instance_inbox_test.go` follows collection schema omits `"rejected"` status value — diverges from `follow_test.go`
 
-**File:** `db/federation/follow.go:187-201` and `db/federation/follow.go:249-263`
+**File:** `db/federation/instance_inbox_test.go:82`
+**Issue:** The `follows` collection schema embedded in `newInboxTestApp` (line 82) only lists `["pending","accepted"]` as valid status values. `follow_test.go`'s `newFollowTestApp` (line 80) correctly includes `["pending","accepted","rejected"]` per the Plan 02 migration. Any test in `instance_inbox_test.go` that attempts to set `status="rejected"` will fail with a validation error from PocketBase. No current test exercises the rejected path in that file, so this is latent but will silently break future tests added to that file.
 
-**Issue:** The code to reload the original incoming Follow activity from `activitypub_activities`
-(filter by actor/object/type, reconstruct `pub.Activity`) is copy-pasted verbatim in both
-functions. Any bug fix or schema change must be applied in two places.
+**Fix:** Update `instance_inbox_test.go` line 82:
+```json
+"values":["pending","accepted","rejected"]
+```
 
-**Fix:** Extract to a private helper, e.g.:
+---
 
+### IN-02: `initData` return value is ignored in `main.go`
+
+**File:** `db/main.go:220-232`
+**Issue:** `initData` is declared with return type `error` (line 220) but the call site on line 161 (`initData(se.App, client)`) discards the return value. This is a Go vet warning (`errcheck`). Because the returned error is always `nil` in the current implementation (errors are logged internally), this has no runtime impact today, but a future change that returns a real error from `initData` will be silently ignored.
+
+**Fix:** Either change `initData` to return nothing (preferred, since all errors are already logged internally), or capture the error at the call site:
 ```go
-func loadPendingFollowActivity(app core.App, followerIRI, followeeIRI string) (*pub.Activity, error) {
-    rec, err := app.FindFirstRecordByFilter("activitypub_activities",
-        "actor={:actor}&&object={:object}&&type={:type}",
-        dbx.Params{"actor": followerIRI, "object": followeeIRI, "type": string(pub.FollowType)},
-    )
-    if err != nil {
-        return nil, err
-    }
-    a := pub.FollowNew(pub.IRI(rec.GetString("iri")), pub.IRI(followeeIRI))
-    a.Actor = pub.IRI(rec.GetString("actor"))
-    return a, nil
+if err := initData(se.App, client); err != nil {
+    app.Logger().Error(fmt.Sprintf("initData failed: %v", err))
 }
 ```
 
 ---
 
-### IN-02: Commented-out SyncOutbox call is dead code
-
-**File:** `db/federation/follow.go:310-314`
-
-**Issue:**
-
-```go
-// err = util.SyncOutbox(app, actor)
-// if err != nil {
-//     return err
-// }
-```
-
-This block has been commented out and should either be removed or tracked as a known
-incomplete feature in a TODO comment with a ticket reference.
-
-**Fix:** Remove the commented-out block, or replace with:
-
-```go
-// TODO: sync outbox after remote accept (tracked in issue #XXX)
-```
-
----
-
-_Reviewed: 2026-06-25T00:00:00Z_
+_Reviewed: 2026-06-25T15:43:54Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
