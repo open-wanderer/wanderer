@@ -7,10 +7,10 @@
 
 ### Instance Actor
 
-- [ ] **INST-01**: Instance actor record exists in `activitypub_actors` with `actor_type = "Application"`, RSA keypair, and stable IRI at `{ORIGIN}/api/v1/activitypub/instance`
-- [ ] **INST-02**: GET `{ORIGIN}/api/v1/activitypub/instance` returns valid ActivityPub JSON (id, type, inbox, outbox, publicKey, manuallyApprovesFollowers: true)
+- [x] **INST-01**: Instance actor record exists in `activitypub_actors` with `actor_type = "Application"`, RSA keypair, and stable IRI at `{ORIGIN}/api/v1/activitypub/instance`
+- [x] **INST-02**: GET `{ORIGIN}/api/v1/activitypub/instance` returns valid ActivityPub JSON (id, type, inbox, outbox, publicKey, manuallyApprovesFollowers: true)
 - [ ] **INST-03**: POST `{ORIGIN}/api/v1/activitypub/instance/inbox` accepts HTTP-signed activities from authenticated remote actors
-- [ ] **INST-04**: `initInstanceActor()` runs at startup, creates actor if not exists, never regenerates keypair if actor already exists
+- [x] **INST-04**: `initInstanceActor()` runs at startup, creates actor if not exists, never regenerates keypair if actor already exists
 
 ### Follow Lifecycle
 
@@ -64,10 +64,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INST-01 | Phase 1 | Pending |
-| INST-02 | Phase 1 | Pending |
+| INST-01 | Phase 1 | Complete |
+| INST-02 | Phase 1 | Complete |
 | INST-03 | Phase 2 | Pending |
-| INST-04 | Phase 1 | Pending |
+| INST-04 | Phase 1 | Complete |
 | FLCL-01 | Phase 2 | Pending |
 | FLCL-02 | Phase 2 | Pending |
 | FLCL-03 | Phase 2 | Pending |
@@ -82,6 +82,7 @@
 | SAFE-04 | Phase 4 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 16 total
 - Mapped to phases: 16
 - Unmapped: 0 ✓

@@ -90,7 +90,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Instance Actor | 1/1 | Complete   | 2026-06-25 |
+| 1. Instance Actor | 1/1 | Complete    | 2026-06-25 |
 | 2. Follow Lifecycle | 0/? | Not started | - |
 | 3. Fanout and Safety | 0/? | Not started | - |
 | 4. NodeInfo | 0/? | Not started | - |
