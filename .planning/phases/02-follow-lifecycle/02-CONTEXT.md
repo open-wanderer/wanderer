@@ -74,7 +74,7 @@ Wire up the instance actor inbox endpoint and the full Follow lifecycle so admin
 ### Reusable Assets
 - `PostActivity()` in `db/federation/activity.go` — the delivery function for all outgoing AP activities; reuse for Accept, Reject, Undo delivery from lifecycle hooks
 - HTTP signature verification — already in place for user inboxes; instance inbox handler must call the same function (researcher identifies exact call site)
-- `activitypub_actors` collection with `actor_type` field — Phase 1 added `actor_type = "Application"` for the instance actor; the instance inbox handler and hook filters can use this to distinguish instance vs. user actors
+- `activitypub_actors` collection with `actor_type` field — Phase 1 added `actor_type = "instance"` for the instance actor (select field values: `["person", "instance"]`); the instance inbox handler and hook filters can use this to distinguish instance vs. user actors
 
 ### Established Patterns
 - Phase 1 set the pattern: instance-actor code in `db/federation/instance.go`, routes/hooks registered in `db/main.go`
