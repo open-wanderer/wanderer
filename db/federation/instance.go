@@ -1,8 +1,6 @@
 package federation
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
@@ -20,16 +18,6 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
 )
-
-// generateInstanceKeyPair generates a 2048-bit RSA keypair for the instance actor.
-// Copied from db/util/activitypub.go (unexported there; duplicated here to keep instance.go self-contained).
-func generateInstanceKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, err
-	}
-	return priv, &priv.PublicKey, nil
-}
 
 // InitInstanceActor idempotently creates the Application-type instance actor in
 // the activitypub_actors collection. It must be called synchronously at startup
@@ -67,7 +55,7 @@ func InitInstanceActor(app core.App) error {
 	}
 	domain := strings.TrimPrefix(parsedOrigin.Hostname(), "www.")
 
-	priv, pubKey, err := generateInstanceKeyPair()
+	priv, pubKey, err := util.GenerateRSAKeyPair()
 	if err != nil {
 		return fmt.Errorf("generating keypair: %w", err)
 	}
