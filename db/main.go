@@ -186,6 +186,9 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/plugins/oauth/callback", routes.PluginSystemOAuthCallback)
 	se.Router.POST("/plugins/oauth/revoke", routes.PluginSystemOAuthRevoke)
 
+	se.Router.GET("/.well-known/nodeinfo", routes.NodeInfo)
+	se.Router.GET("/.well-known/nodeinfo/2.1", routes.NodeInfo21)
+
 	se.Router.POST("/activitypub/activity/process", routes.ActivitypubActivityProcess)
 	se.Router.POST("/activitypub/instance/inbox", federation.InstanceInboxHandler)
 	se.Router.GET("/activitypub/actor", routes.ActivitypubActor)
