@@ -14,7 +14,6 @@ export default defineConfig({
 	ssr: { noExternal: ['three'] },
 	...(process.env.WANDERER_ENV == "dev" ? {
 		server: {
-			allowedHosts: ["wanderer-a.mac.lan", "wanderer-b.mac.lan"],
 			// https: {
 			// 	key: fs.readFileSync('.svelte-kit/key.pem'),
 			// 	cert: fs.readFileSync('.svelte-kit/cert.pem')
