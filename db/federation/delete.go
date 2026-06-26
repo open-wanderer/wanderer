@@ -70,6 +70,13 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 		return err
 	}
 
+	// D-03: also deliver to instance-actor followers (SYNC-03)
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
 	return PostActivity(app, author, activity, recipients)
 }
 
@@ -99,10 +106,6 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 		return err
 	}
 
-	if commentTrailAuthor.GetBool("is_local") {
-		return nil
-	}
-
 	collection, err := app.FindCollectionByNameOrId("activitypub_activities")
 	if err != nil {
 		return err
@@ -119,7 +122,19 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 	activity.To = pub.ItemCollection{pub.IRI(to)}
 	activity.Published = time.Now()
 
-	err = PostActivity(app, author, activity, []string{to + "/inbox"})
+	// D-03: build recipients — only include trail author inbox when they are remote;
+	// always deliver to instance-actor followers (SYNC-03, Pitfall 3 / Open Question 2).
+	recipients := []string{}
+	if !commentTrailAuthor.GetBool("is_local") {
+		recipients = append(recipients, to+"/inbox")
+	}
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
+	err = PostActivity(app, author, activity, recipients)
 	if err != nil {
 		return err
 	}
@@ -188,6 +203,13 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 		recipients = append(recipients, summitLogTrailAuthor.GetString("inbox"))
 	}
 
+	// D-03: also deliver to instance-actor followers (SYNC-03)
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
 	err = PostActivity(app, author, activity, recipients)
 	if err != nil {
 		return err
@@ -245,6 +267,13 @@ func CreateListDeleteActivity(app core.App, r *core.Record) error {
 		return err
 	}
 
+	// D-03: also deliver to instance-actor followers (SYNC-03)
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
 	err = PostActivity(app, author, activity, recipients)
 	if err != nil {
 		return err
@@ -274,7 +303,7 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 	var err error
 	switch {
 	case strings.Contains(object, "trail"):
-		err = processDeleteTrailActivity(app, activity)
+		err = processDeleteTrailActivity(app, actor, activity)
 	case strings.Contains(object, "comment"):
 		err = processDeleteCommentActivity(app, actor, activity)
 	case strings.Contains(object, "summit-log"):
@@ -290,12 +319,18 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 	return nil
 }
 
-func processDeleteTrailActivity(app core.App, activity pub.Activity) error {
+func processDeleteTrailActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 
 	object := activity.Object.GetID().String()
 	trail, err := app.FindFirstRecordByData("trails", "iri", object)
 	if err != nil {
 		return err
+	}
+
+	// SAFE-02: enforce trail author ownership — actor must be the trail's original author.
+	// trail.GetString("author") is a 15-char PocketBase record id, not an IRI (RESEARCH.md Pitfall 1).
+	if trail.GetString("author") != actor.Id {
+		return fmt.Errorf("actor is not trail author")
 	}
 
 	err = util.DeleteFromFeed(app, trail.Id)
