@@ -101,8 +101,7 @@ Plans:
   1. GET `/.well-known/nodeinfo` returns a JSON discovery document linking to the NodeInfo 2.1 endpoint
   2. GET `/.well-known/nodeinfo/2.1` returns valid NodeInfo JSON with `software.name: "wanderer"`, a version string, and current user and post counts
 
-**Plans**: 1 plan
-Plans:
+**Plans**: 1 planPlans:
 
 - [ ] 04-01-PLAN.md — NodeInfo discovery + 2.1 endpoints (builders, handlers, route registration)
 
