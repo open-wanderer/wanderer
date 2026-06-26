@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -50,6 +52,25 @@ func followerInboxes(app core.App, actorId string) ([]string, error) {
 		inboxes = append(inboxes, inbox)
 	}
 	return inboxes, rows.Err()
+}
+
+// instanceFollowerInboxes returns inbox URLs for all accepted followers of the
+// local instance actor. Returns (nil, nil) if the instance actor has not yet
+// been seeded (D-02: startup-safe behavior).
+func instanceFollowerInboxes(app core.App) ([]string, error) {
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return nil, fmt.Errorf("ORIGIN not set")
+	}
+	iri := origin + "/api/v1/activitypub/instance"
+	instanceActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", iri)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return followerInboxes(app, instanceActor.Id)
 }
 
 func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, recipients []string) error {
