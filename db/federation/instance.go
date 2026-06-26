@@ -97,8 +97,9 @@ func InitInstanceActor(app core.App) error {
 // POST /activitypub/instance/inbox.
 //
 // It mirrors ActivitypubActivityProcess in db/routes/activitypub.go but is
-// scoped to the instance actor's inbox and only dispatches Follow/Accept/Undo
-// activities (D-03: the instance inbox is isolated to the follow lifecycle).
+// scoped to the instance actor's inbox. It dispatches Follow/Accept/Undo for
+// the follow lifecycle and Create/Update/Delete for content synchronization
+// (SYNC-01).
 //
 // HTTP signature verification is performed via util.VerifySignature before any
 // activity processing (T-02-03: mitigate spoofing).
