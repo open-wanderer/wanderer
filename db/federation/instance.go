@@ -182,6 +182,16 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 		if err := ProcessUndoActivity(e.App, actor, activity); err != nil {
 			return e.BadRequestError("Failed to process Undo activity", err)
 		}
+	case pub.CreateType:
+		fallthrough
+	case pub.UpdateType:
+		if err := ProcessCreateOrUpdateActivity(e.App, actor, recipient, activity); err != nil {
+			return e.BadRequestError("Failed to process Create/Update activity", err)
+		}
+	case pub.DeleteType:
+		if err := ProcessDeleteActivity(e.App, actor, activity); err != nil {
+			return e.BadRequestError("Failed to process Delete activity", err)
+		}
 	default:
 		return e.BadRequestError("Unsupported activity type", nil)
 	}
