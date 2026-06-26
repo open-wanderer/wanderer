@@ -84,7 +84,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-02-PLAN.md — create.go fanout injection, SAFE-01 dedup guards, SAFE-03 comment privacy gate
+- [x] 03-02-PLAN.md — create.go fanout injection, SAFE-01 dedup guards, SAFE-03 comment privacy gate
 
 **Wave 3** *(blocked on Waves 1-2)*
 
@@ -112,5 +112,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Instance Actor | 1/1 | Complete    | 2026-06-25 |
 | 2. Follow Lifecycle | 4/4 | Complete   | 2026-06-25 |
-| 3. Fanout and Safety | 1/3 | In progress | - |
+| 3. Fanout and Safety | 2/3 | In Progress|  |
 | 4. NodeInfo | 0/? | Not started | - |

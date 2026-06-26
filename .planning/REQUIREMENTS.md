@@ -22,15 +22,15 @@
 
 ### Content Synchronization
 
-- [ ] **SYNC-01**: When a public trail, summit_log, list, or comment is created, a `Create` activity is delivered to the inboxes of all accepted instance actor followers (in addition to existing user-level fanout)
-- [ ] **SYNC-02**: When a public trail, summit_log, list, or comment is updated, an `Update` activity is delivered to all accepted instance actor followers
+- [x] **SYNC-01**: When a public trail, summit_log, list, or comment is created, a `Create` activity is delivered to the inboxes of all accepted instance actor followers (in addition to existing user-level fanout)
+- [x] **SYNC-02**: When a public trail, summit_log, list, or comment is updated, an `Update` activity is delivered to all accepted instance actor followers
 - [ ] **SYNC-03**: When a trail, summit_log, list, or comment is deleted, a `Delete` activity is delivered to all accepted instance actor followers; receiving instances remove the local cached copy
 
 ### Safety and Correctness
 
-- [ ] **SAFE-01**: Incoming activity IRI is checked against `activitypub_activities` before dispatch; duplicate activities are silently dropped (prevents broadcast loop / re-delivery storms)
+- [x] **SAFE-01**: Incoming activity IRI is checked against `activitypub_activities` before dispatch; duplicate activities are silently dropped (prevents broadcast loop / re-delivery storms)
 - [ ] **SAFE-02**: `processDeleteTrailActivity` verifies the deleting actor is the trail's original author before removing the local copy (fixing existing missing ownership check)
-- [ ] **SAFE-03**: Outgoing fanout checks `is_public = true` before including any record; `is_public = false` records are never included regardless of connection state
+- [x] **SAFE-03**: Outgoing fanout checks `is_public = true` before including any record; `is_public = false` records are never included regardless of connection state
 - [ ] **SAFE-04**: NodeInfo endpoint at `/.well-known/nodeinfo` and `/.well-known/nodeinfo/2.1` returns instance software metadata (name: wanderer, version, user count, post count) so peer instances can identify Wanderer software
 
 ## v2 Requirements
@@ -73,12 +73,12 @@
 | FLCL-03 | Phase 2 | Pending |
 | FLCL-04 | Phase 2 | Pending |
 | FLCL-05 | Phase 2 | Pending |
-| SYNC-01 | Phase 3 | Pending |
-| SYNC-02 | Phase 3 | Pending |
+| SYNC-01 | Phase 3 | Complete |
+| SYNC-02 | Phase 3 | Complete |
 | SYNC-03 | Phase 3 | Pending |
-| SAFE-01 | Phase 3 | Pending |
+| SAFE-01 | Phase 3 | Complete |
 | SAFE-02 | Phase 3 | Pending |
-| SAFE-03 | Phase 3 | Pending |
+| SAFE-03 | Phase 3 | Complete |
 | SAFE-04 | Phase 4 | Pending |
 
 **Coverage:**
