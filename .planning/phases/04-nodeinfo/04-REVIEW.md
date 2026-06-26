@@ -8,10 +8,10 @@ files_reviewed_list:
   - db/routes/nodeinfo_test.go
   - db/main.go
 findings:
-  critical: 1
+  critical: 2
   warning: 4
   info: 2
-  total: 7
+  total: 8
 status: issues_found
 ---
 
@@ -54,6 +54,60 @@ The migration index uses `public = true` at DDL time (accepted by SQLite 3.23+),
 // Fix: use integer literal to match SQLite storage and established codebase pattern
 localPosts, err := app.CountRecords("trails", dbx.NewExp("public = 1"))
 ```
+
+### CR-02: NodeInfo endpoints unreachable in production — PocketBase port is not public
+
+**Files:** `db/routes/nodeinfo.go`, `db/main.go`
+**Issue:** The two NodeInfo routes are registered on PocketBase's internal HTTP router (`se.Router.GET`). In Wanderer's deployment topology, PocketBase runs on a separate port (default 8090) that is not exposed publicly — only SvelteKit (port 3000/80) is the public-facing server. Any peer instance that probes `https://your-instance.example.com/.well-known/nodeinfo` will get a 404 from SvelteKit, because the route does not exist there.
+
+The established pattern for this exact problem is `web/src/routes/.well-known/webfinger/+server.ts`, which implements the Webfinger well-known endpoint directly in SvelteKit, querying PocketBase through `event.locals.pb`. NodeInfo must follow the same pattern.
+
+**Fix:** Add two SvelteKit route files:
+
+`web/src/routes/.well-known/nodeinfo/+server.ts` — returns the static JRD discovery document (no PocketBase needed):
+```typescript
+import { json, type RequestEvent } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
+
+export async function GET(_event: RequestEvent) {
+    return json({
+        links: [{
+            rel: 'http://nodeinfo.diaspora.software/ns/schema/2.1',
+            href: `${env.ORIGIN}/.well-known/nodeinfo/2.1`,
+        }],
+    });
+}
+```
+
+`web/src/routes/.well-known/nodeinfo/2.1/+server.ts` — queries PocketBase for live counts via `event.locals.pb`:
+```typescript
+import { json, type RequestEvent } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
+import { handleError } from '$lib/util/api_util';
+
+export async function GET(event: RequestEvent) {
+    try {
+        const version = env.WANDERER_VERSION || 'dev';
+        const [trailsResult, usersResult] = await Promise.all([
+            event.locals.pb.collection('trails').getList(1, 1, { filter: 'public = true', fields: 'id' }),
+            event.locals.pb.collection('users').getList(1, 1, { fields: 'id' }),
+        ]);
+        return json({
+            version: '2.1',
+            software: { name: 'wanderer', version, homepage: 'https://wanderer.to', repository: 'https://github.com/Flomp/wanderer' },
+            protocols: ['activitypub'],
+            services: { inbound: [], outbound: [] },
+            openRegistrations: false,
+            usage: { users: { total: usersResult.totalItems }, localPosts: trailsResult.totalItems },
+            metadata: {},
+        });
+    } catch (err) {
+        return handleError(err);
+    }
+}
+```
+
+The Go handlers in `db/routes/nodeinfo.go` and their registrations in `db/main.go` can be kept for internal use but are not the public path and should be noted as such, or removed to avoid confusion.
 
 ---
 
