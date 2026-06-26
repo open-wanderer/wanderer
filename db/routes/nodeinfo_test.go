@@ -47,26 +47,8 @@ func newNodeInfoTestApp(t *testing.T) core.App {
 		t.Fatalf("create trails collection: %v", err)
 	}
 
-	// users collection — auth-type collection for counting real users
-	usersJSON := `[{
-		"id": "users_coll_001",
-		"name": "users",
-		"type": "auth",
-		"system": false,
-		"listRule": null,
-		"viewRule": null,
-		"createRule": null,
-		"updateRule": null,
-		"deleteRule": null,
-		"fields": [
-			{"autogeneratePattern":"[a-z0-9]{15}","hidden":false,"id":"text3208210256","max":15,"min":15,"name":"id","pattern":"^[a-z0-9]+$","presentable":false,"primaryKey":true,"required":true,"system":true,"type":"text"}
-		],
-		"indexes": []
-	}]`
-
-	if err := app.ImportCollectionsByMarshaledJSON([]byte(usersJSON), false); err != nil {
-		t.Fatalf("create users collection: %v", err)
-	}
+	// Note: PocketBase bootstrap creates a "users" auth collection automatically.
+	// We use it directly; no need to import it again.
 
 	return app
 }
