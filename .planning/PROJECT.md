@@ -15,6 +15,7 @@ An administrator can connect two Wanderer instances so that public content flows
 - [x] Public trails, comments, lists, and summit_logs are federated; private content never leaves its instance — Validated in Phase 03 (fanout-and-safety)
 - [x] Update and Delete activities propagate to all following instances — Validated in Phase 03 (fanout-and-safety)
 - [x] Instance fanout uses the same delivery infrastructure as user-level federation — Validated in Phase 03 (fanout-and-safety)
+- [x] NodeInfo 2.1 endpoints expose software identity and live usage counts for peer discovery — Validated in Phase 04 (nodeinfo)
 
 ### Active
 
@@ -84,4 +85,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-26 after Phase 03 (fanout-and-safety) completion*
+*Last updated: 2026-06-26 after Phase 04 (nodeinfo) completion*
