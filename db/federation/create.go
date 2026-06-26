@@ -156,6 +156,14 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 		recipients = append(recipients, commentTrailAuthor.GetString("inbox"))
 	}
 
+	// Deliver to the comment author's followers (mirrors CreateTrailActivity and
+	// CreateSummitLogActivity which both call followerInboxes for their author).
+	followerInboxList, err := followerInboxes(app, commentAuthor.Id)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, followerInboxList...)
+
 	cc := pub.ItemCollection{}
 	for _, r := range recipients {
 		cc.Append(pub.IRI(r))
