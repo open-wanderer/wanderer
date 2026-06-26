@@ -1,6 +1,8 @@
 package federation
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"pocketbase/util"
@@ -324,6 +326,9 @@ func processDeleteTrailActivity(app core.App, actor *core.Record, activity pub.A
 	object := activity.Object.GetID().String()
 	trail, err := app.FindFirstRecordByData("trails", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
@@ -346,6 +351,9 @@ func processDeleteCommentActivity(app core.App, actor *core.Record, activity pub
 
 	comment, err := app.FindFirstRecordByData("comments", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
@@ -365,6 +373,9 @@ func processDeleteSummitLogActivity(app core.App, actor *core.Record, activity p
 
 	summitLog, err := app.FindFirstRecordByData("summit_logs", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
@@ -380,6 +391,9 @@ func processDeleteListActivity(app core.App, actor *core.Record, activity pub.Ac
 	object := activity.Object.GetID().String()
 	list, err := app.FindFirstRecordByData("lists", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
