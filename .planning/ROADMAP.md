@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Instance Actor** - Schema migration and idempotent instance actor initialization with GET endpoint (completed 2026-06-25)
 - [x] **Phase 2: Follow Lifecycle** - Inbox endpoint + admin-gated Follow/Accept/Reject/Undo flow (completed 2026-06-25)
 - [x] **Phase 3: Fanout and Safety** - Content sync to instance followers, broadcast-loop deduplication, privacy gate, ownership fix (completed 2026-06-26)
-- [ ] **Phase 4: NodeInfo** - Well-known NodeInfo endpoint so peers can identify this Wanderer instance
+- [x] **Phase 4: NodeInfo** - Well-known NodeInfo endpoint so peers can identify this Wanderer instance (completed 2026-06-26)
 
 ## Phase Details
 
@@ -103,7 +103,7 @@ Plans:
 
 **Plans**: 1 planPlans:
 
-- [ ] 04-01-PLAN.md — NodeInfo discovery + 2.1 endpoints (builders, handlers, route registration)
+- [x] 04-01-PLAN.md — NodeInfo discovery + 2.1 endpoints (builders, handlers, route registration)
 
 ## Progress
 
@@ -115,4 +115,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Instance Actor | 1/1 | Complete    | 2026-06-25 |
 | 2. Follow Lifecycle | 4/4 | Complete   | 2026-06-25 |
 | 3. Fanout and Safety | 3/3 | Complete    | 2026-06-26 |
-| 4. NodeInfo | 0/1 | Not started | - |
+| 4. NodeInfo | 1/1 | Complete   | 2026-06-26 |

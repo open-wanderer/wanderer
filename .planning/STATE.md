@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 4 context gathered
-last_updated: "2026-06-26T10:51:55.071Z"
-last_activity: 2026-06-26 -- Phase 04 planning complete
+last_updated: "2026-06-26T10:53:16.821Z"
+last_activity: 2026-06-26 -- Phase 04 execution started
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 8
+  total_plans: 9
   completed_plans: 8
   percent: 75
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22)
 
 **Core value:** An administrator can connect two Wanderer instances so that public content flows between them automatically, using the same ActivityPub machinery already powering user-level federation.
-**Current focus:** Phase 03 — fanout-and-safety
+**Current focus:** Phase 04 — nodeinfo
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-26 -- Phase 04 planning complete
+Phase: 04 (nodeinfo) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 04
+Last activity: 2026-06-26 -- Phase 04 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
