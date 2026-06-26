@@ -53,7 +53,7 @@ func buildNodeInfo21(app core.App) (map[string]any, error) {
 	}
 
 	// D-02: localPosts = count of public trails only (private trails never leave instance)
-	localPosts, err := app.CountRecords("trails", dbx.NewExp("public = true"))
+	localPosts, err := app.CountRecords("trails", dbx.NewExp("public = 1"))
 	if err != nil {
 		return nil, err
 	}
