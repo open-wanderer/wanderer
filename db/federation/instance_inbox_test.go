@@ -269,6 +269,65 @@ func TestProcessFollowInstanceFollowStored(t *testing.T) {
 	}
 }
 
+// TestInstanceInboxDispatchesCreateActivity verifies D-10: the instance inbox
+// dispatches an incoming Create activity to ProcessCreateOrUpdateActivity, which
+// creates a trail record in the database (SYNC-01 receiving side).
+func TestInstanceInboxDispatchesCreateActivity(t *testing.T) {
+	t.Setenv("ORIGIN", "https://trails.example.com")
+	t.Setenv("POCKETBASE_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+
+	app := newInboxTestApp(t)
+	addTrailsCollection(t, app)
+	addFeedCollection(t, app)
+
+	// Remote sender actor
+	sender := createTestActor(t, app,
+		"https://remote.example.com/api/v1/activitypub/instance",
+		"instance", false)
+
+	// Local instance actor (the inbox recipient)
+	instanceActor := createTestActor(t, app,
+		"https://trails.example.com/api/v1/activitypub/instance",
+		"instance", true)
+
+	const trailIRI = "https://remote.example.com/api/v1/trail/new1"
+
+	// Build a minimal trail object with a Location to satisfy TrailFromActivity.
+	place := &pub.Place{
+		Type:      pub.PlaceType,
+		Latitude:  47.5,
+		Longitude: 11.5,
+		Name:      pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "Test Place")),
+	}
+
+	obj := &pub.Object{
+		ID:       pub.IRI(trailIRI),
+		Type:     pub.NoteType,
+		Name:     pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "Test Trail")),
+		Content:  pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "")),
+		Location: place,
+	}
+
+	act := pub.ActivityNew(
+		pub.IRI("https://remote.example.com/api/v1/activitypub/activity/c1"),
+		pub.CreateType,
+		obj,
+	)
+	act.Actor = pub.IRI(sender.GetString("iri"))
+
+	// Call the same function the new switch case invokes (D-10 dispatch)
+	err := ProcessCreateOrUpdateActivity(app, sender, instanceActor, *act)
+	if err != nil {
+		t.Fatalf("ProcessCreateOrUpdateActivity returned error: %v", err)
+	}
+
+	// A trails row with the object IRI must now exist
+	_, lookupErr := app.FindFirstRecordByData("trails", "iri", trailIRI)
+	if lookupErr != nil {
+		t.Errorf("expected trail row with IRI %q to be created, got lookup error: %v", trailIRI, lookupErr)
+	}
+}
+
 // TestProcessFollowPersonActorAutoAccepts verifies that the existing person-actor
 // auto-accept path remains unchanged when a Follow is directed at a local person actor.
 func TestProcessFollowPersonActorAutoAccepts(t *testing.T) {
