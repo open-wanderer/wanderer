@@ -31,7 +31,9 @@ const (
 
 // verifySettings checks if the required environment variables are set.
 // If they are not set, it logs a warning.
-func verifySettings(app core.App) {
+// Note: called before app.Start(), so app.Logger() may not be initialized.
+// Use log.Printf() for pre-start warnings to avoid a potential nil/no-op logger.
+func verifySettings() {
 	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
 
 	if len(encryptionKey) != 32 {
@@ -41,17 +43,17 @@ func verifySettings(app core.App) {
 	}
 
 	if encryptionKey == defaultPocketBaseEncryptionKey {
-		app.Logger().Warn("POCKETBASE_ENCRYPTION_KEY is still set to the default value. Please change it to a secure value")
+		log.Printf("WARN: POCKETBASE_ENCRYPTION_KEY is still set to the default value. Please change it to a secure value")
 	}
 
 	meiliMasterKey := os.Getenv("MEILI_MASTER_KEY")
 
 	if len(meiliMasterKey) < 32 {
-		app.Logger().Warn("MEILI_MASTER_KEY not set or is shorter than 32 bytes")
+		log.Printf("WARN: MEILI_MASTER_KEY not set or is shorter than 32 bytes")
 	}
 
 	if meiliMasterKey == defaultMeiliMasterKey {
-		app.Logger().Warn("MEILI_MASTER_KEY is still set to the default value. Please change it to a secure value")
+		log.Printf("WARN: MEILI_MASTER_KEY is still set to the default value. Please change it to a secure value")
 	}
 }
 
@@ -63,7 +65,7 @@ func main() {
 	app := pocketbase.New()
 	client := initializeMeilisearch()
 
-	verifySettings(app)
+	verifySettings()
 
 	registerMigrations(app)
 	setupEventHandlers(app, client)
