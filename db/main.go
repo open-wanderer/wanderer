@@ -158,7 +158,9 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
 		registerCronJobs(se.App, client)
-		initData(se.App, client)
+		if err := initData(se.App, client); err != nil {
+			se.App.Logger().Error(fmt.Sprintf("initData failed: %v", err))
+		}
 
 		return se.Next()
 	}
