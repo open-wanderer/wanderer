@@ -1,11 +1,32 @@
 package routes
 
 import (
+	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
+
+// NodeInfo handles GET /.well-known/nodeinfo — returns the JRD discovery document.
+func NodeInfo(e *core.RequestEvent) error {
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return fmt.Errorf("ORIGIN not set")
+	}
+	return e.JSON(http.StatusOK, buildNodeInfoDiscovery(origin))
+}
+
+// NodeInfo21 handles GET /.well-known/nodeinfo/2.1 — returns the NodeInfo 2.1 payload.
+func NodeInfo21(e *core.RequestEvent) error {
+	payload, err := buildNodeInfo21(e.App)
+	if err != nil {
+		return err
+	}
+	e.Response.Header().Set("Content-Type", `application/json; profile="http://nodeinfo.diaspora.software/ns/schema/2.1#"`)
+	return e.JSON(http.StatusOK, payload)
+}
 
 // buildNodeInfoDiscovery returns the JRD discovery document for /.well-known/nodeinfo.
 // The links array contains one entry pointing to the NodeInfo 2.1 schema endpoint.
