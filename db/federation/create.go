@@ -3,6 +3,7 @@ package federation
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -463,6 +464,18 @@ func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *
 }
 
 func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
+	// SAFE-01: broadcast-loop dedup — drop duplicate Create by content IRI (D-04, Create-only)
+	if activity.Type == pub.CreateType {
+		objectIRI := activity.Object.GetID().String()
+		existing, derr := app.FindFirstRecordByData("trails", "iri", objectIRI)
+		if derr == nil && existing != nil {
+			return nil // already have this trail — silent broadcast-loop dedup (D-04)
+		}
+		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
+			return derr
+		}
+	}
+
 	trail, err := util.TrailFromActivity(activity, app, actor)
 	if err != nil {
 		return err
@@ -502,6 +515,17 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 }
 
 func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, actor *core.Record) error {
+	// SAFE-01: broadcast-loop dedup — drop duplicate Create by content IRI (D-04, Create-only)
+	if activity.Type == pub.CreateType {
+		objectIRI := activity.Object.GetID().String()
+		existing, derr := app.FindFirstRecordByData("comments", "iri", objectIRI)
+		if derr == nil && existing != nil {
+			return nil // already have this comment — silent broadcast-loop dedup (D-04)
+		}
+		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
+			return derr
+		}
+	}
 
 	commentObject, err := pub.ToObject(activity.Object)
 	if err != nil {
@@ -608,6 +632,18 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 }
 
 func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App, actor *core.Record) error {
+	// SAFE-01: broadcast-loop dedup — drop duplicate Create by content IRI (D-04, Create-only)
+	if activity.Type == pub.CreateType {
+		objectIRI := activity.Object.GetID().String()
+		existing, derr := app.FindFirstRecordByData("summit_logs", "iri", objectIRI)
+		if derr == nil && existing != nil {
+			return nil // already have this summit log — silent broadcast-loop dedup (D-04)
+		}
+		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
+			return derr
+		}
+	}
+
 	logObject, err := pub.ToObject(activity.Object)
 	if err != nil {
 		return err
@@ -783,6 +819,18 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 }
 
 func processCreateOrUpdateListActivity(activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
+	// SAFE-01: broadcast-loop dedup — drop duplicate Create by content IRI (D-04, Create-only)
+	if activity.Type == pub.CreateType {
+		objectIRI := activity.Object.GetID().String()
+		existing, derr := app.FindFirstRecordByData("lists", "iri", objectIRI)
+		if derr == nil && existing != nil {
+			return nil // already have this list — silent broadcast-loop dedup (D-04)
+		}
+		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
+			return derr
+		}
+	}
+
 	list, err := util.ListFromActivity(activity, app, actor)
 	if err != nil {
 		return err
