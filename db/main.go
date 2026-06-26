@@ -223,7 +223,9 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 }
 
 func initData(app core.App, client meilisearch.ServiceManager) error {
-	initCategories(app)
+	if err := initCategories(app); err != nil {
+		app.Logger().Error(fmt.Sprintf("initCategories failed: %v", err))
+	}
 	initPlugins(app)
 	initMeilisearchConfig(client)
 	if err := federation.InitInstanceActor(app); err != nil {
