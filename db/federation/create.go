@@ -149,7 +149,12 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 
 		recipients = append(recipients, m.GetString("inbox"))
 	}
-	recipients = append(recipients, commentTrailAuthor.GetString("inbox"))
+	// Only notify the trail author if they are remote — local actors receive the
+	// activity through local event hooks, not via HTTP delivery (mirrors the
+	// pattern in CreateSummitLogActivity and CreateCommentDeleteActivity).
+	if !commentTrailAuthor.GetBool("is_local") {
+		recipients = append(recipients, commentTrailAuthor.GetString("inbox"))
+	}
 
 	cc := pub.ItemCollection{}
 	for _, r := range recipients {
