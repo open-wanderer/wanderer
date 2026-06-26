@@ -122,3 +122,13 @@ None - no external service configuration required. The `WANDERER_VERSION` enviro
 ---
 *Phase: 04-nodeinfo*
 *Completed: 2026-06-26*
+
+## Self-Check: PASSED
+
+- `db/routes/nodeinfo.go` — FOUND
+- `db/routes/nodeinfo_test.go` — FOUND
+- `.planning/phases/04-nodeinfo/04-01-SUMMARY.md` — FOUND
+- Commits 91672f8f, fbd18d5e, 4c0ab71d — all verified in git log
+- `go build ./...` — OK
+- `go test ./routes/ -run TestNodeInfo` — 8/8 PASS
+- `grep -c /.well-known/nodeinfo main.go` — 2 (both routes registered)
