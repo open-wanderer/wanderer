@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -24,8 +25,14 @@ func NodeInfo21(e *core.RequestEvent) error {
 	if err != nil {
 		return err
 	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
 	e.Response.Header().Set("Content-Type", `application/json; profile="http://nodeinfo.diaspora.software/ns/schema/2.1#"`)
-	return e.JSON(http.StatusOK, payload)
+	e.Response.WriteHeader(http.StatusOK)
+	_, err = e.Response.Write(b)
+	return err
 }
 
 // buildNodeInfoDiscovery returns the JRD discovery document for /.well-known/nodeinfo.
