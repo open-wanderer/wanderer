@@ -80,7 +80,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — instanceFollowerInboxes helper + unit tests (SYNC-01/02/03 foundation)
+- [x] 03-01-PLAN.md — instanceFollowerInboxes helper + unit tests (SYNC-01/02/03 foundation)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -112,5 +112,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Instance Actor | 1/1 | Complete    | 2026-06-25 |
 | 2. Follow Lifecycle | 4/4 | Complete   | 2026-06-25 |
-| 3. Fanout and Safety | 0/3 | Not started | - |
+| 3. Fanout and Safety | 1/3 | In progress | - |
 | 4. NodeInfo | 0/? | Not started | - |

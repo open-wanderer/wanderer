@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-06-25T21:22:26.962Z"
-last_activity: 2026-06-25 -- Phase 02 execution started
+stopped_at: Phase 03 Plan 01 complete
+last_updated: "2026-06-26T08:59:20Z"
+last_activity: 2026-06-26 -- Phase 03 Plan 01 complete
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 5
-  completed_plans: 4
-  percent: 25
+  completed_phases: 2
+  total_plans: 8
+  completed_plans: 6
+  percent: 62
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22)
 
 **Core value:** An administrator can connect two Wanderer instances so that public content flows between them automatically, using the same ActivityPub machinery already powering user-level federation.
-**Current focus:** Phase 02 — follow-lifecycle
+**Current focus:** Phase 03 — fanout-and-safety
 
 ## Current Position
 
-Phase: 02 (follow-lifecycle) — EXECUTING
-Plan: 1 of 4
-Status: Ready to execute
-Last activity: 2026-06-25 -- Phase 02 execution started
+Phase: 03 (fanout-and-safety) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 03 (Plan 01 complete)
+Last activity: 2026-06-26 -- Phase 03 Plan 01 complete
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -64,6 +64,9 @@ Recent decisions affecting current work:
 - PocketBase admin UI only for v1 (no web/mobile admin)
 - Mutual approval for instance follows (not auto-accept)
 - No historical backfill on new connection
+- instanceFollowerInboxes returns (nil, nil) on sql.ErrNoRows — startup-safe per D-02
+- Delegates accepted-follower resolution to existing followerInboxes JOIN — no duplicated SQL
+- No deduplication against user-level inboxes — PostActivity slices.Sort + slices.Compact handles it
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-25T10:49:25.022Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-follow-lifecycle/02-CONTEXT.md
+Last session: 2026-06-26T08:59:20Z
+Stopped at: Phase 03 Plan 01 complete
+Resume file: .planning/phases/03-fanout-and-safety/03-01-SUMMARY.md
