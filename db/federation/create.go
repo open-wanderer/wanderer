@@ -337,6 +337,23 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	activity.CC = cc
 	activity.Published = time.Now()
 
+	// Save the activity record before dispatching — consistent with CreateTrailActivity.
+	// Saving first ensures the outbox record exists even if PostActivity's goroutine
+	// encounters an error mid-delivery.
+	record := core.NewRecord(collection)
+	record.Set("id", recordId)
+	record.Set("iri", id)
+	record.Set("to", to)
+	record.Set("cc", cc)
+	record.Set("type", string(typ))
+	record.Set("object", logObject)
+	record.Set("actor", summitLogAuthor.GetString("iri"))
+	record.Set("published", time.Now())
+
+	if err := app.Save(record); err != nil {
+		return err
+	}
+
 	inboxes, err := followerInboxes(app, summitLogAuthor.Id)
 	if err != nil {
 		return err
@@ -354,22 +371,7 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	}
 	recipients = append(recipients, instanceInboxes...)
 
-	err = PostActivity(app, summitLogAuthor, activity, recipients)
-	if err != nil {
-		return err
-	}
-
-	record := core.NewRecord(collection)
-	record.Set("id", recordId)
-	record.Set("iri", id)
-	record.Set("to", to)
-	record.Set("cc", cc)
-	record.Set("type", string(typ))
-	record.Set("object", logObject)
-	record.Set("actor", summitLogAuthor.GetString("iri"))
-	record.Set("published", time.Now())
-
-	return app.Save(record)
+	return PostActivity(app, summitLogAuthor, activity, recipients)
 }
 
 func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabularyType) error {
@@ -412,6 +414,23 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 		return err
 	}
 
+	// Save the activity record before dispatching — consistent with CreateTrailActivity.
+	// Saving first ensures the outbox record exists even if PostActivity's goroutine
+	// encounters an error mid-delivery.
+	record := core.NewRecord(collection)
+	record.Set("id", activityRecordId)
+	record.Set("iri", id)
+	record.Set("to", []string{to})
+	record.Set("cc", []string{cc})
+	record.Set("type", string(typ))
+	record.Set("object", listObject)
+	record.Set("actor", author)
+	record.Set("published", time.Now())
+
+	if err := app.Save(record); err != nil {
+		return err
+	}
+
 	recipients, err := followerInboxes(app, listAuthor.Id)
 	if err != nil {
 		return err
@@ -424,22 +443,7 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 	}
 	recipients = append(recipients, instanceInboxes...)
 
-	err = PostActivity(app, listAuthor, activity, recipients)
-	if err != nil {
-		return err
-	}
-
-	record := core.NewRecord(collection)
-	record.Set("id", activityRecordId)
-	record.Set("iri", id)
-	record.Set("to", []string{to})
-	record.Set("cc", []string{cc})
-	record.Set("type", string(typ))
-	record.Set("object", listObject)
-	record.Set("actor", author)
-	record.Set("published", time.Now())
-
-	return app.Save(record)
+	return PostActivity(app, listAuthor, activity, recipients)
 }
 
 func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *core.Record, activity pub.Activity) error {
