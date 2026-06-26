@@ -147,7 +147,11 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 				}
 				req.Header.Add("Content-Type", "application/activity+json")
 				req.Header.Add("Date", strings.ReplaceAll(time.Now().UTC().Format(time.RFC1123), "UTC", "GMT"))
-				req.Header.Add("Host", req.Host)
+				// Set req.Host on the struct field (not via Header.Add) so httpsig reads
+				// the correct value when building the Host header signing component.
+				// http.NewRequest leaves req.Host empty; net/http derives the wire Host
+				// header from req.URL.Host at transport time, but httpsig reads req.Header.
+				req.Host = req.URL.Host
 
 				if err := signer.SignRequest(privateKey, pubID, req, body); err != nil {
 					app.Logger().Error(fmt.Sprintf("Signing request failed: %s", err))
