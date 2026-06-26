@@ -94,6 +94,13 @@ func CreateTrailActivity(app core.App, ctx context.Context, trail *core.Record, 
 	}
 	recipients := append(mentions, inboxes...)
 
+	// D-03: also deliver to instance-actor followers (SYNC-01)
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
 	return PostActivity(app, trailAuthor, activity, recipients)
 }
 
@@ -112,6 +119,10 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 	commentTrail, err := app.FindRecordById("trails", comment.GetString("trail"))
 	if err != nil {
 		return err
+	}
+	// D-08/SAFE-03: whole-function gate — no fanout for comments on private trails
+	if !commentTrail.GetBool("public") {
+		return nil
 	}
 	commentTrailAuthor, err := app.FindRecordById("activitypub_actors", commentTrail.GetString("author"))
 	if err != nil {
@@ -177,6 +188,13 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 	if err != nil {
 		return err
 	}
+
+	// D-03: also deliver to instance-actor followers (SYNC-01)
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
 
 	return PostActivity(app, commentAuthor, activity, recipients)
 
@@ -328,6 +346,13 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 		recipients = append(recipients, summitLogTrailAuthor.GetString("inbox"))
 	}
 
+	// D-03: also deliver to instance-actor followers (SYNC-02)
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
 	err = PostActivity(app, summitLogAuthor, activity, recipients)
 	if err != nil {
 		return err
@@ -390,6 +415,13 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 	if err != nil {
 		return err
 	}
+
+	// D-03: also deliver to instance-actor followers (SYNC-02)
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
 
 	err = PostActivity(app, listAuthor, activity, recipients)
 	if err != nil {
