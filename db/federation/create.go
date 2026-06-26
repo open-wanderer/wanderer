@@ -705,15 +705,19 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 			continue
 		}
 		content := tagObj.Content.First().Value.String()
+		if len(content) == 0 {
+			continue // guard against empty content — prevents index-out-of-range panic
+		}
+		numeric := content[:len(content)-1] // strip unit suffix
 		switch tagObj.Name.First().Value.String() {
 		case "elevation_gain":
-			elevation_gain, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			elevation_gain, err = strconv.ParseFloat(numeric, 64)
 		case "elevation_loss":
-			elevation_loss, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			elevation_loss, err = strconv.ParseFloat(numeric, 64)
 		case "duration":
-			duration, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			duration, err = strconv.ParseFloat(numeric, 64)
 		case "distance":
-			distance, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			distance, err = strconv.ParseFloat(numeric, 64)
 		}
 		if err != nil {
 			continue
