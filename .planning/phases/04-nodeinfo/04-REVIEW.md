@@ -60,7 +60,9 @@ localPosts, err := app.CountRecords("trails", dbx.NewExp("public = 1"))
 **Files:** `db/routes/nodeinfo.go`, `db/main.go`
 **Issue:** The two NodeInfo routes are registered on PocketBase's internal HTTP router (`se.Router.GET`). In Wanderer's deployment topology, PocketBase runs on a separate port (default 8090) that is not exposed publicly — only SvelteKit (port 3000/80) is the public-facing server. Any peer instance that probes `https://your-instance.example.com/.well-known/nodeinfo` will get a 404 from SvelteKit, because the route does not exist there.
 
-The established pattern for this exact problem is `web/src/routes/.well-known/webfinger/+server.ts`, which implements the Webfinger well-known endpoint directly in SvelteKit, querying PocketBase through `event.locals.pb`. NodeInfo must follow the same pattern.
+The established pattern for this exact problem is `web/src/routes/.well-known/webfinger/+server.ts`, which implements the Webfinger well-known endpoint directly in SvelteKit. However, unlike Webfinger, the NodeInfo 2.1 endpoint needs a count of all users — and an unauthenticated `event.locals.pb` cannot read the `users` auth collection because PocketBase collection rules block it. The Go handler avoids this by using `app.CountRecords` directly against the database, bypassing collection rules entirely.
+
+The correct fix is to keep the Go handlers as-is and have the SvelteKit routes **proxy to PocketBase** on the internal network (`PUBLIC_POCKETBASE_URL`). SvelteKit can reach PocketBase via Docker's internal network even though external clients cannot, and the Go handler already runs with the necessary database privileges.
 
 **Fix:** Add two SvelteKit route files:
 
@@ -79,27 +81,20 @@ export async function GET(_event: RequestEvent) {
 }
 ```
 
-`web/src/routes/.well-known/nodeinfo/2.1/+server.ts` — queries PocketBase for live counts via `event.locals.pb`:
+`web/src/routes/.well-known/nodeinfo/2.1/+server.ts` — proxies to the PocketBase handler on the internal network, which uses `app.CountRecords` with admin-level DB access:
 ```typescript
-import { json, type RequestEvent } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
+import { env } from '$env/dynamic/public';
 import { handleError } from '$lib/util/api_util';
+import type { RequestEvent } from '@sveltejs/kit';
 
 export async function GET(event: RequestEvent) {
     try {
-        const version = env.WANDERER_VERSION || 'dev';
-        const [trailsResult, usersResult] = await Promise.all([
-            event.locals.pb.collection('trails').getList(1, 1, { filter: 'public = true', fields: 'id' }),
-            event.locals.pb.collection('users').getList(1, 1, { fields: 'id' }),
-        ]);
-        return json({
-            version: '2.1',
-            software: { name: 'wanderer', version, homepage: 'https://wanderer.to', repository: 'https://github.com/Flomp/wanderer' },
-            protocols: ['activitypub'],
-            services: { inbound: [], outbound: [] },
-            openRegistrations: false,
-            usage: { users: { total: usersResult.totalItems }, localPosts: trailsResult.totalItems },
-            metadata: {},
+        const upstream = `${env.PUBLIC_POCKETBASE_URL}/.well-known/nodeinfo/2.1`;
+        const response = await event.fetch(upstream);
+        const payload = await response.json();
+        return new Response(JSON.stringify(payload), {
+            status: response.status,
+            headers: { 'Content-Type': 'application/json' },
         });
     } catch (err) {
         return handleError(err);
@@ -107,7 +102,7 @@ export async function GET(event: RequestEvent) {
 }
 ```
 
-The Go handlers in `db/routes/nodeinfo.go` and their registrations in `db/main.go` can be kept for internal use but are not the public path and should be noted as such, or removed to avoid confusion.
+The Go handlers in `db/routes/nodeinfo.go` remain the authoritative implementation. The SvelteKit routes are the public-facing layer that proxies or composes from them.
 
 ---
 
