@@ -31,7 +31,7 @@
 - [x] **SAFE-01**: Incoming activity IRI is checked against `activitypub_activities` before dispatch; duplicate activities are silently dropped (prevents broadcast loop / re-delivery storms)
 - [x] **SAFE-02**: `processDeleteTrailActivity` verifies the deleting actor is the trail's original author before removing the local copy (fixing existing missing ownership check)
 - [x] **SAFE-03**: Outgoing fanout checks `is_public = true` before including any record; `is_public = false` records are never included regardless of connection state
-- [ ] **SAFE-04**: NodeInfo endpoint at `/.well-known/nodeinfo` and `/.well-known/nodeinfo/2.1` returns instance software metadata (name: wanderer, version, user count, post count) so peer instances can identify Wanderer software
+- [x] **SAFE-04**: NodeInfo endpoint at `/.well-known/nodeinfo` and `/.well-known/nodeinfo/2.1` returns instance software metadata (name: wanderer, version, user count, post count) so peer instances can identify Wanderer software
 
 ## v2 Requirements
 
@@ -79,7 +79,7 @@
 | SAFE-01 | Phase 3 | Complete |
 | SAFE-02 | Phase 3 | Complete |
 | SAFE-03 | Phase 3 | Complete |
-| SAFE-04 | Phase 4 | Pending |
+| SAFE-04 | Phase 4 | Complete |
 
 **Coverage:**
 
