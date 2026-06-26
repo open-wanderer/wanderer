@@ -383,6 +383,12 @@ func processDeleteListActivity(app core.App, actor *core.Record, activity pub.Ac
 		return err
 	}
 
+	// SAFE-02 parity: enforce list author ownership before deletion.
+	// list.GetString("author") is a PocketBase record id, not an IRI.
+	if list.GetString("author") != actor.Id {
+		return fmt.Errorf("actor is not list author")
+	}
+
 	err = util.DeleteFromFeed(app, list.Id)
 	if err != nil {
 		return err
