@@ -317,6 +317,25 @@ func CreateRejectFollowActivity(app core.App, follow *core.Record) error {
 	return app.Save(record)
 }
 
+func ProcessRejectActivity(app core.App, actor *core.Record, activity pub.Activity) error {
+	followActivity, ok := activity.Object.(*pub.Activity)
+	if !ok {
+		return fmt.Errorf("ProcessRejectActivity: object is not *pub.Activity, got %T", activity.Object)
+	}
+
+	follower, err := app.FindFirstRecordByData("activitypub_actors", "iri", followActivity.Actor)
+	if err != nil {
+		return err
+	}
+
+	follow, err := app.FindFirstRecordByFilter("follows", "follower={:follower} && followee={:followee}", dbx.Params{"follower": follower.Id, "followee": actor.Id})
+	if err != nil {
+		return err
+	}
+	follow.Set("status", "rejected")
+	return app.Save(follow)
+}
+
 func ProcessAcceptActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 	// CR-04: use comma-ok to guard against IRI-only Accept objects (common in
 	// real-world ActivityPub implementations). Return a descriptive error instead

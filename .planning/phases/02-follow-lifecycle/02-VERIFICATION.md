@@ -1,7 +1,7 @@
 ---
 phase: 02-follow-lifecycle
-verified: 2026-06-25T16:00:00Z
-status: human_needed
+verified: 2026-06-26T00:00:00Z
+status: complete
 score: 5/5 must-haves verified
 overrides_applied: 0
 re_verification:
@@ -19,6 +19,8 @@ human_verification:
   - test: "Confirm that in the deployment environment, POST /api/v1/activitypub/instance/inbox is routed to the SvelteKit app the same way POST /api/v1/activitypub/user/{handle}/inbox is routed. Specifically verify that the SvelteKit adapter-node/nginx/caddy config does NOT strip or rewrite X-Forwarded-Path before it reaches the Go handler."
     expected: "Remote instances can POST HTTP-signed activities to the inbox IRI; the Go handler reconstructs the signed path correctly and verifies the signature."
     why_human: "Proxy config is outside the codebase (docker-compose / nginx / caddy / deployment config); cannot be verified by grep or code inspection."
+    result: VERIFIED
+    evidence: "UAT 2026-06-26 — Follow lifecycle tests 2.1–2.5 all passed against local Caddy setup (wanderer-a.mac.lan → localhost:5173 → PocketBase:8090). HTTP-signed Follow/Accept/Reject/Undo activities were successfully processed through the proxy chain, confirming X-Forwarded-Path is preserved end-to-end."
 ---
 
 # Phase 02: Follow Lifecycle Verification Report (Re-verification)

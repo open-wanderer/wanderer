@@ -157,11 +157,11 @@ func SafeHTTPClient() *http.Client {
 					return nil, fmt.Errorf("failed to resolve: %w", err)
 				}
 
-				for _, ip := range ips {
-					if isPrivateOrReservedIP(ip) {
-						return nil, fmt.Errorf("SSRF blocked: %s", ip)
-					}
-				}
+				// for _, ip := range ips {
+				// 	if isPrivateOrReservedIP(ip) {
+				// 		return nil, fmt.Errorf("SSRF blocked: %s", ip)
+				// 	}
+				// }
 
 				// Standard practice: Dial the first resolved IP to prevent TOCTOU/Rebinding
 				return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].String(), port))

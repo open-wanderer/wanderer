@@ -167,6 +167,10 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 		if err := ProcessAcceptActivity(e.App, actor, activity); err != nil {
 			return e.BadRequestError("Failed to process Accept activity", err)
 		}
+	case pub.RejectType:
+		if err := ProcessRejectActivity(e.App, actor, activity); err != nil {
+			return e.BadRequestError("Failed to process Reject activity", err)
+		}
 	case pub.UndoType:
 		if err := ProcessUndoActivity(e.App, actor, activity); err != nil {
 			return e.BadRequestError("Failed to process Undo activity", err)

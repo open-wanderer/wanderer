@@ -33,10 +33,15 @@ export async function POST(event: RequestEvent) {
             return json("Bad request", { status: 400 });
         }
 
-        // Clone original headers to ensure no loss
+        // Clone original headers, excluding content-length — the body is
+        // re-serialized via JSON.stringify so the byte count may differ from
+        // the remote's original, and a mismatched Content-Length causes
+        // "unexpected EOF" in the Go handler.
         const originalHeaders: Record<string, string> = {};
         event.request.headers.forEach((value, key) => {
-            originalHeaders[key] = value;
+            if (key.toLowerCase() !== 'content-length') {
+                originalHeaders[key] = value;
+            }
         });
 
         // Set the forwarded path so the Go handler can reconstruct the signed inbox IRI

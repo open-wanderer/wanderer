@@ -54,9 +54,9 @@ func followerInboxes(app core.App, actorId string) ([]string, error) {
 	return inboxes, rows.Err()
 }
 
-// instanceFollowerInboxes returns inbox URLs for all accepted followers of the
-// local instance actor. Returns (nil, nil) if the instance actor has not yet
-// been seeded (D-02: startup-safe behavior).
+// instanceFollowerInboxes returns inbox URLs for all accepted peers of the local
+// instance actor — both instances that follow us and instances we follow.
+// Returns (nil, nil) if the instance actor has not yet been seeded.
 func instanceFollowerInboxes(app core.App) ([]string, error) {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -70,7 +70,35 @@ func instanceFollowerInboxes(app core.App) ([]string, error) {
 		}
 		return nil, err
 	}
-	return followerInboxes(app, instanceActor.Id)
+
+	// Instances that follow us (inbound accepted follows).
+	inbound, err := followerInboxes(app, instanceActor.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Instances we follow (outbound accepted follows).
+	rows, err := app.DB().
+		Select("aa.inbox").
+		From("follows f").
+		InnerJoin("activitypub_actors aa", dbx.NewExp("f.followee = aa.id")).
+		Where(dbx.NewExp("f.follower = {:follower} AND f.status = 'accepted' AND aa.inbox != ''",
+			dbx.Params{"follower": instanceActor.Id})).
+		Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	outbound := inbound
+	for rows.Next() {
+		var inbox string
+		if err := rows.Scan(&inbox); err != nil {
+			return nil, err
+		}
+		outbound = append(outbound, inbox)
+	}
+	return outbound, rows.Err()
 }
 
 func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, recipients []string) error {

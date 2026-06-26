@@ -167,6 +167,11 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 	}
 
 	private := false
+	if dbActor.GetBool("is_local") && dbActor.GetString("actor_type") == "instance" {
+		// Instance actor has no associated user record. Return it as-is without
+		// attempting a user or settings lookup.
+		return dbActor, nil
+	}
 	if dbActor.GetBool("is_local") {
 		user, err := app.FindRecordById("users", dbActor.GetString("user"))
 		if err != nil {

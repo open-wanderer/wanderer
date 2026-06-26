@@ -10,45 +10,52 @@ An administrator can connect two Wanderer instances so that public content flows
 
 ## Requirements
 
-### Validated
+### Validated (v1.0)
 
-- [x] Public trails, comments, lists, and summit_logs are federated; private content never leaves its instance — Validated in Phase 03 (fanout-and-safety)
-- [x] Update and Delete activities propagate to all following instances — Validated in Phase 03 (fanout-and-safety)
-- [x] Instance fanout uses the same delivery infrastructure as user-level federation — Validated in Phase 03 (fanout-and-safety)
-- [x] NodeInfo 2.1 endpoints expose software identity and live usage counts for peer discovery — Validated in Phase 04 (nodeinfo)
+- ✓ Instance actor (`Application` type) exists at startup with stable RSA keypair and ActivityPub endpoint — v1.0
+- ✓ Admin can send/receive Follow requests between instances via PocketBase admin — v1.0
+- ✓ Remote admin must accept the Follow before sync begins (mutual approval, not auto-accept) — v1.0
+- ✓ Reject{Follow} delivered when admin declines a pending instance follow — v1.0
+- ✓ Undo{Follow} sent when admin disconnects from a peer — v1.0
+- ✓ Public trails, comments, lists, and summit_logs are federated; private content never leaves its instance — v1.0
+- ✓ Create/Update/Delete activities propagate bidirectionally to all accepted peer instances — v1.0
+- ✓ Broadcast-loop deduplication: duplicate incoming activities silently dropped — v1.0
+- ✓ Delete authorization: only the trail's original author can delete via federation — v1.0
+- ✓ NodeInfo 2.1 endpoints expose software identity and live usage counts for peer discovery — v1.0
+- ✓ Existing user-level federation unaffected; instance actor is fully additive — v1.0
 
-### Active
+### Active (v1.1 candidates)
 
-- [ ] Instance actor exists for each Wanderer deployment (a special actor in `activitypub_actors` with `type = Application`)
-- [ ] Admin can send a Follow request to a remote instance actor via PocketBase admin UI
-- [ ] Remote admin must accept the Follow before sync begins (mutual approval)
-- [ ] Accepted Follow causes the origin to receive Create/Update/Delete activities for all public content from the followed instance
-- [ ] Public trails, comments, lists, and summit_logs are federated; private content never leaves its instance
-- [ ] Update and Delete activities propagate to all following instances
-- [ ] Remote content retains its original actor IRI — users on the receiving instance cannot edit it
-- [ ] Admin can view connected instances and connection status (pending/accepted/rejected) in PocketBase admin UI
-- [ ] Admin can unfollow (disconnect from) a peer instance
+- [ ] Admin UI in Wanderer web settings to manage connected peer instances (view status, connect, disconnect) — currently requires PocketBase admin panel
+- [ ] WebFinger resolution for instance actor (`/.well-known/webfinger`) — enables peers running authorized-fetch mode to discover the instance actor
+- [ ] Public→private trail propagation: when `is_public` flips to false, send Delete to all peer instances
 
 ### Out of Scope
 
-- Web or mobile UI for federation management — PocketBase admin only for v1
 - Per-user opt-in/opt-out of instance federation — all public content is federated when instances are connected
 - Selective content filtering per peer (e.g., share trails but not comments) — all four content types sync together
-- Backfill of historical content when a new connection is established — only new activities after the Follow is accepted
+- Backfill of historical content when a new connection is established — forward-only sync
+- Relay-style re-broadcasting (Announce pattern) — direct bilateral Follow avoids broadcast amplification
+- Binary media relay (photo files) — remote URLs retained, not mirrored
+- Federation with non-Wanderer ActivityPub servers — unknown content types; no shared schema for trails
 
 ## Context
 
-The existing codebase has a fully functional ActivityPub federation layer:
+**Shipped:** v1.0 Instance Federation (2026-06-26)
+**Codebase:** ~2,550 lines added across `db/federation/`, `db/hooks/`, `db/routes/`, `db/migrations/`, `db/util/`, `web/src/routes/api/v1/activitypub/instance/`
+**Tech stack:** Go/PocketBase backend only; no SvelteKit or Flutter changes required
+**Test coverage:** 16 Go unit tests across `federation/` and `hooks/` packages; 7 UAT bugs found and fixed during manual testing
 
-- `db/federation/` — `actor.go`, `follow.go`, `create.go`, `update.go`, `delete.go`, `activity.go`, etc.
-- `activitypub_actors` PocketBase collection stores both local and remote actors with IRI, inbox, outbox, public/private key pairs
-- `follows` collection tracks follower/followee relationships with `status` (pending/accepted)
-- `PostActivity()` handles HTTP-signed delivery to remote inboxes
-- `ProcessFollowActivity()` handles incoming Follow requests and auto-accepts them
+**Known gaps found during UAT (fixed before release):**
+- `actor_type` column missing default for new user actors — fixed in `ActorFromUser`
+- Instance actor indexed in Meilisearch — guarded in create/update hooks
+- `GetActorByHandle`/`GetActorByIRI` would crash on instance actor lookup — early return added in `assembleActor`
+- `Reject` activity not handled in instance inbox — `ProcessRejectActivity` added
+- `instanceFollowerInboxes` was unidirectional — now queries both inbound and outbound accepted follows
+- SvelteKit proxy forwarded original `Content-Length` after re-serializing body — stripped before forwarding
+- Trail photo ingestion panic (`photos[i]` on empty slice) — fixed to `append`
 
-The key gap: all existing actors represent individual users. An instance actor (`type = Application`, `preferred_username = instance`) needs to be created at startup and included in the fanout when any public content is created/updated/deleted.
-
-Currently, `followerInboxes()` already performs an efficient JOIN to find accepted followers — the instance actor just needs to be a valid entry in `activitypub_actors` so it can send and receive activities.
+**Next milestone setup:** Requires `/gsd-new-milestone` to define requirements and roadmap for v1.1.
 
 ## Constraints
 
@@ -62,27 +69,14 @@ Currently, `followerInboxes()` already performs an efficient JOIN to find accept
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Extend existing ActivityPub actor model rather than a new sync protocol | Reuses all existing delivery, signing, and inbox processing infrastructure | — Pending |
-| PocketBase admin UI only (no web/mobile admin) | Fastest path to v1; instance federation is an infrequent admin operation | — Pending |
-| Mutual approval (not auto-accept) for instance follows | Prevents unwanted data ingestion; admins must explicitly consent on both sides | — Pending |
-| No historical backfill on new connection | Avoids complex state reconciliation; forward-only sync is simpler and sufficient | — Pending |
-
-## Evolution
-
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
+| Extend existing ActivityPub actor model rather than a new sync protocol | Reuses all existing delivery, signing, and inbox processing infrastructure | ✓ Good — zero new dependencies, delivery pipeline worked without modification |
+| PocketBase admin UI only (no web/mobile admin) | Fastest path to v1; instance federation is an infrequent admin operation | ✓ Good — sufficient for v1; next milestone adds proper UI |
+| Mutual approval (not auto-accept) for instance follows | Prevents unwanted data ingestion; admins must explicitly consent on both sides | ✓ Good — critical for trust model |
+| No historical backfill on new connection | Avoids complex state reconciliation; forward-only sync is simpler and sufficient | ✓ Good — no issues reported |
+| Filter `actor_type` on the followee (object), not the actor | Remote actors fetched via GetActorByIRI do not have `actor_type` populated locally; the local instance actor always has `actor_type=instance` | ✓ Good — correct and testable |
+| `instanceFollowerInboxes` queries both directions | A follows B AND B follows A both need fanout — bilateral federation requires delivery to all accepted peers regardless of who initiated | ✓ Good — caught by UAT, fixed before release |
+| `isOutboundInstanceFollow` separate from `isInstanceFollow` | Create handler needs directional check (follower only); Update/Delete handlers legitimately need EITHER-direction (to Accept/Reject inbound follows) | ✓ Good — prevents double-delivery and mis-firing |
+| Strip `content-length` in SvelteKit instance inbox proxy | Body re-serialized by `JSON.stringify`; original Content-Length causes "unexpected EOF" in Go handler | ✓ Good — same fix should be applied to user inbox proxy if it has the same pattern |
 
 ---
-*Last updated: 2026-06-26 after Phase 04 (nodeinfo) completion*
+*Last updated: 2026-06-26 after v1.0 Instance Federation milestone*
