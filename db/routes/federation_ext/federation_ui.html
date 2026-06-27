@@ -291,7 +291,7 @@
         >
         <button
           @click="discover()"
-          :disabled="discoverLoading"
+          :disabled="discoverLoading || !discoverUrl.trim()"
           class="h-10 px-4 bg-[#242734] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <span x-show="discoverLoading" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
