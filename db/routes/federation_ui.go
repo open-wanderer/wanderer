@@ -22,6 +22,16 @@ var federationUIHTML []byte
 func FederationDashboard(e *core.RequestEvent) error {
 	e.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	e.Response.Header().Set("X-Frame-Options", "DENY")
+	e.Response.Header().Set("X-Content-Type-Options", "nosniff")
+	// CSP locks down script sources to the two CDNs the page loads (Alpine + Tailwind).
+	// style-src 'unsafe-inline' is required by Tailwind Play CDN which injects inline styles.
+	e.Response.Header().Set("Content-Security-Policy",
+		"default-src 'none'; "+
+			"script-src 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "+
+			"style-src 'unsafe-inline'; "+
+			"connect-src 'self'; "+
+			"img-src 'none'; "+
+			"frame-ancestors 'none'")
 	e.Response.WriteHeader(http.StatusOK)
 	_, err := e.Response.Write(federationUIHTML)
 	return err

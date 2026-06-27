@@ -17,7 +17,7 @@
   </script>
 
   <!-- 2. Tailwind dark mode config — MUST precede Play CDN script or dark: variants will not activate (D-07, Pitfall 6) -->
-  <script>tailwind.config = { darkMode: 'class' }</script>
+  <script>window.tailwind = { config: { darkMode: 'class' } };</script>
 
   <!-- 3. Tailwind Play CDN (D-07) -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -27,27 +27,30 @@
     function federationApp() {
       return {
         token: null,
+        authenticated: false,
         peers: [],
         loading: false,
         discoverUrl: '',
         discoverLoading: false,
         discoverError: '',
+        connectError: '',
         preview: null,
         rowErrors: {},
 
         init() {
           // D-02: read PocketBase admin superuser session from localStorage
           var stored = localStorage.getItem('__pb_superusers__/_');
-          if (!stored) { window.location.replace('/_/'); return; }
+          if (!stored) { return; }
           try {
             var parsed = JSON.parse(stored);
             // Pitfall 1: stored value is JSON string {"token":"<jwt>","record":{...}}
             // MUST extract .token — never use the raw string as the Authorization value
             this.token = parsed.token;
-          } catch (_) { window.location.replace('/_/'); return; }
-          if (!this.token) { window.location.replace('/_/'); return; }
-          // D-03: redirect if token is expired
-          if (this.isTokenExpired(this.token)) { window.location.replace('/_/'); return; }
+          } catch (_) { return; }
+          if (!this.token) { return; }
+          // Show login prompt if token is expired rather than redirecting
+          if (this.isTokenExpired(this.token)) { return; }
+          this.authenticated = true;
           this.loadPeers();
         },
 
@@ -64,12 +67,13 @@
           var res = await fetch(path, Object.assign({}, opts, {
             headers: Object.assign({ 'Authorization': this.token }, opts.headers || {})
           }));
-          if (res.status === 401) { window.location.replace('/_/'); return null; }
+          if (res.status === 401) { this.authenticated = false; return null; }
           return res;
         },
 
         async loadPeers() {
           this.loading = true;
+          this.rowErrors = {};
           try {
             var res = await this.apiFetch('/federation/peers');
             if (res) this.peers = await res.json();
@@ -117,16 +121,25 @@
         },
 
         async connect() {
-          var res = await this.apiFetch('/federation/follow', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ actor_id: this.preview.actor_id })
-          });
-          if (!res) return;
-          if (res.ok) {
-            this.discoverUrl = '';
-            this.preview = null;
-            await this.loadPeers();
+          this.loading = true;
+          this.connectError = '';
+          try {
+            var res = await this.apiFetch('/federation/follow', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ actor_id: this.preview.actor_id })
+            });
+            if (!res) return;
+            if (res.ok) {
+              this.discoverUrl = '';
+              this.preview = null;
+              await this.loadPeers();
+            } else {
+              var data = await res.json();
+              this.connectError = 'Connect failed: ' + (data.error || 'unknown error') + '. Try again.';
+            }
+          } finally {
+            this.loading = false;
           }
         },
 
@@ -136,43 +149,58 @@
         },
 
         async approve(peer) {
-          var res = await this.apiFetch('/federation/approve/' + peer.follow_id, { method: 'POST' });
-          if (!res) return;
-          if (res.ok) {
-            await this.loadPeers();
-          } else {
-            var data = await res.json();
-            this.rowErrors = Object.assign({}, this.rowErrors, {
-              [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.'
-            });
+          this.loading = true;
+          try {
+            var res = await this.apiFetch('/federation/approve/' + peer.follow_id, { method: 'POST' });
+            if (!res) return;
+            if (res.ok) {
+              await this.loadPeers();
+            } else {
+              var data = await res.json();
+              this.rowErrors = Object.assign({}, this.rowErrors, {
+                [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.'
+              });
+            }
+          } finally {
+            this.loading = false;
           }
         },
 
         async reject(peer) {
-          var res = await this.apiFetch('/federation/reject/' + peer.follow_id, { method: 'POST' });
-          if (!res) return;
-          if (res.ok) {
-            await this.loadPeers();
-          } else {
-            var data = await res.json();
-            this.rowErrors = Object.assign({}, this.rowErrors, {
-              [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.'
-            });
+          this.loading = true;
+          try {
+            var res = await this.apiFetch('/federation/reject/' + peer.follow_id, { method: 'POST' });
+            if (!res) return;
+            if (res.ok) {
+              await this.loadPeers();
+            } else {
+              var data = await res.json();
+              this.rowErrors = Object.assign({}, this.rowErrors, {
+                [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.'
+              });
+            }
+          } finally {
+            this.loading = false;
           }
         },
 
         async disconnect(peer) {
           // D-15, Pitfall 5: template literal required so peer.domain is interpolated correctly
           if (!confirm(`Disconnect from ${peer.domain}? This will send an Undo{Follow} or Reject{Follow} to the remote instance.`)) return;
-          var res = await this.apiFetch('/federation/disconnect/' + peer.follow_id, { method: 'POST' });
-          if (!res) return;
-          if (res.ok) {
-            await this.loadPeers();
-          } else {
-            var data = await res.json();
-            this.rowErrors = Object.assign({}, this.rowErrors, {
-              [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.'
-            });
+          this.loading = true;
+          try {
+            var res = await this.apiFetch('/federation/disconnect/' + peer.follow_id, { method: 'POST' });
+            if (!res) return;
+            if (res.ok) {
+              await this.loadPeers();
+            } else {
+              var data = await res.json();
+              this.rowErrors = Object.assign({}, this.rowErrors, {
+                [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.'
+              });
+            }
+          } finally {
+            this.loading = false;
           }
         }
       };
@@ -190,8 +218,25 @@
     <h1 class="text-xl font-semibold">Federation Peers</h1>
   </header>
 
-  <!-- Main content -->
-  <main class="max-w-4xl mx-auto px-8 py-6 space-y-6">
+  <!-- Login prompt — shown when no valid superuser session is found in localStorage -->
+  <div x-show="!authenticated" class="max-w-md mx-auto mt-24 px-8 text-center">
+    <div class="bg-gray-50 dark:bg-[#1e2028] rounded-lg border border-gray-300 dark:border-[#373c50] p-8">
+      <p class="text-base font-semibold mb-2">Admin login required</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+        You must be logged in as a Wanderer superuser to manage federation peers.
+      </p>
+      <a href="/_/"
+         class="inline-block h-10 px-6 bg-[#242734] text-white text-sm font-semibold rounded-lg hover:opacity-90 leading-10">
+        Log in at admin panel
+      </a>
+      <p class="mt-4 text-xs text-gray-400 dark:text-gray-500">
+        After logging in, return to this page to manage federation peers.
+      </p>
+    </div>
+  </div>
+
+  <!-- Main content — shown only when authenticated -->
+  <main x-show="authenticated" class="max-w-4xl mx-auto px-8 py-6 space-y-6">
 
     <!-- Discovery Form Card (UI-SPEC Discovery Form Card, D-10) -->
     <section class="bg-gray-50 dark:bg-[#1e2028] rounded-lg border border-gray-300 dark:border-[#373c50] p-6">
@@ -238,6 +283,9 @@
           >Connect</button>
         </div>
       </div>
+
+      <!-- Connect error (WR-02) -->
+      <p x-show="connectError" class="mt-2 text-sm text-red-500" x-text="connectError"></p>
     </section>
 
     <!-- Peer Table (UI-SPEC Peer Table, D-13) -->
