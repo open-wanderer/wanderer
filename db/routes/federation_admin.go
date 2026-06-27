@@ -685,9 +685,12 @@ func FederationDiscover(e *core.RequestEvent) error {
 	)
 	if remoteActorErr == nil && existingActor != nil {
 		// Remote actor record exists — check for an existing follow in either direction.
+		// Exclude rejected records: a rejected follow does not represent an active or
+		// in-progress connection, so the admin must be able to re-initiate federation
+		// with a previously-rejected instance (CR-02).
 		_, followErr := e.App.FindFirstRecordByFilter(
 			"follows",
-			"(follower={:l} && followee={:r}) || (follower={:r} && followee={:l})",
+			"(follower={:l} && followee={:r} && status!='rejected') || (follower={:r} && followee={:l} && status!='rejected')",
 			dbx.Params{"l": localActor.Id, "r": existingActor.Id},
 		)
 		if followErr == nil {
