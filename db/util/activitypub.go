@@ -297,12 +297,12 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 
 		if len(photoURLs) > 0 {
 			photos := []*filesystem.File{}
-			for i, purl := range photoURLs {
+			for _, purl := range photoURLs {
 				photo, err := filesystem.NewFileFromURL(context.Background(), purl)
 				if err != nil {
 					continue
 				}
-				photos[i] = photo
+				photos = append(photos, photo)
 			}
 
 			record.Set("photos", photos)
