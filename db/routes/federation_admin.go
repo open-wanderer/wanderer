@@ -254,6 +254,14 @@ func FederationFollow(e *core.RequestEvent) error {
 		return fmt.Errorf("local instance actor not found: %w", err)
 	}
 
+	// 4a. Self-follow guard (WR-02): prevent the local instance from following
+	// itself. FederationDiscover checks this via util.IsLocalIRI, but that guard
+	// is bypassed when /federation/follow is called directly with the local actor's
+	// own record ID.
+	if localActor.Id == remoteActor.Id {
+		return e.BadRequestError("cannot follow local instance actor", nil)
+	}
+
 	// 5. Create the outbound follows record via the testable helper.
 	rec, err := createOutboundFollow(e.App, localActor.Id, remoteActor.Id)
 	if err != nil {
