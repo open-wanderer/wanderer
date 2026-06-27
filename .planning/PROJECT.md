@@ -8,6 +8,19 @@ Instance-level ActivityPub federation for Wanderer. An instance administrator co
 
 An administrator can connect two Wanderer instances so that public content flows between them automatically, using the same ActivityPub machinery already powering user-level federation.
 
+## Current Milestone: v1.1 Federation Connect UI
+
+**Goal:** Give an admin a UI to manage peer instance connections — paste a remote URL, initiate/approve/reject follows, and disconnect — without touching the PocketBase admin panel.
+
+**Target features:**
+- Remote actor discovery: paste a remote instance URL → fetch its ActivityPub actor → auto-create the local actor record
+- Outgoing Follow: one-click "Connect" that delivers the Follow activity to the remote
+- Incoming Follow management: view pending inbound follows, approve or reject them
+- Connection dashboard: all peers with status (pending / accepted / rejected) and direction (following / followed-by / mutual)
+- Disconnect: Undo{Follow} and remove peer
+
+**Key open question (research-first):** Where does this UI live? Options: custom Go route served by PocketBase with superuser auth guard, SvelteKit settings page with a new admin flag on user records, or deferred to when PocketBase UI extensions are stable.
+
 ## Requirements
 
 ### Validated (v1.0)
@@ -24,9 +37,16 @@ An administrator can connect two Wanderer instances so that public content flows
 - ✓ NodeInfo 2.1 endpoints expose software identity and live usage counts for peer discovery — v1.0
 - ✓ Existing user-level federation unaffected; instance actor is fully additive — v1.0
 
-### Active (v1.1 candidates)
+### Active (v1.1)
 
-- [ ] Admin UI in Wanderer web settings to manage connected peer instances (view status, connect, disconnect) — currently requires PocketBase admin panel
+- [ ] Admin can paste a remote instance URL and have the system fetch its actor and create the local actor record automatically
+- [ ] Admin can initiate a Follow from the UI without touching PocketBase admin panel
+- [ ] Admin can view all peer instances with status and direction in a dashboard
+- [ ] Admin can approve or reject incoming pending Follow requests from the UI
+- [ ] Admin can disconnect from a peer instance from the UI
+
+### Deferred (v1.2+)
+
 - [ ] WebFinger resolution for instance actor (`/.well-known/webfinger`) — enables peers running authorized-fetch mode to discover the instance actor
 - [ ] Public→private trail propagation: when `is_public` flips to false, send Delete to all peer instances
 
@@ -79,4 +99,4 @@ An administrator can connect two Wanderer instances so that public content flows
 | Strip `content-length` in SvelteKit instance inbox proxy | Body re-serialized by `JSON.stringify`; original Content-Length causes "unexpected EOF" in Go handler | ✓ Good — same fix should be applied to user inbox proxy if it has the same pattern |
 
 ---
-*Last updated: 2026-06-26 after v1.0 Instance Federation milestone*
+*Last updated: 2026-06-27 after v1.1 milestone start (Federation Connect UI)*
