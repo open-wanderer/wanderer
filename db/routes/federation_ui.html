@@ -22,6 +22,10 @@
   <!-- 3. Tailwind Play CDN (D-07) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- x-cloak rule must be in a plain <style> tag — Tailwind CDN is async so
+       [x-cloak] utilities would not be available before Alpine runs. -->
+  <style>[x-cloak] { display: none !important; }</style>
+
   <!-- 4. Alpine app function — MUST precede Alpine CDN defer tag (D-06, Pitfall 3) -->
   <script>
     function federationApp() {
@@ -219,7 +223,7 @@
   </header>
 
   <!-- Login prompt — shown when no valid superuser session is found in localStorage -->
-  <div x-show="!authenticated" class="max-w-md mx-auto mt-24 px-8 text-center">
+  <div x-cloak x-show="!authenticated" class="max-w-md mx-auto mt-24 px-8 text-center">
     <div class="bg-gray-50 dark:bg-[#1e2028] rounded-lg border border-gray-300 dark:border-[#373c50] p-8">
       <p class="text-base font-semibold mb-2">Admin login required</p>
       <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
@@ -236,7 +240,7 @@
   </div>
 
   <!-- Main content — shown only when authenticated -->
-  <main x-show="authenticated" class="max-w-4xl mx-auto px-8 py-6 space-y-6">
+  <main x-cloak x-show="authenticated" class="max-w-4xl mx-auto px-8 py-6 space-y-6">
 
     <!-- Discovery Form Card (UI-SPEC Discovery Form Card, D-10) -->
     <section class="bg-gray-50 dark:bg-[#1e2028] rounded-lg border border-gray-300 dark:border-[#373c50] p-6">
