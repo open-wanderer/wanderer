@@ -248,6 +248,253 @@ func FederationFollow(e *core.RequestEvent) error {
 }
 
 // ---------------------------------------------------------------------------
+// FederationDisconnect handler and pure routing helper (CONN-04, SAFE-07)
+// ---------------------------------------------------------------------------
+
+// disconnectAction returns "delete" when followerID == localID (outbound follow,
+// i.e. the local instance issued the Follow and should send Undo) and "reject"
+// otherwise (inbound-only follow; deleting would fire a wrong-direction Undo per
+// db/hooks/follow.go:172-184, so we set status=rejected instead to trigger the
+// Reject delivery via the update hook at follow.go:136-167).
+//
+// This pure helper is extracted for unit-testability (T-05-10).
+func disconnectAction(followerID, localID string) string {
+	if followerID == localID {
+		return "delete"
+	}
+	return "reject"
+}
+
+// FederationDisconnect handles POST /federation/disconnect/:id (CONN-04, SAFE-07).
+//
+// Direction-aware disconnect:
+//   - Outbound follow (local is follower): calls e.App.Delete(follow). The
+//     after-delete hook fires the Undo{Follow} delivery.
+//   - Inbound-only follow (local is followee): sets status="rejected" and calls
+//     e.App.Save(follow). The after-update hook fires the Reject{Follow} delivery.
+//
+// Deleting an inbound-only record would trigger the hook's Undo unconditionally
+// (db/hooks/follow.go:172-184), sending a wrong-direction Undo to the remote
+// instance — which is why inbound-only records must NOT be deleted (T-05-10).
+//
+// SAFE-07: this handler does not call federation delivery functions directly.
+// Route registration happens in Plan 03.
+func FederationDisconnect(e *core.RequestEvent) error {
+	// 1. Auth guard — must be first (D-10, T-05-11).
+	if !e.HasSuperuserAuth() {
+		return e.UnauthorizedError("superuser authentication required", nil)
+	}
+
+	// 2. Extract follow ID from path.
+	id := e.Request.PathValue("id")
+
+	// 3. Load the follow record.
+	follow, err := e.App.FindRecordById("follows", id)
+	if err != nil {
+		return e.NotFoundError("follow not found", err)
+	}
+
+	// 4. Look up local instance actor for direction check.
+	localActor, err := findLocalInstanceActor(e.App)
+	if err != nil {
+		return fmt.Errorf("local instance actor not found: %w", err)
+	}
+
+	// 5. Direction decision via the pure helper.
+	action := disconnectAction(follow.GetString("follower"), localActor.Id)
+
+	if action == "delete" {
+		// Outbound: delete so the after-delete hook fires the Undo{Follow} delivery.
+		if err := e.App.Delete(follow); err != nil {
+			return fmt.Errorf("delete follow: %w", err)
+		}
+	} else {
+		// Inbound-only: set rejected so the after-update hook fires Reject{Follow}.
+		follow.Set("status", "rejected")
+		if err := e.App.Save(follow); err != nil {
+			return fmt.Errorf("save follow rejected: %w", err)
+		}
+	}
+
+	return e.JSON(http.StatusOK, map[string]any{"status": "ok"})
+}
+
+// ---------------------------------------------------------------------------
+// FederationPeers handler and pure folding helper (DISC-01, D-04, D-05)
+// ---------------------------------------------------------------------------
+
+// followInput is a lightweight value type used by buildPeerEntries so the
+// folding logic stays pure and unit-testable without requiring core.Record
+// construction. The handler converts core.Record slices to []followInput.
+type followInput struct {
+	ID       string
+	Follower string
+	Followee string
+	Status   string
+}
+
+// buildPeerEntries folds outbound and inbound follow slices into a deduplicated
+// []peerEntry keyed by remote domain (D-04). When an accepted outbound record and
+// an accepted inbound record share the same remote domain, they collapse to a
+// single "mutual" entry whose FollowID is the outbound record id (D-05).
+//
+// domainOf resolves an actor id to its domain string; the FederationPeers handler
+// supplies a closure backed by FindRecordById so this helper requires no DB access.
+//
+// The returned slice is sorted by domain for deterministic output.
+func buildPeerEntries(
+	outbound []followInput,
+	inbound []followInput,
+	localID string,
+	domainOf func(actorID string) string,
+) []peerEntry {
+	// Map from remote domain → entry pointer so we can merge in a second pass.
+	type mergeEntry struct {
+		entry      peerEntry
+		hasOutbound bool
+	}
+	byDomain := make(map[string]*mergeEntry)
+
+	// First pass: outbound follows (local is follower; remote is followee).
+	for _, f := range outbound {
+		remoteID := f.Followee
+		domain := domainOf(remoteID)
+		if domain == "" {
+			domain = remoteID // fallback
+		}
+		byDomain[domain] = &mergeEntry{
+			entry: peerEntry{
+				FollowID:  f.ID,
+				Direction: "outbound",
+				Status:    f.Status,
+				Domain:    domain,
+			},
+			hasOutbound: true,
+		}
+	}
+
+	// Second pass: inbound follows (remote is follower; local is followee).
+	for _, f := range inbound {
+		remoteID := f.Follower
+		domain := domainOf(remoteID)
+		if domain == "" {
+			domain = remoteID // fallback
+		}
+		if existing, ok := byDomain[domain]; ok && existing.hasOutbound &&
+			existing.entry.Status == "accepted" && f.Status == "accepted" {
+			// Both sides accepted → mutual. Keep the outbound follow_id (D-05).
+			existing.entry.Direction = "mutual"
+		} else if !ok {
+			byDomain[domain] = &mergeEntry{
+				entry: peerEntry{
+					FollowID:  f.ID,
+					Direction: "inbound",
+					Status:    f.Status,
+					Domain:    domain,
+				},
+			}
+		}
+		// If existing outbound is not accepted, leave direction as-is.
+	}
+
+	// Collect and sort by domain for deterministic output.
+	result := make([]peerEntry, 0, len(byDomain))
+	// Gather domains for sorting.
+	domains := make([]string, 0, len(byDomain))
+	for d := range byDomain {
+		domains = append(domains, d)
+	}
+	// Simple insertion sort (peer lists are typically small).
+	for i := 1; i < len(domains); i++ {
+		for j := i; j > 0 && domains[j] < domains[j-1]; j-- {
+			domains[j], domains[j-1] = domains[j-1], domains[j]
+		}
+	}
+	for _, d := range domains {
+		result = append(result, byDomain[d].entry)
+	}
+	return result
+}
+
+// FederationPeers handles GET /federation/peers (DISC-01, D-04, D-05).
+//
+// Returns a JSON array of peerEntry objects, one per unique remote domain, with
+// mutual pairs collapsed (buildPeerEntries). Read-only handler (SAFE-07).
+// Route registration happens in Plan 03.
+func FederationPeers(e *core.RequestEvent) error {
+	// 1. Auth guard — must be first (D-10, T-05-12).
+	if !e.HasSuperuserAuth() {
+		return e.UnauthorizedError("superuser authentication required", nil)
+	}
+
+	// 2. Look up local instance actor.
+	localActor, err := findLocalInstanceActor(e.App)
+	if err != nil {
+		return fmt.Errorf("local instance actor not found: %w", err)
+	}
+
+	// 3. Query outbound follows (local is follower).
+	outboundRecords, err := e.App.FindRecordsByFilter(
+		"follows",
+		"follower={:local}",
+		"-created",
+		-1,
+		0,
+		dbx.Params{"local": localActor.Id},
+	)
+	if err != nil {
+		// Treat "no records" as empty rather than an error.
+		outboundRecords = nil
+	}
+
+	// 4. Query inbound follows (local is followee).
+	inboundRecords, err := e.App.FindRecordsByFilter(
+		"follows",
+		"followee={:local}",
+		"-created",
+		-1,
+		0,
+		dbx.Params{"local": localActor.Id},
+	)
+	if err != nil {
+		inboundRecords = nil
+	}
+
+	// 5. Convert records to followInput for the pure helper.
+	toInputs := func(records []*core.Record) []followInput {
+		out := make([]followInput, 0, len(records))
+		for _, r := range records {
+			out = append(out, followInput{
+				ID:       r.Id,
+				Follower: r.GetString("follower"),
+				Followee: r.GetString("followee"),
+				Status:   r.GetString("status"),
+			})
+		}
+		return out
+	}
+
+	// 6. domainOf closure: resolves actor id → domain field via DB lookup.
+	domainOf := func(actorID string) string {
+		actor, err := e.App.FindRecordById("activitypub_actors", actorID)
+		if err != nil || actor == nil {
+			return ""
+		}
+		return actor.GetString("domain")
+	}
+
+	// 7. Fold into peer entries.
+	entries := buildPeerEntries(
+		toInputs(outboundRecords),
+		toInputs(inboundRecords),
+		localActor.Id,
+		domainOf,
+	)
+
+	return e.JSON(http.StatusOK, entries)
+}
+
+// ---------------------------------------------------------------------------
 // FederationApprove + FederationReject handlers and shared DB helper
 // ---------------------------------------------------------------------------
 

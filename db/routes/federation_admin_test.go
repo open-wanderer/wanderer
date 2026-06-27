@@ -460,16 +460,6 @@ func TestDisconnectActionInbound(t *testing.T) {
 // TestBuildPeerEntries — pure function tests, no app bootstrap needed
 // ---------------------------------------------------------------------------
 
-// followInput is a lightweight struct used to pass synthetic follow data to
-// buildPeerEntries without needing to construct core.Record objects in tests.
-// The handler adapts core.Record to followInput before calling buildPeerEntries.
-type followInput struct {
-	ID       string
-	Follower string
-	Followee string
-	Status   string
-}
-
 // TestBuildPeerEntriesOutboundOnly verifies that one accepted outbound follow
 // produces one peerEntry with direction="outbound".
 func TestBuildPeerEntriesOutboundOnly(t *testing.T) {
