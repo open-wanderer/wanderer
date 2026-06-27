@@ -462,6 +462,9 @@ func FederationPeers(e *core.RequestEvent) error {
 	}
 
 	// 3. Query outbound follows (local is follower).
+	// WR-04: FindRecordsByFilter returns an empty slice (not an error) when no
+	// rows match. Any error here is a genuine DB failure — propagate it as a 500
+	// rather than silently returning an empty peers list that hides the fault.
 	outboundRecords, err := e.App.FindRecordsByFilter(
 		"follows",
 		"follower={:local}",
@@ -471,8 +474,7 @@ func FederationPeers(e *core.RequestEvent) error {
 		dbx.Params{"local": localActor.Id},
 	)
 	if err != nil {
-		// Treat "no records" as empty rather than an error.
-		outboundRecords = nil
+		return fmt.Errorf("query outbound follows: %w", err)
 	}
 
 	// 4. Query inbound follows (local is followee).
@@ -485,7 +487,7 @@ func FederationPeers(e *core.RequestEvent) error {
 		dbx.Params{"local": localActor.Id},
 	)
 	if err != nil {
-		inboundRecords = nil
+		return fmt.Errorf("query inbound follows: %w", err)
 	}
 
 	// 5. Convert records to followInput for the pure helper.
