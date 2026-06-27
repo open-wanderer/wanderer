@@ -1,7 +1,7 @@
 ---
 phase: 6
 slug: admin-browser-ui
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-27
@@ -62,12 +62,12 @@ The page uses system fonts. All sizes are declared in `rem` equivalents via Tail
 | Role | Tailwind Class | Size | Weight | Line Height | Usage |
 |------|---------------|------|--------|-------------|-------|
 | Body | `text-sm` | 14px | 400 (normal) | 1.5 | Table cell content, form labels, descriptions |
-| Label | `text-sm font-medium` | 14px | 500 (medium) | 1.5 | Column headers, form field labels |
+| Column header | `text-xs uppercase tracking-wide` | 12px | 400 (normal) | 1.5 | Table column headers — visually differentiated by size/case, not weight |
 | Heading | `text-xl font-semibold` | 20px | 600 (semibold) | 1.2 | Page title ("Federation Peers") |
 | Display | `text-xs` | 12px | 400 (normal) | 1.4 | Status badges, direction tags, metadata counts |
 
-> Two weights in use: **400** (body/display) and **600** (headings/CTAs). Medium 500 used only on
-> table column labels — counts as the "label" slot.
+> Two weights in use: **400** (body/display/column headers) and **600** (headings/CTAs).
+> Column headers are differentiated visually via `text-xs uppercase tracking-wide` — no weight bump needed.
 
 ---
 
@@ -133,6 +133,8 @@ All components are hand-written Tailwind HTML with Alpine.js reactivity. No libr
 
 ### Page Layout
 
+**Primary focal point:** the Discovery Form Card — the first interactive region visible on load, before any peers exist.
+
 ```
 <html class="dark|light">
   <body class="min-h-screen bg-white dark:bg-[#12141c] text-gray-900 dark:text-gray-100">
@@ -181,13 +183,13 @@ Fields displayed: Domain, Wanderer version, User count, Trail count.
     <p class="text-xs text-gray-500"><span x-text="preview.users"></span> users · <span x-text="preview.trails"></span> trails</p>
   </div>
   <div class="flex gap-2">
-    <button @click="cancelPreview()" class="h-8 px-3 text-sm rounded-lg border ...">Cancel</button>
+    <button @click="cancelPreview()" class="h-8 px-3 text-sm rounded-lg border ...">Clear</button>
     <button @click="connect()" class="h-8 px-3 text-sm bg-[#242734] text-white rounded-lg font-semibold ...">Connect</button>
   </div>
 </div>
 ```
 
-The preview card is dismissible via "Cancel" button (resets form to blank URL input).
+The preview card is dismissible via "Clear" button (resets form to blank URL input).
 
 ### Peer Table
 
@@ -241,9 +243,9 @@ Each action button disables during its in-flight request: `:disabled="loading"`.
 
 1. Admin types or pastes URL into input, clicks "Discover".
 2. Button shows inline spinner, becomes disabled.
-3. On success: preview card appears below the input with domain/version/counts + Cancel + Connect buttons.
+3. On success: preview card appears below the input with domain/version/counts + Clear + Connect buttons.
 4. On error: inline error text appears below the input (`text-red-500 text-sm`). No modal. No toast.
-5. Cancel: preview card hidden, URL input cleared.
+5. Clear: preview card hidden, URL input cleared.
 6. Connect click: calls `POST /federation/follow`, resets form, peer list re-fetches.
 
 ### Approve / Reject Flow
@@ -280,7 +282,7 @@ Each action button disables during its in-flight request: `:disabled="loading"`.
 | URL input placeholder | "https://other.example.com" |
 | Discover button | "Discover" |
 | Connect button (preview card) | "Connect" |
-| Cancel button (preview card) | "Cancel" |
+| Clear button (preview card) | "Clear" |
 | Approve button | "Approve" |
 | Reject button | "Reject" |
 | Disconnect button | "Disconnect" |
@@ -326,11 +328,11 @@ Each action button disables during its in-flight request: `:disabled="loading"`.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS (no blocked labels; single-word CTAs contextually justified by adjacent object)
+- [x] Dimension 2 Visuals: PASS (focal point declared)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS (2 weights: 400 body/headers, 600 headings/CTAs)
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved
