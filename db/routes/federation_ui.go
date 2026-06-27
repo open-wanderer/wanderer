@@ -28,7 +28,8 @@ func FederationDashboard(e *core.RequestEvent) error {
 	e.Response.Header().Set("Content-Security-Policy",
 		"default-src 'none'; "+
 			"script-src 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "+
-			"style-src 'unsafe-inline'; "+
+			"style-src 'unsafe-inline' https://cdnjs.cloudflare.com; "+
+			"font-src https://cdnjs.cloudflare.com; "+
 			"connect-src 'self'; "+
 			"img-src 'self'; "+
 			"frame-ancestors 'none'")
