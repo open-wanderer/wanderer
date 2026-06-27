@@ -5,7 +5,7 @@ milestone_name: Federation Connect UI
 status: executing
 stopped_at: Phase 5 context gathered
 last_updated: "2026-06-27T15:15:38.533Z"
-last_activity: 2026-06-27 -- Phase 05 execution started
+last_activity: 2026-06-27 - Completed quick task 260627-p67: Refactor HTTP client SSRF layer
 progress:
   total_phases: 2
   completed_phases: 0
@@ -70,6 +70,12 @@ None yet.
 ### Blockers/Concerns
 
 None. All critical pitfalls identified in research with concrete mitigations.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260627-p67 | Refactor HTTP client SSRF layer: extract NewSafeURLClient into util, drop safeurl from routes, unify reserved-IP predicate in SafeHTTPClient | 2026-06-27 | 0f93b722 | [260627-p67-refactor-http-client-ssrf-layer-extract-](./quick/260627-p67-refactor-http-client-ssrf-layer-extract-/) |
 
 ## Deferred Items
 
