@@ -35,7 +35,7 @@ Implement six Go route handlers for all peer management operations — discover,
 ### Peer List
 
 - **D-04:** `GET /federation/peers` returns a lightweight JSON array per peer connection. Each entry: `{ follow_id, direction, status, domain }`. `direction` is `"outbound"` (local instance follows remote), `"inbound"` (remote follows local), or `"mutual"` (both accepted). The handler queries all follows records involving the local instance actor, groups by remote domain, and collapses two-direction pairs into a single `"mutual"` entry.
-- **D-05:** Mutual detection: two `follows` records with status "accepted" where one has local actor as follower and the other has local actor as followee (same remote domain) → collapsed to one entry with `direction="mutual"`. The `follow_id` in a mutual entry refers to the outbound record (used by disconnect).
+- **D-05:** Mutual detection: two `follows` records with status "accepted" where one has local actor as follower and the other has local actor as followee (same remote domain) → collapsed to one entry with `direction="mutual"`. The `follow_id` in a mutual entry refers to the outbound record (used by disconnect). **Important:** content sync is bidirectional from a single accepted Follow (not mutual) — `instanceFollowerInboxes` unions inbound and outbound inboxes. "Mutual" in the peer list means both admins have sent a Follow, not that sync requires it.
 
 ### Discovery — Remote Identity Verification
 
