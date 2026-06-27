@@ -4,12 +4,12 @@ milestone: v1.1
 milestone_name: Federation Connect UI
 status: executing
 stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-06-27T19:52:47.390Z"
-last_activity: 2026-06-27 -- Phase 05 execution started
+last_updated: "2026-06-27T19:56:55.125Z"
+last_activity: 2026-06-27 -- Phase 06 execution started
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 3
+  total_plans: 5
   completed_plans: 3
   percent: 50
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-27)
 
 **Core value:** An administrator can connect two Wanderer instances so that public content flows between them automatically, using the same ActivityPub machinery already powering user-level federation.
-**Current focus:** Phase 05 — federation-admin-api
+**Current focus:** Phase 06 — admin-browser-ui
 
 ## Current Position
 
-Phase: 05 (federation-admin-api) — EXECUTING
-Plan: 1 of 3
-Status: Ready to execute
-Last activity: 2026-06-27 -- Phase 05 execution started
+Phase: 06 (admin-browser-ui) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 06
+Last activity: 2026-06-27 -- Phase 06 execution started
 
 Progress: [░░░░░░░░░░] 0%
 

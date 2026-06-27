@@ -68,7 +68,7 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 **Plans**: 2 plans
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Alpine.js + Tailwind CDN federation admin SPA (`federation_ui.html`): auth bootstrap, theme, discovery flow, peer table (DASH-01, DASH-02)
+- [x] 06-01-PLAN.md — Alpine.js + Tailwind CDN federation admin SPA (`federation_ui.html`): auth bootstrap, theme, discovery flow, peer table (DASH-01, DASH-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -85,4 +85,4 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 | 3. Fanout and Safety | v1.0 | 3/3 | Complete | 2026-06-26 |
 | 4. NodeInfo | v1.0 | 1/1 | Complete | 2026-06-26 |
 | 5. Federation Admin API | v1.1 | 3/3 | Complete   | 2026-06-27 |
-| 6. Admin Browser UI | v1.1 | 0/2 | Planned | - |
+| 6. Admin Browser UI | v1.1 | 1/2 | In Progress|  |
