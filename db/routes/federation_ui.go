@@ -1,14 +1,32 @@
 package routes
 
 import (
-	_ "embed"
+	"embed"
+	"io/fs"
 	"net/http"
+	"os"
 
 	"github.com/pocketbase/pocketbase/core"
 )
 
 //go:embed federation_ui.html
 var federationUIHTML []byte
+
+// FederationExtFS is the embedded filesystem for the PocketBase UI extension.
+// Registers a header link in the admin panel pointing to /federation/.
+//
+//go:embed federation_ext
+var federationExtEmbedded embed.FS
+
+// FederationExtFS returns the sub-filesystem rooted at federation_ext/.
+func FederationExtFS() fs.FS {
+	sub, err := fs.Sub(federationExtEmbedded, "federation_ext")
+	if err != nil {
+		// fall back to disk for development hot-reload
+		return os.DirFS("routes/federation_ext")
+	}
+	return sub
+}
 
 // FederationDashboard serves the embedded federation admin SPA.
 //

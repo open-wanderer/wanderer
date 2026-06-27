@@ -216,6 +216,13 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/federation/peers", routes.FederationPeers)
 	se.Router.GET("/federation/", routes.FederationDashboard)
 
+	// Experimental: inject "Federation" link into the PocketBase admin header.
+	// API introduced in v0.37.0 — subject to breaking changes (see discussion #7612).
+	se.UIExtensions = append(se.UIExtensions, core.UIExtension{
+		Name: "wanderer-federation",
+		FS:   routes.FederationExtFS(),
+	})
+
 }
 
 func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
