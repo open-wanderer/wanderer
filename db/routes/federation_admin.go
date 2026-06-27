@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"pocketbase/federation"
@@ -130,7 +131,20 @@ func fetchNodeInfo21URL(client httpDoer, rawURL string) (string, error) {
 		return "", fmt.Errorf("not a Wanderer instance: invalid discovery document")
 	}
 
-	return pickNodeInfo21Href(jrd.Links)
+	href, err := pickNodeInfo21Href(jrd.Links)
+	if err != nil {
+		return "", err
+	}
+
+	// SSRF guard: validate that the href stays on the same host as the original
+	// request (CR-01). A malicious instance could return a href pointing to an
+	// unrelated public host, causing the server to probe a third-party service.
+	hrefParsed, err := url.Parse(href)
+	if err != nil || !strings.EqualFold(hrefParsed.Host, u.Host) {
+		return "", fmt.Errorf("not a Wanderer instance: NodeInfo href host mismatch")
+	}
+
+	return href, nil
 }
 
 // ---------------------------------------------------------------------------
