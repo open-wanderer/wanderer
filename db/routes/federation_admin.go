@@ -124,6 +124,12 @@ func fetchNodeInfo21URL(client httpDoer, rawURL string) (string, error) {
 	}
 	defer resp.Body.Close()
 
+	// WR-01: check status code before decoding — a non-200 response (e.g. 404
+	// or 500 with a JSON body) must not be mistaken for a valid JRD document.
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unreachable: JRD returned HTTP %d", resp.StatusCode)
+	}
+
 	var jrd struct {
 		Links []nodeInfoLink `json:"links"`
 	}
@@ -651,6 +657,12 @@ func FederationDiscover(e *core.RequestEvent) error {
 		return e.JSON(http.StatusBadRequest, map[string]any{"error": "unreachable"})
 	}
 	defer niResp.Body.Close()
+
+	// WR-01: check status code before decoding — a non-Wanderer server may return
+	// HTTP 404/500 with a JSON body that coincidentally passes the identity check.
+	if niResp.StatusCode != http.StatusOK {
+		return e.JSON(http.StatusBadRequest, map[string]any{"error": "unreachable"})
+	}
 
 	// 4b. Decode and verify Wanderer identity (D-06, DISC-02).
 	var ni nodeInfo21
