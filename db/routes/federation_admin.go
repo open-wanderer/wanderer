@@ -530,15 +530,14 @@ func FederationPeers(e *core.RequestEvent) error {
 // the local instance (identified by localID) is the followee — i.e., this is
 // an inbound follow that the admin is approving or rejecting (T-05-07).
 //
+// The record is passed in directly (WR-03) to avoid the redundant second
+// FindRecordById call that the previous string-ID signature caused, and to
+// allow callers to distinguish "not an inbound follow" from DB save errors.
+//
 // The after-update hook (InstanceFollowUpdateHandler) fires the Accept or
 // Reject delivery — this helper must NOT call federation delivery functions
 // directly (SAFE-07).
-func setFollowStatus(app core.App, followID, status, localID string) error {
-	follow, err := app.FindRecordById("follows", followID)
-	if err != nil {
-		return fmt.Errorf("follow not found: %w", err)
-	}
-
+func setFollowStatus(app core.App, follow *core.Record, status, localID string) error {
 	// Direction guard (T-05-07): approve/reject only apply to inbound follows
 	// where the local instance is the followee. This mirrors the hook guard in
 	// db/hooks/follow.go:146 so the Accept/Reject delivery will actually fire.
@@ -579,8 +578,13 @@ func FederationApprove(e *core.RequestEvent) error {
 	}
 
 	// 5. Apply direction guard and status update via the testable helper.
-	if err := setFollowStatus(e.App, follow.Id, "accepted", localActor.Id); err != nil {
-		return e.BadRequestError("not an inbound follow", nil)
+	// Pass the record directly (WR-03) to avoid a redundant re-fetch and to
+	// allow proper error classification: direction errors → 400, DB save errors → 500.
+	if err := setFollowStatus(e.App, follow, "accepted", localActor.Id); err != nil {
+		if err.Error() == "not an inbound follow" {
+			return e.BadRequestError("not an inbound follow", nil)
+		}
+		return fmt.Errorf("save follow status: %w", err)
 	}
 
 	return e.JSON(http.StatusOK, map[string]any{
@@ -618,8 +622,13 @@ func FederationReject(e *core.RequestEvent) error {
 	}
 
 	// 5. Apply direction guard and status update via the testable helper.
-	if err := setFollowStatus(e.App, follow.Id, "rejected", localActor.Id); err != nil {
-		return e.BadRequestError("not an inbound follow", nil)
+	// Pass the record directly (WR-03) to avoid a redundant re-fetch and to
+	// allow proper error classification: direction errors → 400, DB save errors → 500.
+	if err := setFollowStatus(e.App, follow, "rejected", localActor.Id); err != nil {
+		if err.Error() == "not an inbound follow" {
+			return e.BadRequestError("not an inbound follow", nil)
+		}
+		return fmt.Errorf("save follow status: %w", err)
 	}
 
 	return e.JSON(http.StatusOK, map[string]any{

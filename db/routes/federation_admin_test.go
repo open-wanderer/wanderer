@@ -372,7 +372,7 @@ func TestFederationApproveSetsAccepted(t *testing.T) {
 	// Inbound: remote follows local
 	follow := createFedAdminTestFollow(t, app, remoteActor.Id, localActor.Id, "pending")
 
-	if err := setFollowStatus(app, follow.Id, "accepted", localActor.Id); err != nil {
+	if err := setFollowStatus(app, follow, "accepted", localActor.Id); err != nil {
 		t.Fatalf("setFollowStatus: %v", err)
 	}
 
@@ -400,7 +400,7 @@ func TestFederationRejectSetsRejected(t *testing.T) {
 	// Inbound: remote follows local
 	follow := createFedAdminTestFollow(t, app, remoteActor.Id, localActor.Id, "pending")
 
-	if err := setFollowStatus(app, follow.Id, "rejected", localActor.Id); err != nil {
+	if err := setFollowStatus(app, follow, "rejected", localActor.Id); err != nil {
 		t.Fatalf("setFollowStatus: %v", err)
 	}
 
@@ -428,7 +428,7 @@ func TestFederationApproveRejectsOutbound(t *testing.T) {
 	// Outbound: local follows remote (local is the follower, not the followee)
 	follow := createFedAdminTestFollow(t, app, localActor.Id, remoteActor.Id, "pending")
 
-	err := setFollowStatus(app, follow.Id, "accepted", localActor.Id)
+	err := setFollowStatus(app, follow, "accepted", localActor.Id)
 	if err == nil {
 		t.Fatal("expected error for outbound follow (local not the followee), got nil")
 	}
