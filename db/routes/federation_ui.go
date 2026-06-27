@@ -9,7 +9,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-//go:embed federation_ui.html
+//go:embed federation_ext/federation_ui.html
 var federationUIHTML []byte
 
 // FederationExtFS is the embedded filesystem for the PocketBase UI extension.
