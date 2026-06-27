@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Federation Peers</title>
+
+  <!-- 1. Synchronous theme detection — must run before body renders to avoid flash (D-08) -->
+  <script>
+    (function() {
+      var s = localStorage.getItem('pbColorScheme');
+      var d = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (s === 'dark' || (!s && d)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+
+  <!-- 2. Tailwind dark mode config — MUST precede Play CDN script or dark: variants will not activate (D-07, Pitfall 6) -->
+  <script>tailwind.config = { darkMode: 'class' }</script>
+
+  <!-- 3. Tailwind Play CDN (D-07) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- 4. Alpine app function — MUST precede Alpine CDN defer tag (D-06, Pitfall 3) -->
+  <script>
+    function federationApp() {
+      return {
+        token: null,
+        peers: [],
+        loading: false,
+        discoverUrl: '',
+        discoverLoading: false,
+        discoverError: '',
+        preview: null,
+        rowErrors: {},
+
+        init() {
+          // D-02: read PocketBase admin superuser session from localStorage
+          var stored = localStorage.getItem('__pb_superusers__/_');
+          if (!stored) { window.location.replace('/_/'); return; }
+          try {
+            var parsed = JSON.parse(stored);
+            // Pitfall 1: stored value is JSON string {"token":"<jwt>","record":{...}}
+            // MUST extract .token — never use the raw string as the Authorization value
+            this.token = parsed.token;
+          } catch (_) { window.location.replace('/_/'); return; }
+          if (!this.token) { window.location.replace('/_/'); return; }
+          // D-03: redirect if token is expired
+          if (this.isTokenExpired(this.token)) { window.location.replace('/_/'); return; }
+          this.loadPeers();
+        },
+
+        isTokenExpired(token) {
+          try {
+            var payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.exp && Date.now() / 1000 > payload.exp;
+          } catch (_) { return true; }
+        },
+
+        async apiFetch(path, opts) {
+          opts = opts || {};
+          // D-04: Authorization: <raw token> — raw JWT, no prefix (PocketBase format, anti-pattern 2)
+          var res = await fetch(path, Object.assign({}, opts, {
+            headers: Object.assign({ 'Authorization': this.token }, opts.headers || {})
+          }));
+          if (res.status === 401) { window.location.replace('/_/'); return null; }
+          return res;
+        },
+
+        async loadPeers() {
+          this.loading = true;
+          try {
+            var res = await this.apiFetch('/federation/peers');
+            if (res) this.peers = await res.json();
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        async discover() {
+          this.discoverLoading = true;
+          this.discoverError = '';
+          this.preview = null;
+          try {
+            var res = await this.apiFetch('/federation/discover', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: this.discoverUrl })
+            });
+            if (!res) return;
+            var data = await res.json();
+            if (!res.ok) {
+              this.discoverError = this.mapDiscoverError(data.error || 'Discovery failed');
+            } else {
+              // Field mapping: API returns user_count/trail_count (anti-pattern 8)
+              // preview exposes users/trails for template binding (UI-SPEC Preview Card)
+              this.preview = {
+                actor_id: data.actor_id,
+                domain: data.domain,
+                version: data.version,
+                users: data.user_count,
+                trails: data.trail_count
+              };
+            }
+          } finally {
+            this.discoverLoading = false;
+          }
+        },
+
+        mapDiscoverError(raw) {
+          if (raw === 'unreachable') return 'Could not reach this URL. Check the address and try again.';
+          if (raw === 'not a Wanderer instance') return 'This URL does not appear to be a Wanderer instance.';
+          if (raw === 'resolves to local instance') return 'This URL resolves to the local instance. You cannot connect to yourself.';
+          if (raw === 'already connected') return 'This instance is already connected.';
+          return raw;
+        },
+
+        async connect() {
+          var res = await this.apiFetch('/federation/follow', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ actor_id: this.preview.actor_id })
+          });
+          if (!res) return;
+          if (res.ok) {
+            this.discoverUrl = '';
+            this.preview = null;
+            await this.loadPeers();
+          }
+        },
+
+        cancelPreview() {
+          this.preview = null;
+          this.discoverUrl = '';
+        },
+
+        async approve(peer) {
+          var res = await this.apiFetch('/federation/approve/' + peer.follow_id, { method: 'POST' });
+          if (!res) return;
+          if (res.ok) {
+            await this.loadPeers();
+          } else {
+            var data = await res.json();
+            this.rowErrors = Object.assign({}, this.rowErrors, {
+              [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.'
+            });
+          }
+        },
+
+        async reject(peer) {
+          var res = await this.apiFetch('/federation/reject/' + peer.follow_id, { method: 'POST' });
+          if (!res) return;
+          if (res.ok) {
+            await this.loadPeers();
+          } else {
+            var data = await res.json();
+            this.rowErrors = Object.assign({}, this.rowErrors, {
+              [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.'
+            });
+          }
+        },
+
+        async disconnect(peer) {
+          // D-15, Pitfall 5: template literal required so peer.domain is interpolated correctly
+          if (!confirm(`Disconnect from ${peer.domain}? This will send an Undo{Follow} or Reject{Follow} to the remote instance.`)) return;
+          var res = await this.apiFetch('/federation/disconnect/' + peer.follow_id, { method: 'POST' });
+          if (!res) return;
+          if (res.ok) {
+            await this.loadPeers();
+          } else {
+            var data = await res.json();
+            this.rowErrors = Object.assign({}, this.rowErrors, {
+              [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.'
+            });
+          }
+        }
+      };
+    }
+  </script>
+
+  <!-- 5. Alpine.js CDN — defer; must come AFTER the federationApp function definition (D-06, Pitfall 3) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+</head>
+<body x-data="federationApp()" x-init="init()"
+      class="min-h-screen bg-white dark:bg-[#12141c] text-gray-900 dark:text-gray-100">
+
+  <!-- Header strip (UI-SPEC Page Layout) -->
+  <header class="bg-[#242734] text-white px-8 py-4">
+    <h1 class="text-xl font-semibold">Federation Peers</h1>
+  </header>
+
+  <!-- Main content -->
+  <main class="max-w-4xl mx-auto px-8 py-6 space-y-6">
+
+    <!-- Discovery Form Card (UI-SPEC Discovery Form Card, D-10) -->
+    <section class="bg-gray-50 dark:bg-[#1e2028] rounded-lg border border-gray-300 dark:border-[#373c50] p-6">
+      <h2 class="text-sm font-medium mb-4">Connect a new instance</h2>
+      <div class="flex gap-3">
+        <!-- sr-only label per Accessibility Contract -->
+        <label for="discoverUrl" class="sr-only">Remote instance URL</label>
+        <input
+          id="discoverUrl"
+          type="url"
+          x-model="discoverUrl"
+          placeholder="https://other.example.com"
+          class="flex-1 h-10 px-4 text-sm rounded-lg border border-gray-300 dark:border-[#373c50] bg-white dark:bg-[#12141c] text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#242734]"
+        >
+        <button
+          @click="discover()"
+          :disabled="discoverLoading"
+          class="h-10 px-4 bg-[#242734] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <span x-show="discoverLoading" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
+          Discover
+        </button>
+      </div>
+
+      <!-- Inline error — never modal/toast (D-11) -->
+      <p x-show="discoverError" class="mt-2 text-sm text-red-500" x-text="discoverError"></p>
+
+      <!-- Preview card (UI-SPEC Preview Card, D-10) -->
+      <div x-show="preview" class="rounded-lg border border-gray-300 dark:border-[#373c50] p-4 mt-4 flex items-center justify-between">
+        <div class="space-y-1">
+          <p class="text-sm font-semibold" x-text="preview && preview.domain"></p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Wanderer <span x-text="preview && preview.version"></span></p>
+          <p class="text-xs text-gray-500 dark:text-gray-400"><span x-text="preview && preview.users"></span> users &middot; <span x-text="preview && preview.trails"></span> trails</p>
+        </div>
+        <div class="flex gap-2">
+          <button
+            @click="cancelPreview()"
+            class="h-8 px-3 text-sm rounded-lg border border-gray-300 dark:border-[#373c50] hover:bg-gray-100 dark:hover:bg-[#12141c]"
+          >Clear</button>
+          <button
+            @click="connect()"
+            :disabled="loading"
+            class="h-8 px-3 text-sm bg-[#242734] text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >Connect</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Peer Table (UI-SPEC Peer Table, D-13) -->
+    <section>
+      <h2 class="text-sm font-medium mb-3">Connected peers (<span x-text="peers.length"></span>)</h2>
+      <table class="w-full text-sm border-collapse">
+        <thead>
+          <tr class="border-b border-gray-300 dark:border-[#373c50]">
+            <th class="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Domain</th>
+            <th class="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Direction</th>
+            <th class="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
+            <th class="text-right py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Actions</th>
+          </tr>
+        </thead>
+
+        <!-- Peer rows (anti-pattern 7: use x-if in <template>, NOT x-show on <tr>) -->
+        <tbody x-show="peers.length > 0">
+          <template x-for="peer in peers" :key="peer.follow_id">
+            <tr :class="peer.status === 'rejected' ? 'opacity-60 border-b border-gray-200 dark:border-[#373c50]' : 'border-b border-gray-200 dark:border-[#373c50]'">
+              <td class="py-3 px-3 font-medium" x-text="peer.domain"></td>
+
+              <!-- Direction badge -->
+              <td class="py-3 px-3">
+                <template x-if="peer.direction === 'outbound'">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Outbound</span>
+                </template>
+                <template x-if="peer.direction === 'inbound'">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">Inbound</span>
+                </template>
+                <template x-if="peer.direction === 'mutual'">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200">Mutual</span>
+                </template>
+              </td>
+
+              <!-- Status badge -->
+              <td class="py-3 px-3">
+                <template x-if="peer.status === 'pending'">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">pending</span>
+                </template>
+                <template x-if="peer.status === 'accepted'">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">accepted</span>
+                </template>
+                <template x-if="peer.status === 'rejected'">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">rejected</span>
+                </template>
+              </td>
+
+              <!-- Actions column (D-14: conditional per row state) -->
+              <td class="py-3 px-3 text-right">
+                <!-- Inbound pending: Approve + Reject (D-14) -->
+                <template x-if="peer.status === 'pending' && peer.direction === 'inbound'">
+                  <div class="flex gap-2 justify-end">
+                    <button
+                      @click="approve(peer)"
+                      :disabled="loading"
+                      class="h-8 px-3 text-sm bg-[#242734] text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    >
+                      <span x-show="loading" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
+                      Approve
+                    </button>
+                    <button
+                      @click="reject(peer)"
+                      :disabled="loading"
+                      class="h-8 px-3 text-sm bg-red-500 text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    >
+                      <span x-show="loading" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
+                      Reject
+                    </button>
+                  </div>
+                </template>
+
+                <!-- Accepted: Disconnect (D-14) -->
+                <template x-if="peer.status === 'accepted'">
+                  <button
+                    @click="disconnect(peer)"
+                    :disabled="loading"
+                    class="h-8 px-3 text-sm bg-red-500 text-white rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    <span x-show="loading" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
+                    Disconnect
+                  </button>
+                </template>
+
+                <!-- Outbound pending: text indicator, no button (D-14) -->
+                <template x-if="peer.status === 'pending' && peer.direction === 'outbound'">
+                  <span class="text-gray-400 dark:text-gray-500 text-sm">Pending...</span>
+                </template>
+
+                <!-- Per-row inline error slot (D-16) -->
+                <template x-if="rowErrors[peer.follow_id]">
+                  <p class="mt-1 text-xs text-red-500" x-text="rowErrors[peer.follow_id]"></p>
+                </template>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+
+        <!-- Loading state -->
+        <tbody x-show="loading && peers.length === 0">
+          <tr>
+            <td colspan="4" class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading...</td>
+          </tr>
+        </tbody>
+
+        <!-- Empty state (UI-SPEC Copywriting Contract) -->
+        <tbody x-show="peers.length === 0 && !loading">
+          <tr>
+            <td colspan="4" class="py-12 text-center">
+              <p class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">No peer connections yet</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Paste a remote instance URL above to discover and connect to another Wanderer instance.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</body>
+</html>
