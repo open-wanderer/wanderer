@@ -38,7 +38,11 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
   3. Admin can POST to `/federation/approve/:id` and an Accept{Follow} is delivered; the connection moves to accepted status
   4. Admin can POST to `/federation/reject/:id` to reject an inbound follow (Reject{Follow} delivered) or `/federation/disconnect/:id` to undo an outbound follow (Undo{Follow} delivered) — direction-aware with no incorrect Undo on inbound-only connections
   5. All six endpoints reject requests lacking a valid PocketBase superuser token with 401; any admin-supplied URL is fetched through the SSRF-safe client with a 10-second timeout
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 05-01-PLAN.md — Discovery handler + shared helpers (DISC-01, DISC-02, SAFE-05, SAFE-06)
+- [ ] 05-02-PLAN.md — Follow / Approve / Reject write handlers (CONN-01, CONN-02, CONN-03, SAFE-07)
+- [ ] 05-03-PLAN.md — Direction-aware disconnect + peer list + route registration (CONN-04, DISC-01, SAFE-07)
 
 ### Phase 6: Admin Browser UI
 **Goal**: Admin can manage all peer connections from a browser page at `/federation/` using their PocketBase superuser credentials — no curl or PocketBase admin panel required
@@ -59,5 +63,5 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 | 2. Follow Lifecycle | v1.0 | 4/4 | Complete | 2026-06-25 |
 | 3. Fanout and Safety | v1.0 | 3/3 | Complete | 2026-06-26 |
 | 4. NodeInfo | v1.0 | 1/1 | Complete | 2026-06-26 |
-| 5. Federation Admin API | v1.1 | 0/? | Not started | - |
+| 5. Federation Admin API | v1.1 | 0/3 | Planned | - |
 | 6. Admin Browser UI | v1.1 | 0/? | Not started | - |
