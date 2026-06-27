@@ -207,6 +207,14 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 	se.Router.GET("/remote/profile/{handle}/follows", routes.RemoteProfileFollowsList)
 
+	// Federation admin endpoints (Plan 03)
+	se.Router.POST("/federation/discover", routes.FederationDiscover)
+	se.Router.POST("/federation/follow", routes.FederationFollow)
+	se.Router.POST("/federation/approve/{id}", routes.FederationApprove)
+	se.Router.POST("/federation/reject/{id}", routes.FederationReject)
+	se.Router.POST("/federation/disconnect/{id}", routes.FederationDisconnect)
+	se.Router.GET("/federation/peers", routes.FederationPeers)
+
 }
 
 func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
