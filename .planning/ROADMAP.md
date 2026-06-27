@@ -24,7 +24,7 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 **Milestone Goal:** Give an admin a browser-accessible UI to manage peer instance connections — discover a remote instance, initiate/approve/reject follows, disconnect, and view all peers — without touching the PocketBase admin panel.
 
 - [x] **Phase 5: Federation Admin API** - Go route handlers for all peer management operations behind superuser auth guard (completed 2026-06-27)
-- [ ] **Phase 6: Admin Browser UI** - Embedded HTML page at `/federation/` for the connection dashboard and all admin actions
+- [x] **Phase 6: Admin Browser UI** - Embedded HTML page at `/federation/` for the connection dashboard and all admin actions (completed 2026-06-27)
 
 ## Phase Details
 
@@ -72,7 +72,7 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 06-02-PLAN.md — `FederationDashboard` Go handler with `//go:embed` + `GET /federation/` route registration (DASH-01, DASH-02)
+- [x] 06-02-PLAN.md — `FederationDashboard` Go handler with `//go:embed` + `GET /federation/` route registration (DASH-01, DASH-02)
 
 **UI hint**: yes
 
@@ -85,4 +85,4 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 | 3. Fanout and Safety | v1.0 | 3/3 | Complete | 2026-06-26 |
 | 4. NodeInfo | v1.0 | 1/1 | Complete | 2026-06-26 |
 | 5. Federation Admin API | v1.1 | 3/3 | Complete   | 2026-06-27 |
-| 6. Admin Browser UI | v1.1 | 1/2 | In Progress|  |
+| 6. Admin Browser UI | v1.1 | 2/2 | Complete   | 2026-06-27 |
