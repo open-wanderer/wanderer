@@ -170,6 +170,193 @@ func findLocalInstanceActor(app core.App) (*core.Record, error) {
 //  7. Calls federation.GetActorByIRI to create or refresh the remote actor.
 //  8. Returns { actor_id, domain, version, user_count, trail_count } (DISC-01).
 //
+// ---------------------------------------------------------------------------
+// FederationFollow handler and DB helper
+// ---------------------------------------------------------------------------
+
+// createOutboundFollow inserts a follows record where localID is the follower
+// and remoteID is the followee with status="pending". It first confirms the
+// remote actor exists in activitypub_actors (D-02). The after-create hook
+// (InstanceFollowCreateHandler) fires the outbound Follow delivery — this
+// helper must NOT call federation delivery functions directly (SAFE-07).
+func createOutboundFollow(app core.App, localID, remoteID string) (*core.Record, error) {
+	// D-02: remote actor must have an activitypub_actors record.
+	if _, err := app.FindRecordById("activitypub_actors", remoteID); err != nil {
+		return nil, fmt.Errorf("unknown actor; run discover first")
+	}
+
+	followCollection, err := app.FindCollectionByNameOrId("follows")
+	if err != nil {
+		return nil, fmt.Errorf("follows collection not found: %w", err)
+	}
+	rec := core.NewRecord(followCollection)
+	rec.Set("follower", localID)
+	rec.Set("followee", remoteID)
+	rec.Set("status", "pending")
+	if err := app.Save(rec); err != nil {
+		return nil, fmt.Errorf("save follow record: %w", err)
+	}
+	return rec, nil
+}
+
+// FederationFollow handles POST /federation/follow.
+//
+// Accepts { "actor_id": "<activitypub_actors record id>" } and creates an
+// outbound follows record with the local instance as the follower and status
+// "pending" (CONN-01). The after-create hook fires the Follow activity delivery
+// — this handler must NOT call federation delivery functions directly (SAFE-07).
+//
+// Returns { "follow_id": "<id>", "status": "pending" } on success.
+// Route registration happens in Plan 03.
+func FederationFollow(e *core.RequestEvent) error {
+	// 1. Auth guard — must be first (D-10, T-05-06).
+	if !e.HasSuperuserAuth() {
+		return e.UnauthorizedError("superuser authentication required", nil)
+	}
+
+	// 2. Decode body { "actor_id": "<id>" }.
+	var body struct {
+		ActorID string `json:"actor_id"`
+	}
+	if err := json.NewDecoder(e.Request.Body).Decode(&body); err != nil || body.ActorID == "" {
+		return e.BadRequestError("actor_id is required", nil)
+	}
+
+	// 3. Verify remote actor exists (D-02).
+	remoteActor, err := e.App.FindRecordById("activitypub_actors", body.ActorID)
+	if err != nil || remoteActor == nil {
+		return e.JSON(http.StatusBadRequest, map[string]any{"error": "unknown actor; run discover first"})
+	}
+
+	// 4. Look up local instance actor.
+	localActor, err := findLocalInstanceActor(e.App)
+	if err != nil {
+		return fmt.Errorf("local instance actor not found: %w", err)
+	}
+
+	// 5. Create the outbound follows record via the testable helper.
+	rec, err := createOutboundFollow(e.App, localActor.Id, remoteActor.Id)
+	if err != nil {
+		return fmt.Errorf("createOutboundFollow: %w", err)
+	}
+
+	// 6. Return the follow_id and pending status.
+	return e.JSON(http.StatusOK, map[string]any{
+		"follow_id": rec.Id,
+		"status":    "pending",
+	})
+}
+
+// ---------------------------------------------------------------------------
+// FederationApprove + FederationReject handlers and shared DB helper
+// ---------------------------------------------------------------------------
+
+// setFollowStatus updates a follows record to the given status, enforcing that
+// the local instance (identified by localID) is the followee — i.e., this is
+// an inbound follow that the admin is approving or rejecting (T-05-07).
+//
+// The after-update hook (InstanceFollowUpdateHandler) fires the Accept or
+// Reject delivery — this helper must NOT call federation delivery functions
+// directly (SAFE-07).
+func setFollowStatus(app core.App, followID, status, localID string) error {
+	follow, err := app.FindRecordById("follows", followID)
+	if err != nil {
+		return fmt.Errorf("follow not found: %w", err)
+	}
+
+	// Direction guard (T-05-07): approve/reject only apply to inbound follows
+	// where the local instance is the followee. This mirrors the hook guard in
+	// db/hooks/follow.go:146 so the Accept/Reject delivery will actually fire.
+	if follow.GetString("followee") != localID {
+		return fmt.Errorf("not an inbound follow")
+	}
+
+	follow.Set("status", status)
+	return app.Save(follow)
+}
+
+// FederationApprove handles POST /federation/approve/:id.
+//
+// Moves an inbound pending follows record to status "accepted" (CONN-02).
+// The after-update hook fires the Accept delivery — this handler must NOT
+// call federation delivery functions directly (SAFE-07).
+//
+// Route registration happens in Plan 03.
+func FederationApprove(e *core.RequestEvent) error {
+	// 1. Auth guard — must be first (D-10, T-05-06).
+	if !e.HasSuperuserAuth() {
+		return e.UnauthorizedError("superuser authentication required", nil)
+	}
+
+	// 2. Extract follow ID from path.
+	id := e.Request.PathValue("id")
+
+	// 3. Verify follow exists.
+	follow, err := e.App.FindRecordById("follows", id)
+	if err != nil {
+		return e.NotFoundError("follow not found", err)
+	}
+
+	// 4. Look up local instance actor for direction guard.
+	localActor, err := findLocalInstanceActor(e.App)
+	if err != nil {
+		return fmt.Errorf("local instance actor not found: %w", err)
+	}
+
+	// 5. Apply direction guard and status update via the testable helper.
+	if err := setFollowStatus(e.App, follow.Id, "accepted", localActor.Id); err != nil {
+		return e.BadRequestError("not an inbound follow", nil)
+	}
+
+	return e.JSON(http.StatusOK, map[string]any{
+		"follow_id": follow.Id,
+		"status":    "accepted",
+	})
+}
+
+// FederationReject handles POST /federation/reject/:id.
+//
+// Moves an inbound pending follows record to status "rejected" (CONN-03).
+// The after-update hook fires the Reject delivery — this handler must NOT
+// call federation delivery functions directly (SAFE-07).
+//
+// Route registration happens in Plan 03.
+func FederationReject(e *core.RequestEvent) error {
+	// 1. Auth guard — must be first (D-10, T-05-06).
+	if !e.HasSuperuserAuth() {
+		return e.UnauthorizedError("superuser authentication required", nil)
+	}
+
+	// 2. Extract follow ID from path.
+	id := e.Request.PathValue("id")
+
+	// 3. Verify follow exists.
+	follow, err := e.App.FindRecordById("follows", id)
+	if err != nil {
+		return e.NotFoundError("follow not found", err)
+	}
+
+	// 4. Look up local instance actor for direction guard.
+	localActor, err := findLocalInstanceActor(e.App)
+	if err != nil {
+		return fmt.Errorf("local instance actor not found: %w", err)
+	}
+
+	// 5. Apply direction guard and status update via the testable helper.
+	if err := setFollowStatus(e.App, follow.Id, "rejected", localActor.Id); err != nil {
+		return e.BadRequestError("not an inbound follow", nil)
+	}
+
+	return e.JSON(http.StatusOK, map[string]any{
+		"follow_id": follow.Id,
+		"status":    "rejected",
+	})
+}
+
+// ---------------------------------------------------------------------------
+// FederationDiscover handler
+// ---------------------------------------------------------------------------
+
 // Route registration happens in Plan 03 alongside the other five handlers.
 // SAFE-07: this handler does not call federation delivery functions directly.
 func FederationDiscover(e *core.RequestEvent) error {
