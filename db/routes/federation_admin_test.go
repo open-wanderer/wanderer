@@ -435,6 +435,132 @@ func TestFederationApproveRejectsOutbound(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestDisconnectAction — pure function tests, no app bootstrap needed
+// ---------------------------------------------------------------------------
+
+// TestDisconnectActionOutbound verifies that disconnectAction returns "delete"
+// when followerID == localID (outbound follow; local issued the Follow).
+func TestDisconnectActionOutbound(t *testing.T) {
+	got := disconnectAction("localActorId", "localActorId")
+	if got != "delete" {
+		t.Errorf("disconnectAction = %q, want \"delete\"", got)
+	}
+}
+
+// TestDisconnectActionInbound verifies that disconnectAction returns "reject"
+// when followerID != localID (inbound-only follow; remote issued the Follow).
+func TestDisconnectActionInbound(t *testing.T) {
+	got := disconnectAction("remoteActorId", "localActorId")
+	if got != "reject" {
+		t.Errorf("disconnectAction = %q, want \"reject\"", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestBuildPeerEntries — pure function tests, no app bootstrap needed
+// ---------------------------------------------------------------------------
+
+// followInput is a lightweight struct used to pass synthetic follow data to
+// buildPeerEntries without needing to construct core.Record objects in tests.
+// The handler adapts core.Record to followInput before calling buildPeerEntries.
+type followInput struct {
+	ID       string
+	Follower string
+	Followee string
+	Status   string
+}
+
+// TestBuildPeerEntriesOutboundOnly verifies that one accepted outbound follow
+// produces one peerEntry with direction="outbound".
+func TestBuildPeerEntriesOutboundOnly(t *testing.T) {
+	localID := "localActor001"
+	outbound := []followInput{
+		{ID: "follow001", Follower: localID, Followee: "remoteActor001", Status: "accepted"},
+	}
+	entries := buildPeerEntries(outbound, nil, localID, func(actorID string) string {
+		if actorID == "remoteActor001" {
+			return "remote.example.com"
+		}
+		return ""
+	})
+	if len(entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1", len(entries))
+	}
+	e := entries[0]
+	if e.Direction != "outbound" {
+		t.Errorf("direction = %q, want \"outbound\"", e.Direction)
+	}
+	if e.Domain != "remote.example.com" {
+		t.Errorf("domain = %q, want \"remote.example.com\"", e.Domain)
+	}
+	if e.Status != "accepted" {
+		t.Errorf("status = %q, want \"accepted\"", e.Status)
+	}
+}
+
+// TestBuildPeerEntriesInboundOnly verifies that one pending inbound follow
+// produces one peerEntry with direction="inbound".
+func TestBuildPeerEntriesInboundOnly(t *testing.T) {
+	localID := "localActor001"
+	inbound := []followInput{
+		{ID: "follow002", Follower: "remoteActor001", Followee: localID, Status: "pending"},
+	}
+	entries := buildPeerEntries(nil, inbound, localID, func(actorID string) string {
+		if actorID == "remoteActor001" {
+			return "remote.example.com"
+		}
+		return ""
+	})
+	if len(entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1", len(entries))
+	}
+	e := entries[0]
+	if e.Direction != "inbound" {
+		t.Errorf("direction = %q, want \"inbound\"", e.Direction)
+	}
+	if e.Domain != "remote.example.com" {
+		t.Errorf("domain = %q, want \"remote.example.com\"", e.Domain)
+	}
+	if e.Status != "pending" {
+		t.Errorf("status = %q, want \"pending\"", e.Status)
+	}
+}
+
+// TestBuildPeerEntriesMutual verifies that an accepted outbound and accepted
+// inbound follow for the same remote domain collapse to one peerEntry with
+// direction="mutual" and follow_id equal to the outbound record id (D-05).
+func TestBuildPeerEntriesMutual(t *testing.T) {
+	localID := "localActor001"
+	outboundID := "follow001"
+	outbound := []followInput{
+		{ID: outboundID, Follower: localID, Followee: "remoteActor001", Status: "accepted"},
+	}
+	inbound := []followInput{
+		{ID: "follow002", Follower: "remoteActor001", Followee: localID, Status: "accepted"},
+	}
+	domainOf := func(actorID string) string {
+		if actorID == "remoteActor001" {
+			return "remote.example.com"
+		}
+		return ""
+	}
+	entries := buildPeerEntries(outbound, inbound, localID, domainOf)
+	if len(entries) != 1 {
+		t.Fatalf("len(entries) = %d, want 1 (mutual collapse)", len(entries))
+	}
+	e := entries[0]
+	if e.Direction != "mutual" {
+		t.Errorf("direction = %q, want \"mutual\"", e.Direction)
+	}
+	if e.FollowID != outboundID {
+		t.Errorf("follow_id = %q, want outbound id %q (D-05)", e.FollowID, outboundID)
+	}
+	if e.Domain != "remote.example.com" {
+		t.Errorf("domain = %q, want \"remote.example.com\"", e.Domain)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
