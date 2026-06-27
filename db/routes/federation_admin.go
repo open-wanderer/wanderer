@@ -13,7 +13,6 @@ import (
 	"pocketbase/federation"
 	"pocketbase/util"
 
-	"github.com/doyensec/safeurl"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -53,35 +52,6 @@ type peerEntry struct {
 	Domain    string `json:"domain"`
 }
 
-// httpDoer is satisfied by *safeurl.WrappedClient and *http.Client, allowing
-// the helpers to accept either. This avoids forcing callers to depend on the
-// concrete safeurl type.
-type httpDoer interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
-// ---------------------------------------------------------------------------
-// SSRF-safe discovery client (SAFE-06: 10-second timeout, not 60s)
-// ---------------------------------------------------------------------------
-
-// newDiscoveryClient builds a safeurl.WrappedClient with a 10-second timeout
-// for all outbound NodeInfo fetches triggered by admin-supplied URLs (SAFE-06).
-// The existing FetchPublicURL utility uses a 60s timeout and must NOT be used
-// here — this dedicated client satisfies the ≤10s requirement.
-//
-// The builder mirrors the pattern in db/util/safe_fetch.go:48-56 with the
-// timeout reduced to 10 seconds per SAFE-06.
-func newDiscoveryClient() *safeurl.WrappedClient {
-	config := safeurl.GetConfigBuilder().
-		SetTimeout(10 * time.Second).
-		SetAllowedSchemes("http", "https").
-		SetAllowedPorts(80, 443).
-		EnableIPv6(true).
-		AllowSendingCredentials(false).
-		Build()
-	return safeurl.Client(config)
-}
-
 // ---------------------------------------------------------------------------
 // NodeInfo helpers
 // ---------------------------------------------------------------------------
@@ -106,7 +76,7 @@ func pickNodeInfo21Href(links []nodeInfoLink) (string, error) {
 // Both requests use the provided SSRF-safe 10s client (SAFE-06).
 // Body size is bounded to 64 KiB (T-05-03).
 // On network failure the returned error contains "unreachable" (DISC-02).
-func fetchNodeInfo21URL(client httpDoer, rawURL string) (string, error) {
+func fetchNodeInfo21URL(client util.HTTPDoer, rawURL string) (string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return "", fmt.Errorf("unreachable: invalid URL")
@@ -678,7 +648,7 @@ func FederationDiscover(e *core.RequestEvent) error {
 	}
 
 	// 3. Fetch NodeInfo 2.1 URL via the JRD discovery document (SAFE-06).
-	client := newDiscoveryClient()
+	client := util.NewSafeURLClient(10*time.Second, nil)
 	nodeInfoURL, err := fetchNodeInfo21URL(client, body.URL)
 	if err != nil {
 		return e.JSON(http.StatusBadRequest, map[string]any{"error": err.Error()})

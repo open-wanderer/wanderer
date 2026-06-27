@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -132,6 +133,16 @@ func isPrivateOrReservedIP(ip net.IP) bool {
 		return true
 	}
 
+	// Convert to netip.Addr so IsSpecialPurposeIP can check the prefix table.
+	if addr, ok := netip.AddrFromSlice(ip); ok {
+		a := addr
+		if a.Is4In6() {
+			a = a.Unmap()
+		}
+		if IsSpecialPurposeIP(a) {
+			return true
+		}
+	}
 	return false
 }
 
