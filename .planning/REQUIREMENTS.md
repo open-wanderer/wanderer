@@ -1,92 +1,81 @@
 # Requirements: Wanderer Instance Federation
 
-**Defined:** 2026-06-22
+**Defined:** 2026-06-27
 **Core Value:** An administrator can connect two Wanderer instances so that public content flows between them automatically, using the same ActivityPub machinery already powering user-level federation.
 
-## v1 Requirements
-
-### Instance Actor
-
-- [x] **INST-01**: Instance actor record exists in `activitypub_actors` with `actor_type = "Application"`, RSA keypair, and stable IRI at `{ORIGIN}/api/v1/activitypub/instance`
-- [x] **INST-02**: GET `{ORIGIN}/api/v1/activitypub/instance` returns valid ActivityPub JSON (id, type, inbox, outbox, publicKey, manuallyApprovesFollowers: true)
-- [x] **INST-03**: POST `{ORIGIN}/api/v1/activitypub/instance/inbox` accepts HTTP-signed activities from authenticated remote actors
-- [x] **INST-04**: `initInstanceActor()` runs at startup, creates actor if not exists, never regenerates keypair if actor already exists
-
-### Follow Lifecycle
-
-- [x] **FLCL-01**: Admin can initiate an outgoing Follow to a remote instance actor by supplying the remote IRI in PocketBase admin; local instance actor sends a Follow activity to the remote inbox
-- [x] **FLCL-02**: Incoming Follow from an `Application`-type actor creates a `pending` follow record in the `follows` collection (not auto-accepted — requires admin approval)
-- [x] **FLCL-03**: When admin sets a pending instance follow status to `accepted` in PocketBase, an `Accept{Follow}` activity is automatically delivered to the remote instance's inbox
-- [x] **FLCL-04**: When admin sets a pending instance follow status to `rejected` in PocketBase, a `Reject{Follow}` activity is delivered to the remote instance's inbox (remote must receive this to unblock its UI)
-- [x] **FLCL-05**: Admin can unfollow a peer instance; `Undo{Follow}` activity is sent to the remote; local instance stops including that peer in fanout
-
-### Content Synchronization
-
-- [x] **SYNC-01**: When a public trail, summit_log, list, or comment is created, a `Create` activity is delivered to the inboxes of all accepted instance actor followers (in addition to existing user-level fanout)
-- [x] **SYNC-02**: When a public trail, summit_log, list, or comment is updated, an `Update` activity is delivered to all accepted instance actor followers
-- [x] **SYNC-03**: When a trail, summit_log, list, or comment is deleted, a `Delete` activity is delivered to all accepted instance actor followers; receiving instances remove the local cached copy
-
-### Safety and Correctness
-
-- [x] **SAFE-01**: Incoming activity IRI is checked against `activitypub_activities` before dispatch; duplicate activities are silently dropped (prevents broadcast loop / re-delivery storms)
-- [x] **SAFE-02**: `processDeleteTrailActivity` verifies the deleting actor is the trail's original author before removing the local copy (fixing existing missing ownership check)
-- [x] **SAFE-03**: Outgoing fanout checks `is_public = true` before including any record; `is_public = false` records are never included regardless of connection state
-- [x] **SAFE-04**: NodeInfo endpoint at `/.well-known/nodeinfo` and `/.well-known/nodeinfo/2.1` returns instance software metadata (name: wanderer, version, user count, post count) so peer instances can identify Wanderer software
-
-## v2 Requirements
-
-### Content Lifecycle
-
-- **VIS-01**: When a trail's `public` field changes from `true` to `false`, a `Delete` activity is sent to all instance followers so they remove their cached copy (public→private propagation)
-- **VIS-02**: When a trail is made public after previously being private, a `Create` activity is sent to all instance followers
+## v1.1 Requirements
 
 ### Discovery
 
-- **DISC-01**: WebFinger (`/.well-known/webfinger`) extended to resolve the instance actor IRI, enabling peers running "authorized fetch" mode to discover the instance actor via WebFinger lookup
+- [ ] **DISC-01**: Admin can paste a remote instance URL and receive a preview card (instance name, Wanderer version, user/trail count) before any Follow is sent
+- [ ] **DISC-02**: Discovery returns a clear error when the remote is unreachable, not a Wanderer instance, already connected, or resolves to the local instance
 
-### Admin Visibility
+### Connection Management
 
-- **ADMIN-01**: Wanderer web settings panel shows connected peer instances with status (pending/accepted/rejected), direction (following/followed-by/mutual), and date connected
+- [ ] **CONN-01**: Admin can initiate an outgoing Follow from the UI; the connection appears as "Outbound / Pending" in the peer list without requiring PocketBase admin panel access
+- [ ] **CONN-02**: Admin can approve an inbound pending Follow from the UI; an `Accept{Follow}` is delivered and the connection moves to "Inbound / Accepted"
+- [ ] **CONN-03**: Admin can reject an inbound pending Follow from the UI; a `Reject{Follow}` is delivered and the connection is removed
+- [ ] **CONN-04**: Admin can disconnect from any peer; outbound connections send `Undo{Follow}`; inbound-only connections send `Reject{Follow}` (not Undo) — direction-aware
+
+### Dashboard
+
+- [ ] **DASH-01**: Admin can view all peer connections with status (pending / accepted / rejected) and direction (Outbound / Inbound / Mutual) in a browser page at `/federation/`
+- [ ] **DASH-02**: The page requires PocketBase superuser authentication — unauthenticated requests receive 401; regular Wanderer user tokens are rejected
+
+### Safety
+
+- [ ] **SAFE-05**: Discovery rejects URLs that resolve to the local instance actor (prevents self-follow loops)
+- [ ] **SAFE-06**: All outbound HTTP to admin-supplied URLs uses a SSRF-safe client with a ≤10s timeout
+- [ ] **SAFE-07**: API handlers only write DB records for follow lifecycle operations; ActivityPub delivery is not called directly — hooks remain the sole delivery path
+
+## v2 Requirements
+
+### Polish
+
+- **UX-01**: Dashboard shows realtime status updates via PocketBase follows subscription (no manual refresh)
+- **UX-02**: Refresh peer metadata button re-fetches NodeInfo and updates the preview data for a connected peer
+- **UX-03**: Connection activity log showing timeline of Follow/Accept/Reject/Undo events per peer
+- **UX-04**: Email notification to admin when an inbound pending Follow arrives
+
+### Discovery
+
+- **DISC-03**: WebFinger resolution for the instance actor (`/.well-known/webfinger`) — enables peers running authorized-fetch mode to discover the instance actor by `@instance@domain` handle
+
+### Content Lifecycle
+
+- **VIS-01**: When a trail's `is_public` flips from `true` to `false`, a `Delete` activity is sent to all peer instances so they remove their cached copy
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Historical backfill on new connection | Complex state reconciliation; forward-only sync is sufficient; explicit PROJECT.md decision |
-| Federation with non-Wanderer ActivityPub servers | Unknown content types; no shared schema for trails/summit_logs; deferred to future |
-| Per-user opt-out of instance federation | All public content is federated when instances are connected; per-user control is v2+ |
-| Web or mobile admin UI for federation management | PocketBase admin is sufficient for v1; admin is infrequent operation |
-| Relay-style re-broadcasting (Announce pattern) | Direct bilateral Follow is simpler and avoids broadcast amplification |
-| Binary media relay (photo files) | Storage/bandwidth cost; remote URLs retained, not mirrored |
-| Private content federation | Hard privacy constraint — must never leave origin instance |
+| PocketBase UI extensions for the admin page | Maintainer-stated not production-safe; will break on next PocketBase upgrade (discussion #7612) |
+| SvelteKit /settings/federation page | No admin user concept in frontend; PocketBase superusers have no Wanderer account; deferred to when admin role is defined |
+| Domain blocklist | v2+ scope; low priority for initial admin UX |
+| Auto-accept inbound follows | Mutual approval is a hard requirement from v1.0 trust model |
+| Federation with non-Wanderer ActivityPub servers | Unknown content schema; DISC-01 preview step rejects non-Wanderer instances |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INST-01 | Phase 1 | Complete |
-| INST-02 | Phase 1 | Complete |
-| INST-03 | Phase 2 | Complete |
-| INST-04 | Phase 1 | Complete |
-| FLCL-01 | Phase 2 | Complete |
-| FLCL-02 | Phase 2 | Complete |
-| FLCL-03 | Phase 2 | Complete |
-| FLCL-04 | Phase 2 | Complete |
-| FLCL-05 | Phase 2 | Complete |
-| SYNC-01 | Phase 3 | Complete |
-| SYNC-02 | Phase 3 | Complete |
-| SYNC-03 | Phase 3 | Complete |
-| SAFE-01 | Phase 3 | Complete |
-| SAFE-02 | Phase 3 | Complete |
-| SAFE-03 | Phase 3 | Complete |
-| SAFE-04 | Phase 4 | Complete |
+| DISC-01 | Phase 5 | Pending |
+| DISC-02 | Phase 5 | Pending |
+| CONN-01 | Phase 5 | Pending |
+| CONN-02 | Phase 5 | Pending |
+| CONN-03 | Phase 5 | Pending |
+| CONN-04 | Phase 5 | Pending |
+| DASH-01 | Phase 6 | Pending |
+| DASH-02 | Phase 6 | Pending |
+| SAFE-05 | Phase 5 | Pending |
+| SAFE-06 | Phase 5 | Pending |
+| SAFE-07 | Phase 5 | Pending |
 
 **Coverage:**
-
-- v1 requirements: 16 total
-- Mapped to phases: 16
+- v1.1 requirements: 11 total
+- Mapped to phases: 11
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-06-22*
-*Last updated: 2026-06-22 after initial definition*
+*Requirements defined: 2026-06-27*
+*Last updated: 2026-06-27 after initial v1.1 definition*
