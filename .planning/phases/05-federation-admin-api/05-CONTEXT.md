@@ -135,6 +135,11 @@ Implement six Go route handlers for all peer management operations — discover,
 - Real-time status updates via PocketBase follows subscription — v2 UX-01
 - WebFinger endpoint for instance actor — v2 DISC-03
 
+### Notes for Phase 6 (Admin Browser UI)
+
+- **Bidirectionality callout:** The UI must make clear that a single accepted Follow syncs content in both directions — no follow-back from the remote admin is required. This should appear on the Connect flow (before/after the Follow is sent) and on the peer dashboard (e.g., a note alongside "Outbound / Pending" and "Outbound / Accepted" rows).
+- **Disable back-follow:** Consider blocking a redundant Follow-back to an already-connected instance. If A already follows B (accepted), the UI on B's side should show a read-only "Already connected (A follows you — sync is live)" status rather than an actionable Connect button. Optionally enforce this at the Phase 5 API level: if an accepted `follows` record already exists in either direction for that actor, `POST /federation/follow` returns a clear error instead of creating a second record.
+
 </deferred>
 
 ---
