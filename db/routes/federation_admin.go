@@ -171,7 +171,7 @@ func findLocalInstanceActor(app core.App) (*core.Record, error) {
 //  8. Returns { actor_id, domain, version, user_count, trail_count } (DISC-01).
 //
 // Route registration happens in Plan 03 alongside the other five handlers.
-// SAFE-07: this handler does NOT call any federation.Create*Activity function.
+// SAFE-07: this handler does not call federation delivery functions directly.
 func FederationDiscover(e *core.RequestEvent) error {
 	// 1. Auth guard — must be first (D-10, T-05-04).
 	if !e.HasSuperuserAuth() {
