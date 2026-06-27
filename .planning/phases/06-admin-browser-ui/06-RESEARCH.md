@@ -603,7 +603,7 @@ async disconnect(peer) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Alpine.js version pinning**
    - What we know: UI-SPEC.md specifies `alpinejs@3.x.x` (floating minor).
