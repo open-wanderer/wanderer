@@ -214,6 +214,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/federation/reject/{id}", routes.FederationReject)
 	se.Router.POST("/federation/disconnect/{id}", routes.FederationDisconnect)
 	se.Router.GET("/federation/peers", routes.FederationPeers)
+	se.Router.GET("/federation/", routes.FederationDashboard)
 
 }
 
