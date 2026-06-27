@@ -65,11 +65,55 @@ func newFederationAdminTestApp(t *testing.T) core.App {
 		t.Fatalf("create activitypub_actors collection: %v", err)
 	}
 
+	// follows collection — follower/followee relate to activitypub_actors (pbc_1295301207)
+	followsJSON := `[{
+		"id": "8obn1ukumze565i",
+		"name": "follows",
+		"type": "base",
+		"system": false,
+		"listRule": null,
+		"viewRule": null,
+		"createRule": null,
+		"updateRule": null,
+		"deleteRule": null,
+		"fields": [
+			{"autogeneratePattern":"[a-z0-9]{15}","hidden":false,"id":"text3208210256","max":15,"min":15,"name":"id","pattern":"^[a-z0-9]+$","presentable":false,"primaryKey":true,"required":true,"system":true,"type":"text"},
+			{"cascadeDelete":true,"collectionId":"pbc_1295301207","hidden":false,"id":"relation3117812038","maxSelect":1,"minSelect":0,"name":"follower","presentable":false,"required":true,"system":false,"type":"relation"},
+			{"cascadeDelete":true,"collectionId":"pbc_1295301207","hidden":false,"id":"relation973442177","maxSelect":1,"minSelect":0,"name":"followee","presentable":false,"required":true,"system":false,"type":"relation"},
+			{"hidden":false,"id":"select2063623452","maxSelect":1,"name":"status","presentable":false,"required":true,"system":false,"type":"select","values":["pending","accepted","rejected"]},
+			{"hidden":false,"id":"autodate2990389176","name":"created","onCreate":true,"onUpdate":false,"presentable":false,"system":false,"type":"autodate"},
+			{"hidden":false,"id":"autodate3332085495","name":"updated","onCreate":true,"onUpdate":true,"presentable":false,"system":false,"type":"autodate"}
+		],
+		"indexes": [],
+		"system": false
+	}]`
+
+	if err := app.ImportCollectionsByMarshaledJSON([]byte(followsJSON), false); err != nil {
+		t.Fatalf("create follows collection: %v", err)
+	}
+
 	t.Cleanup(func() {
 		app.ResetBootstrapState()
 	})
 
 	return app
+}
+
+// createFedAdminTestFollow creates a follows record between two actors and returns it.
+func createFedAdminTestFollow(t *testing.T, app core.App, followerID, followeeID, status string) *core.Record {
+	t.Helper()
+	col, err := app.FindCollectionByNameOrId("follows")
+	if err != nil {
+		t.Fatalf("find follows: %v", err)
+	}
+	r := core.NewRecord(col)
+	r.Set("follower", followerID)
+	r.Set("followee", followeeID)
+	r.Set("status", status)
+	if err := app.Save(r); err != nil {
+		t.Fatalf("save follow record: %v", err)
+	}
+	return r
 }
 
 // createFedAdminTestActor inserts an actor record and returns it.
@@ -256,6 +300,137 @@ func TestFederationDiscoverAcceptsWanderer(t *testing.T) {
 	}
 	if ni.Software.Name != "wanderer" {
 		t.Errorf("software.name = %q, want \"wanderer\"", ni.Software.Name)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestFederationFollow — createOutboundFollow helper tests
+// ---------------------------------------------------------------------------
+
+// TestFederationFollowCreatesPendingRecord verifies that createOutboundFollow
+// creates a follows record with follower=localID, followee=remoteID, status="pending".
+func TestFederationFollowCreatesPendingRecord(t *testing.T) {
+	app := newFederationAdminTestApp(t)
+
+	localActor := createFedAdminTestActor(t, app,
+		"https://local.example.com/api/v1/activitypub/instance",
+		"instance", true)
+	remoteActor := createFedAdminTestActor(t, app,
+		"https://remote.example.com/api/v1/activitypub/instance",
+		"instance", false)
+
+	rec, err := createOutboundFollow(app, localActor.Id, remoteActor.Id)
+	if err != nil {
+		t.Fatalf("createOutboundFollow: %v", err)
+	}
+	if rec == nil {
+		t.Fatal("createOutboundFollow returned nil record")
+	}
+	if rec.GetString("follower") != localActor.Id {
+		t.Errorf("follower = %q, want %q", rec.GetString("follower"), localActor.Id)
+	}
+	if rec.GetString("followee") != remoteActor.Id {
+		t.Errorf("followee = %q, want %q", rec.GetString("followee"), remoteActor.Id)
+	}
+	if rec.GetString("status") != "pending" {
+		t.Errorf("status = %q, want \"pending\"", rec.GetString("status"))
+	}
+}
+
+// TestFederationFollowUnknownActor verifies that createOutboundFollow returns
+// an error when the remote actor ID does not exist (D-02: 400 missing actor).
+func TestFederationFollowUnknownActor(t *testing.T) {
+	app := newFederationAdminTestApp(t)
+
+	localActor := createFedAdminTestActor(t, app,
+		"https://local.example.com/api/v1/activitypub/instance",
+		"instance", true)
+
+	// "nonexistent123456" is not a valid actor record ID
+	_, err := createOutboundFollow(app, localActor.Id, "nonexistent123456")
+	if err == nil {
+		t.Fatal("expected error for unknown remote actor, got nil")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestFederationApprove / TestFederationReject — setFollowStatus helper tests
+// ---------------------------------------------------------------------------
+
+// TestFederationApproveSetsAccepted verifies that setFollowStatus sets the
+// follow record status to "accepted" when the local instance is the followee.
+func TestFederationApproveSetsAccepted(t *testing.T) {
+	app := newFederationAdminTestApp(t)
+
+	localActor := createFedAdminTestActor(t, app,
+		"https://local.example.com/api/v1/activitypub/instance",
+		"instance", true)
+	remoteActor := createFedAdminTestActor(t, app,
+		"https://remote.example.com/api/v1/activitypub/instance",
+		"instance", false)
+
+	// Inbound: remote follows local
+	follow := createFedAdminTestFollow(t, app, remoteActor.Id, localActor.Id, "pending")
+
+	if err := setFollowStatus(app, follow.Id, "accepted", localActor.Id); err != nil {
+		t.Fatalf("setFollowStatus: %v", err)
+	}
+
+	updated, err := app.FindRecordById("follows", follow.Id)
+	if err != nil {
+		t.Fatalf("FindRecordById: %v", err)
+	}
+	if updated.GetString("status") != "accepted" {
+		t.Errorf("status = %q, want \"accepted\"", updated.GetString("status"))
+	}
+}
+
+// TestFederationRejectSetsRejected verifies that setFollowStatus sets the
+// follow record status to "rejected" when the local instance is the followee.
+func TestFederationRejectSetsRejected(t *testing.T) {
+	app := newFederationAdminTestApp(t)
+
+	localActor := createFedAdminTestActor(t, app,
+		"https://local.example.com/api/v1/activitypub/instance",
+		"instance", true)
+	remoteActor := createFedAdminTestActor(t, app,
+		"https://remote.example.com/api/v1/activitypub/instance",
+		"instance", false)
+
+	// Inbound: remote follows local
+	follow := createFedAdminTestFollow(t, app, remoteActor.Id, localActor.Id, "pending")
+
+	if err := setFollowStatus(app, follow.Id, "rejected", localActor.Id); err != nil {
+		t.Fatalf("setFollowStatus: %v", err)
+	}
+
+	updated, err := app.FindRecordById("follows", follow.Id)
+	if err != nil {
+		t.Fatalf("FindRecordById: %v", err)
+	}
+	if updated.GetString("status") != "rejected" {
+		t.Errorf("status = %q, want \"rejected\"", updated.GetString("status"))
+	}
+}
+
+// TestFederationApproveRejectsOutbound verifies that setFollowStatus returns an
+// error when the follow's followee is not the local instance actor (direction guard).
+func TestFederationApproveRejectsOutbound(t *testing.T) {
+	app := newFederationAdminTestApp(t)
+
+	localActor := createFedAdminTestActor(t, app,
+		"https://local.example.com/api/v1/activitypub/instance",
+		"instance", true)
+	remoteActor := createFedAdminTestActor(t, app,
+		"https://remote.example.com/api/v1/activitypub/instance",
+		"instance", false)
+
+	// Outbound: local follows remote (local is the follower, not the followee)
+	follow := createFedAdminTestFollow(t, app, localActor.Id, remoteActor.Id, "pending")
+
+	err := setFollowStatus(app, follow.Id, "accepted", localActor.Id)
+	if err == nil {
+		t.Fatal("expected error for outbound follow (local not the followee), got nil")
 	}
 }
 
