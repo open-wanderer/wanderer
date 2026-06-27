@@ -1,200 +1,299 @@
-# Technology Stack: Instance Actor for ActivityPub Federation
+# Stack Research: Federation Connect UI (v1.1)
 
-**Project:** Wanderer Instance Federation
-**Researched:** 2026-06-22
-**Overall confidence:** HIGH for actor type and library support; MEDIUM for endpoint conventions (no finalized spec)
+**Project:** Wanderer Instance Federation — Admin UI for peer connection management
+**Researched:** 2026-06-27
+**Confidence:** HIGH — all critical claims verified against PocketBase 0.38 source and official docs
 
 ---
 
 ## Core Question
 
-What is the standard stack for implementing an ActivityPub instance actor in the existing Go/PocketBase/go-ap codebase?
+What stack additions or changes are needed to deliver an admin-only UI for managing peer instance connections? Three specific questions:
+
+1. Can PocketBase serve custom HTML from a Go route with superuser auth protection, and how does superuser auth work?
+2. If going the SvelteKit route, what is the minimal addition to add an admin concept to the frontend?
+3. What Go dependencies are needed for serving embedded HTML/static assets from the binary?
 
 ---
 
-## Actor Type: Use `Application`
+## Finding 1: PocketBase Superuser Auth Mechanism
 
-**Recommendation:** `pub.ApplicationType` ("Application")
+**Verdict: Fully verifiable on custom Go routes. Use `apis.RequireSuperuserAuth()`. No new dependencies needed.**
 
-**Rationale — verified from multiple sources:**
+### How superuser auth works
 
-1. **go-ap/activitypub library (confirmed from source at `v0.0.0-20250905102448-e9df599e4528`):** `ApplicationType` is defined as `ActivityVocabularyType = "Application"` and `Application = Actor` (type alias). The library ships `ApplicationNew(id ID) *Application` as a dedicated constructor. `Application` is a first-class type in `ActorTypes`, identical in structure to `Person` — the same `Actor` struct, just with `Type = "Application"`. There is no structural difference at the Go level; only the serialized `"type"` field changes.
+PocketBase superusers are stored in the `_superusers` collection (a standard auth collection). Authentication produces a JWT token (HS256, signed with the app's auth settings key). The token is stateless — no server-side sessions.
 
-2. **Mastodon live instance (confirmed by fetching `https://mastodon.social/actor`):** Mastodon's instance actor uses `"type": "Application"` with `preferredUsername` set to the domain name (e.g., `"mastodon.social"`). This is the most widely deployed reference implementation.
+The token is transmitted via the **`Authorization` header** (`Authorization: <token>` or `Authorization: Bearer <token>` — both forms are accepted by PocketBase's token loader middleware). There is **no cookie-based session for superusers**. PocketBase's own documentation explicitly states: "Web APIs are fully stateless and there are no sessions in the traditional sense."
 
-3. **Pixelfed documentation:** Uses `Application` for the instance-wide actor that signs GET requests to remote instances.
+### How to check superuser auth on a custom Go route
 
-4. **FEP-2677 (draft, SocialHub):** Identifies Application as the type for the application actor. The FEP is not yet finalized, but the pattern it describes (Application type, discoverable via NodeInfo or WebFinger) matches Mastodon's existing behavior.
-
-5. **`Service` vs `Application`:** `Service` was semantically intended to represent "a server" per the AS2 Primer, while `Application` was intended for "a software application / frontend." In practice, both are accepted by Mastodon and major implementations — the ActivityPub spec explicitly states actors "don't have to be" one of the standard types. However, **`Application` is what Mastodon itself uses** for its instance actor, making it the safer choice for broadest interoperability.
-
-**What NOT to use:**
-- `Service` — semantically ambiguous, fewer reference implementations use it for instance actors
-- `Group` — semantically wrong; implies a collection of people
-- `Person` — wrong; remote servers use this to infer a human user account
-
-**Confidence: HIGH** — verified from live Mastodon instance JSON and go-ap source.
-
----
-
-## IRI and URL Pattern
-
-**Recommendation:** `{ORIGIN}/actor` (e.g., `https://wanderer.example.com/actor`)
-
-**Rationale:**
-- Mastodon uses `https://mastodon.social/actor` — the de-facto standard
-- The trailing `/actor` path is the most widely recognized pattern in the Fediverse
-- Pleroma uses `/internal/fetch` and Lemmy uses the root path (`/`), but `/actor` is the pattern most remote servers expect and is what relay software checks first
-
-**Sub-resources (inbox, outbox, followers, following):**
-
-| Endpoint | URL pattern | Required? |
-|----------|------------|----------|
-| `inbox` | `{ORIGIN}/actor/inbox` | Yes — receives Follow, Accept, Undo activities |
-| `outbox` | `{ORIGIN}/actor/outbox` | Yes — required by ActivityPub spec for a valid actor; can be empty OrderedCollection |
-| `followers` | `{ORIGIN}/actor/followers` | Yes — remote instances check this when accepting Follows; can be empty/stub |
-| `following` | `{ORIGIN}/actor/following` | Recommended — symmetric to followers; stub acceptable |
-
-Mastodon's instance actor **omits** dedicated followers/following collection URLs and sets `manuallyApprovesFollowers: true`. For Wanderer's use case (mutual consent before sync begins), `manuallyApprovesFollowers: true` is appropriate and matches the PROJECT.md requirement for explicit admin approval on both sides.
-
-**keyId convention:**
-The public key ID must follow the `{actor IRI}#main-key` pattern, which is already established in the codebase:
+PocketBase's built-in auth-token-loader middleware runs on every request and populates `e.Auth` when a valid token is present. This happens automatically before any route handler executes. Two verified APIs:
 
 ```go
-pubID := actor.GetString("iri") + "#main-key"
+// Option A: check in handler body (already used in this codebase)
+if !e.HasSuperuserAuth() {
+    return apis.NewUnauthorizedError("superuser required", nil)
+}
+
+// Option B: bind middleware to the route (preferred — cleaner, fails fast)
+se.Router.GET("/federation/admin", handler).Bind(apis.RequireSuperuserAuth())
 ```
 
-This pattern is already used by `PostActivity` and `FetchCollection` in `db/federation/activity.go` and `db/federation/actor.go`. The instance actor must use the same pattern.
+`e.HasSuperuserAuth()` is equivalent to `e.Auth != nil && e.Auth.IsSuperuser()`. Both patterns are **already used in this codebase** — `db/routes/plugin_system.go` and `db/hooks/plugin_instances.go` both call `e.HasSuperuserAuth()`. This confirms the pattern works without any new dependency.
 
-**Confidence: HIGH** for `/actor` path. MEDIUM for exact sub-resource paths — these are convention, not spec-mandated.
+`apis.RequireSuperuserAuth()` is defined as `apis.RequireAuth(core.CollectionNameSuperusers)` — verified in `github.com/pocketbase/pocketbase@v0.38.0/apis/middlewares.go`.
+
+**Confidence: HIGH** — verified against PocketBase v0.38 (project uses v0.38.0 per go.mod), and the pattern exists in this exact codebase already.
+
+### Browser login flow for a custom HTML admin page
+
+Because there are no session cookies, a browser-facing admin page must handle login explicitly:
+
+1. Page loads — checks localStorage for a valid superuser token (PocketBase JS SDK stores it under key `"pocketbase_auth"` by default).
+2. If no valid token: render a login form. On submit, `POST /api/collections/_superusers/auth-with-password` → receive JWT → store in localStorage.
+3. On every API call from the admin page: send `Authorization: <token>` header.
+4. The Go route handler calls `e.HasSuperuserAuth()` or uses `.Bind(apis.RequireSuperuserAuth())` — returns 401 if not a valid superuser token.
+
+The PocketBase JS SDK (`pocketbase` npm package, already a dependency at v0.26.8 in `web/package.json`) handles all of this automatically via `pb.collection('_superusers').authWithPassword(email, pass)` and `pb.authStore`.
 
 ---
 
-## go-ap/activitypub Library Support
+## Finding 2: Path A — Custom Go Route Serving Embedded HTML (Recommended)
 
-**Version in use:** `v0.0.0-20250905102448-e9df599e4528`
+**Verdict: Feasible, zero new Go dependencies, no SvelteKit changes required.**
 
-### ApplicationNew constructor
+### Approach
+
+Serve a single self-contained HTML page (or a small JS bundle) from a Go route protected by `apis.RequireSuperuserAuth()`. The HTML is embedded in the binary at compile time using Go's standard `embed` package.
+
+### go:embed for static assets
+
+`embed.FS` is part of the Go standard library since Go 1.16. The project uses Go 1.25 — fully supported, no new dependency.
+
+Pattern (mirrors PocketBase's own Admin UI, which uses `//go:embed all:dist`):
 
 ```go
-actor := pub.ApplicationNew(pub.IRI(id))
-// Sets actor.Type = pub.ApplicationType ("Application")
-// Returns *pub.Actor (Application = Actor type alias)
+// db/federation/admin/embed.go
+package admin
+
+import "embed"
+
+//go:embed dist/*
+var AdminDistFS embed.FS
 ```
-
-The returned `*pub.Actor` has all the same fields as any other actor type. Setting inbox, outbox, followers, following, publicKey, and preferredUsername is identical to the existing user actor code in `util/activitypub.go`.
-
-### Serialization behavior
-
-`Actor.MarshalJSON()` always writes the `"type"` field from `actor.Type`. Setting `actor.Type = pub.ApplicationType` produces `"type": "Application"` in the JSON output — no additional configuration required.
-
-### Receiving/deserializing Application actors
-
-`Actor.UnmarshalJSON()` uses `JSONLoadActor()` which reads the `"type"` field generically. The existing `fetchRemoteActor()` in `db/federation/actor.go` decodes into `pub.Actor` directly — it already handles Application-type remote actors without modification. The `validateActorResponse()` function checks for ID, inbox, outbox, username/name, and publicKey — all of which the instance actor will have.
-
-### No library changes needed
-
-The existing codebase already imports `pub "github.com/go-ap/activitypub"` and uses its full API. There are no new library dependencies required. The `ApplicationNew()` constructor is a drop-in for the existing `ActorFromUser()` pattern in `util/activitypub.go`.
-
-**Confidence: HIGH** — verified from library source files in the Go module cache.
-
----
-
-## WebFinger for Instance Actor
-
-**Pattern from Mastodon:** The instance actor at `https://mastodon.social/actor` is discoverable via WebFinger using the resource `acct:mastodon.social@mastodon.social` (domain as both user and host).
-
-**For Wanderer v1:** WebFinger support for the instance actor is useful but not strictly required for the core use case. The admin-to-admin Follow workflow can work without WebFinger if the admin supplies the full instance actor IRI directly. However, to be compatible with remote servers that discover actors via WebFinger, the `/.well-known/webfinger` handler should return a `self` link pointing to `{ORIGIN}/actor` when queried for the instance's own domain handle.
-
-**Existing WebFinger infrastructure:** The existing `iriFromHandle()` function in `actor.go` already knows how to query remote WebFinger endpoints. The local WebFinger handler (in the SvelteKit web layer) would need a new route for the instance actor. This is out of scope for v1 per PROJECT.md (Go/PocketBase only, no SvelteKit changes).
-
-**v1 recommendation:** Skip WebFinger for the instance actor in v1. Admins connect instances by supplying the remote instance actor IRI directly (e.g., `https://remote.wanderer.example.com/actor`). This matches the PROJECT.md constraint of "PocketBase admin UI only."
-
-**Confidence: MEDIUM** — WebFinger discovery pattern is established but not spec-required for the Follow workflow.
-
----
-
-## HTTP Signature Signing for the Instance Actor
-
-The existing `PostActivity()` in `db/federation/activity.go` already handles all HTTP signing via `go-fed/httpsig`. The instance actor needs:
-
-1. An RSA 2048-bit keypair (same as user actors — use existing `generateKeyPair()` in `util/activitypub.go`)
-2. The private key stored encrypted with `POCKETBASE_ENCRYPTION_KEY` (same as user actors)
-3. The public key stored as PEM-encoded PKIX public key (same format as user actors)
-4. A `#main-key` fragment on the actor IRI for the `keyId` in HTTP signatures
-
-All of this is already present in the codebase. The instance actor can use `PostActivity()` directly with no modifications.
-
-**Confidence: HIGH** — directly derived from existing codebase.
-
----
-
-## activitypub_actors Schema: What Needs to Change
-
-The existing `activitypub_actors` collection has no `type` field (actor type is not stored). For user actors this is fine since they are always `Person`. For the instance actor, identifying it as `Application` requires either:
-
-**Option A (recommended):** Add a `type` text field to `activitypub_actors` with a default of `"Person"` and set `"Application"` for the instance actor. This makes the type queryable and allows the HTTP actor endpoint to serialize the correct type.
-
-**Option B:** Identify the instance actor by `preferred_username = "instance"` or `user IS NULL AND is_local = true`, and hardcode the type in the serialization layer.
-
-Option A is cleaner and more extensible. It requires one new migration.
-
-**The `user` relation field:** User actors have a non-null `user` relation. The instance actor has no associated user record — `user` must be nullable (already is: `"required": false` in the migration). The instance actor row will have `user = null`, `is_local = true`, `type = "Application"`.
-
-**Existing uniqueness constraint:** `CREATE UNIQUE INDEX idx_rpT7QJwWTm ON activitypub_actors (iri)` — the instance actor IRI `{ORIGIN}/actor` is unique per deployment; no conflict.
-
-**Confidence: HIGH** — derived from direct schema inspection.
-
----
-
-## Fanout Integration
-
-The `followerInboxes()` function in `db/federation/activity.go` already performs a JOIN query:
 
 ```go
-SELECT aa.inbox FROM follows f
-INNER JOIN activitypub_actors aa ON f.follower = aa.id
-WHERE f.followee = {:followee} AND f.status = 'accepted' AND aa.inbox != ''
+// db/main.go — in registerRoutes()
+import (
+    "io/fs"
+    "github.com/pocketbase/pocketbase/apis"
+)
+
+adminFS, _ := fs.Sub(admin.AdminDistFS, "dist")
+
+// Serve the login+dashboard page (no auth guard on the HTML asset itself —
+// the page's JS handles the login form, then calls guarded API routes)
+se.Router.GET("/federation/admin/{path...}", apis.Static(adminFS, true))
+
+// Guard all data API routes with superuser auth
+g := se.Router.Group("/api/federation")
+g.Bind(apis.RequireSuperuserAuth())
+g.GET("/peers", handleListPeers)
+g.POST("/peers/connect", handleConnect)
+g.POST("/peers/{id}/approve", handleApprove)
+g.POST("/peers/{id}/reject", handleReject)
+g.DELETE("/peers/{id}", handleDisconnect)
 ```
 
-When a remote instance actor follows the local instance actor, that remote instance actor row in `activitypub_actors` will have an `inbox` pointing to the remote instance's shared/actor inbox. The `followerInboxes()` call for the instance actor ID will then return that remote inbox URL — the fanout machinery works without modification.
+`apis.Static(fsys, indexFallback bool)` is the verified signature in PocketBase v0.38 `apis` package. The `{path...}` wildcard is required by this function (enforced at runtime). Setting `indexFallback: true` makes it serve `index.html` for unknown paths — correct for a single-page admin app.
 
-The only new requirement: when creating/updating/deleting public content, the fanout must also include followers of the instance actor, not just followers of the content's author. This means calling `followerInboxes()` for the instance actor and merging those inboxes with the author's follower inboxes.
+### What to embed
 
-**Confidence: HIGH** — directly derived from existing query and data model.
+**Option A (minimal, no build step):** A single `index.html` file with inline `<script>` and `<style>`. Uses the PocketBase JS SDK from a CDN or inlined. Sufficient for a federation dashboard with ~5 operations.
+
+**Option B (proper SPA):** A small Svelte or vanilla JS app built with Vite, output embedded as `dist/*`. Requires a build step but gives proper component structure. The existing Vite/Svelte toolchain in `web/` can be reused or a separate `db/federation/admin/` Vite config can be added.
+
+**Recommendation: Option A first.** The admin dashboard is low-traffic, admin-only, and has limited UI surface. A self-contained HTML page with inline JavaScript avoids a build step and keeps the deployment as a single binary. If the UI grows beyond ~300 lines of JS, graduate to Option B.
+
+### No new Go dependencies
+
+| Need | Solution | Dependency |
+|------|----------|------------|
+| Embed static files | `//go:embed` + `embed.FS` | Standard library (Go 1.16+) |
+| Serve embedded files | `apis.Static()` | Already in `pocketbase/pocketbase/apis` |
+| Guard routes | `apis.RequireSuperuserAuth()` | Already in `pocketbase/pocketbase/apis` |
+| Auth check in handler | `e.HasSuperuserAuth()` | Already in `pocketbase/core` |
+
+**Zero new Go module dependencies.**
+
+---
+
+## Finding 3: Path B — SvelteKit Frontend with Admin Flag (Fallback)
+
+**Verdict: More invasive, not recommended for v1.1, but viable if a richer UI is required later.**
+
+### What "admin" means in Wanderer's context
+
+PocketBase superusers are not Wanderer users — they exist only in `_superusers` and have no record in the `users` collection. The SvelteKit frontend authenticates against the `users` collection. A "Wanderer admin" must be a separate concept: a regular user with an elevated flag.
+
+### Minimal change to add an admin flag
+
+**Migration:** Add a boolean field `is_admin` (default `false`) to the `users` collection.
+
+**PocketBase API rule on admin-only endpoints:** In collection API rules, use `@request.auth.is_admin = true` to restrict access.
+
+**Go route guard (for custom routes):**
+```go
+if e.Auth == nil || !e.Auth.GetBool("is_admin") {
+    return apis.NewUnauthorizedError("admin required", nil)
+}
+```
+
+**SvelteKit server-side guard (`+page.server.ts`):**
+```typescript
+import { error } from '@sveltejs/kit';
+
+export const load = async ({ locals }) => {
+    if (!locals.user?.is_admin) {
+        throw error(403, 'Admin access required');
+    }
+    // fetch peers data
+};
+```
+
+**SvelteKit `locals` change (`hooks.server.ts`):** The user is already loaded into `event.locals.user`. The `is_admin` field would be present on the record automatically once added to the schema — no hooks change needed.
+
+**Type change (`web/src/lib/models/user.ts`):**
+```typescript
+export type User = AuthRecord & {
+    id: string,
+    username?: string,
+    email?: string,
+    password: string,
+    avatar?: string;
+    created?: string;
+    is_admin?: boolean;  // add this
+}
+```
+
+### Why Path B is not recommended for v1.1
+
+1. **Conflation of concerns:** Wanderer admins (is_admin users) and PocketBase superusers are different roles. Managing the federation infrastructure should belong to the infrastructure operator (PocketBase superuser), not an application-level admin user.
+2. **More surface area:** Requires a migration, a type change, route guards in two places (Go and SvelteKit), and new SvelteKit pages.
+3. **Auth confusion:** The SvelteKit frontend uses cookie-based auth for `users`. Adding an admin section that manages infrastructure-level settings via the same session creates a privilege escalation risk if the admin-flagging logic has bugs.
+4. **Not needed for v1.1:** The Go route approach (Path A) delivers the same UX with zero frontend changes and directly uses PocketBase's own superuser auth.
+
+**Choose Path B when:** The admin dashboard needs to be deeply integrated with the SvelteKit UI (e.g., accessible from a settings sidebar), or the team wants the admin to be a Wanderer user rather than a PocketBase superuser.
+
+---
+
+## Finding 4: PocketBase UI Extensions (Do Not Use for v1.1)
+
+The PocketBase admin panel extension API (introduced experimentally in v0.37) is **explicitly not production-safe**. The PocketBase maintainer's own statement (discussion #7612):
+
+> "it is NOT recommended to use yet because your extensions most likely will break with the 'Stage 2' completion"
+
+Stage 2 has no ETA. Any UI extensions built now will break on upgrade. Do not use this approach for v1.1.
+
+---
+
+## Recommended Stack
+
+### Core Technologies (no additions needed)
+
+| Technology | Version | Role in v1.1 | Status |
+|------------|---------|-------------|--------|
+| PocketBase | 0.38.0 | Route registration, superuser auth guard, embedded file serving | Already in go.mod |
+| Go `embed` package | stdlib (Go 1.16+) | Embed admin HTML/JS into binary | Standard library, no import needed |
+| `apis.Static()` | PocketBase 0.38 | Serve embedded `fs.FS` from Go route | Already available via `pocketbase/apis` |
+| `apis.RequireSuperuserAuth()` | PocketBase 0.38 | Middleware guard on data API routes | Already available via `pocketbase/apis` |
+| `e.HasSuperuserAuth()` | PocketBase 0.38 | Inline superuser check in handler body | Already used in codebase |
+
+### Frontend for Admin Page (Option A — inline HTML)
+
+| Technology | Version | Role | Status |
+|------------|---------|------|--------|
+| PocketBase JS SDK | CDN or inline | Login form, API calls with auth header | Already in `web/package.json` at 0.26.8; can reference from CDN in standalone page |
+| Vanilla HTML/CSS/JS | — | Single-file admin UI, no build step | No new tooling |
+
+### Frontend for Admin Page (Option B — compiled SPA, if needed later)
+
+| Technology | Version | Role | Status |
+|------------|---------|------|--------|
+| Vite | 8.x | Build tool for admin SPA | Already in `web/package.json` |
+| Svelte | 5.x | Component framework | Already in `web/package.json` |
+| PocketBase JS SDK | 0.26.8 | Auth and API calls | Already in `web/package.json` |
+
+Option B reuses 100% of existing tooling — only a separate Vite config pointing at a `db/federation/admin/src/` directory is new.
 
 ---
 
 ## Alternatives Considered
 
-| Approach | Why not recommended |
-|----------|-------------------|
-| `Service` actor type | Fewer reference implementations; Mastodon's own instance actor uses `Application` |
-| `/relay` path for IRI | ActivityPub relay pattern (FEP-ae0c) is a different protocol; relay announces all public content via Announce activities rather than direct Create/Update/Delete |
-| Separate sync protocol (not ActivityPub) | PROJECT.md explicitly requires reusing existing ActivityPub machinery |
-| Auto-accept instance follows | PROJECT.md explicitly requires mutual admin approval |
-| New HTTP client/signing library | go-fed/httpsig already in use; no need for alternatives |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| Path A: Go route + embedded HTML | PocketBase UI extensions | Officially not production-safe; will break on next PocketBase upgrade |
+| Path A: Go route + embedded HTML | Path B: SvelteKit admin flag | More invasive, conflates Wanderer users with infrastructure operators, unnecessary for v1.1 |
+| Inline HTML (no build step) | Compiled Svelte SPA | Overhead not justified for ~5 admin operations; can graduate later |
+| `apis.RequireSuperuserAuth()` middleware | Manual JWT parse | Reinvents PocketBase's already-correct JWT verification; error-prone |
+| `apis.Static()` for embedded FS | `http.FileServer` + `WrapStdHandler` | More verbose; `apis.Static()` is the idiomatic PocketBase 0.38 API |
 
 ---
 
-## Summary Recommendation
+## What NOT to Use
 
-1. **Actor type:** `pub.ApplicationType` ("Application") — matches Mastodon, supported natively by go-ap
-2. **IRI:** `{ORIGIN}/actor` — Mastodon-compatible, widely recognized
-3. **Endpoints:** inbox at `{ORIGIN}/actor/inbox`, outbox stub at `{ORIGIN}/actor/outbox`, followers stub at `{ORIGIN}/actor/followers`
-4. **`manuallyApprovesFollowers: true`** — enforces mutual consent requirement from PROJECT.md
-5. **Schema change:** Add `type` text field to `activitypub_actors`, default `"Person"`, set `"Application"` for instance actor
-6. **No new library dependencies** — all required functionality exists in go-ap and go-fed/httpsig
-7. **WebFinger for instance actor:** defer to a later milestone; not required for admin-only v1
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| PocketBase UI extensions (`/_/`) | Marked unstable by maintainer; breaking changes guaranteed before v1.0 | Custom Go route at `/federation/admin/` |
+| Cookie-based auth for admin page | PocketBase superuser auth is stateless JWT only; no session cookies exist for `_superusers` | Authorization header sent by JS from localStorage |
+| New Go HTTP framework (chi, gorilla) | PocketBase's router (`se.Router`) is already Echo-based; mixing frameworks breaks middleware chain | Use `se.Router.GET/POST/Group` as done in existing routes |
+| `go-chi/chi` or `gorilla/mux` | Not needed — PocketBase 0.38 router is fully capable | `se.Router` |
+
+---
+
+## Installation
+
+No new Go dependencies. The entire implementation uses packages already in `go.mod`.
+
+```bash
+# No new dependencies to install.
+# Verify existing apis package has the needed symbols:
+grep -r "RequireSuperuserAuth\|apis.Static" $(go env GOPATH)/pkg/mod/github.com/pocketbase/pocketbase@v0.38.0/apis/
+```
+
+If Option B (compiled SPA) is chosen later:
+
+```bash
+# From db/federation/admin/ — reuses project's existing Node 22
+npm create vite@latest . -- --template svelte-ts
+npm install pocketbase
+```
+
+---
+
+## Version Compatibility
+
+| Package | Version in Use | Verified APIs |
+|---------|---------------|--------------|
+| `github.com/pocketbase/pocketbase` | v0.38.0 | `apis.RequireSuperuserAuth()`, `apis.Static()`, `e.HasSuperuserAuth()`, `core.RequestEvent.Auth` |
+| Go standard library | 1.25 (module), 1.24.1 (runtime) | `embed.FS`, `io/fs.Sub()` |
+| `pocketbase` JS SDK | 0.26.8 (web) | `pb.collection('_superusers').authWithPassword()`, `pb.authStore.isSuperuser` |
 
 ---
 
 ## Sources
 
-- go-ap/activitypub library source: `/Users/christianbeutel/go/pkg/mod/github.com/go-ap/activitypub@v0.0.0-20250905102448-e9df599e4528/actor.go`
-- Mastodon instance actor live JSON: [https://mastodon.social/actor](https://mastodon.social/actor)
-- Mastodon ActivityPub spec: [https://docs.joinmastodon.org/spec/activitypub/](https://docs.joinmastodon.org/spec/activitypub/)
-- FEP-2677 discussion: [https://socialhub.activitypub.rocks/t/fep-2677-identifying-the-application-actor/3646](https://socialhub.activitypub.rocks/t/fep-2677-identifying-the-application-actor/3646)
-- Instance actor pattern discussion: [https://socialhub.activitypub.rocks/t/so-what-even-is-an-instance-actor/3820](https://socialhub.activitypub.rocks/t/so-what-even-is-an-instance-actor/3820)
-- Follow application actor pattern: [https://socialhub.activitypub.rocks/t/follow-application-actor-has-a-way-to-get-public-activities/8473](https://socialhub.activitypub.rocks/t/follow-application-actor-has-a-way-to-get-public-activities/8473)
-- Mastodon actor type issue: [https://github.com/mastodon/mastodon/issues/22322](https://github.com/mastodon/mastodon/issues/22322)
+- PocketBase Go Routing docs — `apis.RequireSuperuserAuth`, `apis.Static`, route groups: https://pocketbase.io/docs/go-routing/
+- PocketBase `apis` package (v0.38.0) — `RequireSuperuserAuth`, `RequireAuth`, `Static` signatures: https://pkg.go.dev/github.com/pocketbase/pocketbase@v0.38.0/apis
+- PocketBase middlewares source — token extraction from Authorization header: https://github.com/pocketbase/pocketbase/blob/master/apis/middlewares.go
+- PocketBase authentication docs — stateless JWT, no sessions, `_superusers` collection: https://pocketbase.io/docs/authentication/
+- PocketBase UI extensions discussion (maintainer explicitly not production-safe): https://github.com/pocketbase/pocketbase/discussions/7612
+- Existing codebase — `HasSuperuserAuth()` already in use: `db/routes/plugin_system.go`, `db/hooks/plugin_instances.go`
+- `go:embed` with PocketBase community discussion: https://github.com/pocketbase/pocketbase/discussions/4810
+- PocketBase Admin UI own embed pattern (reference implementation): https://github.com/pocketbase/pocketbase/blob/master/ui/embed.go
+
+---
+
+*Stack research for: Wanderer Federation Connect UI (v1.1)*
+*Researched: 2026-06-27*

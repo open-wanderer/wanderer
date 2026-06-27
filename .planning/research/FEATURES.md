@@ -1,221 +1,294 @@
-# Feature Landscape: Instance-Level ActivityPub Federation
+# Feature Research
 
-**Domain:** ActivityPub instance-to-instance federation (trail/hiking app)
-**Researched:** 2026-06-22
-**Confidence:** HIGH for protocol conventions; MEDIUM for admin UX patterns (drawn from Mastodon, Pleroma/Akkoma, Bonfire)
-
----
-
-## Context: What Wanderer Is Building
-
-Instance actors (`type = Application`) that let two Wanderer admins establish a bilateral Follow relationship. Once both sides accept, public trails, comments, lists, and summit_logs sync bidirectionally. The existing `follows` collection and `ProcessFollowActivity` / `ProcessAcceptActivity` machinery already handles the protocol layer; the gap is creating the instance actor and wiring it into the fanout.
-
-The existing `ProcessFollowActivity` **auto-accepts** all incoming follows from remote actors (`status: "accepted"` immediately). For instance-level federation PROJECT.md requires **mutual approval**, meaning this auto-accept behavior must be gated differently for Application-type actors.
+**Domain:** ActivityPub admin federation management UI — v1.1 Federation Connect UI
+**Researched:** 2026-06-27
+**Confidence:** HIGH (codebase fully read; ecosystem research from Mastodon, Pleroma/Akkoma, GoToSocial, Misskey relay/federation admin UIs)
 
 ---
 
-## Table Stakes
+## Context: What v1.1 Is Building
 
-Features an admin will expect before trusting this system. Missing any of these means the feature is unusable or unsafe.
+v1.0 shipped the protocol layer (instance actor, inbox, Follow lifecycle, fanout). Admins currently manage everything through the PocketBase admin panel by directly creating and updating records in the `follows` and `activitypub_actors` collections.
+
+v1.1 goal: give an admin a real UI to manage peer instance connections without touching the database.
+
+The existing v1.0 hooks (`InstanceFollowCreateHandler`, `InstanceFollowUpdateHandler`, `InstanceFollowDeleteHandler`) already handle the ActivityPub delivery side — any change to a `follows` record triggers the right activity. The UI layer needs only to drive those records correctly. The hooks are the stable API; the UI is the new surface.
+
+---
+
+## Table Stakes (Admins Expect These)
+
+Features that any competent federation admin UI must have. Missing any of these forces admins back to the PocketBase panel, which defeats the purpose.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Instance actor exists at a stable, well-known URL | Every AP implementation expects `GET /api/v1/activitypub/instance` to return a valid actor JSON document | Low | `type: Application`, `preferredUsername: "instance"`, owns an inbox, outbox, public key |
-| HTTP-signed inbox delivery for instance actor | Remote server must be able to verify the origin of activities sent by your instance actor | Low | Same signing machinery used for user actors; just needs the instance actor's keypair |
-| Admin can send a Follow to a remote instance actor by URL or handle | Core connection flow. Without it admins cannot initiate federation | Low | PocketBase admin UI — custom action or collection hook on a "peer_instances" collection |
-| Remote admin must explicitly Accept before sync starts | Prevents surprise data ingestion. All mature AP implementations require bilateral consent for trusted connections | Low | Current code auto-accepts; must gate Application-type follows differently — require manual Accept |
-| Incoming Follow from a remote instance actor enters `pending` state | Admin must review and approve before content flows inbound | Low | Change `ProcessFollowActivity` to skip auto-accept when actor `type == Application` |
-| Admin can Accept a pending instance Follow | Completes the inbound side of the connection | Low | Send `Accept{Follow}` activity; set status to `accepted` in `follows` |
-| Admin can Reject a pending instance Follow | Closes the connection attempt without data flowing | Low | Send `Reject{Follow}` activity; set status to `rejected` or delete row |
-| Admin can Undo a Follow to disconnect from a peer (unfollow) | Standard protocol mechanism for severing outbound sync | Low | Send `Undo{Follow}`; remove or mark the local follow row |
-| Admin can revoke an accepted inbound Follow (remove a peer that follows us) | Stops delivering our content to a peer that no longer should receive it | Low | Send `Reject` against the existing accepted follow (or `Undo Accept`); remove row |
-| Connection status is visible per peer: `pending_out` / `pending_in` / `accepted` / `rejected` | Admins need to know the state of each relationship | Low | A query over `follows` where follower or followee is the instance actor |
-| Public content only: `is_public = false` records never included in instance fanout | Privacy hard requirement — already documented as a constraint in PROJECT.md | Low | Check at fanout time, same as for user federation; already partially coded in hooks |
-| Remote content retains original actor IRI | Receiving instance must not allow editing of content that originated elsewhere | Low | Already enforced by existing user federation; instance federation inherits same rule |
-| Instance actor's inbox rejects activities from blocked domains | If a peer is later found harmful, block must stop content delivery immediately | Medium | Domain blocklist check at inbox entry point before processing |
-| Admin can view a list of known peer instances with their connection status | Operational visibility — without this admins can't manage the feature | Low | Query `follows` joined to `activitypub_actors` where actor type = Application |
+| Paste-a-URL connect flow | Every fediverse relay/federation admin tool (Mastodon relay, Pleroma relay, GoToSocial domain allowlist) uses a single URL input as the entry point. Mastodon admins paste a relay's `/inbox` URL. Wanderer should accept a simpler base URL. | LOW | Accept `https://remote.example.com`. The UI resolves NodeInfo and actor IRI internally — admin should not need to know internal URL paths. |
+| Remote instance preview before sending Follow | Admins need to confirm the remote is a compatible Wanderer instance before committing. Mastodon and Pleroma skip this step (they send the Follow immediately), which leads to silent failures. This is table stakes for Wanderer because non-Wanderer instances will not understand the content types. | MEDIUM | Fetch NodeInfo to confirm `software.name == "wanderer"`, then fetch `/api/v1/activitypub/instance` to show actor name, domain, user count, trail count. Show a "Connect" confirm button after preview. |
+| Peer dashboard with status per connection | Mastodon relay list, Pleroma relay list, and Misskey federation tab all show status inline. An admin must immediately see the state of each peer without clicking into a detail view. | LOW | Status comes from the `follows` table (`status` field: pending / accepted / rejected). Direction (Outbound / Inbound / Mutual) derived from whether local instance actor is follower, followee, or both. |
+| Approve / Reject incoming pending follows | Inbound follows from remote instances land in `follows` with `status=pending`. No user-facing action exists today. This is the most critical missing UI piece — without it admins cannot complete inbound connections. | LOW | The `InstanceFollowUpdateHandler` hook already delivers Accept/Reject when `status` is changed. The UI sends a PATCH to the follow record. |
+| Disconnect a peer | Mastodon relay list and Pleroma relay admin both expose a remove/disconnect action per relay. Admins must terminate connections without touching the DB. | LOW | `InstanceFollowDeleteHandler` already delivers `Undo{Follow}` on DELETE. The UI deletes the follow record(s). Mutual connections require deleting both directions atomically — needs a dedicated Go endpoint. |
+| Clear, inline error feedback | Mastodon's relay UI shows "Waiting for relay's approval" and silently gets stuck — a documented pain point (GitHub issue #14961). GoToSocial's domain permission UI gives no feedback on unreachable domains. Admins need concrete, actionable error messages. | MEDIUM | Surface errors from the discovery and Follow-delivery steps synchronously in the connect flow, not in server logs. |
+| Admin-only access guard | The federation management page must not be accessible to regular users. | MEDIUM | Requires an admin identity marker on users OR PocketBase superuser-only access. See Gaps section. |
 
 ---
 
-## Differentiators
+## Differentiators (Competitive Advantage)
 
-Features that improve the admin experience and build trust but are not blockers for v1.
+Features that make Wanderer's federation admin UI meaningfully better than existing fediverse implementations.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Per-peer delivery health indicator (last successful delivery timestamp, recent failure count) | Helps admins detect broken connections without reading logs | Medium | Store `last_delivered_at` and `delivery_failure_count` on the peer follow row; Pleroma exposes `/api/v1/pleroma/federation_status` for exactly this |
-| Admin note field per peer instance | Lets admins record why a connection was made or any concerns | Low | Private-only; never federated; Mastodon domain blocks use this pattern (`private_comment`) |
-| Domain blocklist at the instance level | Pre-emptively refuse Follow requests from domains known to be harmful | Medium | Check incoming Follow actor domain against a blocklist table before creating a pending row |
-| Allowlist mode: only federate with explicitly approved instances | For privacy-sensitive deployments that don't want open federation | High | Mastodon's "limited federation mode"; gate the inbox to reject activities from domains not on the allowlist |
-| Peer instance metadata display (software name, version, user count) | NodeInfo endpoint (`/.well-known/nodeinfo`) exposes this; useful for the peer list UI | Medium | Fetch NodeInfo on first connection; cache and refresh periodically |
-| Disconnect notification activity | Inform the remote instance actor when you Undo a Follow, so they can clean up their follow row promptly | Low | Standard ActivityPub `Undo{Follow}` — the remote side SHOULD handle this |
-| Import/export peer list as JSON or CSV | Admins running multiple instances or migrating can transfer their peer connections | Medium | Mastodon does this for domain blocklists; useful for Wanderer networks |
-| Delivery retry with exponential back-off for unreachable peers | Avoids permanently losing activities when a peer is temporarily down | High | Existing code drops on failure; a job queue with retries is a significant addition |
+| Software identity check before connecting | No existing fediverse admin UI verifies the remote is the same software before initiating a follow. Wanderer-to-Wanderer is the only supported federation path; connecting to a Mastodon instance would silently fail (unknown content types). Proactively blocking this at the UI level prevents confusion. | LOW | NodeInfo `software.name` check during the preview step. Show a blocking error if the value is not `"wanderer"`. |
+| Direction-aware peer list | Mastodon relay list shows only URL and status. A direction column (Outbound / Inbound / Mutual) tells the admin at a glance whether this instance is a full peer or one-sided. Existing fediverse relay UIs do not surface this because relays are inherently one-directional (pub/sub, not bilateral Follow). | LOW | Derived from two `follows` records: one where local actor is follower, one where it is followee, both with `status=accepted`. Mutual = both exist. |
+| Pending inbound request context | Show when the inbound Follow was received and which remote domain/actor sent it. No existing fediverse relay UI shows this because relay follows auto-accept. Wanderer is the only implementation that requires bilateral admin approval. | LOW | `follows.created` + actor domain/preferred_username are already stored in v1.0. Show them inline in the pending section. |
+| Instance metadata in peer list | Show remote instance domain, Wanderer version, user count, and public trail count fetched at connect time. Helps admins recognise peers and notice version skew. | MEDIUM | Store fetched NodeInfo data at connect time; re-fetch on page load if stale (> 24h). Options: add columns to `activitypub_actors` or re-fetch live on admin page load (acceptable for low-traffic admin page in v1.1). |
 
 ---
 
-## Anti-Features
+## Anti-Features (Commonly Requested, Often Problematic)
 
-Things to deliberately NOT build in v1. Each has a specific reason.
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Auto-accept all incoming instance follows | Reduces friction — no need to approve each request. | Breaks the mutual consent model established in v1.0. An admin could unknowingly sync with an untrusted instance. The `pending` → `accepted` step is the trust gate. | Keep manual approve/reject. Make the UI fast enough that approval takes one click. |
+| Connect via handle (`@instance@domain`) | WebFinger handle resolution feels familiar to fediverse users. | The Wanderer instance actor does not have a standard WebFinger handle — it is an `Application` type at a fixed IRI. FEP-d556 (server-level actor discovery via WebFinger) is still exploratory and not yet standardised. v1.0 has no WebFinger endpoint for the instance actor. | Accept a plain base URL (`https://domain.example`). Resolve the actor IRI by fetching NodeInfo then the known Wanderer path convention `/api/v1/activitypub/instance`. Reliable for Wanderer-to-Wanderer. |
+| Per-peer content filtering | Admins may want to share trails but not comments with specific peers. | Out of scope per PROJECT.md. Adds significant fanout complexity. Contradicts the "same ActivityPub machinery" constraint. | Document clearly in the UI that all four public content types sync when connected. |
+| Historical backfill on new connection | Admins want existing content to appear on a new peer immediately. | Out of scope per PROJECT.md. Forward-only sync avoids complex state reconciliation. | Explain in the UI that only content created after connection is established will sync. |
+| Relay-style one-to-many subscription | Mastodon uses a relay pattern that might be expected. | Wanderer uses bilateral Follow, not relay Announce. A relay would require a third-party relay server. Bilateral is already implemented and avoids broadcast amplification. | The peer dashboard IS the equivalent of the relay list — bilateral instead of hub-and-spoke. |
+| Domain blocklist | Admins may want to pre-emptively block hostile domains. | Out of scope for v1.1. Adds a separate data model and inbox filter. | Defer to v1.2+. For now, admins simply do not connect to untrusted instances, and incoming follows from unknown instances require manual approval. |
 
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Web or mobile admin UI for federation management | PROJECT.md explicitly scopes this out; PocketBase admin UI is sufficient for infrequent admin operations | PocketBase collection UI + custom admin actions |
-| Per-user opt-in/opt-out of instance federation | Adds significant complexity (per-record consent tracking, UI, notification); out of scope per PROJECT.md | Document that all public content federates when instances are connected |
-| Selective content-type filtering per peer (e.g., trails but not comments) | Selective filtering requires per-activity type routing, adds fanout complexity, and the benefit is marginal for a hiking app where trail + summit_log + comment form a coherent unit | Federate all four public content types together |
-| Historical backfill when a new connection is established | State reconciliation for potentially thousands of trails is complex and risky; forward-only is a well-established pattern in the fediverse | Document clearly: only new activities after Follow acceptance are synced |
-| Relay-style re-broadcasting (Announce forwarding) | Mastodon's relay protocol uses `Announce` to re-broadcast to all subscribers; for Wanderer this would cause duplicate delivery and content attribution issues | Direct bilateral Follow relationships; no relay pattern |
-| Auto-accepting instance follows | Mastodon auto-accepts user follows (unless the user has locked their account); but for instance-level federation, surprise data ingestion from unknown instances is a trust and safety risk | Always require manual Accept for Application-type follows |
-| Federated DMs or private messages | ActivityPub DMs addressed to specific actors propagate to remote inboxes; this creates a privacy surface that does not apply to trail data | Never include non-public activities in instance fanout |
-| Cross-instance search indexing | Federated instances could receive each other's trails into Meilisearch; this creates a large and potentially stale index | Index only locally-stored records (remote content received via federation is stored locally anyway) |
-| Federation with generic Mastodon/Pleroma instances | Wanderer's content types (Trail, SummitLog, List) are not understood by Mastodon; a Mastodon instance following the Wanderer instance actor would receive unrenderable activities | Scope instance federation to Wanderer-to-Wanderer only in v1; interop with generic AP servers is a future milestone |
+---
+
+## UX Flows (Concrete, Step-by-Step)
+
+These are the four flows the UI must implement. Each step maps to existing v1.0 hooks or a new API endpoint.
+
+### Flow 1: Connect to a Remote Instance (Outbound Follow)
+
+1. Admin navigates to `/settings/federation` (new SvelteKit page).
+2. Admin pastes a base URL: `https://remote.wanderer.example`.
+3. UI sends a discovery request to a new Go endpoint: `POST /api/v1/federation/discover` with `{"url": "https://remote.wanderer.example"}`.
+4. Go endpoint performs the discovery sequence server-side (required because fetches must be HTTP-signed):
+   a. Fetch `/.well-known/nodeinfo` → resolve NodeInfo 2.1 href.
+   b. Fetch NodeInfo 2.1 → extract `software.name`, `software.version`, `usage.users.total`, `usage.localPosts`.
+   c. If `software.name != "wanderer"`: return 422 `{"error": "not_wanderer", "actual_software": "..."}`.
+   d. Fetch `/api/v1/activitypub/instance` (the known Wanderer instance actor IRI) → validate actor fields using existing `validateActorResponse`.
+   e. Upsert the remote actor into `activitypub_actors` using existing `GetActorByIRI` / `assembleActor` path.
+   f. Return preview payload: `{actor: {id, domain, preferred_username}, nodeinfo: {version, users, posts}}`.
+5. UI renders a preview card: remote domain, Wanderer version, user count, public trail count.
+6. Admin clicks "Connect". UI sends `POST /api/v1/federation/follow` with the remote actor's local record ID.
+7. Go endpoint creates a `follows` record (follower = local instance actor ID, followee = remote actor ID, status = pending).
+8. `InstanceFollowCreateHandler` fires → delivers `Follow` activity to remote instance inbox.
+9. UI shows the peer in the list with badge "Pending (awaiting remote approval)".
+
+**Error states surfaced at step 4 (returned as JSON, shown inline in the UI):**
+
+| Error code | UI message |
+|------------|-----------|
+| `unreachable` | "Cannot reach that instance. Check the URL and try again." |
+| `not_https` | Rejected client-side before POST. "URL must start with https://." |
+| `not_wanderer` | "Remote is not a Wanderer instance (found: mastodon). Only Wanderer-to-Wanderer federation is supported." |
+| `already_connected` | "Already connected to this instance." |
+| `already_pending` | "A follow request to this instance is already pending." |
+| `discovery_failed` | "Could not read instance information. The remote may not support federation discovery." |
+| `actor_invalid` | "Remote instance actor is missing required fields. The remote may be misconfigured." |
+
+### Flow 2: Approve an Incoming Pending Follow
+
+1. Admin loads `/settings/federation` → a "Pending Requests" section lists inbound follows with `status=pending`.
+2. Each row shows: remote domain, actor name, received timestamp.
+3. Admin clicks "Approve" → UI PATCHes the `follows` record: `{"status": "accepted"}`.
+4. `InstanceFollowUpdateHandler` fires → delivers `Accept{Follow}` to the remote instance inbox.
+5. Row moves to the "Connected Peers" section with direction badge "Inbound" (or "Mutual" if there is also an outbound accepted follow to the same peer).
+
+**Status after approve:** The remote now delivers Create/Update/Delete activities to our instance inbox. We begin delivering our public content to their instance actor's inbox.
+
+### Flow 3: Reject an Incoming Pending Follow
+
+1. Admin clicks "Reject" on a pending inbound row.
+2. UI PATCHes the `follows` record: `{"status": "rejected"}`.
+3. `InstanceFollowUpdateHandler` fires → delivers `Reject{Follow}` to the remote inbox.
+4. Row moves to a "Rejected" section or is removed after a brief confirmation display.
+
+**Why Reject must be sent (not just ignored):** Mastodon relay GitHub issue #14961 documents the exact problem — when an admin only closes the request without sending Reject, the remote stays permanently in "waiting for approval" state. Sending `Reject{Follow}` is the ActivityPub-correct way to close the request definitively.
+
+### Flow 4: Disconnect from a Peer
+
+1. Admin clicks "Disconnect" on an accepted peer row.
+2. Confirmation dialog: "This will stop content syncing with remote.example. Continue?"
+3. UI sends `DELETE /api/v1/federation/disconnect?actor_id=X` (new Go endpoint).
+4. Go endpoint deletes both follow records for this peer (outbound and inbound if mutual) in a single DB transaction.
+5. `InstanceFollowDeleteHandler` fires for each deleted record → delivers `Undo{Follow}` to the remote inbox for each direction.
+6. Peer is removed from the Connected Peers list.
+
+**Why a dedicated endpoint (not direct PocketBase DELETE):** Mutual connections have two `follows` records. Deleting them one at a time from the frontend is not atomic and could leave a half-open state (we stop receiving their content but continue delivering ours, or vice versa). A single Go endpoint wraps both deletions.
 
 ---
 
 ## Feature Dependencies
 
 ```
-Instance actor created at startup
-  → HTTP-signed inbox for instance actor
-    → Admin can send outgoing Follow (requires keypair)
-    → Admin can receive incoming Follow (requires inbox route)
+[Peer list]
+    └──reads──> follows table + activitypub_actors table (v1.0, exists)
 
-Admin sends Follow to peer
-  → Remote peer receives pending_in Follow
-    → Remote admin Accepts
-      → Originating instance receives Accept, status → accepted
-        → Content fanout includes instance actor's followers
-          → Create/Update/Delete activities delivered to peer inbox
+[Direction column in peer list]
+    └──reads──> both follow directions queryable (v1.0, exists)
 
-Admin Accepts incoming Follow
-  → Send Accept{Follow} to remote instance actor inbox
-    → Remote instance status → accepted
-      → Remote instance begins receiving our public content
+[Connect flow]
+    ├──requires──> POST /api/v1/federation/discover (NEW Go endpoint)
+    ├──uses──>     GetActorByIRI / assembleActor / validateActorResponse (v1.0, exists)
+    └──requires──> POST /api/v1/federation/follow → creates follows record (NEW Go endpoint)
+                       └──triggers──> InstanceFollowCreateHandler (v1.0, exists)
 
-Admin blocks peer domain
-  → Inbox rejects activities from that domain
-  → Outgoing fanout skips that peer's inbox
+[Approve inbound]
+    └──requires──> PATCH follows.status = "accepted" (NEW: SvelteKit route or direct PocketBase PATCH)
+                       └──triggers──> InstanceFollowUpdateHandler (v1.0, exists)
+
+[Reject inbound]
+    └──requires──> PATCH follows.status = "rejected" (NEW: same as above)
+                       └──triggers──> InstanceFollowUpdateHandler (v1.0, exists)
+
+[Disconnect]
+    └──requires──> DELETE /api/v1/federation/disconnect?actor_id=X (NEW Go endpoint, atomic)
+                       └──triggers──> InstanceFollowDeleteHandler per record (v1.0, exists)
+
+[Admin auth guard]
+    └──requires──> is_admin flag on users collection (NEW: migration) OR superuser-only Go route
 ```
 
----
+### Dependency Notes
 
-## Privacy and Safety Controls — Explicit Callout
-
-These are the controls that determine admin trust in the feature. They must all be present before launch.
-
-### Hard Requirements (non-negotiable)
-
-1. **Public-only gate at fanout**: Before including any record in an outgoing activity, check `is_public == true`. This check must happen in the fanout function itself, not upstream, so it cannot be bypassed by future code changes.
-
-2. **Mutual consent via ActivityPub Accept**: No content flows in either direction until both admins have explicitly accepted the Follow relationship. The existing `ProcessFollowActivity` must NOT auto-accept Application-type follows (it currently auto-accepts all remote follows without checking actor type).
-
-3. **Reject activity on refusal**: When an admin rejects an incoming Follow, send a `Reject{Follow}` activity to the remote instance actor's inbox. Per the AP spec, this tells the remote server definitively not to proceed. Failing to send Reject leaves the remote in a permanently pending state (known Mastodon relay UX bug).
-
-4. **Instance actor does not represent a user**: The instance actor (`preferredUsername = "instance"`, `type = Application`) must never be linked to a user record. It has no bio, avatar, or social graph visible to end users.
-
-5. **Domain blocklist checked at inbox entry**: If a peer is added to a blocklist after a connection is established, incoming activities from that domain must be refused at the inbox handler before any processing occurs. Domain blocks are additive: they override existing accepted connections.
-
-### Soft Requirements (important but not launch-blocking)
-
-6. **Private note per peer**: Admins should be able to record why a connection was made or flagged, visible only to other admins on that instance. This follows the Mastodon `private_comment` pattern on domain blocks.
-
-7. **Connection state is auditable**: The `follows` collection rows for instance actors should be queryable by admins to understand the full history of connection attempts, including rejected and unfollowed peers. Do not delete rows on rejection — set `status = "rejected"` so the record remains.
-
-8. **No leaking of remote content to third instances**: Wanderer does not relay (re-Announce) content it received from a peer to other peers. Each instance sends its own Create activities directly to its followers. This prevents the relay amplification problem common in fediverse deployments.
+- **All four flows depend on v1.0 hooks — the hooks are the stable API.** The UI drives the database; the hooks deliver the ActivityPub activities. No changes to federation logic are needed.
+- **Connect flow requires server-side discovery endpoint.** The SvelteKit page cannot call the remote instance directly — fetches must be HTTP-signed using the instance actor's private key. A new Go endpoint handles the signed discovery sequence.
+- **Mutual disconnect requires a new Go endpoint.** Two `follows` records cannot be deleted atomically via two separate PocketBase REST calls from the frontend. A single endpoint wraps both in a DB transaction.
+- **Admin auth guard is the key unresolved dependency.** See Gaps section.
 
 ---
 
-## Connection Status State Machine
+## MVP Definition
 
-Standard across Mastodon, Pleroma, and ActivityPub relay implementations:
+### v1.1 Launch With (All Five Requirements from PROJECT.md)
 
-```
-[none]
-  → admin initiates Follow → pending_out (we sent Follow, awaiting Accept)
-    → remote accepts → accepted (bidirectional when both sides have accepted)
-    → remote rejects → rejected (terminal; admin must re-initiate to retry)
-    → admin withdraws → [none] (Undo{Follow} sent)
+- [ ] **Connect flow** — paste a base URL, see a preview card (domain, software version, user count, trail count), click "Connect" to initiate an outbound Follow. Surfaces all error states inline.
+- [ ] **Pending inbound approvals** — a dedicated section listing inbound `follows` with `status=pending`, each with Approve and Reject buttons. Shows remote domain, actor name, and received timestamp.
+- [ ] **Peer dashboard** — a list of all instance-actor follows with status badge (Pending / Accepted / Rejected) and direction (Outbound / Inbound / Mutual).
+- [ ] **Disconnect** — a Disconnect button per accepted peer that atomically removes the follow(s) and delivers Undo{Follow} via the existing hooks.
+- [ ] **Admin auth guard** — `/settings/federation` is accessible only to admins; regular users receive a 403 or redirect. Requires a decision on the admin identity model (see Gaps).
 
-[none]
-  → remote sends Follow → pending_in (remote wants to follow us)
-    → admin accepts → accepted
-    → admin rejects → rejected (terminal; Reject{Follow} sent to remote)
-    → admin ignores → pending_in (stays until admin acts or remote withdraws)
+### Add After Validation (v1.2+)
 
-[accepted]
-  → admin unfollows → [none] (our outgoing Follow undone; we stop receiving their content)
-  → admin revokes inbound → [none] (we refuse their follow; they stop receiving our content)
-  → admin blocks domain → [blocked] (overrides accepted; all delivery halted)
+- [ ] **Refresh peer metadata** — a "Refresh" button per peer that re-fetches NodeInfo and updates stored version/count data. Trigger: admins report stale version or count information.
+- [ ] **Connection activity log** — a timeline of Follow / Accept / Reject / Undo events per peer. Trigger: admins ask "why did this connection drop?"
+- [ ] **WebFinger instance actor** — enables discovery via `@instance@domain` handle if FEP-d556 stabilises. Deferred per PROJECT.md.
+- [ ] **Domain blocklist** — pre-emptively refuse Follow requests from domains on a blocklist. Currently admins can achieve the same by rejecting inbound follows manually.
+- [ ] **Email notification on inbound pending follow** — notify the admin when a new follow request arrives so they do not miss it. Requires email configuration.
 
-[blocked]
-  → admin unblocks → prior status restored (or [none] if connection must be re-established)
-```
+### Future Consideration (v2+)
 
-Statuses to store in `follows.status` field for instance-actor rows: `pending`, `accepted`, `rejected`. Direction (inbound vs outbound) is determined by whether the local instance actor is in `follower` or `followee` position.
+- [ ] **Public peer list endpoint** — expose the accepted peers list publicly so other instances can discover federation relationships. Raises privacy considerations.
+- [ ] **Bulk disconnect** — select multiple peers for disconnection. Useful during instance decommission.
+- [ ] **Import/export peer list** — JSON or CSV export of peer connections. Useful when migrating or managing multiple instances.
 
 ---
 
-## Peer Instance List: What the Admin UI Should Show
+## Feature Prioritization Matrix
 
-Based on Mastodon's admin instance details page (PR #32948) and Pleroma's federation status endpoint:
+| Feature | Admin Value | Implementation Cost | Priority |
+|---------|-------------|---------------------|----------|
+| Connect flow (URL input + server-side discovery + preview + Follow) | HIGH | MEDIUM (new Go discover + follow endpoints) | P1 |
+| Software identity check at preview (block non-Wanderer) | HIGH | LOW (NodeInfo check inside discover endpoint) | P1 |
+| Pending inbound approvals (Approve/Reject buttons) | HIGH | LOW (PATCH to follows record, hooks handle delivery) | P1 |
+| Peer dashboard (list + status + direction) | HIGH | LOW (query follows + activitypub_actors) | P1 |
+| Disconnect (atomic two-direction delete) | HIGH | LOW (new Go disconnect endpoint, hooks handle delivery) | P1 |
+| Admin auth guard | HIGH | MEDIUM (depends on admin identity decision) | P1 |
+| Inline error messages for all connect failure modes | MEDIUM | LOW (returned from Go endpoint) | P1 |
+| Pending request context (received timestamp, remote actor name) | MEDIUM | LOW (already in DB) | P2 |
+| Direction column (Outbound / Inbound / Mutual) | MEDIUM | LOW (derived from existing data) | P2 |
+| Remote instance metadata in peer list (version, counts) | MEDIUM | MEDIUM (store NodeInfo at connect time) | P2 |
+| PocketBase realtime subscription for status updates | LOW | LOW (PocketBase realtime already exists) | P2 |
+| Refresh peer metadata button | LOW | LOW | P3 |
+| Connection activity log | LOW | MEDIUM | P3 |
 
-| Column | Source | Notes |
-|--------|--------|-------|
-| Instance domain | `activitypub_actors.domain` | Extracted from actor IRI |
-| Connection direction | `follows.follower` vs `follows.followee` == local instance actor | "Following them" / "They follow us" / "Mutual" |
-| Status | `follows.status` | pending / accepted / rejected |
-| Last activity received | `follows.updated` or delivery timestamp | Indicates health of connection |
-| Software / version | NodeInfo fetch (differentiator) | Wanderer version on peer; skip if NodeInfo unavailable |
-| Date connected | `follows.created` | When the Follow was first sent or received |
-| Admin note | Custom field on follow row | Visible only to local admins |
-| Actions | — | Accept / Reject (for pending_in); Unfollow (for accepted outbound); Revoke (for accepted inbound); Block domain |
-
----
-
-## Content Types: What Should and Should Not Federate
-
-| Content Type | Federate at Instance Level? | Rationale |
-|---|---|---|
-| Trails (`is_public = true`) | Yes | Core content; the primary reason instances connect |
-| Summit logs (`is_public = true`) | Yes | Directly tied to trails; completes the trail data picture |
-| Lists (`is_public = true`) | Yes | Curated trail collections; useful for discovery across instances |
-| Comments (`is_public = true`) | Yes | Social layer; context for trails |
-| Any record with `is_public = false` | Never | Hard privacy constraint |
-| User private settings, DMs, follows between users | Never | Not ActivityPub public-addressed; not in Wanderer's federation scope |
-| Photos/media attached to trails | Conditionally | Media URLs reference the origin instance; receiving instances render via URL. No binary relay needed. If origin goes offline, media breaks — acceptable for v1 |
-| Activities from non-Wanderer instances | Reject at inbox | Instance actor should only process Create/Update/Delete for Wanderer content types; unknown activity types should be logged and dropped |
+**Priority key:** P1 = required for v1.1 launch; P2 = should have, add in v1.1 if low effort otherwise v1.2; P3 = defer
 
 ---
 
-## MVP Recommendation
+## Competitor Feature Analysis
 
-Build in this order — each step is independently testable:
+| Feature | Mastodon (relay UI) | Pleroma/Akkoma (relay UI) | GoToSocial (domain perms) | Wanderer v1.1 Plan |
+|---------|---------------------|--------------------------|--------------------------|-------------------|
+| Entry point | Paste relay inbox URL (e.g. `https://relay.example.com/inbox`) | Paste relay actor URL | Domain name only | Paste instance base URL (`https://instance.example`) |
+| Remote preview before connecting | None — Follow sent immediately | None — Follow sent immediately | None | Yes: NodeInfo + actor card with domain, version, user/trail counts |
+| Software compatibility check | None | None | None | Yes: block if `software.name != "wanderer"` |
+| Status shown | idle / pending / accepted / rejected | actor URL + `followed_back` bool | domain block / allow (no follow states) | pending / accepted / rejected with direction |
+| Direction shown | Not applicable (relay is one-way pub/sub) | Not applicable (one-way) | Not applicable (no Follow model) | Outbound / Inbound / Mutual |
+| Approve inbound follows | Not applicable (relays auto-accept or use their own admin UI) | Not applicable | Not applicable | Yes — dedicated Approve / Reject buttons per pending inbound row |
+| Disconnect | Remove relay from list | DELETE relay with optional `force` flag (Pleroma Admin API) | Remove domain block/allow | Delete follow record(s) via atomic Go endpoint |
+| Error states in UI | "Waiting for relay's approval" (gets silently stuck — documented issue) | Error only in server logs | Silent on unreachable domain | Inline error per step: unreachable, not_wanderer, already_connected, actor_invalid |
+| Inbound pending request detail | Not applicable | Not applicable | Not applicable | Shows remote domain, actor name, received timestamp |
 
-1. **Instance actor creation** — Idempotent startup routine creates the Application actor in `activitypub_actors` if absent. No UI needed.
-2. **Instance actor inbox route** — New HTTP route receiving activities addressed to the instance actor; initially just logs and returns 200.
-3. **Outgoing Follow** — Admin triggers Follow from the instance actor to a remote instance actor URL; creates a `pending` follow row.
-4. **Incoming Follow approval** — `ProcessFollowActivity` gates Application-type actors to `pending` status instead of auto-accept; admin Accept sends `Accept{Follow}`; admin Reject sends `Reject{Follow}`.
-5. **ProcessAcceptActivity for instance actor** — When remote sends Accept, set our outgoing follow to `accepted`.
-6. **Fanout to instance followers** — Include the instance actor in `followerInboxes()` query; existing Create/Update/Delete hooks deliver to peer inboxes automatically once the follow is accepted.
-7. **Privacy gate** — Verify `is_public` check is present in fanout; add it if not.
-8. **Admin visibility** — PocketBase admin collection view on `follows` filtered by instance-actor follower/followee; no custom UI needed.
+**Observation:** No existing fediverse admin UI (a) verifies remote software type before connecting, (b) shows connection direction, or (c) provides an explicit approve/reject UI for inbound instance follows. All three are Wanderer-specific because no other implementation uses mutual-approval bilateral instance Follow as its connection model.
 
-Defer: delivery health metrics, NodeInfo fetch, domain blocklist, allowlist mode, import/export.
+---
+
+## Where Does the UI Live? (Architectural Decision)
+
+Three options, evaluated against the codebase:
+
+**Option A: SvelteKit `/settings/federation` page (recommended)**
+- Fits the established pattern: `settings/plugins`, `settings/maintenance`, `settings/privacy`, `settings/account` all exist.
+- Requires adding an `is_admin: bool` field to the `users` PocketBase collection via migration.
+- `+page.server.ts` load function checks `locals.user.is_admin` and redirects if false.
+- API actions go to new SvelteKit server routes at `/api/v1/federation/*` that proxy to Go endpoints.
+- The Go endpoints themselves are protected by `e.HasSuperuserAuth()` OR accept a user token and check `is_admin`.
+- Zero new frontend infrastructure — same page structure used by maintenance and plugins pages.
+
+**Option B: Go-served HTML page at `/federation-admin` (not recommended)**
+- No SvelteKit changes.
+- PocketBase superuser token required — only the DB-level admin, not a regular Wanderer user with admin rights.
+- Too restrictive: the intended user is a Wanderer admin who logs in via the web UI, not a PocketBase superuser.
+- Requires Go template rendering or a new embedded SPA — significant new infrastructure.
+
+**Option C: PocketBase UI extension (deferred)**
+- PocketBase UI is embedded Svelte 4; plugin system not yet stable.
+- Deferred in v1.0 for exactly this reason; still not ready in v1.1.
+
+**Decision: Option A.** The settings page pattern is established, the routing infrastructure exists, and the User model already passes through SvelteKit auth. The only new work is the `is_admin` migration, the new `/settings/federation` page, and the Go backend endpoints.
+
+---
+
+## Gaps to Address in Phase Planning
+
+1. **Admin identity model** — Wanderer has no `is_admin` flag on users today. Two sub-options:
+   - (a) Add `is_admin: bool` to `users` collection via a PocketBase migration. Set manually in PocketBase admin panel or via a first-run promotion flow. The SvelteKit page checks this flag. Go endpoints also validate it via the user's auth token.
+   - (b) Require PocketBase superuser credentials. Simpler but too restrictive — instance admins log in as regular Wanderer users, not PocketBase superusers.
+   Option (a) is recommended. The migration is simple; the flag is a standard RBAC pattern used in other SvelteKit+PocketBase projects.
+
+2. **Atomic mutual-disconnect endpoint** — A dedicated `DELETE /api/v1/federation/disconnect?actor_id=X` Go endpoint must delete both follow directions in one DB transaction. The existing PocketBase REST DELETE route works per-record only.
+
+3. **NodeInfo data persistence** — The connect flow fetches NodeInfo at preview time. For v1.1 the simplest approach is to re-fetch on every admin page load (acceptable for a low-traffic admin page). In v1.2, persist version/count to the `activitypub_actors` record (add columns) and refresh periodically.
+
+4. **Follow status polling / realtime** — After sending an outbound Follow, the peer shows "pending" until the remote sends Accept back. The `InstanceInboxHandler` updates `follows.status` to `accepted` when Accept arrives. Options: (a) poll the peer list every N seconds while any row is in pending state; (b) use PocketBase realtime subscription to `follows` collection (already available in PocketBase SDK). Option (b) is preferred — event-driven and no unnecessary requests.
+
+5. **Collection API access rules** — PocketBase collection rules must allow the admin user to PATCH `follows` records for instance-actor rows. The current rules likely only allow the authenticated user to modify their own follow records. A rule change or a Go middleware endpoint is needed for the approve/reject flow.
 
 ---
 
 ## Sources
 
-- [Mastodon moderation actions — domain blocks, severity levels](https://docs.joinmastodon.org/admin/moderation/)
-- [Mastodon Admin::DomainBlock API entity fields](https://docs.joinmastodon.org/entities/Admin_DomainBlock/)
-- [Mastodon admin domain_blocks API methods](https://docs-p.joinmastodon.org/methods/admin/domain_blocks/)
-- [Mastodon admin instance details page redesign (PR #32948)](https://github.com/mastodon/mastodon/pull/32948) — source for peer instance list UI
-- [W3C ActivityPub specification — Follow/Accept/Reject semantics](https://www.w3.org/TR/activitypub/)
-- [Mastodon ActivityPub spec — instance actor, Application type, relay](https://docs.joinmastodon.org/spec/activitypub/)
-- [Mastodon instance peers endpoint](https://docs.joinmastodon.org/methods/instance/)
-- [Activity-Relay (yukimochi) — relay subscription protocol](https://github.com/yukimochi/Activity-Relay)
-- [pub-relay (noellabo) — Follow as:Public subscribe mechanism](https://github.com/noellabo/pub-relay)
-- [FediMod FIRES — federation management policy framework](https://fires.fedimod.org/concepts/federation-management.html)
-- [Bonfire federation interoperability guide — instance blocks, privacy controls](https://docs.bonfirenetworks.org/federation-interoperability.html)
-- [Mastodon relay stuck "Waiting for approval" — why Reject must be sent](https://github.com/tootsuite/mastodon/issues/14961)
-- [Pleroma/Akkoma federation reachability timeout, admin delete instance content](https://akkoma.dev/AkkomaGang/akkoma)
+- [Mastodon Relay model states (idle/pending/accepted/rejected) — source code](https://github.com/mastodon/mastodon/blob/main/app/models/relay.rb)
+- [Mastodon "Add federation relay support" PR — original relay admin UI design](https://github.com/mastodon/mastodon/pull/7998)
+- [Mastodon relay stuck "Waiting for relay's approval" — why Reject must be sent](https://github.com/tootsuite/mastodon/issues/14961)
+- [Pleroma admin relay API (GET/POST/DELETE)](https://docs.pleroma.social/backend/development/API/admin_api/)
+- [Akkoma admin API relay endpoints](https://docs.akkoma.dev/stable/development/API/admin_api/)
+- [GoToSocial admin settings panel — domain permissions](https://docs.gotosocial.org/en/latest/admin/settings/)
+- [GoToSocial federation modes (blocklist/allowlist)](https://docs.gotosocial.org/en/latest/admin/federation_modes/)
+- [FEP-d556: Server-Level Actor Discovery via WebFinger — still exploratory](https://socialhub.activitypub.rocks/t/fep-d556-server-level-actor-discovery-using-webfinger/3861)
+- [Mastodon follow_requests API — approve/reject pattern](https://docs.joinmastodon.org/methods/follow_requests/)
+- [PocketBase Go routing and RequireSuperuserAuth / HasSuperuserAuth](https://pocketbase.io/docs/go-routing/)
+- [Adding relays to Mastodon — URL format and status states](https://dustinrue.com/2023/01/adding-relays-to-your-mastodon-instance/)
+- Wanderer codebase: `db/federation/follow.go`, `db/federation/instance.go`, `db/federation/actor.go`, `db/hooks/follow.go`, `db/routes/nodeinfo.go`, `web/src/routes/settings/`
+
+---
+
+*Feature research for: Wanderer Instance Federation Connect UI (v1.1)*
+*Researched: 2026-06-27*

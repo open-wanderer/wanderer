@@ -1,102 +1,181 @@
-# Research Summary: Wanderer Instance Federation
+# Project Research Summary
 
-**Synthesized from:** STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md
-**Overall confidence:** HIGH
+**Project:** Wanderer Instance Federation Connect UI (v1.1)
+**Domain:** ActivityPub admin UI -- peer instance connection management
+**Researched:** 2026-06-27
+**Confidence:** HIGH
 
 ## Executive Summary
 
-Wanderer is adding instance-level ActivityPub federation so two Wanderer server admins can establish a bilateral Follow relationship, after which all public trails, summit_logs, lists, and comments sync bidirectionally. The approach follows the Mastodon instance-actor pattern: create an `Application`-type actor at `{ORIGIN}/api/v1/activitypub/instance`, reuse all existing go-ap and go-fed/httpsig libraries (no new dependencies), and extend the existing `activitypub_actors`/`follows`/`activitypub_activities` collections with one additive schema migration (`actor_type` column, default `"Person"`).
+v1.1 builds an admin-only UI on top of the v1.0 ActivityPub protocol layer, which is already fully shipped. The core insight from research is that the work here is almost entirely a UI and routing problem, not a protocol problem: all ActivityPub delivery is already handled by three existing hooks (InstanceFollowCreate/Update/DeleteHandler). The new admin handlers only need to write DB records correctly -- the hooks fire automatically and take care of delivery. This keeps the implementation surface small and the risk low.
 
-The protocol layer already exists — this feature is a targeted extension, not a rewrite.
+The recommended approach is a custom Go route group (/federation/*) protected by e.HasSuperuserAuth(), serving a JSON API for five admin operations: list peers, discover remote actor, initiate follow, approve/reject inbound, and disconnect. This is the same pattern already used by plugin_system.go in this codebase, requires zero new Go dependencies, and makes no SvelteKit changes. The admin interacts either through a minimal embedded HTML page or via curl with a superuser JWT. The only unresolved architectural question -- see INGEST-CONFLICTS.md -- is whether the page lives as a custom Go-served page (PocketBase superuser auth) or a SvelteKit settings page (Wanderer is_admin user flag); that decision needs to be made in requirements and will drive the UI phase structure.
 
-## Stack
+The top risks are all implementation-level: double-delivery of ActivityPub activities (if the route handler also calls federation functions that the hook already calls), incorrect Undo direction on disconnect for inbound-only connections, SSRF from admin-supplied URLs if util.SafeHTTPClient() is not used, and the 2-hour actor cache silently returning stale data during discovery. All seven critical pitfalls have concrete, code-level mitigations that can be turned into a pre-commit checklist.
 
-- **Actor type:** `pub.ApplicationType` (`"Application"`) — verified from live Mastodon instance at mastodon.social/actor and go-ap library source
-- **IRI pattern:** `{ORIGIN}/api/v1/activitypub/instance` (Wanderer convention; Mastodon uses `/actor`)
-- **Key ID:** `{actorIRI}#main-key` (matches existing user actor convention)
-- **Libraries:** No new dependencies — `go-ap/activitypub`, `go-fed/httpsig` already support Application actors identically to Person actors
-- **Schema change:** One migration — add `actor_type` text column to `activitypub_actors`, default `"Person"`; instance actor row gets `"Application"`
-- **WebFinger:** Useful for peer discovery but can be deferred — admins can supply IRIs directly in v1
+## Key Findings
 
-## Features (Table Stakes for v1)
+### Recommended Stack
 
-1. Instance actor exists at a stable well-known IRI with RSA keypair
-2. Instance actor GET endpoint returns valid ActivityPub JSON
-3. Instance actor inbox POST endpoint accepts signed activities
-4. Outgoing Follow to remote instance actor (admin-initiated via PocketBase)
-5. Incoming Follow creates `pending` record (no auto-accept for Application actors)
-6. Admin manually accepts/rejects pending instance follows in PocketBase UI
-7. Accepted Follow triggers `Accept{Follow}` activity sent to remote inbox
-8. Rejected Follow triggers `Reject{Follow}` activity (mandatory — remote gets stuck without it)
-9. `Undo{Follow}` on disconnect removes the peer and stops fanout
-10. All public trails/summit_logs/lists/comments fanned out to instance actor followers on Create/Update/Delete
-11. Privacy gate: `is_public = false` records never included in fanout
-12. Incoming activities to instance inbox are deduplicated (broadcast loop prevention)
-13. Remote content retains original actor — users on receiving instance cannot edit
+No new Go dependencies are required. The entire implementation uses packages already in go.mod: e.HasSuperuserAuth() and apis.RequireSuperuserAuth() are available in pocketbase/pocketbase/apis at v0.38.0 (the version in use), embed.FS is standard library (Go 1.16+), and apis.Static() handles embedded file serving. The PocketBase JS SDK at v0.26.8 is already in web/package.json and can be used from a CDN in a standalone HTML page. If the SvelteKit path is chosen, it reuses 100% of the existing Vite/Svelte toolchain with only a new page and a migration.
 
-**Anti-features (explicitly out of scope for v1):**
-- Historical backfill when a new connection is established
-- Relay-style re-broadcasting (Announce pattern) — use direct bilateral Follow instead
-- Auto-accept for Application-type instance actors
-- Federation with non-Wanderer AP servers
+The PocketBase UI extension API is explicitly ruled out -- the PocketBase maintainer marked it not production-safe (discussion #7612), and it will break on the next PocketBase upgrade.
 
-## Architecture
+**Core technologies:**
+- e.HasSuperuserAuth() / apis.RequireSuperuserAuth(): route auth guard -- already proven in db/routes/plugin_system.go, zero uncertainty
+- embed.FS + apis.Static(): serve embedded HTML from Go binary -- standard library, no new dependency
+- PocketBase JS SDK (0.26.8): browser-side auth and API calls -- already in web/package.json
+- util.SafeHTTPClient(): SSRF-safe HTTP for admin-supplied URLs -- already in codebase, must be used explicitly
 
-**Six targeted component changes — no new subsystems:**
+### Expected Features
 
-| Component | Change | Risk |
-|-----------|--------|------|
-| DB schema | Add `actor_type` column to `activitypub_actors` | LOW |
-| `initData()` startup | Add `initInstanceActor()` (idempotent find-or-create) | LOW |
-| SvelteKit routes | GET `/api/v1/activitypub/instance`, POST `/api/v1/activitypub/instance/inbox` | LOW |
-| `ProcessFollowActivity` | Gate auto-accept on `actor_type != "Application"` | MEDIUM — touches existing code path |
-| New hook `OnRecordAfterUpdateSuccess("follows")` | Send `Accept{Follow}` or `Reject{Follow}` when admin changes status | LOW |
-| `followerInboxes()` / fanout functions | Merge instance actor's accepted followers into delivery set for each Create/Update/Delete | MEDIUM |
+**Must have (table stakes -- all P1 for v1.1):**
+- Paste-a-URL connect flow with server-side discovery (NodeInfo + actor fetch)
+- Software identity check blocking non-Wanderer instances at preview time
+- Remote instance preview card before committing to a Follow
+- Inline error messages for all connect failure modes (7 distinct error codes)
+- Peer dashboard with status (pending/accepted/rejected) and direction (Outbound/Inbound/Mutual)
+- Approve / Reject inbound pending follows (with ActivityPub Accept{Follow} / Reject{Follow} delivery)
+- Atomic disconnect that handles both directions in one DB transaction
+- Admin-only access guard (mechanism TBD -- see INGEST-CONFLICTS.md)
 
-**Key constraint:** HTTP signatures on outbound deliveries must use the **content author's key**, not the instance actor key. The `actor` JSON field is the content author; signing with a mismatched key will fail remote verification.
+**Should have (differentiators, P2):**
+- Direction column (Outbound / Inbound / Mutual) in peer list
+- Pending inbound request context (received timestamp, remote actor name, domain)
+- Remote instance metadata (Wanderer version, user count, trail count) shown at connect time
+- PocketBase realtime subscription on follows collection so status updates without manual refresh
 
-**Fanout data flow (new trail on Instance A → Instance B):**
-```
-User creates trail on A
-  → OnRecordAfterCreateSuccess("trails") hook
-  → CreateTrailActivity() called with trail.author as actor
-  → followerInboxes(author.id) UNION followerInboxes(instanceActor.id)
-  → PostActivity() deduplicates and delivers
-  → Instance B instance actor inbox receives Create{Trail}
-  → ActivitypubActivityProcess() checks IRI deduplication
-  → ProcessCreateActivity() upserts trail with original actor retained
-  → InsertIntoFeed() SKIPPED (recipient is instance actor, not a user)
-```
+**Defer (v1.2+):**
+- Refresh peer metadata button
+- Connection activity log (timeline of Follow/Accept/Reject/Undo events)
+- Domain blocklist
+- Email notification on inbound pending follow
+- WebFinger instance actor (@instance@domain handle, depends on FEP-d556 stabilising)
 
-## Watch Out For
+### Architecture Approach
 
-### Critical
+v1.1 is additive only. A single new file db/routes/federation_admin.go registers six handler functions on a /federation/* route group. No hooks change. No migrations are needed for the Go-route path. All federation delivery continues through the existing three hooks which fire automatically after any follows record write. The handlers only manipulate DB records and return JSON; the hook layer owns all ActivityPub activity delivery. FederationPeersList is the only query with complexity -- it needs an OR filter across both follow directions and a group-by-domain step to merge mutual follows.
 
-1. **Broadcast loop** — When Instance A stores a trail received from B, the `OnRecordAfterCreateSuccess` hook fires and will re-deliver to A's instance followers (including B). Prevention: check activity IRI against `activitypub_activities` before dispatch. **Must ship in the same phase as fanout activation.**
+**Major components:**
+1. db/routes/federation_admin.go (NEW) -- six handler functions behind e.HasSuperuserAuth() guard; no delivery logic, only DB writes
+2. Existing hooks (db/hooks/follow.go) -- unchanged; fire on every follows write and deliver ActivityPub activities
+3. db/federation/actor.go GetActorByIRI() -- reused for remote actor discovery; cache bypass needed at discovery time
+4. Admin browser UI -- minimal HTML page (embedded) or SvelteKit /settings/federation page; calls the JSON API with superuser JWT
+5. db/main.go -- modified only to register the six new routes
 
-2. **Auto-accept `ProcessFollowActivity`** — The existing handler auto-accepts all follows unconditionally. A single test connection under current behavior creates an unreviewed sync relationship. Fix the actor-type gate before any instance actor endpoint goes live.
+### Critical Pitfalls
 
-3. **`Reject{Follow}` is mandatory** — Documented Mastodon relay bug: if a rejecting server sends no Reject activity, the remote instance is permanently stuck in "Waiting for approval." The AP spec says SHOULD; production says MUST.
+1. **Double Follow delivery** -- The Initiate Follow handler must ONLY call app.Save(followRecord). Calling federation.CreateFollowActivity() directly in the handler as well causes two Follow activities to the remote inbox. The hook owns delivery exclusively.
 
-4. **`processDeleteTrailActivity` missing ownership check** — Any remote actor can send a Delete for any trail IRI and Wanderer silently removes the local copy. The comment and summit_log processors have this check; the trail processor does not. Fix in earliest phase that touches delete processing.
+2. **Incorrect Undo direction on disconnect** -- Deleting an inbound follow record triggers InstanceFollowDeleteHandler which sends Undo{Follow}, but the local instance never sent that Follow -- the remote did. For inbound-only disconnects, send Reject{Follow} (status update to rejected) instead of a hard delete.
 
-### Moderate
+3. **SSRF from admin-supplied URL** -- Any HTTP call in the new route file that fetches a user-supplied URL must use util.SafeHTTPClient(), not http.DefaultClient or the module-level httpClient from federation/activity.go. Both compile without error but bypass SSRF protection.
 
-5. **Private content leak via visibility change** — When `trail.public` flips to `false`, no Delete activity is sent to peers. They retain the cached copy. `UpdateTrailHandler` must compare before/after `public` field and emit Delete when it goes from `true` to `false`.
+4. **Stale actor cache during discovery** -- GetActorByIRI has a 2-hour TTL. The discovery endpoint must clear last_fetched to zero time before calling it so the admin always gets fresh authoritative actor data, not a cached stale record.
 
-6. **Key rotation destroys federation** — The instance actor keypair must be treated as immutable. `initInstanceActor()` must guard: if actor record already exists, never regenerate the key.
+5. **Self-follow loop** -- If an admin pastes their own instance URL, GetActorByIRI returns the local actor. A follows record with follower == followee triggers the hook which POSTs a Follow to the local inbox, which fires ProcessFollowActivity again. Guard: compare resolved actor IRI against os.Getenv("ORIGIN") + "/api/v1/activitypub/instance" before creating any follows record.
 
-7. **Fan-out burst on new connection** — When a high-volume instance first connects, all existing public content is not backfilled (PROJECT.md decision), but any ongoing activity spike may overload the remote inbox. No rate limiting exists today.
+6. **Wrong auth guard** -- e.Auth != nil checks only that a valid token was presented. Any regular Wanderer user can pass this check. All admin federation routes must use e.HasSuperuserAuth() exclusively.
 
-8. **HTTP signature mismatch** — Peers running "authorized fetch" mode will reject unsigned GET requests. WebFinger extension for the instance actor ensures key lookup succeeds. Recommend Phase 2 inclusion.
+7. **Missing activitypub_activities record blocks Approve** -- CreateAcceptFollowActivity looks up the original incoming Follow from activitypub_activities. If that record is missing, the approve endpoint returns 500. Return 409 with a descriptive message instead, and check for the records existence before saving the status update.
 
-## Suggested Roadmap (4 Coarse Phases)
+## Implications for Roadmap
 
-| Phase | Scope | Prerequisite for |
-|-------|-------|-----------------|
-| 1 | Schema migration + instance actor lifecycle (init, GET route, key generation) | All other phases |
-| 2 | Inbox route + Follow lifecycle (pending-not-auto-accept, Accept/Reject hooks, Undo) | Phase 3 |
-| 3 | Fanout extension + broadcast loop deduplication + InsertIntoFeed guard | Phase 4 |
-| 4 | Delete propagation hardening (public→private, ownership check, comment gap) | — |
+Based on research, suggested phase structure:
 
-**Fanout (Phase 3) and deduplication must ship together — activating fanout without deduplication creates broadcast storms.**
+### Phase 1: Go API Layer (federation_admin.go)
+**Rationale:** All five UI flows depend on these endpoints. Building them first makes everything else testable via curl/Postman without any frontend. No dependencies on other phases.
+**Delivers:** Six handler functions with superuser auth guard; all five admin operations (list, discover, follow, approve/reject, disconnect) callable from the command line.
+**Addresses:** All P1 features except the browser UI
+**Avoids:** Pitfalls 1, 2, 3, 5, 6, 7, 8 (all implementation-level; must be addressed here)
+**Research flag:** Standard patterns -- e.HasSuperuserAuth() is already in the codebase; no additional research needed.
+
+### Phase 2: Peer List Query and Direction Logic
+**Rationale:** FederationPeersList is the most complex query in v1.1 (OR filter across both directions, mutual-follow detection, actor join). Keeping it as a separate phase ensures correct data shape before UI is built on top of it.
+**Delivers:** /federation/peers returns enriched peer records with direction label (Outbound/Inbound/Mutual), status, remote actor domain, and metadata.
+**Implements:** Peer list query with FindRecordsByFilter OR composite, actor join, mutual-follow grouping by domain
+**Avoids:** Pitfall 10 (stale dashboard state -- query returns current DB state; realtime subscription added in Phase 3 UI)
+
+### Phase 3: Admin UI (browser page)
+**Rationale:** Depends on Phase 1 + 2 API being complete and correct. UI path is the unresolved conflict (Go-served HTML vs SvelteKit settings page) -- see INGEST-CONFLICTS.md. Phase structure is the same regardless of which path is chosen, but the implementation differs significantly.
+**Delivers:** Browser-accessible admin page with all four UX flows (Connect, Approve, Reject, Disconnect), inline error messages, direction-aware peer list, and realtime status updates via PocketBase follows subscription.
+**Uses:** PocketBase JS SDK (0.26.8) for auth + API calls; either embedded HTML (Go path) or SvelteKit page (SvelteKit path)
+**Implements:** All P1 and P2 features
+**Avoids:** Pitfalls 9 (token expiry handling), 10 (stale dashboard), UX pitfalls (feedback on every action)
+**Research flag:** Needs resolution of admin auth conflict before planning (see INGEST-CONFLICTS.md). UI implementation itself follows standard patterns once the decision is made.
+
+### Phase Ordering Rationale
+
+- Phase 1 before Phase 2: the list endpoint is a subset of the full API layer but benefits from being built after the write endpoints are understood, because the data shape it must return is determined by what the write endpoints store.
+- Phase 2 before Phase 3: the UI has no value without a correct peer list query. Building the data model first avoids frontend rework.
+- All three phases are small enough to ship in a single milestone, but the phase separation ensures each phase is independently testable and reviewable.
+- The admin auth decision (INGEST-CONFLICTS.md) does not block Phases 1 or 2 -- the Go API endpoints are identical regardless of which UI path is chosen. It only affects Phase 3.
+
+### Research Flags
+
+Phases that need deeper research during planning:
+- **Phase 3 (Admin UI):** Blocked on admin auth conflict resolution. Once resolved, the chosen path (embedded HTML vs SvelteKit page) may benefit from a brief research pass on the specific integration details. The Go-embedded-HTML path is lower risk (proven pattern); the SvelteKit path needs PocketBase collection rules analysis for the is_admin guard on follows PATCH operations.
+
+Phases with standard patterns (skip research-phase):
+- **Phase 1 (Go API Layer):** All patterns (e.HasSuperuserAuth(), app.Save(), app.FindRecordsByFilter()) are already in the codebase. The pitfall checklist in PITFALLS.md is sufficient context.
+- **Phase 2 (Peer List Query):** PocketBase filter DSL is well-documented; OR composite filters are used elsewhere. The mutual-follow grouping is a straightforward in-memory reduce after the query.
+
+## Competing Variant: Admin Auth Approach
+
+**This is the primary unresolved conflict from research.** See .planning/research/INGEST-CONFLICTS.md for full tradeoff analysis.
+
+**Variant A -- Custom Go Route + Superuser JWT (ARCHITECTURE.md recommendation):**
+- Admin uses PocketBase superuser credentials (/_/ login)
+- UI is a minimal embedded HTML page or pure API (curl/Postman)
+- Zero SvelteKit changes, zero migrations
+- Auth: e.HasSuperuserAuth() -- already proven in codebase
+- Tradeoff: Admin must have PocketBase superuser access, not just a Wanderer account. Two separate logins for admins who use both the Wanderer web app and the federation dashboard.
+
+**Variant B -- SvelteKit Settings Page + is_admin Flag (FEATURES.md recommendation):**
+- Admin uses their regular Wanderer account with is_admin: true
+- UI lives at /settings/federation alongside existing settings pages (plugins, maintenance, privacy)
+- Requires: one migration (is_admin: bool on users), one new SvelteKit page, Go routes accept user token and check is_admin, PocketBase collection rules updated for follows PATCH
+- Tradeoff: More invasive but consistent UX. Wanderer admin != PocketBase superuser, which is appropriate for multi-tenant or managed deployments where the instance operator is not the PocketBase DBA.
+
+**Recommendation for requirements step:** Make this the first decision. Both paths are implementable. The choice comes down to deployment context: if the intended admin is always the PocketBase superuser (self-hosted single-operator), Variant A is simpler and lower risk. If the intended admin is a Wanderer user role (managed hosting, multiple admins), Variant B is the right model.
+
+## Confidence Assessment
+
+| Area | Confidence | Notes |
+|------|------------|-------|
+| Stack | HIGH | All APIs verified against PocketBase v0.38.0 source; all patterns already exist in this codebase |
+| Features | HIGH | Derived from codebase analysis + Mastodon/Pleroma/GoToSocial source review; existing v1.0 hooks verified |
+| Architecture | HIGH | Based on direct code analysis of all affected files; build order has no circular dependencies |
+| Pitfalls | HIGH | All 11 pitfalls identified from direct code analysis (not inference); all have specific file + line references |
+
+**Overall confidence:** HIGH
+
+### Gaps to Address
+
+- **Admin auth model** (critical): Must be resolved before Phase 3 planning. See INGEST-CONFLICTS.md. Does not block Phase 1 or 2.
+- **PocketBase collection rules for follows**: Current rules likely restrict PATCH to the record owner (the user actor). Admin PATCH for approve/reject may require a rule change or a Go-side bypass. Needs verification during Phase 1 planning.
+- **NodeInfo data persistence strategy**: For v1.1, re-fetching NodeInfo on every admin page load is acceptable (low-traffic admin page). For v1.2, consider persisting version/user/trail counts to activitypub_actors to avoid repeated outbound requests.
+- **PocketBase realtime subscription scope**: The follows subscription must be scoped to instance-actor follows only; subscribing to all follows records would include user-to-user follows. Verify filter syntax for PocketBase realtime subscriptions during Phase 3 planning.
+
+## Sources
+
+### Primary (HIGH confidence)
+- PocketBase v0.38.0 source -- core/event_request.go:77, core/record_model_superusers.go:116, apis/middlewares.go:108-113
+- PocketBase Go Routing docs -- apis.RequireSuperuserAuth, apis.Static, route groups
+- Codebase direct analysis -- db/routes/plugin_system.go, db/hooks/follow.go, db/federation/actor.go, db/federation/follow.go, db/federation/activity.go, db/util/network.go, db/main.go
+- PocketBase authentication docs -- stateless JWT, no sessions, _superusers collection
+- PocketBase UI extensions discussion #7612 -- maintainer explicitly not production-safe
+
+### Secondary (MEDIUM confidence)
+- Mastodon relay model (relay.rb, PR #7998, issue #14961) -- status states, approve/reject patterns, documented UX failures
+- Pleroma/Akkoma admin relay API docs -- relay add/remove patterns
+- GoToSocial admin settings -- domain permission UI patterns
+- FEP-d556 (server-level actor WebFinger) -- confirmed exploratory/unstable, correctly deferred
+
+### Tertiary (LOW confidence -- not needed for v1.1)
+- Mastodon follow_requests API -- approve/reject pattern reference only
+- Community discussion on go:embed with PocketBase -- confirmed pattern works (not relied upon for correctness)
+
+---
+*Research completed: 2026-06-27*
+*Ready for roadmap: yes*
