@@ -23,7 +23,7 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 
 **Milestone Goal:** Give an admin a browser-accessible UI to manage peer instance connections — discover a remote instance, initiate/approve/reject follows, disconnect, and view all peers — without touching the PocketBase admin panel.
 
-- [ ] **Phase 5: Federation Admin API** - Go route handlers for all peer management operations behind superuser auth guard
+- [x] **Phase 5: Federation Admin API** - Go route handlers for all peer management operations behind superuser auth guard (completed 2026-06-27)
 - [ ] **Phase 6: Admin Browser UI** - Embedded HTML page at `/federation/` for the connection dashboard and all admin actions
 
 ## Phase Details
@@ -44,15 +44,15 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 **Plans**: 3 plansPlans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Discovery handler + shared helpers (DISC-01, DISC-02, SAFE-05, SAFE-06)
+- [x] 05-01-PLAN.md — Discovery handler + shared helpers (DISC-01, DISC-02, SAFE-05, SAFE-06)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 05-02-PLAN.md — Follow / Approve / Reject write handlers (CONN-01, CONN-02, CONN-03, SAFE-07)
+- [x] 05-02-PLAN.md — Follow / Approve / Reject write handlers (CONN-01, CONN-02, CONN-03, SAFE-07)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-03-PLAN.md — Direction-aware disconnect + peer list + route registration (CONN-04, DISC-01, SAFE-07)
+- [x] 05-03-PLAN.md — Direction-aware disconnect + peer list + route registration (CONN-04, DISC-01, SAFE-07)
 
 ### Phase 6: Admin Browser UI
 
@@ -76,5 +76,5 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 | 2. Follow Lifecycle | v1.0 | 4/4 | Complete | 2026-06-25 |
 | 3. Fanout and Safety | v1.0 | 3/3 | Complete | 2026-06-26 |
 | 4. NodeInfo | v1.0 | 1/1 | Complete | 2026-06-26 |
-| 5. Federation Admin API | v1.1 | 0/3 | Planned | - |
+| 5. Federation Admin API | v1.1 | 3/3 | Complete   | 2026-06-27 |
 | 6. Admin Browser UI | v1.1 | 0/? | Not started | - |
