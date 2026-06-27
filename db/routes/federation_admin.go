@@ -205,6 +205,18 @@ func createOutboundFollow(app core.App, localID, remoteID string) (*core.Record,
 		return nil, fmt.Errorf("unknown actor; run discover first")
 	}
 
+	// WR-05: check for an existing follow record before inserting to avoid
+	// hitting the UNIQUE(follower, followee) constraint and producing a 500.
+	// Return a sentinel error so FederationFollow can respond with HTTP 409.
+	existing, checkErr := app.FindFirstRecordByFilter(
+		"follows",
+		"follower={:f} && followee={:e}",
+		dbx.Params{"f": localID, "e": remoteID},
+	)
+	if checkErr == nil && existing != nil {
+		return nil, fmt.Errorf("follow already exists")
+	}
+
 	followCollection, err := app.FindCollectionByNameOrId("follows")
 	if err != nil {
 		return nil, fmt.Errorf("follows collection not found: %w", err)
@@ -265,6 +277,12 @@ func FederationFollow(e *core.RequestEvent) error {
 	// 5. Create the outbound follows record via the testable helper.
 	rec, err := createOutboundFollow(e.App, localActor.Id, remoteActor.Id)
 	if err != nil {
+		// WR-05: a duplicate follow surfaces as a sentinel "follow already exists"
+		// error from createOutboundFollow. Return 409 Conflict rather than letting
+		// PocketBase turn the UNIQUE constraint violation into a 500.
+		if err.Error() == "follow already exists" {
+			return e.JSON(http.StatusConflict, map[string]any{"error": "already following this instance"})
+		}
 		return fmt.Errorf("createOutboundFollow: %w", err)
 	}
 
