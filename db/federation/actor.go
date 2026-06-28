@@ -266,6 +266,8 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		dbActor.Set("last_fetched", time.Now())
 		if pubActor.Type == pub.ApplicationType {
 			dbActor.Set("actor_type", "instance")
+		} else {
+			dbActor.Set("actor_type", "person")
 		}
 
 		if includeFollows {
