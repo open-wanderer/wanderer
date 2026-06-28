@@ -43,12 +43,13 @@ Open **Settings → Categories** to control how categories behave for your accou
 
 ![The category preferences page in Settings](../../../assets/guides/wanderer_settings_categories.png)
 
-Each category has two toggles:
+Each category has one visibility toggle:
 
-- **Show** controls whether a category is part of your exploration and planning. While it is on, the category appears in search and discovery and is offered in the category picker when you create or edit a trail. Turn it off to hide the category from those places entirely — which also hides its federated trails.
-- **Remote trails** controls federated content. While it is on, trails in that category from other instances appear alongside your own. Turn it off to hide those remote trails while keeping your own trails in the category visible.
+- **Show** controls whether the category is part of your exploration and planning. While it is on, the category appears in search and discovery and is offered in the category picker when you create or edit a trail. Turn it off to hide all trails in that category from those places, including federated trails from other instances.
 
-Beyond the toggles, you can **reorder** categories by dragging them — the order carries over to the picker and filters — and **hide individual subcategories** by clicking a subcategory label below its parent; hidden subcategories appear muted and drop out of your pickers and filters. Subcategories otherwise inherit their parent category's settings.
+You can **reorder** categories by dragging them. This order carries over to pickers and filters, and it also decides which category is preselected when you create a new trail. New accounts start with Hiking as the first category unless an older favourite-sport setting is migrated.
+
+Categories with subcategories can be expanded. Inside the expanded section, each subcategory has its own visibility toggle and can be reordered by dragging. Hidden subcategories appear muted and drop out of your pickers and filters; hiding a parent category also hides its subcategories. When a category is collapsed, the compact badges below the category name show which subcategories belong to it.
 
 These settings are personal. They never delete categories, change other users' settings, or remove category assignments that already exist on trails.
 

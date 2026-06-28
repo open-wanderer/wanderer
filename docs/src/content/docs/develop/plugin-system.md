@@ -536,12 +536,14 @@ Supported host fields:
 | `privacy` | string | Trail import | `original` keeps provider visibility; `settings` uses the local user trail privacy setting. |
 | `merge.enabled` | boolean | Trail import | Runs auto-merge after creating imported trails. |
 | `createSummitLogForCompleted` | boolean | Trail import | Creates summit logs for completed imported trails. Defaults to `true`. |
-| `categoryMapping` | object | Trail import | Maps plugin-provided `metadata.providerCategory` values to local category IDs or category names. |
+| `categoryMapping` | object | Trail import | Maps plugin-provided `metadata.providerCategory` values to local category or subcategory targets. |
 | `connectors` | object | Host request/media policy | Concrete settings for configured connectors. |
 
 The settings UI lets users edit `categoryMapping` per plugin instance for trail
-import plugins. Unknown or empty provider categories still fall back to the
-host's activity-type mapping.
+import plugins. A mapping value can be a string for broad category-only
+compatibility, or an object with `category` and optional `subcategory`. Category
+and subcategory values may be local record IDs or canonical names. Unknown or
+empty provider categories still fall back to the host's activity-type mapping.
 
 Example:
 
@@ -549,7 +551,14 @@ Example:
 {
   "hostConfig": {
     "categoryMapping": {
-      "Ride": "Biking",
+      "Ride": {
+        "category": "Biking",
+        "subcategory": "Road"
+      },
+      "GravelRide": {
+        "category": "Biking",
+        "subcategory": "Gravel"
+      },
       "Hike": "Hiking"
     }
   },
