@@ -72,7 +72,7 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 		return err
 	}
 
-	// D-03: also deliver to instance-actor followers (SYNC-03)
+	// Also deliver to instance-actor peers so federated instances receive the deletion.
 	instanceInboxes, err := instanceFollowerInboxes(app)
 	if err != nil {
 		return err
@@ -124,8 +124,9 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 	activity.To = pub.ItemCollection{pub.IRI(to)}
 	activity.Published = time.Now()
 
-	// D-03: build recipients — only include trail author inbox when they are remote;
-	// always deliver to instance-actor followers (SYNC-03, Pitfall 3 / Open Question 2).
+	// Only include the trail author's inbox when they are remote; local actors receive
+	// the deletion through local event hooks, not HTTP delivery. Always include
+	// instance-actor peers so federated instances receive the deletion.
 	recipients := []string{}
 	if !commentTrailAuthor.GetBool("is_local") {
 		recipients = append(recipients, to+"/inbox")
@@ -205,7 +206,7 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 		recipients = append(recipients, summitLogTrailAuthor.GetString("inbox"))
 	}
 
-	// D-03: also deliver to instance-actor followers (SYNC-03)
+	// Also deliver to instance-actor peers so federated instances receive the deletion.
 	instanceInboxes, err := instanceFollowerInboxes(app)
 	if err != nil {
 		return err
@@ -269,7 +270,7 @@ func CreateListDeleteActivity(app core.App, r *core.Record) error {
 		return err
 	}
 
-	// D-03: also deliver to instance-actor followers (SYNC-03)
+	// Also deliver to instance-actor peers so federated instances receive the deletion.
 	instanceInboxes, err := instanceFollowerInboxes(app)
 	if err != nil {
 		return err
@@ -332,8 +333,8 @@ func processDeleteTrailActivity(app core.App, actor *core.Record, activity pub.A
 		return err
 	}
 
-	// SAFE-02: enforce trail author ownership — actor must be the trail's original author.
-	// trail.GetString("author") is a 15-char PocketBase record id, not an IRI (RESEARCH.md Pitfall 1).
+	// Enforce trail author ownership: actor must be the trail's original author.
+	// trail.GetString("author") is a PocketBase record id, not an IRI.
 	if trail.GetString("author") != actor.Id {
 		return fmt.Errorf("actor is not trail author")
 	}
@@ -397,7 +398,7 @@ func processDeleteListActivity(app core.App, actor *core.Record, activity pub.Ac
 		return err
 	}
 
-	// SAFE-02 parity: enforce list author ownership before deletion.
+	// Enforce list author ownership before deletion.
 	// list.GetString("author") is a PocketBase record id, not an IRI.
 	if list.GetString("author") != actor.Id {
 		return fmt.Errorf("actor is not list author")

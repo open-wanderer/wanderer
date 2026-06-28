@@ -49,19 +49,18 @@ func buildNodeInfoDiscovery(origin string) map[string]any {
 }
 
 // buildNodeInfo21 returns the NodeInfo 2.1 payload with live user and post counts.
-// It queries the trails collection for local public trails (D-02) and the users
-// collection for total user count (D-03). The version field is overwritten by the
-// SvelteKit proxy at /.well-known/nodeinfo/2.1, which injects the version from
-// web/package.json before returning the response to clients.
+// It queries the trails collection for local public trails and the users collection
+// for total user count. The version field is overwritten by the SvelteKit proxy at
+// /.well-known/nodeinfo/2.1, which injects the version from web/package.json.
 func buildNodeInfo21(app core.App) (map[string]any, error) {
 	version := os.Getenv("WANDERER_VERSION")
 	if version == "" {
 		version = "dev"
 	}
 
-	// D-02: localPosts = public trails authored by local actors only.
-	// Federated trails (is_local=false actors) are excluded so the count
-	// reflects what this instance produces, matching fediverse convention.
+	// localPosts = public trails authored by local actors only. Federated trails
+	// (is_local=false actors) are excluded so the count reflects what this instance
+	// produces, matching fediverse convention.
 	var localPosts int64
 	if err := app.DB().
 		Select("COUNT(*) AS c").
@@ -72,7 +71,7 @@ func buildNodeInfo21(app core.App) (map[string]any, error) {
 		return nil, fmt.Errorf("counting local trails: %w", err)
 	}
 
-	// D-03: users.total = count of all users (instance actor is in activitypub_actors, not users)
+	// users.total = count of all users (the instance actor is in activitypub_actors, not users)
 	usersTotal, err := app.CountRecords("users", nil)
 	if err != nil {
 		return nil, err

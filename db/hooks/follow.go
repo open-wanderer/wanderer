@@ -11,7 +11,7 @@ import (
 
 func CreateFollowHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
-		// CR-01: skip user-level delivery for instance follows; the AfterSuccess
+		// Skip user-level delivery for instance follows; the AfterSuccess
 		// handler (InstanceFollowCreateHandler) is the single delivery path.
 		if isInstanceFollow(e.App, e.Record) {
 			return e.Next()
@@ -29,7 +29,7 @@ func CreateFollowHandler() func(e *core.RecordRequestEvent) error {
 
 func DeleteFollowHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
-		// CR-02: skip user-level delivery for instance follows; the AfterSuccess
+		// Skip user-level delivery for instance follows; the AfterSuccess
 		// handler (InstanceFollowDeleteHandler) is the single delivery path.
 		if isInstanceFollow(e.App, e.Record) {
 			return e.Next()
@@ -44,7 +44,7 @@ func DeleteFollowHandler() func(e *core.RecordRequestEvent) error {
 // FOLLOWER in the given follows record. This distinguishes admin-initiated outbound
 // follows (where the local instance should sign and deliver a Follow activity) from
 // inbound follows saved by ProcessFollowActivity (where the instance is the followee
-// and no outgoing Follow should be sent — CR-03 fix).
+// and no outgoing Follow should be sent).
 func isOutboundInstanceFollow(app core.App, follow *core.Record) bool {
 	instanceIRI := os.Getenv("ORIGIN") + "/api/v1/activitypub/instance"
 	followerActor, err := app.FindRecordById("activitypub_actors", follow.GetString("follower"))
@@ -90,14 +90,14 @@ func instanceFollowAction(oldStatus, newStatus string) string {
 
 // InstanceFollowCreateHandler handles OnRecordAfterCreateSuccess("follows").
 // When the admin creates a follows record with follower=instance actor, this handler
-// delivers an outgoing Follow activity to the remote instance's inbox (FLCL-01).
+// delivers an outgoing Follow activity to the remote instance's inbox.
 // It auto-fetches the remote followee actor if not yet cached locally, so the admin
 // only needs to supply the remote IRI — no pre-created actor record required.
 func InstanceFollowCreateHandler() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
-		// CR-03: use the directional check — only fire when the local instance actor
-		// is the follower (admin-initiated outbound follow). Do NOT fire for inbound
-		// follows saved by ProcessFollowActivity where the instance is the followee.
+		// Only fire when the local instance actor is the follower (admin-initiated
+		// outbound follow). Do NOT fire for inbound follows saved by ProcessFollowActivity
+		// where the instance is the followee.
 		if !isOutboundInstanceFollow(e.App, e.Record) {
 			return e.Next()
 		}
@@ -135,7 +135,7 @@ func InstanceFollowCreateHandler() func(e *core.RecordEvent) error {
 
 // InstanceFollowUpdateHandler handles OnRecordAfterUpdateSuccess("follows").
 // When the admin changes a pending instance follow to status=accepted it delivers
-// Accept{Follow} (FLCL-03); to status=rejected it delivers Reject{Follow} (FLCL-04).
+// Accept{Follow}; to status=rejected it delivers Reject{Follow}.
 // The handler is a no-op for user-level follows and for status-unchanged updates.
 func InstanceFollowUpdateHandler() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
@@ -168,7 +168,7 @@ func InstanceFollowUpdateHandler() func(e *core.RecordEvent) error {
 
 // InstanceFollowDeleteHandler handles OnRecordAfterDeleteSuccess("follows").
 // When the admin deletes an instance follow record, this handler delivers
-// Undo{Follow} to the remote instance (FLCL-05).
+// Undo{Follow} to the remote instance.
 func InstanceFollowDeleteHandler() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		if !isInstanceFollow(e.App, e.Record) {

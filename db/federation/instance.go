@@ -98,11 +98,10 @@ func InitInstanceActor(app core.App) error {
 //
 // It mirrors ActivitypubActivityProcess in db/routes/activitypub.go but is
 // scoped to the instance actor's inbox. It dispatches Follow/Accept/Undo for
-// the follow lifecycle and Create/Update/Delete for content synchronization
-// (SYNC-01).
+// the follow lifecycle and Create/Update/Delete for content synchronization.
 //
 // HTTP signature verification is performed via util.VerifySignature before any
-// activity processing (T-02-03: mitigate spoofing).
+// activity processing to mitigate spoofing.
 func InstanceInboxHandler(e *core.RequestEvent) error {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -120,8 +119,8 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 	}
 
 	// Reconstruct the full inbox IRI from the X-Forwarded-Path header set by the
-	// SvelteKit proxy (T-02-04: header is set by the trusted SvelteKit layer, not
-	// accepted from the remote client).
+	// SvelteKit proxy. The header originates from the trusted SvelteKit layer, not
+	// from the remote client.
 	inbox := fmt.Sprintf("%s%s", origin, e.Request.Header.Get("X-Forwarded-Path"))
 
 	recipient, err := e.App.FindFirstRecordByData("activitypub_actors", "inbox", inbox)
@@ -146,18 +145,16 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 		}
 	}
 
-	// Verify HTTP signature against the sender actor's stored public key (T-02-03).
+	// Verify HTTP signature against the sender actor's stored public key.
 	verified, err := util.VerifySignature(e.App, e.Request, actor.GetString("public_key"))
 	if err != nil || !verified {
 		e.App.Logger().Error("instance inbox: invalid http signature", "err", err)
 		return e.UnauthorizedError("Invalid http signature", err)
 	}
 
-	// Dispatch to the appropriate federation processor.
-	// Only Follow/Accept/Undo are handled here (D-03).
-	// CR-05: each case propagates errors as 400 responses so the remote caller
-	// can detect failures; unknown activity types are rejected with 400 rather
-	// than silently accepted with 200 null.
+	// Dispatch to the appropriate federation processor. Each case propagates errors
+	// as 400 responses so the remote caller can detect failures; unknown activity
+	// types are rejected with 400 rather than silently accepted with 200.
 	switch activity.Type {
 	case pub.FollowType:
 		if err := ProcessFollowActivity(e.App, actor, activity); err != nil {

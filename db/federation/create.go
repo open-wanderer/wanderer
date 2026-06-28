@@ -95,7 +95,7 @@ func CreateTrailActivity(app core.App, ctx context.Context, trail *core.Record, 
 	}
 	recipients := append(mentions, inboxes...)
 
-	// D-03: also deliver to instance-actor followers (SYNC-01)
+	// Also deliver to instance-actor peers so federated instances receive trail updates.
 	instanceInboxes, err := instanceFollowerInboxes(app)
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 	if err != nil {
 		return err
 	}
-	// D-08/SAFE-03: whole-function gate — no fanout for comments on private trails
+	// No fanout for comments on private trails.
 	if !commentTrail.GetBool("public") {
 		return nil
 	}
@@ -203,7 +203,7 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 		return err
 	}
 
-	// D-03: also deliver to instance-actor followers (SYNC-01)
+	// Also deliver to instance-actor peers so federated instances receive comment updates.
 	instanceInboxes, err := instanceFollowerInboxes(app)
 	if err != nil {
 		return err
@@ -377,7 +377,7 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 		recipients = append(recipients, summitLogTrailAuthor.GetString("inbox"))
 	}
 
-	// D-03: also deliver to instance-actor followers (SYNC-02)
+	// Also deliver to instance-actor peers so federated instances receive summit log updates.
 	instanceInboxes, err := instanceFollowerInboxes(app)
 	if err != nil {
 		return err
@@ -449,7 +449,7 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 		return err
 	}
 
-	// D-03: also deliver to instance-actor followers (SYNC-02)
+	// Also deliver to instance-actor peers so federated instances receive list updates.
 	instanceInboxes, err := instanceFollowerInboxes(app)
 	if err != nil {
 		return err
@@ -481,12 +481,12 @@ func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *
 }
 
 func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
-	// SAFE-01: broadcast-loop dedup — drop duplicate Create by content IRI (D-04, Create-only)
+	// Broadcast-loop dedup: drop a duplicate Create whose content IRI is already stored.
 	if activity.Type == pub.CreateType {
 		objectIRI := activity.Object.GetID().String()
 		existing, derr := app.FindFirstRecordByData("trails", "iri", objectIRI)
 		if derr == nil && existing != nil {
-			return nil // already have this trail — silent broadcast-loop dedup (D-04)
+			return nil // already have this trail
 		}
 		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
 			return derr
@@ -532,12 +532,12 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 }
 
 func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, actor *core.Record) error {
-	// SAFE-01: broadcast-loop dedup — drop duplicate Create by content IRI (D-04, Create-only)
+	// Broadcast-loop dedup: drop a duplicate Create whose content IRI is already stored.
 	if activity.Type == pub.CreateType {
 		objectIRI := activity.Object.GetID().String()
 		existing, derr := app.FindFirstRecordByData("comments", "iri", objectIRI)
 		if derr == nil && existing != nil {
-			return nil // already have this comment — silent broadcast-loop dedup (D-04)
+			return nil // already have this comment
 		}
 		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
 			return derr
@@ -649,12 +649,12 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 }
 
 func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App, actor *core.Record) error {
-	// SAFE-01: broadcast-loop dedup — drop duplicate Create by content IRI (D-04, Create-only)
+	// Broadcast-loop dedup: drop a duplicate Create whose content IRI is already stored.
 	if activity.Type == pub.CreateType {
 		objectIRI := activity.Object.GetID().String()
 		existing, derr := app.FindFirstRecordByData("summit_logs", "iri", objectIRI)
 		if derr == nil && existing != nil {
-			return nil // already have this summit log — silent broadcast-loop dedup (D-04)
+			return nil // already have this summit log
 		}
 		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
 			return derr
@@ -840,12 +840,12 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 }
 
 func processCreateOrUpdateListActivity(activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
-	// SAFE-01: broadcast-loop dedup — drop duplicate Create by content IRI (D-04, Create-only)
+	// Broadcast-loop dedup: drop a duplicate Create whose content IRI is already stored.
 	if activity.Type == pub.CreateType {
 		objectIRI := activity.Object.GetID().String()
 		existing, derr := app.FindFirstRecordByData("lists", "iri", objectIRI)
 		if derr == nil && existing != nil {
-			return nil // already have this list — silent broadcast-loop dedup (D-04)
+			return nil // already have this list
 		}
 		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
 			return derr

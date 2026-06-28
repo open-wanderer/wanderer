@@ -44,7 +44,7 @@ type nodeInfo21 struct {
 }
 
 // peerEntry is the JSON shape for one peer connection in the GET
-// /federation/peers response (used by FederationPeers in Plan 03).
+// /federation/peers response.
 type peerEntry struct {
 	FollowID  string `json:"follow_id"`
 	Direction string `json:"direction"` // "outbound" | "inbound" | "mutual"
@@ -58,7 +58,7 @@ type peerEntry struct {
 
 // pickNodeInfo21Href returns the Href of the link whose Rel equals the
 // NodeInfo 2.1 schema URI. Returns an error containing "not a Wanderer
-// instance" if no such link is present (D-08, DISC-02, Pitfall 6).
+// instance" if no such link is present.
 func pickNodeInfo21Href(links []nodeInfoLink) (string, error) {
 	const rel21 = "http://nodeinfo.diaspora.software/ns/schema/2.1"
 	for _, link := range links {
@@ -71,11 +71,11 @@ func pickNodeInfo21Href(links []nodeInfoLink) (string, error) {
 
 // fetchNodeInfo21URL performs the two-step NodeInfo discovery for rawURL:
 //  1. GETs /.well-known/nodeinfo on the remote host (the JRD discovery doc).
-//  2. Calls pickNodeInfo21Href to locate the 2.1 href by rel value (D-08).
+//  2. Calls pickNodeInfo21Href to locate the 2.1 href by rel value.
 //
-// Both requests use the provided SSRF-safe 10s client (SAFE-06).
-// Body size is bounded to 64 KiB (T-05-03).
-// On network failure the returned error contains "unreachable" (DISC-02).
+// Both requests use the provided SSRF-safe client.
+// Body size is bounded to 64 KiB.
+// On network failure the returned error contains "unreachable".
 func fetchNodeInfo21URL(client util.HTTPDoer, rawURL string) (string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
@@ -94,8 +94,8 @@ func fetchNodeInfo21URL(client util.HTTPDoer, rawURL string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	// WR-01: check status code before decoding — a non-200 response (e.g. 404
-	// or 500 with a JSON body) must not be mistaken for a valid JRD document.
+	// Check status code before decoding — a non-200 response (e.g. 404 or 500
+	// with a JSON body) must not be mistaken for a valid JRD document.
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("unreachable: JRD returned HTTP %d", resp.StatusCode)
 	}
@@ -113,8 +113,8 @@ func fetchNodeInfo21URL(client util.HTTPDoer, rawURL string) (string, error) {
 	}
 
 	// SSRF guard: validate that the href stays on the same host as the original
-	// request (CR-01). A malicious instance could return a href pointing to an
-	// unrelated public host, causing the server to probe a third-party service.
+	// request. A malicious instance could return a href pointing to an unrelated
+	// public host, causing the server to probe a third-party service.
 	hrefParsed, err := url.Parse(href)
 	if err != nil || !strings.EqualFold(hrefParsed.Host, u.Host) {
 		return "", fmt.Errorf("not a Wanderer instance: NodeInfo href host mismatch")
@@ -130,9 +130,6 @@ func fetchNodeInfo21URL(client util.HTTPDoer, rawURL string) (string, error) {
 // findLocalInstanceActor looks up the record in activitypub_actors that has
 // actor_type="instance" and is_local=true. This is the Application-type actor
 // that represents this Wanderer instance in the ActivityPub network.
-//
-// This helper is reused by FederationFollow (Plan 02), FederationPeers, and
-// FederationDisconnect (Plan 03).
 func findLocalInstanceActor(app core.App) (*core.Record, error) {
 	return app.FindFirstRecordByFilter(
 		"activitypub_actors",
@@ -147,18 +144,17 @@ func findLocalInstanceActor(app core.App) (*core.Record, error) {
 
 // FederationDiscover handles POST /federation/discover.
 //
-// It is the required first step of the connect flow (D-01). The admin
+// It is the required first step of the connect flow. The admin
 // supplies a remote Wanderer instance URL; this handler:
-//  1. Enforces superuser auth (D-10, T-05-04).
-//  2. Fetches /.well-known/nodeinfo and follows the 2.1 link (D-08, SAFE-06).
-//  3. Decodes NodeInfo 2.1 and verifies software.name == "wanderer" (D-06).
-//  4. Derives the remote instance actor IRI and runs the SAFE-05 self-follow
+//  1. Enforces superuser auth.
+//  2. Fetches /.well-known/nodeinfo and follows the 2.1 link.
+//  3. Decodes NodeInfo 2.1 and verifies software.name == "wanderer".
+//  4. Derives the remote instance actor IRI and runs the self-follow
 //     guard via util.IsLocalIRI.
-//  5. Checks that no follow record already exists between the two actors
-//     (Pitfall 5, T-05-05).
-//  6. Bypasses the 2-hour actor cache by clearing last_fetched (D-03).
+//  5. Checks that no follow record already exists between the two actors.
+//  6. Bypasses the 2-hour actor cache by clearing last_fetched.
 //  7. Calls federation.GetActorByIRI to create or refresh the remote actor.
-//  8. Returns { actor_id, domain, version, user_count, trail_count } (DISC-01).
+//  8. Returns { actor_id, domain, version, user_count, trail_count }.
 //
 // ---------------------------------------------------------------------------
 // FederationFollow handler and DB helper
@@ -166,19 +162,18 @@ func findLocalInstanceActor(app core.App) (*core.Record, error) {
 
 // createOutboundFollow inserts a follows record where localID is the follower
 // and remoteID is the followee with status="pending". It first confirms the
-// remote actor exists in activitypub_actors (D-02). The after-create hook
+// remote actor exists in activitypub_actors. The after-create hook
 // (InstanceFollowCreateHandler) fires the outbound Follow delivery — this
-// helper must NOT call federation delivery functions directly (SAFE-07).
+// helper must NOT call federation delivery functions directly.
 func createOutboundFollow(app core.App, localID, remoteID string) (*core.Record, error) {
-	// D-02: remote actor must have an activitypub_actors record.
+	// Remote actor must have an activitypub_actors record.
 	if _, err := app.FindRecordById("activitypub_actors", remoteID); err != nil {
 		return nil, fmt.Errorf("unknown actor; run discover first")
 	}
 
-	// WR-05: check for an existing follow record before inserting to avoid
-	// hitting the UNIQUE(follower, followee) constraint and producing a 500.
-	// A rejected follow must be deleted first so the admin can retry — only
-	// pending/accepted states block a new attempt.
+	// Check for an existing follow record before inserting to avoid hitting the
+	// UNIQUE(follower, followee) constraint. A rejected follow is cleared so the
+	// admin can retry; only pending/accepted states block a new attempt.
 	existing, checkErr := app.FindFirstRecordByFilter(
 		"follows",
 		"follower={:f} && followee={:e}",
@@ -212,13 +207,12 @@ func createOutboundFollow(app core.App, localID, remoteID string) (*core.Record,
 //
 // Accepts { "actor_id": "<activitypub_actors record id>" } and creates an
 // outbound follows record with the local instance as the follower and status
-// "pending" (CONN-01). The after-create hook fires the Follow activity delivery
-// — this handler must NOT call federation delivery functions directly (SAFE-07).
+// "pending". The after-create hook fires the Follow activity delivery — this
+// handler must NOT call federation delivery functions directly.
 //
 // Returns { "follow_id": "<id>", "status": "pending" } on success.
-// Route registration happens in Plan 03.
 func FederationFollow(e *core.RequestEvent) error {
-	// 1. Auth guard — must be first (D-10, T-05-06).
+	// 1. Auth guard — must be first.
 	if !e.HasSuperuserAuth() {
 		return e.UnauthorizedError("superuser authentication required", nil)
 	}
@@ -231,7 +225,7 @@ func FederationFollow(e *core.RequestEvent) error {
 		return e.BadRequestError("actor_id is required", nil)
 	}
 
-	// 3. Verify remote actor exists (D-02).
+	// 3. Verify remote actor exists.
 	remoteActor, err := e.App.FindRecordById("activitypub_actors", body.ActorID)
 	if err != nil || remoteActor == nil {
 		return e.JSON(http.StatusBadRequest, map[string]any{"error": "unknown actor; run discover first"})
@@ -243,10 +237,9 @@ func FederationFollow(e *core.RequestEvent) error {
 		return fmt.Errorf("local instance actor not found: %w", err)
 	}
 
-	// 4a. Self-follow guard (WR-02): prevent the local instance from following
-	// itself. FederationDiscover checks this via util.IsLocalIRI, but that guard
-	// is bypassed when /federation/follow is called directly with the local actor's
-	// own record ID.
+	// 4a. Self-follow guard: prevent the local instance from following itself.
+	// FederationDiscover checks this via util.IsLocalIRI, but that guard is bypassed
+	// when /federation/follow is called directly with the local actor's own record ID.
 	if localActor.Id == remoteActor.Id {
 		return e.BadRequestError("cannot follow local instance actor", nil)
 	}
@@ -254,8 +247,8 @@ func FederationFollow(e *core.RequestEvent) error {
 	// 5. Create the outbound follows record via the testable helper.
 	rec, err := createOutboundFollow(e.App, localActor.Id, remoteActor.Id)
 	if err != nil {
-		// WR-05: a duplicate follow surfaces as a sentinel "follow already exists"
-		// error from createOutboundFollow. Return 409 Conflict rather than letting
+		// A duplicate follow surfaces as a sentinel "follow already exists" error
+		// from createOutboundFollow. Return 409 Conflict rather than letting
 		// PocketBase turn the UNIQUE constraint violation into a 500.
 		if err.Error() == "follow already exists" {
 			return e.JSON(http.StatusConflict, map[string]any{"error": "already following this instance"})
@@ -271,7 +264,7 @@ func FederationFollow(e *core.RequestEvent) error {
 }
 
 // ---------------------------------------------------------------------------
-// FederationDisconnect handler and pure routing helper (CONN-04, SAFE-07)
+// FederationDisconnect handler and pure routing helper
 // ---------------------------------------------------------------------------
 
 // disconnectAction returns "delete" when followerID == localID (outbound follow,
@@ -280,7 +273,7 @@ func FederationFollow(e *core.RequestEvent) error {
 // db/hooks/follow.go:172-184, so we set status=rejected instead to trigger the
 // Reject delivery via the update hook at follow.go:136-167).
 //
-// This pure helper is extracted for unit-testability (T-05-10).
+// This pure helper is extracted for unit-testability.
 func disconnectAction(followerID, localID string) string {
 	if followerID == localID {
 		return "delete"
@@ -288,7 +281,7 @@ func disconnectAction(followerID, localID string) string {
 	return "reject"
 }
 
-// FederationDisconnect handles POST /federation/disconnect/:id (CONN-04, SAFE-07).
+// FederationDisconnect handles POST /federation/disconnect/:id.
 //
 // Direction-aware disconnect:
 //   - Outbound follow (local is follower): calls e.App.Delete(follow). The
@@ -296,14 +289,13 @@ func disconnectAction(followerID, localID string) string {
 //   - Inbound-only follow (local is followee): sets status="rejected" and calls
 //     e.App.Save(follow). The after-update hook fires the Reject{Follow} delivery.
 //
-// Deleting an inbound-only record would trigger the hook's Undo unconditionally
-// (db/hooks/follow.go:172-184), sending a wrong-direction Undo to the remote
-// instance — which is why inbound-only records must NOT be deleted (T-05-10).
+// Deleting an inbound-only record would trigger the hook's Undo unconditionally,
+// sending a wrong-direction Undo to the remote instance — which is why
+// inbound-only records must NOT be deleted.
 //
-// SAFE-07: this handler does not call federation delivery functions directly.
-// Route registration happens in Plan 03.
+// This handler does not call federation delivery functions directly.
 func FederationDisconnect(e *core.RequestEvent) error {
-	// 1. Auth guard — must be first (D-10, T-05-11).
+	// 1. Auth guard — must be first.
 	if !e.HasSuperuserAuth() {
 		return e.UnauthorizedError("superuser authentication required", nil)
 	}
@@ -343,7 +335,7 @@ func FederationDisconnect(e *core.RequestEvent) error {
 }
 
 // ---------------------------------------------------------------------------
-// FederationPeers handler and pure folding helper (DISC-01, D-04, D-05)
+// FederationPeers handler and pure folding helper
 // ---------------------------------------------------------------------------
 
 // followInput is a lightweight value type used by buildPeerEntries so the
@@ -357,9 +349,9 @@ type followInput struct {
 }
 
 // buildPeerEntries folds outbound and inbound follow slices into a deduplicated
-// []peerEntry keyed by remote domain (D-04). When an accepted outbound record and
-// an accepted inbound record share the same remote domain, they collapse to a
-// single "mutual" entry whose FollowID is the outbound record id (D-05).
+// []peerEntry keyed by remote domain. When an accepted outbound record and an
+// accepted inbound record share the same remote domain, they collapse to a
+// single "mutual" entry whose FollowID is the outbound record id.
 //
 // domainOf resolves an actor id to its domain string; the FederationPeers handler
 // supplies a closure backed by FindRecordById so this helper requires no DB access.
@@ -405,7 +397,7 @@ func buildPeerEntries(
 		}
 		if existing, ok := byDomain[domain]; ok && existing.hasOutbound &&
 			existing.entry.Status == "accepted" && f.Status == "accepted" {
-			// Both sides accepted → mutual. Keep the outbound follow_id (D-05).
+			// Both sides accepted → mutual. Keep the outbound follow_id.
 			existing.entry.Direction = "mutual"
 		} else if !ok {
 			byDomain[domain] = &mergeEntry{
@@ -439,13 +431,12 @@ func buildPeerEntries(
 	return result
 }
 
-// FederationPeers handles GET /federation/peers (DISC-01, D-04, D-05).
+// FederationPeers handles GET /federation/peers.
 //
 // Returns a JSON array of peerEntry objects, one per unique remote domain, with
-// mutual pairs collapsed (buildPeerEntries). Read-only handler (SAFE-07).
-// Route registration happens in Plan 03.
+// mutual pairs collapsed (buildPeerEntries). Read-only handler.
 func FederationPeers(e *core.RequestEvent) error {
-	// 1. Auth guard — must be first (D-10, T-05-12).
+	// 1. Auth guard — must be first.
 	if !e.HasSuperuserAuth() {
 		return e.UnauthorizedError("superuser authentication required", nil)
 	}
@@ -457,9 +448,9 @@ func FederationPeers(e *core.RequestEvent) error {
 	}
 
 	// 3. Query outbound follows (local is follower).
-	// WR-04: FindRecordsByFilter returns an empty slice (not an error) when no
-	// rows match. Any error here is a genuine DB failure — propagate it as a 500
-	// rather than silently returning an empty peers list that hides the fault.
+	// FindRecordsByFilter returns an empty slice (not an error) when no rows match.
+	// Any error here is a genuine DB failure — propagate it as a 500 rather than
+	// silently returning an empty peers list that hides the fault.
 	outboundRecords, err := e.App.FindRecordsByFilter(
 		"follows",
 		"follower={:local}",
@@ -525,19 +516,19 @@ func FederationPeers(e *core.RequestEvent) error {
 
 // setFollowStatus updates a follows record to the given status, enforcing that
 // the local instance (identified by localID) is the followee — i.e., this is
-// an inbound follow that the admin is approving or rejecting (T-05-07).
+// an inbound follow that the admin is approving or rejecting.
 //
-// The record is passed in directly (WR-03) to avoid the redundant second
-// FindRecordById call that the previous string-ID signature caused, and to
-// allow callers to distinguish "not an inbound follow" from DB save errors.
+// The record is passed in directly to avoid the redundant second FindRecordById
+// call, and to allow callers to distinguish "not an inbound follow" from DB
+// save errors.
 //
 // The after-update hook (InstanceFollowUpdateHandler) fires the Accept or
 // Reject delivery — this helper must NOT call federation delivery functions
-// directly (SAFE-07).
+// directly.
 func setFollowStatus(app core.App, follow *core.Record, status, localID string) error {
-	// Direction guard (T-05-07): approve/reject only apply to inbound follows
-	// where the local instance is the followee. This mirrors the hook guard in
-	// db/hooks/follow.go:146 so the Accept/Reject delivery will actually fire.
+	// Direction guard: approve/reject only apply to inbound follows where the local
+	// instance is the followee. This mirrors the hook guard in db/hooks/follow.go:146
+	// so the Accept/Reject delivery will actually fire.
 	if follow.GetString("followee") != localID {
 		return fmt.Errorf("not an inbound follow")
 	}
@@ -548,13 +539,11 @@ func setFollowStatus(app core.App, follow *core.Record, status, localID string) 
 
 // FederationApprove handles POST /federation/approve/:id.
 //
-// Moves an inbound pending follows record to status "accepted" (CONN-02).
-// The after-update hook fires the Accept delivery — this handler must NOT
-// call federation delivery functions directly (SAFE-07).
-//
-// Route registration happens in Plan 03.
+// Moves an inbound pending follows record to status "accepted". The after-update
+// hook fires the Accept delivery — this handler must NOT call federation delivery
+// functions directly.
 func FederationApprove(e *core.RequestEvent) error {
-	// 1. Auth guard — must be first (D-10, T-05-06).
+	// 1. Auth guard — must be first.
 	if !e.HasSuperuserAuth() {
 		return e.UnauthorizedError("superuser authentication required", nil)
 	}
@@ -575,8 +564,8 @@ func FederationApprove(e *core.RequestEvent) error {
 	}
 
 	// 5. Apply direction guard and status update via the testable helper.
-	// Pass the record directly (WR-03) to avoid a redundant re-fetch and to
-	// allow proper error classification: direction errors → 400, DB save errors → 500.
+	// Pass the record directly to avoid a redundant re-fetch and to allow proper
+	// error classification: direction errors → 400, DB save errors → 500.
 	if err := setFollowStatus(e.App, follow, "accepted", localActor.Id); err != nil {
 		if err.Error() == "not an inbound follow" {
 			return e.BadRequestError("not an inbound follow", nil)
@@ -592,13 +581,11 @@ func FederationApprove(e *core.RequestEvent) error {
 
 // FederationReject handles POST /federation/reject/:id.
 //
-// Moves an inbound pending follows record to status "rejected" (CONN-03).
-// The after-update hook fires the Reject delivery — this handler must NOT
-// call federation delivery functions directly (SAFE-07).
-//
-// Route registration happens in Plan 03.
+// Moves an inbound pending follows record to status "rejected". The after-update
+// hook fires the Reject delivery — this handler must NOT call federation delivery
+// functions directly.
 func FederationReject(e *core.RequestEvent) error {
-	// 1. Auth guard — must be first (D-10, T-05-06).
+	// 1. Auth guard — must be first.
 	if !e.HasSuperuserAuth() {
 		return e.UnauthorizedError("superuser authentication required", nil)
 	}
@@ -619,8 +606,8 @@ func FederationReject(e *core.RequestEvent) error {
 	}
 
 	// 5. Apply direction guard and status update via the testable helper.
-	// Pass the record directly (WR-03) to avoid a redundant re-fetch and to
-	// allow proper error classification: direction errors → 400, DB save errors → 500.
+	// Pass the record directly to avoid a redundant re-fetch and to allow proper
+	// error classification: direction errors → 400, DB save errors → 500.
 	if err := setFollowStatus(e.App, follow, "rejected", localActor.Id); err != nil {
 		if err.Error() == "not an inbound follow" {
 			return e.BadRequestError("not an inbound follow", nil)
@@ -638,10 +625,9 @@ func FederationReject(e *core.RequestEvent) error {
 // FederationDiscover handler
 // ---------------------------------------------------------------------------
 
-// Route registration happens in Plan 03 alongside the other five handlers.
-// SAFE-07: this handler does not call federation delivery functions directly.
+// FederationDiscover does not call federation delivery functions directly.
 func FederationDiscover(e *core.RequestEvent) error {
-	// 1. Auth guard — must be first (D-10, T-05-04).
+	// 1. Auth guard — must be first.
 	if !e.HasSuperuserAuth() {
 		return e.UnauthorizedError("superuser authentication required", nil)
 	}
@@ -654,7 +640,7 @@ func FederationDiscover(e *core.RequestEvent) error {
 		return e.BadRequestError("url is required", nil)
 	}
 
-	// 3. Fetch NodeInfo 2.1 URL via the JRD discovery document (SAFE-06).
+	// 3. Fetch NodeInfo 2.1 URL via the JRD discovery document.
 	client := util.NewSafeURLClient(10*time.Second, nil)
 	nodeInfoURL, err := fetchNodeInfo21URL(client, body.URL)
 	if err != nil {
@@ -672,13 +658,13 @@ func FederationDiscover(e *core.RequestEvent) error {
 	}
 	defer niResp.Body.Close()
 
-	// WR-01: check status code before decoding — a non-Wanderer server may return
-	// HTTP 404/500 with a JSON body that coincidentally passes the identity check.
+	// Check status code before decoding — a non-Wanderer server may return HTTP 404/500
+	// with a JSON body that coincidentally passes the identity check.
 	if niResp.StatusCode != http.StatusOK {
 		return e.JSON(http.StatusBadRequest, map[string]any{"error": "unreachable"})
 	}
 
-	// 4b. Decode and verify Wanderer identity (D-06, DISC-02).
+	// 4b. Decode and verify Wanderer identity.
 	var ni nodeInfo21
 	if err := json.NewDecoder(io.LimitReader(niResp.Body, 64*1024)).Decode(&ni); err != nil {
 		return e.JSON(http.StatusBadRequest, map[string]any{"error": "not a Wanderer instance"})
@@ -687,7 +673,7 @@ func FederationDiscover(e *core.RequestEvent) error {
 		return e.JSON(http.StatusBadRequest, map[string]any{"error": "not a Wanderer instance"})
 	}
 
-	// 5. Derive actor IRI and run SAFE-05 self-follow guard (T-05-02).
+	// 5. Derive actor IRI and run self-follow guard.
 	parsedURL, err := url.Parse(body.URL)
 	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
 		return e.JSON(http.StatusBadRequest, map[string]any{"error": "unreachable"})
@@ -698,7 +684,7 @@ func FederationDiscover(e *core.RequestEvent) error {
 		return e.JSON(http.StatusBadRequest, map[string]any{"error": "resolves to local instance"})
 	}
 
-	// 6. Already-connected check (Pitfall 5, T-05-05).
+	// 6. Already-connected check.
 	localActor, err := findLocalInstanceActor(e.App)
 	if err != nil {
 		return fmt.Errorf("local instance actor not found: %w", err)
@@ -711,9 +697,9 @@ func FederationDiscover(e *core.RequestEvent) error {
 	)
 	if remoteActorErr == nil && existingActor != nil {
 		// Remote actor record exists — check for an existing follow in either direction.
-		// Exclude rejected records: a rejected follow does not represent an active or
-		// in-progress connection, so the admin must be able to re-initiate federation
-		// with a previously-rejected instance (CR-02).
+		// Exclude rejected records: a rejected follow does not represent an active
+		// connection, so the admin must be able to re-initiate federation with a
+		// previously-rejected instance.
 		_, followErr := e.App.FindFirstRecordByFilter(
 			"follows",
 			"(follower={:l} && followee={:r} && status!='rejected') || (follower={:r} && followee={:l} && status!='rejected')",
@@ -724,7 +710,7 @@ func FederationDiscover(e *core.RequestEvent) error {
 			return e.JSON(http.StatusBadRequest, map[string]any{"error": "already connected"})
 		}
 
-		// 7. Cache bypass (D-03): clear last_fetched so GetActorByIRI re-fetches.
+		// 7. Cache bypass: clear last_fetched so GetActorByIRI re-fetches.
 		existingActor.Set("last_fetched", time.Time{})
 		_ = e.App.Save(existingActor)
 	}
@@ -735,7 +721,7 @@ func FederationDiscover(e *core.RequestEvent) error {
 		return e.JSON(http.StatusBadGateway, map[string]any{"error": "unreachable"})
 	}
 
-	// 8. Build the preview card response (DISC-01, D-07).
+	// 8. Build the preview card response.
 	domain := actor.GetString("domain")
 	if domain == "" {
 		domain = parsedURL.Hostname()

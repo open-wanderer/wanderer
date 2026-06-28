@@ -103,9 +103,9 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 		followRecord.Set("followee", object.Id)
 
 		// Instance-actor branch: Follow directed at the local instance actor must be
-		// stored as "pending" (requires admin approval, D-05/FLCL-02).  Persist the
-		// incoming Follow activity so Plan 03 can reconstruct it for Accept/Reject,
-		// then return early — no Accept is sent back for instance follows.
+		// stored as "pending" (requires admin approval). Persist the incoming Follow
+		// activity so it can be reconstructed when sending Accept/Reject later.
+		// Return early — no Accept is sent automatically for instance follows.
 		if object.GetString("actor_type") == "instance" && object.GetBool("is_local") {
 			followRecord.Set("status", "pending")
 			if err = app.Save(followRecord); err != nil {
@@ -256,7 +256,7 @@ func CreateAcceptFollowActivity(app core.App, follow *core.Record) error {
 
 // CreateRejectFollowActivity delivers a Reject{Follow} to the remote instance that
 // sent the original Follow. Structurally identical to CreateAcceptFollowActivity but
-// wraps the original Follow in a Reject. Mandatory per D-08.
+// wraps the original Follow in a Reject.
 func CreateRejectFollowActivity(app core.App, follow *core.Record) error {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -337,9 +337,9 @@ func ProcessRejectActivity(app core.App, actor *core.Record, activity pub.Activi
 }
 
 func ProcessAcceptActivity(app core.App, actor *core.Record, activity pub.Activity) error {
-	// CR-04: use comma-ok to guard against IRI-only Accept objects (common in
-	// real-world ActivityPub implementations). Return a descriptive error instead
-	// of panicking so a malformed remote Accept cannot crash the request goroutine.
+	// Use comma-ok to guard against IRI-only Accept objects (common in real-world
+	// ActivityPub implementations). Return a descriptive error instead of panicking
+	// so a malformed remote Accept cannot crash the request goroutine.
 	followActivity, ok := activity.Object.(*pub.Activity)
 	if !ok {
 		return fmt.Errorf("ProcessAcceptActivity: object is not *pub.Activity, got %T", activity.Object)
