@@ -264,6 +264,9 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		dbActor.Set("published", pubActor.Published.String())
 		dbActor.Set("public_key", pubActor.PublicKey.PublicKeyPem)
 		dbActor.Set("last_fetched", time.Now())
+		if pubActor.Type == pub.ApplicationType {
+			dbActor.Set("actor_type", "instance")
+		}
 
 		if includeFollows {
 			dbActor.Set("follower_count", int(followers.TotalItems))
