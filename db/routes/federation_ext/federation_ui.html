@@ -1009,7 +1009,12 @@
                       </button>
                     </template>
                     <template x-if="peer.status === 'pending' && peer.direction === 'outbound'">
-                      <span class="pending-label">Awaiting approval…</span>
+                      <div style="display:flex;align-items:center;gap:10px">
+                        <span class="pending-label">Awaiting approval…</span>
+                        <button class="btn btn-outline btn-sm" @click="openDisconnect(peer)" :disabled="loading">
+                          Cancel request
+                        </button>
+                      </div>
                     </template>
                   </div>
                   <template x-if="rowErrors[peer.follow_id]">
@@ -1056,17 +1061,31 @@
        @click.self="closeDisconnect()">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-icon"><i class="ri-link-unlink-m"></i></div>
-      <h2 id="modal-title">Disconnect instance?</h2>
-      <p>
-        This will send an <strong>Undo·Follow</strong> or <strong>Reject·Follow</strong>
-        to <strong x-text="confirmModal.peer?.domain"></strong> and stop all content
-        synchronization between the two instances.
-      </p>
+      <template x-if="confirmModal.peer?.status === 'pending' && confirmModal.peer?.direction === 'outbound'">
+        <div>
+          <h2 id="modal-title">Cancel follow request?</h2>
+          <p>
+            This will withdraw the pending follow request to
+            <strong x-text="confirmModal.peer?.domain"></strong> by sending an
+            <strong>Undo·Follow</strong>. You can send a new request at any time.
+          </p>
+        </div>
+      </template>
+      <template x-if="!(confirmModal.peer?.status === 'pending' && confirmModal.peer?.direction === 'outbound')">
+        <div>
+          <h2 id="modal-title">Disconnect instance?</h2>
+          <p>
+            This will send an <strong>Undo·Follow</strong> or <strong>Reject·Follow</strong>
+            to <strong x-text="confirmModal.peer?.domain"></strong> and stop all content
+            synchronization between the two instances.
+          </p>
+        </div>
+      </template>
       <div class="modal-actions">
         <button class="btn btn-outline" @click="closeDisconnect()">Cancel</button>
         <button class="btn btn-danger" @click="disconnect()">
           <i class="ri-link-unlink-m"></i>
-          Disconnect
+          <span x-text="confirmModal.peer?.status === 'pending' && confirmModal.peer?.direction === 'outbound' ? 'Withdraw request' : 'Disconnect'"></span>
         </button>
       </div>
     </div>
