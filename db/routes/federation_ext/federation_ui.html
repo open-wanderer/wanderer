@@ -49,6 +49,8 @@
       --text2: #6e7491;
     }
 
+    [x-cloak] { display: none !important; }
+
     *,
     *::before,
     *::after {
@@ -557,6 +559,67 @@
       font-size: 12px;
       color: var(--text2);
     }
+
+    /* ── Modal ───────────────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 420px;
+      padding: 28px 28px 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    }
+
+    .modal-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(225, 71, 61, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-icon i {
+      font-size: 22px;
+      color: var(--danger);
+    }
+
+    .modal h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .modal p {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .modal p strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
   </style>
 
   <!-- Alpine app — MUST be defined before the defer'd Alpine CDN tag -->
@@ -574,6 +637,7 @@
         connectError: '',
         preview: null,
         rowErrors: {},
+        confirmModal: { open: false, peer: null },
 
         init() {
           var stored = localStorage.getItem('__pb_superusers__/_');
@@ -708,8 +772,17 @@
           } finally { this.loading = false; }
         },
 
-        async disconnect(peer) {
-          if (!confirm(`Disconnect from ${peer.domain}? This will send an Undo{Follow} or Reject{Follow} to the remote instance.`)) return;
+        openDisconnect(peer) {
+          this.confirmModal = { open: true, peer };
+        },
+
+        closeDisconnect() {
+          this.confirmModal = { open: false, peer: null };
+        },
+
+        async disconnect() {
+          var peer = this.confirmModal.peer;
+          this.closeDisconnect();
           this.loading = true;
           try {
             var res = await this.apiFetch('/federation/disconnect/' + peer.follow_id, { method: 'POST' });
@@ -792,8 +865,8 @@
     <div class="header-spacer"></div>
     <span class="header-email" x-text="email" x-show="email"></span>
     <button onclick="window.close()" class="header-link" style="margin-left: 8px; background: none; border: none; cursor: pointer;">
-      <i class="ri-close-line"></i>
-      Close
+      <i class="ri-arrow-left-line"></i>
+      Back to dashboard
     </button>
   </header>
 
@@ -819,7 +892,6 @@
         <h1>
           <i class="ri-fediverse-fill"></i>
           Federation Peers
-          <span class="count-badge" x-text="peers.length"></span>
         </h1>
         <button class="btn btn-outline" @click="loadPeers()" :disabled="loading">
           <i class="ri-refresh-line" :style="loading ? 'animation: spin 0.55s linear infinite' : ''"></i>
@@ -931,7 +1003,7 @@
                       </div>
                     </template>
                     <template x-if="peer.status === 'accepted'">
-                      <button class="btn btn-danger btn-sm" @click="disconnect(peer)" :disabled="loading">
+                      <button class="btn btn-danger btn-sm" @click="openDisconnect(peer)" :disabled="loading">
                         <span x-show="loading" class="spinner" style="width:12px;height:12px" aria-hidden="true"></span>
                         Disconnect
                       </button>
@@ -977,6 +1049,28 @@
 
     </div>
   </main>
+
+  <!-- ── Disconnect confirm modal ──────────────────────────── -->
+  <div class="modal-backdrop" x-show="confirmModal.open" x-cloak
+       @keydown.escape.window="closeDisconnect()"
+       @click.self="closeDisconnect()">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-icon"><i class="ri-link-unlink-m"></i></div>
+      <h2 id="modal-title">Disconnect instance?</h2>
+      <p>
+        This will send an <strong>Undo·Follow</strong> or <strong>Reject·Follow</strong>
+        to <strong x-text="confirmModal.peer?.domain"></strong> and stop all content
+        synchronization between the two instances.
+      </p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" @click="closeDisconnect()">Cancel</button>
+        <button class="btn btn-danger" @click="disconnect()">
+          <i class="ri-link-unlink-m"></i>
+          Disconnect
+        </button>
+      </div>
+    </div>
+  </div>
 
 </body>
 
