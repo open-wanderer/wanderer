@@ -53,11 +53,6 @@ func buildNodeInfoDiscovery(origin string) map[string]any {
 // for total user count. The version field is overwritten by the SvelteKit proxy at
 // /.well-known/nodeinfo/2.1, which injects the version from web/package.json.
 func buildNodeInfo21(app core.App) (map[string]any, error) {
-	version := os.Getenv("WANDERER_VERSION")
-	if version == "" {
-		version = "dev"
-	}
-
 	// localPosts = public trails authored by local actors only. Federated trails
 	// (is_local=false actors) are excluded so the count reflects what this instance
 	// produces, matching fediverse convention.
@@ -81,7 +76,7 @@ func buildNodeInfo21(app core.App) (map[string]any, error) {
 		"version": "2.1",
 		"software": map[string]any{
 			"name":       "wanderer",
-			"version":    version,
+			"version":    "dev",
 			"homepage":   "https://wanderer.to",
 			"repository": "https://github.com/Flomp/wanderer",
 		},

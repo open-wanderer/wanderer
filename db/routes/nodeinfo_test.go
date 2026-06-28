@@ -133,44 +133,6 @@ func TestNodeInfo21SoftwareName(t *testing.T) {
 	}
 }
 
-// TestNodeInfo21VersionFallback verifies that WANDERER_VERSION="" produces "dev".
-func TestNodeInfo21VersionFallback(t *testing.T) {
-	app := newNodeInfoTestApp(t)
-	defer app.ResetBootstrapState()
-
-	t.Setenv("WANDERER_VERSION", "")
-	payload, err := buildNodeInfo21(app)
-	if err != nil {
-		t.Fatalf("buildNodeInfo21: %v", err)
-	}
-	sw, ok := payload["software"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected software to be map[string]any, got %T", payload["software"])
-	}
-	if sw["version"] != "dev" {
-		t.Errorf("software.version = %q, want \"dev\" when WANDERER_VERSION unset", sw["version"])
-	}
-}
-
-// TestNodeInfo21VersionFromEnv verifies that WANDERER_VERSION="1.2.3" is reflected.
-func TestNodeInfo21VersionFromEnv(t *testing.T) {
-	app := newNodeInfoTestApp(t)
-	defer app.ResetBootstrapState()
-
-	t.Setenv("WANDERER_VERSION", "1.2.3")
-	payload, err := buildNodeInfo21(app)
-	if err != nil {
-		t.Fatalf("buildNodeInfo21: %v", err)
-	}
-	sw, ok := payload["software"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected software to be map[string]any, got %T", payload["software"])
-	}
-	if sw["version"] != "1.2.3" {
-		t.Errorf("software.version = %q, want \"1.2.3\"", sw["version"])
-	}
-}
-
 // TestNodeInfo21LocalPostsExcludesPrivate verifies that private trails are excluded from
 // localPosts count (D-02 privacy hard constraint).
 func TestNodeInfo21LocalPostsExcludesPrivate(t *testing.T) {
