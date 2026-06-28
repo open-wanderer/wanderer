@@ -49,11 +49,11 @@ func buildNodeInfoDiscovery(origin string) map[string]any {
 }
 
 // buildNodeInfo21 returns the NodeInfo 2.1 payload with live user and post counts.
-// It queries the trails collection for public-only trails (D-02) and the users
-// collection for total user count (D-03). The software version is sourced from
-// the WANDERER_VERSION environment variable, falling back to "dev" when unset (D-01).
+// It queries the trails collection for local public trails (D-02) and the users
+// collection for total user count (D-03). The version field is overwritten by the
+// SvelteKit proxy at /.well-known/nodeinfo/2.1, which injects the version from
+// web/package.json before returning the response to clients.
 func buildNodeInfo21(app core.App) (map[string]any, error) {
-	// D-01: version from env, fall back to "dev"
 	version := os.Getenv("WANDERER_VERSION")
 	if version == "" {
 		version = "dev"
