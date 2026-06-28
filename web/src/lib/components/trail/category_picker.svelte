@@ -26,6 +26,7 @@
         displaySubcategoryBadgeIcon,
         displaySubcategoryIcon,
         displaySubcategoryLabel,
+        sortedSubcategoriesByPreference,
         subcategoryVisible,
     } from "$lib/util/category_util";
     import { onDestroy, onMount } from "svelte";
@@ -82,8 +83,8 @@
                 value: `category:${category.id}`,
                 icon: displayCategoryIcon(category),
             },
-            ...$subcategories
-                .filter(
+            ...sortedSubcategoriesByPreference(
+                $subcategories.filter(
                     (subcategory) =>
                         subcategory.category === category.id &&
                         (subcategoryVisible(
@@ -91,7 +92,10 @@
                             $subcategoryPreferences,
                         ) ||
                             subcategory.id === selectedSubcategoryId),
-                )
+                ),
+                $subcategoryPreferences,
+                $locale,
+            )
                 .map((subcategory) => ({
                     text: displayCategoryName(category, $locale),
                     detail: displaySubcategoryLabel(subcategory, $locale),

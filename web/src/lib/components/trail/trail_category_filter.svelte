@@ -12,12 +12,13 @@
     import {
         displayCategoryIcon,
         displayCategoryName,
-        displayCategoryShortName,
         displaySubcategoryBadgeIcon,
         displaySubcategoryIcon,
         displaySubcategoryLabel,
+        displaySubcategoryShortBadge,
         preferenceForCategory,
         sortedCategoriesByPreference,
+        sortedSubcategoriesByPreference,
         subcategoryVisible,
     } from "$lib/util/category_util";
     import { _, locale } from "svelte-i18n";
@@ -47,8 +48,8 @@
         )
             .filter(
                 (c) =>
-                    !preferenceForCategory($categoryPreferences, c.id)
-                        ?.exclude_search || filter.category.includes(c.id),
+                    preferenceForCategory($categoryPreferences, c.id)?.visible !==
+                        false || filter.category.includes(c.id),
             )
             .map((c) => ({
                 value: c.id,
@@ -99,13 +100,13 @@
             filter.category.includes(category.value),
         ),
     );
-    let explicitExcludedSearchCategories = $derived(
+    let activeHiddenCategories = $derived(
         categories
             .filter(
                 (category) =>
                     filter.category.includes(category.id) &&
                     preferenceForCategory($categoryPreferences, category.id)
-                        ?.exclude_search,
+                        ?.visible === false,
             )
             .map((category) => displayCategoryName(category, $locale)),
     );
@@ -130,14 +131,18 @@
     let selectedSubcategoryIds = $derived(filter.subcategory ?? []);
     let hoveredSubcategories = $derived(
         hoveredCategoryId
-            ? $subcategories.filter(
-                  (subcategory) =>
-                      subcategory.category === hoveredCategoryId &&
-                      (subcategoryVisible(
-                          subcategory.id,
-                          $subcategoryPreferences,
-                      ) ||
-                          selectedSubcategoryIds.includes(subcategory.id)),
+            ? sortedSubcategoriesByPreference(
+                  $subcategories.filter(
+                      (subcategory) =>
+                          subcategory.category === hoveredCategoryId &&
+                          (subcategoryVisible(
+                              subcategory.id,
+                              $subcategoryPreferences,
+                          ) ||
+                              selectedSubcategoryIds.includes(subcategory.id)),
+                  ),
+                  $subcategoryPreferences,
+                  $locale,
               )
             : [],
     );
@@ -422,34 +427,6 @@
         hideSubcategoryOverlay(category);
     }
 
-    function subcategoryShortBadge(subcategory: Subcategory) {
-        const shortName = displayCategoryShortName(subcategory, $locale);
-        const label = displaySubcategoryLabel(subcategory, $locale);
-
-        if (shortName && shortName !== label) {
-            return shortName.toUpperCase();
-        }
-
-        if (subcategory.short_name?.trim()) {
-            return subcategory.short_name.trim().toUpperCase();
-        }
-
-        const normalizedLabel = label.trim();
-        if (normalizedLabel.length <= 5) {
-            return normalizedLabel.toUpperCase();
-        }
-
-        const words = normalizedLabel.match(/[\p{L}\p{N}]+/gu) ?? [];
-        if (words.length > 1) {
-            return words
-                .map((word) => word.at(0))
-                .join("")
-                .slice(0, 5)
-                .toUpperCase();
-        }
-
-        return normalizedLabel.slice(0, 4).toUpperCase();
-    }
 </script>
 
 {#snippet categoryButton(category: CategorySelectItem)}
@@ -570,7 +547,10 @@
                             {@const subcategoryInherited = selected && selectedSubcategoriesForCategory.length === 0}
                             {@const subcategoryActive = subcategorySelected || subcategoryInherited}
                             {@const subcategoryLabel = displaySubcategoryLabel(subcategory, $locale)}
-                            {@const badge = subcategoryShortBadge(subcategory)}
+                            {@const badge = displaySubcategoryShortBadge(
+                                subcategory,
+                                $locale,
+                            )}
                             {@const badgeIcon = displaySubcategoryBadgeIcon(subcategory)}
                             <button
                                 type="button"
@@ -699,14 +679,14 @@
         </div>
     {/if}
 </div>
-{#if explicitExcludedSearchCategories.length}
+{#if activeHiddenCategories.length}
     <div
         class="mt-3 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-800 dark:text-yellow-200"
     >
         <i class="fa fa-warning mr-2"></i>
-        {$_("category-filter-exclude-search-override", {
+        {$_("category-filter-hidden-active", {
             values: {
-                categories: explicitExcludedSearchCategories.join(", "),
+                categories: activeHiddenCategories.join(", "),
             },
         })}
     </div>

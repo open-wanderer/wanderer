@@ -269,6 +269,42 @@ export function displaySubcategoryLabel(
     return displaySubcategoryName(subcategory, locale);
 }
 
+export function displaySubcategoryShortBadge(
+    subcategory?: Subcategory | null,
+    locale?: string | null,
+): string {
+    if (!subcategory) {
+        return "";
+    }
+
+    const shortName = displayCategoryShortName(subcategory, locale);
+    const label = displaySubcategoryLabel(subcategory, locale);
+
+    if (shortName && shortName !== label) {
+        return shortName.toUpperCase();
+    }
+
+    if (subcategory.short_name?.trim()) {
+        return subcategory.short_name.trim().toUpperCase();
+    }
+
+    const normalizedLabel = label.trim();
+    if (normalizedLabel.length <= 5) {
+        return normalizedLabel.toUpperCase();
+    }
+
+    const words = normalizedLabel.match(/[\p{L}\p{N}]+/gu) ?? [];
+    if (words.length > 1) {
+        return words
+            .map((word) => word.at(0))
+            .join("")
+            .slice(0, 5)
+            .toUpperCase();
+    }
+
+    return normalizedLabel.slice(0, 4).toUpperCase();
+}
+
 export function preferenceForCategory(
     preferences: UserCategoryPreference[],
     categoryId?: string | null,
@@ -321,6 +357,35 @@ export function sortedCategoriesByPreference(
     });
 }
 
+export function sortedSubcategoriesByPreference(
+    subcategories: Subcategory[],
+    preferences: UserSubcategoryPreference[],
+    locale?: string | null,
+): Subcategory[] {
+    return [...subcategories].sort((a, b) => {
+        const aPriority = preferenceForSubcategory(preferences, a.id)?.priority;
+        const bPriority = preferenceForSubcategory(preferences, b.id)?.priority;
+        const aPrioritized = typeof aPriority === "number" && aPriority > 0;
+        const bPrioritized = typeof bPriority === "number" && bPriority > 0;
+
+        if (aPrioritized && bPrioritized && aPriority !== bPriority) {
+            return aPriority - bPriority;
+        }
+        if (aPrioritized && !bPrioritized) {
+            return -1;
+        }
+        if (bPrioritized && !aPrioritized) {
+            return 1;
+        }
+
+        return displaySubcategoryLabel(a, locale).localeCompare(
+            displaySubcategoryLabel(b, locale),
+            locale ?? undefined,
+            { sensitivity: "base" },
+        );
+    });
+}
+
 export function categoryVisibleInDesign(
     category: Category,
     preferences: UserCategoryPreference[],
@@ -330,7 +395,7 @@ export function categoryVisibleInDesign(
         return true;
     }
 
-    return !preferenceForCategory(preferences, category.id)?.hide_design;
+    return preferenceForCategory(preferences, category.id)?.visible !== false;
 }
 
 export function designSelectableCategories(

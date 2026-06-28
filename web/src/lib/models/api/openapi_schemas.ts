@@ -245,6 +245,7 @@
  *         - id
  *         - user
  *         - category
+ *         - visible
  *       properties:
  *         id:
  *           type: string
@@ -255,11 +256,7 @@
  *         category:
  *           type: string
  *           description: Category ID (15 chars)
- *         exclude_search:
- *           type: boolean
- *         hide_design:
- *           type: boolean
- *         exclude_federated:
+ *         visible:
  *           type: boolean
  *         priority:
  *           type: integer
@@ -275,15 +272,12 @@
  *       type: object
  *       required:
  *         - category
+ *         - visible
  *       properties:
  *         category:
  *           type: string
  *           description: Category ID (15 chars)
- *         exclude_search:
- *           type: boolean
- *         hide_design:
- *           type: boolean
- *         exclude_federated:
+ *         visible:
  *           type: boolean
  *
  *     UserCategoryPreferenceReorderInput:
@@ -303,6 +297,7 @@
  *         - id
  *         - user
  *         - subcategory
+ *         - visible
  *       properties:
  *         id:
  *           type: string
@@ -315,6 +310,9 @@
  *           description: Subcategory ID (15 chars)
  *         visible:
  *           type: boolean
+ *         priority:
+ *           type: integer
+ *           nullable: true
  *         created:
  *           type: string
  *           format: date-time
@@ -333,6 +331,21 @@
  *           description: Subcategory ID (15 chars)
  *         visible:
  *           type: boolean
+ *
+ *     UserSubcategoryPreferenceReorderInput:
+ *       type: object
+ *       required:
+ *         - category
+ *         - subcategories
+ *       properties:
+ *         category:
+ *           type: string
+ *           description: Category ID (15 chars)
+ *         subcategories:
+ *           type: array
+ *           items:
+ *             type: string
+ *             description: Subcategory ID (15 chars)
  *
  *     Trail:
  *       type: object

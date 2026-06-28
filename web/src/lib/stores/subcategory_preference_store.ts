@@ -42,3 +42,19 @@ export async function subcategory_preferences_save(
 
     return response;
 }
+
+export async function subcategory_preferences_reorder(
+    category: string,
+    subcategories: string[],
+) {
+    const r = await fetch("/api/v1/user-subcategory-preference/reorder", {
+        method: "POST",
+        body: JSON.stringify({ category, subcategories }),
+    });
+    if (!r.ok) {
+        const response = await r.json();
+        throw new APIError(r.status, response.message, response.detail);
+    }
+
+    return await r.json();
+}

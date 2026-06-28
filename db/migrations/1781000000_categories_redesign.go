@@ -606,26 +606,8 @@ func createUserCategoryPreferencesCollection(app core.App) error {
 			},
 			{
 				"hidden": false,
-				"id": "boolphase3srch",
-				"name": "exclude_search",
-				"presentable": false,
-				"required": false,
-				"system": false,
-				"type": "bool"
-			},
-			{
-				"hidden": false,
-				"id": "boolphase3hide",
-				"name": "hide_design",
-				"presentable": false,
-				"required": false,
-				"system": false,
-				"type": "bool"
-			},
-			{
-				"hidden": false,
-				"id": "boolphase3fed",
-				"name": "exclude_federated",
+				"id": "boolphase3visible",
+				"name": "visible",
 				"presentable": false,
 				"required": false,
 				"system": false,
@@ -735,6 +717,18 @@ func createUserSubcategoryPreferencesCollection(app core.App) error {
 			},
 			{
 				"hidden": false,
+				"id": "num178125prio",
+				"max": null,
+				"min": 1,
+				"name": "priority",
+				"onlyInt": true,
+				"presentable": false,
+				"required": false,
+				"system": false,
+				"type": "number"
+			},
+			{
+				"hidden": false,
 				"id": "autodate178125created",
 				"name": "created",
 				"onCreate": true,
@@ -769,8 +763,6 @@ func createUserSubcategoryPreferencesCollection(app core.App) error {
 	return saveCollectionFromJSON(app, jsonData)
 }
 
-const defaultPriorityCategoryName = "Hiking"
-
 // migrateFavouriteSportToPriority carries the former per-user "favourite sport"
 // (settings.category) over to the new category priority model: the favourite becomes
 // the user's priority-1 category. Users without a favourite get a common default
@@ -782,88 +774,13 @@ func migrateFavouriteSportToPriority(app core.App) error {
 		return err
 	}
 
-	preferences, err := app.FindCollectionByNameOrId("user_category_preferences")
-	if err != nil {
-		return err
-	}
-
-	defaultCategoryID, err := categoryIDByName(app, defaultPriorityCategoryName)
-	if err != nil {
-		return err
-	}
-
 	for _, settings := range settingsRecords {
-		categoryID := settings.GetString("category")
-		userID := settings.GetString("user")
-		if userID == "" {
-			continue
-		}
-
-		prioritized, err := app.FindRecordsByFilter(
-			"user_category_preferences",
-			"user = {:user} && priority > 0",
-			"",
-			1,
-			0,
-			map[string]any{"user": userID},
-		)
-		if err != nil {
-			return err
-		}
-		if len(prioritized) > 0 {
-			continue
-		}
-
-		if categoryID == "" {
-			categoryID = defaultCategoryID
-		}
-		if categoryID == "" {
-			continue
-		}
-
-		existing, err := app.FindRecordsByFilter(
-			"user_category_preferences",
-			"user = {:user} && category = {:category}",
-			"",
-			1,
-			0,
-			map[string]any{"user": userID, "category": categoryID},
-		)
-		if err != nil {
-			return err
-		}
-
-		var record *core.Record
-		if len(existing) > 0 {
-			record = existing[0]
-		} else {
-			record = core.NewRecord(preferences)
-			record.Set("user", userID)
-			record.Set("category", categoryID)
-		}
-		record.Set("priority", 1)
-		if err := app.Save(record); err != nil {
+		if err := util.EnsureUserCategoryPriority(app, settings.GetString("user"), settings.GetString("category")); err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func categoryIDByName(app core.App, name string) (string, error) {
-	categories, err := app.FindAllRecords("categories")
-	if err != nil {
-		return "", err
-	}
-
-	normalizedName := util.NormalizeCategoryName(name)
-	for _, category := range categories {
-		if util.NormalizeCategoryName(category.GetString("name")) == normalizedName {
-			return category.Id, nil
-		}
-	}
-
-	return "", nil
 }
 
 func removeSettingsCategoryField(app core.App) error {

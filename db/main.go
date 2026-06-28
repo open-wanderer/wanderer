@@ -105,6 +105,8 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordCreateRequest("user_category_preferences").BindFunc(hooks.ValidateUserCategoryPreferenceHandler())
 	app.OnRecordUpdateRequest("user_category_preferences").BindFunc(hooks.ValidateUserCategoryPreferenceHandler())
+	app.OnRecordCreateRequest("user_subcategory_preferences").BindFunc(hooks.ValidateUserSubcategoryPreferenceHandler())
+	app.OnRecordUpdateRequest("user_subcategory_preferences").BindFunc(hooks.ValidateUserSubcategoryPreferenceHandler())
 
 	app.OnRecordCreateRequest("trails").BindFunc(hooks.ValidateTrailSubcategoryHandler())
 	app.OnRecordUpdateRequest("trails").BindFunc(hooks.ValidateTrailSubcategoryHandler())
@@ -179,6 +181,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/user/email", routes.UserEmailChange)
 	se.Router.POST("/waypoint/cluster", routes.WaypointCluster)
 	se.Router.POST("/category-preferences/reorder", routes.CategoryPreferencesReorder)
+	se.Router.POST("/subcategory-preferences/reorder", routes.SubcategoryPreferencesReorder)
 
 	se.Router.POST("/trail-merge/suggest", routes.TrailMergeSuggest)
 	se.Router.POST("/trail-merge", routes.TrailMerge(client))

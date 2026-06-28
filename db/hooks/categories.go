@@ -73,6 +73,21 @@ func ValidateUserCategoryPreferenceHandler() func(e *core.RecordRequestEvent) er
 	}
 }
 
+func ValidateUserSubcategoryPreferenceHandler() func(e *core.RecordRequestEvent) error {
+	return func(e *core.RecordRequestEvent) error {
+		requestInfo, err := e.RequestInfo()
+		if err != nil {
+			return err
+		}
+
+		if err := util.ValidateUserSubcategoryPreferenceRequest(requestBodyHasField(requestInfo.Body, "priority")); err != nil {
+			return apis.NewBadRequestError(err.Error(), err)
+		}
+
+		return e.Next()
+	}
+}
+
 func ValidateTrailSubcategoryHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
 		requestInfo, err := e.RequestInfo()

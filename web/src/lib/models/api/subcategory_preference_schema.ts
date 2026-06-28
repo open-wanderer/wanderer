@@ -5,4 +5,12 @@ const UserSubcategoryPreferenceUpsertSchema = z.object({
     visible: z.boolean(),
 });
 
-export { UserSubcategoryPreferenceUpsertSchema };
+const UserSubcategoryPreferenceReorderSchema = z.object({
+    category: z.string().length(15),
+    subcategories: z.array(z.string().length(15)),
+});
+
+export {
+    UserSubcategoryPreferenceReorderSchema,
+    UserSubcategoryPreferenceUpsertSchema,
+};

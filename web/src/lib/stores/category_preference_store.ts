@@ -24,10 +24,7 @@ export async function category_preferences_index(
 }
 
 export async function category_preferences_save(
-    preference: Pick<
-        UserCategoryPreference,
-        "category" | "exclude_search" | "hide_design" | "exclude_federated"
-    >,
+    preference: Pick<UserCategoryPreference, "category" | "visible">,
 ) {
     const r = await fetch("/api/v1/user-category-preference", {
         method: "PUT",

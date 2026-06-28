@@ -30,14 +30,6 @@ function meiliFilterParts(filter: unknown): string[] {
     return [];
 }
 
-function hasExplicitCategoryFilter(parts: string[]) {
-    return parts.some((part) => /\bcategory_id\s*(=|IN)\b/i.test(part));
-}
-
-function hasExplicitSubcategoryFilter(parts: string[]) {
-    return parts.some((part) => /\bsubcategory_id\s*(=|IN|IS)\b/i.test(part));
-}
-
 function isIdOnlyDetailQuery(parts: string[]) {
     return parts.length > 0 && parts.every((part) => /\bid\s+IN\b/i.test(part));
 }
@@ -95,11 +87,8 @@ async function trailPreferenceExclusions(event: RequestEvent) {
     ]);
 
     return {
-        excludedSearchIds: preferences
-            .filter((preference) => preference.exclude_search)
-            .map((preference) => preference.category),
-        excludedFederatedIds: preferences
-            .filter((preference) => preference.exclude_federated)
+        hiddenCategoryIds: preferences
+            .filter((preference) => preference.visible === false)
             .map((preference) => preference.category),
         hiddenSubcategoryIds: subcategoryPreferences
             .filter((preference) => preference.visible === false)
@@ -116,25 +105,16 @@ export async function withTrailPreferenceMeiliFilter(
         return filter;
     }
 
-    const { excludedSearchIds, excludedFederatedIds, hiddenSubcategoryIds } =
+    const { hiddenCategoryIds, hiddenSubcategoryIds } =
         await trailPreferenceExclusions(event);
 
     const preferenceParts: string[] = [];
-    if (excludedSearchIds.length && !hasExplicitCategoryFilter(parts)) {
+    if (hiddenCategoryIds.length) {
         preferenceParts.push(
-            `(category_id IS NULL OR category_id NOT IN ${quotedList(excludedSearchIds)})`,
+            `(category_id IS NULL OR category_id NOT IN ${quotedList(hiddenCategoryIds)})`,
         );
     }
-    if (excludedFederatedIds.length) {
-        preferenceParts.push(
-            `NOT (is_federated = true AND category_id IN ${quotedList(excludedFederatedIds)})`,
-        );
-    }
-    if (
-        hiddenSubcategoryIds.length &&
-        !hasExplicitCategoryFilter(parts) &&
-        !hasExplicitSubcategoryFilter(parts)
-    ) {
+    if (hiddenSubcategoryIds.length) {
         preferenceParts.push(
             `(subcategory_id IS NULL OR subcategory_id NOT IN ${quotedList(hiddenSubcategoryIds)})`,
         );
@@ -148,20 +128,8 @@ export async function withTrailPreferenceMeiliFilter(
     return nextParts;
 }
 
-function pbEqualsAny(field: string, ids: string[]) {
-    return ids.map((id) => `${field} = "${id}"`).join(" || ");
-}
-
 function pbNotEqualsAll(field: string, ids: string[]) {
     return ids.map((id) => `${field} != "${id}"`).join(" && ");
-}
-
-function hasExplicitPocketBaseCategoryFilter(filter?: string) {
-    return /\bcategory\s*(=|~|\?=)\b/i.test(filter ?? "");
-}
-
-function hasExplicitPocketBaseSubcategoryFilter(filter?: string) {
-    return /\bsubcategory\s*(=|~|\?=)\b/i.test(filter ?? "");
 }
 
 export async function withTrailPreferencePocketBaseFilter(
@@ -172,23 +140,16 @@ export async function withTrailPreferencePocketBaseFilter(
         return filter;
     }
 
-    const { excludedSearchIds, excludedFederatedIds, hiddenSubcategoryIds } =
+    const { hiddenCategoryIds, hiddenSubcategoryIds } =
         await trailPreferenceExclusions(event);
 
     const parts = filter?.trim() ? [filter] : [];
-    if (excludedSearchIds.length && !hasExplicitPocketBaseCategoryFilter(filter)) {
-        parts.push(`(category = "" || (${pbNotEqualsAll("category", excludedSearchIds)}))`);
-    }
-    if (excludedFederatedIds.length) {
+    if (hiddenCategoryIds.length) {
         parts.push(
-            `(author.is_local = true || category = "" || !(${pbEqualsAny("category", excludedFederatedIds)}))`,
+            `(category = "" || (${pbNotEqualsAll("category", hiddenCategoryIds)}))`,
         );
     }
-    if (
-        hiddenSubcategoryIds.length &&
-        !hasExplicitPocketBaseCategoryFilter(filter) &&
-        !hasExplicitPocketBaseSubcategoryFilter(filter)
-    ) {
+    if (hiddenSubcategoryIds.length) {
         parts.push(
             `(subcategory = "" || (${pbNotEqualsAll("subcategory", hiddenSubcategoryIds)}))`,
         );

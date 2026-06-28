@@ -2,9 +2,7 @@ interface UserCategoryPreference {
     id?: string;
     user: string;
     category: string;
-    exclude_search?: boolean;
-    hide_design?: boolean;
-    exclude_federated?: boolean;
+    visible?: boolean;
     priority?: number | null;
 }
 

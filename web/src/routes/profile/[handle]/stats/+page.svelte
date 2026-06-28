@@ -62,8 +62,8 @@
         )
             .filter(
                 (c) =>
-                    !preferenceForCategory($categoryPreferences, c.id)
-                        ?.exclude_search || filter.category.includes(c.id),
+                    preferenceForCategory($categoryPreferences, c.id)?.visible !==
+                        false || filter.category.includes(c.id),
             )
             .map((c) => ({
                 value: c.id,

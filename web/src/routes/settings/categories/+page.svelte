@@ -14,16 +14,22 @@
     } from "$lib/stores/category_preference_store";
     import {
         subcategoryPreferences,
+        subcategory_preferences_index,
+        subcategory_preferences_reorder,
         subcategory_preferences_save,
     } from "$lib/stores/subcategory_preference_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import {
         categoryMappingTargetFromUnknown,
         displayCategoryName,
+        displaySubcategoryBadgeIcon,
+        displaySubcategoryIcon,
         displaySubcategoryLabel,
+        displaySubcategoryShortBadge,
         preferenceForCategory,
         resolveCategoryMappingTarget,
         sortedCategoriesByPreference,
+        sortedSubcategoriesByPreference,
         subcategoryVisible,
     } from "$lib/util/category_util";
     import { pluginTitle } from "$lib/util/plugin_i18n";
@@ -36,7 +42,6 @@
         | {
               type: "category";
               category: Category;
-              patch: Partial<UserCategoryPreference>;
           }
         | {
               type: "subcategory";
@@ -54,11 +59,16 @@
     let reordering = $state(false);
     let pendingDisable = $state<PendingDisable | null>(null);
     let categoryToggleResetKey = $state(0);
+    let expandedCategories = $state<Record<string, boolean>>({});
     let disableConfirmModal: ConfirmModal;
     let listElement: HTMLOListElement;
     let dragIndex = $state<number | null>(null);
     let insertBefore = $state<number | null>(null);
     let pointerId: number | null = null;
+    let subcategoryDragCategoryId = $state<string | null>(null);
+    let subcategoryDragIndex = $state<number | null>(null);
+    let subcategoryInsertBefore = $state<number | null>(null);
+    let subcategoryPointerId: number | null = null;
     let orderedCategories = $derived(
         sortedCategoriesByPreference(
             data.categories,
@@ -82,19 +92,38 @@
         return icon ? `fa-${icon}` : "fa-layer-group";
     }
 
-    function subcategoryIcon(subcategory: Subcategory) {
+    function subcategoryBadgeListIcon(subcategory: Subcategory) {
+        const badgeIcon = subcategory.badge_icon?.trim().replace(/^fa-/, "");
+        if (badgeIcon) {
+            return `fa-${badgeIcon}`;
+        }
         const icon = subcategory.icon?.trim().replace(/^fa-/, "");
         return icon ? `fa-${icon}` : "";
     }
 
     function subcategoriesForCategory(category: Category): Subcategory[] {
-        return data.subcategories.filter(
-            (subcategory: Subcategory) => subcategory.category === category.id,
+        return sortedSubcategoriesByPreference(
+            data.subcategories.filter(
+                (subcategory: Subcategory) => subcategory.category === category.id,
+            ),
+            $subcategoryPreferences,
+            $locale,
         );
     }
 
     function isSubcategoryVisible(subcategory: Subcategory): boolean {
         return subcategoryVisible(subcategory.id, $subcategoryPreferences);
+    }
+
+    function isCategoryExpanded(category: Category): boolean {
+        return expandedCategories[category.id] ?? false;
+    }
+
+    function toggleCategoryExpanded(category: Category) {
+        expandedCategories = {
+            ...expandedCategories,
+            [category.id]: !isCategoryExpanded(category),
+        };
     }
 
     function ownTrailCountForCategory(category: Category): number {
@@ -363,7 +392,31 @@
             return;
         }
 
-        await updatePreference(disable.category, disable.patch);
+        await saveCategoryVisibility(disable.category, false);
+    }
+
+    async function saveCategoryVisibility(category: Category, visible: boolean) {
+        savingCategory = category.id;
+        try {
+            await category_preferences_save({
+                category: category.id,
+                visible,
+            });
+            show_toast({
+                type: "success",
+                icon: "check",
+                text: $_("settings-saved"),
+            });
+        } catch (e) {
+            console.error(e);
+            show_toast({
+                type: "error",
+                icon: "close",
+                text: $_("error-saving-settings"),
+            });
+        } finally {
+            savingCategory = null;
+        }
     }
 
     async function saveSubcategoryVisibility(
@@ -410,52 +463,7 @@
         await saveSubcategoryVisibility(subcategory, visible);
     }
 
-    async function updatePreference(
-        category: Category,
-        patch: Partial<UserCategoryPreference>,
-    ) {
-        const current = preference(category);
-        savingCategory = category.id;
-        try {
-            await category_preferences_save({
-                category: category.id,
-                exclude_search:
-                    patch.exclude_search ?? current?.exclude_search ?? false,
-                hide_design: patch.hide_design ?? current?.hide_design ?? false,
-                exclude_federated:
-                    patch.exclude_federated ??
-                    current?.exclude_federated ??
-                    false,
-            });
-            show_toast({
-                type: "success",
-                icon: "check",
-                text: $_("settings-saved"),
-            });
-        } catch (e) {
-            console.error(e);
-            show_toast({
-                type: "error",
-                icon: "close",
-                text: $_("error-saving-settings"),
-            });
-        } finally {
-            savingCategory = null;
-        }
-    }
-
     async function toggleCategoryVisibility(category: Category, visible: boolean) {
-        const patch = visible
-            ? {
-                  exclude_search: false,
-                  hide_design: false,
-              }
-            : {
-                  exclude_search: true,
-                  hide_design: true,
-                  exclude_federated: true,
-              };
-
         if (
             !visible &&
             (ownTrailCountForCategory(category) > 0 ||
@@ -464,12 +472,11 @@
             await promptBeforeDisable({
                 type: "category",
                 category,
-                patch,
             });
             return;
         }
 
-        await updatePreference(category, patch);
+        await saveCategoryVisibility(category, visible);
     }
 
     async function reorderCategory(fromIndex: number, toIndex: number) {
@@ -491,6 +498,47 @@
         try {
             await category_preferences_reorder(categoryIds);
             await category_preferences_index();
+            show_toast({
+                type: "success",
+                icon: "check",
+                text: $_("settings-saved"),
+            });
+        } catch (e) {
+            console.error(e);
+            show_toast({
+                type: "error",
+                icon: "close",
+                text: $_("error-saving-settings"),
+            });
+        } finally {
+            reordering = false;
+        }
+    }
+
+    async function reorderSubcategory(
+        category: Category,
+        subcategories: Subcategory[],
+        fromIndex: number,
+        toIndex: number,
+    ) {
+        if (
+            fromIndex < 0 ||
+            toIndex < 0 ||
+            fromIndex >= subcategories.length ||
+            toIndex >= subcategories.length ||
+            fromIndex === toIndex
+        ) {
+            return;
+        }
+
+        const subcategoryIds = subcategories.map((item) => item.id);
+        const [subcategoryId] = subcategoryIds.splice(fromIndex, 1);
+        subcategoryIds.splice(toIndex, 0, subcategoryId);
+
+        reordering = true;
+        try {
+            await subcategory_preferences_reorder(category.id, subcategoryIds);
+            await subcategory_preferences_index();
             show_toast({
                 type: "success",
                 icon: "check",
@@ -533,10 +581,47 @@
         return orderedCategories.length;
     }
 
+    function isValidSubcategoryInsert(category: Category, pos: number): boolean {
+        return (
+            subcategoryDragCategoryId === category.id &&
+            subcategoryDragIndex !== null &&
+            subcategoryInsertBefore === pos &&
+            pos !== subcategoryDragIndex &&
+            pos !== subcategoryDragIndex + 1
+        );
+    }
+
+    function getSubcategoryInsertPosition(
+        list: HTMLElement,
+        clientY: number,
+        fallbackLength: number,
+    ): number {
+        const items = Array.from(
+            list.querySelectorAll<HTMLElement>("li[data-subcategory-index]"),
+        );
+
+        for (const item of items) {
+            const itemIndex = Number(item.dataset.subcategoryIndex);
+            const rect = item.getBoundingClientRect();
+            if (clientY < rect.top + rect.height / 2) {
+                return itemIndex;
+            }
+        }
+
+        return fallbackLength;
+    }
+
     function clearDragState() {
         dragIndex = null;
         insertBefore = null;
         pointerId = null;
+    }
+
+    function clearSubcategoryDragState() {
+        subcategoryDragCategoryId = null;
+        subcategoryDragIndex = null;
+        subcategoryInsertBefore = null;
+        subcategoryPointerId = null;
     }
 
     async function handleKeyDown(e: KeyboardEvent, index: number) {
@@ -604,6 +689,110 @@
 
         clearDragState();
     }
+
+    async function handleSubcategoryKeyDown(
+        e: KeyboardEvent,
+        category: Category,
+        subcategories: Subcategory[],
+        index: number,
+    ) {
+        if (reordering) {
+            return;
+        }
+
+        let toIndex: number | null = null;
+        if (e.key === "ArrowUp" && index > 0) {
+            e.preventDefault();
+            toIndex = index - 1;
+        } else if (e.key === "ArrowDown" && index < subcategories.length - 1) {
+            e.preventDefault();
+            toIndex = index + 1;
+        }
+        if (toIndex === null) {
+            return;
+        }
+
+        await reorderSubcategory(category, subcategories, index, toIndex);
+        await tick();
+        const handles = listElement.querySelectorAll<HTMLElement>(
+            `ol[data-subcategory-list="${category.id}"] button.drag-hitarea`,
+        );
+        handles[toIndex]?.focus();
+    }
+
+    function handleSubcategoryPointerDown(
+        e: PointerEvent,
+        category: Category,
+        index: number,
+    ) {
+        if (reordering || e.button !== 0) {
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        subcategoryDragCategoryId = category.id;
+        subcategoryDragIndex = index;
+        subcategoryInsertBefore = index;
+        subcategoryPointerId = e.pointerId;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    }
+
+    function handleSubcategoryPointerMove(
+        e: PointerEvent,
+        subcategories: Subcategory[],
+    ) {
+        if (
+            subcategoryPointerId !== e.pointerId ||
+            subcategoryDragIndex === null
+        ) {
+            return;
+        }
+
+        const list = (e.currentTarget as HTMLElement).closest<HTMLElement>(
+            "ol[data-subcategory-list]",
+        );
+        if (!list) {
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        subcategoryInsertBefore = getSubcategoryInsertPosition(
+            list,
+            e.clientY,
+            subcategories.length,
+        );
+    }
+
+    async function handleSubcategoryPointerUp(
+        e: PointerEvent,
+        category: Category,
+        subcategories: Subcategory[],
+    ) {
+        if (subcategoryPointerId !== e.pointerId) {
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        if (subcategoryDragIndex !== null && subcategoryInsertBefore !== null) {
+            const toIndex =
+                subcategoryDragIndex < subcategoryInsertBefore
+                    ? subcategoryInsertBefore - 1
+                    : subcategoryInsertBefore;
+            if (toIndex !== subcategoryDragIndex) {
+                await reorderSubcategory(
+                    category,
+                    subcategories,
+                    subcategoryDragIndex,
+                    toIndex,
+                );
+            }
+        }
+
+        clearSubcategoryDragState();
+    }
 </script>
 
 <svelte:head>
@@ -616,29 +805,13 @@
 </p>
 <hr class="mt-4 mb-6 border-input-border" />
 
-<div
-    class="hidden px-4 pb-1 text-sm font-medium md:grid md:grid-cols-[4rem_minmax(11rem,1fr)_max-content] md:gap-x-5"
->
-    <div></div>
-    <div></div>
-    <div class="grid grid-cols-[6rem_7.25rem] justify-items-center gap-x-2">
-        <span class="text-center">
-            {$_("category-preference-visible")}
-        </span>
-        <span class="text-center">
-            {$_("category-preference-federated")}
-        </span>
-    </div>
-</div>
-
 <ol bind:this={listElement} class="category-list flex flex-col gap-3 py-2">
     {#each orderedCategories as category, index}
         {@const currentPreference = preference(category)}
-        {@const categoryHidden =
-            (currentPreference?.exclude_search ?? false) ||
-            (currentPreference?.hide_design ?? false)}
+        {@const categoryVisible = currentPreference?.visible !== false}
         {@const categoryName = displayCategoryName(category, $locale)}
         {@const childSubcategories = subcategoriesForCategory(category)}
+        {@const categoryExpanded = isCategoryExpanded(category)}
         <li
             data-category-index={index}
             class="rounded-xl border border-input-border p-4 transition-colors hover:bg-secondary-hover"
@@ -648,10 +821,12 @@
                 isValidInsert(orderedCategories.length)}
         >
             <div
-                class="grid grid-cols-[4rem_minmax(0,1fr)] gap-x-5 gap-y-3 md:grid-cols-[4rem_minmax(11rem,1fr)_max-content]"
+                class="grid grid-cols-[4rem_minmax(0,1fr)_max-content] gap-x-5 gap-y-3"
             >
                 <button
-                    class="drag-hitarea absolute inset-y-0 left-0 z-10 w-24 rounded-md p-0 disabled:cursor-not-allowed disabled:opacity-50"
+                    class="drag-hitarea absolute left-0 top-0 z-10 w-24 p-0 disabled:cursor-not-allowed disabled:opacity-50 {categoryExpanded
+                        ? 'h-24'
+                        : 'bottom-0'}"
                     type="button"
                     disabled={reordering}
                     aria-label={`${$_("category-preferences")}: ${categoryName}`}
@@ -664,7 +839,9 @@
                     onlostpointercapture={clearDragState}
                 ></button>
                 <span
-                    class="drag-handle absolute inset-y-0 left-0 w-12 rounded-md"
+                    class="drag-handle absolute left-0 top-0 w-12 {categoryExpanded
+                        ? 'h-24'
+                        : 'bottom-0'}"
                 ></span>
 
                 <span
@@ -682,74 +859,194 @@
                     <h3 class="truncate text-lg font-semibold leading-6">
                         {categoryName}
                     </h3>
-
-                    {#if childSubcategories.length > 0}
+                    {#if childSubcategories.length > 0 && !categoryExpanded}
                         <div
-                            class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-4"
+                            class="mt-2 flex flex-wrap items-center gap-1.5 text-xs leading-4"
                         >
                             {#each childSubcategories as subcategory (subcategory.id)}
                                 {@const subcategoryLabel = displaySubcategoryLabel(
                                     subcategory,
                                     $locale,
                                 )}
-                                {@const visibleSubcategory = isSubcategoryVisible(subcategory)}
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm text-left transition-colors hover:text-content focus:outline-none focus:ring-1 focus:ring-inset focus:ring-input-ring"
-                                    class:text-content={visibleSubcategory}
-                                    class:text-gray-300={!visibleSubcategory}
-                                    class:dark:text-gray-700={!visibleSubcategory}
-                                    aria-pressed={visibleSubcategory}
-                                    aria-label={subcategoryLabel}
-                                    disabled={savingCategory === category.id}
-                                    onclick={() =>
-                                        toggleSubcategoryVisibility(subcategory)}
+                                {@const visibleSubcategory =
+                                    categoryVisible &&
+                                    isSubcategoryVisible(subcategory)}
+                                {@const badgeListIcon =
+                                    subcategoryBadgeListIcon(subcategory)}
+                                <span
+                                    class="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-input-background px-2 py-1 text-gray-500"
+                                    class:opacity-50={!visibleSubcategory}
                                 >
-                                    {#if subcategoryIcon(subcategory)}
+                                    {#if badgeListIcon}
                                         <i
-                                            class="fa {subcategoryIcon(
-                                                subcategory,
-                                            )} text-xs opacity-70"
+                                            class="fa {badgeListIcon} text-[0.7rem] opacity-70"
                                         ></i>
                                     {/if}
-                                    {subcategoryLabel}
-                                </button>
+                                    <span class="truncate">{subcategoryLabel}</span>
+                                </span>
                             {/each}
                         </div>
                     {/if}
                 </div>
 
                 <div
-                    class="col-span-2 row-start-2 grid w-max grid-cols-[6rem_7.25rem] items-center justify-items-center gap-x-2 gap-y-2 pl-[5.25rem] md:col-span-1 md:col-start-3 md:row-start-1 md:self-center md:justify-self-end md:pl-0"
+                    class="col-start-3 row-start-1 flex items-center gap-3 self-center justify-self-end"
                 >
-                    <span class="text-center text-sm font-medium md:hidden">
-                        {$_("category-preference-visible")}
-                    </span>
-                    <span class="text-center text-sm font-medium md:hidden">
-                        {$_("category-preference-federated")}
-                    </span>
-                    <div class="flex justify-center md:self-center">
-                        {#key `${category.id}-${categoryHidden}-${categoryToggleResetKey}`}
-                            <Toggle
-                                value={!categoryHidden}
-                                disabled={savingCategory === category.id}
-                                onchange={(value) =>
-                                    toggleCategoryVisibility(category, value)}
-                            ></Toggle>
-                        {/key}
-                    </div>
-                    <div class="flex justify-center md:self-center">
+                    {#if childSubcategories.length > 0}
+                        <button
+                            type="button"
+                            class="flex h-9 w-9 items-center justify-center rounded-md text-content transition-colors hover:bg-input-background focus:outline-none focus:ring-2 focus:ring-input-ring"
+                            aria-controls={`category-${category.id}-subcategories`}
+                            aria-expanded={categoryExpanded}
+                            aria-label={categoryExpanded
+                                ? $_("collapse-subcategories")
+                                : $_("expand-subcategories")}
+                            onclick={() => toggleCategoryExpanded(category)}
+                        >
+                            <i
+                                class="fa {categoryExpanded
+                                    ? 'fa-chevron-up'
+                                    : 'fa-chevron-down'}"
+                            ></i>
+                        </button>
+                    {/if}
+                    {#key `${category.id}-${categoryVisible}-${categoryToggleResetKey}`}
                         <Toggle
-                            value={!(currentPreference?.exclude_federated ?? false)}
-                            disabled={savingCategory === category.id}
+                            value={categoryVisible}
+                            disabled={savingCategory === category.id || reordering}
                             onchange={(value) =>
-                                updatePreference(category, {
-                                    exclude_federated: !value,
-                                })}
+                                toggleCategoryVisibility(category, value)}
                         ></Toggle>
-                    </div>
+                    {/key}
                 </div>
             </div>
+
+            {#if childSubcategories.length > 0 && categoryExpanded}
+                <div
+                    id={`category-${category.id}-subcategories`}
+                    class="mt-4 border-t border-input-border pt-3 pl-6 md:pl-20"
+                >
+                    <ol
+                        class="divide-y divide-input-border"
+                        data-subcategory-list={category.id}
+                    >
+                        {#each childSubcategories as subcategory, subcategoryIndex (subcategory.id)}
+                            {@const subcategoryLabel = displaySubcategoryLabel(
+                                subcategory,
+                                $locale,
+                            )}
+                            {@const visibleSubcategory =
+                                categoryVisible &&
+                                isSubcategoryVisible(subcategory)}
+                            {@const badgeIcon =
+                                displaySubcategoryBadgeIcon(subcategory)}
+                            {@const badge = displaySubcategoryShortBadge(
+                                subcategory,
+                                $locale,
+                            )}
+                            <li
+                                data-subcategory-index={subcategoryIndex}
+                                class="grid grid-cols-[3.125rem_minmax(0,1fr)_max-content] items-center gap-x-3 py-2 transition-opacity"
+                                class:opacity-60={!categoryVisible}
+                                class:opacity-50={subcategoryDragCategoryId ===
+                                    category.id &&
+                                    subcategoryDragIndex === subcategoryIndex}
+                                class:drop-above={isValidSubcategoryInsert(
+                                    category,
+                                    subcategoryIndex,
+                                )}
+                                class:drop-below={subcategoryIndex ===
+                                    childSubcategories.length - 1 &&
+                                    isValidSubcategoryInsert(
+                                        category,
+                                        childSubcategories.length,
+                                    )}
+                            >
+                                <button
+                                    class="drag-hitarea absolute inset-y-0 left-0 z-10 w-16 p-0 disabled:cursor-not-allowed disabled:opacity-50"
+                                    type="button"
+                                    disabled={reordering || !categoryVisible}
+                                    aria-label={`${$_("priority")}: ${subcategoryLabel}`}
+                                    aria-keyshortcuts="ArrowUp ArrowDown"
+                                    onkeydown={(e) =>
+                                        handleSubcategoryKeyDown(
+                                            e,
+                                            category,
+                                            childSubcategories,
+                                            subcategoryIndex,
+                                        )}
+                                    onpointerdown={(e) =>
+                                        handleSubcategoryPointerDown(
+                                            e,
+                                            category,
+                                            subcategoryIndex,
+                                        )}
+                                    onpointermove={(e) =>
+                                        handleSubcategoryPointerMove(
+                                            e,
+                                            childSubcategories,
+                                        )}
+                                    onpointerup={(e) =>
+                                        handleSubcategoryPointerUp(
+                                            e,
+                                            category,
+                                            childSubcategories,
+                                        )}
+                                    onpointercancel={clearSubcategoryDragState}
+                                    onlostpointercapture={clearSubcategoryDragState}
+                                ></button>
+                                <span
+                                    class="drag-handle absolute inset-y-1 left-0 z-0 w-12"
+                                ></span>
+                                <span
+                                    class="pointer-events-none relative z-10 flex h-9 w-9 justify-self-end items-center justify-center rounded-md bg-input-background text-content"
+                                    class:opacity-50={!visibleSubcategory}
+                                >
+                                    <i
+                                        class="fa {displaySubcategoryIcon(
+                                            subcategory,
+                                            category,
+                                        )} text-lg"
+                                    ></i>
+                                    {#if badgeIcon}
+                                        <i
+                                            class="fa {badgeIcon} absolute right-1 top-1 text-[9px] text-gray-500"
+                                        ></i>
+                                    {/if}
+                                    {#if badge}
+                                        <span
+                                            class="absolute -bottom-1 -right-1 max-w-10 truncate rounded-sm border border-input-border bg-background px-0.5 text-[7px] font-semibold leading-3 text-content"
+                                        >
+                                            {badge}
+                                        </span>
+                                    {/if}
+                                </span>
+                                <h4
+                                    class="min-w-0 truncate text-sm font-semibold"
+                                    class:text-gray-400={!visibleSubcategory}
+                                >
+                                    {subcategoryLabel}
+                                </h4>
+                                <div class="flex justify-center">
+                                    {#key `${subcategory.id}-${visibleSubcategory}-${categoryToggleResetKey}`}
+                                        <Toggle
+                                            value={visibleSubcategory}
+                                            disabled={savingCategory ===
+                                                category.id ||
+                                                reordering ||
+                                                !categoryVisible}
+                                            onchange={() =>
+                                                toggleSubcategoryVisibility(
+                                                    subcategory,
+                                                )}
+                                        ></Toggle>
+                                    {/key}
+                                </div>
+                            </li>
+                        {/each}
+                    </ol>
+                </div>
+            {/if}
         </li>
     {/each}
 </ol>

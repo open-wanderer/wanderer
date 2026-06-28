@@ -805,6 +805,32 @@ func TestValidateUserCategoryPreferenceRequest(t *testing.T) {
 	}
 }
 
+func TestValidateUserSubcategoryPreferenceRequest(t *testing.T) {
+	tests := []struct {
+		name             string
+		priorityExplicit bool
+		wantError        bool
+	}{
+		{
+			name: "allows requests without priority",
+		},
+		{
+			name:             "rejects explicit priority",
+			priorityExplicit: true,
+			wantError:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateUserSubcategoryPreferenceRequest(tt.priorityExplicit)
+			if (err != nil) != tt.wantError {
+				t.Fatalf("ValidateUserSubcategoryPreferenceRequest() error = %v, wantError %v", err, tt.wantError)
+			}
+		})
+	}
+}
+
 func TestReorderUserCategoryPreferencesValidation(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -871,6 +897,142 @@ func TestReorderUserCategoryPreferencesValidation(t *testing.T) {
 	}
 }
 
+func TestReorderUserSubcategoryPreferencesValidation(t *testing.T) {
+	tests := []struct {
+		name           string
+		userID         string
+		categoryID     func(categories []*core.Record) string
+		subcategoryIDs func(subcategories []*core.Record) []string
+		wantError      bool
+	}{
+		{
+			name: "requires authenticated user",
+			categoryID: func(categories []*core.Record) string {
+				return categories[0].Id
+			},
+			subcategoryIDs: func(subcategories []*core.Record) []string {
+				return []string{subcategories[0].Id, subcategories[1].Id}
+			},
+			wantError: true,
+		},
+		{
+			name:   "requires category",
+			userID: "user12345678901",
+			categoryID: func(categories []*core.Record) string {
+				return ""
+			},
+			subcategoryIDs: func(subcategories []*core.Record) []string {
+				return []string{subcategories[0].Id, subcategories[1].Id}
+			},
+			wantError: true,
+		},
+		{
+			name:   "rejects incomplete list",
+			userID: "user12345678901",
+			categoryID: func(categories []*core.Record) string {
+				return categories[0].Id
+			},
+			subcategoryIDs: func(subcategories []*core.Record) []string {
+				return []string{subcategories[0].Id}
+			},
+			wantError: true,
+		},
+		{
+			name:   "rejects duplicate subcategory",
+			userID: "user12345678901",
+			categoryID: func(categories []*core.Record) string {
+				return categories[0].Id
+			},
+			subcategoryIDs: func(subcategories []*core.Record) []string {
+				return []string{subcategories[0].Id, subcategories[0].Id}
+			},
+			wantError: true,
+		},
+		{
+			name:   "rejects subcategory from another category",
+			userID: "user12345678901",
+			categoryID: func(categories []*core.Record) string {
+				return categories[0].Id
+			},
+			subcategoryIDs: func(subcategories []*core.Record) []string {
+				return []string{subcategories[0].Id, subcategories[2].Id}
+			},
+			wantError: true,
+		},
+		{
+			name:   "allows complete subcategory list",
+			userID: "user12345678901",
+			categoryID: func(categories []*core.Record) string {
+				return categories[0].Id
+			},
+			subcategoryIDs: func(subcategories []*core.Record) []string {
+				return []string{subcategories[1].Id, subcategories[0].Id}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := setupCategoryValidationTestApp(t)
+			defer app.Cleanup()
+
+			categories := []*core.Record{
+				createTestCategory(t, app, "Hiking"),
+				createTestCategory(t, app, "Biking"),
+			}
+			subcategories := []*core.Record{
+				createTestSubcategory(t, app, categories[0].Id, "Mountain Hiking", "", ""),
+				createTestSubcategory(t, app, categories[0].Id, "Family Hiking", "", ""),
+				createTestSubcategory(t, app, categories[1].Id, "E-Bike", "", ""),
+			}
+
+			err := ReorderUserSubcategoryPreferences(app, tt.userID, tt.categoryID(categories), tt.subcategoryIDs(subcategories))
+			if (err != nil) != tt.wantError {
+				t.Fatalf("ReorderUserSubcategoryPreferences() error = %v, wantError %v", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestEnsureUserCategoryPriorityDefaultsToHiking(t *testing.T) {
+	app := setupCategoryValidationTestApp(t)
+	defer app.Cleanup()
+
+	createTestCategory(t, app, "Canoeing")
+	hiking := createTestCategory(t, app, "Hiking")
+	userID := "user12345678901"
+
+	if err := EnsureUserCategoryPriority(app, userID, ""); err != nil {
+		t.Fatalf("EnsureUserCategoryPriority() error = %v", err)
+	}
+
+	records, err := app.FindRecordsByFilter(
+		"user_category_preferences",
+		"user = {:user}",
+		"",
+		0,
+		0,
+		map[string]any{"user": userID},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("preference count = %d, want 1", len(records))
+	}
+
+	record := records[0]
+	if got := record.GetString("category"); got != hiking.Id {
+		t.Fatalf("category = %q, want Hiking id %q", got, hiking.Id)
+	}
+	if got := record.GetInt("priority"); got != 1 {
+		t.Fatalf("priority = %d, want 1", got)
+	}
+	if !record.GetBool("visible") {
+		t.Fatal("visible = false, want true")
+	}
+}
+
 func TestReorderUserCategoryPreferencesUpsertsAndRenumbers(t *testing.T) {
 	app := setupCategoryValidationTestApp(t)
 	defer app.Cleanup()
@@ -883,7 +1045,7 @@ func TestReorderUserCategoryPreferencesUpsertsAndRenumbers(t *testing.T) {
 	existing := core.NewRecord(mustFindTestCollection(t, app, "user_category_preferences"))
 	existing.Set("user", userID)
 	existing.Set("category", biking.Id)
-	existing.Set("exclude_search", true)
+	existing.Set("visible", false)
 	existing.Set("priority", 99)
 	if err := app.SaveNoValidate(existing); err != nil {
 		t.Fatal(err)
@@ -923,9 +1085,89 @@ func TestReorderUserCategoryPreferencesUpsertsAndRenumbers(t *testing.T) {
 			if record.Id != existing.Id {
 				t.Fatalf("biking preference id = %q, want existing id %q", record.Id, existing.Id)
 			}
-			if !record.GetBool("exclude_search") {
-				t.Fatal("existing preference exclude_search = false, want true")
+			if record.GetBool("visible") {
+				t.Fatal("existing preference visible = true, want false")
 			}
+		} else {
+			if !record.GetBool("visible") {
+				t.Fatalf("new preference for category %q visible = false, want true", categoryID)
+			}
+		}
+	}
+}
+
+func TestReorderUserSubcategoryPreferencesUpsertsAndRenumbers(t *testing.T) {
+	app := setupCategoryValidationTestApp(t)
+	defer app.Cleanup()
+
+	hiking := createTestCategory(t, app, "Hiking")
+	biking := createTestCategory(t, app, "Biking")
+	mountain := createTestSubcategory(t, app, hiking.Id, "Mountain Hiking", "", "")
+	family := createTestSubcategory(t, app, hiking.Id, "Family Hiking", "", "")
+	ebike := createTestSubcategory(t, app, biking.Id, "E-Bike", "", "")
+	userID := "user12345678901"
+
+	existing := core.NewRecord(mustFindTestCollection(t, app, "user_subcategory_preferences"))
+	existing.Set("user", userID)
+	existing.Set("subcategory", family.Id)
+	existing.Set("visible", false)
+	existing.Set("priority", 99)
+	if err := app.SaveNoValidate(existing); err != nil {
+		t.Fatal(err)
+	}
+
+	otherCategoryPreference := core.NewRecord(mustFindTestCollection(t, app, "user_subcategory_preferences"))
+	otherCategoryPreference.Set("user", userID)
+	otherCategoryPreference.Set("subcategory", ebike.Id)
+	otherCategoryPreference.Set("visible", true)
+	otherCategoryPreference.Set("priority", 12)
+	if err := app.SaveNoValidate(otherCategoryPreference); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ReorderUserSubcategoryPreferences(app, userID, hiking.Id, []string{family.Id, mountain.Id}); err != nil {
+		t.Fatalf("ReorderUserSubcategoryPreferences() error = %v", err)
+	}
+
+	records, err := app.FindRecordsByFilter(
+		"user_subcategory_preferences",
+		"user = {:user}",
+		"priority",
+		0,
+		0,
+		map[string]any{"user": userID},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(records) != 3 {
+		t.Fatalf("preference count = %d, want 3", len(records))
+	}
+
+	wantPriorityBySubcategory := map[string]int{
+		family.Id:   1,
+		mountain.Id: 2,
+		ebike.Id:    12,
+	}
+	for _, record := range records {
+		subcategoryID := record.GetString("subcategory")
+		if got := record.GetInt("priority"); got != wantPriorityBySubcategory[subcategoryID] {
+			t.Fatalf("priority for subcategory %q = %d, want %d", subcategoryID, got, wantPriorityBySubcategory[subcategoryID])
+		}
+		if subcategoryID == family.Id {
+			if record.Id != existing.Id {
+				t.Fatalf("family preference id = %q, want existing id %q", record.Id, existing.Id)
+			}
+			if record.GetBool("visible") {
+				t.Fatal("existing preference visible = true, want false")
+			}
+		}
+		if subcategoryID == mountain.Id && !record.GetBool("visible") {
+			t.Fatal("new preference visible = false, want true")
+		}
+		if subcategoryID == ebike.Id && record.Id != otherCategoryPreference.Id {
+			t.Fatalf("other category preference id = %q, want existing id %q", record.Id, otherCategoryPreference.Id)
 		}
 	}
 }
@@ -980,12 +1222,22 @@ func setupCategoryValidationTestApp(t *testing.T) *pbtests.TestApp {
 	preferences.Fields.Add(
 		&core.RelationField{Name: "user", CollectionId: "_pb_users_auth_", MaxSelect: 1, Required: true},
 		&core.RelationField{Name: "category", CollectionId: categories.Id, MaxSelect: 1, Required: true},
-		&core.BoolField{Name: "exclude_search"},
-		&core.BoolField{Name: "hide_design"},
-		&core.BoolField{Name: "exclude_federated"},
+		&core.BoolField{Name: "visible"},
 		&core.NumberField{Name: "priority", OnlyInt: true},
 	)
 	if err := app.Save(preferences); err != nil {
+		app.Cleanup()
+		t.Fatal(err)
+	}
+
+	subcategoryPreferences := core.NewBaseCollection("user_subcategory_preferences")
+	subcategoryPreferences.Fields.Add(
+		&core.RelationField{Name: "user", CollectionId: "_pb_users_auth_", MaxSelect: 1, Required: true},
+		&core.RelationField{Name: "subcategory", CollectionId: subcategories.Id, MaxSelect: 1, Required: true},
+		&core.BoolField{Name: "visible"},
+		&core.NumberField{Name: "priority", OnlyInt: true},
+	)
+	if err := app.Save(subcategoryPreferences); err != nil {
 		app.Cleanup()
 		t.Fatal(err)
 	}
@@ -1016,13 +1268,16 @@ func createTestCategory(t *testing.T, app core.App, name string) *core.Record {
 	return record
 }
 
-func createTestSubcategory(t *testing.T, app core.App, categoryID string, name string, shortName string) *core.Record {
+func createTestSubcategory(t *testing.T, app core.App, categoryID string, name string, shortName string, badgeIcon ...string) *core.Record {
 	t.Helper()
 
 	record := core.NewRecord(mustFindTestCollection(t, app, "subcategories"))
 	record.Set("category", categoryID)
 	record.Set("name", name)
 	record.Set("short_name", shortName)
+	if len(badgeIcon) > 0 {
+		record.Set("badge_icon", badgeIcon[0])
+	}
 	if err := app.Save(record); err != nil {
 		t.Fatal(err)
 	}
