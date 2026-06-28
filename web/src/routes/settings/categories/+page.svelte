@@ -943,7 +943,7 @@
                             )}
                             <li
                                 data-subcategory-index={subcategoryIndex}
-                                class="subcategory-row grid grid-cols-[3.125rem_minmax(0,1fr)_max-content] items-center gap-x-3 px-4 py-2 transition-opacity"
+                                class="subcategory-row grid grid-cols-[2.5rem_minmax(0,1fr)_max-content] items-center gap-x-3 py-2 pl-2 pr-4 transition-opacity"
                                 class:opacity-60={!categoryVisible}
                                 class:opacity-50={subcategoryDragCategoryId ===
                                     category.id &&
