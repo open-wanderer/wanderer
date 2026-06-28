@@ -848,11 +848,6 @@
                     class="category-icon pointer-events-none relative z-0 col-start-1 row-start-1 flex h-16 w-16 items-center justify-center rounded-2xl bg-input-background text-4xl text-content"
                 >
                     <i class="fa {categoryIcon(category)}"></i>
-                    <span
-                        class="absolute -bottom-1 -right-1 flex h-6 min-w-6 items-center justify-center rounded-full border border-input-border bg-background px-1 text-xs font-semibold leading-none text-gray-500"
-                    >
-                        {index + 1}
-                    </span>
                 </span>
 
                 <div class="col-start-2 min-h-16 min-w-0 self-start py-1">
