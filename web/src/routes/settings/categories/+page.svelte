@@ -869,15 +869,17 @@
                                 {@const badgeListIcon =
                                     subcategoryBadgeListIcon(subcategory)}
                                 <span
-                                    class="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-input-background px-2 py-1 text-gray-500"
+                                    class="inline-flex min-w-0 items-center gap-1 rounded-full border border-input-border bg-menu-item-background-hover px-2 py-1 text-content"
                                     class:opacity-50={!visibleSubcategory}
                                 >
                                     {#if badgeListIcon}
                                         <i
-                                            class="fa {badgeListIcon} text-[0.7rem] opacity-70"
+                                            class="fa {badgeListIcon} text-[0.7rem] text-gray-500"
                                         ></i>
                                     {/if}
-                                    <span class="truncate">{subcategoryLabel}</span>
+                                    <span class="truncate text-xs">
+                                        {subcategoryLabel}
+                                    </span>
                                 </span>
                             {/each}
                         </div>
