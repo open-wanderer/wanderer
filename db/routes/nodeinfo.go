@@ -59,10 +59,17 @@ func buildNodeInfo21(app core.App) (map[string]any, error) {
 		version = "dev"
 	}
 
-	// D-02: localPosts = count of public trails only (private trails never leave instance)
-	localPosts, err := app.CountRecords("trails", dbx.NewExp("public = 1"))
-	if err != nil {
-		return nil, err
+	// D-02: localPosts = public trails authored by local actors only.
+	// Federated trails (is_local=false actors) are excluded so the count
+	// reflects what this instance produces, matching fediverse convention.
+	var localPosts int64
+	if err := app.DB().
+		Select("COUNT(*) AS c").
+		From("trails t").
+		InnerJoin("activitypub_actors aa", dbx.NewExp("t.author = aa.id")).
+		Where(dbx.NewExp("t.public = 1 AND aa.is_local = 1")).
+		Row(&localPosts); err != nil {
+		return nil, fmt.Errorf("counting local trails: %w", err)
 	}
 
 	// D-03: users.total = count of all users (instance actor is in activitypub_actors, not users)
