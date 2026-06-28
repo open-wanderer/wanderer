@@ -814,14 +814,16 @@
         {@const categoryExpanded = isCategoryExpanded(category)}
         <li
             data-category-index={index}
-            class="rounded-xl border border-input-border p-4 transition-colors hover:bg-secondary-hover"
+            class="transition-opacity"
             class:opacity-50={dragIndex === index}
             class:drop-above={isValidInsert(index)}
             class:drop-below={index === orderedCategories.length - 1 &&
                 isValidInsert(orderedCategories.length)}
         >
             <div
-                class="grid grid-cols-[4rem_minmax(0,1fr)_max-content] gap-x-5 gap-y-3"
+                class="relative grid grid-cols-[4rem_minmax(0,1fr)_max-content] gap-x-5 gap-y-3 border border-input-border p-4 transition-colors hover:bg-secondary-hover {categoryExpanded
+                    ? 'rounded-t-xl rounded-bl-xl'
+                    : 'rounded-xl'}"
             >
                 <button
                     class="drag-hitarea absolute left-0 top-0 z-10 w-24 p-0 disabled:cursor-not-allowed disabled:opacity-50 {categoryExpanded
@@ -869,17 +871,15 @@
                                 {@const badgeListIcon =
                                     subcategoryBadgeListIcon(subcategory)}
                                 <span
-                                    class="inline-flex min-w-0 items-center gap-1 rounded-full border border-input-border bg-menu-item-background-hover px-2 py-1 text-content"
+                                    class="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-input-background px-2 py-1 text-gray-500"
                                     class:opacity-50={!visibleSubcategory}
                                 >
                                     {#if badgeListIcon}
                                         <i
-                                            class="fa {badgeListIcon} text-[0.7rem] text-gray-500"
+                                            class="fa {badgeListIcon} text-[0.7rem] opacity-70"
                                         ></i>
                                     {/if}
-                                    <span class="truncate text-xs">
-                                        {subcategoryLabel}
-                                    </span>
+                                    <span class="truncate">{subcategoryLabel}</span>
                                 </span>
                             {/each}
                         </div>
@@ -921,7 +921,7 @@
             {#if childSubcategories.length > 0 && categoryExpanded}
                 <div
                     id={`category-${category.id}-subcategories`}
-                    class="mt-4 border-t border-input-border pt-3 pl-6 md:pl-20"
+                    class="-mt-px ml-6 rounded-b-xl border border-t-0 border-input-border bg-background px-4 pb-4 pt-3 md:ml-24"
                 >
                     <ol
                         class="divide-y divide-input-border"
