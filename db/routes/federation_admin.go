@@ -365,7 +365,7 @@ func buildPeerEntries(
 ) []peerEntry {
 	// Map from remote domain → entry pointer so we can merge in a second pass.
 	type mergeEntry struct {
-		entry      peerEntry
+		entry       peerEntry
 		hasOutbound bool
 	}
 	byDomain := make(map[string]*mergeEntry)
