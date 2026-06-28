@@ -177,14 +177,21 @@ func createOutboundFollow(app core.App, localID, remoteID string) (*core.Record,
 
 	// WR-05: check for an existing follow record before inserting to avoid
 	// hitting the UNIQUE(follower, followee) constraint and producing a 500.
-	// Return a sentinel error so FederationFollow can respond with HTTP 409.
+	// A rejected follow must be deleted first so the admin can retry — only
+	// pending/accepted states block a new attempt.
 	existing, checkErr := app.FindFirstRecordByFilter(
 		"follows",
 		"follower={:f} && followee={:e}",
 		dbx.Params{"f": localID, "e": remoteID},
 	)
 	if checkErr == nil && existing != nil {
-		return nil, fmt.Errorf("follow already exists")
+		if existing.GetString("status") == "rejected" {
+			if err := app.Delete(existing); err != nil {
+				return nil, fmt.Errorf("clear rejected follow: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("follow already exists")
+		}
 	}
 
 	followCollection, err := app.FindCollectionByNameOrId("follows")
