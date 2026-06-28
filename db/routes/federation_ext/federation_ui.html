@@ -1010,7 +1010,6 @@
                     </template>
                     <template x-if="peer.status === 'pending' && peer.direction === 'outbound'">
                       <div style="display:flex;align-items:center;gap:10px">
-                        <span class="pending-label">Awaiting approval…</span>
                         <button class="btn btn-outline btn-sm" @click="openDisconnect(peer)" :disabled="loading">
                           Cancel request
                         </button>
