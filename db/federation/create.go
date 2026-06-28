@@ -3,6 +3,7 @@ package federation
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -94,6 +95,13 @@ func CreateTrailActivity(app core.App, ctx context.Context, trail *core.Record, 
 	}
 	recipients := append(mentions, inboxes...)
 
+	// Also deliver to instance-actor peers so federated instances receive trail updates.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
 	return PostActivity(app, trailAuthor, activity, recipients)
 }
 
@@ -112,6 +120,10 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 	commentTrail, err := app.FindRecordById("trails", comment.GetString("trail"))
 	if err != nil {
 		return err
+	}
+	// No fanout for comments on private trails.
+	if !commentTrail.GetBool("public") {
+		return nil
 	}
 	commentTrailAuthor, err := app.FindRecordById("activitypub_actors", commentTrail.GetString("author"))
 	if err != nil {
@@ -137,7 +149,20 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 
 		recipients = append(recipients, m.GetString("inbox"))
 	}
-	recipients = append(recipients, commentTrailAuthor.GetString("inbox"))
+	// Only notify the trail author if they are remote — local actors receive the
+	// activity through local event hooks, not via HTTP delivery (mirrors the
+	// pattern in CreateSummitLogActivity and CreateCommentDeleteActivity).
+	if !commentTrailAuthor.GetBool("is_local") {
+		recipients = append(recipients, commentTrailAuthor.GetString("inbox"))
+	}
+
+	// Deliver to the comment author's followers (mirrors CreateTrailActivity and
+	// CreateSummitLogActivity which both call followerInboxes for their author).
+	followerInboxList, err := followerInboxes(app, commentAuthor.Id)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, followerInboxList...)
 
 	cc := pub.ItemCollection{}
 	for _, r := range recipients {
@@ -177,6 +202,13 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 	if err != nil {
 		return err
 	}
+
+	// Also deliver to instance-actor peers so federated instances receive comment updates.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
 
 	return PostActivity(app, commentAuthor, activity, recipients)
 
@@ -318,21 +350,9 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	activity.CC = cc
 	activity.Published = time.Now()
 
-	inboxes, err := followerInboxes(app, summitLogAuthor.Id)
-	if err != nil {
-		return err
-	}
-	recipients := append(mentions, inboxes...)
-
-	if summitLogAuthor.Id != summitLogTrailAuthor.Id {
-		recipients = append(recipients, summitLogTrailAuthor.GetString("inbox"))
-	}
-
-	err = PostActivity(app, summitLogAuthor, activity, recipients)
-	if err != nil {
-		return err
-	}
-
+	// Save the activity record before dispatching — consistent with CreateTrailActivity.
+	// Saving first ensures the outbox record exists even if PostActivity's goroutine
+	// encounters an error mid-delivery.
 	record := core.NewRecord(collection)
 	record.Set("id", recordId)
 	record.Set("iri", id)
@@ -343,7 +363,28 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	record.Set("actor", summitLogAuthor.GetString("iri"))
 	record.Set("published", time.Now())
 
-	return app.Save(record)
+	if err := app.Save(record); err != nil {
+		return err
+	}
+
+	inboxes, err := followerInboxes(app, summitLogAuthor.Id)
+	if err != nil {
+		return err
+	}
+	recipients := append(mentions, inboxes...)
+
+	if summitLogAuthor.Id != summitLogTrailAuthor.Id {
+		recipients = append(recipients, summitLogTrailAuthor.GetString("inbox"))
+	}
+
+	// Also deliver to instance-actor peers so federated instances receive summit log updates.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
+	return PostActivity(app, summitLogAuthor, activity, recipients)
 }
 
 func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabularyType) error {
@@ -386,16 +427,9 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 		return err
 	}
 
-	recipients, err := followerInboxes(app, listAuthor.Id)
-	if err != nil {
-		return err
-	}
-
-	err = PostActivity(app, listAuthor, activity, recipients)
-	if err != nil {
-		return err
-	}
-
+	// Save the activity record before dispatching — consistent with CreateTrailActivity.
+	// Saving first ensures the outbox record exists even if PostActivity's goroutine
+	// encounters an error mid-delivery.
 	record := core.NewRecord(collection)
 	record.Set("id", activityRecordId)
 	record.Set("iri", id)
@@ -406,7 +440,23 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 	record.Set("actor", author)
 	record.Set("published", time.Now())
 
-	return app.Save(record)
+	if err := app.Save(record); err != nil {
+		return err
+	}
+
+	recipients, err := followerInboxes(app, listAuthor.Id)
+	if err != nil {
+		return err
+	}
+
+	// Also deliver to instance-actor peers so federated instances receive list updates.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
+	return PostActivity(app, listAuthor, activity, recipients)
 }
 
 func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *core.Record, activity pub.Activity) error {
@@ -431,6 +481,18 @@ func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *
 }
 
 func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
+	// Broadcast-loop dedup: drop a duplicate Create whose content IRI is already stored.
+	if activity.Type == pub.CreateType {
+		objectIRI := activity.Object.GetID().String()
+		existing, derr := app.FindFirstRecordByData("trails", "iri", objectIRI)
+		if derr == nil && existing != nil {
+			return nil // already have this trail
+		}
+		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
+			return derr
+		}
+	}
+
 	trail, err := util.TrailFromActivity(activity, app, actor)
 	if err != nil {
 		return err
@@ -470,6 +532,17 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 }
 
 func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, actor *core.Record) error {
+	// Broadcast-loop dedup: drop a duplicate Create whose content IRI is already stored.
+	if activity.Type == pub.CreateType {
+		objectIRI := activity.Object.GetID().String()
+		existing, derr := app.FindFirstRecordByData("comments", "iri", objectIRI)
+		if derr == nil && existing != nil {
+			return nil // already have this comment
+		}
+		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
+			return derr
+		}
+	}
 
 	commentObject, err := pub.ToObject(activity.Object)
 	if err != nil {
@@ -576,6 +649,18 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 }
 
 func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App, actor *core.Record) error {
+	// Broadcast-loop dedup: drop a duplicate Create whose content IRI is already stored.
+	if activity.Type == pub.CreateType {
+		objectIRI := activity.Object.GetID().String()
+		existing, derr := app.FindFirstRecordByData("summit_logs", "iri", objectIRI)
+		if derr == nil && existing != nil {
+			return nil // already have this summit log
+		}
+		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
+			return derr
+		}
+	}
+
 	logObject, err := pub.ToObject(activity.Object)
 	if err != nil {
 		return err
@@ -637,15 +722,19 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 			continue
 		}
 		content := tagObj.Content.First().Value.String()
+		if len(content) == 0 {
+			continue // guard against empty content — prevents index-out-of-range panic
+		}
+		numeric := content[:len(content)-1] // strip unit suffix
 		switch tagObj.Name.First().Value.String() {
 		case "elevation_gain":
-			elevation_gain, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			elevation_gain, err = strconv.ParseFloat(numeric, 64)
 		case "elevation_loss":
-			elevation_loss, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			elevation_loss, err = strconv.ParseFloat(numeric, 64)
 		case "duration":
-			duration, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			duration, err = strconv.ParseFloat(numeric, 64)
 		case "distance":
-			distance, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			distance, err = strconv.ParseFloat(numeric, 64)
 		}
 		if err != nil {
 			continue
@@ -751,6 +840,18 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 }
 
 func processCreateOrUpdateListActivity(activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
+	// Broadcast-loop dedup: drop a duplicate Create whose content IRI is already stored.
+	if activity.Type == pub.CreateType {
+		objectIRI := activity.Object.GetID().String()
+		existing, derr := app.FindFirstRecordByData("lists", "iri", objectIRI)
+		if derr == nil && existing != nil {
+			return nil // already have this list
+		}
+		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
+			return derr
+		}
+	}
+
 	list, err := util.ListFromActivity(activity, app, actor)
 	if err != nil {
 		return err

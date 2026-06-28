@@ -1,6 +1,8 @@
 package federation
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"pocketbase/util"
@@ -70,6 +72,13 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 		return err
 	}
 
+	// Also deliver to instance-actor peers so federated instances receive the deletion.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
 	return PostActivity(app, author, activity, recipients)
 }
 
@@ -99,10 +108,6 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 		return err
 	}
 
-	if commentTrailAuthor.GetBool("is_local") {
-		return nil
-	}
-
 	collection, err := app.FindCollectionByNameOrId("activitypub_activities")
 	if err != nil {
 		return err
@@ -119,7 +124,20 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 	activity.To = pub.ItemCollection{pub.IRI(to)}
 	activity.Published = time.Now()
 
-	err = PostActivity(app, author, activity, []string{to + "/inbox"})
+	// Only include the trail author's inbox when they are remote; local actors receive
+	// the deletion through local event hooks, not HTTP delivery. Always include
+	// instance-actor peers so federated instances receive the deletion.
+	recipients := []string{}
+	if !commentTrailAuthor.GetBool("is_local") {
+		recipients = append(recipients, to+"/inbox")
+	}
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
+	err = PostActivity(app, author, activity, recipients)
 	if err != nil {
 		return err
 	}
@@ -188,6 +206,13 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 		recipients = append(recipients, summitLogTrailAuthor.GetString("inbox"))
 	}
 
+	// Also deliver to instance-actor peers so federated instances receive the deletion.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
 	err = PostActivity(app, author, activity, recipients)
 	if err != nil {
 		return err
@@ -245,6 +270,13 @@ func CreateListDeleteActivity(app core.App, r *core.Record) error {
 		return err
 	}
 
+	// Also deliver to instance-actor peers so federated instances receive the deletion.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
 	err = PostActivity(app, author, activity, recipients)
 	if err != nil {
 		return err
@@ -274,7 +306,7 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 	var err error
 	switch {
 	case strings.Contains(object, "trail"):
-		err = processDeleteTrailActivity(app, activity)
+		err = processDeleteTrailActivity(app, actor, activity)
 	case strings.Contains(object, "comment"):
 		err = processDeleteCommentActivity(app, actor, activity)
 	case strings.Contains(object, "summit-log"):
@@ -290,12 +322,21 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 	return nil
 }
 
-func processDeleteTrailActivity(app core.App, activity pub.Activity) error {
+func processDeleteTrailActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 
 	object := activity.Object.GetID().String()
 	trail, err := app.FindFirstRecordByData("trails", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
+	}
+
+	// Enforce trail author ownership: actor must be the trail's original author.
+	// trail.GetString("author") is a PocketBase record id, not an IRI.
+	if trail.GetString("author") != actor.Id {
+		return fmt.Errorf("actor is not trail author")
 	}
 
 	err = util.DeleteFromFeed(app, trail.Id)
@@ -311,6 +352,9 @@ func processDeleteCommentActivity(app core.App, actor *core.Record, activity pub
 
 	comment, err := app.FindFirstRecordByData("comments", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
@@ -330,6 +374,9 @@ func processDeleteSummitLogActivity(app core.App, actor *core.Record, activity p
 
 	summitLog, err := app.FindFirstRecordByData("summit_logs", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
@@ -345,7 +392,16 @@ func processDeleteListActivity(app core.App, actor *core.Record, activity pub.Ac
 	object := activity.Object.GetID().String()
 	list, err := app.FindFirstRecordByData("lists", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
+	}
+
+	// Enforce list author ownership before deletion.
+	// list.GetString("author") is a PocketBase record id, not an IRI.
+	if list.GetString("author") != actor.Id {
+		return fmt.Errorf("actor is not list author")
 	}
 
 	err = util.DeleteFromFeed(app, list.Id)

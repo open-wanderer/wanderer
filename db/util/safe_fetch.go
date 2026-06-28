@@ -34,6 +34,26 @@ type ConnectorHTTPPolicy struct {
 	TLSCABundle  []byte
 }
 
+// HTTPDoer is satisfied by *safeurl.WrappedClient and *http.Client.
+type HTTPDoer interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// NewSafeURLClient builds an SSRF-safe HTTP client using the safeurl library.
+// timeout is the per-request deadline. checkRedirect may be nil (uses safeurl default).
+func NewSafeURLClient(timeout time.Duration, checkRedirect func(*http.Request, []*http.Request) error) HTTPDoer {
+	b := safeurl.GetConfigBuilder().
+		SetTimeout(timeout).
+		SetAllowedSchemes("http", "https").
+		SetAllowedPorts(80, 443).
+		EnableIPv6(true).
+		AllowSendingCredentials(false)
+	if checkRedirect != nil {
+		b = b.SetCheckRedirect(checkRedirect)
+	}
+	return safeurl.Client(b.Build())
+}
+
 func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFetchResult, error) {
 	if maxBytes <= 0 {
 		maxBytes = DefaultPluginMediaMaxBytes
@@ -45,15 +65,7 @@ func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFe
 	if parsed.User != nil {
 		return nil, fmt.Errorf("public URL must not include credentials")
 	}
-	config := safeurl.GetConfigBuilder().
-		SetTimeout(60*time.Second).
-		SetAllowedSchemes("http", "https").
-		SetAllowedPorts(80, 443).
-		EnableIPv6(true).
-		AllowSendingCredentials(false).
-		SetCheckRedirect(publicMediaRedirectPolicy).
-		Build()
-	client := safeurl.Client(config)
+	client := NewSafeURLClient(60*time.Second, publicMediaRedirectPolicy)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -163,7 +175,7 @@ func connectorIPAllowed(ip net.IP, allowPrivate bool) bool {
 		addr.IsMulticast() || addr.IsUnspecified() {
 		return false
 	}
-	if isSpecialPurposeIP(addr) {
+	if IsSpecialPurposeIP(addr) {
 		return false
 	}
 	if addr.IsPrivate() {
@@ -172,7 +184,7 @@ func connectorIPAllowed(ip net.IP, allowPrivate bool) bool {
 	return true
 }
 
-func isSpecialPurposeIP(addr netip.Addr) bool {
+func IsSpecialPurposeIP(addr netip.Addr) bool {
 	for _, prefix := range specialPurposePrefixes {
 		if prefix.Contains(addr) {
 			return true

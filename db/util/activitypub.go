@@ -73,6 +73,7 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 	}
 	domain := strings.TrimPrefix(url.Hostname(), "www.")
 
+	record.Set("actor_type", "person")
 	record.Set("username", u.GetString("username"))
 	record.Set("preferred_username", strings.ToLower(u.GetString("username")))
 	record.Set("domain", domain)
@@ -101,6 +102,13 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 }
 
 func generateKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	return GenerateRSAKeyPair()
+}
+
+// GenerateRSAKeyPair generates a 2048-bit RSA keypair. It is exported so that
+// other packages (e.g. federation/instance.go) can share one canonical
+// implementation rather than maintaining a local copy.
+func GenerateRSAKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err
@@ -282,12 +290,12 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 
 		if len(photoURLs) > 0 {
 			photos := []*filesystem.File{}
-			for i, purl := range photoURLs {
+			for _, purl := range photoURLs {
 				photo, err := filesystem.NewFileFromURL(context.Background(), purl)
 				if err != nil {
 					continue
 				}
-				photos[i] = photo
+				photos = append(photos, photo)
 			}
 
 			record.Set("photos", photos)

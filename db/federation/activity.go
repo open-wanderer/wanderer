@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -50,6 +52,53 @@ func followerInboxes(app core.App, actorId string) ([]string, error) {
 		inboxes = append(inboxes, inbox)
 	}
 	return inboxes, rows.Err()
+}
+
+// instanceFollowerInboxes returns inbox URLs for all accepted peers of the local
+// instance actor — both instances that follow us and instances we follow.
+// Returns (nil, nil) if the instance actor has not yet been seeded.
+func instanceFollowerInboxes(app core.App) ([]string, error) {
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return nil, fmt.Errorf("ORIGIN not set")
+	}
+	iri := origin + "/api/v1/activitypub/instance"
+	instanceActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", iri)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	// Instances that follow us (inbound accepted follows).
+	inbound, err := followerInboxes(app, instanceActor.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Instances we follow (outbound accepted follows).
+	rows, err := app.DB().
+		Select("aa.inbox").
+		From("follows f").
+		InnerJoin("activitypub_actors aa", dbx.NewExp("f.followee = aa.id")).
+		Where(dbx.NewExp("f.follower = {:follower} AND f.status = 'accepted' AND aa.inbox != ''",
+			dbx.Params{"follower": instanceActor.Id})).
+		Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	outbound := inbound
+	for rows.Next() {
+		var inbox string
+		if err := rows.Scan(&inbox); err != nil {
+			return nil, err
+		}
+		outbound = append(outbound, inbox)
+	}
+	return outbound, rows.Err()
 }
 
 func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, recipients []string) error {
@@ -127,7 +176,6 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 				req.Header.Add("Content-Type", "application/activity+json")
 				req.Header.Add("Date", strings.ReplaceAll(time.Now().UTC().Format(time.RFC1123), "UTC", "GMT"))
 				req.Header.Add("Host", req.Host)
-
 				if err := signer.SignRequest(privateKey, pubID, req, body); err != nil {
 					app.Logger().Error(fmt.Sprintf("Signing request failed: %s", err))
 					return

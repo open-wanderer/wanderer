@@ -167,6 +167,11 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 	}
 
 	private := false
+	if dbActor.GetBool("is_local") && dbActor.GetString("actor_type") == "instance" {
+		// Instance actor has no associated user record. Return it as-is without
+		// attempting a user or settings lookup.
+		return dbActor, nil
+	}
 	if dbActor.GetBool("is_local") {
 		user, err := app.FindRecordById("users", dbActor.GetString("user"))
 		if err != nil {
@@ -259,6 +264,11 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		dbActor.Set("published", pubActor.Published.String())
 		dbActor.Set("public_key", pubActor.PublicKey.PublicKeyPem)
 		dbActor.Set("last_fetched", time.Now())
+		if pubActor.Type == pub.ApplicationType {
+			dbActor.Set("actor_type", "instance")
+		} else {
+			dbActor.Set("actor_type", "person")
+		}
 
 		if includeFollows {
 			dbActor.Set("follower_count", int(followers.TotalItems))

@@ -15,6 +15,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 
 	"pocketbase/commands"
+	"pocketbase/federation"
 	"pocketbase/hooks"
 	"pocketbase/pluginsystem"
 	"pocketbase/routes"
@@ -30,7 +31,9 @@ const (
 
 // verifySettings checks if the required environment variables are set.
 // If they are not set, it logs a warning.
-func verifySettings(app core.App) {
+// Note: called before app.Start(), so app.Logger() may not be initialized.
+// Use log.Printf() for pre-start warnings to avoid a potential nil/no-op logger.
+func verifySettings() {
 	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
 
 	if len(encryptionKey) != 32 {
@@ -40,17 +43,17 @@ func verifySettings(app core.App) {
 	}
 
 	if encryptionKey == defaultPocketBaseEncryptionKey {
-		app.Logger().Warn("POCKETBASE_ENCRYPTION_KEY is still set to the default value. Please change it to a secure value")
+		log.Printf("WARN: POCKETBASE_ENCRYPTION_KEY is still set to the default value. Please change it to a secure value")
 	}
 
 	meiliMasterKey := os.Getenv("MEILI_MASTER_KEY")
 
 	if len(meiliMasterKey) < 32 {
-		app.Logger().Warn("MEILI_MASTER_KEY not set or is shorter than 32 bytes")
+		log.Printf("WARN: MEILI_MASTER_KEY not set or is shorter than 32 bytes")
 	}
 
 	if meiliMasterKey == defaultMeiliMasterKey {
-		app.Logger().Warn("MEILI_MASTER_KEY is still set to the default value. Please change it to a secure value")
+		log.Printf("WARN: MEILI_MASTER_KEY is still set to the default value. Please change it to a secure value")
 	}
 }
 
@@ -62,7 +65,7 @@ func main() {
 	app := pocketbase.New()
 	client := initializeMeilisearch()
 
-	verifySettings(app)
+	verifySettings()
 
 	registerMigrations(app)
 	setupEventHandlers(app, client)
@@ -126,6 +129,10 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordCreateRequest("follows").BindFunc(hooks.CreateFollowHandler())
 	app.OnRecordDeleteRequest("follows").BindFunc(hooks.DeleteFollowHandler())
 
+	app.OnRecordAfterCreateSuccess("follows").BindFunc(hooks.InstanceFollowCreateHandler())
+	app.OnRecordAfterUpdateSuccess("follows").BindFunc(hooks.InstanceFollowUpdateHandler())
+	app.OnRecordAfterDeleteSuccess("follows").BindFunc(hooks.InstanceFollowDeleteHandler())
+
 	app.OnRecordsListRequest("plugin_instances").BindFunc(hooks.ListPluginInstanceHandler())
 	app.OnRecordViewRequest("plugin_instances").BindFunc(hooks.ViewPluginInstanceHandler())
 	app.OnRecordCreate("plugin_instances").BindFunc(hooks.CreatePluginInstanceHandler())
@@ -153,7 +160,9 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
 		registerCronJobs(se.App, client)
-		initData(se.App, client)
+		if err := initData(se.App, client); err != nil {
+			se.App.Logger().Error(fmt.Sprintf("initData failed: %v", err))
+		}
 
 		return se.Next()
 	}
@@ -181,7 +190,11 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/plugins/oauth/callback", routes.PluginSystemOAuthCallback)
 	se.Router.POST("/plugins/oauth/revoke", routes.PluginSystemOAuthRevoke)
 
+	se.Router.GET("/.well-known/nodeinfo", routes.NodeInfo)
+	se.Router.GET("/.well-known/nodeinfo/2.1", routes.NodeInfo21)
+
 	se.Router.POST("/activitypub/activity/process", routes.ActivitypubActivityProcess)
+	se.Router.POST("/activitypub/instance/inbox", federation.InstanceInboxHandler)
 	se.Router.GET("/activitypub/actor", routes.ActivitypubActor)
 	se.Router.GET("/activitypub/actor/{id}/{follow}", routes.ActivitypubActorFollow)
 	se.Router.GET("/activitypub/trail/{id}", routes.ActivitypubTrail)
@@ -193,6 +206,22 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/remote/list/{id}", routes.RemoteListGet)
 
 	se.Router.GET("/remote/profile/{handle}/follows", routes.RemoteProfileFollowsList)
+
+	// Federation admin endpoints
+	se.Router.POST("/federation/discover", routes.FederationDiscover)
+	se.Router.POST("/federation/follow", routes.FederationFollow)
+	se.Router.POST("/federation/approve/{id}", routes.FederationApprove)
+	se.Router.POST("/federation/reject/{id}", routes.FederationReject)
+	se.Router.POST("/federation/disconnect/{id}", routes.FederationDisconnect)
+	se.Router.GET("/federation/peers", routes.FederationPeers)
+	se.Router.GET("/federation/", routes.FederationDashboard)
+
+	// Experimental: inject "Federation" link into the PocketBase admin header.
+	// API introduced in v0.37.0 — subject to breaking changes (see discussion #7612).
+	se.UIExtensions = append(se.UIExtensions, core.UIExtension{
+		Name: "wanderer-federation",
+		FS:   routes.FederationExtFS(),
+	})
 
 }
 
@@ -212,9 +241,14 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 }
 
 func initData(app core.App, client meilisearch.ServiceManager) error {
-	initCategories(app)
+	if err := initCategories(app); err != nil {
+		app.Logger().Error(fmt.Sprintf("initCategories failed: %v", err))
+	}
 	initPlugins(app)
 	initMeilisearchConfig(client)
+	if err := federation.InitInstanceActor(app); err != nil {
+		app.Logger().Error(fmt.Sprintf("Failed to initialize instance actor: %v", err))
+	}
 	go func() {
 		backfillPolylines(app)
 		initMeilisearchDocuments(app, client)
