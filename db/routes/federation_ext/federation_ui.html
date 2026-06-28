@@ -31,9 +31,9 @@
     :root {
       --accent: #1055c9;
       --accent-fade: rgba(16, 85, 201, 0.1);
-      --bg: #f6f6f7;
-      --surface: #ffffff;
-      --surface2: #f9f9f9;
+      --bg: #ffffff;
+      --surface: #f8f9fa;
+      --surface2: #e4e8ec;
       --border: #e2e2e4;
       --text: #16181a;
       --text2: #9a9a9a;
@@ -41,9 +41,9 @@
     }
 
     html.dark {
-      --bg: #1a1d27;
-      --surface: #242736;
-      --surface2: #1e2130;
+      --bg: #1f1f1f;
+      --surface: #232323;
+      --surface2: #2f2f2f;
       --border: #353849;
       --text: #e4e5ea;
       --text2: #6e7491;
@@ -87,7 +87,7 @@
 
     /* ── Header ──────────────────────────────────────────── */
     .app-header {
-      height: 48px;
+      height: 38px;
       background: var(--accent);
       display: flex;
       align-items: center;
@@ -106,7 +106,7 @@
     }
 
     .header-label {
-      color: rgba(255, 255, 255, 0.85);
+      color: rgba(255, 255, 255, 1);
       font-size: 13px;
       font-weight: 500;
     }
@@ -120,7 +120,7 @@
       display: flex;
       align-items: center;
       gap: 5px;
-      color: rgba(255, 255, 255, 0.65);
+      color: rgba(255, 255, 255, 0.85);
       font-size: 13px;
       text-decoration: none;
       transition: color 0.12s;
@@ -190,7 +190,7 @@
     .card-section-title {
       font-size: 11px;
       font-weight: 600;
-      color: var(--text2);
+      color: var(--text);
       text-transform: uppercase;
       letter-spacing: 0.06em;
       margin-bottom: 14px;
@@ -210,7 +210,7 @@
       font-family: inherit;
       font-size: 14px;
       color: var(--text);
-      background: var(--bg);
+      background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: 6px;
       outline: none;
@@ -496,7 +496,7 @@
       font-size: 34px;
       margin-bottom: 10px;
       display: block;
-      color: var(--border);
+      color: var(--text2);
     }
 
     .state-title {
@@ -791,10 +791,10 @@
     <span class="header-label">Federation</span>
     <div class="header-spacer"></div>
     <span class="header-email" x-text="email" x-show="email"></span>
-    <a href="/_/" class="header-link" style="margin-left: 8px">
-      <i class="ri-arrow-left-line"></i>
-      Back to dashboard
-    </a>
+    <button onclick="window.close()" class="header-link" style="margin-left: 8px; background: none; border: none; cursor: pointer;">
+      <i class="ri-close-line"></i>
+      Close
+    </button>
   </header>
 
   <!-- ── Login prompt ──────────────────────────────────── -->
