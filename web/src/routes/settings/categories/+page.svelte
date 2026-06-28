@@ -131,7 +131,7 @@
     }
 
     function shouldConsiderPluginInstance(instance: PluginInstance): boolean {
-        return instance.enabled || hasAuthInfo(instance);
+        return !!pluginProvider(instance) && (instance.enabled || hasAuthInfo(instance));
     }
 
     function resolvePluginMappingTargets(): PluginMappingReference[] {

@@ -769,10 +769,13 @@ func createUserSubcategoryPreferencesCollection(app core.App) error {
 	return saveCollectionFromJSON(app, jsonData)
 }
 
+const defaultPriorityCategoryName = "Hiking"
+
 // migrateFavouriteSportToPriority carries the former per-user "favourite sport"
 // (settings.category) over to the new category priority model: the favourite becomes
-// the user's priority-1 category. Users who already organized categories by priority
-// are left untouched.
+// the user's priority-1 category. Users without a favourite get a common default
+// instead of falling back to category sort order. Users who already organized
+// categories by priority are left untouched.
 func migrateFavouriteSportToPriority(app core.App) error {
 	settingsRecords, err := app.FindAllRecords("settings")
 	if err != nil {
@@ -784,10 +787,15 @@ func migrateFavouriteSportToPriority(app core.App) error {
 		return err
 	}
 
+	defaultCategoryID, err := categoryIDByName(app, defaultPriorityCategoryName)
+	if err != nil {
+		return err
+	}
+
 	for _, settings := range settingsRecords {
 		categoryID := settings.GetString("category")
 		userID := settings.GetString("user")
-		if categoryID == "" || userID == "" {
+		if userID == "" {
 			continue
 		}
 
@@ -803,6 +811,13 @@ func migrateFavouriteSportToPriority(app core.App) error {
 			return err
 		}
 		if len(prioritized) > 0 {
+			continue
+		}
+
+		if categoryID == "" {
+			categoryID = defaultCategoryID
+		}
+		if categoryID == "" {
 			continue
 		}
 
@@ -833,6 +848,22 @@ func migrateFavouriteSportToPriority(app core.App) error {
 	}
 
 	return nil
+}
+
+func categoryIDByName(app core.App, name string) (string, error) {
+	categories, err := app.FindAllRecords("categories")
+	if err != nil {
+		return "", err
+	}
+
+	normalizedName := util.NormalizeCategoryName(name)
+	for _, category := range categories {
+		if util.NormalizeCategoryName(category.GetString("name")) == normalizedName {
+			return category.Id, nil
+		}
+	}
+
+	return "", nil
 }
 
 func removeSettingsCategoryField(app core.App) error {
