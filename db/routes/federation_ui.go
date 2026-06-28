@@ -45,9 +45,9 @@ func FederationDashboard(e *core.RequestEvent) error {
 	// style-src 'unsafe-inline' is required by Tailwind Play CDN which injects inline styles.
 	e.Response.Header().Set("Content-Security-Policy",
 		"default-src 'none'; "+
-			"script-src 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; "+
-			"style-src 'unsafe-inline' https://cdnjs.cloudflare.com; "+
-			"font-src https://cdnjs.cloudflare.com; "+
+			"script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "+
+			"style-src 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "+
+			"font-src https://fonts.gstatic.com https://cdn.jsdelivr.net; "+
 			"connect-src 'self'; "+
 			"img-src 'self'; "+
 			"frame-ancestors 'none'")
