@@ -10,7 +10,8 @@ import (
 )
 
 // newNodeInfoTestApp creates a bootstrapped PocketBase app with minimal
-// trails and users collections needed to test the NodeInfo payload builders.
+// collections needed to test the NodeInfo payload builders:
+// activitypub_actors (for the local-trail JOIN), trails, and users.
 func newNodeInfoTestApp(t *testing.T) core.App {
 	t.Helper()
 
@@ -25,32 +26,57 @@ func newNodeInfoTestApp(t *testing.T) core.App {
 		t.Fatalf("bootstrap: %v", err)
 	}
 
-	// trails collection — needs id + public bool field
-	trailsJSON := `[{
-		"id": "trails_coll_001",
-		"name": "trails",
-		"type": "base",
-		"system": false,
-		"listRule": null,
-		"viewRule": null,
-		"createRule": null,
-		"updateRule": null,
-		"deleteRule": null,
-		"fields": [
-			{"autogeneratePattern":"[a-z0-9]{15}","hidden":false,"id":"text3208210256","max":15,"min":15,"name":"id","pattern":"^[a-z0-9]+$","presentable":false,"primaryKey":true,"required":true,"system":true,"type":"text"},
-			{"hidden":false,"id":"bool_public_001","name":"public","presentable":false,"required":false,"system":false,"type":"bool"}
-		],
-		"indexes": []
-	}]`
+	collectionsJSON := `[
+		{
+			"id": "actors_coll_001",
+			"name": "activitypub_actors",
+			"type": "base",
+			"system": false,
+			"listRule": null, "viewRule": null, "createRule": null, "updateRule": null, "deleteRule": null,
+			"fields": [
+				{"autogeneratePattern":"[a-z0-9]{15}","hidden":false,"id":"text3208210256","max":15,"min":15,"name":"id","pattern":"^[a-z0-9]+$","presentable":false,"primaryKey":true,"required":true,"system":true,"type":"text"},
+				{"hidden":false,"id":"bool_islocal_001","name":"is_local","presentable":false,"required":false,"system":false,"type":"bool"}
+			],
+			"indexes": []
+		},
+		{
+			"id": "trails_coll_001",
+			"name": "trails",
+			"type": "base",
+			"system": false,
+			"listRule": null, "viewRule": null, "createRule": null, "updateRule": null, "deleteRule": null,
+			"fields": [
+				{"autogeneratePattern":"[a-z0-9]{15}","hidden":false,"id":"text3208210256","max":15,"min":15,"name":"id","pattern":"^[a-z0-9]+$","presentable":false,"primaryKey":true,"required":true,"system":true,"type":"text"},
+				{"hidden":false,"id":"bool_public_001","name":"public","presentable":false,"required":false,"system":false,"type":"bool"},
+				{"cascadeDelete":false,"collectionId":"actors_coll_001","hidden":false,"id":"rel_author_001","maxSelect":1,"minSelect":0,"name":"author","presentable":false,"required":false,"system":false,"type":"relation"}
+			],
+			"indexes": []
+		}
+	]`
 
-	if err := app.ImportCollectionsByMarshaledJSON([]byte(trailsJSON), false); err != nil {
-		t.Fatalf("create trails collection: %v", err)
+	if err := app.ImportCollectionsByMarshaledJSON([]byte(collectionsJSON), false); err != nil {
+		t.Fatalf("create collections: %v", err)
 	}
 
 	// Note: PocketBase bootstrap creates a "users" auth collection automatically.
 	// We use it directly; no need to import it again.
 
 	return app
+}
+
+// seedLocalActor inserts a local activitypub_actors record and returns its ID.
+func seedLocalActor(t *testing.T, app core.App) string {
+	t.Helper()
+	coll, err := app.FindCollectionByNameOrId("activitypub_actors")
+	if err != nil {
+		t.Fatalf("find activitypub_actors: %v", err)
+	}
+	r := core.NewRecord(coll)
+	r.Set("is_local", true)
+	if err := app.Save(r); err != nil {
+		t.Fatalf("save local actor: %v", err)
+	}
+	return r.Id
 }
 
 // TestNodeInfoDiscoveryRel verifies the discovery document links[0].rel value.
@@ -151,7 +177,9 @@ func TestNodeInfo21LocalPostsExcludesPrivate(t *testing.T) {
 	app := newNodeInfoTestApp(t)
 	defer app.ResetBootstrapState()
 
-	// Seed 2 public + 1 private trail
+	actorID := seedLocalActor(t, app)
+
+	// Seed 2 public + 1 private trail, all owned by the local actor.
 	trailsColl, err := app.FindCollectionByNameOrId("trails")
 	if err != nil {
 		t.Fatalf("find trails collection: %v", err)
@@ -160,6 +188,7 @@ func TestNodeInfo21LocalPostsExcludesPrivate(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		r := core.NewRecord(trailsColl)
 		r.Set("public", true)
+		r.Set("author", actorID)
 		if err := app.Save(r); err != nil {
 			t.Fatalf("save public trail: %v", err)
 		}
@@ -167,6 +196,7 @@ func TestNodeInfo21LocalPostsExcludesPrivate(t *testing.T) {
 	// private trail — must NOT be counted
 	r := core.NewRecord(trailsColl)
 	r.Set("public", false)
+	r.Set("author", actorID)
 	if err := app.Save(r); err != nil {
 		t.Fatalf("save private trail: %v", err)
 	}
