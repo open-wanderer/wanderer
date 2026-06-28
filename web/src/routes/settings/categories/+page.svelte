@@ -921,7 +921,7 @@
             {#if childSubcategories.length > 0 && categoryExpanded}
                 <div
                     id={`category-${category.id}-subcategories`}
-                    class="-mt-px ml-6 rounded-b-xl border border-t-0 border-input-border bg-background px-4 pb-4 pt-3 md:ml-24"
+                    class="-mt-px ml-6 rounded-b-xl border border-t-0 border-input-border bg-background md:ml-24"
                 >
                     <ol
                         class="divide-y divide-input-border"
@@ -943,7 +943,7 @@
                             )}
                             <li
                                 data-subcategory-index={subcategoryIndex}
-                                class="grid grid-cols-[3.125rem_minmax(0,1fr)_max-content] items-center gap-x-3 py-2 transition-opacity"
+                                class="subcategory-row grid grid-cols-[3.125rem_minmax(0,1fr)_max-content] items-center gap-x-3 px-4 py-2 transition-opacity"
                                 class:opacity-60={!categoryVisible}
                                 class:opacity-50={subcategoryDragCategoryId ===
                                     category.id &&
@@ -1188,6 +1188,14 @@
 
     li.drop-below::after {
         bottom: -6px;
+    }
+
+    li.subcategory-row.drop-above::before {
+        top: -1px;
+    }
+
+    li.subcategory-row.drop-below::after {
+        bottom: -1px;
     }
 
     @media (hover: hover) and (pointer: fine) {
