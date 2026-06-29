@@ -22,7 +22,15 @@ class CategoryPreferenceNotifier extends _$CategoryPreferenceNotifier {
           .get('/user-category-preference');
 
       // The endpoint returns a BARE JSON array (not a paginated list wrapper).
-      return (response.data as List)
+      // Guard against null or unexpected shape (e.g. error object) before
+      // casting so failures surface with a meaningful message rather than an
+      // opaque TypeError.
+      final data = response.data;
+      if (data == null || data is! List) {
+        throw Exception(
+            'Unexpected response shape from /user-category-preference: $data');
+      }
+      return data
           .map((e) => CategoryPreference.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (e) {
