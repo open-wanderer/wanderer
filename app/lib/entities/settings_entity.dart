@@ -32,8 +32,14 @@ class SettingsEntity {
   });
 
   factory SettingsEntity.fromModel(Settings settings) {
+    assert(
+      settings.id != null && settings.id!.isNotEmpty,
+      'SettingsEntity requires a non-empty id — passing a transient Settings '
+      'object before a server round-trip would silently corrupt stored settings '
+      'via the @Unique(onConflict: replace) constraint on the empty-string key.',
+    );
     return SettingsEntity(
-      id: settings.id ?? '',
+      id: settings.id!, // null was guarded by the assert above
       unit: settings.unit,
       languageCode: settings.language?.name,
       bio: settings.bio,
