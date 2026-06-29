@@ -117,6 +117,7 @@
     let { data } = $props();
 
     let map: M.Map | undefined = $state();
+    let mapWithElevation: MapWithElevationMaplibre | undefined = $state();
     let mapPopup: M.Popup | undefined;
     let mapTrail: Trail[] = $state([]);
     let lists = $state(untrack(() => data.lists));
@@ -143,8 +144,6 @@
     let shouldStartDrawingOnLoad = $derived(
         data.isDuplicateTrail || (!isNewTrail && !data.trail.completed),
     );
-    const routeFitPadding = 16;
-    const elevationProfileMapCoverage = 0.3;
 
     function routeCalculationErrorText(error: unknown) {
         if (error instanceof Error && error.message) {
@@ -337,9 +336,10 @@
         clearRoute();
         clearUndoRedoStack();
 
-        if ($formData.expand!.gpx_data) {
+        const initialGpxData = $formData.expand?.gpx_data;
+        if (initialGpxData) {
             $formData.id ??= cryptoRandomString({ length: 15 });
-            const gpx = GPX.parse($formData.expand!.gpx_data);
+            const gpx = GPX.parse(initialGpxData);
             if (!(gpx instanceof Error)) {
                 if (gpx.rte && !gpx.trk) {
                     gpx.trk = [
@@ -366,24 +366,13 @@
         }
     });
 
-    function fitCurrentRoute(initializedMap: M.Map) {
+    function fitCurrentRoute() {
         const bounds = valhallaStore.route.toGeoJSON().bbox;
         if (!bounds) {
             return;
         }
 
-        initializedMap.fitBounds(bounds as M.LngLatBoundsLike, {
-            animate: false,
-            padding: {
-                top: routeFitPadding,
-                left: routeFitPadding,
-                right: routeFitPadding,
-                bottom:
-                    routeFitPadding +
-                    initializedMap.getContainer().clientHeight *
-                        elevationProfileMapCoverage,
-            },
-        });
+        mapWithElevation?.fitToBounds(bounds as M.LngLatBoundsLike);
     }
 
     function handleMapInit(initializedMap: M.Map) {
@@ -393,7 +382,7 @@
             }
         }
         if ($formData.expand?.gpx_data) {
-            fitCurrentRoute(initializedMap);
+            fitCurrentRoute();
         }
     }
 
@@ -486,9 +475,7 @@
             replacingRoute = false;
             if (!isNewTrail) {
                 startDrawing();
-                if (map) {
-                    fitCurrentRoute(map);
-                }
+                fitCurrentRoute();
             }
 
             updateTrailOnMap();
@@ -2199,6 +2186,7 @@
                 onmarkerdragend={moveMarker}
                 activeTrail={0}
                 bind:map
+                bind:this={mapWithElevation}
                 oninit={handleMapInit}
                 onclick={(target) => handleMapClick(target)}
                 oncontextmenu={(target) => handleMapContextMenu(target)}
