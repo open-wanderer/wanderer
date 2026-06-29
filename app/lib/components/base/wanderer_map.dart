@@ -8,6 +8,7 @@ import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
+import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
 
@@ -137,7 +138,11 @@ class _WandererMapState extends ConsumerState<WandererMap> {
                 selectedWaypoint: widget.selectedWaypoint,
               ),
 
-            if (widget.showLocation) const CurrentLocationLayer(),
+            if (widget.showLocation)
+              CurrentLocationLayer(
+                positionStream:
+                    ref.watch(foregroundPositionStreamProvider),
+              ),
 
             if (widget.elevationMarkerPosition != null)
               MarkerLayer(

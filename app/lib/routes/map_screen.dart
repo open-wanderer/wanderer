@@ -16,6 +16,7 @@ import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/map_camera_provider.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
@@ -183,7 +184,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     return Stack(
       children: [
         FlutterMap(
-          key: ObjectKey(style),
           mapController: _animatedMapController.mapController,
           options: MapOptions(
             backgroundColor: Theme.of(context).colorScheme.surface,
@@ -241,7 +241,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       : VectorTileLayer.defaultConcurrency,
                 ),
               ),
-            const CurrentLocationLayer(),
+            CurrentLocationLayer(
+              positionStream: ref.watch(foregroundPositionStreamProvider),
+            ),
 
             if (_selectedPolyline != null)
               PolylineLayer(polylines: [_selectedPolyline!]),
