@@ -140,6 +140,11 @@
     let showWaypointsWhileDrawing = $state(true);
     let replacingRoute = $state(false);
     let isNewTrail = $derived(page.params.id === "new");
+    let shouldStartDrawingOnLoad = $derived(
+        data.isDuplicateTrail || (!isNewTrail && !data.trail.completed),
+    );
+    const routeFitPadding = 16;
+    const elevationProfileMapCoverage = 0.3;
 
     function routeCalculationErrorText(error: unknown) {
         if (error instanceof Error && error.message) {
@@ -354,7 +359,7 @@
 
                 updateTrailOnMap();
 
-                if (!isNewTrail) {
+                if (shouldStartDrawingOnLoad) {
                     startDrawing();
                 }
             }
@@ -370,10 +375,13 @@
         initializedMap.fitBounds(bounds as M.LngLatBoundsLike, {
             animate: false,
             padding: {
-                top: 16,
-                left: 16,
-                right: 16,
-                bottom: 16,
+                top: routeFitPadding,
+                left: routeFitPadding,
+                right: routeFitPadding,
+                bottom:
+                    routeFitPadding +
+                    initializedMap.getContainer().clientHeight *
+                        elevationProfileMapCoverage,
             },
         });
     }
@@ -384,7 +392,7 @@
                 anchor.marker?.addTo(initializedMap);
             }
         }
-        if (!isNewTrail) {
+        if ($formData.expand?.gpx_data) {
             fitCurrentRoute(initializedMap);
         }
     }
