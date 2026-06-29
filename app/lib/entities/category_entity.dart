@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/models/category.dart';
 
@@ -10,16 +12,48 @@ class CategoryEntity {
   @Unique(onConflict: ConflictStrategy.replace)
   String id;
   String name;
+  String? icon;
+  String? shortName;
+  String? translationsJson;
 
-  CategoryEntity({required this.id, required this.name});
+  CategoryEntity({
+    required this.id,
+    required this.name,
+    this.icon,
+    this.shortName,
+    this.translationsJson,
+  });
 
   factory CategoryEntity.fromModel(Category c) {
-    return CategoryEntity(id: c.id, name: c.name);
+    return CategoryEntity(
+      id: c.id,
+      name: c.name,
+      icon: c.icon,
+      shortName: c.shortName,
+      translationsJson: c.translations != null
+          ? jsonEncode(c.translations!.map((k, v) => MapEntry(k, v.toJson())))
+          : null,
+    );
   }
 }
 
 extension CategoryEntityMapping on CategoryEntity {
   Category toModel() {
-    return Category(id: id, name: name);
+    Map<String, CategoryTranslation>? translations;
+    if (translationsJson != null) {
+      final decoded = jsonDecode(translationsJson!) as Map<String, dynamic>;
+      translations = decoded.map(
+        (k, v) =>
+            MapEntry(k, CategoryTranslation.fromJson(v as Map<String, dynamic>)),
+      );
+    }
+
+    return Category(
+      id: id,
+      name: name,
+      icon: icon,
+      shortName: shortName,
+      translations: translations,
+    );
   }
 }

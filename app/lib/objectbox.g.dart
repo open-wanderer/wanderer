@@ -373,7 +373,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(5, 686829528950894660),
     name: 'CategoryEntity',
-    lastPropertyId: const obx_int.IdUid(3, 8424041497880750984),
+    lastPropertyId: const obx_int.IdUid(6, 6437104223388593365),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -392,6 +392,24 @@ final _entities = <obx_int.ModelEntity>[
       obx_int.ModelProperty(
         id: const obx_int.IdUid(3, 8424041497880750984),
         name: 'name',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 3156416638292948859),
+        name: 'icon',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 2927904461146245733),
+        name: 'shortName',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 6437104223388593365),
+        name: 'translationsJson',
         type: 9,
         flags: 0,
       ),
@@ -1174,10 +1192,22 @@ obx_int.ModelDefinition getObjectBoxModel() {
       objectToFB: (CategoryEntity object, fb.Builder fbb) {
         final idOffset = fbb.writeString(object.id);
         final nameOffset = fbb.writeString(object.name);
-        fbb.startTable(4);
+        final iconOffset = object.icon == null
+            ? null
+            : fbb.writeString(object.icon!);
+        final shortNameOffset = object.shortName == null
+            ? null
+            : fbb.writeString(object.shortName!);
+        final translationsJsonOffset = object.translationsJson == null
+            ? null
+            : fbb.writeString(object.translationsJson!);
+        fbb.startTable(7);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
+        fbb.addOffset(3, iconOffset);
+        fbb.addOffset(4, shortNameOffset);
+        fbb.addOffset(5, translationsJsonOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1190,8 +1220,22 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final nameParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 8, '');
-        final object = CategoryEntity(id: idParam, name: nameParam)
-          ..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+        final iconParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 10);
+        final shortNameParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 12);
+        final translationsJsonParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 14);
+        final object = CategoryEntity(
+          id: idParam,
+          name: nameParam,
+          icon: iconParam,
+          shortName: shortNameParam,
+          translationsJson: translationsJsonParam,
+        )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
       },
@@ -1832,6 +1876,21 @@ class CategoryEntity_ {
   /// See [CategoryEntity.name].
   static final name = obx.QueryStringProperty<CategoryEntity>(
     _entities[3].properties[2],
+  );
+
+  /// See [CategoryEntity.icon].
+  static final icon = obx.QueryStringProperty<CategoryEntity>(
+    _entities[3].properties[3],
+  );
+
+  /// See [CategoryEntity.shortName].
+  static final shortName = obx.QueryStringProperty<CategoryEntity>(
+    _entities[3].properties[4],
+  );
+
+  /// See [CategoryEntity.translationsJson].
+  static final translationsJson = obx.QueryStringProperty<CategoryEntity>(
+    _entities[3].properties[5],
   );
 }
 
