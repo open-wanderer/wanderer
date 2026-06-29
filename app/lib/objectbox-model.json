@@ -564,10 +564,63 @@
         }
       ],
       "relations": []
+    },
+    {
+      "id": "9:1133408451611476214",
+      "lastPropertyId": "8:7327599832160544687",
+      "name": "SubcategoryEntity",
+      "properties": [
+        {
+          "id": "1:2520402438592423638",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:6443892466393290385",
+          "name": "id",
+          "indexId": "16:2159451227595925580",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "3:3173114901057838824",
+          "name": "category",
+          "indexId": "17:8954079352209712639",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "4:7500180028087810225",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "5:61963327945568393",
+          "name": "shortName",
+          "type": 9
+        },
+        {
+          "id": "6:7072297717486544684",
+          "name": "icon",
+          "type": 9
+        },
+        {
+          "id": "7:6079142531578951383",
+          "name": "badgeIcon",
+          "type": 9
+        },
+        {
+          "id": "8:7327599832160544687",
+          "name": "translationsJson",
+          "type": 9
+        }
+      ],
+      "relations": []
     }
   ],
-  "lastEntityId": "8:5734302023385580278",
-  "lastIndexId": "15:4235871213533179134",
+  "lastEntityId": "9:1133408451611476214",
+  "lastIndexId": "17:8954079352209712639",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,

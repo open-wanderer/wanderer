@@ -18,6 +18,7 @@ import 'entities/actor_entity.dart';
 import 'entities/category_entity.dart';
 import 'entities/local_settings_entity.dart';
 import 'entities/settings_entity.dart';
+import 'entities/subcategory_entity.dart';
 import 'entities/trail_entity.dart';
 import 'entities/user_entity.dart';
 import 'entities/waypoint_entity.dart';
@@ -689,6 +690,66 @@ final _entities = <obx_int.ModelEntity>[
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
   ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(9, 1133408451611476214),
+    name: 'SubcategoryEntity',
+    lastPropertyId: const obx_int.IdUid(8, 7327599832160544687),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 2520402438592423638),
+        name: 'obxId',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 6443892466393290385),
+        name: 'id',
+        type: 9,
+        flags: 34848,
+        indexId: const obx_int.IdUid(16, 2159451227595925580),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 3173114901057838824),
+        name: 'category',
+        type: 9,
+        flags: 2048,
+        indexId: const obx_int.IdUid(17, 8954079352209712639),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 7500180028087810225),
+        name: 'name',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 61963327945568393),
+        name: 'shortName',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 7072297717486544684),
+        name: 'icon',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 6079142531578951383),
+        name: 'badgeIcon',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(8, 7327599832160544687),
+        name: 'translationsJson',
+        type: 9,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
 ];
 
 /// Shortcut for [obx.Store.new] that passes [getObjectBoxModel] and for Flutter
@@ -734,8 +795,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
     // Typically, this is done with `dart run build_runner build`.
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
-    lastEntityId: const obx_int.IdUid(8, 5734302023385580278),
-    lastIndexId: const obx_int.IdUid(15, 4235871213533179134),
+    lastEntityId: const obx_int.IdUid(9, 1133408451611476214),
+    lastIndexId: const obx_int.IdUid(17, 8954079352209712639),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [1110440324073703466],
@@ -1592,6 +1653,79 @@ obx_int.ModelDefinition getObjectBoxModel() {
         return object;
       },
     ),
+    SubcategoryEntity: obx_int.EntityDefinition<SubcategoryEntity>(
+      model: _entities[7],
+      toOneRelations: (SubcategoryEntity object) => [],
+      toManyRelations: (SubcategoryEntity object) => {},
+      getId: (SubcategoryEntity object) => object.obxId,
+      setId: (SubcategoryEntity object, int id) {
+        object.obxId = id;
+      },
+      objectToFB: (SubcategoryEntity object, fb.Builder fbb) {
+        final idOffset = fbb.writeString(object.id);
+        final categoryOffset = fbb.writeString(object.category);
+        final nameOffset = fbb.writeString(object.name);
+        final shortNameOffset = object.shortName == null
+            ? null
+            : fbb.writeString(object.shortName!);
+        final iconOffset = object.icon == null
+            ? null
+            : fbb.writeString(object.icon!);
+        final badgeIconOffset = object.badgeIcon == null
+            ? null
+            : fbb.writeString(object.badgeIcon!);
+        final translationsJsonOffset = object.translationsJson == null
+            ? null
+            : fbb.writeString(object.translationsJson!);
+        fbb.startTable(9);
+        fbb.addInt64(0, object.obxId);
+        fbb.addOffset(1, idOffset);
+        fbb.addOffset(2, categoryOffset);
+        fbb.addOffset(3, nameOffset);
+        fbb.addOffset(4, shortNameOffset);
+        fbb.addOffset(5, iconOffset);
+        fbb.addOffset(6, badgeIconOffset);
+        fbb.addOffset(7, translationsJsonOffset);
+        fbb.finish(fbb.endTable());
+        return object.obxId;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final idParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 6, '');
+        final categoryParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 8, '');
+        final nameParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 10, '');
+        final shortNameParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 12);
+        final iconParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 14);
+        final badgeIconParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 16);
+        final translationsJsonParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 18);
+        final object = SubcategoryEntity(
+          id: idParam,
+          category: categoryParam,
+          name: nameParam,
+          shortName: shortNameParam,
+          icon: iconParam,
+          badgeIcon: badgeIconParam,
+          translationsJson: translationsJsonParam,
+        )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+
+        return object;
+      },
+    ),
   };
 
   return obx_int.ModelDefinition(model, bindings);
@@ -2095,5 +2229,48 @@ class LocalSettingsEntity_ {
   /// See [LocalSettingsEntity.themeMode].
   static final themeMode = obx.QueryStringProperty<LocalSettingsEntity>(
     _entities[6].properties[1],
+  );
+}
+
+/// [SubcategoryEntity] entity fields to define ObjectBox queries.
+class SubcategoryEntity_ {
+  /// See [SubcategoryEntity.obxId].
+  static final obxId = obx.QueryIntegerProperty<SubcategoryEntity>(
+    _entities[7].properties[0],
+  );
+
+  /// See [SubcategoryEntity.id].
+  static final id = obx.QueryStringProperty<SubcategoryEntity>(
+    _entities[7].properties[1],
+  );
+
+  /// See [SubcategoryEntity.category].
+  static final category = obx.QueryStringProperty<SubcategoryEntity>(
+    _entities[7].properties[2],
+  );
+
+  /// See [SubcategoryEntity.name].
+  static final name = obx.QueryStringProperty<SubcategoryEntity>(
+    _entities[7].properties[3],
+  );
+
+  /// See [SubcategoryEntity.shortName].
+  static final shortName = obx.QueryStringProperty<SubcategoryEntity>(
+    _entities[7].properties[4],
+  );
+
+  /// See [SubcategoryEntity.icon].
+  static final icon = obx.QueryStringProperty<SubcategoryEntity>(
+    _entities[7].properties[5],
+  );
+
+  /// See [SubcategoryEntity.badgeIcon].
+  static final badgeIcon = obx.QueryStringProperty<SubcategoryEntity>(
+    _entities[7].properties[6],
+  );
+
+  /// See [SubcategoryEntity.translationsJson].
+  static final translationsJson = obx.QueryStringProperty<SubcategoryEntity>(
+    _entities[7].properties[7],
   );
 }
