@@ -46,7 +46,7 @@ type MergeSettings struct {
 	Likes     bool `json:"likes"`
 }
 
-type IntegrationAutoMergeSettings struct {
+type PluginAutoMergeSettings struct {
 	Enabled bool `json:"enabled"`
 }
 
@@ -132,13 +132,13 @@ type targetSelectionResult struct {
 	Stats   map[string]targetSelectionStats
 }
 
-func DefaultIntegrationAutoMergeSettings() IntegrationAutoMergeSettings {
-	return IntegrationAutoMergeSettings{
+func DefaultPluginAutoMergeSettings() PluginAutoMergeSettings {
+	return PluginAutoMergeSettings{
 		Enabled: false,
 	}
 }
 
-func DefaultIntegrationAutoMergeMergeSettings() MergeSettings {
+func DefaultPluginAutoMergeMergeSettings() MergeSettings {
 	return MergeSettings{
 		SummitLog: true,
 		Photos:    true,

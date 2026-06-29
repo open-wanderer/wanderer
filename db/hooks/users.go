@@ -17,6 +17,10 @@ func CreateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 			return err
 		}
 
+		if err := util.EnsureUserCategoryPriority(e.App, e.Record.Id, ""); err != nil {
+			return err
+		}
+
 		_, err = util.ActorFromUser(e.App, e.Record)
 		if err != nil {
 			return err

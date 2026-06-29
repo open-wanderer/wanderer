@@ -21,6 +21,12 @@
         formatElevation,
         formatTimeHHMM,
     } from "$lib/util/format_util";
+    import {
+        displayCategoryIcon,
+        displayCategoryName,
+        displaySubcategoryIcon,
+        displaySubcategoryLabel,
+    } from "$lib/util/category_util";
 
     import { browser } from "$app/environment";
     import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
@@ -30,7 +36,7 @@
     import * as M from "maplibre-gl";
     import "photoswipe/style.css";
     import { onMount, untrack } from "svelte";
-    import { _ } from "svelte-i18n";
+    import { _, locale } from "svelte-i18n";
     import Button from "../base/button.svelte";
     import Chip from "../base/chip.svelte";
     import SkeletonNotificationCard from "../base/skeleton_notification_card.svelte";
@@ -86,6 +92,17 @@
     let markTrailAsCompletedModal: ConfirmModal;
 
     let trail = $state(untrack(() => initTrail));
+
+    function trailCategoryIcon() {
+        if (trail.expand?.subcategory) {
+            return displaySubcategoryIcon(
+                trail.expand.subcategory,
+                trail.expand?.category,
+            );
+        }
+
+        return displayCategoryIcon(trail.expand?.category);
+    }
 
     const tabs = [
         $_("summit-book"),
@@ -747,10 +764,20 @@
                         >{#if mode == "overview"}
                             {$_("category")}
                         {:else}
-                            <i class="fa fa-route"></i>
+                            <i class="fa {trailCategoryIcon()}"></i>
                         {/if}</span
                     >
-                    <span class="">{$_(trail.expand.category.name)}</span>
+                    <span class="">
+                        {displayCategoryName(trail.expand.category, $locale)}
+                        {#if trail.expand?.subcategory}
+                            <span class="text-gray-500">
+                                / {displaySubcategoryLabel(
+                                    trail.expand.subcategory,
+                                    $locale,
+                                )}
+                            </span>
+                        {/if}
+                    </span>
                 </div>
             {/if}
         </section>

@@ -13,7 +13,7 @@ export async function summit_logs_index(filter?: SummitLogFilter, handle?: strin
     const r = await f('/api/v1/summit-log?' + new URLSearchParams({
         ...(filter ? { filter: buildFilterText(filter) } : {}),
         perPage: "-1",
-        expand: "trail.category,author",
+        expand: "trail.category,trail.subcategory,trail.subcategory.category,author",
         sort: "+date",
         ...(handle ? { handle } : {})
     }), {

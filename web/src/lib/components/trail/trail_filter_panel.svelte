@@ -18,6 +18,7 @@
     import Search, { type SearchItem } from "../base/search.svelte";
     import type { SelectItem } from "../base/select.svelte";
     import Slider from "../base/slider.svelte";
+    import TrailCategoryFilter from "./trail_category_filter.svelte";
 
     interface Props {
         categories: Category[];
@@ -36,13 +37,6 @@
         showCitySearch = true,
         onupdate,
     }: Props = $props();
-
-    let categorySelectItems = $derived(
-        categories.map((c) => ({
-            value: c.name,
-            text: c.name,
-        })),
-    );
 
     const radioGroupCompletenessItems: RadioItem[] = [
         { text: $_("completed"), value: "completed" },
@@ -64,12 +58,6 @@
 
     async function update() {
         onupdate?.(filter);
-    }
-
-    function setCategoryFilter(categories: SelectItem[]) {
-        filter.category = categories.map((c) => c.value);
-
-        update();
     }
 
     function setAuthorFilter(item: SearchItem) {
@@ -200,15 +188,11 @@
             {#if showTrailSearch}
                 <hr class="my-4 border-separator" />
             {/if}
-            <MultiSelect
-                onchange={(value) => setCategoryFilter(value)}
-                value={categorySelectItems.filter((i) =>
-                    filter.category.includes(i.value),
-                )}
-                label={$_("categories")}
-                items={categorySelectItems}
-                placeholder={`${$_("filter-categories")}...`}
-            ></MultiSelect>
+            <TrailCategoryFilter
+                {categories}
+                bind:filter
+                onupdate={update}
+            />
             <hr class="my-4 border-separator" />
             <Combobox
                 bind:value={getFilterTags, setFilterTags}

@@ -4,11 +4,6 @@
     import type { List } from "$lib/models/list";
     import type { Trail } from "$lib/models/trail";
     import {
-        integrations,
-        integrations_index,
-        uploadGpx,
-    } from "$lib/stores/integration_store";
-    import {
         lists_add_trail,
         lists_index,
         lists_remove_trail,
@@ -25,13 +20,15 @@
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
     import JSZip from "jszip";
-    import { onMount, type Snippet } from "svelte";
+    import { type Snippet } from "svelte";
     import { _ } from "svelte-i18n";
-    import { get } from "svelte/store";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
     import ConfirmModal from "../confirm_modal.svelte";
     import ListSearchModal from "../list/list_search_modal.svelte";
     import TrailExportModal from "./trail_export_modal.svelte";
+    import TrailBulkEditModal, {
+        type TrailBulkEditChanges,
+    } from "./trail_bulk_edit_modal.svelte";
     import TrailSendModal from "./trail_send_modal.svelte";
     import TrailShareModal from "./trail_share_modal.svelte";
     import {
@@ -43,6 +40,7 @@
     import type { MergeSelection, MergeSettings } from "./trail_merge_modal.svelte";
     import MergeDialog from "$lib/components/trail/trail_merge_dialog.svelte";
     import { trail_merge } from "$lib/stores/trail_merge_api";
+    import { hasSendCapablePlugin } from "$lib/stores/plugin_store";
 
     export interface MergeResult {
         targetTrail: Trail;
@@ -56,7 +54,7 @@
         toggle?: Snippet<[any]>;
         onDelete?: () => void;
         onShare?: () => void;
-        onUpdate?: () => void;
+        onUpdate?: (updatedTrails?: Trail[]) => void;
         onMerge?: (result: MergeResult) => void;
     }
 
@@ -65,58 +63,12 @@
     let confirmModal: ConfirmModal;
     let listSelectModal: ListSearchModal;
     let trailExportModal: TrailExportModal;
+    let trailSendModal: TrailSendModal;
     let trailShareModal: TrailShareModal;
     let trailMergeModal: TrailMergeModal;
-    let trailSendModal: TrailSendModal;
-
-    const hammerheadIntegration = $derived(
-        $integrations.find((integration) =>
-            Boolean(integration.hammerhead?.active)
-        )
-    );
+    let trailBulkEditModal: TrailBulkEditModal;
 
     let lists: List[] = $state([]);
-    let integrationsLoading = false;
-    let integrationsLoadedForUser: string | undefined;
-
-    onMount(() => {
-        const unsubscribe = currentUser.subscribe(async (user) => {
-            if (!user) {
-                integrationsLoadedForUser = undefined;
-                return;
-            }
-
-            const existing = get(integrations);
-            if (
-                existing.length &&
-                existing[0]?.user === user.id
-            ) {
-                integrationsLoadedForUser = user.id;
-                return;
-            }
-
-            if (
-                integrationsLoading ||
-                integrationsLoadedForUser === user.id
-            ) {
-                return;
-            }
-
-            integrationsLoading = true;
-            try {
-                await integrations_index();
-                integrationsLoadedForUser = user.id;
-            } catch (error) {
-                console.error("Failed to load integrations", error);
-            } finally {
-                integrationsLoading = false;
-            }
-        });
-
-        return () => {
-            unsubscribe();
-        };
-    });
 
     let loading: boolean = $state(false);
 
@@ -214,6 +166,16 @@
         return !isMultiselectMode();
     }
 
+    function allowSend(): boolean {
+        return (
+            hasTrail() &&
+            !isMultiselectMode() &&
+            hasGpx() &&
+            Boolean($currentUser) &&
+            $hasSendCapablePlugin
+        );
+    }
+
     function allowPublish(): boolean {
         if (mode !== "multi-select") return false;
 
@@ -232,6 +194,81 @@
         return true;
     }
 
+    function allowBulkEdit(): boolean {
+        return allowPublish();
+    }
+
+    function selectedCategorySelection():
+        | TrailBulkEditChanges["category"]
+        | undefined {
+        if (!trails || trails.size === 0) {
+            return undefined;
+        }
+
+        const selectedTrails = [...trails];
+        const firstCategory =
+            selectedTrails[0]?.category ??
+            selectedTrails[0]?.expand?.category?.id ??
+            selectedTrails[0]?.expand?.subcategory?.category ??
+            "";
+        const firstSubcategory =
+            selectedTrails[0]?.subcategory ??
+            selectedTrails[0]?.expand?.subcategory?.id ??
+            "";
+
+        if (!firstCategory) {
+            return undefined;
+        }
+
+        const allSame = selectedTrails.every((candidate) => {
+            const category =
+                candidate.category ??
+                candidate.expand?.category?.id ??
+                candidate.expand?.subcategory?.category ??
+                "";
+            const subcategory =
+                candidate.subcategory ?? candidate.expand?.subcategory?.id ?? "";
+
+            return (
+                category === firstCategory &&
+                subcategory === firstSubcategory
+            );
+        });
+
+        if (!allSame) {
+            return undefined;
+        }
+
+        return {
+            category: firstCategory,
+            subcategory: firstSubcategory,
+        };
+    }
+
+    function selectedDifficulty():
+        | TrailBulkEditChanges["difficulty"]
+        | undefined {
+        if (!trails || trails.size === 0) {
+            return undefined;
+        }
+
+        const selectedTrails = [...trails];
+        const firstDifficulty = selectedTrails[0]?.difficulty;
+        if (!firstDifficulty) {
+            return undefined;
+        }
+
+        if (
+            !selectedTrails.every(
+                (candidate) => candidate.difficulty === firstDifficulty,
+            )
+        ) {
+            return undefined;
+        }
+
+        return firstDifficulty;
+    }
+
     function dropdownItems(): DropdownItem[] {
         const separator = (value: string): DropdownItem => ({
             text: "",
@@ -240,14 +277,24 @@
         });
         const allowListManagement = isFromCurrentUser();
         const allowShareSingleTrail = !isMultiselectMode() && isFromCurrentUser();
-        const allowSingleOutput = canExport() || (!isMultiselectMode() && hammerheadIntegration && canExport());
+        const allowSingleOutput = canExport();
 
         if (isMultiselectMode()) {
             return [
+                ...(allowBulkEdit()
+                    ? [
+                          {
+                              text: $_("adjust"),
+                              value: "bulk-edit",
+                              icon: "pen",
+                          },
+                      ]
+                    : []),
                 ...(allowMerge()
                     ? [{ text: $_("link"), value: "merge", icon: "link" }]
                     : []),
-                ...(allowMerge() && (canExport() || allowListManagement || allowPublish() || allowDelete())
+                ...((allowBulkEdit() || allowMerge()) &&
+                (canExport() || allowListManagement || allowPublish() || allowDelete())
                     ? [separator("sep-multi-actions")]
                     : []),
                 ...(canExport()
@@ -330,14 +377,16 @@
                   ]
                 : []),
             ...(allowFindSimilarTrails()
-                ? [{
-                    text: $_("find-similar-trails"),
-                    value: "find-similar-trails",
-                    icon: "link",
-                }]
+                ? [
+                      {
+                          text: $_("find-similar-trails"),
+                          value: "find-similar-trails",
+                          icon: "link",
+                      },
+                  ]
                 : []),
-                ...(allowCopy()
-                    ? [
+            ...(allowCopy()
+                ? [
                       {
                           text: $_("duplicate"),
                           value: "copy",
@@ -389,7 +438,7 @@
                       },
                   ]
                 : []),
-            ...(!isMultiselectMode() && hammerheadIntegration && canExport()
+            ...(allowSend()
                 ? [
                       {
                           text: $_("send-to"),
@@ -528,6 +577,8 @@
             }
         } else if (ddVal == "share") {
             trailShareModal.openModal();
+        } else if (ddVal == "send-to") {
+            trailSendModal.openModal();
         } else if (ddVal == "download") {
             trailExportModal.openModal();
         } else if (ddVal == "edit") {
@@ -540,6 +591,8 @@
             }
         } else if (ddVal == "publish") {
             updateTrailsVisibility();
+        } else if (ddVal == "bulk-edit") {
+            trailBulkEditModal.openModal();
         } else if (ddVal == "delete") {
             confirmModal.openModal();
         } else if (item.value == "merge") {
@@ -548,8 +601,6 @@
             if (trail()) {
                 await trailMergeModal.openSimilarTrailsModal(trail()!);
             }
-        } else if (item.value == "send-to") {
-            trailSendModal.openModal();
         }
     }
 
@@ -605,49 +656,6 @@
         await trail_merge(trailSource.id, trailTarget.id, settings);
         onProgress?.(1);
     }
-    async function uploadToHammerhead() {
-        if (!hammerheadIntegration || !hasTrail()) {
-            console.error("No Hammerhead integration found.");
-            return;
-        }
-
-        for (const uTrail of trails!) {
-            try {
-                if (uTrail.gpx) {
-                    const gpxData = await trail2gpx(uTrail, $currentUser);
-                    const formData = new FormData();
-                    const gpxFile = new File(
-                        [gpxData],
-                        `${uTrail.name || "trail"}.gpx`,
-                        { type: "application/gpx+xml" },
-                    );
-                    formData.append("file", gpxFile);
-
-                    await uploadGpx("hammerhead", gpxFile);
-
-                    show_toast({
-                        type: "success",
-                        icon: "check",
-                        text: $_("uploaded-trail-to-hammerhead"),
-                    });
-                } else {
-                    show_toast({
-                        type: "error",
-                        icon: "close",
-                        text: $_("trail-has-no-gpx"),
-                    });
-                }
-            } catch (e) {
-                console.error(e);
-                show_toast({
-                    type: "error",
-                    icon: "close",
-                    text: $_("error-uploading-trail-to-hammerhead"),
-                });
-            }
-        }
-    }
-
     async function updateTrailsVisibility() {
         const newVisibility = !majorityOfSelectedTrailsArePublic();
 
@@ -687,6 +695,66 @@
 
         loading = false;
         onUpdate?.();
+    }
+
+    async function updateTrailsBulk(changes: TrailBulkEditChanges) {
+        loading = true;
+        let updatedCount = 0;
+        const updatedTrails: Trail[] = [];
+
+        for (const cTrail of trails ?? []) {
+            if (!cTrail || !canEditTrail(cTrail)) continue;
+            if (!cTrail.expand?.author?.id) continue;
+
+            const origTrail: Trail = {
+                ...cTrail,
+                author: cTrail.expand.author.id,
+            };
+            const updatedTrail: Trail = {
+                ...origTrail,
+                ...(changes.category
+                    ? {
+                          category: changes.category.category,
+                          subcategory: changes.category.subcategory,
+                      }
+                    : {}),
+                ...(changes.difficulty
+                    ? { difficulty: changes.difficulty }
+                    : {}),
+            };
+
+            try {
+                const updated = await trails_update(
+                    origTrail,
+                    updatedTrail,
+                    undefined,
+                    undefined,
+                    ["tags"],
+                );
+                updatedTrails.push(updated);
+                updatedCount += 1;
+            } catch (e) {
+                console.error(e);
+
+                show_toast({
+                    type: "error",
+                    icon: "close",
+                    text: `${$_("error-saving-trail")}: ${cTrail.name}`,
+                });
+            }
+        }
+
+        loading = false;
+        if (updatedCount > 0) {
+            show_toast({
+                type: "success",
+                icon: "check",
+                text: $_("bulk-edit-updated-trails", {
+                    values: { n: updatedCount },
+                }),
+            });
+        }
+        onUpdate?.(updatedTrails);
     }
 
     async function exportTrails(exportSettings: {
@@ -926,17 +994,21 @@
     onsave={handleShareUpdate}
     bind:this={trailShareModal}
 ></TrailShareModal>
+<TrailSendModal
+    trail={trail()}
+    share={page.url.searchParams.get("share") ?? undefined}
+    bind:this={trailSendModal}
+></TrailSendModal>
 <TrailMergeModal
     bind:this={trailMergeModal}
     onmerge={(settings, selection) => mergeTrails(settings, selection)}
 ></TrailMergeModal>
+<TrailBulkEditModal
+    selectedCount={trails?.size ?? 0}
+    initialCategorySelection={selectedCategorySelection()}
+    initialDifficulty={selectedDifficulty()}
+    bind:this={trailBulkEditModal}
+    onapply={(changes) => updateTrailsBulk(changes)}
+></TrailBulkEditModal>
 
 <MergeDialog/>
-<TrailSendModal
-    bind:this={trailSendModal}
-    onsend={async (settings) => {
-        if (settings.integrationName === "hammerhead") {
-            await uploadToHammerhead();
-        }
-    }}
-></TrailSendModal>

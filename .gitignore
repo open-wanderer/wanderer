@@ -11,5 +11,9 @@ run.sh
 build*.sh
 start*.*
 data*/
+
+plugins/*/dist/
+plugin_dist/
+
 .claude/
 CLAUDE.md

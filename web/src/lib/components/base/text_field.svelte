@@ -11,7 +11,7 @@
         error?: string | string[] | null;
         icon?: string;
         extraClasses?: string;
-        type?: "text" | "password" | "search";
+        type?: "text" | "password" | "search" | "url";
         autocomplete?: "on" | "off";
         onchange?: ChangeEventHandler<HTMLInputElement>;
         oninput?: FormEventHandler<HTMLInputElement>;
