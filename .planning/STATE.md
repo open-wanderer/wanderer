@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: milestone
-status: executing
+status: Awaiting next milestone
 stopped_at: Phase 9 context gathered
-last_updated: "2026-06-21T09:28:39.590Z"
-last_activity: 2026-06-21
+last_updated: "2026-06-29T11:47:50.049Z"
+last_activity: 2026-06-29 — Milestone v1.2 completed and archived
 progress:
   total_phases: 9
   completed_phases: 4
@@ -18,17 +18,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-19)
+See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 09 — notifications
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 09
-Plan: Not started
-Status: Executing Phase 09
-Last activity: 2026-06-21
+Phase: Milestone v1.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-29 — Milestone v1.2 completed and archived
 
 ## Performance Metrics
 
@@ -138,8 +138,29 @@ Recent decisions affecting current work:
 | Account | API token management (ACCT-F01) | Future | v1.2 requirements |
 | Settings | Favourite sport picker, Export, Integrations, Maintenance, Map settings | Out of scope | v1.2 requirements |
 
+Items acknowledged and deferred at milestone close on 2026-06-29 (12 total):
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 08: 08-UAT.md — 4 pending test scenarios | acknowledged |
+| verification | Phase 06: 06-VERIFICATION.md — human_needed items | acknowledged |
+| verification | Phase 07: 07-VERIFICATION.md — human_needed items | acknowledged |
+| verification | Phase 08: 08-VERIFICATION.md — human_needed items | acknowledged |
+| quick_task | 260610-kdc-fix-trail-pmtiles-download-add-missing-g | acknowledged |
+| quick_task | 260611-whq-support-multiple-pmtiles-sources-in-offl | acknowledged |
+| quick_task | 260612-gmg-add-proper-dark-mode-to-the-flutter-app | acknowledged |
+| quick_task | 260615-k0w-implement-along-track-projection-for-way | acknowledged |
+| quick_task | 260615-ktn-research-flutter-background-geolocation | acknowledged |
+| quick_task | 260615-mxk-implement-background-navigation-so-locat | acknowledged |
+| quick_task | 260616-h99-create-wandereractorsearch-component-for | acknowledged |
+| quick_task | 260616-j2n-implement-the-like-feature-from-the-web | acknowledged |
+
 ## Session Continuity
 
 Last session: 2026-06-21T09:28:39.566Z
 Stopped at: Phase 9 context gathered
 Resume file: .planning/phases/09-notifications/09-CONTEXT.md
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
