@@ -39,9 +39,14 @@ class SubcategoryNotifier extends _$SubcategoryNotifier {
       ).items;
 
       // Overwrite all cached subcategory rows on every successful refresh.
-      final box = ref.read(objectBoxProvider).box<SubcategoryEntity>();
-      box.removeAll();
-      box.putMany(items.map(SubcategoryEntity.fromModel).toList());
+      // Both operations run in a single write transaction so a mid-operation
+      // crash cannot leave the cache empty.
+      final store = ref.read(objectBoxProvider);
+      store.runInTransaction(TxMode.write, () {
+        final box = store.box<SubcategoryEntity>();
+        box.removeAll();
+        box.putMany(items.map(SubcategoryEntity.fromModel).toList());
+      });
 
       state = items;
     } catch (_) {

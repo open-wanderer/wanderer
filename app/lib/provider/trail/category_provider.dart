@@ -29,10 +29,14 @@ class CategoryNotifier extends _$CategoryNotifier {
 
       // Overwrite all cached category rows on every successful fetch (D-02 —
       // no staleness tracking). Kept inside the try block so a failed fetch
-      // leaves the prior cache intact.
-      final box = ref.read(objectBoxProvider).box<CategoryEntity>();
-      box.removeAll();
-      box.putMany(items.map(CategoryEntity.fromModel).toList());
+      // leaves the prior cache intact. Both operations run in a single write
+      // transaction so a mid-operation crash cannot leave the cache empty.
+      final store = ref.read(objectBoxProvider);
+      store.runInTransaction(TxMode.write, () {
+        final box = store.box<CategoryEntity>();
+        box.removeAll();
+        box.putMany(items.map(CategoryEntity.fromModel).toList());
+      });
 
       return items;
     } catch (e) {
