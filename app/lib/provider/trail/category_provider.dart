@@ -7,7 +7,7 @@ import 'package:wanderer/provider/objectbox_store_provider.dart';
 
 part 'category_provider.g.dart';
 
-@riverpod
+@Riverpod(keepAlive: true)
 class CategoryNotifier extends _$CategoryNotifier {
   @override
   FutureOr<List<Category>> build() async {
