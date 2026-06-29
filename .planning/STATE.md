@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Category Redesign
-status: planning
+status: verifying
 stopped_at: Phase 10 context gathered
-last_updated: "2026-06-29T12:25:47.194Z"
-last_activity: 2026-06-29 — v1.3 roadmap created (Phases 10-12), all 19 requirements mapped
+last_updated: "2026-06-29T13:48:19.388Z"
+last_activity: 2026-06-29 -- Phase 10 execution started
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 4
+  completed_plans: 4
+  percent: 33
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 
 ## Current Position
 
-Phase: 10 of 12 (Category & Subcategory Data Layer)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-06-29 — v1.3 roadmap created (Phases 10-12), all 19 requirements mapped
+Phase: 10 (Category & Subcategory Data Layer) — EXECUTING
+Plan: 4 of 4
+Status: Phase complete — ready for verification
+Last activity: 2026-06-29 -- Phase 10 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -58,6 +58,10 @@ Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of e
 | 09 | 1 | - | - |
 
 *Updated after each plan completion*
+| Phase 10 P01 | 5 | 2 tasks | 6 files |
+| Phase 10 P02 | 4 | 2 tasks tasks | 4 files files |
+| Phase 10 P03 | 4 | 2 tasks | 10 files |
+| Phase 10 P04 | 6 | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -72,6 +76,11 @@ Recent decisions affecting current work:
 - [v1.2] freezed 3.x: @JsonSerializable(explicitToJson: true) must be on the factory constructor, not above @freezed — critical for the new Subcategory/preference freezed models in v1.3
 - [v1.2] `State.mounted` in ConsumerState, `context.mounted` in ConsumerWidget helpers — reuse for SettingsCategoriesScreen async guards
 - [v1.2] `Settings` freezed model + `settingsProvider.saveToServer()` shared across settings screens — but v1.3 category preferences use dedicated `/user-category-preference` and `/user-subcategory-preference` endpoints, not Settings
+- [Phase ?]: [10-01] Removed Category.img (zero call sites) for icon, mirroring web category.ts; CategoryTranslation reused by Subcategory via import
+- [Phase ?]: [10-02] Reused SettingsEntity.notificationsJson JSON-blob shape for translations on Category/Subcategory entities; subcategory parent is an indexed String column (not ToOne) per CAT-03
+- [Phase ?]: [10-03] Preference models are flat freezed (no explicitToJson); providers use anonymous gate returning [] with no API call (D-07) and never send a client user field (server injects it, Security V4/T-10-05)
+- [Phase ?]: [10-04] CategoryNotifier overwrites all CategoryEntity rows on every /category fetch (D-02); SubcategoryNotifier is cache-first synchronous build + background /subcategory refresh (D-03/D-04)
+- [Phase ?]: [10-04] Settings.category removed via compiler-driven sweep; ObjectBox drops the property on next app open, no migration script (D-09)
 
 ### Pending Todos
 
@@ -97,7 +106,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-06-29T12:25:47.180Z
+Last session: 2026-06-29T13:48:14.368Z
 Stopped at: Phase 10 context gathered
 Resume file: .planning/phases/10-category-subcategory-data-layer/10-CONTEXT.md
 

@@ -1,8 +1,20 @@
 # Wanderer Trail Navigation
 
+## Current Milestone: v1.3 Category Redesign
+
+**Goal:** Bring the Flutter app's category system up to parity with the web's PR #1059 category redesign — subcategory-aware trail filters and a new Settings → Categories screen for per-category/subcategory visibility and priority preferences.
+
+**Target features:**
+- Updated Category model with `icon`, `short_name`, and `translations` fields; locale-aware display name resolution
+- New Subcategory model + provider (freezed, ObjectBox entity, fetched from `/subcategory`)
+- Subcategory filter in TrailFilterScreen and trail_quick_filter_bar
+- New SettingsCategoriesScreen: per-category visibility toggle, per-subcategory visibility toggle, priority reordering
+- Category/subcategory preference providers backed by `/user-category-preference` and `/user-subcategory-preference`
+- Remove deprecated `Settings.category` (old favourite sport field replaced by priority in category preferences)
+
 ## What This Is
 
-Turn-by-turn trail navigation and full settings management for the Wanderer Flutter mobile app. Users launch navigation from a trail's detail or map screen and get Valhalla-powered maneuver instructions, a live map centered on their position, and a stats sheet tracking distance, elevation, and speed. The app also includes a complete settings suite: language picker (14 locales), metric/imperial unit toggle, privacy controls, account/profile management, and per-type notification preferences.
+Turn-by-turn trail navigation, full settings management, and category-aware trail discovery for the Wanderer Flutter mobile app. Users launch navigation from a trail's detail or map screen and get Valhalla-powered maneuver instructions, a live map centered on their position, and a stats sheet tracking distance, elevation, and speed. The app includes a complete settings suite (language, units, privacy, account, notifications, categories) and subcategory-aware trail filters.
 
 ## Core Value
 
@@ -30,7 +42,12 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 
 ### Active
 
-_(none — planning next milestone)_
+- [ ] Category model updated with `icon`, `short_name`, `translations`; locale-aware display name resolution
+- [ ] Subcategory freezed model, ObjectBox entity, and provider fetching from `/subcategory`
+- [ ] `TrailFilter` gains `subcategory` list; TrailFilterScreen and quick filter bar show subcategory chips
+- [ ] New SettingsCategoriesScreen: per-category and per-subcategory visibility toggles + priority reordering
+- [ ] Category and subcategory preference Riverpod providers backed by `/user-category-preference` and `/user-subcategory-preference`
+- [ ] `Settings.category` field removed (replaced by priority-based category preferences)
 
 ### Out of Scope
 
@@ -39,6 +56,9 @@ _(none — planning next milestone)_
 - Re-routing if user goes off-trail
 - API token management (ACCT-F01) — mobile clients don't need API tokens; web-only feature
 - Favourite sport picker, Export, Integrations (Strava/Komoot), Maintenance, Map settings — out of scope for mobile settings v1
+- Drag-to-reorder for category priority (use ReorderableListView or up/down buttons instead of pointer-drag like web)
+- Category/subcategory picker in trail create/edit form — deferred to v1.4 (form rework needed)
+- Bulk-edit modal — web-only feature, out of scope for mobile
 
 ## Context
 
@@ -46,6 +66,7 @@ _(none — planning next milestone)_
 - Shipped v1.0: Navigation screen (SvelteKit Valhalla endpoint + Flutter screen + stats sheet)
 - Shipped v1.1: Offline navigation (ObjectBox cache, DioException fallback, offline indicator)
 - Shipped v1.2: Full settings suite (Language/Units, Privacy, Account/Profile, Notifications)
+- Web PR #1059 merged: new category model with translations/icon/short_name, subcategories, user category/subcategory preferences, favourite sport replaced by priority-based category ordering
 - Settings infrastructure: `Settings` freezed model, `settingsProvider` with `saveToServer()` — reused by all four screens
 - `localeProvider` and `unitProvider` derived from `settingsProvider` — live-switch locale and unit system app-wide
 - 14 supported locales with ARB files; AppLocalizations regenerated in Phase 6
@@ -95,4 +116,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-29 after v1.2 milestone — Settings Screens shipped (Language/Units, Privacy, Account/Profile, Notifications). All 15 cumulative requirements validated.*
+*Last updated: 2026-06-29 after v1.3 milestone start — Category Redesign: subcategory filters + Settings → Categories screen.*

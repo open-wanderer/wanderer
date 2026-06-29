@@ -46,50 +46,69 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 **Milestone Goal:** Bring the Flutter app's category system to parity with web PR #1059 — a translations/icon/short_name-aware Category model, a new Subcategory model + provider, subcategory-aware trail filters, and a Settings → Categories screen for per-category/subcategory visibility and priority preferences.
 
-- [ ] **Phase 10: Category & Subcategory Data Layer** - Updated Category model, new Subcategory model + entity + provider, locale-aware names, remove `Settings.category`, preference models + providers (SETCAT-03/04/05)
+- [x] **Phase 10: Category & Subcategory Data Layer** - Updated Category model, new Subcategory model + entity + provider, locale-aware names, remove `Settings.category`, preference models + providers (SETCAT-03/04/05) (completed 2026-06-29)
 - [ ] **Phase 11: Trail Filter Subcategory Support** - `TrailFilter.subcategory`, subcategory chips in TrailFilterScreen and quick filter bar, locale-resolved category labels, hidden-category/subcategory omitted from filter chips (FILTER-06/07)
 - [ ] **Phase 12: Settings Categories Screen** - SettingsCategoriesScreen with visibility toggles + priority reordering, router wiring (UI only — providers come from Phase 10)
 
 ## Phase Details
 
 ### Phase 10: Category & Subcategory Data Layer
+
 **Goal**: The app's category data model matches web PR #1059 — categories expose locale-aware names, subcategories are fetched and cached, preference models and providers are in place, and the deprecated favourite-sport field is gone.
 **Depends on**: Phase 9 (v1.2 settings infrastructure)
 **Requirements**: CAT-01, CAT-02, CAT-03, CAT-04, CAT-05, SETCAT-03, SETCAT-04, SETCAT-05
 **Success Criteria** (what must be TRUE):
+
   1. A category's display name renders in the active locale, falling back to English then the raw `name`, and exposes its `icon` and `short_name`.
   2. Subcategories load from `/subcategory` through a Riverpod provider and persist to ObjectBox with indexed `id` and `category` fields, surviving app restarts.
   3. Each subcategory carries its parent `category` id, `name`, `short_name`, `icon`, `badge_icon`, and `translations`.
   4. CategoryPreferenceNotifier and SubcategoryPreferenceNotifier providers fetch the user's preferences from their respective API endpoints.
-  5. The app builds and runs with `Settings.category` removed — no remaining references to the old favourite-sport field.
-**Plans**: 4 plans
-  - [ ] 10-01-PLAN.md — Category + Subcategory + CategoryTranslation models, locale displayName (CAT-01, CAT-02)
-  - [ ] 10-02-PLAN.md — CategoryEntity extension + SubcategoryEntity (indexed id/category, JSON-blob translations) (CAT-03)
-  - [ ] 10-03-PLAN.md — Preference models + CategoryPreferenceNotifier/SubcategoryPreferenceNotifier providers (SETCAT-03/04/05)
-  - [ ] 10-04-PLAN.md — CategoryNotifier ObjectBox write, cache-first SubcategoryNotifier, remove Settings.category (CAT-04, CAT-05)
+  5. The app builds and runs with `Settings.category` removed — no remaining references to the old favourite-sport field.**Plans**: 4 plans
+
+**Wave 1**
+
+  - [x] 10-01-PLAN.md — Category + Subcategory + CategoryTranslation models, locale displayName (CAT-01, CAT-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+  - [x] 10-02-PLAN.md — CategoryEntity extension + SubcategoryEntity (indexed id/category, JSON-blob translations) (CAT-03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+  - [x] 10-03-PLAN.md — Preference models + CategoryPreferenceNotifier/SubcategoryPreferenceNotifier providers (SETCAT-03/04/05)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+  - [x] 10-04-PLAN.md — CategoryNotifier ObjectBox write, cache-first SubcategoryNotifier, remove Settings.category (CAT-04, CAT-05)
 
 ### Phase 11: Trail Filter Subcategory Support
+
 **Goal**: Users can narrow trail searches by subcategory in both the full filter screen and the quick filter bar, with category labels shown in their language and hidden categories/subcategories omitted from the picker.
 **Depends on**: Phase 10
 **Requirements**: FILTER-01, FILTER-02, FILTER-03, FILTER-04, FILTER-05, FILTER-06, FILTER-07
 **Success Criteria** (what must be TRUE):
+
   1. With at least one category selected in TrailFilterScreen, the user sees subcategory chips limited to the subcategories of those selected categories.
   2. Tapping subcategory chips toggles them and changes which trails the search returns (the subcategory selection reaches the API filter payload).
   3. Category chips throughout the filter UI display locale-resolved names using the CAT-01 fallback chain.
   4. The quick filter bar's Category bottom sheet lets the user pick both categories and subcategories, and the chosen filter persists in the active trail filter.
   5. Categories and subcategories the user has marked hidden in Settings → Categories do not appear as selectable chips in the filter UI.
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 12: Settings Categories Screen
+
 **Goal**: A user can open Settings → Categories to control which categories and subcategories appear and in what priority order, with changes saved automatically.
 **Depends on**: Phase 10 (preference providers come from Phase 10)
 **Requirements**: SETCAT-01, SETCAT-02, SETCAT-06, SETCAT-07, SETCAT-08, SETCAT-09
 **Success Criteria** (what must be TRUE):
+
   1. From SettingsScreen the user taps a "Categories" tile and lands on SettingsCategoriesScreen via the `/settings/categories` route.
   2. The screen lists categories sorted by priority (ascending, alphabetical for ties), each row showing the category icon and its locale-resolved name.
   3. Toggling a category's visibility switch auto-saves to `/user-category-preference`; expanding a row reveals its subcategories, each with its own visibility switch that saves to `/user-subcategory-preference`.
   4. Reordering categories with the ReorderableListView persists the new order via `POST /user-category-preference/reorder` and the list reflects the saved priority on reload.
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -109,6 +128,6 @@ Phases execute in numeric order: 10 → 11 → 12 (11 and 12 are independent of 
 | 7. Privacy | v1.2 | 1/1 | Complete | 2026-06-20 |
 | 8. Account & Profile | v1.2 | 3/3 | Complete | 2026-06-20 |
 | 9. Notifications | v1.2 | 1/1 | Complete | 2026-06-21 |
-| 10. Category & Subcategory Data Layer | v1.3 | 0/4 | Planned | - |
+| 10. Category & Subcategory Data Layer | v1.3 | 4/4 | Complete   | 2026-06-29 |
 | 11. Trail Filter Subcategory Support | v1.3 | 0/TBD | Not started | - |
 | 12. Settings Categories Screen | v1.3 | 0/TBD | Not started | - |
