@@ -40,6 +40,11 @@ class CategoryNotifier extends _$CategoryNotifier {
 
       return items;
     } catch (e) {
+      // Fall back to the ObjectBox cache so offline cold-starts can still
+      // serve categories from a previous successful fetch (WR-01 fix).
+      final box = ref.read(objectBoxProvider).box<CategoryEntity>();
+      final cached = box.getAll();
+      if (cached.isNotEmpty) return cached.map((e) => e.toModel()).toList();
       throw Exception('Failed to fetch categories: $e');
     }
   }
