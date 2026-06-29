@@ -641,12 +641,6 @@ final _entities = <obx_int.ModelEntity>[
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(8, 6208667096274902561),
-        name: 'category',
-        type: 9,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
         id: const obx_int.IdUid(10, 4126653197482212680),
         name: 'privacyJson',
         type: 9,
@@ -837,6 +831,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
       7446729006448357631,
       5096657038833034963,
       1392396091350786512,
+      6208667096274902561,
     ],
     retiredRelationUids: const [],
     modelVersion: 5,
@@ -1554,9 +1549,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final locationJsonOffset = object.locationJson == null
             ? null
             : fbb.writeString(object.locationJson!);
-        final categoryOffset = object.category == null
-            ? null
-            : fbb.writeString(object.category!);
         final privacyJsonOffset = object.privacyJson == null
             ? null
             : fbb.writeString(object.privacyJson!);
@@ -1573,7 +1565,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(4, languageCodeOffset);
         fbb.addOffset(5, bioOffset);
         fbb.addOffset(6, locationJsonOffset);
-        fbb.addOffset(7, categoryOffset);
         fbb.addOffset(9, privacyJsonOffset);
         fbb.addOffset(10, notificationsJsonOffset);
         fbb.addOffset(12, userOffset);
@@ -1598,9 +1589,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final locationJsonParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 16);
-        final categoryParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGetNullable(buffer, rootOffset, 18);
         final userParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 28);
@@ -1616,7 +1604,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
           languageCode: languageCodeParam,
           bio: bioParam,
           locationJson: locationJsonParam,
-          category: categoryParam,
           user: userParam,
           privacyJson: privacyJsonParam,
           notificationsJson: notificationsJsonParam,
@@ -2198,24 +2185,19 @@ class SettingsEntity_ {
     _entities[5].properties[5],
   );
 
-  /// See [SettingsEntity.category].
-  static final category = obx.QueryStringProperty<SettingsEntity>(
-    _entities[5].properties[6],
-  );
-
   /// See [SettingsEntity.privacyJson].
   static final privacyJson = obx.QueryStringProperty<SettingsEntity>(
-    _entities[5].properties[7],
+    _entities[5].properties[6],
   );
 
   /// See [SettingsEntity.notificationsJson].
   static final notificationsJson = obx.QueryStringProperty<SettingsEntity>(
-    _entities[5].properties[8],
+    _entities[5].properties[7],
   );
 
   /// See [SettingsEntity.user].
   static final user = obx.QueryStringProperty<SettingsEntity>(
-    _entities[5].properties[9],
+    _entities[5].properties[8],
   );
 }
 

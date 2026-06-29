@@ -53,7 +53,6 @@ _Settings _$SettingsFromJson(Map<String, dynamic> json) => _Settings(
   location: json['location'] == null
       ? null
       : SettingsLocation.fromJson(json['location'] as Map<String, dynamic>),
-  category: json['category'] as String?,
   user: json['user'] as String?,
   privacy: json['privacy'] == null
       ? null
@@ -70,7 +69,6 @@ Map<String, dynamic> _$SettingsToJson(_Settings instance) => <String, dynamic>{
   'language': _$LanguageEnumMap[instance.language],
   'bio': instance.bio,
   'location': instance.location,
-  'category': instance.category,
   'user': instance.user,
   'privacy': instance.privacy,
   'notifications': instance.notifications,

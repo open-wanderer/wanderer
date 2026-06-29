@@ -98,7 +98,6 @@ abstract class Settings with _$Settings {
     Language? language,
     String? bio,
     SettingsLocation? location,
-    String? category,
     String? user,
     SettingsPrivacy? privacy,
     Map<String, NotificationPreference>? notifications,

@@ -819,7 +819,7 @@ as bool,
 /// @nodoc
 mixin _$Settings {
 
- String? get id; String? get unit; Language? get language; String? get bio; SettingsLocation? get location; String? get category; String? get user; SettingsPrivacy? get privacy; Map<String, NotificationPreference>? get notifications;
+ String? get id; String? get unit; Language? get language; String? get bio; SettingsLocation? get location; String? get user; SettingsPrivacy? get privacy; Map<String, NotificationPreference>? get notifications;
 /// Create a copy of Settings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -832,16 +832,16 @@ $SettingsCopyWith<Settings> get copyWith => _$SettingsCopyWithImpl<Settings>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Settings&&(identical(other.id, id) || other.id == id)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.language, language) || other.language == language)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.location, location) || other.location == location)&&(identical(other.category, category) || other.category == category)&&(identical(other.user, user) || other.user == user)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other.notifications, notifications));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Settings&&(identical(other.id, id) || other.id == id)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.language, language) || other.language == language)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.location, location) || other.location == location)&&(identical(other.user, user) || other.user == user)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other.notifications, notifications));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,unit,language,bio,location,category,user,privacy,const DeepCollectionEquality().hash(notifications));
+int get hashCode => Object.hash(runtimeType,id,unit,language,bio,location,user,privacy,const DeepCollectionEquality().hash(notifications));
 
 @override
 String toString() {
-  return 'Settings(id: $id, unit: $unit, language: $language, bio: $bio, location: $location, category: $category, user: $user, privacy: $privacy, notifications: $notifications)';
+  return 'Settings(id: $id, unit: $unit, language: $language, bio: $bio, location: $location, user: $user, privacy: $privacy, notifications: $notifications)';
 }
 
 
@@ -852,7 +852,7 @@ abstract mixin class $SettingsCopyWith<$Res>  {
   factory $SettingsCopyWith(Settings value, $Res Function(Settings) _then) = _$SettingsCopyWithImpl;
 @useResult
 $Res call({
- String? id, String? unit, Language? language, String? bio, SettingsLocation? location, String? category, String? user, SettingsPrivacy? privacy, Map<String, NotificationPreference>? notifications
+ String? id, String? unit, Language? language, String? bio, SettingsLocation? location, String? user, SettingsPrivacy? privacy, Map<String, NotificationPreference>? notifications
 });
 
 
@@ -869,15 +869,14 @@ class _$SettingsCopyWithImpl<$Res>
 
 /// Create a copy of Settings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? unit = freezed,Object? language = freezed,Object? bio = freezed,Object? location = freezed,Object? category = freezed,Object? user = freezed,Object? privacy = freezed,Object? notifications = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? unit = freezed,Object? language = freezed,Object? bio = freezed,Object? location = freezed,Object? user = freezed,Object? privacy = freezed,Object? notifications = freezed,}) {
   return _then(_self.copyWith(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,unit: freezed == unit ? _self.unit : unit // ignore: cast_nullable_to_non_nullable
 as String?,language: freezed == language ? _self.language : language // ignore: cast_nullable_to_non_nullable
 as Language?,bio: freezed == bio ? _self.bio : bio // ignore: cast_nullable_to_non_nullable
 as String?,location: freezed == location ? _self.location : location // ignore: cast_nullable_to_non_nullable
-as SettingsLocation?,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
-as String?,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
+as SettingsLocation?,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
 as String?,privacy: freezed == privacy ? _self.privacy : privacy // ignore: cast_nullable_to_non_nullable
 as SettingsPrivacy?,notifications: freezed == notifications ? _self.notifications : notifications // ignore: cast_nullable_to_non_nullable
 as Map<String, NotificationPreference>?,
@@ -989,10 +988,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? category,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Settings() when $default != null:
-return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.category,_that.user,_that.privacy,_that.notifications);case _:
+return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.user,_that.privacy,_that.notifications);case _:
   return orElse();
 
 }
@@ -1010,10 +1009,10 @@ return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? category,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications)  $default,) {final _that = this;
 switch (_that) {
 case _Settings():
-return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.category,_that.user,_that.privacy,_that.notifications);case _:
+return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.user,_that.privacy,_that.notifications);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1030,10 +1029,10 @@ return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? category,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications)?  $default,) {final _that = this;
 switch (_that) {
 case _Settings() when $default != null:
-return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.category,_that.user,_that.privacy,_that.notifications);case _:
+return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.user,_that.privacy,_that.notifications);case _:
   return null;
 
 }
@@ -1045,7 +1044,7 @@ return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_tha
 @JsonSerializable()
 
 class _Settings implements Settings {
-  const _Settings({this.id, this.unit, this.language, this.bio, this.location, this.category, this.user, this.privacy, final  Map<String, NotificationPreference>? notifications}): _notifications = notifications;
+  const _Settings({this.id, this.unit, this.language, this.bio, this.location, this.user, this.privacy, final  Map<String, NotificationPreference>? notifications}): _notifications = notifications;
   factory _Settings.fromJson(Map<String, dynamic> json) => _$SettingsFromJson(json);
 
 @override final  String? id;
@@ -1053,7 +1052,6 @@ class _Settings implements Settings {
 @override final  Language? language;
 @override final  String? bio;
 @override final  SettingsLocation? location;
-@override final  String? category;
 @override final  String? user;
 @override final  SettingsPrivacy? privacy;
  final  Map<String, NotificationPreference>? _notifications;
@@ -1079,16 +1077,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Settings&&(identical(other.id, id) || other.id == id)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.language, language) || other.language == language)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.location, location) || other.location == location)&&(identical(other.category, category) || other.category == category)&&(identical(other.user, user) || other.user == user)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other._notifications, _notifications));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Settings&&(identical(other.id, id) || other.id == id)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.language, language) || other.language == language)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.location, location) || other.location == location)&&(identical(other.user, user) || other.user == user)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other._notifications, _notifications));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,unit,language,bio,location,category,user,privacy,const DeepCollectionEquality().hash(_notifications));
+int get hashCode => Object.hash(runtimeType,id,unit,language,bio,location,user,privacy,const DeepCollectionEquality().hash(_notifications));
 
 @override
 String toString() {
-  return 'Settings(id: $id, unit: $unit, language: $language, bio: $bio, location: $location, category: $category, user: $user, privacy: $privacy, notifications: $notifications)';
+  return 'Settings(id: $id, unit: $unit, language: $language, bio: $bio, location: $location, user: $user, privacy: $privacy, notifications: $notifications)';
 }
 
 
@@ -1099,7 +1097,7 @@ abstract mixin class _$SettingsCopyWith<$Res> implements $SettingsCopyWith<$Res>
   factory _$SettingsCopyWith(_Settings value, $Res Function(_Settings) _then) = __$SettingsCopyWithImpl;
 @override @useResult
 $Res call({
- String? id, String? unit, Language? language, String? bio, SettingsLocation? location, String? category, String? user, SettingsPrivacy? privacy, Map<String, NotificationPreference>? notifications
+ String? id, String? unit, Language? language, String? bio, SettingsLocation? location, String? user, SettingsPrivacy? privacy, Map<String, NotificationPreference>? notifications
 });
 
 
@@ -1116,15 +1114,14 @@ class __$SettingsCopyWithImpl<$Res>
 
 /// Create a copy of Settings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? unit = freezed,Object? language = freezed,Object? bio = freezed,Object? location = freezed,Object? category = freezed,Object? user = freezed,Object? privacy = freezed,Object? notifications = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? unit = freezed,Object? language = freezed,Object? bio = freezed,Object? location = freezed,Object? user = freezed,Object? privacy = freezed,Object? notifications = freezed,}) {
   return _then(_Settings(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,unit: freezed == unit ? _self.unit : unit // ignore: cast_nullable_to_non_nullable
 as String?,language: freezed == language ? _self.language : language // ignore: cast_nullable_to_non_nullable
 as Language?,bio: freezed == bio ? _self.bio : bio // ignore: cast_nullable_to_non_nullable
 as String?,location: freezed == location ? _self.location : location // ignore: cast_nullable_to_non_nullable
-as SettingsLocation?,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
-as String?,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
+as SettingsLocation?,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
 as String?,privacy: freezed == privacy ? _self.privacy : privacy // ignore: cast_nullable_to_non_nullable
 as SettingsPrivacy?,notifications: freezed == notifications ? _self._notifications : notifications // ignore: cast_nullable_to_non_nullable
 as Map<String, NotificationPreference>?,

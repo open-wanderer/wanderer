@@ -16,7 +16,6 @@ class SettingsEntity {
   String? languageCode;
   String? bio;
   String? locationJson;
-  String? category;
   String? user;
   String? privacyJson;
   String? notificationsJson;
@@ -27,7 +26,6 @@ class SettingsEntity {
     this.languageCode,
     this.bio,
     this.locationJson,
-    this.category,
     this.user,
     this.privacyJson,
     this.notificationsJson,
@@ -42,7 +40,6 @@ class SettingsEntity {
       locationJson: settings.location != null
           ? jsonEncode(settings.location!.toJson())
           : null,
-      category: settings.category,
       user: settings.user,
       privacyJson: settings.privacy != null
           ? jsonEncode(settings.privacy!.toJson())
@@ -97,7 +94,6 @@ extension SettingsEntityMapping on SettingsEntity {
       language: lang,
       bio: bio,
       location: loc,
-      category: category,
       user: user,
       privacy: priv,
       notifications: notifs,
