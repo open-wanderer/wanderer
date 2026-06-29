@@ -161,16 +161,45 @@
 
     let croppedGPX: GPX | null = null;
 
+    const PhotoCloneSourceSchema = z.object({
+        id: z.string(),
+        collectionId: z.string().optional(),
+        collectionName: z.string().optional(),
+        photos: z.array(z.string()).default([]),
+    });
+
+    const ClientSummitLogCreateSchema = SummitLogCreateSchema.extend({
+        _photos: z.array(z.instanceof(File)).optional(),
+        _gpx: z.instanceof(Blob).optional().nullable(),
+        _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
+        expand: z
+            .object({
+                gpx_data: z.string().optional(),
+            })
+            .optional(),
+    });
+
+    const ClientWaypointCreateSchema = WaypointCreateSchema.extend({
+        _photos: z.array(z.instanceof(File)).optional(),
+        _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
+    });
+
+    type PhotoCloneSource = z.infer<typeof PhotoCloneSourceSchema>;
+    type PhotoCloneTarget = {
+        _duplicatePhotoSource?: PhotoCloneSource;
+        _photos?: File[];
+    };
+
     const ClientTrailCreateSchema = TrailCreateSchema.extend({
         expand: z
             .object({
                 gpx_data: z.string().optional(),
                 summit_logs_via_trail: z
-                    .array(SummitLogCreateSchema)
+                    .array(ClientSummitLogCreateSchema)
                     .optional(),
                 waypoints_via_trail: z
                     .array(
-                        WaypointCreateSchema.extend({
+                        ClientWaypointCreateSchema.extend({
                             marker: z.any().optional(),
                         }),
                     )
@@ -188,6 +217,8 @@
     let routeSegments = $state<TrackSegment[]>([]);
 
     let savedAtLeastOnce = $state(false);
+    let duplicateLegacyPhotosPrepared = false;
+    let duplicateLegacyPhotosPromise: Promise<void> | undefined;
 
     let tagItems: ComboboxItem[] = $state([]);
 
@@ -239,6 +270,7 @@
                 form.photos = form.photos.filter(
                     (p) => !p.startsWith("data:image/svg+xml;base64"),
                 );
+                await prepareDuplicateLegacyPhotos(form as Trail);
 
                 if (!form.photos?.length && !photoFiles.length) {
                     const canvas = document.querySelector(
@@ -252,7 +284,10 @@
                 }
 
                 form.expand!.gpx_data = valhallaStore.route.toString();
-                if (form.expand!.gpx_data && overwriteGPX) {
+                if (
+                    form.expand!.gpx_data &&
+                    (overwriteGPX || (isNewTrail && !savedAtLeastOnce && !gpxFile && routeHasTrackPoints()))
+                ) {
                     gpxFile = new Blob([form.expand!.gpx_data], {
                         type: "text/xml",
                     });
@@ -359,6 +394,8 @@
                 }
             }
         }
+
+        void prepareDuplicateLegacyPhotos($formData as Trail);
     });
 
     function fitCurrentRoute(initializedMap: M.Map) {
@@ -1520,6 +1557,124 @@
         const t: Trail = JSON.parse(JSON.stringify($formData));
         t.expand!.gpx = valhallaStore.route;
         mapTrail = [t];
+    }
+
+    function routeHasTrackPoints() {
+        return valhallaStore.route.flatten().length > 0;
+    }
+
+    async function prepareDuplicateLegacyPhotos(target: Trail) {
+        if (
+            duplicateLegacyPhotosPrepared ||
+            !isNewTrail ||
+            savedAtLeastOnce ||
+            !data.duplicateSourceTrail
+        ) {
+            return;
+        }
+        duplicateLegacyPhotosPromise ??= cloneDuplicateLegacyPhotos(target);
+        await duplicateLegacyPhotosPromise;
+    }
+
+    async function cloneDuplicateLegacyPhotos(target: Trail) {
+        const duplicateSourceTrail = data.duplicateSourceTrail;
+        if (!duplicateSourceTrail) {
+            return;
+        }
+        const clonedTrailPhotos = await clonePhotoFiles(
+            photoCloneSourceFromRecord(duplicateSourceTrail),
+        );
+        if (clonedTrailPhotos.length) {
+            photoFiles = [...photoFiles, ...clonedTrailPhotos];
+        }
+
+        for (const waypoint of target.expand?.waypoints_via_trail ?? []) {
+            await appendClonedPhotos(waypoint as Waypoint & PhotoCloneTarget);
+        }
+
+        for (const log of target.expand?.summit_logs_via_trail ?? []) {
+            await appendClonedPhotos(log as SummitLog & PhotoCloneTarget);
+        }
+
+        if (target.expand?.waypoints_via_trail) {
+            target.expand.waypoints_via_trail = [
+                ...target.expand.waypoints_via_trail,
+            ];
+        }
+        if (target.expand?.summit_logs_via_trail) {
+            target.expand.summit_logs_via_trail = [
+                ...target.expand.summit_logs_via_trail,
+            ];
+        }
+
+        duplicateLegacyPhotosPrepared = true;
+    }
+
+    async function appendClonedPhotos(target: PhotoCloneTarget) {
+        const clonedPhotos = await clonePhotoFiles(target._duplicatePhotoSource);
+        if (clonedPhotos.length) {
+            target._photos = [...(target._photos ?? []), ...clonedPhotos];
+        }
+    }
+
+    async function clonePhotoFiles(source?: PhotoCloneSource): Promise<File[]> {
+        if (!source?.photos.length) {
+            return [];
+        }
+
+        const files: File[] = [];
+        for (const photo of source.photos) {
+            try {
+                const response = await fetch(photoCloneURL(source, photo));
+                if (!response.ok) {
+                    console.warn(`Unable to clone photo ${photo}: ${response.status}`);
+                    continue;
+                }
+                const blob = await response.blob();
+                files.push(
+                    new File([blob], photoCloneFileName(photo), {
+                        type: blob.type || "application/octet-stream",
+                    }),
+                );
+            } catch (error) {
+                console.warn(`Unable to clone photo ${photo}`, error);
+            }
+        }
+        return files;
+    }
+
+    function photoCloneSourceFromRecord(record: {
+        id?: string;
+        collectionId?: string;
+        collectionName?: string;
+        photos?: string[];
+    }): PhotoCloneSource | undefined {
+        if (!record.id || !record.photos?.length) {
+            return undefined;
+        }
+        return {
+            id: record.id,
+            collectionId: record.collectionId,
+            collectionName: record.collectionName,
+            photos: record.photos,
+        };
+    }
+
+    function photoCloneURL(source: PhotoCloneSource, photo: string) {
+        if (photo.startsWith("http://") || photo.startsWith("https://")) {
+            return photo;
+        }
+        const collection = source.collectionId ?? source.collectionName;
+        if (!collection) {
+            throw new Error("Unable to clone photo without collection");
+        }
+        return `/api/v1/files/${collection}/${source.id}/${photo}`;
+    }
+
+    function photoCloneFileName(photo: string) {
+        return decodeURIComponent(
+            photo.split("?")[0].split("/").pop() || "photo",
+        );
     }
 
     function handleSearchClick(item: SearchItem) {
