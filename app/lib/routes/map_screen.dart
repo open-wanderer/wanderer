@@ -22,7 +22,6 @@ import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
 import 'package:wanderer/util/icon_util.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   final LatLng? initialCenter;

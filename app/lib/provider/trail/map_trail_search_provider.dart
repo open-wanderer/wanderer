@@ -10,7 +10,7 @@ import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 
 part 'map_trail_search_provider.g.dart';
 
-@riverpod
+@Riverpod(keepAlive: true)
 class MapTrailSearch extends _$MapTrailSearch {
   LatLngBounds? _lastBounds;
   Timer? _debounce;

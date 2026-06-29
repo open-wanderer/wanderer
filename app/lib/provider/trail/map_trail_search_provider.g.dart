@@ -20,7 +20,7 @@ final class MapTrailSearchProvider
         argument: null,
         retry: null,
         name: r'mapTrailSearchProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -33,7 +33,7 @@ final class MapTrailSearchProvider
   MapTrailSearch create() => MapTrailSearch();
 }
 
-String _$mapTrailSearchHash() => r'e0eb7c4319b236ad0317dee8a485325d2b8e28d7';
+String _$mapTrailSearchHash() => r'bb6c87b24373a6b7df1c57e2cf0f0b5830999843';
 
 abstract class _$MapTrailSearch
     extends $AsyncNotifier<List<TrailSearchResult>> {
