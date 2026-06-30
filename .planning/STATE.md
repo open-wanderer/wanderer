@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Category Redesign
 status: executing
-stopped_at: Phase 11 UI-SPEC approved
-last_updated: "2026-06-30T08:00:00.000Z"
-last_activity: 2026-06-30 -- Phase 11 Plan 02 completed
+stopped_at: Phase 11 complete — verified 7/7
+last_updated: "2026-06-30T18:00:00.000Z"
+last_activity: 2026-06-30 -- Phase 11 complete (all 4 plans, 7/7 requirements verified)
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 8
+  percent: 100
 ---
 
 # Project State
@@ -21,21 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 11 — trail-filter-subcategory-support
+**Current focus:** Phase 12 — Settings Categories Screen (next)
 
 ## Current Position
 
-Phase: 11 (trail-filter-subcategory-support) — EXECUTING
-Plan: 3 of 4
-Status: Executing Phase 11
-Last activity: 2026-06-30 -- Phase 11 Plan 02 completed
+Phase: 11 (trail-filter-subcategory-support) — COMPLETE ✓
+Status: Phase 11 verified 7/7 requirements. Ready for Phase 12.
+Last activity: 2026-06-30 -- Phase 11 complete (all 4 plans, 7/7 requirements verified)
 
-Progress: [█████░░░░░] 50%
+Progress: [██████████] 100% (v1.3 Phases 10 + 11 done)
 
 ## v1.3 Phases
 
-- [ ] **Phase 10: Category & Subcategory Data Layer** — CAT-01..05 (models, ObjectBox entity, provider, remove `Settings.category`)
-- [ ] **Phase 11: Trail Filter Subcategory Support** — FILTER-01..05 (TrailFilter model, TrailFilterScreen chips, quick filter bar)
+- [x] **Phase 10: Category & Subcategory Data Layer** — CAT-01..05 (models, ObjectBox entity, provider, remove `Settings.category`)
+- [x] **Phase 11: Trail Filter Subcategory Support** — FILTER-01..05 (TrailFilter model, TrailFilterScreen chips, quick filter bar)
 - [ ] **Phase 12: Settings Categories Screen** — SETCAT-01..09 (preference models + providers, SettingsCategoriesScreen, router wiring)
 
 Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of each other).
@@ -65,6 +64,8 @@ Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of e
 | Phase 10 P04 | 6 | 3 tasks | 9 files |
 | Phase 11 P01 | 4 | 2 tasks | 4 files |
 | Phase 11 P02 | 6 | 2 tasks | 30 files |
+| Phase 11 P03 | ~25 | 2+ tasks | 2 files |
+| Phase 11 P04 | ~15 | 1 task | 1 file |
 
 ## Accumulated Context
 
@@ -86,12 +87,12 @@ Recent decisions affecting current work:
 - [Phase ?]: [10-04] Settings.category removed via compiler-driven sweep; ObjectBox drops the property on next app open, no migration script (D-09)
 - [Phase ?]: [11-01] TrailFilter gained @Default(<Subcategory>[]) subcategory field; toFilterText() now emits ID-based (category_id IN [...] OR subcategory_id IN [...]) group, replacing the broken name-based category clause (RESEARCH Pitfall 1 fix)
 - [Phase ?]: [11-02] WandererFilterChip gained optional avatarBuilder (Widget? Function(T)) wired to FilterChip.avatar, backward compatible; subcategories l10n key added to all 14 ARBs (en has @metadata) and l10n.subcategories regenerated for Plans 03/04
+- [11-03] Subcategory chips scoped to _focusedCategoryId (last-tapped category); badgeCountBuilder shows selected-subcategory count per category chip; category_icon_util.dart extracted as shared icon util for filters + all trail display widgets; TrailCategoryLabel ConsumerWidget shows "Category / Subcategory" format with FA badge overlay
+- [11-04] ValueNotifier<String?> for bottom-sheet scoped subcategory state; _isCategoryActive uses OR logic (category.isNotEmpty || subcategory.isNotEmpty)
 
 ### Pending Todos
 
-- Plan Phase 10 first — its Subcategory provider and locale-aware Category names are prerequisites for Phases 11 and 12
-- Reference web PR #1059 for the category model shape (translations/icon/short_name), subcategory fields, and the `/user-category-preference` + `/user-subcategory-preference` + `/reorder` API contracts
-- Verify `Settings.category` removal (CAT-05) covers all call sites before declaring Phase 10 done
+- None for Phase 11 — complete. Proceed with `/gsd-plan-phase 12` or `/gsd-execute-phase 12` if plans already exist.
 
 ### Blockers/Concerns
 
@@ -111,10 +112,11 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-06-30T08:00:00.000Z
-Stopped at: Completed 11-02-PLAN.md
+Last session: 2026-06-30T18:00:00.000Z
+Stopped at: Phase 11 complete — all 4 plans executed, 7/7 verified
 Resume file: None
 
 ## Operator Next Steps
 
-- Plan Phase 10 with `/gsd-plan-phase 10`
+- Run `/gsd-plan-phase 12` or `/gsd-execute-phase 12` to begin Phase 12 (Settings Categories Screen)
+- Phase 12 requires human visual verification of 4 Phase 11 behaviors: AnimatedSize animation, badge icon rendering, locale labels on device, visibility filtering with live backend data
