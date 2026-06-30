@@ -1,3 +1,4 @@
+import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/subcategory_entity.dart';
 import 'package:wanderer/models/list_result.dart';
@@ -50,8 +51,10 @@ class SubcategoryNotifier extends _$SubcategoryNotifier {
 
       // Only assign state if the notifier is still alive to avoid a
       // StateError (or silent no-op) on an invalidated notifier (WR-03 fix).
-      if (!ref.isDisposed) {
+      try {
         state = items;
+      } catch (_) {
+        // Notifier was disposed before the refresh completed; no-op.
       }
     } catch (_) {
       // Swallow — keep the cached state and rows so startup stays resilient.

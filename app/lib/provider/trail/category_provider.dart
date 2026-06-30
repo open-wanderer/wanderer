@@ -1,3 +1,4 @@
+import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/category_entity.dart';
 import 'package:wanderer/models/category.dart';
