@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -11,12 +12,17 @@ import 'package:wanderer/components/base/wanderer_radio_group.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/global_search_models.dart';
+import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/tag.dart';
+import 'package:wanderer/provider/category_preference_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
+import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/tag_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/icon_util.dart';
 
 class TrailFilterScreen extends ConsumerStatefulWidget {
   final String filterId;
@@ -53,6 +59,19 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
     final categories = ref.watch(categoryProvider);
     final unit = ref.watch(unitProvider);
 
+    // FILTER-06: hide categories the user has marked visible:false in
+    // preferences. A null/absent preference means visible (D-06: `!= false`).
+    final catPrefs = ref.watch(categoryPreferenceProvider).value ?? [];
+    final visibleCategories = (categories.value ?? [])
+        .where(
+          (c) =>
+              catPrefs
+                  .firstWhereOrNull((p) => p.category == c.id)
+                  ?.visible !=
+              false,
+        )
+        .toList();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.filter_trails),
@@ -74,9 +93,11 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 const SizedBox(height: 8),
 
                 WandererFilterChip<Category>(
-                  options: categories.value ?? [],
+                  options: visibleCategories,
                   selectedValues: f.category,
-                  labelBuilder: (c) => c.name,
+                  labelBuilder: (c) =>
+                      c.displayName(Localizations.localeOf(context)),
+                  avatarBuilder: (c) => _categoryAvatar(c),
                   onChanged: (categories) {
                     ref
                         .read(trailFilterProvider(widget.filterId).notifier)
@@ -385,6 +406,52 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
         loading: () => Center(child: CircularProgressIndicator()),
         error: (err, stack) => WandererError(err: err, stack: stack),
       ),
+    );
+  }
+
+  /// Builds a 16px FontAwesome icon avatar for a [Category] (D-08). The
+  /// `category.icon` value may carry a leading `fa-` prefix which is stripped
+  /// before lookup in [fontAwesomeIconsMap]; an unknown icon falls back to the
+  /// Material `Icons.category` glyph. No explicit color is set so the chip's
+  /// foreground drives it (UI-SPEC Color).
+  Widget _categoryAvatar(Category c) {
+    final raw = (c.icon ?? '').trim();
+    final key = raw.startsWith('fa-') ? raw.substring(3) : raw;
+    final faData = fontAwesomeIconsMap[key];
+    return faData != null
+        ? FaIcon(faData, size: 16)
+        : const Icon(Icons.category, size: 16);
+  }
+
+  /// Builds a subcategory avatar: a primary 16px FontAwesome icon with an
+  /// optional 10px badge overlay at the bottom-right (D-09). The primary icon
+  /// name mirrors `displaySubcategoryIcon` — the subcategory's own icon when
+  /// present, else the parent category's icon. Both names are `fa-`-stripped
+  /// before lookup; an unknown primary falls back to `Icons.category`, and the
+  /// badge is omitted when absent. `Clip.none` keeps the badge from being
+  /// clipped by the chip avatar bounds (RESEARCH Pitfall 5).
+  Widget _subcategoryAvatar(Subcategory s, Category? parent) {
+    final primaryRaw =
+        ((s.icon?.trim().isNotEmpty ?? false) ? s.icon! : (parent?.icon ?? ''))
+            .trim();
+    final primaryKey =
+        primaryRaw.startsWith('fa-') ? primaryRaw.substring(3) : primaryRaw;
+    final primary = fontAwesomeIconsMap[primaryKey];
+
+    final badgeRaw = (s.badgeIcon ?? '').trim();
+    final badgeKey =
+        badgeRaw.startsWith('fa-') ? badgeRaw.substring(3) : badgeRaw;
+    final badge = badgeKey.isEmpty ? null : fontAwesomeIconsMap[badgeKey];
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        primary != null
+            ? FaIcon(primary, size: 16)
+            : const Icon(Icons.category, size: 16),
+        if (badge != null)
+          Positioned(right: -2, bottom: -2, child: FaIcon(badge, size: 10)),
+      ],
     );
   }
 }
