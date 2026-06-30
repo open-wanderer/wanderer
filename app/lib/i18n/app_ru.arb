@@ -42,6 +42,7 @@
   "car_motorcycle": "Автомобиль/мотоцикл",
   "card": "{n, plural, =1 {Карточка} other {Карточки}}",
   "categories": "Категории",
+  "subcategories": "Подкатегории",
   "category": "Категория",
   "change": "Изменить",
   "change_email": "Изменить email",

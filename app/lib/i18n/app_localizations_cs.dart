@@ -1470,6 +1470,9 @@ class AppLocalizationsCs extends AppLocalizations {
       'Pokud váš účet obsahuje velké množství aktivit, můžete narazit na limit API služby Strava, což znemožní synchronizaci všech aktivit najednou. Tomuto problému předejdete nastavením data \"Od\" a dále - synchronizují se tak pouze aktivity zaznamenané po tomto datu.';
 
   @override
+  String get subcategories => 'Podkategorie';
+
+  @override
   String get subway_stop => 'Vstup do metra';
 
   @override

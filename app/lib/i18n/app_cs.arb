@@ -41,6 +41,7 @@
   "car_motorcycle": "Automobil/motocykl",
   "card": "{n, plural, =1 {Karta} few {Karty} other {Karet}}",
   "categories": "Kategorie",
+  "subcategories": "Podkategorie",
   "category": "Kategorie",
   "change": "Změnit",
   "change_email": "Změnit e-mail",

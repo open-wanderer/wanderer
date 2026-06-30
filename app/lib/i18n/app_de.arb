@@ -53,6 +53,7 @@
   "car_motorcycle": "Auto/Motorrad",
   "card": "{n, plural, =1 {Karte} other {Karten}}",
   "categories": "Kategorien",
+  "subcategories": "Unterkategorien",
   "category": "Kategorie",
   "change": "Ändern",
   "change_email": "Email ändern",

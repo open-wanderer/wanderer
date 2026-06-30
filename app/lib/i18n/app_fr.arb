@@ -41,6 +41,7 @@
   "car_motorcycle": "Voiture/Moto",
   "card": "{n, plural, =1 {Tuile} other {Tuiles}}",
   "categories": "Catégories",
+  "subcategories": "Sous-catégories",
   "category": "Catégorie",
   "change": "Changement",
   "change_email": "Changer d'email",

@@ -441,6 +441,10 @@
   "stop_drawing": "Stop drawing",
   "stop_editing": "Stop editing",
   "strava_integration_after_date_hint": "If your account has a large amount of acitivities you may run into Strava's API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an start date below so that only activities that were recorded after this date are synced.",
+  "subcategories": "Subcategories",
+  "@subcategories": {
+    "description": "Label for the subcategories filter section"
+  },
   "subway_stop": "Subway entrance",
   "summit": "Summit",
   "summit_book": "Summit Book",

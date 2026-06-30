@@ -42,6 +42,7 @@
   "car_motorcycle": "Kotxea/Motozikleta",
   "card": "{n, plural, one {}=1 {txartel} other {txartel}}",
   "categories": "Kategoriak",
+  "subcategories": "Azpikategoriak",
   "category": "Kategoria",
   "change": "Aldatu",
   "change_email": "Aldatu eposta",

@@ -42,6 +42,7 @@
   "car_motorcycle": "Car/Motorcycle",
   "card": "{n, plural, =1 {Kártya} other {Kártyák}}",
   "categories": "Kategóriák",
+  "subcategories": "Alkategóriák",
   "category": "Kategória",
   "change": "Változás",
   "change_email": "Change email",

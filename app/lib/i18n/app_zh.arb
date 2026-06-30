@@ -42,6 +42,7 @@
   "car_motorcycle": "汽车/摩托车",
   "card": "{n, plural, =1 {卡片} other {卡片}}",
   "categories": "分类",
+  "subcategories": "子分类",
   "category": "分类",
   "change": "更换",
   "change_email": "更改邮箱",

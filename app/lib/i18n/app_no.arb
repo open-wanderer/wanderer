@@ -47,6 +47,7 @@
   "car_motorcycle": "Bil/Motorsykkel",
   "card": "{n, plural, =1 {Kort} other {Kort}}",
   "categories": "Kategorier",
+  "subcategories": "Underkategorier",
   "category": "Kategori",
   "change": "Endre",
   "change_email": "Endre e-post",

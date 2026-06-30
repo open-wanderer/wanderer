@@ -2726,6 +2726,12 @@ abstract class AppLocalizations {
   /// **'If your account has a large amount of acitivities you may run into Strava\'s API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an start date below so that only activities that were recorded after this date are synced.'**
   String get strava_integration_after_date_hint;
 
+  /// Label for the subcategories filter section
+  ///
+  /// In en, this message translates to:
+  /// **'Subcategories'**
+  String get subcategories;
+
   /// No description provided for @subway_stop.
   ///
   /// In en, this message translates to:

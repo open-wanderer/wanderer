@@ -1476,6 +1476,9 @@ class AppLocalizationsFr extends AppLocalizations {
       'Si votre compte a une grande quantité d\'activités, vous pouvez rencontrer la limite d\'utilisation de l\'API de Strava vous empêchant de synchroniser toutes les activités en même temps. Pour atténuer ce problème, vous pouvez définir une date \"Après-\" ci-dessous afin que seules les activités qui ont été enregistrées après cette date soient synchronisées.';
 
   @override
+  String get subcategories => 'Sous-catégories';
+
+  @override
   String get subway_stop => 'Bouche de métro';
 
   @override

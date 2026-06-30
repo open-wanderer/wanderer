@@ -1466,6 +1466,9 @@ class AppLocalizationsPl extends AppLocalizations {
       'If your account has a large amount of acitivities you may run into Strava\'s API rate limit preventing you from syncing all activities at once. To mitigate this issue you can set an \"After\" date below so that only activities that were recorded after this date are synced.';
 
   @override
+  String get subcategories => 'Podkategorie';
+
+  @override
   String get subway_stop => 'Subway entrance';
 
   @override

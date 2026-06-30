@@ -1468,6 +1468,9 @@ class AppLocalizationsEs extends AppLocalizations {
       'Si tu cuenta tiene una gran cantidad de actividades, es posible que alcances el límite de peticiones de la API de Strava, lo que impedirá la sincronización de todas las actividades a la vez. Para mitigar este problema, puedes establecer una fecha \"Posterior a\" a continuación, de modo que solo se sincronicen las actividades que se registraron después de esa fecha.';
 
   @override
+  String get subcategories => 'Subcategorías';
+
+  @override
   String get subway_stop => 'Entrada de metro';
 
   @override

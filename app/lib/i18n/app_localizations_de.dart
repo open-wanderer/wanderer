@@ -1469,6 +1469,9 @@ class AppLocalizationsDe extends AppLocalizations {
       'Wenn Ihr Konto eine große Anzahl von Aktivitäten enthält, kann es vorkommen, dass Sie aufgrund der API_Restriktionen von Strava nicht alle Aktivitäten auf einmal synchronisieren können. Um dieses Problem zu umgehen, können Sie unten ein Startdatum festlegen, sodass nur Aktivitäten synchronisiert werden, die nach diesem Datum aufgezeichnet wurden.';
 
   @override
+  String get subcategories => 'Unterkategorien';
+
+  @override
   String get subway_stop => 'U_Bahn Eingang';
 
   @override

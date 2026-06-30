@@ -1470,6 +1470,9 @@ class AppLocalizationsEu extends AppLocalizations {
       'Zure kontuak ekintza esko baditu Stravaren APIaren mugekin topo egin dezakezu eta agian ezingo dituzu zure ekintza guztiak aldi berean inportatu. Horretarako data jakin batetik aurrerako ekintzak sinkronizatzeko aukera duzu.';
 
   @override
+  String get subcategories => 'Azpikategoriak';
+
+  @override
   String get subway_stop => 'Metro sarbidea';
 
   @override

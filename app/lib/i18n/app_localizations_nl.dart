@@ -1468,6 +1468,9 @@ class AppLocalizationsNl extends AppLocalizations {
       'Als uw account een grote hoeveelheid activiteiten heeft, kunt u op de API-limiet van Strava botsen voorkomend dat u alle activiteiten tegelijk synchroniseert. Om dit probleem te omzeilen kunt u een \"Later\" datum hieronder instellen, zodat alleen activiteiten die na deze datum werden opgenomen worden gesynchroniseerd.';
 
   @override
+  String get subcategories => 'Subcategorieën';
+
+  @override
   String get subway_stop => 'Metro toegang';
 
   @override

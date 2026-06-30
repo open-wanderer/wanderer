@@ -41,6 +41,7 @@
   "car_motorcycle": "Coche/Moto",
   "card": "{n, plural, one {}=1 {Ficha} other {Fichas}}",
   "categories": "Categorías",
+  "subcategories": "Subcategorías",
   "category": "Categoría",
   "change": "Modificar",
   "change_email": "Cambiar mail",

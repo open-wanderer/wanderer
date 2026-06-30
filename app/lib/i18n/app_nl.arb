@@ -42,6 +42,7 @@
   "car_motorcycle": "Auto/Motorfiets",
   "card": "{n, plural, =1 {Kaart} other {Kaarten}}",
   "categories": "Categorieën",
+  "subcategories": "Subcategorieën",
   "category": "Categorie",
   "change": "Wijzigen",
   "change_email": "E-mail wijzigen",

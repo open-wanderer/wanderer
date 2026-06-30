@@ -1463,6 +1463,9 @@ class AppLocalizationsNo extends AppLocalizations {
       'Hvis kontoen din har en stor mengde aktiviteter kan du støte på Stravas API-hastighetsgrense som hindrer deg i å synkronisere alle aktiviteter samtidig. For å redusere dette problemet kan du sette en \"Etter\" dato nedenfor slik at bare aktiviteter som ble registrert etter denne datoen blir synkronisert.';
 
   @override
+  String get subcategories => 'Underkategorier';
+
+  @override
   String get subway_stop => 'T-baneinngang';
 
   @override
