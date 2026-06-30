@@ -85,6 +85,24 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
       ),
       body: filter.when(
         data: (f) {
+          // Subcategory options (FILTER-02/-07): scoped to the selected
+          // categories (D-05) and filtered by visibility preferences (null pref
+          // = visible). `subcategoryProvider` is a synchronous List, NOT an
+          // AsyncValue, so no `.value` (RESEARCH Pitfall 2).
+          final subcategories = ref.watch(subcategoryProvider);
+          final subPrefs = ref.watch(subcategoryPreferenceProvider).value ?? [];
+          final selectedCategoryIds = f.category.map((c) => c.id).toSet();
+          final visibleSubs = subcategories
+              .where((s) => selectedCategoryIds.contains(s.category))
+              .where(
+                (s) =>
+                    subPrefs
+                        .firstWhereOrNull((p) => p.subcategory == s.id)
+                        ?.visible !=
+                    false,
+              )
+              .toList();
+
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: ListView(
@@ -107,6 +125,51 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
+
+                // Subcategories section (FILTER-02). Animates in only when ≥1
+                // category is selected and at least one scoped, visible
+                // subcategory exists; otherwise it silently collapses to
+                // nothing (UI-SPEC: no placeholder text).
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  alignment: Alignment.topCenter,
+                  child: f.category.isEmpty || visibleSubs.isEmpty
+                      ? const SizedBox.shrink()
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.subcategories,
+                              style: TextTheme.of(context).labelLarge,
+                            ),
+                            const SizedBox(height: 8),
+                            WandererFilterChip<Subcategory>(
+                              options: visibleSubs,
+                              selectedValues: f.subcategory,
+                              multiple: true,
+                              labelBuilder: (s) =>
+                                  s.displayName(Localizations.localeOf(context)),
+                              avatarBuilder: (s) => _subcategoryAvatar(
+                                s,
+                                f.category.firstWhereOrNull(
+                                  (c) => c.id == s.category,
+                                ),
+                              ),
+                              onChanged: (sel) => ref
+                                  .read(
+                                    trailFilterProvider(
+                                      widget.filterId,
+                                    ).notifier,
+                                  )
+                                  .updateFilter(
+                                    (flt) => flt.copyWith(subcategory: sel),
+                                  ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                ),
+
                 Text(l10n.tags, style: TextTheme.of(context).labelLarge),
                 const SizedBox(height: 8),
 
