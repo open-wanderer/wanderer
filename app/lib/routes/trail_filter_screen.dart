@@ -117,7 +117,10 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   keepSelectedOnTap: true,
                   labelBuilder: (c) =>
                       c.displayName(Localizations.localeOf(context)),
-                  avatarBuilder: (c) => _categoryAvatar(c),
+                  avatarBuilder: (c) => _categoryAvatar(
+                    c,
+                    f.subcategory.where((s) => s.category == c.id).length,
+                  ),
                   onItemTap: (c) =>
                       setState(() => _focusedCategoryId = c.id),
                   onChanged: (categories) {
@@ -509,7 +512,8 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
     );
   }
 
-  Widget _categoryAvatar(Category c) => categoryFilterAvatar(c);
+  Widget _categoryAvatar(Category c, int subcategoryBadgeCount) =>
+      categoryFilterAvatar(c, subcategoryBadgeCount: subcategoryBadgeCount);
 
   Widget _subcategoryAvatar(Subcategory s, Category? parent) =>
       subcategoryFilterAvatar(
