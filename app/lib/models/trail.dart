@@ -273,10 +273,23 @@ abstract class TrailFilter with _$TrailFilter {
       parts.add('date <= $seconds');
     }
 
-    // Categories and Tags
-    if (category.isNotEmpty) {
-      final catList = category.map((c) => "'${c.name}'").join(", ");
-      parts.add('category IN [$catList]');
+    // Categories and Subcategories (combined OR group, ID-based).
+    // Mirrors the web OR-group builder (trail_store.ts) and filters against the
+    // Meilisearch `category_id` / `subcategory_id` attributes — the redesigned
+    // index no longer makes the `category` name attribute filterable.
+    if (category.isNotEmpty || subcategory.isNotEmpty) {
+      final List<String> categoryParts = [];
+      if (category.isNotEmpty) {
+        final catList = category.map((c) => "'${c.id}'").join(", ");
+        categoryParts.add('category_id IN [$catList]');
+      }
+      if (subcategory.isNotEmpty) {
+        final subList = subcategory.map((s) => "'${s.id}'").join(", ");
+        categoryParts.add('subcategory_id IN [$subList]');
+      }
+      if (categoryParts.isNotEmpty) {
+        parts.add('(${categoryParts.join(" OR ")})');
+      }
     }
 
     if (tags.isNotEmpty) {
