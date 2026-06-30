@@ -238,6 +238,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
     WidgetRef ref,
     TrailFilter filter,
   ) {
+    final focusedCategoryId = ValueNotifier<String?>(null);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -259,7 +260,6 @@ class TrailQuickFilterBar extends ConsumerWidget {
                 final l10n = AppLocalizations.of(context)!;
                 final locale = Localizations.localeOf(context);
 
-                // FILTER-06: hide categories the user has marked visible:false.
                 final catPrefs =
                     ref.watch(categoryPreferenceProvider).value ?? [];
                 final visibleCategories = (categories.value ?? [])
@@ -272,138 +272,154 @@ class TrailQuickFilterBar extends ConsumerWidget {
                     )
                     .toList();
 
-                // FILTER-07: subcategory options scoped to selected categories.
                 final subcategories = ref.watch(subcategoryProvider);
                 final subPrefs =
                     ref.watch(subcategoryPreferenceProvider).value ?? [];
-                final selectedCategoryIds =
-                    currentFilter.category.map((c) => c.id).toSet();
-                final visibleSubs = subcategories
-                    .where((s) => selectedCategoryIds.contains(s.category))
-                    .where(
-                      (s) =>
-                          subPrefs
-                              .firstWhereOrNull((p) => p.subcategory == s.id)
-                              ?.visible !=
-                          false,
-                    )
-                    .toList();
 
-                return SingleChildScrollView(
-                  controller: scrollController,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                return ValueListenableBuilder<String?>(
+                  valueListenable: focusedCategoryId,
+                  builder: (context, focusedId, _) {
+                    final visibleSubs = subcategories
+                        .where((s) => s.category == focusedId)
+                        .where(
+                          (s) =>
+                              subPrefs
+                                  .firstWhereOrNull(
+                                    (p) => p.subcategory == s.id,
+                                  )
+                                  ?.visible !=
+                              false,
+                        )
+                        .toList();
+
+                    return SingleChildScrollView(
+                      controller: scrollController,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              l10n.categories,
-                              style: Theme.of(context).textTheme.titleMedium,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  l10n.categories,
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium,
+                                ),
+                                IconButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  icon:
+                                      FaIcon(FontAwesomeIcons.xmark, size: 18),
+                                ),
+                              ],
                             ),
-                            IconButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              icon: FaIcon(FontAwesomeIcons.xmark, size: 18),
+                            const SizedBox(height: 12),
+                            WandererFilterChip<Category>(
+                              options: visibleCategories,
+                              selectedValues: currentFilter.category,
+                              multiple: true,
+                              keepSelectedOnTap: true,
+                              labelBuilder: (c) => c.displayName(locale),
+                              avatarBuilder: (c) => categoryFilterAvatar(c),
+                              onItemTap: (c) =>
+                                  focusedCategoryId.value = c.id,
+                              onChanged: (selected) {
+                                final removedIds = currentFilter.category
+                                    .map((c) => c.id)
+                                    .toSet()
+                                    .difference(
+                                      selected.map((c) => c.id).toSet(),
+                                    );
+                                final newSubs = currentFilter.subcategory
+                                    .where(
+                                      (s) => !removedIds.contains(s.category),
+                                    )
+                                    .toList();
+                                ref
+                                    .read(trailFilterProvider(filterId).notifier)
+                                    .updateFilter(
+                                      (f) => f.copyWith(
+                                        category: selected,
+                                        subcategory: newSubs,
+                                      ),
+                                    );
+                              },
+                              onLongPress: (c) {
+                                if (focusedCategoryId.value == c.id) {
+                                  focusedCategoryId.value = null;
+                                }
+                                final newCats = currentFilter.category
+                                    .where((cat) => cat.id != c.id)
+                                    .toList();
+                                final newSubs = currentFilter.subcategory
+                                    .where((s) => s.category != c.id)
+                                    .toList();
+                                ref
+                                    .read(trailFilterProvider(filterId).notifier)
+                                    .updateFilter(
+                                      (f) => f.copyWith(
+                                        category: newCats,
+                                        subcategory: newSubs,
+                                      ),
+                                    );
+                              },
+                            ),
+
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 200),
+                              alignment: Alignment.topCenter,
+                              child: visibleSubs.isEmpty
+                                  ? const SizedBox.shrink()
+                                  : Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          l10n.subcategories,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.titleMedium,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        WandererFilterChip<Subcategory>(
+                                          options: visibleSubs,
+                                          selectedValues:
+                                              currentFilter.subcategory,
+                                          multiple: true,
+                                          labelBuilder: (s) =>
+                                              s.displayName(locale),
+                                          avatarBuilder: (s) =>
+                                              subcategoryFilterAvatar(
+                                            context,
+                                            s,
+                                            currentFilter.category
+                                                .firstWhereOrNull(
+                                              (c) => c.id == s.category,
+                                            ),
+                                            locale,
+                                          ),
+                                          onChanged: (sel) => ref
+                                              .read(
+                                                trailFilterProvider(
+                                                  filterId,
+                                                ).notifier,
+                                              )
+                                              .updateFilter(
+                                                (f) => f.copyWith(
+                                                  subcategory: sel,
+                                                ),
+                                              ),
+                                        ),
+                                      ],
+                                    ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        WandererFilterChip<Category>(
-                          options: visibleCategories,
-                          selectedValues: currentFilter.category,
-                          multiple: true,
-                          keepSelectedOnTap: true,
-                          labelBuilder: (c) => c.displayName(locale),
-                          avatarBuilder: (c) => categoryFilterAvatar(c),
-                          onChanged: (selected) {
-                            final removedIds = currentFilter.category
-                                .map((c) => c.id)
-                                .toSet()
-                                .difference(selected.map((c) => c.id).toSet());
-                            final newSubs = currentFilter.subcategory
-                                .where(
-                                  (s) => !removedIds.contains(s.category),
-                                )
-                                .toList();
-                            ref
-                                .read(trailFilterProvider(filterId).notifier)
-                                .updateFilter(
-                                  (f) => f.copyWith(
-                                    category: selected,
-                                    subcategory: newSubs,
-                                  ),
-                                );
-                          },
-                          onLongPress: (c) {
-                            final newCats = currentFilter.category
-                                .where((cat) => cat.id != c.id)
-                                .toList();
-                            final newSubs = currentFilter.subcategory
-                                .where((s) => s.category != c.id)
-                                .toList();
-                            ref
-                                .read(trailFilterProvider(filterId).notifier)
-                                .updateFilter(
-                                  (f) => f.copyWith(
-                                    category: newCats,
-                                    subcategory: newSubs,
-                                  ),
-                                );
-                          },
-                        ),
-
-                        // Subcategories section: animates in when ≥1 category
-                        // is selected and visible subcategories exist (D-05).
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 200),
-                          alignment: Alignment.topCenter,
-                          child: currentFilter.category.isEmpty ||
-                                  visibleSubs.isEmpty
-                              ? const SizedBox.shrink()
-                              : Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      l10n.subcategories,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleMedium,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    WandererFilterChip<Subcategory>(
-                                      options: visibleSubs,
-                                      selectedValues: currentFilter.subcategory,
-                                      multiple: true,
-                                      labelBuilder: (s) =>
-                                          s.displayName(locale),
-                                      avatarBuilder: (s) =>
-                                          subcategoryFilterAvatar(
-                                        s,
-                                        currentFilter.category.firstWhereOrNull(
-                                          (c) => c.id == s.category,
-                                        ),
-                                        locale,
-                                      ),
-                                      onChanged: (sel) => ref
-                                          .read(
-                                            trailFilterProvider(
-                                              filterId,
-                                            ).notifier,
-                                          )
-                                          .updateFilter(
-                                            (f) =>
-                                                f.copyWith(subcategory: sel),
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
             );

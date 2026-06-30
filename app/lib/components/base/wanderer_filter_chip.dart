@@ -9,6 +9,7 @@ class WandererFilterChip<T> extends StatelessWidget {
   // When true, tapping an already-selected chip keeps it selected (no deselect
   // on tap). Deselection is handled via onLongPress instead.
   final bool keepSelectedOnTap;
+  final void Function(T item)? onItemTap;
   final void Function(T item)? onLongPress;
   final Widget? Function(T item)? avatarBuilder;
 
@@ -20,6 +21,7 @@ class WandererFilterChip<T> extends StatelessWidget {
     required this.onChanged,
     this.multiple = false,
     this.keepSelectedOnTap = false,
+    this.onItemTap,
     this.onLongPress,
     this.avatarBuilder,
   });
@@ -39,6 +41,7 @@ class WandererFilterChip<T> extends StatelessWidget {
           avatar: avatarBuilder?.call(option),
           selected: isSelected,
           onSelected: (bool selected) {
+            onItemTap?.call(option);
             if (multiple) {
               final newList = List<T>.from(selectedValues);
               if (selected) {

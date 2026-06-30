@@ -51,6 +51,8 @@ enum CompletionStatus {
 }
 
 class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
+  String? _focusedCategoryId;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -65,9 +67,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
     final visibleCategories = (categories.value ?? [])
         .where(
           (c) =>
-              catPrefs
-                  .firstWhereOrNull((p) => p.category == c.id)
-                  ?.visible !=
+              catPrefs.firstWhereOrNull((p) => p.category == c.id)?.visible !=
               false,
         )
         .toList();
@@ -77,8 +77,9 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
         title: Text(l10n.filter_trails),
         actions: [
           IconButton(
-            onPressed: () =>
-                ref.read(trailFilterProvider(widget.filterId).notifier).resetFilter(),
+            onPressed: () => ref
+                .read(trailFilterProvider(widget.filterId).notifier)
+                .resetFilter(),
             icon: FaIcon(FontAwesomeIcons.filterCircleXmark, size: 18),
           ),
         ],
@@ -91,9 +92,8 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
           // AsyncValue, so no `.value` (RESEARCH Pitfall 2).
           final subcategories = ref.watch(subcategoryProvider);
           final subPrefs = ref.watch(subcategoryPreferenceProvider).value ?? [];
-          final selectedCategoryIds = f.category.map((c) => c.id).toSet();
           final visibleSubs = subcategories
-              .where((s) => selectedCategoryIds.contains(s.category))
+              .where((s) => s.category == _focusedCategoryId)
               .where(
                 (s) =>
                     subPrefs
@@ -118,9 +118,9 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   labelBuilder: (c) =>
                       c.displayName(Localizations.localeOf(context)),
                   avatarBuilder: (c) => _categoryAvatar(c),
+                  onItemTap: (c) =>
+                      setState(() => _focusedCategoryId = c.id),
                   onChanged: (categories) {
-                    // When a category is deselected via normal toggle (not used
-                    // here since keepSelectedOnTap=true), clear its subcategories.
                     final removedIds = f.category
                         .map((c) => c.id)
                         .toSet()
@@ -138,9 +138,12 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                         );
                   },
                   onLongPress: (c) {
-                    // Long-press deselects the category and clears its subcategories.
-                    final newCats =
-                        f.category.where((cat) => cat.id != c.id).toList();
+                    if (_focusedCategoryId == c.id) {
+                      setState(() => _focusedCategoryId = null);
+                    }
+                    final newCats = f.category
+                        .where((cat) => cat.id != c.id)
+                        .toList();
                     final newSubs = f.subcategory
                         .where((s) => s.category != c.id)
                         .toList();
@@ -177,8 +180,9 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                               options: visibleSubs,
                               selectedValues: f.subcategory,
                               multiple: true,
-                              labelBuilder: (s) =>
-                                  s.displayName(Localizations.localeOf(context)),
+                              labelBuilder: (s) => s.displayName(
+                                Localizations.localeOf(context),
+                              ),
                               avatarBuilder: (s) => _subcategoryAvatar(
                                 s,
                                 f.category.firstWhereOrNull(
@@ -223,11 +227,14 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   onSubmitted: (value) {
                     final newTag = Tag(name: value);
 
-                    ref.read(trailFilterProvider(widget.filterId).notifier).addTag(newTag);
+                    ref
+                        .read(trailFilterProvider(widget.filterId).notifier)
+                        .addTag(newTag);
                     return DynamicTagData(value, Tag(name: value));
                   },
-                  onSelected: (value) =>
-                      ref.read(trailFilterProvider(widget.filterId).notifier).addTag(value.data),
+                  onSelected: (value) => ref
+                      .read(trailFilterProvider(widget.filterId).notifier)
+                      .addTag(value.data),
                   onDeleted: (value) => ref
                       .read(trailFilterProvider(widget.filterId).notifier)
                       .removeTag(value.data),
@@ -505,7 +512,12 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
   Widget _categoryAvatar(Category c) => categoryFilterAvatar(c);
 
   Widget _subcategoryAvatar(Subcategory s, Category? parent) =>
-      subcategoryFilterAvatar(s, parent, Localizations.localeOf(context));
+      subcategoryFilterAvatar(
+        context,
+        s,
+        parent,
+        Localizations.localeOf(context),
+      );
 }
 
 class _AuthorChip extends StatelessWidget {
