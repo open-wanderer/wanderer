@@ -21,8 +21,8 @@ import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/tag_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
+import 'package:wanderer/util/category_filter_util.dart';
 import 'package:wanderer/util/format_util.dart';
-import 'package:wanderer/util/icon_util.dart';
 
 class TrailFilterScreen extends ConsumerStatefulWidget {
   final String filterId;
@@ -502,93 +502,10 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
     );
   }
 
-  /// Builds a 16px FontAwesome icon avatar for a [Category] (D-08). The
-  /// `category.icon` value may carry a leading `fa-` prefix which is stripped
-  /// before lookup in [fontAwesomeIconsMap]; an unknown icon falls back to the
-  /// Material `Icons.category` glyph. No explicit color is set so the chip's
-  /// foreground drives it (UI-SPEC Color).
-  Widget _categoryAvatar(Category c) {
-    final raw = (c.icon ?? '').trim();
-    final key = raw.startsWith('fa-') ? raw.substring(3) : raw;
-    final faData = fontAwesomeIconsMap[key];
-    return faData != null
-        ? FaIcon(faData, size: 16)
-        : const Icon(Icons.category, size: 16);
-  }
+  Widget _categoryAvatar(Category c) => categoryFilterAvatar(c);
 
-  /// Builds a subcategory avatar: a primary 16px FontAwesome icon with a badge
-  /// overlay at the bottom-right (D-09). The badge is a FontAwesome icon when
-  /// `s.badgeIcon` is set; otherwise a short text abbreviation computed from
-  /// `s.shortName` (mirrors the web's `displaySubcategoryShortBadge`).
-  Widget _subcategoryAvatar(Subcategory s, Category? parent) {
-    final locale = Localizations.localeOf(context);
-
-    final primaryRaw =
-        ((s.icon?.trim().isNotEmpty ?? false) ? s.icon! : (parent?.icon ?? ''))
-            .trim();
-    final primaryKey =
-        primaryRaw.startsWith('fa-') ? primaryRaw.substring(3) : primaryRaw;
-    final primary = fontAwesomeIconsMap[primaryKey];
-
-    // Badge: prefer FA icon from badge_icon field; fall back to text abbreviation.
-    Widget? badgeWidget;
-    final badgeRaw = (s.badgeIcon ?? '').trim();
-    final badgeKey =
-        badgeRaw.startsWith('fa-') ? badgeRaw.substring(3) : badgeRaw;
-    final badgeFa = badgeKey.isNotEmpty ? fontAwesomeIconsMap[badgeKey] : null;
-    if (badgeFa != null) {
-      badgeWidget = Positioned(
-        right: -2,
-        bottom: -2,
-        child: FaIcon(badgeFa, size: 10),
-      );
-    } else {
-      final badgeText = _subcategoryShortBadge(s, locale);
-      if (badgeText.isNotEmpty) {
-        badgeWidget = Positioned(
-          right: -4,
-          bottom: -5,
-          child: Text(
-            badgeText,
-            style: const TextStyle(
-              fontSize: 7,
-              fontWeight: FontWeight.bold,
-              height: 1,
-            ),
-          ),
-        );
-      }
-    }
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        primary != null
-            ? FaIcon(primary, size: 16)
-            : const Icon(Icons.category, size: 16),
-        ?badgeWidget,
-      ],
-    );
-  }
-
-  /// Mirrors the web's `displaySubcategoryShortBadge`: returns `short_name` in
-  /// uppercase if set; otherwise computes an abbreviation from the display name
-  /// (first letters of words, or first 4 characters for single-word names).
-  String _subcategoryShortBadge(Subcategory s, Locale locale) {
-    final rawShort = (s.shortName ?? '').trim();
-    if (rawShort.isNotEmpty) return rawShort.toUpperCase();
-
-    final label = s.displayName(locale).trim();
-    if (label.isEmpty) return '';
-    if (label.length <= 5) return label.toUpperCase();
-
-    final words =
-        RegExp(r'[\p{L}\p{N}]+', unicode: true).allMatches(label).toList();
-    if (words.length > 1) {
-      return words.map((m) => m.group(0)![0]).take(5).join('').toUpperCase();
-    }
-    return label.substring(0, 4).toUpperCase();
-  }
+  Widget _subcategoryAvatar(Subcategory s, Category? parent) =>
+      subcategoryFilterAvatar(s, parent, Localizations.localeOf(context));
 }
 
 class _AuthorChip extends StatelessWidget {
