@@ -47,7 +47,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 **Milestone Goal:** Bring the Flutter app's category system to parity with web PR #1059 — a translations/icon/short_name-aware Category model, a new Subcategory model + provider, subcategory-aware trail filters, and a Settings → Categories screen for per-category/subcategory visibility and priority preferences.
 
 - [x] **Phase 10: Category & Subcategory Data Layer** - Updated Category model, new Subcategory model + entity + provider, locale-aware names, remove `Settings.category`, preference models + providers (SETCAT-03/04/05) (completed 2026-06-29)
-- [ ] **Phase 11: Trail Filter Subcategory Support** - `TrailFilter.subcategory`, subcategory chips in TrailFilterScreen and quick filter bar, locale-resolved category labels, hidden-category/subcategory omitted from filter chips (FILTER-06/07)
+- [ ] **Phase 11: Trail Filter Subcategory Support** (2/4 plans) - `TrailFilter.subcategory`, subcategory chips in TrailFilterScreen and quick filter bar, locale-resolved category labels, hidden-category/subcategory omitted from filter chips (FILTER-06/07)
 - [ ] **Phase 12: Settings Categories Screen** - SettingsCategoriesScreen with visibility toggles + priority reordering, router wiring (UI only — providers come from Phase 10)
 
 ## Phase Details
@@ -128,6 +128,6 @@ Phases execute in numeric order: 10 → 11 → 12 (11 and 12 are independent of 
 | 7. Privacy | v1.2 | 1/1 | Complete | 2026-06-20 |
 | 8. Account & Profile | v1.2 | 3/3 | Complete | 2026-06-20 |
 | 9. Notifications | v1.2 | 1/1 | Complete | 2026-06-21 |
-| 10. Category & Subcategory Data Layer | v1.3 | 4/4 | Complete   | 2026-06-29 |
+| 10. Category & Subcategory Data Layer | v1.3 | 4/4 | Complete    | 2026-06-29 |
 | 11. Trail Filter Subcategory Support | v1.3 | 0/TBD | Not started | - |
 | 12. Settings Categories Screen | v1.3 | 0/TBD | Not started | - |

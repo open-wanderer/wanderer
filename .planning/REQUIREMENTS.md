@@ -17,7 +17,7 @@ Requirements for milestone v1.3 — Category Redesign. Each maps to roadmap phas
 
 ### Trail Filters
 
-- [ ] **FILTER-01**: `TrailFilter` freezed model gains a `subcategory` list alongside the existing `category` list
+- [x] **FILTER-01**: `TrailFilter` freezed model gains a `subcategory` list alongside the existing `category` list
 - [ ] **FILTER-02**: TrailFilterScreen shows a subcategory chip section that appears when ≥1 category is selected, listing subcategories belonging to those selected categories
 - [ ] **FILTER-03**: Selecting/deselecting subcategory chips updates `TrailFilter.subcategory` and the filter payload sent to the API
 - [ ] **FILTER-04**: Category chips in TrailFilterScreen display locale-resolved names (translation fallback chain from CAT-01)
@@ -70,7 +70,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAT-03 | Phase 10 | Complete |
 | CAT-04 | Phase 10 | Complete |
 | CAT-05 | Phase 10 | Complete |
-| FILTER-01 | Phase 11 | Pending |
+| FILTER-01 | Phase 11 | Complete (11-01) |
 | FILTER-02 | Phase 11 | Pending |
 | FILTER-03 | Phase 11 | Pending |
 | FILTER-04 | Phase 11 | Pending |

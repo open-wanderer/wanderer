@@ -49,13 +49,7 @@ class SubcategoryNotifier extends _$SubcategoryNotifier {
         box.putMany(items.map(SubcategoryEntity.fromModel).toList());
       });
 
-      // Only assign state if the notifier is still alive to avoid a
-      // StateError (or silent no-op) on an invalidated notifier (WR-03 fix).
-      try {
-        state = items;
-      } catch (_) {
-        // Notifier was disposed before the refresh completed; no-op.
-      }
+      state = items;
     } catch (_) {
       // Swallow — keep the cached state and rows so startup stays resilient.
     }

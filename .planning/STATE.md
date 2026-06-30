@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Category Redesign
-status: verifying
-stopped_at: Phase 10 context gathered
-last_updated: "2026-06-29T13:48:19.388Z"
-last_activity: 2026-06-29 -- Phase 10 execution started
+status: executing
+stopped_at: Phase 11 UI-SPEC approved
+last_updated: "2026-06-30T08:00:00.000Z"
+last_activity: 2026-06-30 -- Phase 11 Plan 02 completed
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 33
+  total_plans: 8
+  completed_plans: 6
+  percent: 75
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 10 — Category & Subcategory Data Layer
+**Current focus:** Phase 11 — trail-filter-subcategory-support
 
 ## Current Position
 
-Phase: 10 (Category & Subcategory Data Layer) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-06-29 -- Phase 10 execution started
+Phase: 11 (trail-filter-subcategory-support) — EXECUTING
+Plan: 3 of 4
+Status: Executing Phase 11
+Last activity: 2026-06-30 -- Phase 11 Plan 02 completed
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## v1.3 Phases
 
@@ -44,7 +44,7 @@ Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of e
 
 **Velocity (v1.0–v1.2):**
 
-- Total plans completed: 21
+- Total plans completed: 25
 - Average duration: — min
 - Total execution time: — hours
 
@@ -56,12 +56,15 @@ Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of e
 | 07 | 1 | - | - |
 | 08 | 3 | - | - |
 | 09 | 1 | - | - |
+| 10 | 4 | - | - |
 
 *Updated after each plan completion*
 | Phase 10 P01 | 5 | 2 tasks | 6 files |
 | Phase 10 P02 | 4 | 2 tasks tasks | 4 files files |
 | Phase 10 P03 | 4 | 2 tasks | 10 files |
 | Phase 10 P04 | 6 | 3 tasks | 9 files |
+| Phase 11 P01 | 4 | 2 tasks | 4 files |
+| Phase 11 P02 | 6 | 2 tasks | 30 files |
 
 ## Accumulated Context
 
@@ -81,6 +84,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [10-03] Preference models are flat freezed (no explicitToJson); providers use anonymous gate returning [] with no API call (D-07) and never send a client user field (server injects it, Security V4/T-10-05)
 - [Phase ?]: [10-04] CategoryNotifier overwrites all CategoryEntity rows on every /category fetch (D-02); SubcategoryNotifier is cache-first synchronous build + background /subcategory refresh (D-03/D-04)
 - [Phase ?]: [10-04] Settings.category removed via compiler-driven sweep; ObjectBox drops the property on next app open, no migration script (D-09)
+- [Phase ?]: [11-01] TrailFilter gained @Default(<Subcategory>[]) subcategory field; toFilterText() now emits ID-based (category_id IN [...] OR subcategory_id IN [...]) group, replacing the broken name-based category clause (RESEARCH Pitfall 1 fix)
+- [Phase ?]: [11-02] WandererFilterChip gained optional avatarBuilder (Widget? Function(T)) wired to FilterChip.avatar, backward compatible; subcategories l10n key added to all 14 ARBs (en has @metadata) and l10n.subcategories regenerated for Plans 03/04
 
 ### Pending Todos
 
@@ -106,9 +111,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-06-29T13:48:14.368Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-category-subcategory-data-layer/10-CONTEXT.md
+Last session: 2026-06-30T08:00:00.000Z
+Stopped at: Completed 11-02-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

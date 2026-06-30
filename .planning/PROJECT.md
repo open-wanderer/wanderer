@@ -42,12 +42,12 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 
 ### Active
 
-- [ ] Category model updated with `icon`, `short_name`, `translations`; locale-aware display name resolution
-- [ ] Subcategory freezed model, ObjectBox entity, and provider fetching from `/subcategory`
+- [x] Category model updated with `icon`, `short_name`, `translations`; locale-aware display name resolution (v1.3 — Phase 10)
+- [x] Subcategory freezed model, ObjectBox entity, and provider fetching from `/subcategory` (v1.3 — Phase 10)
+- [x] Category and subcategory preference Riverpod providers backed by `/user-category-preference` and `/user-subcategory-preference` (v1.3 — Phase 10)
+- [x] `Settings.category` field removed (replaced by priority-based category preferences) (v1.3 — Phase 10)
 - [ ] `TrailFilter` gains `subcategory` list; TrailFilterScreen and quick filter bar show subcategory chips
 - [ ] New SettingsCategoriesScreen: per-category and per-subcategory visibility toggles + priority reordering
-- [ ] Category and subcategory preference Riverpod providers backed by `/user-category-preference` and `/user-subcategory-preference`
-- [ ] `Settings.category` field removed (replaced by priority-based category preferences)
 
 ### Out of Scope
 
@@ -116,4 +116,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-29 after v1.3 milestone start — Category Redesign: subcategory filters + Settings → Categories screen.*
+*Last updated: 2026-06-29 — Phase 10 complete: category/subcategory data layer shipped (models, entities, providers, Settings.category removal).*

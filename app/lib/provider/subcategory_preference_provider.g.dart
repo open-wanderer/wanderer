@@ -38,7 +38,7 @@ final class SubcategoryPreferenceNotifierProvider
 }
 
 String _$subcategoryPreferenceNotifierHash() =>
-    r'1d8114eb80f944655ce2e9d6b44ae61f206a2ff1';
+    r'ec0312914dfcca7a8c7cb89437d7829b9242db41';
 
 abstract class _$SubcategoryPreferenceNotifier
     extends $AsyncNotifier<List<SubcategoryPreference>> {

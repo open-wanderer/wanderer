@@ -48,6 +48,7 @@ class WandererFilterChip<T> extends StatelessWidget {
           backgroundColor: colorScheme.surfaceContainerHighest,
           selectedColor: colorScheme.primaryContainer,
           checkmarkColor: colorScheme.onPrimaryContainer,
+          showCheckmark: false,
           shape: StadiumBorder(
             side: BorderSide(
               color: isSelected
