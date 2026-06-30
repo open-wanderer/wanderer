@@ -275,18 +275,30 @@ abstract class TrailFilter with _$TrailFilter {
 
     // Categories and Subcategories (combined OR group, ID-based).
     // Mirrors the web OR-group builder (trail_store.ts) and filters against the
-    // Meilisearch `category_id` / `subcategory_id` attributes — the redesigned
-    // index no longer makes the `category` name attribute filterable.
+    // Mirror the web's trail_store.ts filter logic:
+    // - Categories whose subcategories are NOT all selected → category_id IN [...]
+    // - All selected subcategories → subcategory_id IN [...]
+    // The two clauses are OR-ed so a match on either counts.
     if (category.isNotEmpty || subcategory.isNotEmpty) {
+      final selectedSubCategoryParentIds =
+          subcategory.map((s) => s.category).toSet();
+      final categoriesWithoutSub = category
+          .where((c) => !selectedSubCategoryParentIds.contains(c.id))
+          .toList();
+
       final List<String> categoryParts = [];
-      if (category.isNotEmpty) {
-        final catList = category.map((c) => "'${c.id}'").join(", ");
+
+      if (categoriesWithoutSub.isNotEmpty) {
+        final catList =
+            categoriesWithoutSub.map((c) => "'${c.id}'").join(", ");
         categoryParts.add('category_id IN [$catList]');
       }
+
       if (subcategory.isNotEmpty) {
         final subList = subcategory.map((s) => "'${s.id}'").join(", ");
         categoryParts.add('subcategory_id IN [$subList]');
       }
+
       if (categoryParts.isNotEmpty) {
         parts.add('(${categoryParts.join(" OR ")})');
       }

@@ -31,17 +31,15 @@ const _subcategory = Subcategory(id: 's1', category: 'c1', name: 'Day Hike');
 
 void main() {
   group('TrailFilter.toFilterText category/subcategory clause', () {
-    test('one category, no subcategories emits category_id IN and not the '
-        'legacy name clause', () {
+    test('one category, no subcategories emits category_id IN', () {
       final filter = _baseFilter().copyWith(category: [_category]);
 
       final text = filter.toFilterText();
 
       expect(text, contains("(category_id IN ['c1'])"));
-      expect(text, isNot(contains('category IN [')));
     });
 
-    test('one subcategory, no categories emits subcategory_id IN', () {
+    test('one subcategory with no parent category selected emits subcategory_id IN', () {
       final filter = _baseFilter().copyWith(subcategory: [_subcategory]);
 
       final text = filter.toFilterText();
@@ -49,16 +47,33 @@ void main() {
       expect(text, contains("(subcategory_id IN ['s1'])"));
     });
 
-    test('category and subcategory compose into one OR group', () {
+    test(
+        'category with a matching subcategory selected narrows to subcategory '
+        'only — parent category_id IN is omitted', () {
       final filter = _baseFilter()
           .copyWith(category: [_category], subcategory: [_subcategory]);
 
       final text = filter.toFilterText();
 
-      expect(
-        text,
-        contains("(category_id IN ['c1'] OR subcategory_id IN ['s1'])"),
+      expect(text, contains("(subcategory_id IN ['s1'])"));
+      expect(text, isNot(contains("category_id IN ['c1']")));
+    });
+
+    test(
+        'two categories: one with subcategory selected, one without — mixed '
+        'clause mirrors web trail_store.ts', () {
+      const cat2 = Category(id: 'c2', name: 'Nature');
+      final filter = _baseFilter().copyWith(
+        category: [_category, cat2],
+        subcategory: [_subcategory], // belongs to c1 only
       );
+
+      final text = filter.toFilterText();
+
+      // c1 has a sub → only subcategory_id IN clause; c1 excluded from category_id IN
+      expect(text, contains("subcategory_id IN ['s1']"));
+      expect(text, contains("category_id IN ['c2']"));
+      expect(text, isNot(contains("category_id IN ['c1']")));
     });
 
     test('neither category nor subcategory emits neither clause', () {
