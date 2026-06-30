@@ -19,7 +19,7 @@ import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
 import 'package:wanderer/util/format_util.dart';
-import 'package:wanderer/util/category_filter_util.dart';
+import 'package:wanderer/util/category_icon_util.dart';
 
 /// Applies TrailFilter to a list of Trail objects (library use case).
 /// Trail.difficulty is a TrailDifficulty enum; its index maps to 0/1/2.

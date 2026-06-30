@@ -16,7 +16,8 @@ abstract class TrailSummary with RecordFunctions {
   int get summaryDifficulty;
   String get summaryAuthorName;
   String get summaryAuthorAvatar;
-  String get summaryCategory;
+  String? get categoryId;
+  String? get subcategoryId;
 
   List<String>? get summaryShares;
   List<String>? get summaryTags;

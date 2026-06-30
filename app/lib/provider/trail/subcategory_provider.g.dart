@@ -42,7 +42,7 @@ final class SubcategoryNotifierProvider
 }
 
 String _$subcategoryNotifierHash() =>
-    r'e897d7bce0edd6c01b5f25a23f6d5477ce33e413';
+    r'98d0d5d9294c57105b898ecf9e22046a962a7b3c';
 
 abstract class _$SubcategoryNotifier extends $Notifier<List<Subcategory>> {
   List<Subcategory> build();

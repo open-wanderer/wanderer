@@ -19,7 +19,12 @@ import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/list_provider.dart';
 import 'package:wanderer/util/format_util.dart';
-import 'package:wanderer/util/icon_util.dart';
+import 'package:collection/collection.dart';
+import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/subcategory.dart';
+import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
+import 'package:wanderer/util/category_icon_util.dart';
 import 'package:wanderer/util/polyline_util.dart';
 
 class ListDetailScreen extends ConsumerStatefulWidget {
@@ -319,6 +324,8 @@ class _ListMap extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final styleAsync = ref.watch(mapStyleProvider);
+    final allCategories = ref.watch(categoryProvider).value ?? [];
+    final allSubcategories = ref.watch(subcategoryProvider);
 
     final polylines = trails
         .where((t) => t.polyline != null && t.polyline!.isNotEmpty)
@@ -327,8 +334,14 @@ class _ListMap extends ConsumerWidget {
 
     final markers = trails
         .where((t) => t.lat != null && t.lon != null)
-        .map(
-          (t) => Marker(
+        .map((t) {
+          final Category? category = t.categoryId != null
+              ? allCategories.firstWhereOrNull((c) => c.id == t.categoryId)
+              : null;
+          final subcategory = t.subcategoryId != null
+              ? allSubcategories.firstWhereOrNull((s) => s.id == t.subcategoryId)
+              : null;
+          return Marker(
             point: LatLng(t.lat!, t.lon!),
             width: 36,
             height: 36,
@@ -345,10 +358,16 @@ class _ListMap extends ConsumerWidget {
                   ),
                 ],
               ),
-              child: Center(child: getTrailIcon(t.summaryCategory)),
+              child: Center(
+                child: trailCategoryIcon(
+                  category,
+                  subcategory: subcategory,
+                  color: Colors.white,
+                ),
+              ),
             ),
-          ),
-        )
+          );
+        })
         .toList();
 
     final combinedBounds = _combinedBounds(trails);

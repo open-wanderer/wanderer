@@ -75,6 +75,7 @@ _Trail _$TrailFromJson(Map<String, dynamic> json) => _Trail(
   created: DateTime.parse(json['created'] as String),
   updated: DateTime.parse(json['updated'] as String),
   category: json['category'] as String?,
+  subcategory: json['subcategory'] as String?,
   tags:
       (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],
@@ -122,6 +123,7 @@ Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
   'created': instance.created.toIso8601String(),
   'updated': instance.updated.toIso8601String(),
   'category': instance.category,
+  'subcategory': instance.subcategory,
   'tags': instance.tags,
   'polyline': instance.polyline,
   'domain': instance.domain,

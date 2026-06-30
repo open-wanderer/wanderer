@@ -87,6 +87,7 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     required DateTime created,
     required DateTime updated,
     String? category,
+    String? subcategory,
     @Default([]) List<String> tags,
     String? polyline,
     String? domain,
@@ -122,7 +123,10 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
   String get summaryThumbnail => photos.isNotEmpty ? photos[0] : "";
 
   @override
-  String get summaryCategory => expand?.category?.name ?? "";
+  String? get categoryId => category;
+
+  @override
+  String? get subcategoryId => subcategory;
 
   @override
   List<String>? get summaryTags => expand?.tags?.map((t) => t.name).toList();
@@ -280,8 +284,9 @@ abstract class TrailFilter with _$TrailFilter {
     // - All selected subcategories → subcategory_id IN [...]
     // The two clauses are OR-ed so a match on either counts.
     if (category.isNotEmpty || subcategory.isNotEmpty) {
-      final selectedSubCategoryParentIds =
-          subcategory.map((s) => s.category).toSet();
+      final selectedSubCategoryParentIds = subcategory
+          .map((s) => s.category)
+          .toSet();
       final categoriesWithoutSub = category
           .where((c) => !selectedSubCategoryParentIds.contains(c.id))
           .toList();
@@ -289,8 +294,7 @@ abstract class TrailFilter with _$TrailFilter {
       final List<String> categoryParts = [];
 
       if (categoriesWithoutSub.isNotEmpty) {
-        final catList =
-            categoriesWithoutSub.map((c) => "'${c.id}'").join(", ");
+        final catList = categoriesWithoutSub.map((c) => "'${c.id}'").join(", ");
         categoryParts.add('category_id IN [$catList]');
       }
 
@@ -363,7 +367,8 @@ const List<String> defaultTrailSearchAttributes = [
   "elevation_loss",
   "duration",
   "difficulty",
-  "category",
+  "category_id",
+  "subcategory_id",
   "completed",
   "date",
   "created",

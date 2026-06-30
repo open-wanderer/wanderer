@@ -35,7 +35,8 @@ abstract class TrailSearchResult
     @JsonKey(name: 'elevation_loss') required double elevationLoss,
     required double duration,
     required int difficulty, // 0 | 1 | 2
-    required String category,
+    @JsonKey(name: 'category_id') String? categoryId,
+    @JsonKey(name: 'subcategory_id') String? subcategoryId,
     required bool completed,
     required int date,
     required int created,
@@ -70,9 +71,6 @@ abstract class TrailSearchResult
   String get summaryThumbnail => thumbnail;
 
   @override
-  String get summaryCategory => category;
-
-  @override
   List<String>? get summaryTags => tags;
 
   @override
@@ -100,7 +98,8 @@ abstract class TrailSearchResult
     elevationLoss: 420.0,
     duration: 150.0,
     difficulty: 1,
-    category: '',
+    categoryId: '',
+    subcategoryId: '',
     completed: false,
     date: 0,
     created: 0,

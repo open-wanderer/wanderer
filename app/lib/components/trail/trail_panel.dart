@@ -16,9 +16,9 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
+import 'package:wanderer/components/trail/trail_category_label.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
-import 'package:wanderer/util/icon_util.dart';
 
 class TrailPanel extends ConsumerWidget {
   const TrailPanel({
@@ -149,7 +149,7 @@ class TrailPanel extends ConsumerWidget {
                     spacing: 10,
                     runSpacing: 10,
                     children: [
-                      if (trail.expand?.category != null)
+                      if (trail.categoryId != null)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
@@ -159,19 +159,10 @@ class TrailPanel extends ConsumerWidget {
                             color: Colors.grey.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              getTrailIcon(
-                                trail.summaryCategory,
-                                color: Colors.blueGrey,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                trail.summaryCategory,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
+                          child: TrailCategoryLabel(
+                            categoryId: trail.categoryId!,
+                            subcategoryId: trail.subcategoryId,
+                            color: Colors.blueGrey,
                           ),
                         ),
                       StatChip(

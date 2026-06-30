@@ -12,7 +12,12 @@ import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/list_provider.dart';
-import 'package:wanderer/util/icon_util.dart';
+import 'package:collection/collection.dart';
+import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/subcategory.dart';
+import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
+import 'package:wanderer/util/category_icon_util.dart';
 import 'package:wanderer/util/polyline_util.dart';
 
 class ListDetailMapScreen extends ConsumerStatefulWidget {
@@ -80,6 +85,8 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
       ),
       data: (list) {
         final trails = list.expand?.trails ?? [];
+        final allCategories = ref.watch(categoryProvider).value ?? [];
+        final allSubcategories = ref.watch(subcategoryProvider);
 
         final polylines = trails
             .where((t) => t.polyline != null && t.polyline!.isNotEmpty)
@@ -88,8 +95,15 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
 
         final markers = trails
             .where((t) => t.lat != null && t.lon != null)
-            .map(
-              (t) => Marker(
+            .map((t) {
+              final Category? category = t.categoryId != null
+                  ? allCategories.firstWhereOrNull((c) => c.id == t.categoryId)
+                  : null;
+              final subcategory = t.subcategoryId != null
+                  ? allSubcategories.firstWhereOrNull((s) => s.id == t.subcategoryId)
+                  : null;
+              final isSelected = _selectedTrail?.id == t.id;
+              return Marker(
                 key: ValueKey(t.id),
                 point: LatLng(t.lat!, t.lon!),
                 width: 36,
@@ -98,7 +112,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
                   onTap: () => _onMarkerTap(t),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: _selectedTrail?.id == t.id
+                      color: isSelected
                           ? Theme.of(context).colorScheme.secondary
                           : Theme.of(context).primaryColor,
                       shape: BoxShape.circle,
@@ -112,17 +126,18 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
                       ],
                     ),
                     child: Center(
-                      child: getTrailIcon(
-                        t.summaryCategory,
-                        color: _selectedTrail?.id == t.id
+                      child: trailCategoryIcon(
+                        category,
+                        subcategory: subcategory,
+                        color: isSelected
                             ? Theme.of(context).primaryColor
                             : Colors.white,
                       ),
                     ),
                   ),
                 ),
-              ),
-            )
+              );
+            })
             .toList();
 
         final combinedBounds = _combinedBounds(trails);

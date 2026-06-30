@@ -22,7 +22,12 @@ import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
-import 'package:wanderer/util/icon_util.dart';
+import 'package:collection/collection.dart';
+import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/subcategory.dart';
+import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
+import 'package:wanderer/util/category_icon_util.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   final LatLng? initialCenter;
@@ -156,8 +161,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     final searchResultAsync = ref.watch(mapTrailSearchProvider);
     final trails = searchResultAsync.value ?? [];
+    final allCategories = ref.watch(categoryProvider).value ?? [];
+    final allSubcategories = ref.watch(subcategoryProvider);
 
     final markers = trails.map((trail) {
+      final Category? category = trail.categoryId != null
+          ? allCategories.firstWhereOrNull((c) => c.id == trail.categoryId)
+          : null;
+      final subcategory = trail.subcategoryId != null
+          ? allSubcategories.firstWhereOrNull((s) => s.id == trail.subcategoryId)
+          : null;
       return Marker(
         key: ValueKey(trail.id),
         point: LatLng(trail.geo.lat, trail.geo.lng),
@@ -176,7 +189,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ],
           ),
-          child: Center(child: getTrailIcon(trail.category)),
+          child: Center(
+            child: trailCategoryIcon(
+              category,
+              subcategory: subcategory,
+              color: Colors.white,
+            ),
+          ),
         ),
       );
     }).toList();

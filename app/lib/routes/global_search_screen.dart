@@ -9,6 +9,11 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/search/global_search_provider.dart';
+import 'package:collection/collection.dart';
+import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
+import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/polyline_util.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -219,7 +224,7 @@ class _ResultsList extends StatelessWidget {
   }
 }
 
-class _TrailTile extends StatelessWidget {
+class _TrailTile extends ConsumerWidget {
   final TrailSearchResult trail;
   final String unit;
 
@@ -235,7 +240,21 @@ class _TrailTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = Localizations.localeOf(context);
+    final categories = ref.watch(categoryProvider).value ?? [];
+    final subcategories = ref.watch(subcategoryProvider);
+
+    final Category? category = trail.categoryId != null
+        ? categories.firstWhereOrNull((c) => c.id == trail.categoryId)
+        : null;
+    final subcategory = trail.subcategoryId != null
+        ? subcategories.firstWhereOrNull((s) => s.id == trail.subcategoryId)
+        : null;
+    final categoryLabel = (category != null && subcategory != null)
+        ? '${category.displayName(locale)} / ${subcategory.displayName(locale)}'
+        : category?.displayName(locale);
+
     return ListTile(
       onTap: () => context.push('/trail/${trail.id}'),
       leading: _PolylinePreview(
@@ -246,7 +265,7 @@ class _TrailTile extends StatelessWidget {
       title: Text(trail.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         [
-          if (trail.category.isNotEmpty) trail.category,
+          ?categoryLabel,
           _difficultyLabel(context, trail.difficulty),
           formatDistance(trail.distance, unit: unit),
         ].join(' · '),

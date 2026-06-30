@@ -86,6 +86,9 @@ class WandererFilterChip<T> extends StatelessWidget {
         if (badgeCount > 0) {
           chip = Badge(
             label: Text('$badgeCount'),
+            backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+            textColor: Theme.of(context).colorScheme.onSurface,
+            offset: Offset(0, -2),
             child: chip,
           );
         }
