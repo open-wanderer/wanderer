@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,12 +9,17 @@ import 'package:wanderer/components/base/wanderer_radio_group.dart';
 import 'package:wanderer/components/base/wanderer_sort_chip_group.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/provider/category_preference_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
+import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/icon_util.dart';
 
 /// Applies TrailFilter to a list of Trail objects (library use case).
 /// Trail.difficulty is a TrailDifficulty enum; its index maps to 0/1/2.
@@ -95,7 +101,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
   }
 
   bool _isCategoryActive(TrailFilter filter) {
-    return filter.category.isNotEmpty;
+    return filter.category.isNotEmpty || filter.subcategory.isNotEmpty;
   }
 
   bool _isDifficultyActive(TrailFilter filter) {
@@ -251,6 +257,37 @@ class TrailQuickFilterBar extends ConsumerWidget {
                 final currentFilter = filterAsync.value ?? filter;
                 final categories = ref.watch(categoryProvider);
                 final l10n = AppLocalizations.of(context)!;
+                final locale = Localizations.localeOf(context);
+
+                // FILTER-06: hide categories the user has marked visible:false.
+                final catPrefs =
+                    ref.watch(categoryPreferenceProvider).value ?? [];
+                final visibleCategories = (categories.value ?? [])
+                    .where(
+                      (c) =>
+                          catPrefs
+                              .firstWhereOrNull((p) => p.category == c.id)
+                              ?.visible !=
+                          false,
+                    )
+                    .toList();
+
+                // FILTER-07: subcategory options scoped to selected categories.
+                final subcategories = ref.watch(subcategoryProvider);
+                final subPrefs =
+                    ref.watch(subcategoryPreferenceProvider).value ?? [];
+                final selectedCategoryIds =
+                    currentFilter.category.map((c) => c.id).toSet();
+                final visibleSubs = subcategories
+                    .where((s) => selectedCategoryIds.contains(s.category))
+                    .where(
+                      (s) =>
+                          subPrefs
+                              .firstWhereOrNull((p) => p.subcategory == s.id)
+                              ?.visible !=
+                          false,
+                    )
+                    .toList();
 
                 return SingleChildScrollView(
                   controller: scrollController,
@@ -274,16 +311,95 @@ class TrailQuickFilterBar extends ConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         WandererFilterChip<Category>(
-                          options: categories.value ?? [],
+                          options: visibleCategories,
                           selectedValues: currentFilter.category,
-                          labelBuilder: (c) => c.name,
+                          multiple: true,
+                          keepSelectedOnTap: true,
+                          labelBuilder: (c) => c.displayName(locale),
+                          avatarBuilder: (c) => _categoryAvatar(c),
                           onChanged: (selected) {
+                            final removedIds = currentFilter.category
+                                .map((c) => c.id)
+                                .toSet()
+                                .difference(selected.map((c) => c.id).toSet());
+                            final newSubs = currentFilter.subcategory
+                                .where(
+                                  (s) => !removedIds.contains(s.category),
+                                )
+                                .toList();
                             ref
                                 .read(trailFilterProvider(filterId).notifier)
                                 .updateFilter(
-                                  (f) => f.copyWith(category: selected),
+                                  (f) => f.copyWith(
+                                    category: selected,
+                                    subcategory: newSubs,
+                                  ),
                                 );
                           },
+                          onLongPress: (c) {
+                            final newCats = currentFilter.category
+                                .where((cat) => cat.id != c.id)
+                                .toList();
+                            final newSubs = currentFilter.subcategory
+                                .where((s) => s.category != c.id)
+                                .toList();
+                            ref
+                                .read(trailFilterProvider(filterId).notifier)
+                                .updateFilter(
+                                  (f) => f.copyWith(
+                                    category: newCats,
+                                    subcategory: newSubs,
+                                  ),
+                                );
+                          },
+                        ),
+
+                        // Subcategories section: animates in when ≥1 category
+                        // is selected and visible subcategories exist (D-05).
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 200),
+                          alignment: Alignment.topCenter,
+                          child: currentFilter.category.isEmpty ||
+                                  visibleSubs.isEmpty
+                              ? const SizedBox.shrink()
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      l10n.subcategories,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleMedium,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    WandererFilterChip<Subcategory>(
+                                      options: visibleSubs,
+                                      selectedValues: currentFilter.subcategory,
+                                      multiple: true,
+                                      labelBuilder: (s) =>
+                                          s.displayName(locale),
+                                      avatarBuilder: (s) => _subcategoryAvatar(
+                                        s,
+                                        currentFilter.category
+                                            .firstWhereOrNull(
+                                          (c) => c.id == s.category,
+                                        ),
+                                        locale,
+                                      ),
+                                      onChanged: (sel) => ref
+                                          .read(
+                                            trailFilterProvider(
+                                              filterId,
+                                            ).notifier,
+                                          )
+                                          .updateFilter(
+                                            (f) =>
+                                                f.copyWith(subcategory: sel),
+                                          ),
+                                    ),
+                                  ],
+                                ),
                         ),
                       ],
                     ),
@@ -295,6 +411,83 @@ class TrailQuickFilterBar extends ConsumerWidget {
         );
       },
     );
+  }
+
+  static Widget _categoryAvatar(Category c) {
+    final raw = (c.icon ?? '').trim();
+    final key = raw.startsWith('fa-') ? raw.substring(3) : raw;
+    final faData = fontAwesomeIconsMap[key];
+    return faData != null
+        ? FaIcon(faData, size: 16)
+        : const Icon(Icons.category, size: 16);
+  }
+
+  static Widget _subcategoryAvatar(
+    Subcategory s,
+    Category? parent,
+    Locale locale,
+  ) {
+    final primaryRaw =
+        ((s.icon?.trim().isNotEmpty ?? false) ? s.icon! : (parent?.icon ?? ''))
+            .trim();
+    final primaryKey =
+        primaryRaw.startsWith('fa-') ? primaryRaw.substring(3) : primaryRaw;
+    final primary = fontAwesomeIconsMap[primaryKey];
+
+    Widget? badgeWidget;
+    final badgeRaw = (s.badgeIcon ?? '').trim();
+    final badgeKey =
+        badgeRaw.startsWith('fa-') ? badgeRaw.substring(3) : badgeRaw;
+    final badgeFa = badgeKey.isNotEmpty ? fontAwesomeIconsMap[badgeKey] : null;
+    if (badgeFa != null) {
+      badgeWidget = Positioned(
+        right: -2,
+        bottom: -2,
+        child: FaIcon(badgeFa, size: 10),
+      );
+    } else {
+      final badgeText = _subcategoryShortBadge(s, locale);
+      if (badgeText.isNotEmpty) {
+        badgeWidget = Positioned(
+          right: -4,
+          bottom: -5,
+          child: Text(
+            badgeText,
+            style: const TextStyle(
+              fontSize: 7,
+              fontWeight: FontWeight.bold,
+              height: 1,
+            ),
+          ),
+        );
+      }
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        primary != null
+            ? FaIcon(primary, size: 16)
+            : const Icon(Icons.category, size: 16),
+        ?badgeWidget,
+      ],
+    );
+  }
+
+  static String _subcategoryShortBadge(Subcategory s, Locale locale) {
+    final rawShort = (s.shortName ?? '').trim();
+    if (rawShort.isNotEmpty) return rawShort.toUpperCase();
+
+    final label = s.displayName(locale).trim();
+    if (label.isEmpty) return '';
+    if (label.length <= 5) return label.toUpperCase();
+
+    final words =
+        RegExp(r'[\p{L}\p{N}]+', unicode: true).allMatches(label).toList();
+    if (words.length > 1) {
+      return words.map((m) => m.group(0)![0]).take(5).join('').toUpperCase();
+    }
+    return label.substring(0, 4).toUpperCase();
   }
 
   void _showDifficultySheet(

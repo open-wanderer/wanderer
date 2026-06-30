@@ -6,6 +6,10 @@ class WandererFilterChip<T> extends StatelessWidget {
   final String Function(T) labelBuilder;
   final Function(List<T>) onChanged;
   final bool multiple;
+  // When true, tapping an already-selected chip keeps it selected (no deselect
+  // on tap). Deselection is handled via onLongPress instead.
+  final bool keepSelectedOnTap;
+  final void Function(T item)? onLongPress;
   final Widget? Function(T item)? avatarBuilder;
 
   const WandererFilterChip({
@@ -15,6 +19,8 @@ class WandererFilterChip<T> extends StatelessWidget {
     required this.labelBuilder,
     required this.onChanged,
     this.multiple = false,
+    this.keepSelectedOnTap = false,
+    this.onLongPress,
     this.avatarBuilder,
   });
 
@@ -28,7 +34,7 @@ class WandererFilterChip<T> extends StatelessWidget {
       children: options.map((option) {
         final isSelected = selectedValues.contains(option);
 
-        return FilterChip(
+        Widget chip = FilterChip(
           label: Text(labelBuilder(option)),
           avatar: avatarBuilder?.call(option),
           selected: isSelected,
@@ -37,7 +43,7 @@ class WandererFilterChip<T> extends StatelessWidget {
               final newList = List<T>.from(selectedValues);
               if (selected) {
                 newList.add(option);
-              } else {
+              } else if (!keepSelectedOnTap) {
                 newList.remove(option);
               }
               onChanged(newList);
@@ -63,6 +69,15 @@ class WandererFilterChip<T> extends StatelessWidget {
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         );
+
+        if (onLongPress != null) {
+          chip = GestureDetector(
+            onLongPress: () => onLongPress!(option),
+            child: chip,
+          );
+        }
+
+        return chip;
       }).toList(),
     );
   }

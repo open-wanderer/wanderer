@@ -113,14 +113,44 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 WandererFilterChip<Category>(
                   options: visibleCategories,
                   selectedValues: f.category,
+                  multiple: true,
+                  keepSelectedOnTap: true,
                   labelBuilder: (c) =>
                       c.displayName(Localizations.localeOf(context)),
                   avatarBuilder: (c) => _categoryAvatar(c),
                   onChanged: (categories) {
+                    // When a category is deselected via normal toggle (not used
+                    // here since keepSelectedOnTap=true), clear its subcategories.
+                    final removedIds = f.category
+                        .map((c) => c.id)
+                        .toSet()
+                        .difference(categories.map((c) => c.id).toSet());
+                    final newSubs = f.subcategory
+                        .where((s) => !removedIds.contains(s.category))
+                        .toList();
                     ref
                         .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
-                          (filter) => filter.copyWith(category: categories),
+                          (filter) => filter.copyWith(
+                            category: categories,
+                            subcategory: newSubs,
+                          ),
+                        );
+                  },
+                  onLongPress: (c) {
+                    // Long-press deselects the category and clears its subcategories.
+                    final newCats =
+                        f.category.where((cat) => cat.id != c.id).toList();
+                    final newSubs = f.subcategory
+                        .where((s) => s.category != c.id)
+                        .toList();
+                    ref
+                        .read(trailFilterProvider(widget.filterId).notifier)
+                        .updateFilter(
+                          (filter) => filter.copyWith(
+                            category: newCats,
+                            subcategory: newSubs,
+                          ),
                         );
                   },
                 ),
@@ -486,14 +516,13 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
         : const Icon(Icons.category, size: 16);
   }
 
-  /// Builds a subcategory avatar: a primary 16px FontAwesome icon with an
-  /// optional 10px badge overlay at the bottom-right (D-09). The primary icon
-  /// name mirrors `displaySubcategoryIcon` — the subcategory's own icon when
-  /// present, else the parent category's icon. Both names are `fa-`-stripped
-  /// before lookup; an unknown primary falls back to `Icons.category`, and the
-  /// badge is omitted when absent. `Clip.none` keeps the badge from being
-  /// clipped by the chip avatar bounds (RESEARCH Pitfall 5).
+  /// Builds a subcategory avatar: a primary 16px FontAwesome icon with a badge
+  /// overlay at the bottom-right (D-09). The badge is a FontAwesome icon when
+  /// `s.badgeIcon` is set; otherwise a short text abbreviation computed from
+  /// `s.shortName` (mirrors the web's `displaySubcategoryShortBadge`).
   Widget _subcategoryAvatar(Subcategory s, Category? parent) {
+    final locale = Localizations.localeOf(context);
+
     final primaryRaw =
         ((s.icon?.trim().isNotEmpty ?? false) ? s.icon! : (parent?.icon ?? ''))
             .trim();
@@ -501,10 +530,35 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
         primaryRaw.startsWith('fa-') ? primaryRaw.substring(3) : primaryRaw;
     final primary = fontAwesomeIconsMap[primaryKey];
 
+    // Badge: prefer FA icon from badge_icon field; fall back to text abbreviation.
+    Widget? badgeWidget;
     final badgeRaw = (s.badgeIcon ?? '').trim();
     final badgeKey =
         badgeRaw.startsWith('fa-') ? badgeRaw.substring(3) : badgeRaw;
-    final badge = badgeKey.isEmpty ? null : fontAwesomeIconsMap[badgeKey];
+    final badgeFa = badgeKey.isNotEmpty ? fontAwesomeIconsMap[badgeKey] : null;
+    if (badgeFa != null) {
+      badgeWidget = Positioned(
+        right: -2,
+        bottom: -2,
+        child: FaIcon(badgeFa, size: 10),
+      );
+    } else {
+      final badgeText = _subcategoryShortBadge(s, locale);
+      if (badgeText.isNotEmpty) {
+        badgeWidget = Positioned(
+          right: -4,
+          bottom: -5,
+          child: Text(
+            badgeText,
+            style: const TextStyle(
+              fontSize: 7,
+              fontWeight: FontWeight.bold,
+              height: 1,
+            ),
+          ),
+        );
+      }
+    }
 
     return Stack(
       clipBehavior: Clip.none,
@@ -512,10 +566,28 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
         primary != null
             ? FaIcon(primary, size: 16)
             : const Icon(Icons.category, size: 16),
-        if (badge != null)
-          Positioned(right: -2, bottom: -2, child: FaIcon(badge, size: 10)),
+        ?badgeWidget,
       ],
     );
+  }
+
+  /// Mirrors the web's `displaySubcategoryShortBadge`: returns `short_name` in
+  /// uppercase if set; otherwise computes an abbreviation from the display name
+  /// (first letters of words, or first 4 characters for single-word names).
+  String _subcategoryShortBadge(Subcategory s, Locale locale) {
+    final rawShort = (s.shortName ?? '').trim();
+    if (rawShort.isNotEmpty) return rawShort.toUpperCase();
+
+    final label = s.displayName(locale).trim();
+    if (label.isEmpty) return '';
+    if (label.length <= 5) return label.toUpperCase();
+
+    final words =
+        RegExp(r'[\p{L}\p{N}]+', unicode: true).allMatches(label).toList();
+    if (words.length > 1) {
+      return words.map((m) => m.group(0)![0]).take(5).join('').toUpperCase();
+    }
+    return label.substring(0, 4).toUpperCase();
   }
 }
 
