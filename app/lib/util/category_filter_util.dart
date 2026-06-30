@@ -7,18 +7,13 @@ import 'package:wanderer/util/icon_util.dart';
 /// Returns a 16px FontAwesome icon avatar for a [Category], falling back to
 /// [Icons.category] when the icon name is unknown. No explicit color is set so
 /// the chip's foreground color drives theming.
-Widget categoryFilterAvatar(Category c, {int subcategoryBadgeCount = 0}) {
+Widget categoryFilterAvatar(Category c) {
   final raw = (c.icon ?? '').trim();
   final key = raw.startsWith('fa-') ? raw.substring(3) : raw;
   final faData = fontAwesomeIconsMap[key];
-  final icon = faData != null
+  return faData != null
       ? FaIcon(faData, size: 16)
       : const Icon(Icons.category, size: 16);
-  if (subcategoryBadgeCount == 0) return icon;
-  return Badge(
-    label: Text('$subcategoryBadgeCount'),
-    child: icon,
-  );
 }
 
 /// Returns a subcategory chip avatar: a 16px primary icon with an optional

@@ -12,6 +12,7 @@ class WandererFilterChip<T> extends StatelessWidget {
   final void Function(T item)? onItemTap;
   final void Function(T item)? onLongPress;
   final Widget? Function(T item)? avatarBuilder;
+  final int Function(T item)? badgeCountBuilder;
 
   const WandererFilterChip({
     super.key,
@@ -24,6 +25,7 @@ class WandererFilterChip<T> extends StatelessWidget {
     this.onItemTap,
     this.onLongPress,
     this.avatarBuilder,
+    this.badgeCountBuilder,
   });
 
   @override
@@ -76,6 +78,14 @@ class WandererFilterChip<T> extends StatelessWidget {
         if (onLongPress != null) {
           chip = GestureDetector(
             onLongPress: () => onLongPress!(option),
+            child: chip,
+          );
+        }
+
+        final badgeCount = badgeCountBuilder?.call(option) ?? 0;
+        if (badgeCount > 0) {
+          chip = Badge(
+            label: Text('$badgeCount'),
             child: chip,
           );
         }

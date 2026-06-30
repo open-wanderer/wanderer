@@ -321,12 +321,10 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               multiple: true,
                               keepSelectedOnTap: true,
                               labelBuilder: (c) => c.displayName(locale),
-                              avatarBuilder: (c) => categoryFilterAvatar(
-                            c,
-                            subcategoryBadgeCount: currentFilter.subcategory
-                                .where((s) => s.category == c.id)
-                                .length,
-                          ),
+                              avatarBuilder: (c) => categoryFilterAvatar(c),
+                          badgeCountBuilder: (c) => currentFilter.subcategory
+                              .where((s) => s.category == c.id)
+                              .length,
                               onItemTap: (c) =>
                                   focusedCategoryId.value = c.id,
                               onChanged: (selected) {
