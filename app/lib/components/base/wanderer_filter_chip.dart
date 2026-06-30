@@ -6,6 +6,7 @@ class WandererFilterChip<T> extends StatelessWidget {
   final String Function(T) labelBuilder;
   final Function(List<T>) onChanged;
   final bool multiple;
+  final Widget? Function(T item)? avatarBuilder;
 
   const WandererFilterChip({
     super.key,
@@ -14,6 +15,7 @@ class WandererFilterChip<T> extends StatelessWidget {
     required this.labelBuilder,
     required this.onChanged,
     this.multiple = false,
+    this.avatarBuilder,
   });
 
   @override
@@ -28,6 +30,7 @@ class WandererFilterChip<T> extends StatelessWidget {
 
         return FilterChip(
           label: Text(labelBuilder(option)),
+          avatar: avatarBuilder?.call(option),
           selected: isSelected,
           onSelected: (bool selected) {
             if (multiple) {
