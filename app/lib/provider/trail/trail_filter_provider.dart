@@ -26,6 +26,7 @@ class TrailFilterNotifier extends _$TrailFilterNotifier {
       defaultFilter = TrailFilter(
         q: "",
         category: [],
+        subcategory: [],
         tags: [],
         difficulty: [0, 1, 2],
         author: null,

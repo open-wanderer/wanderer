@@ -9,6 +9,7 @@ import 'package:wanderer/models/trail_summary.dart';
 import 'actor.dart';
 import 'category.dart';
 import 'comment.dart';
+import 'subcategory.dart';
 import 'summit_log.dart';
 import 'tag.dart';
 import 'trail_like.dart';
@@ -161,6 +162,7 @@ abstract class TrailFilter with _$TrailFilter {
   const factory TrailFilter({
     required String q,
     required List<Category> category,
+    @Default(<Subcategory>[]) List<Subcategory> subcategory,
     required List<Tag> tags,
     required List<int> difficulty, // 0, 1, 2
     ActorSearchResult? author,
