@@ -165,7 +165,7 @@ func prepareTrailSendV1() int32 {
 			},
 			Expect: sdk.ResponseExpect{
 				ContentTypes: []string{"application/json"},
-				MaxBytes:     1048576,
+				MaxBytes:     hammerheadJSONMaxBytes,
 			},
 		},
 	}
