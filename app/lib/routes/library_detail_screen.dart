@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:wanderer/components/base/wanderer_offline_map.dart';
 import 'package:wanderer/components/trail/trail_panel.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 
@@ -15,7 +14,6 @@ class LibraryDetailScreen extends ConsumerWidget {
 
     return Stack(
       children: [
-        WandererOfflineMap(trail: trail),
         DraggableScrollableSheet(
           initialChildSize: 0.3,
           minChildSize: 0.15,
