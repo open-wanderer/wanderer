@@ -38,7 +38,7 @@ final class CategoryPreferenceNotifierProvider
 }
 
 String _$categoryPreferenceNotifierHash() =>
-    r'fcd2a6c73cfa47bbbbe5121eb6ed2d7592836a19';
+    r'537f8410c22c82ceea721eaf26758c2771c55124';
 
 abstract class _$CategoryPreferenceNotifier
     extends $AsyncNotifier<List<CategoryPreference>> {

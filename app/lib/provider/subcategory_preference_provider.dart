@@ -47,4 +47,19 @@ class SubcategoryPreferenceNotifier extends _$SubcategoryPreferenceNotifier {
     );
     ref.invalidateSelf();
   }
+
+  /// Persists a new ordering of subcategory preferences within a parent
+  /// category. The server injects the owning `user` from the session
+  /// (Security V4 / T-10-05) — never send it. Callers wrap this in
+  /// try/catch + toast; no error handling here.
+  Future<void> reorder(
+    String categoryId,
+    List<String> orderedSubcategoryIds,
+  ) async {
+    await ref.read(apiProvider).post(
+      '/user-subcategory-preference/reorder',
+      data: {'category': categoryId, 'subcategories': orderedSubcategoryIds},
+    );
+    ref.invalidateSelf();
+  }
 }

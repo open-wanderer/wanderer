@@ -47,4 +47,15 @@ class CategoryPreferenceNotifier extends _$CategoryPreferenceNotifier {
     );
     ref.invalidateSelf();
   }
+
+  /// Persists a new ordering of category preferences. The server injects the
+  /// owning `user` from the session (Security V4 / T-10-05) — never send it.
+  /// Callers wrap this in try/catch + toast; no error handling here.
+  Future<void> reorder(List<String> orderedCategoryIds) async {
+    await ref.read(apiProvider).post(
+      '/user-category-preference/reorder',
+      data: {'categories': orderedCategoryIds},
+    );
+    ref.invalidateSelf();
+  }
 }
