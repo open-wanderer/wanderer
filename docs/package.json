@@ -15,7 +15,7 @@
     "@astrojs/node": "^10.1.2",
     "@astrojs/starlight": "^0.39.2",
     "@astrojs/starlight-tailwind": "^5.0.0",
-    "@astrojs/svelte": "^8.1.2",
+    "@astrojs/svelte": "^9.0.0",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "@tailwindcss/vite": "^4.3.0",
