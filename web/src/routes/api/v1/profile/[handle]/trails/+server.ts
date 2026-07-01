@@ -1,3 +1,4 @@
+import { withTrailPreferenceMeiliFilter } from '$lib/server/category_preference_filter';
 import type { TrailSearchResult } from '$lib/models/trail';
 import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { handleError } from '$lib/util/api_util';
@@ -59,7 +60,11 @@ export async function POST(event: RequestEvent) {
 
         let r: SearchResponse<TrailSearchResult>;
         if (actor.is_local) {
-            r = await event.locals.ms.index("trails").search(data.q, { ...data.options, filter: `author = ${actor.id}` });
+            const filter = await withTrailPreferenceMeiliFilter(event, [
+                data.options?.filter,
+                `author = ${actor.id}`,
+            ]);
+            r = await event.locals.ms.index("trails").search(data.q, { ...data.options, filter });
         } else {
             const origin = new URL(actor.iri).origin
             const url = `${origin}/api/v1/profile/${actor.preferred_username}/trails?` + event.url.searchParams

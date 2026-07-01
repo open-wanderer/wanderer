@@ -1,5 +1,6 @@
 <script lang="ts">
     import Modal from "$lib/components/base/modal.svelte";
+    import type { Snippet } from "svelte";
     import { _ } from "svelte-i18n";
 
     interface Props {
@@ -12,6 +13,7 @@
         onconfirm?: () => void
         oncancel?: () => void
         onalternative?: () => void
+        children?: Snippet
     }
 
     let {
@@ -23,34 +25,52 @@
         id = "confirm-modal",
         onconfirm,
         oncancel,
-        onalternative
+        onalternative,
+        children,
     }: Props = $props();
 
     let modal: Modal;
+    let closingFromAction = false;
 
     export function openModal() {
+        closingFromAction = false;
         modal.openModal();
     }
 
+    function handleModalClose() {
+        if (closingFromAction) {
+            closingFromAction = false;
+            return;
+        }
+        oncancel?.();
+    }
+
     function cancel() {
+        closingFromAction = true;
         modal.closeModal!();
         oncancel?.();
     }
 
     function alternativeAction() {
+        closingFromAction = true;
         modal.closeModal!();
         onalternative?.();
     }
     
     function confirm() {
+        closingFromAction = true;
         modal.closeModal!();
         onconfirm?.()
     }
 </script>
 
-<Modal {id} {title} bind:this={modal}>
+<Modal {id} {title} bind:this={modal} onclose={handleModalClose}>
     {#snippet content()}
-        <p>{text}</p>
+        {#if children}
+            {@render children()}
+        {:else}
+            <p>{text}</p>
+        {/if}
     {/snippet}
     {#snippet footer()}
         <div class="flex items-center gap-4">

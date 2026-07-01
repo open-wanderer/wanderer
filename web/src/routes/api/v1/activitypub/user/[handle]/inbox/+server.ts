@@ -36,7 +36,8 @@ export async function POST(event: RequestEvent) {
 
 
     try {
-        const activity: APActivity = await event.request.json()
+        const bodyText = await event.request.text()
+        const activity: APActivity = JSON.parse(bodyText)
         if (!activity.actor) {
             return json("Bad request", { status: 400 });
         }
@@ -54,7 +55,7 @@ export async function POST(event: RequestEvent) {
             method: "POST",
             fetch: event.fetch,
             headers: originalHeaders,
-            body: JSON.stringify(activity)
+            body: bodyText
         })
 
         if (success === false) {

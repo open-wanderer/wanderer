@@ -26,6 +26,9 @@
     import ConfirmModal from "../confirm_modal.svelte";
     import ListSearchModal from "../list/list_search_modal.svelte";
     import TrailExportModal from "./trail_export_modal.svelte";
+    import TrailBulkEditModal, {
+        type TrailBulkEditChanges,
+    } from "./trail_bulk_edit_modal.svelte";
     import TrailSendModal from "./trail_send_modal.svelte";
     import TrailShareModal from "./trail_share_modal.svelte";
     import {
@@ -51,7 +54,7 @@
         toggle?: Snippet<[any]>;
         onDelete?: () => void;
         onShare?: () => void;
-        onUpdate?: () => void;
+        onUpdate?: (updatedTrails?: Trail[]) => void;
         onMerge?: (result: MergeResult) => void;
     }
 
@@ -63,6 +66,7 @@
     let trailSendModal: TrailSendModal;
     let trailShareModal: TrailShareModal;
     let trailMergeModal: TrailMergeModal;
+    let trailBulkEditModal: TrailBulkEditModal;
 
     let lists: List[] = $state([]);
 
@@ -190,6 +194,81 @@
         return true;
     }
 
+    function allowBulkEdit(): boolean {
+        return allowPublish();
+    }
+
+    function selectedCategorySelection():
+        | TrailBulkEditChanges["category"]
+        | undefined {
+        if (!trails || trails.size === 0) {
+            return undefined;
+        }
+
+        const selectedTrails = [...trails];
+        const firstCategory =
+            selectedTrails[0]?.category ??
+            selectedTrails[0]?.expand?.category?.id ??
+            selectedTrails[0]?.expand?.subcategory?.category ??
+            "";
+        const firstSubcategory =
+            selectedTrails[0]?.subcategory ??
+            selectedTrails[0]?.expand?.subcategory?.id ??
+            "";
+
+        if (!firstCategory) {
+            return undefined;
+        }
+
+        const allSame = selectedTrails.every((candidate) => {
+            const category =
+                candidate.category ??
+                candidate.expand?.category?.id ??
+                candidate.expand?.subcategory?.category ??
+                "";
+            const subcategory =
+                candidate.subcategory ?? candidate.expand?.subcategory?.id ?? "";
+
+            return (
+                category === firstCategory &&
+                subcategory === firstSubcategory
+            );
+        });
+
+        if (!allSame) {
+            return undefined;
+        }
+
+        return {
+            category: firstCategory,
+            subcategory: firstSubcategory,
+        };
+    }
+
+    function selectedDifficulty():
+        | TrailBulkEditChanges["difficulty"]
+        | undefined {
+        if (!trails || trails.size === 0) {
+            return undefined;
+        }
+
+        const selectedTrails = [...trails];
+        const firstDifficulty = selectedTrails[0]?.difficulty;
+        if (!firstDifficulty) {
+            return undefined;
+        }
+
+        if (
+            !selectedTrails.every(
+                (candidate) => candidate.difficulty === firstDifficulty,
+            )
+        ) {
+            return undefined;
+        }
+
+        return firstDifficulty;
+    }
+
     function dropdownItems(): DropdownItem[] {
         const separator = (value: string): DropdownItem => ({
             text: "",
@@ -202,10 +281,20 @@
 
         if (isMultiselectMode()) {
             return [
+                ...(allowBulkEdit()
+                    ? [
+                          {
+                              text: $_("adjust"),
+                              value: "bulk-edit",
+                              icon: "pen",
+                          },
+                      ]
+                    : []),
                 ...(allowMerge()
                     ? [{ text: $_("link"), value: "merge", icon: "link" }]
                     : []),
-                ...(allowMerge() && (canExport() || allowListManagement || allowPublish() || allowDelete())
+                ...((allowBulkEdit() || allowMerge()) &&
+                (canExport() || allowListManagement || allowPublish() || allowDelete())
                     ? [separator("sep-multi-actions")]
                     : []),
                 ...(canExport()
@@ -288,14 +377,16 @@
                   ]
                 : []),
             ...(allowFindSimilarTrails()
-                ? [{
-                    text: $_("find-similar-trails"),
-                    value: "find-similar-trails",
-                    icon: "link",
-                }]
+                ? [
+                      {
+                          text: $_("find-similar-trails"),
+                          value: "find-similar-trails",
+                          icon: "link",
+                      },
+                  ]
                 : []),
-                ...(allowCopy()
-                    ? [
+            ...(allowCopy()
+                ? [
                       {
                           text: $_("duplicate"),
                           value: "copy",
@@ -500,6 +591,8 @@
             }
         } else if (ddVal == "publish") {
             updateTrailsVisibility();
+        } else if (ddVal == "bulk-edit") {
+            trailBulkEditModal.openModal();
         } else if (ddVal == "delete") {
             confirmModal.openModal();
         } else if (item.value == "merge") {
@@ -602,6 +695,66 @@
 
         loading = false;
         onUpdate?.();
+    }
+
+    async function updateTrailsBulk(changes: TrailBulkEditChanges) {
+        loading = true;
+        let updatedCount = 0;
+        const updatedTrails: Trail[] = [];
+
+        for (const cTrail of trails ?? []) {
+            if (!cTrail || !canEditTrail(cTrail)) continue;
+            if (!cTrail.expand?.author?.id) continue;
+
+            const origTrail: Trail = {
+                ...cTrail,
+                author: cTrail.expand.author.id,
+            };
+            const updatedTrail: Trail = {
+                ...origTrail,
+                ...(changes.category
+                    ? {
+                          category: changes.category.category,
+                          subcategory: changes.category.subcategory,
+                      }
+                    : {}),
+                ...(changes.difficulty
+                    ? { difficulty: changes.difficulty }
+                    : {}),
+            };
+
+            try {
+                const updated = await trails_update(
+                    origTrail,
+                    updatedTrail,
+                    undefined,
+                    undefined,
+                    ["tags"],
+                );
+                updatedTrails.push(updated);
+                updatedCount += 1;
+            } catch (e) {
+                console.error(e);
+
+                show_toast({
+                    type: "error",
+                    icon: "close",
+                    text: `${$_("error-saving-trail")}: ${cTrail.name}`,
+                });
+            }
+        }
+
+        loading = false;
+        if (updatedCount > 0) {
+            show_toast({
+                type: "success",
+                icon: "check",
+                text: $_("bulk-edit-updated-trails", {
+                    values: { n: updatedCount },
+                }),
+            });
+        }
+        onUpdate?.(updatedTrails);
     }
 
     async function exportTrails(exportSettings: {
@@ -850,5 +1003,12 @@
     bind:this={trailMergeModal}
     onmerge={(settings, selection) => mergeTrails(settings, selection)}
 ></TrailMergeModal>
+<TrailBulkEditModal
+    selectedCount={trails?.size ?? 0}
+    initialCategorySelection={selectedCategorySelection()}
+    initialDifficulty={selectedDifficulty()}
+    bind:this={trailBulkEditModal}
+    onapply={(changes) => updateTrailsBulk(changes)}
+></TrailBulkEditModal>
 
 <MergeDialog/>

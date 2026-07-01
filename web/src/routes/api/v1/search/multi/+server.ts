@@ -1,3 +1,4 @@
+import { withTrailPreferenceMeiliFilter } from "$lib/server/category_preference_filter";
 import { error, json, type RequestEvent } from "@sveltejs/kit";
 
 /**
@@ -37,6 +38,19 @@ export async function POST(event: RequestEvent) {
     const data = await event.request.json()
 
     try {
+        data.queries = await Promise.all(
+            data.queries.map(async (query: any) =>
+                query.indexUid === "trails"
+                    ? {
+                          ...query,
+                          filter: await withTrailPreferenceMeiliFilter(
+                              event,
+                              query.filter,
+                          ),
+                      }
+                    : query,
+            ),
+        );
         const r = await event.locals.ms.multiSearch({
             queries: data.queries
         });

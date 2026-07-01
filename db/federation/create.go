@@ -682,17 +682,21 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 			}
 		}
 
-		if len(photoURLs) > 0 {
-			photos := make([]*filesystem.File, len(photoURLs))
-			for i, purl := range photoURLs {
+		if len(photoURLs) == 0 {
+			record.Set("photos", []*filesystem.File{})
+		} else {
+			photos := []*filesystem.File{}
+			for _, purl := range photoURLs {
 				photo, err := filesystem.NewFileFromURL(context.Background(), purl)
 				if err != nil {
 					continue
 				}
-				photos[i] = photo
+				photos = append(photos, photo)
 			}
 
-			record.Set("photos", photos)
+			if len(photos) > 0 {
+				record.Set("photos", photos)
+			}
 		}
 
 		if gpxURL != "" {

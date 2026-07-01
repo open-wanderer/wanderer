@@ -6,11 +6,18 @@
     import TextField from "$lib/components/base/text_field.svelte";
     import Toggle from "$lib/components/base/toggle.svelte";
     import PluginMergeSettings from "$lib/components/settings/plugins/plugin_merge_settings.svelte";
+    import CategoryPicker from "$lib/components/trail/category_picker.svelte";
     import type { Category } from "$lib/models/category";
     import type { PluginInstance } from "$lib/models/plugin_instance";
     import type { ConfigField, PluginProvider } from "$lib/models/plugin_provider";
+    import type { Subcategory } from "$lib/models/subcategory";
     import { plugin_auth_validate, plugin_oauth_start } from "$lib/stores/plugin_instance_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
+    import {
+        categoryMappingTargetFromUnknown,
+        categoryMappingTargetToPickerValue,
+        type CategoryMappingTarget,
+    } from "$lib/util/category_util";
     import { translatePluginAPIError } from "$lib/util/plugin_error_i18n";
     import {
         configFieldDescription,
@@ -34,12 +41,13 @@
     interface Props {
         plugin: PluginProvider;
         categories?: Category[];
+        subcategories?: Subcategory[];
         instance?: PluginInstance;
         onbeforecategorymappingsave?: (instance: PluginInstanceForm) => Promise<boolean> | boolean;
         onsave?: (instance: Partial<PluginInstance>) => Promise<PluginInstance | void> | PluginInstance | void;
     }
 
-    let { plugin, categories = [], instance, onbeforecategorymappingsave, onsave }: Props = $props();
+    let { plugin, categories = [], subcategories = [], instance, onbeforecategorymappingsave, onsave }: Props = $props();
 
     let modal: Modal;
     let auth: Record<string, string> = $state(initialAuth());
@@ -73,14 +81,6 @@
     );
     let mergeAvailable = $derived((hostConfig().merge as any)?.available !== false);
     let supportsCategoryMapping = $derived(supportsPlanned || supportsCompleted);
-    let categorySelectItems: SelectItem[] = $derived(
-        categories
-            .map((category) => ({
-                text: $_(category.name),
-                value: category.id,
-            }))
-            .sort((a, b) => a.text.localeCompare(b.text, $locale ?? undefined)),
-    );
     let providerCategorySelectItems: SelectItem[] = $derived(providerCategoryItems());
     let canAddCategoryMappingRow = $derived(
         categoryMappingRows.every((row) => row.providerCategory && row.category) &&
@@ -143,52 +143,108 @@
 
     function initialCategoryMappingRows(): CategoryMappingRow[] {
         return Object.entries(categoryMapping())
-            .filter(([, category]) => category !== "")
-            .map(([providerCategory, category]) => ({
+            .filter(([, target]) => !isBlankCategoryMappingTarget(target))
+            .map(([providerCategory, target]) => ({
                 providerCategory,
-                category: categoryTargetValue(category),
+                category: categoryPickerValue(target),
             }));
     }
 
-    function manifestCategoryMapping(): Record<string, string> {
+    function manifestCategoryMapping(): Record<string, CategoryMappingTarget> {
         const raw = plugin.hostConfig?.categoryMapping;
         if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
             return {};
         }
-        return stringMapping(raw as Record<string, unknown>);
+        return categoryTargetMapping(raw as Record<string, unknown>);
     }
 
-    function categoryMapping(): Record<string, string> {
+    function categoryMapping(): Record<string, CategoryMappingTarget> {
         const raw = hostConfig().categoryMapping;
         if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
             return {};
         }
-        return stringMapping(raw as Record<string, unknown>);
+        return categoryTargetMapping(raw as Record<string, unknown>);
     }
 
     function categoryMappingsEqual(
-        left: Record<string, string>,
-        right: Record<string, string>,
+        left: Record<string, CategoryMappingTarget>,
+        right: Record<string, CategoryMappingTarget>,
     ) {
         const leftKeys = Object.keys(left).sort();
         const rightKeys = Object.keys(right).sort();
         if (leftKeys.length !== rightKeys.length) {
             return false;
         }
-        return leftKeys.every((key, index) => key === rightKeys[index] && left[key] === right[key]);
-    }
-
-    function stringMapping(raw: Record<string, unknown>): Record<string, string> {
-        return Object.fromEntries(
-            Object.entries(raw)
-                .filter(([, value]) => typeof value === "string")
-                .map(([key, value]) => [key, value as string]),
+        return leftKeys.every(
+            (key, index) =>
+                key === rightKeys[index] &&
+                normalizedCategoryMappingTarget(left[key]) === normalizedCategoryMappingTarget(right[key]),
         );
     }
 
-    function categoryTargetValue(value: string): string {
-        const match = categories.find((category) => category.id === value || category.name === value);
-        return match?.id ?? value;
+    function categoryTargetMapping(raw: Record<string, unknown>): Record<string, CategoryMappingTarget> {
+        return Object.fromEntries(
+            Object.entries(raw)
+                .map(([key, value]) => [
+                    key,
+                    categoryMappingTargetFromUnknown(value),
+                ])
+                .filter(([, value]) => value !== undefined),
+        );
+    }
+
+    function isBlankCategoryMappingTarget(target: CategoryMappingTarget): boolean {
+        if (typeof target === "string") {
+            return target.trim() === "";
+        }
+        return !target.category?.trim() && !target.subcategory?.trim();
+    }
+
+    function normalizedCategoryMappingTarget(target: CategoryMappingTarget): string {
+        if (typeof target === "string") {
+            return target.trim();
+        }
+        return JSON.stringify({
+            category: target.category?.trim() ?? "",
+            subcategory: target.subcategory?.trim() ?? "",
+        });
+    }
+
+    function categoryPickerValue(target: CategoryMappingTarget): string {
+        return categoryMappingTargetToPickerValue(
+            target,
+            categories,
+            subcategories,
+        );
+    }
+
+    function categoryMappingTargetFromPickerValue(value: string): CategoryMappingTarget {
+        if (value.startsWith("subcategory:")) {
+            const subcategoryId = value.replace("subcategory:", "");
+            const subcategory = subcategories.find((candidate) => candidate.id === subcategoryId);
+            return {
+                category: subcategory?.category ?? "",
+                subcategory: subcategoryId,
+            };
+        }
+        if (value.startsWith("category:")) {
+            return {
+                category: value.replace("category:", ""),
+                subcategory: "",
+            };
+        }
+        return "";
+    }
+
+    function categoryPickerCurrentCategoryId(value: string): string | null {
+        if (value.startsWith("category:")) {
+            return value.replace("category:", "");
+        }
+        if (value.startsWith("subcategory:")) {
+            const subcategoryId = value.replace("subcategory:", "");
+            return subcategories.find((candidate) => candidate.id === subcategoryId)?.category ?? null;
+        }
+        return null;
     }
 
     function providerCategoryItems(): SelectItem[] {
@@ -389,7 +445,7 @@
             ...currentMergeConfig,
             enabled: mergeAvailable && mergeEnabled,
         };
-        const categoryMappingConfig: Record<string, string> = {};
+        const categoryMappingConfig: Record<string, CategoryMappingTarget> = {};
         const assignedProviderCategories = new Set<string>();
         for (const row of categoryMappingRows) {
             const providerCategory = row.providerCategory.trim();
@@ -397,7 +453,7 @@
                 continue;
             }
             assignedProviderCategories.add(providerCategory);
-            categoryMappingConfig[providerCategory] = row.category;
+            categoryMappingConfig[providerCategory] = categoryMappingTargetFromPickerValue(row.category);
         }
         for (const providerCategory of [
             ...Object.keys(manifestCategoryMapping()),
@@ -651,7 +707,7 @@
                 {/if}
             {/each}
 
-            {#if supportsCategoryMapping && categorySelectItems.length > 0}
+            {#if supportsCategoryMapping && categories.length > 0}
                 <div class="space-y-2 pt-4 border-t border-input-border">
                     <div class="flex items-center justify-between gap-3">
                         <div>
@@ -671,7 +727,7 @@
                     {#if categoryMappingRows.length > 0}
                         <div class="hidden md:grid grid-cols-[minmax(0,1.2fr)_minmax(14rem,1fr)_2.75rem] gap-3 text-sm font-medium">
                             <span>{$_("provider-category")}</span>
-                            <span>{$_("category")}</span>
+                            <span>{$_("category")} / {$_("subcategory")}</span>
                             <span></span>
                         </div>
                         <div
@@ -694,13 +750,18 @@
                                         bind:value={row.providerCategory}
                                         disabled={row.providerCategory !== "" && providerItems.length <= 1}
                                     ></SingleSelect>
-                                    <SingleSelect
-                                        ariaLabel={$_("category")}
+                                    <CategoryPicker
+                                        value={row.category}
+                                        label=""
                                         placeholder={$_("select-category")}
-                                        items={categorySelectItems}
-                                        bind:value={row.category}
-                                        disabled={row.category !== "" && categorySelectItems.length <= 1}
-                                    ></SingleSelect>
+                                        currentCategoryId={categoryPickerCurrentCategoryId(row.category)}
+                                        fixedDropdown
+                                        onchange={(selection) => {
+                                            row.category = selection.subcategory
+                                                ? `subcategory:${selection.subcategory}`
+                                                : `category:${selection.category}`;
+                                        }}
+                                    ></CategoryPicker>
                                     <button
                                         class="btn-icon h-10"
                                         type="button"

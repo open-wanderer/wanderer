@@ -1,16 +1,19 @@
 import type { SummitLog } from "$lib/models/summit_log";
 import type { Tag } from "$lib/models/tag";
 import { MAP_MAX_POLYLINES } from "$lib/config/map";
-import { defaultTrailSearchAttributes, Trail, type TrailFilter, type TrailFilterValues, type TrailSearchResult } from "$lib/models/trail";
+import { defaultTrailSearchAttributes, Trail, type TrailBoundingBox, type TrailFilter, type TrailFilterValues, type TrailSearchResult } from "$lib/models/trail";
 import type { Waypoint } from "$lib/models/waypoint";
 import { APIError } from "$lib/util/api_util";
 import { deepEqual } from "$lib/util/deep_util";
 import { getFileURL, objectToFormData } from "$lib/util/file_util";
+import { noSubcategoryFilterCategory } from "$lib/util/trail_filter_util";
 import * as M from "maplibre-gl";
 import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { summit_logs_create, summit_logs_delete, summit_logs_update } from "./summit_log_store";
+import { categories } from "./category_store";
+import { subcategories } from "./subcategory_store";
 import { tags_create } from "./tag_store";
 import { currentUser } from "./user_store";
 import { waypoints_create, waypoints_delete, waypoints_update } from "./waypoint_store";
@@ -18,7 +21,7 @@ import { waypoints_create, waypoints_delete, waypoints_update } from "./waypoint
 export async function trails_index(perPage: number = 21, random: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const r = await f('/api/v1/trail?' + new URLSearchParams({
         "perPage": perPage.toString(),
-        expand: "category,waypoints_via_trail,summit_logs_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,tags",
         sort: random ? "@random" : "",
     }), {
         method: 'GET',
@@ -322,7 +325,7 @@ export async function trails_search_bounding_box(
 export async function trails_show(id: string, handle?: string, share?: string, loadGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
 
     const r = await f(`/api/v1/trail/${id}?` + new URLSearchParams({
-        expand: "category,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
         ...(handle ? { handle } : {}),
         ...(share ? { share } : {})
     }), {
@@ -393,7 +396,7 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
     }
 
     let r = await f(`/api/v1/trail/form?` + new URLSearchParams({
-        expand: "category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
     }), {
         method: 'PUT',
         body: formData,
@@ -520,7 +523,7 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
 
 
     const updateUrl = `/api/v1/trail/form/${newTrail.id}?` + new URLSearchParams({
-        expand: "category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
     });
 
     let r = await fetch(updateUrl, {
@@ -625,7 +628,7 @@ export async function trails_get_filter_values(f: (url: RequestInfo | URL, confi
 
 }
 
-export async function trails_get_bounding_box(f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<TrailFilterValues> {
+export async function trails_get_bounding_box(f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<TrailBoundingBox> {
     const r = await f('/api/v1/trail/bounding-box', {
         method: 'GET',
     })
@@ -687,9 +690,18 @@ export async function fetchGPX(trail: { gpx?: string } & Record<string, any>, f:
 
 export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Promise<Trail[]> {
     const trails: Trail[] = []
+    const categoryById = new Map(get(categories).map((category) => [category.id, category]));
+    const subcategoryById = new Map(
+        get(subcategories).map((subcategory) => [subcategory.id, subcategory]),
+    );
+
     for (const h of hits) {
         const created = Number(h.created || 0);
         const date = Number(h.date || 0);
+        const category = h.category_id ? categoryById.get(h.category_id) : undefined;
+        const subcategory = h.subcategory_id
+            ? subcategoryById.get(h.subcategory_id)
+            : undefined;
         const t: Trail & RecordModel = {
             collectionId: "trails",
             collectionName: "trails",
@@ -702,7 +714,8 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
             summit_logs: [],
             waypoints: [],
             tags: h.tags ?? [],
-            category: h.category,
+            category: h.category_id ?? "",
+            subcategory: h.subcategory_id ?? "",
             created: new Date(created * 1000).toISOString(),
             date: new Date(date * 1000).toISOString(),
             description: h.description,
@@ -723,6 +736,14 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
             thumbnail: 0,
             like_count: h.like_count,
             expand: {
+                category: category ?? (h.category
+                    ? {
+                          id: h.category_id ?? "",
+                          name: h.category,
+                          icon: h.category_icon,
+                      }
+                    : undefined),
+                subcategory,
                 author: {
                     collectionId: "activitypub_actors",
                     is_local: (h.domain?.length ?? 0) == 0,
@@ -838,9 +859,52 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
         filterText += ` AND date <= ${new Date(filter.endDate).getTime() / 1000}`
     }
 
-    if (filter.category.length > 0) {
-        const categoryValues = filter.category.map(category => `'${category}'`).join(", ");
-        filterText += ` AND category IN [${categoryValues}]`;
+    const selectedSubcategoryIds = filter.subcategory ?? [];
+    if (filter.category.length > 0 || selectedSubcategoryIds.length > 0) {
+        const selectedNoSubcategoryCategoryIds = selectedSubcategoryIds
+            .map(noSubcategoryFilterCategory)
+            .filter((category): category is string => category !== undefined);
+        const selectedRealSubcategoryIds = selectedSubcategoryIds.filter(
+            (id) => noSubcategoryFilterCategory(id) === undefined,
+        );
+        const selectedSubcategoryParentIds = new Set(
+            get(subcategories)
+                .filter((subcategory) => selectedRealSubcategoryIds.includes(subcategory.id))
+                .map((subcategory) => subcategory.category),
+        );
+        for (const categoryId of selectedNoSubcategoryCategoryIds) {
+            selectedSubcategoryParentIds.add(categoryId);
+        }
+        const categoriesWithoutSubcategoryFilter = filter.category.filter(
+            (category) => !selectedSubcategoryParentIds.has(category),
+        );
+        const categoryParts: string[] = [];
+
+        if (categoriesWithoutSubcategoryFilter.length > 0) {
+            const categoryValues = categoriesWithoutSubcategoryFilter
+                .map(category => `'${category}'`)
+                .join(", ");
+            categoryParts.push(`category_id IN [${categoryValues}]`);
+        }
+
+        if (selectedNoSubcategoryCategoryIds.length > 0) {
+            const noSubcategoryParts = selectedNoSubcategoryCategoryIds.map(
+                (category) =>
+                    `(category_id = '${category}' AND subcategory_id IS NULL)`,
+            );
+            categoryParts.push(...noSubcategoryParts);
+        }
+
+        if (selectedRealSubcategoryIds.length > 0) {
+            const subcategoryValues = selectedRealSubcategoryIds
+                .map(subcategory => `'${subcategory}'`)
+                .join(", ");
+            categoryParts.push(`subcategory_id IN [${subcategoryValues}]`);
+        }
+
+        if (categoryParts.length > 0) {
+            filterText += ` AND (${categoryParts.join(" OR ")})`;
+        }
     }
 
     if (filter.tags.length > 0) {

@@ -29,7 +29,7 @@ type Options struct {
 	ActorID                     string
 	DefaultPublic               bool
 	CreateSummitLogForCompleted bool
-	CategoryMapping             map[string]string
+	CategoryMapping             map[string]CategoryMappingValue
 	Manifest                    pluginsystem.Manifest
 	Policy                      pluginsystem.RequestPolicyContext
 	Auth                        map[string]any
@@ -41,6 +41,16 @@ type Result struct {
 	TrailID string
 	Created bool
 	Skipped bool
+}
+
+type CategoryMappingTarget struct {
+	CategoryID    string
+	SubcategoryID string
+}
+
+type CategoryMappingValue struct {
+	Category    string
+	Subcategory string
 }
 
 // ImportTrail is the boundary between plugin output and wanderer records. It
@@ -78,7 +88,7 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 	applyProviderStart(&metrics, trackIndex, item.Metadata)
 	applyProviderMetrics(&metrics, item.Metadata)
 	public := publicFromPrivacy(item.Privacy, opts.DefaultPublic)
-	categoryID := categoryIDForImport(app, item, opts.CategoryMapping)
+	categoryTarget := categoryTargetForImport(app, item, opts.CategoryMapping)
 	date := dateFromImport(item, metrics)
 	mediaBudget := &pluginMediaBudget{}
 	photos := photoFiles(ctx, app, item.Photos, opts, mediaBudget)
@@ -96,7 +106,8 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		"lat":            metrics.StartLat,
 		"lon":            metrics.StartLon,
 		"difficulty":     "easy",
-		"category":       categoryID,
+		"category":       categoryTarget.CategoryID,
+		"subcategory":    categoryTarget.SubcategoryID,
 		"author":         opts.ActorID,
 	})
 	record.Set("gpx", gpxFile)
@@ -772,11 +783,15 @@ func createSummitLog(app core.App, trailID string, actorID string, date time.Tim
 	return app.Save(record)
 }
 
-func categoryIDForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]string) string {
-	if category, matched := CategoryFromProviderMapping(app, ProviderCategoryFromImport(item), mapping); matched {
-		return category
+func categoryTargetForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]CategoryMappingValue) CategoryMappingTarget {
+	if categoryTarget, matched := CategoryTargetFromProviderMapping(app, ProviderCategoryFromImport(item), mapping); matched {
+		return categoryTarget
 	}
-	return categoryIDForActivityType(app, item.ActivityType)
+	return categoryTargetForActivityType(app, item.ActivityType)
+}
+
+func categoryIDForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]CategoryMappingValue) string {
+	return categoryTargetForImport(app, item, mapping).CategoryID
 }
 
 func ProviderCategoryFromImport(item pluginsystem.TrailImport) string {
@@ -788,58 +803,109 @@ func ProviderCategoryFromImport(item pluginsystem.TrailImport) string {
 	return strings.TrimSpace(value)
 }
 
-func CategoryFromProviderMapping(app core.App, providerCategory string, mapping map[string]string) (string, bool) {
+func CategoryFromProviderMapping(app core.App, providerCategory string, mapping map[string]CategoryMappingValue) (string, bool) {
+	target, matched := CategoryTargetFromProviderMapping(app, providerCategory, mapping)
+	return target.CategoryID, matched
+}
+
+func CategoryTargetFromProviderMapping(app core.App, providerCategory string, mapping map[string]CategoryMappingValue) (CategoryMappingTarget, bool) {
 	providerCategory = strings.TrimSpace(providerCategory)
 	if providerCategory == "" || len(mapping) == 0 {
-		return "", false
+		return CategoryMappingTarget{}, false
 	}
-	rawTarget, matched := mapping[providerCategory]
+	mappingTarget, matched := mapping[providerCategory]
 	if !matched {
-		return "", false
+		return CategoryMappingTarget{}, false
 	}
-	target := strings.TrimSpace(rawTarget)
-	if target == "" {
-		return "", true
+	if mappingTarget.Category == "" && mappingTarget.Subcategory == "" {
+		return CategoryMappingTarget{}, true
 	}
-	if category, err := app.FindRecordById("categories", target); err == nil && category != nil {
-		return category.Id, true
-	}
-	category, _ := app.FindFirstRecordByData("categories", "name", target)
-	if category == nil {
-		return "", false
-	}
-	return category.Id, true
+
+	return resolveCategoryMappingTarget(app, mappingTarget)
 }
 
 // categoryIDForActivityType maps common provider activity labels to wanderer's
 // built-in categories. Unknown labels intentionally leave the category empty.
 func categoryIDForActivityType(app core.App, activityType string) string {
-	categoryMap := map[string]string{
-		"hiking":   "Hiking",
-		"hike":     "Hiking",
-		"walking":  "Walking",
-		"walk":     "Walking",
-		"running":  "Walking",
-		"run":      "Walking",
-		"biking":   "Biking",
-		"cycling":  "Biking",
-		"ride":     "Biking",
-		"mtb":      "Biking",
-		"skiing":   "Skiing",
-		"canoeing": "Canoeing",
-		"climbing": "Climbing",
-	}
+	return categoryTargetForActivityType(app, activityType).CategoryID
+}
 
-	name := categoryMap[strings.ToLower(activityType)]
+func categoryTargetForActivityType(app core.App, activityType string) CategoryMappingTarget {
+	name := categoryNameForActivityType(activityType)
 	if name == "" {
-		return ""
+		return CategoryMappingTarget{}
 	}
 
-	category, _ := app.FindFirstRecordByData("categories", "name", name)
-	if category == nil {
-		return ""
+	target, matched := resolveCategoryMappingTarget(app, CategoryMappingValue{Category: name})
+	if !matched {
+		return CategoryMappingTarget{}
 	}
-	return category.Id
+	return target
+}
+
+func categoryNameForActivityType(activityType string) string {
+	categoryMap := map[string]string{
+		"hiking":     "Hiking",
+		"hike":       "Hiking",
+		"walking":    "Walking",
+		"walk":       "Walking",
+		"running":    "Running",
+		"run":        "Running",
+		"virtualrun": "Running",
+		"trailrun":   "Running",
+		"jogging":    "Running",
+		"biking":     "Biking",
+		"cycling":    "Biking",
+		"ride":       "Biking",
+		"mtb":        "Biking",
+		"skiing":     "Skiing",
+		"canoeing":   "Canoeing",
+		"climbing":   "Climbing",
+	}
+
+	return categoryMap[strings.ToLower(strings.TrimSpace(activityType))]
+}
+
+func resolveCategoryMappingTarget(app core.App, target CategoryMappingValue) (CategoryMappingTarget, bool) {
+	categoryNameOrID := strings.TrimSpace(target.Category)
+	subcategoryNameOrID := strings.TrimSpace(target.Subcategory)
+	if categoryNameOrID == "" && subcategoryNameOrID == "" {
+		return CategoryMappingTarget{}, false
+	}
+
+	if subcategoryNameOrID != "" {
+		if subcategory, err := app.FindRecordById("subcategories", subcategoryNameOrID); err == nil && subcategory != nil {
+			categoryID := subcategory.GetString("category")
+			if categoryID == "" {
+				return CategoryMappingTarget{}, false
+			}
+			return CategoryMappingTarget{CategoryID: categoryID, SubcategoryID: subcategory.Id}, true
+		}
+		category, subcategory, err := util.ResolveCategoryAndSubcategoryByNormalizedNames(app, categoryNameOrID, subcategoryNameOrID)
+		if err == nil && category != nil && subcategory != nil {
+			return CategoryMappingTarget{CategoryID: category.Id, SubcategoryID: subcategory.Id}, true
+		}
+		return CategoryMappingTarget{}, false
+	}
+
+	if category, err := app.FindRecordById("categories", categoryNameOrID); err == nil && category != nil {
+		return CategoryMappingTarget{CategoryID: category.Id}, true
+	}
+
+	if subcategory, err := app.FindRecordById("subcategories", categoryNameOrID); err == nil && subcategory != nil {
+		categoryID := subcategory.GetString("category")
+		if categoryID == "" {
+			return CategoryMappingTarget{}, false
+		}
+		return CategoryMappingTarget{CategoryID: categoryID, SubcategoryID: subcategory.Id}, true
+	}
+
+	category, _ := util.FindCategoryByNormalizedName(app, categoryNameOrID)
+	if category != nil {
+		return CategoryMappingTarget{CategoryID: category.Id}, true
+	}
+
+	return CategoryMappingTarget{}, false
 }
 
 func fallbackName(name string) string {

@@ -204,10 +204,24 @@ Manifest `configSchema` defines plugin-owned settings that are passed to plugin 
 | `merge.available` | Controls whether the UI offers auto-merge for this plugin. Defaults to `true`. |
 | `merge.enabled` | Runs auto-merge after trail import. |
 | `createSummitLogForCompleted` | Creates summit logs for completed imports. |
-| `categoryMapping` | Maps `metadata.providerCategory` to local category IDs or names. |
+| `categoryMapping` | Maps `metadata.providerCategory` to local category or subcategory targets. |
 | `connectors` | Provides host-owned base URL, TLS, private-network, and storage redirect settings for configured connectors. |
 
 The settings UI lets users edit `categoryMapping` per plugin instance for trail import plugins.
+Mapping values can be strings for broad category-only compatibility, or objects
+with `category` and optional `subcategory`, using local record IDs or canonical
+names:
+
+```json
+{
+  "categoryMapping": {
+    "Ride": { "category": "Biking", "subcategory": "Road" },
+    "GravelRide": { "category": "Biking", "subcategory": "Gravel" },
+    "Hike": "Hiking"
+  }
+}
+```
+
 Plugins may describe provider-owned category values for the settings UI with
 `metadata.providerCategories`. This is display-only metadata; `categoryMapping`
 keys still use the raw provider category values emitted as

@@ -65,7 +65,7 @@ While drawing or editing a route, the anchor list shows the route's start, inter
 - **Distance / Duration / Elevation** – These are automatically calculated but can be manually adjusted if needed.
 - **Tags** – Add descriptive tags to help categorize and search for your trail (e.g. forest, sunset, dog-friendly). Start typing to add a tag and press Enter to confirm.
 - **Difficulty** – Select the trail's difficulty (e.g. Easy, Moderate, Hard)
-- **Category** – Choose the activity type (e.g. Hiking, Cycling)
+- **[Category](/use/categories/)** – Choose the activity type. You can select a broad category such as Hiking, or a more specific subcategory such as Biking / Gravel.
 
 #### Visibility
 
@@ -83,7 +83,7 @@ Waypoints are points of interest along the trail.
 - When you are not editing the route, click on the map to open a popup with a **Create waypoint** button at that location.
 - While drawing or editing the route, right-click on the map to open the same popup without placing a route anchor. This works only while waypoint markers are visible (see the waypoint toggle in the route editing toolbar).
 - Each waypoint can have a name, description, icon, and photos.
-- Use Font Awesome icons for map markers. You can browse them at [fontawesome.com](https://fontawesome.com/search?q=share&o=r&m=free).
+- Use Font Awesome icons for map markers. You can browse them at [fontawesome.com](https://fontawesome.com/search?ic=free-collection).
 
 Alternatively, click **From Photos** to upload photos with GPS metadata. Waypoints will be created automatically based on the photo locations.
 

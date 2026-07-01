@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
-	"github.com/pocketbase/pocketbase/tools/filesystem"
 
 	"pocketbase/commands"
 	"pocketbase/hooks"
@@ -96,6 +94,22 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordAfterUpdateSuccess("activitypub_actors").BindFunc(hooks.UpdateActorHandler(client))
 	app.OnRecordAfterDeleteSuccess("activitypub_actors").BindFunc(hooks.DeleteActorHandler(client))
 
+	app.OnRecordCreateRequest("categories").BindFunc(hooks.ValidateCategoryHandler())
+	app.OnRecordUpdateRequest("categories").BindFunc(hooks.ValidateCategoryHandler())
+	app.OnRecordAfterCreateSuccess("categories").BindFunc(hooks.BackfillRemoteTrailCategoryHandler())
+	app.OnRecordAfterUpdateSuccess("categories").BindFunc(hooks.BackfillRemoteTrailCategoryHandler())
+	app.OnRecordCreateRequest("subcategories").BindFunc(hooks.ValidateSubcategoryHandler())
+	app.OnRecordUpdateRequest("subcategories").BindFunc(hooks.ValidateSubcategoryHandler())
+	app.OnRecordAfterCreateSuccess("subcategories").BindFunc(hooks.BackfillRemoteTrailSubcategoryHandler())
+	app.OnRecordAfterUpdateSuccess("subcategories").BindFunc(hooks.BackfillRemoteTrailSubcategoryHandler())
+
+	app.OnRecordCreateRequest("user_category_preferences").BindFunc(hooks.ValidateUserCategoryPreferenceHandler())
+	app.OnRecordUpdateRequest("user_category_preferences").BindFunc(hooks.ValidateUserCategoryPreferenceHandler())
+	app.OnRecordCreateRequest("user_subcategory_preferences").BindFunc(hooks.ValidateUserSubcategoryPreferenceHandler())
+	app.OnRecordUpdateRequest("user_subcategory_preferences").BindFunc(hooks.ValidateUserSubcategoryPreferenceHandler())
+
+	app.OnRecordCreateRequest("trails").BindFunc(hooks.ValidateTrailSubcategoryHandler())
+	app.OnRecordUpdateRequest("trails").BindFunc(hooks.ValidateTrailSubcategoryHandler())
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client))
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client))
 	app.OnRecordAfterDeleteSuccess("trails").BindFunc(hooks.DeleteTrailHandler(client))
@@ -166,6 +180,8 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/auth/token", routes.AuthToken)
 	se.Router.POST("/user/email", routes.UserEmailChange)
 	se.Router.POST("/waypoint/cluster", routes.WaypointCluster)
+	se.Router.POST("/category-preferences/reorder", routes.CategoryPreferencesReorder)
+	se.Router.POST("/subcategory-preferences/reorder", routes.SubcategoryPreferencesReorder)
 
 	se.Router.POST("/trail-merge/suggest", routes.TrailMergeSuggest)
 	se.Router.POST("/trail-merge", routes.TrailMerge(client))
@@ -213,6 +229,9 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 
 func initData(app core.App, client meilisearch.ServiceManager) error {
 	initCategories(app)
+	if err := util.SeedDefaultSubcategories(app); err != nil {
+		return err
+	}
 	initPlugins(app)
 	initMeilisearchConfig(client)
 	go func() {
@@ -280,31 +299,29 @@ func initCategories(app core.App) error {
 	if err := query.All(&records); err != nil {
 		return err
 	}
-	if len(records) != 0 {
-		return nil
-	}
-
 	collection, err := app.FindCollectionByNameOrId("categories")
 	if err != nil {
 		return err
 	}
 
-	categories := []string{"Hiking", "Walking", "Climbing", "Skiing", "Canoeing", "Biking", "Other"}
-	for _, element := range categories {
-		record := core.NewRecord(collection)
-		record.Set("name", element)
-		record.Set("settings", map[string]any{
-			"wp_merge_enabled": true,
-			"wp_merge_radius":  50,
-		})
-		if f, err := filesystem.NewFileFromPath("migrations/initial_data/" + strings.ToLower(element) + ".jpg"); err == nil {
-			record.Set("img", f)
-		}
-		if err := app.Save(record); err != nil {
-			return err
+	if len(records) == 0 {
+		for _, element := range util.DefaultCategoryNames() {
+			record := core.NewRecord(collection)
+			record.Set("name", element)
+			record.Set("settings", map[string]any{
+				"wp_merge_enabled": true,
+				"wp_merge_radius":  50,
+			})
+			err := app.Save(record)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	return nil
+	if err := util.PrepopulateDefaultCategoryTranslations(app); err != nil {
+		return err
+	}
+	return util.PrepopulateDefaultCategoryIcons(app)
 }
 
 func initMeilisearchConfig(client meilisearch.ServiceManager) {
@@ -312,13 +329,15 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 		"trails": {
 			SearchableAttributes: []string{"author_name", "name", "description", "location", "tags"},
 			FilterableAttributes: []string{
-				"id", "_geo", "author", "category", "completed", "date", "difficulty",
-				"distance", "elevation_gain", "elevation_loss", "likes", "public",
-				"shares", "tags", "min_lat", "max_lat", "min_lon", "max_lon", "bounding_box_diagonal",
+				"id", "_geo", "author", "category_id", "subcategory_id",
+				"is_federated", "completed", "date", "difficulty", "distance",
+				"elevation_gain", "elevation_loss", "likes", "public", "shares",
+				"tags", "min_lat", "max_lat", "min_lon", "max_lon", "bounding_box_diagonal",
 			},
 			SortableAttributes: []string{
 				"author", "created", "date", "difficulty", "distance",
 				"duration", "elevation_gain", "elevation_loss", "like_count", "name",
+				"min_lat", "max_lat", "min_lon", "max_lon",
 			},
 			RankingRules: []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
 		},

@@ -173,7 +173,15 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		}
 	} else {
 		// this trail exists already
-		// ensure that it is fully synced to catch waypoint/summit log updates
+		// keep searchable category metadata fresh from the update activity while
+		// still requiring a full sync to catch waypoint/summit log updates.
+		categoryMetadata, err := trailCategoryMetadataFromActivityObject(t)
+		if err != nil {
+			return nil, err
+		}
+		if err := applyTrailActivityCategoryMetadata(app, record, categoryMetadata); err != nil {
+			return nil, err
+		}
 
 		record.Set("needs_full_sync", true)
 		err = app.Save(record)
@@ -185,22 +193,22 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	}
 
 	var distance, duration, elevation_gain, elevation_loss float64
-	var diffculty, category string
+	var diffculty string
 	trailTags := []string{}
 	tags, err := pub.ToItemCollection(t.Tag)
 	if err != nil {
 		return nil, err
 	}
+	categoryMetadata := trailCategoryMetadataFromTags(tags)
 
 	for _, tag := range tags.Collection() {
 		tagObj, err := pub.ToObject(tag)
 		if err != nil {
 			continue
 		}
+
 		content := tagObj.Content.First().Value.String()
 		switch tagObj.Name.First().Value.String() {
-		case "category":
-			category = content
 		case "difficulty":
 			diffculty = content
 		case "elevation_gain":
@@ -254,9 +262,8 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	record.Set("author", actor.Id)
 	record.Set("needs_full_sync", true)
 
-	categoryRecord, err := app.FindFirstRecordByData("categories", "name", category)
-	if err == nil {
-		record.Set("category", categoryRecord.Id)
+	if err := applyTrailActivityCategoryMetadata(app, record, categoryMetadata); err != nil {
+		return nil, err
 	}
 
 	if t.Attachment != nil {
@@ -282,12 +289,12 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 
 		if len(photoURLs) > 0 {
 			photos := []*filesystem.File{}
-			for i, purl := range photoURLs {
+			for _, purl := range photoURLs {
 				photo, err := filesystem.NewFileFromURL(context.Background(), purl)
 				if err != nil {
 					continue
 				}
-				photos[i] = photo
+				photos = append(photos, photo)
 			}
 
 			record.Set("photos", photos)
@@ -306,6 +313,80 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	return record, app.Save(record)
 }
 
+type trailActivityCategoryMetadata struct {
+	category       string
+	subcategory    string
+	categorySet    bool
+	subcategorySet bool
+}
+
+func trailCategoryMetadataFromActivityObject(object *pub.Object) (trailActivityCategoryMetadata, error) {
+	if len(object.Tag) == 0 {
+		return trailActivityCategoryMetadata{}, nil
+	}
+
+	tags, err := pub.ToItemCollection(object.Tag)
+	if err != nil {
+		return trailActivityCategoryMetadata{}, err
+	}
+
+	return trailCategoryMetadataFromTags(tags), nil
+}
+
+func trailCategoryMetadataFromTags(tags *pub.ItemCollection) trailActivityCategoryMetadata {
+	metadata := trailActivityCategoryMetadata{}
+	for _, tag := range tags.Collection() {
+		tagObj, err := pub.ToObject(tag)
+		if err != nil {
+			continue
+		}
+
+		switch tagObj.Name.First().Value.String() {
+		case "category":
+			metadata.category = tagObj.Content.First().Value.String()
+			metadata.categorySet = true
+		case "subcategory":
+			metadata.subcategory = tagObj.Content.First().Value.String()
+			metadata.subcategorySet = true
+		}
+	}
+
+	return metadata
+}
+
+func applyTrailActivityCategoryMetadata(app core.App, record *core.Record, metadata trailActivityCategoryMetadata) error {
+	if metadata.categorySet {
+		record.Set("federated_category_name", metadata.category)
+	}
+	if metadata.subcategorySet {
+		record.Set("federated_subcategory_name", metadata.subcategory)
+	} else if metadata.categorySet {
+		record.Set("federated_subcategory_name", "")
+	}
+
+	if !metadata.categorySet {
+		return nil
+	}
+
+	categoryRecord, subcategoryRecord, err := ResolveCategoryAndSubcategoryByNormalizedNames(app, metadata.category, metadata.subcategory)
+	if err != nil {
+		return err
+	}
+	if categoryRecord != nil {
+		record.Set("category", categoryRecord.Id)
+		if subcategoryRecord != nil {
+			record.Set("subcategory", subcategoryRecord.Id)
+		} else {
+			record.Set("subcategory", "")
+		}
+	} else {
+		record.Set("category", "")
+		record.Set("subcategory", "")
+	}
+
+	return nil
+}
+
 func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollection) (*pub.Object, error) {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -320,15 +401,20 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("failed to expand tags: %v", errs)
 	}
-	errs = app.ExpandRecord(trail, []string{"category"}, nil)
+	errs = app.ExpandRecord(trail, []string{"category", "subcategory"}, nil)
 	if len(errs) > 0 {
-		return nil, fmt.Errorf("failed to expand category: %v", errs)
+		return nil, fmt.Errorf("failed to expand category/subcategory: %v", errs)
 	}
 
 	category := ""
 	categoryRecord := trail.ExpandedOne("category")
 	if categoryRecord != nil {
 		category = categoryRecord.GetString("name")
+	}
+	subcategory := ""
+	subcategoryRecord := trail.ExpandedOne("subcategory")
+	if subcategoryRecord != nil {
+		subcategory = subcategoryRecord.GetString("name")
 	}
 
 	tagRecords := trail.ExpandedAll("tags")
@@ -370,6 +456,14 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 		for _, m := range *mentions {
 			tags.Append(m)
 		}
+	}
+
+	if subcategory != "" {
+		tags.Append(pub.Object{
+			Type:    pub.NoteType,
+			Name:    pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "subcategory")),
+			Content: pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, subcategory)),
+		})
 	}
 
 	for _, v := range tagRecords {

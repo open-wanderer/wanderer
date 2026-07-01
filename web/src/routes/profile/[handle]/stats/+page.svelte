@@ -9,8 +9,14 @@
     import SummitLogTable from "$lib/components/summit_log/summit_log_table.svelte";
     import type { SummitLog } from "$lib/models/summit_log.js";
     import { categories } from "$lib/stores/category_store.js";
+    import { categoryPreferences } from "$lib/stores/category_preference_store";
     import { profile_stats_index } from "$lib/stores/profile_store.js";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
+    import {
+        displayCategoryName,
+        preferenceForCategory,
+        sortedCategoriesByPreference,
+    } from "$lib/util/category_util";
     import {
         formatDistance,
         formatElevation,
@@ -30,7 +36,7 @@
         Tooltip,
     } from "chart.js";
     import { untrack } from "svelte";
-    import { _ } from "svelte-i18n";
+    import { _, locale } from "svelte-i18n";
 
     let { data } = $props();
 
@@ -48,10 +54,22 @@
 
     const filter = $state(untrack(() => data.filter));
 
-    const categorySelectItems: SelectItem[] = $categories.map((c) => ({
-        value: c.id,
-        text: c.name,
-    }));
+    let categorySelectItems = $derived(
+        sortedCategoriesByPreference(
+            $categories,
+            $categoryPreferences,
+            $locale,
+        )
+            .filter(
+                (c) =>
+                    preferenceForCategory($categoryPreferences, c.id)?.visible !==
+                        false || filter.category.includes(c.id),
+            )
+            .map((c) => ({
+                value: c.id,
+                text: displayCategoryName(c, $locale),
+            })),
+    );
 
     const barChartSelectItems: SelectItem[] = [
         {
@@ -93,8 +111,11 @@
         summitLogs.reduce(
             (acc, log) => {
                 const cat =
-                    log.expand?.trail?.expand?.category?.name ?? "unknown";
-                acc[$_(cat)] = (acc[$_(cat)] || 0) + 1;
+                    log.expand?.trail?.expand?.category;
+                const key = cat
+                    ? displayCategoryName(cat, $locale)
+                    : "-";
+                acc[key] = (acc[key] || 0) + 1;
                 return acc;
             },
             {} as Record<string, number>,

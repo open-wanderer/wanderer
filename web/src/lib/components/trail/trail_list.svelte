@@ -31,7 +31,7 @@
 
     let {
         filter = $bindable(null),
-        trails,
+        trails = $bindable([]),
         pagination = {
             page: 1,
             totalPages: 1,
@@ -307,7 +307,40 @@
         onupdate?.(filter, selection);
     }
 
-    async function handleTrailsEditDone(resetSelection: boolean = false) {
+    async function handleTrailsEditDone(
+        resetSelection: boolean = false,
+        updatedTrails: Trail[] = [],
+    ) {
+        if (updatedTrails.length > 0) {
+            const updatedByID = new Map(
+                updatedTrails
+                    .filter((trail) => trail.id)
+                    .map((trail) => [trail.id, trail]),
+            );
+            // Keep the richer expand fields from the existing (search-derived)
+            // trail (e.g. author, likes) that trails_update does not return,
+            // and only overlay the changed values and their expands.
+            const mergeUpdated = (trail: Trail) => {
+                const updated = updatedByID.get(trail.id);
+                if (!updated) return trail;
+                return {
+                    ...trail,
+                    ...updated,
+                    expand: { ...trail.expand, ...updated.expand },
+                };
+            };
+            trails = trails.map(mergeUpdated);
+            if (resetSelection) {
+                selection = new Set<Trail>();
+                hoveredTrail = undefined;
+            } else if (selection) {
+                selection = new Set([...selection].map(mergeUpdated));
+            }
+            // The updated trails already carry the fresh data; skip the refetch
+            // because the search index is updated asynchronously and would
+            // return stale categories, overwriting the local update.
+            return;
+        }
         if (resetSelection) {
             selection = new Set<Trail>();
             hoveredTrail = undefined;
@@ -356,7 +389,8 @@
                     onDelete={() => handleTrailsEditDone(true)}
                     onShare={() => handleTrailsEditDone(false)}
                     onMerge={() => handleTrailsMergeDone(true)}
-                    onUpdate={() => handleTrailsEditDone(true)}
+                    onUpdate={(updatedTrails) =>
+                        handleTrailsEditDone(true, updatedTrails)}
                 />
             </div>
         {/if}

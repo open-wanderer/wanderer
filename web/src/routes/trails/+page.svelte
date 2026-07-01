@@ -18,6 +18,13 @@
         if (!browser) {
             return defaultFilter;
         }
+        if (
+            page.url.searchParams.has("category") ||
+            page.url.searchParams.has("subcategory") ||
+            page.url.searchParams.has("author")
+        ) {
+            return defaultFilter;
+        }
 
         const stored = localStorage.getItem(TRAIL_LIST_FILTER_STORAGE_KEY);
         if (!stored) {
@@ -227,7 +234,7 @@
     <TrailList
         bind:filter
         {loading}
-        {trails}
+        bind:trails
         {pagination}
         onupdate={() => handleFilterUpdate(false)}
         onpagination={paginate}
