@@ -1632,4 +1632,29 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get you_have_arrived => 'You\'ve arrived';
+
+  @override
+  String get settings_categories_confirm_disable_title => 'Hide this category?';
+
+  @override
+  String get settings_categories_confirm_disable_subcategory_title =>
+      'Hide this subcategory?';
+
+  @override
+  String settings_categories_confirm_disable_body(int count) {
+    return '$count of your trails use this category. They will stay published but this filter will be hidden.';
+  }
+
+  @override
+  String get settings_categories_confirm_view_trails => 'View trails';
+
+  @override
+  String get settings_categories_confirm_disable_confirm => 'Disable anyway';
+
+  @override
+  String get settings_categories_empty_title => 'No subcategories';
+
+  @override
+  String get settings_categories_empty_body =>
+      'This category has no subcategories to configure.';
 }

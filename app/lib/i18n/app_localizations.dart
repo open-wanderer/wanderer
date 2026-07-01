@@ -3019,6 +3019,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You\'ve arrived'**
   String get you_have_arrived;
+
+  /// No description provided for @settings_categories_confirm_disable_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide this category?'**
+  String get settings_categories_confirm_disable_title;
+
+  /// No description provided for @settings_categories_confirm_disable_subcategory_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide this subcategory?'**
+  String get settings_categories_confirm_disable_subcategory_title;
+
+  /// No description provided for @settings_categories_confirm_disable_body.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of your trails use this category. They will stay published but this filter will be hidden.'**
+  String settings_categories_confirm_disable_body(int count);
+
+  /// No description provided for @settings_categories_confirm_view_trails.
+  ///
+  /// In en, this message translates to:
+  /// **'View trails'**
+  String get settings_categories_confirm_view_trails;
+
+  /// No description provided for @settings_categories_confirm_disable_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable anyway'**
+  String get settings_categories_confirm_disable_confirm;
+
+  /// No description provided for @settings_categories_empty_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No subcategories'**
+  String get settings_categories_empty_title;
+
+  /// No description provided for @settings_categories_empty_body.
+  ///
+  /// In en, this message translates to:
+  /// **'This category has no subcategories to configure.'**
+  String get settings_categories_empty_body;
 }
 
 class _AppLocalizationsDelegate

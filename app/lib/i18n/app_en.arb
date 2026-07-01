@@ -492,5 +492,19 @@
   "width": "Width",
   "wrong_username_or_password": "Wrong username or password",
   "you_can": "You can",
-  "you_have_arrived": "You've arrived"
+  "you_have_arrived": "You've arrived",
+  "settings_categories_confirm_disable_title": "Hide this category?",
+  "settings_categories_confirm_disable_subcategory_title": "Hide this subcategory?",
+  "settings_categories_confirm_disable_body": "{count} of your trails use this category. They will stay published but this filter will be hidden.",
+  "@settings_categories_confirm_disable_body": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settings_categories_confirm_view_trails": "View trails",
+  "settings_categories_confirm_disable_confirm": "Disable anyway",
+  "settings_categories_empty_title": "No subcategories",
+  "settings_categories_empty_body": "This category has no subcategories to configure."
 }
