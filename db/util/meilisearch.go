@@ -6,19 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
 	"github.com/meilisearch/meilisearch-go"
-	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/tkrajina/gpxgo/gpx"
-	"github.com/twpayne/go-polyline"
 )
 
-func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
+func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
 	photos := r.GetStringSlice("photos")
 	thumbnail := ""
 	if len(photos) > 0 {
@@ -36,51 +33,73 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 		tags[i] = v.GetString("name")
 	}
 
+	categoryID := r.GetString("category")
+	var categoryIDValue any
+	if categoryID != "" {
+		categoryIDValue = categoryID
+	}
+
+	subcategoryID := r.GetString("subcategory")
+	var subcategoryIDValue any
+	if subcategoryID != "" {
+		subcategoryIDValue = subcategoryID
+	}
+
 	category := ""
+	categoryIcon := ""
 	trailCategory := r.ExpandedOne("category")
 	if trailCategory != nil {
 		category = trailCategory.GetString("name")
+		categoryIcon = trailCategory.GetString("icon")
 	}
 
-	polyline, err := getPolyline(app, r)
-	if err != nil {
-		polyline = ""
-	}
+	bounds := getStoredBounds(r)
 
 	domain := ""
-	if !author.GetBool("isLocal") {
+	if !author.GetBool("is_local") {
 		domain = author.GetString("domain")
 	}
 
-	logCount, err := app.CountRecords("summit_logs", dbx.NewExp("trail={:id}", dbx.Params{"id": r.Id}))
-	if err != nil {
-		return nil, err
+	diagonal := r.GetFloat("bounding_box_diagonal")
+	if diagonal == 0 && (bounds[0] != bounds[1] || bounds[2] != bounds[3]) {
+		diagonal = HaversineDistance(bounds[0], bounds[2], bounds[1], bounds[3])
 	}
 
 	document := map[string]any{
-		"id":             r.Id,
-		"author":         author.Id,
-		"author_name":    author.GetString("preferred_username"),
-		"author_avatar":  author.GetString("icon"),
-		"name":           r.GetString("name"),
-		"description":    r.GetString("description"),
-		"location":       r.GetString("location"),
-		"distance":       r.GetFloat("distance"),
-		"elevation_gain": r.GetFloat("elevation_gain"),
-		"elevation_loss": r.GetFloat("elevation_loss"),
-		"duration":       r.GetFloat("duration"),
-		"difficulty":     difficultyToNumber(r.GetString("difficulty")),
-		"category":       category,
-		"completed":      logCount > 0,
-		"date":           r.GetDateTime("date").Time().Unix(),
-		"created":        r.GetDateTime("created").Time().Unix(),
-		"public":         r.GetBool("public"),
-		"thumbnail":      thumbnail,
-		"gpx":            r.GetString("gpx"),
-		"tags":           tags,
-		"polyline":       polyline,
-		"domain":         domain,
-		"iri":            r.GetString("iri"),
+		"id":                         r.Id,
+		"author":                     author.Id,
+		"author_name":                author.GetString("preferred_username"),
+		"author_avatar":              author.GetString("icon"),
+		"name":                       r.GetString("name"),
+		"description":                r.GetString("description"),
+		"location":                   r.GetString("location"),
+		"distance":                   r.GetFloat("distance"),
+		"elevation_gain":             r.GetFloat("elevation_gain"),
+		"elevation_loss":             r.GetFloat("elevation_loss"),
+		"duration":                   r.GetFloat("duration"),
+		"difficulty":                 difficultyToNumber(r.GetString("difficulty")),
+		"category":                   category,
+		"category_id":                categoryIDValue,
+		"category_icon":              categoryIcon,
+		"subcategory_id":             subcategoryIDValue,
+		"is_federated":               !author.GetBool("is_local"),
+		"federated_category_name":    r.GetString("federated_category_name"),
+		"federated_subcategory_name": r.GetString("federated_subcategory_name"),
+		"completed":                  r.GetBool("completed"),
+		"date":                       r.GetDateTime("date").Time().Unix(),
+		"created":                    r.GetDateTime("created").Time().Unix(),
+		"public":                     r.GetBool("public"),
+		"thumbnail":                  thumbnail,
+		"gpx":                        r.GetString("gpx"),
+		"tags":                       tags,
+		"polyline":                   r.GetString("polyline"),
+		"domain":                     domain,
+		"iri":                        r.GetString("iri"),
+		"min_lat":                    bounds[0],
+		"max_lat":                    bounds[1],
+		"min_lon":                    bounds[2],
+		"max_lon":                    bounds[3],
+		"bounding_box_diagonal":      diagonal,
 		"_geo": map[string]float64{
 			"lat": r.GetFloat("lat"),
 			"lng": r.GetFloat("lon"),
@@ -134,47 +153,23 @@ func difficultyToNumber(difficulty string) int32 {
 	return 0
 }
 
-func getPolyline(app core.App, r *core.Record) (string, error) {
-	gpxPath := r.GetString("gpx")
-	if len(gpxPath) == 0 {
-		return "", nil
-	}
-	avatarKey := r.BaseFilesPath() + "/" + gpxPath
-	fsys, err := app.NewFilesystem()
-	if err != nil {
-		return "", err
-	}
-	defer fsys.Close()
+func getStoredBounds(r *core.Record) [4]float64 {
+	lat := r.GetFloat("lat")
+	lon := r.GetFloat("lon")
+	defaultBounds := [4]float64{lat, lat, lon, lon}
 
-	gpxFile, err := fsys.GetReader(avatarKey)
-	if err != nil {
-		return "", err
-	}
-	defer gpxFile.Close()
-
-	content := new(bytes.Buffer)
-	_, err = io.Copy(content, gpxFile)
-	if err != nil {
-		return "", err
-	}
-	gpxData, err := gpx.Parse(content)
-	if err != nil {
-		return "", err
+	minLat := r.GetFloat("min_lat")
+	maxLat := r.GetFloat("max_lat")
+	minLon := r.GetFloat("min_lon")
+	maxLon := r.GetFloat("max_lon")
+	if minLat == 0 && maxLat == 0 && minLon == 0 && maxLon == 0 && (lat != 0 || lon != 0) {
+		return defaultBounds
 	}
 
-	gpxData.SimplifyTracks(50)
-	coordinates := make([][]float64, 4)
-	for _, trk := range gpxData.Tracks {
-		for _, seg := range trk.Segments {
-			for _, pt := range seg.Points {
-				coordinates = append(coordinates, []float64{pt.Latitude, pt.Longitude})
-			}
-		}
-	}
-	return string(polyline.EncodeCoords(coordinates)), nil
+	return [4]float64{minLat, maxLat, minLon, maxLon}
 }
 
-func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
+func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {
 
 	totalElevationGain := 0.0
 	totalElevationLoss := 0.0
@@ -182,7 +177,7 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	totalDuration := 0.0
 	trails := len(r.GetStringSlice("trails"))
 
-	if r.GetString("iri") != "" {
+	if r.GetString("iri") != "" && !author.GetBool("is_local") {
 		doc, err := documentFromRemoteRecord(r, "lists")
 		if err == nil {
 			totalElevationGain = doc["elevation_gain"].(float64)
@@ -206,7 +201,7 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	}
 
 	domain := ""
-	if !author.GetBool("isLocal") {
+	if !author.GetBool("is_local") {
 		domain = author.GetString("domain")
 	}
 
@@ -247,7 +242,22 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	return document, nil
 }
 
-func documentFromRemoteRecord(r *core.Record, index string) (map[string]interface{}, error) {
+func documentFromActorRecord(r *core.Record) (map[string]any, error) {
+
+	document := map[string]any{
+		"id":                 r.Id,
+		"username":           r.GetString("username"),
+		"preferred_username": r.GetString("preferred_username"),
+		"domain":             r.GetString("domain"),
+		"iri":                r.GetString("iri"),
+		"icon":               r.GetString("icon"),
+		"is_local":           r.GetBool("is_local"),
+	}
+
+	return document, nil
+}
+
+func documentFromRemoteRecord(r *core.Record, index string) (map[string]any, error) {
 	client := &http.Client{}
 
 	if r.GetString("iri") == "" {
@@ -294,10 +304,16 @@ func documentFromRemoteRecord(r *core.Record, index string) (map[string]interfac
 		return nil, fmt.Errorf("no documents in result set")
 	}
 
-	document, ok := searchResponse.Hits[0].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected document format")
+	var document map[string]any
+	documentByteData, err := json.Marshal(searchResponse.Hits[0])
+	if err != nil {
+		return nil, err
 	}
+
+	if err := json.Unmarshal(documentByteData, &document); err != nil {
+		return nil, err
+	}
+
 	return document, nil
 }
 
@@ -328,7 +344,7 @@ func IndexTrails(app core.App, trails []*core.Record, client meilisearch.Service
 
 		author := r.ExpandedOne("author")
 
-		doc, err := documentFromTrailRecord(app, r, author, true)
+		doc, err := documentFromTrailRecord(r, author, true)
 		if err != nil {
 			return err
 		}
@@ -336,7 +352,7 @@ func IndexTrails(app core.App, trails []*core.Record, client meilisearch.Service
 		documents[i] = doc
 	}
 
-	if _, err := client.Index("trails").AddDocuments(documents); err != nil {
+	if _, err := client.Index("trails").AddDocuments(documents, nil); err != nil {
 		return err
 	}
 
@@ -346,20 +362,20 @@ func IndexTrails(app core.App, trails []*core.Record, client meilisearch.Service
 func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meilisearch.ServiceManager) error {
 	errs := app.ExpandRecord(r, []string{"tags"}, nil)
 	if len(errs) > 0 {
-		return fmt.Errorf("failed to expand tags: %v", errs)
+		return fmt.Errorf("meilisearch update trail: failed to expand tags: %v", errs)
 	}
 	errs = app.ExpandRecord(r, []string{"category"}, nil)
 	if len(errs) > 0 {
-		return fmt.Errorf("failed to expand category: %v", errs)
+		return fmt.Errorf("meilisearch update trail: failed to expand category: %v", errs)
 	}
 
-	doc, err := documentFromTrailRecord(app, r, author, false)
+	doc, err := documentFromTrailRecord(r, author, false)
 	if err != nil {
 		return err
 	}
 	documents := []map[string]interface{}{doc}
 
-	if _, err := client.Index("trails").UpdateDocuments(documents); err != nil {
+	if _, err = client.Index("trails").UpdateDocuments(documents, nil); err != nil {
 		return err
 	}
 
@@ -373,7 +389,7 @@ func UpdateTrailShares(trailId string, shares []string, client meilisearch.Servi
 			"shares": shares,
 		},
 	}
-	if _, err := client.Index("trails").UpdateDocuments(documents); err != nil {
+	if _, err := client.Index("trails").UpdateDocuments(documents, nil); err != nil {
 		return err
 	}
 	return nil
@@ -387,7 +403,7 @@ func UpdateTrailLikes(trailId string, likes []string, client meilisearch.Service
 			"likes":      likes,
 		},
 	}
-	if _, err := client.Index("trails").UpdateDocuments(documents); err != nil {
+	if _, err := client.Index("trails").UpdateDocuments(documents, nil); err != nil {
 		return err
 	}
 	return nil
@@ -418,7 +434,7 @@ func IndexLists(app core.App, lists []*core.Record, client meilisearch.ServiceMa
 		}
 		documents[i] = doc
 	}
-	if _, err := client.Index("lists").AddDocuments(documents); err != nil {
+	if _, err := client.Index("lists").AddDocuments(documents, nil); err != nil {
 		return err
 	}
 
@@ -436,7 +452,38 @@ func UpdateList(app core.App, r *core.Record, author *core.Record, client meilis
 		return err
 	}
 
-	if _, err = client.Index("lists").UpdateDocuments(documents); err != nil {
+	if _, err = client.Index("lists").UpdateDocuments(documents, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func IndexActors(actors []*core.Record, client meilisearch.ServiceManager) error {
+	documents := make([]map[string]any, len(actors))
+
+	for i, r := range actors {
+
+		doc, err := documentFromActorRecord(r)
+		if err != nil {
+			return err
+		}
+		documents[i] = doc
+	}
+	if _, err := client.Index("actors").AddDocuments(documents, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UpdateActor(r *core.Record, client meilisearch.ServiceManager) error {
+	documents, err := documentFromActorRecord(r)
+	if err != nil {
+		return err
+	}
+
+	if _, err = client.Index("actors").UpdateDocuments(documents, nil); err != nil {
 		return err
 	}
 
@@ -450,33 +497,43 @@ func UpdateListShares(listId string, shares []string, client meilisearch.Service
 			"shares": shares,
 		},
 	}
-	if _, err := client.Index("lists").UpdateDocuments(documents); err != nil {
+	if _, err := client.Index("lists").UpdateDocuments(documents, nil); err != nil {
 		return err
 	}
 	return nil
 }
 
-func GenerateMeilisearchToken(rules map[string]interface{}, client meilisearch.ServiceManager) (resp string, err error) {
-	apiKeyUid := ""
-	apiKey := ""
+func GenerateMeilisearchToken(rules map[string]interface{}, client meilisearch.ServiceManager) (string, error) {
+	var apiKeyUid string
+	var apiKey string
 
-	if keys, err := client.GetKeys(nil); err != nil {
-		log.Fatal(err)
-	} else {
-		for _, k := range keys.Results {
-			if k.Name == "Default Search API Key" {
+	keys, err := client.GetKeys(&meilisearch.KeysQuery{Limit: 20})
+	if err != nil {
+		return "", fmt.Errorf("meilisearch connection error: %w", err)
+	}
+
+	for _, k := range keys.Results {
+		for _, action := range k.Actions {
+			if action == "search" || k.Name == "Default Search API Key" {
 				apiKeyUid = k.UID
 				apiKey = k.Key
+				break
 			}
+		}
+		if apiKey != "" {
+			break
 		}
 	}
 
-	if len(apiKey) == 0 || len(apiKeyUid) == 0 {
-		return "", errors.New("unable to locate meilisearch API key")
+	if apiKey == "" || apiKeyUid == "" {
+		return "", errors.New("unable to locate a valid search API key")
 	}
 
+	expiresAt := time.Now().Add(24 * time.Hour)
+
 	options := &meilisearch.TenantTokenOptions{
-		APIKey: apiKey,
+		APIKey:    apiKey,
+		ExpiresAt: expiresAt,
 	}
 
 	return client.GenerateTenantToken(apiKeyUid, rules, options)

@@ -14,6 +14,7 @@
     import PageLoadingBar from "$lib/components/page_loading_bar.svelte";
     import UploadDialog from "$lib/components/settings/upload_dialog.svelte";
     import { currentUser } from "$lib/stores/user_store";
+    import { load_plugin_data_once } from "$lib/stores/plugin_store";
     import { isRouteProtected } from "$lib/util/authorization_util";
     import { onMount, type Snippet } from "svelte";
     import { slide } from "svelte/transition";
@@ -41,6 +42,9 @@
     onMount(() => {
         if (page.data.origin != location.origin) {
             showWarning = true;
+        }
+        if (data.user) {
+            load_plugin_data_once();
         }
     });
 

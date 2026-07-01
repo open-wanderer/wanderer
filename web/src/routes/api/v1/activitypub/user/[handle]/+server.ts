@@ -8,6 +8,32 @@ import { error, json, type RequestEvent } from '@sveltejs/kit';
 import { type APActor, type APRoot } from 'activitypub-types';
 
 
+/**
+ * @swagger
+ * /api/v1/activitypub/user/{handle}:
+ *   get:
+ *     summary: Get ActivityPub actor profile
+ *     description: Retrieves an ActivityPub Person object for a user with public key
+ *     tags:
+ *       - ActivityPub
+ *     parameters:
+ *       - in: path
+ *         name: handle
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ActivityPub Person object with publicKey
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
 
     try {
@@ -20,7 +46,7 @@ export async function GET(event: RequestEvent) {
 
         const [username, domain] = splitUsername(fullUsername, env.ORIGIN)
 
-        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`preferred_username:lower='${username?.toLowerCase()}'&&isLocal=1`)
+        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`preferred_username:lower='${username?.toLowerCase()}'&&is_local=1`)
         const user: UserAnonymous = await event.locals.pb.collection("users_anonymous").getOne(actor.user!)
 
 

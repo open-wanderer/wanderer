@@ -1,3 +1,108 @@
+# [Unreleased]
+
+## Features
+- Server-side map clustering and zoom-aware polyline filtering: The world map now performs trail clustering on the server to improve performance. At lower zoom levels, smaller trails are clustered, while at higher zoom levels the largest routes in the current view are shown as detailed polylines. The maximum number of simultaneously visible polylines can be configured via the PUBLIC_MAP_MAX_POLYLINES environment variable.
+
+# v0.19.2
+## Documentation
+-  Add CONTRIBUTING guidelines
+  
+## Bug Fixes
+- All photos from strava activities are now synced, instead of just the first one
+- Shared trails are now displayed correctly in search results
+- Fixes bug that caused trails to be indexed multiple times causing high server load
+- Remaining likes are no correctly calculated when unliking a trail
+- Fix waypoint creation from photos
+
+# v0.19.1
+
+## Features
+- Speed improvements for various database queries
+
+## Security
+- Remote lists, remote trails, and remote trail comments now respect the visibility settings and shares of the respective list or trail. (PR #980)
+
+## Bug Fixes
+- Federated remote trails now sync tags and create missing local tags when needed. (PR #987)
+- Private profiles no longer prevent access to a user's own trails; inaccessible private profiles now return a proper `404`. (PR #986)
+- Comment access rules now correctly check the linked comment author via `author.user`. (PR #984)
+
+# v0.19.0
+
+## Breaking Changes
+- Bulk uploads no longer use `UPLOAD_USER` / `UPLOAD_PASSWORD` authentication. Uploads now require an API token; files must be placed in a subfolder of the upload directory named after the respective API token. For more information checkout the [documentation](https://wanderer.to/use/import-export/) (PR #886).
+- Bulk uploads now run via a file watcher rather than on a cron schedule. Files placed in the upload folder while the container is not running will not be processed automatically. (PR #886)
+- External service URLs have been moved from public frontend variables to server-side variables: `VALHALLA_URL`, `NOMINATIM_URL`, `OVERPASS_API_URL`. The old `PUBLIC_*` variables remain as a fallback but should be migrated. (PR #697)
+- The waypoint data model has been extended for federation: waypoints now have an `iri` and reference their author via an ActivityPub actor. This only affects clients that access PocketBase collections directly, not the standard UI. (PR #930)
+- ActivityPub actor counters have been renamed to `follower_count` and `following_count`. This only affects clients that access PocketBase collections directly. (PR #930)
+- OpenAPI documentation is now generated from annotations and served as JSON (the YAML endpoint has been removed). (PR #927)
+
+## Security
+- HTML content in descriptions, comments, summit logs, waypoints, and profile bios is now sanitised on the server to reduce the risk of cross-site scripting (XSS). Some custom HTML may be stripped on save. (PR #930)
+- Anonymous user API endpoints have been removed. This only affects third-party applications that accessed user data without authentication. Regular users and the standard UI are unaffected. (PR #927)
+- Additional CSRF/SSRF protections and rate limiting have been implemented for ActivityPub and outbound network calls. (PR #930)
+
+## Features
+- Hammerhead integration added, including synchronisation of planned and completed tours, and manual trail sending. (PR #628)
+- The federation has been significantly expanded and refactored to provide more robust remote content synchronisation and local caching for remote trails and lists. (PR #930)
+- Trails can now be explicitly marked as completed. (PR #920)
+- Geotagged waypoint photos are now automatically merged into existing or nearby waypoints within the configured merge radius of the category. (PR #457)
+- The trail overview now has narrow and wide view modes, as well as improved multi-select. (PR #666, #921)
+- Trails can be copied directly and their visibility can be changed more easily. (PR #571)
+- External geocoding, routing, and Overpass calls now run on the server. (PR #697)
+- New setting: optionally start drawing a new trail from the current location. (PR #592)
+- GPX exports now include additional metadata for waypoints. (PR #919)
+- FIT import now uses a more compatible parser. (PR #884)
+- Frontpage performance has been improved. (PR #929)
+- 3D terrain rendering has been improved. (PR #881)
+- Improved saving of public lists. (PR #554)
+- Multiple trails can now be merged into one trail with multiple summit logs. This feature is also available as an automatic option when importing trails via an integration (PR #627)
+- API tokens have been added so that external tools and automations can interact with Wanderer. (PR #848)
+
+## Bug Fixes
+- Fixed broken WebFinger requests. (PR #966)
+- Theme detection fixed via corrected `color-scheme` query selector. (PR #957, thanks @mfortini)
+- Hillshading visibility on the map has been fixed. (PR #942)
+- Komoot sync now runs to completion. (PR #917, thanks @StefanSchloegl)
+- Komoot integration now handles invalid photos more robustly. (PR #941)
+- Mentions now work correctly when `username` and `preferred_username` differ. (PR #885)
+- Fixed avatar updates. (PR #870)
+- List descriptions in the selection modal are now fixed. (PR #869)
+- Fixed double GPX upload when creating a trail. (PR #969)
+- Fixed authentication issues after email change (PR #973)
+- Fixed help links. (PR #938)
+- Fixed a MapLibre layer manager issue that could prevent existing map layers from being tracked correctly after data updates. (PR #960, thanks @palhaland)
+- Fixed search endpoints returning invalid errors in some failure cases. (PR #961, thanks @palhaland)
+
+## Translation
+- The Norwegian translations have been updated. (PR #931, thanks @palhaland)
+
+## Maintenance
+- Meilisearch, PocketBase, Go, web/docs dependencies, CI actions, and Docker build setup updated.
+
+# v0.18.5
+## Security
+- Fixes CVE-2022-39299 via xmldom upgrade (PR #820)
+## Features
+- Persist trail list filter settings in local storage: filters are preserved on reload and when navigating back from a trail, and reset when - leaving the trail list (PR #814)
+## Bug Fixes
+- Skip elevation correction when Valhalla returns invalid (null) elevation data; original GPX values are preserved (PR #821)
+- Improved threshold handling for high-frequency GPX tracks to ensure correct ascent/descent calculation (PR #813)
+- Fixes trail upload for new users without default privacy settings (PR #785)
+- Fixes focus loss and duplicate “Cancel” button in trail filter search (Chrome) (PR #738)
+- Fixes async state issue in list search modal (bulk assignment works again) (PR #816)
+- Fixes locale errors and improved dynamic locale detection (PR #656)
+- Fixes PDF/print layout so descriptions render correctly and no longer overlap waypoints(Thanks to @RobertClarke64) (PR #797)
+- Corrected POCKETBASE_SMTP_SENDER_ADDRESS spelling (previously POCKETBASE_SMTP_SENDER_ADRESS, now deprecated but backwards compatible) (PR #769)
+- Fixes amenity naming in stored map state, including migration (PR #768)
+- Fixes race condition in map plugin that caused errors when printing a trail (PR #827)
+
+## Translation
+- Added Czech language support (thanks @Sheepa) (PR #774)
+
+## Dependencies
+- Updated most dependencies, including security and maintenance updates
+
 # v0.18.4
 ## Bug fixes
 - Tags can now properly be removed from trails
@@ -454,7 +559,7 @@ As the number of contributors to this project continues to grow (which I’m ver
 - The current page is now remembered when navigating back to the trail overview
 
 ## Bug fixes
-- Fixed map height when viewing a trail in detail view
+- Fixes map height when viewing a trail in detail view
 
 # v0.8.1
 ## Features
@@ -531,7 +636,7 @@ As the number of contributors to this project continues to grow (which I’m ver
 - Adds missing translations
 
 ## Bug fixes
-- Fixed a bug that prevented comments from showing up
+- Fixes a bug that prevented comments from showing up
 - GPX files without a name in the metadata section will now receive a generic name when uploaded through the API
 
 # v0.5.1
@@ -539,7 +644,7 @@ As the number of contributors to this project continues to grow (which I’m ver
 - You can now export trails as GPX or GEOJson files. Optionally you can include photos and summit book entries of the trail. This replaces the "Download GPX" function in previous versions.
 
 ## Bug fixes
-- Fixed a bug that would prevent users from creating multiple summit log entries without reloading the page
+- Fixes a bug that would prevent users from creating multiple summit log entries without reloading the page
 - wanderer now takes the `<rte>` tag into account when displaying a trail on the map
 - A trail's date attribute is now the current date by default
 
@@ -565,13 +670,13 @@ As the number of contributors to this project continues to grow (which I’m ver
 - Adds a setting to focus the map on all trails instead of a specific location
 
 ## Bug fixes
-- fixed a bug that would show a wrong date for summit logs for certain time zones (now really)
-- fixed a bug that prevented waypoints from showing up in public trails
+- Fixes a bug that would show a wrong date for summit logs for certain time zones (now really)
+- Fixes a bug that prevented waypoints from showing up in public trails
 
 # v0.3.2
 ## Bug fixes
 
-- Fixed a bug that caused a 500 Internal Error to appear when viewing trails without an account
+- Fixes a bug that caused a 500 Internal Error to appear when viewing trails without an account
 
 ## Translations
 
@@ -586,7 +691,7 @@ As the number of contributors to this project continues to grow (which I’m ver
 
 ## Bug fixes
 
-- Fixed a bug that prevented import trails from appearing in map view
+- Fixes a bug that prevented import trails from appearing in map view
 
 ## Translations
 
@@ -606,7 +711,7 @@ As the number of contributors to this project continues to grow (which I’m ver
   
 ## Bug fixes
 
-- fixed a bug that would show a wrong date for summit logs for certain time zones
+- Fixes a bug that would show a wrong date for summit logs for certain time zones
 - added client side validation for usernames
 
 ## Translations
@@ -618,7 +723,7 @@ As the number of contributors to this project continues to grow (which I’m ver
 ## Bug fixes
 
 - summit book dates now show in the correct format for the current locale
-- fixed a bug that would overwrite trail names and descriptions when editing a trail
+- Fixes a bug that would overwrite trail names and descriptions when editing a trail
 
 ## Translations
 
@@ -647,10 +752,10 @@ As the number of contributors to this project continues to grow (which I’m ver
 # v0.1.1
 ## Bug fixes
 
-- fixed a bug that would prevent trails longer than 20km from being displayed
+- Fixes a bug that would prevent trails longer than 20km from being displayed
 - added BODY_SIZE_LIMIT env variable to docker compose to allow for bigger file uploads
-- fixed a bug that caused only 5 trails to be shown at a time
-- fixed a bug that would cause waypoints not to be deleted from the backend
+- Fixes a bug that caused only 5 trails to be shown at a time
+- Fixes a bug that would cause waypoints not to be deleted from the backend
 - updated the default docker-compose.yml to include a secure MEILI_MASTER_KEY
 - the default location field now sets the value correctly after clicking on a search result
   

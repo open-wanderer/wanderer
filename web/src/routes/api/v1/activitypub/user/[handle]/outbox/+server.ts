@@ -11,6 +11,40 @@ import type { APActivity, APOrderedCollectionPage, APRoot } from 'activitypub-ty
 import type { ListResult } from 'pocketbase';
 
 
+/**
+ * @swagger
+ * /api/v1/activitypub/user/{handle}/outbox:
+ *   get:
+ *     summary: Get ActivityPub outbox collection
+ *     description: Retrieves an OrderedCollection paginated list of activities published by this user
+ *     tags:
+ *       - ActivityPub
+ *     parameters:
+ *       - in: path
+ *         name: handle
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: perPage
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: ActivityPub OrderedCollectionPage
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
 
 
@@ -28,7 +62,7 @@ export async function GET(event: RequestEvent) {
         const [username, domain] = splitUsername(fullUsername, env.ORIGIN)
 
 
-        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`preferred_username:lower='${username?.toLowerCase()}'&&isLocal=true`)
+        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`preferred_username:lower='${username?.toLowerCase()}'&&is_local=true`)
 
         const filter = `actor='${actor.iri}'&&type='Create'${safeSearchParams.filter ? '&&' + safeSearchParams.filter : ''}`
         const activities: ListResult<Activity> = await event.locals.pb.collection("activitypub_activities").getList(page, perPage, { sort: safeSearchParams.sort ?? "-created", filter })

@@ -28,7 +28,12 @@ export default defineConfig({
         {
           base: 'api-reference',
           label: 'API Reference',
-          schema: 'wanderer.openapi.yaml',
+          schema: 'wanderer.openapi.json',
+          sidebar: {
+            operations: {
+              
+            }
+          }
         },
       ]),
     ],
@@ -43,12 +48,20 @@ export default defineConfig({
           label: 'Authentication',
           link: '/use/authentication/'
         }, {
-          label: 'Create a trail',
+          label: 'Create/Edit a trail',
           link: '/use/create-a-trail/'
+        },
+        {
+          label: 'Categories',
+          link: '/use/categories/'
         },
         {
           label: 'Summit logs',
           link: '/use/summit-logs/'
+        },
+        {
+          label: 'Merge trails',
+          link: '/use/merge-trails/'
         },
         {
           label: 'Interact with the community',
@@ -74,8 +87,8 @@ export default defineConfig({
           link: '/use/import-export/'
         },
         {
-          label: 'Integrations',
-          link: '/use/integrations/'
+          label: 'Plugins',
+          link: '/use/plugins/'
         },
         ]
       },
@@ -85,9 +98,10 @@ export default defineConfig({
           {
             label: 'Installation',
             items: [
-                { label: 'Quickstart', link: '/run/installation/quick' },
-                { label: 'Manual Docker Setup', link: '/run/installation/docker' },
-                { label: 'Install from Source', link: '/run/installation/from-source' },
+              { label: 'Quickstart', link: '/run/installation/quick' },
+              { label: 'Manual Docker Setup', link: '/run/installation/docker' },
+              { label: 'Install from Source', link: '/run/installation/from-source' },
+              { label: 'Plugin installation', link: '/run/installation/plugins' },
             ]
           },
           {
@@ -127,6 +141,10 @@ export default defineConfig({
           {
             label: 'Federation',
             link: '/develop/federation/'
+          },
+          {
+            label: 'Plugin System',
+            link: '/develop/plugin-system/'
           },
         ]
       },

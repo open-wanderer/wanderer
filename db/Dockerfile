@@ -28,19 +28,21 @@ RUN set -eux ; \
     tar -xJf /tmp/curl.tar.xz -C /tmp ; \
     chmod +x /tmp/curl ;
 
-FROM golang:1.24.0@sha256:3f7444391c51a11a039bf0359ee81cc64e663c17d787ad0e637a4de1a3f62a71 AS build
+FROM golang:1.25.0@sha256:5502b0e56fca23feba76dbc5387ba59c593c02ccc2f0f7355871ea9a0852cebe AS build
 
 WORKDIR /app
 
 COPY . .
 
 RUN go mod download
-RUN CGO_ENABLED=0 go build -o /app/pocketbase
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/pocketbase
+RUN install -d -m 1777 /rootfs/tmp
 
 FROM scratch
 
 WORKDIR /
 
+COPY --from=build /rootfs/ /
 COPY --from=build /app/pocketbase /pocketbase
 COPY --from=build /etc/ssl/certs /etc/ssl/certs
 COPY --from=download-env /tmp/curl /curl

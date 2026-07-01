@@ -21,11 +21,13 @@
         },
         { text: $_("notifications"), value: "/settings/notifications" },
         { text: $_("map"), value: "/settings/map" },
-        { text: $_("integrations"), value: "/settings/integrations" },
+        { text: $_("categories"), value: "/settings/categories" },
+        { text: $_("plugins"), value: "/settings/plugins" },
+        { text: $_("similar-trails"), value: "/settings/maintenance/similar-trails" },
         { text: `${$_("import")}/${$_("export")}`, value: "/settings/export" },
         {
             text: $_("help"),
-            value: "https://wanderer.to/run/installation",
+            value: "https://wanderer.to/run/installation/quick",
         },
     ];
 

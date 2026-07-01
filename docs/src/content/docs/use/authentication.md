@@ -47,6 +47,21 @@ If your instance offers OAuth logins, the enabled providers appear in <span clas
 
 For instructions on enabling OAuth2 providers for your own instance, see the [OAuth2 setup guide](/run/backend-configuration/oauth2/).
 
+## API Tokens
+
+API tokens allow external tools and automated processes to interact with your <span class="-tracking-[0.075em]">wanderer</span> account without requiring your login credentials.
+
+:::danger
+API tokens grant full access to your account. Do not share them with untrusted parties.
+:::
+
+To manage your tokens:
+1. Log in to your <span class="-tracking-[0.075em]">wanderer</span> instance.
+2. Navigate to **Settings** > **Account** > **API Tokens**.
+3. Click **Generate new token**, provide a descriptive name and optionally an expiration date and click "Save".
+4. **Copy the token immediately.** For security, it will not be shown again.
+
+
 ## Forgot your password?
 <span class="-tracking-[0.075em]">wanderer</span> offers the option to send password reset emails in case a user forgets his password.
 You can click the "Forgot password" link in the login form. After requesting the reset the user will receive an email with a unique link to reset their password.

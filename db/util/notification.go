@@ -61,7 +61,7 @@ func SendNotification(app core.App, notification Notification, recipient *core.R
 	if notification.Author == recipient.Id {
 		return nil
 	}
-	if !recipient.GetBool("isLocal") {
+	if !recipient.GetBool("is_local") {
 		return nil
 	}
 	permissions, err := getNotificationPermissions(app, recipient.GetString("user"), notification.Type)

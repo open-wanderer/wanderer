@@ -1,5 +1,6 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
+    import { page } from "$app/state";
     import type { List } from "$lib/models/list";
     import type { Trail } from "$lib/models/trail";
     import {
@@ -8,21 +9,44 @@
         lists_remove_trail,
     } from "$lib/stores/list_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { trails_delete } from "$lib/stores/trail_store";
+    import {
+        trails_delete,
+        trails_show,
+        trails_update,
+    } from "$lib/stores/trail_store";
     import { currentUser } from "$lib/stores/user_store";
+    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
     import { getFileURL, saveAs } from "$lib/util/file_util";
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
     import JSZip from "jszip";
+    import { type Snippet } from "svelte";
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
     import ConfirmModal from "../confirm_modal.svelte";
     import ListSearchModal from "../list/list_search_modal.svelte";
     import TrailExportModal from "./trail_export_modal.svelte";
+    import TrailBulkEditModal, {
+        type TrailBulkEditChanges,
+    } from "./trail_bulk_edit_modal.svelte";
+    import TrailSendModal from "./trail_send_modal.svelte";
     import TrailShareModal from "./trail_share_modal.svelte";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
-    import type { Snippet } from "svelte";
-    import { page } from "$app/state";
+    import {
+        mergeStore,
+        processMergeQueue,
+        type Merge,
+    } from "$lib/stores/trail_merge_store.svelte";
+    import TrailMergeModal from "./trail_merge_modal.svelte";
+    import type { MergeSelection, MergeSettings } from "./trail_merge_modal.svelte";
+    import MergeDialog from "$lib/components/trail/trail_merge_dialog.svelte";
+    import { trail_merge } from "$lib/stores/trail_merge_api";
+    import { hasSendCapablePlugin } from "$lib/stores/plugin_store";
+
+    export interface MergeResult {
+        targetTrail: Trail;
+        deletedTrailIds: string[];
+        successfulMergeCount: number;
+    }
 
     interface Props {
         trails?: Set<Trail> | undefined;
@@ -30,32 +54,297 @@
         toggle?: Snippet<[any]>;
         onDelete?: () => void;
         onShare?: () => void;
+        onUpdate?: (updatedTrails?: Trail[]) => void;
+        onMerge?: (result: MergeResult) => void;
     }
 
-    let { trails, mode, toggle, onDelete, onShare }: Props = $props();
+    let { trails, mode, toggle, onDelete, onShare, onUpdate, onMerge }: Props = $props();
 
     let confirmModal: ConfirmModal;
     let listSelectModal: ListSearchModal;
     let trailExportModal: TrailExportModal;
+    let trailSendModal: TrailSendModal;
     let trailShareModal: TrailShareModal;
+    let trailMergeModal: TrailMergeModal;
+    let trailBulkEditModal: TrailBulkEditModal;
 
     let lists: List[] = $state([]);
+
+    let loading: boolean = $state(false);
+
+    function canEditTrail(candidate: Trail | undefined): boolean {
+        if (!candidate || !$currentUser) {
+            return false;
+        }
+
+        return (
+            candidate.expand?.author?.id === $currentUser.actor ||
+            Boolean(
+                candidate.expand?.trail_share_via_trail?.some(
+                    (s) =>
+                        s.permission == "edit" &&
+                        s.actor == $currentUser.actor,
+                ),
+            )
+        );
+    }
+
+    function getMergeTarget(): Trail | undefined {
+        if (!trails || trails.size === 0) {
+            return undefined;
+        }
+
+        for (const candidate of trails) {
+            if (
+                candidate.expand?.summit_logs_via_trail &&
+                candidate.expand.summit_logs_via_trail.length > 0
+            ) {
+                return candidate;
+            }
+        }
+
+        return [...trails][0];
+    }
 
     function allowEdit(): boolean {
         return (
             hasTrail() &&
             !isMultiselectMode() &&
-            Boolean($currentUser) &&
-            (trail()!.expand?.author?.id === $currentUser?.actor ||
-                trail()!.expand?.trail_share_via_trail?.some(
-                    (s) => s.permission == "edit",
-                ))!
+            canEditTrail(trail())
         );
     }
 
+    function allowMerge(): boolean {
+        if (!hasTrail() || !isMultiselectMode() || !Boolean($currentUser)) {
+            return false;
+        }
+
+        const targetTrail = getMergeTarget();
+        if (!canEditTrail(targetTrail)) {
+            return false;
+        }
+
+        for (const cTrail of trails ?? []) {
+            if (cTrail.id === targetTrail?.id) {
+                continue;
+            }
+
+            if (!allowDeleteTrail(cTrail)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function allowFindSimilarTrails(): boolean {
+        return hasTrail() && !isMultiselectMode() && Boolean($currentUser) && hasGpx() && isFromCurrentUser(trail());
+    }
+
+    function majorityOfSelectedTrailsArePublic(): boolean {
+        if (trails === undefined || trails.size === 0) return false;
+
+        if (!Boolean($currentUser)) return false;
+
+        let publicCount = 0;
+
+        for (const cTrail of trails) {
+            if (!canEditTrail(cTrail)) {
+                return false;
+            }
+
+            if (cTrail.public) {
+                publicCount += 1;
+            }
+        }
+        return publicCount >= trails.size / 2;
+    }
+
+    function allowCopy(): boolean {
+        if ((trails?.size ?? 0) > 1) return false;
+
+        return !isMultiselectMode();
+    }
+
+    function allowSend(): boolean {
+        return (
+            hasTrail() &&
+            !isMultiselectMode() &&
+            hasGpx() &&
+            Boolean($currentUser) &&
+            $hasSendCapablePlugin
+        );
+    }
+
+    function allowPublish(): boolean {
+        if (mode !== "multi-select") return false;
+
+        if (trails === undefined || trails.size === 0) return false;
+
+        if (!Boolean($currentUser)) {
+            return false;
+        }
+
+        for (const cTrail of trails) {
+            if (!canEditTrail(cTrail)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function allowBulkEdit(): boolean {
+        return allowPublish();
+    }
+
+    function selectedCategorySelection():
+        | TrailBulkEditChanges["category"]
+        | undefined {
+        if (!trails || trails.size === 0) {
+            return undefined;
+        }
+
+        const selectedTrails = [...trails];
+        const firstCategory =
+            selectedTrails[0]?.category ??
+            selectedTrails[0]?.expand?.category?.id ??
+            selectedTrails[0]?.expand?.subcategory?.category ??
+            "";
+        const firstSubcategory =
+            selectedTrails[0]?.subcategory ??
+            selectedTrails[0]?.expand?.subcategory?.id ??
+            "";
+
+        if (!firstCategory) {
+            return undefined;
+        }
+
+        const allSame = selectedTrails.every((candidate) => {
+            const category =
+                candidate.category ??
+                candidate.expand?.category?.id ??
+                candidate.expand?.subcategory?.category ??
+                "";
+            const subcategory =
+                candidate.subcategory ?? candidate.expand?.subcategory?.id ?? "";
+
+            return (
+                category === firstCategory &&
+                subcategory === firstSubcategory
+            );
+        });
+
+        if (!allSame) {
+            return undefined;
+        }
+
+        return {
+            category: firstCategory,
+            subcategory: firstSubcategory,
+        };
+    }
+
+    function selectedDifficulty():
+        | TrailBulkEditChanges["difficulty"]
+        | undefined {
+        if (!trails || trails.size === 0) {
+            return undefined;
+        }
+
+        const selectedTrails = [...trails];
+        const firstDifficulty = selectedTrails[0]?.difficulty;
+        if (!firstDifficulty) {
+            return undefined;
+        }
+
+        if (
+            !selectedTrails.every(
+                (candidate) => candidate.difficulty === firstDifficulty,
+            )
+        ) {
+            return undefined;
+        }
+
+        return firstDifficulty;
+    }
+
     function dropdownItems(): DropdownItem[] {
+        const separator = (value: string): DropdownItem => ({
+            text: "",
+            value,
+            separator: true,
+        });
+        const allowListManagement = isFromCurrentUser();
+        const allowShareSingleTrail = !isMultiselectMode() && isFromCurrentUser();
+        const allowSingleOutput = canExport();
+
+        if (isMultiselectMode()) {
+            return [
+                ...(allowBulkEdit()
+                    ? [
+                          {
+                              text: $_("adjust"),
+                              value: "bulk-edit",
+                              icon: "pen",
+                          },
+                      ]
+                    : []),
+                ...(allowMerge()
+                    ? [{ text: $_("link"), value: "merge", icon: "link" }]
+                    : []),
+                ...((allowBulkEdit() || allowMerge()) &&
+                (canExport() || allowListManagement || allowPublish() || allowDelete())
+                    ? [separator("sep-multi-actions")]
+                    : []),
+                ...(canExport()
+                    ? [
+                          {
+                              text: $_("export"),
+                              value: "download",
+                              icon: "download",
+                          },
+                      ]
+                    : []),
+                ...(!allowListManagement
+                    ? []
+                    : [
+                          {
+                              text: $_("add-to-list"),
+                              value: "list",
+                              icon: "bookmark",
+                          },
+                      ]),
+                ...(((canExport() || allowListManagement) && (allowPublish() || allowDelete()))
+                    ? [separator("sep-multi-visibility")]
+                    : []),
+                ...(allowPublish()
+                    ? [
+                          {
+                              text: `${majorityOfSelectedTrailsArePublic() ? $_("set-private") : $_("set-public")}`,
+                              value: "publish",
+                              icon: majorityOfSelectedTrailsArePublic()
+                                  ? "lock"
+                                  : "globe",
+                          },
+                      ]
+                    : []),
+                ...(allowDelete()
+                    ? [
+                          separator("sep-multi-danger"),
+                          {
+                              text: $_("delete"),
+                              value: "delete",
+                              icon: "trash",
+                              danger: true,
+                          },
+                      ]
+                    : []),
+            ];
+        }
+
         return [
-            ...(!isMultiselectMode()
+            ...(hasTrail()
                 ? [
                       mode == "overview" || mode == "multi-select"
                           ? {
@@ -68,10 +357,77 @@
                                 value: "show",
                                 icon: "table-columns",
                             },
+                      {
+                          text: $_("directions"),
+                          value: "direction",
+                          icon: "car",
+                      },
                   ]
                 : []),
-            ...(!isMultiselectMode()
-                ? [{ text: $_("directions"), value: "direction", icon: "car" }]
+            ...((hasTrail() && (allowEdit() || allowFindSimilarTrails() || allowCopy()))
+                ? [separator("sep-single-edit")]
+                : []),
+            ...(allowEdit()
+                ? [
+                      {
+                          text: $_("edit"),
+                          value: "edit",
+                          icon: "pen",
+                      },
+                  ]
+                : []),
+            ...(allowFindSimilarTrails()
+                ? [
+                      {
+                          text: $_("find-similar-trails"),
+                          value: "find-similar-trails",
+                          icon: "link",
+                      },
+                  ]
+                : []),
+            ...(allowCopy()
+                ? [
+                      {
+                          text: $_("duplicate"),
+                          value: "copy",
+                          icon: "copy",
+                      },
+                  ]
+                : []),
+            ...((allowListManagement || allowShareSingleTrail || allowPublish())
+                ? [separator("sep-single-organize")]
+                : []),
+            ...(!allowListManagement
+                ? []
+                : [
+                      {
+                          text: $_("add-to-list"),
+                          value: "list",
+                          icon: "bookmark",
+                      },
+                  ]),
+            ...(!allowShareSingleTrail
+                ? []
+                : [
+                      {
+                          text: $_("share"),
+                          value: "share",
+                          icon: "share",
+                      },
+                  ]),
+            ...(allowPublish()
+                ? [
+                      {
+                          text: `${majorityOfSelectedTrailsArePublic() ? $_("set-private") : $_("set-public")}`,
+                          value: "publish",
+                          icon: majorityOfSelectedTrailsArePublic()
+                              ? "lock"
+                              : "globe",
+                      },
+                  ]
+                : []),
+            ...((allowSingleOutput || allowDelete())
+                ? [separator("sep-single-output")]
                 : []),
             ...(canExport()
                 ? [
@@ -82,26 +438,34 @@
                       },
                   ]
                 : []),
-            ...(!isMultiselectMode()
-                ? [{ text: $_("print"), value: "print", icon: "print" }]
-                : []),
-            ...(!isFromCurrentUser()
-                ? []
-                : [
+            ...(allowSend()
+                ? [
                       {
-                          text: $_("add-to-list"),
-                          value: "list",
-                          icon: "bookmark",
+                          text: $_("send-to"),
+                          value: "send-to",
+                          icon: "upload",
                       },
-                  ]),
-            ...(isMultiselectMode() || !isFromCurrentUser()
-                ? []
-                : [{ text: $_("share"), value: "share", icon: "share" }]),
-            ...(allowEdit()
-                ? [{ text: $_("edit"), value: "edit", icon: "pen" }]
+                  ]
+                : []),
+            ...(!isMultiselectMode()
+                ? [
+                      {
+                          text: $_("print"),
+                          value: "print",
+                          icon: "print",
+                      },
+                  ]
                 : []),
             ...(allowDelete()
-                ? [{ text: $_("delete"), value: "delete", icon: "trash" }]
+                ? [
+                      separator("sep-single-danger"),
+                      {
+                          text: $_("delete"),
+                          value: "delete",
+                          icon: "trash",
+                          danger: true,
+                      },
+                  ]
                 : []),
         ];
     }
@@ -174,19 +538,20 @@
             return;
         }
 
-        const handle = page.params.handle ?? handleFromRecordWithIRI(trail())
+        const handle = page.params.handle ?? handleFromRecordWithIRI(trail());
 
-        if (item.value == "show") {
+        const ddVal = item.value as string;
+
+        if (ddVal == "show") {
             if (hasTrail()) {
-                const url = mode == "overview" || mode == "multi-select"
+                const url =
+                    mode == "overview" || mode == "multi-select"
                         ? `/map/trail/${handle}/${trailId()}`
-                        : `/trail/view/${handle}/${trailId()}`
-                
-                goto(
-                    url + '?' + page.url.searchParams
-                );
+                        : `/trail/view/${handle}/${trailId()}`;
+
+                goto(url + "?" + page.url.searchParams);
             }
-        } else if (item.value == "list") {
+        } else if (ddVal == "list") {
             lists = (
                 await lists_index(
                     { q: "", author: $currentUser?.actor ?? "" },
@@ -195,7 +560,7 @@
                 )
             ).items;
             listSelectModal.openModal();
-        } else if (item.value == "direction") {
+        } else if (ddVal == "direction") {
             if (hasTrail()) {
                 window
                     .open(
@@ -204,21 +569,192 @@
                     )
                     ?.focus();
             }
-        } else if (item.value == "print") {
+        } else if (ddVal == "print") {
             if (hasTrail()) {
-                goto(`/map/trail/${handle}/${trailId()}/print?${page.url.searchParams}`);
+                goto(
+                    `/map/trail/${handle}/${trailId()}/print?${page.url.searchParams}`,
+                );
             }
-        } else if (item.value == "share") {
+        } else if (ddVal == "share") {
             trailShareModal.openModal();
-        } else if (item.value == "download") {
+        } else if (ddVal == "send-to") {
+            trailSendModal.openModal();
+        } else if (ddVal == "download") {
             trailExportModal.openModal();
-        } else if (item.value == "edit") {
+        } else if (ddVal == "edit") {
             if (hasTrail()) {
                 goto(`/trail/edit/${trailId()}`);
             }
-        } else if (item.value == "delete") {
+        } else if (ddVal == "copy") {
+            if (hasTrail()) {
+                goto("/trail/edit/new?orig=" + trail()?.id);
+            }
+        } else if (ddVal == "publish") {
+            updateTrailsVisibility();
+        } else if (ddVal == "bulk-edit") {
+            trailBulkEditModal.openModal();
+        } else if (ddVal == "delete") {
             confirmModal.openModal();
+        } else if (item.value == "merge") {
+            await trailMergeModal.openModal(Array.from(trails ?? []));
+        } else if (item.value == "find-similar-trails") {
+            if (trail()) {
+                await trailMergeModal.openSimilarTrailsModal(trail()!);
+            }
         }
+    }
+
+    async function mergeTrails(settings: MergeSettings, selection: MergeSelection) {  
+        let trailTarget = selection.targetTrail;
+        if (!trailTarget.id) {
+            return;
+        }
+
+        if (!trailTarget.expand) {
+            trailTarget = await trails_show(trailTarget.id);
+        }
+
+        for (const t of selection.sourceTrails) {
+            if (t.id === trailTarget.id) continue;
+
+            const u: Merge = {
+                trailTarget: trailTarget,
+                trailSource: t,
+                progress: 0,
+                status: "enqueued",
+                settings: settings,
+                function: trails_merge_backend
+            };
+            mergeStore.enqueuedMerges.push(u);
+        }
+
+        const completedBeforeRun = mergeStore.completedMerges.length;
+        await processMergeQueue();
+        const completedThisRun = mergeStore.completedMerges.slice(completedBeforeRun);
+        const successfulMerges = completedThisRun.filter(
+            (merge) => merge.status === "success",
+        );
+        const successfulThisRun = successfulMerges.length;
+
+        if (settings.delete && successfulThisRun > 0) {
+            onMerge?.({
+                targetTrail: trailTarget,
+                deletedTrailIds: successfulMerges
+                    .map((merge) => merge.trailSource.id)
+                    .filter((id): id is string => Boolean(id)),
+                successfulMergeCount: successfulThisRun,
+            });
+        }
+    }
+
+    async function trails_merge_backend(trailTarget: Trail, trailSource: Trail, settings: MergeSettings, onProgress?: (progress: number) => void) {
+        if (!trailTarget.id || !trailSource.id) {
+            throw new Error($_("error-merging-trail"));
+        }
+
+        onProgress?.(0.2);
+        await trail_merge(trailSource.id, trailTarget.id, settings);
+        onProgress?.(1);
+    }
+    async function updateTrailsVisibility() {
+        const newVisibility = !majorityOfSelectedTrailsArePublic();
+
+        loading = true;
+        for (const cTrail of trails ?? []) {
+            if (!cTrail) continue;
+
+            if (!cTrail.expand?.author?.id) continue;
+
+            const origTrail: Trail = {
+                ...cTrail,
+                author: cTrail.expand!.author!.id,
+            };
+            const updatedTrail: Trail = {
+                ...origTrail,
+                public: newVisibility,
+            };
+
+            try {
+                await trails_update(
+                    origTrail,
+                    updatedTrail,
+                    undefined,
+                    undefined,
+                    ["tags", "category"],
+                );
+            } catch (e) {
+                console.error(e);
+
+                show_toast({
+                    type: "error",
+                    icon: "close",
+                    text: `${$_("error-saving-trail")}: ${cTrail.name}`,
+                });
+            }
+        }
+
+        loading = false;
+        onUpdate?.();
+    }
+
+    async function updateTrailsBulk(changes: TrailBulkEditChanges) {
+        loading = true;
+        let updatedCount = 0;
+        const updatedTrails: Trail[] = [];
+
+        for (const cTrail of trails ?? []) {
+            if (!cTrail || !canEditTrail(cTrail)) continue;
+            if (!cTrail.expand?.author?.id) continue;
+
+            const origTrail: Trail = {
+                ...cTrail,
+                author: cTrail.expand.author.id,
+            };
+            const updatedTrail: Trail = {
+                ...origTrail,
+                ...(changes.category
+                    ? {
+                          category: changes.category.category,
+                          subcategory: changes.category.subcategory,
+                      }
+                    : {}),
+                ...(changes.difficulty
+                    ? { difficulty: changes.difficulty }
+                    : {}),
+            };
+
+            try {
+                const updated = await trails_update(
+                    origTrail,
+                    updatedTrail,
+                    undefined,
+                    undefined,
+                    ["tags"],
+                );
+                updatedTrails.push(updated);
+                updatedCount += 1;
+            } catch (e) {
+                console.error(e);
+
+                show_toast({
+                    type: "error",
+                    icon: "close",
+                    text: `${$_("error-saving-trail")}: ${cTrail.name}`,
+                });
+            }
+        }
+
+        loading = false;
+        if (updatedCount > 0) {
+            show_toast({
+                type: "success",
+                icon: "check",
+                text: $_("bulk-edit-updated-trails", {
+                    values: { n: updatedCount },
+                }),
+            });
+        }
+        onUpdate?.(updatedTrails);
     }
 
     async function exportTrails(exportSettings: {
@@ -308,9 +844,12 @@
 
     async function deleteTrails() {
         if (hasTrail()) {
+            loading = true;
+
             for (const dTrail of trails!) {
                 await doDeleteTrail(dTrail);
             }
+            loading = false;
 
             onDelete?.();
         }
@@ -407,7 +946,11 @@
     {#snippet children({ toggleMenu: openDropdown })}
         {#if toggle}{@render toggle({
                 toggleMenu: openDropdown,
-            })}{:else if mode == "multi-select"}
+            })}
+        {:else if loading}
+            <div class:w-16={isMultiselectMode()}></div>
+            <div class="spinner light:spinner-dark"></div>
+        {:else if mode == "multi-select"}
             <button
                 aria-label="Open dropdown"
                 class="btn-primary shrink-0 font-medium!"
@@ -451,3 +994,21 @@
     onsave={handleShareUpdate}
     bind:this={trailShareModal}
 ></TrailShareModal>
+<TrailSendModal
+    trail={trail()}
+    share={page.url.searchParams.get("share") ?? undefined}
+    bind:this={trailSendModal}
+></TrailSendModal>
+<TrailMergeModal
+    bind:this={trailMergeModal}
+    onmerge={(settings, selection) => mergeTrails(settings, selection)}
+></TrailMergeModal>
+<TrailBulkEditModal
+    selectedCount={trails?.size ?? 0}
+    initialCategorySelection={selectedCategorySelection()}
+    initialDifficulty={selectedDifficulty()}
+    bind:this={trailBulkEditModal}
+    onapply={(changes) => updateTrailsBulk(changes)}
+></TrailBulkEditModal>
+
+<MergeDialog/>

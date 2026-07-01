@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -14,14 +12,13 @@ import (
 	"pocketbase/util"
 
 	pub "github.com/go-ap/activitypub"
-	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"golang.org/x/net/html"
 )
 
-func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, typ pub.ActivityVocabularyType) error {
+func CreateTrailActivity(app core.App, ctx context.Context, trail *core.Record, typ pub.ActivityVocabularyType) error {
 	if !trail.GetBool("public") {
 		// only broadcast the trail if it is public
 		return nil
@@ -46,7 +43,7 @@ func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, t
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
 
-	mentionedActors, handles, err := ActorsFromMentions(app, actor, trail.GetString("description"))
+	mentionedActors, err := ActorsFromMentions(app, ctx, trail.GetString("description"))
 	if err != nil {
 		return err
 	}
@@ -54,11 +51,11 @@ func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, t
 	mentions := []string{}
 	cc := pub.ItemCollection{pub.IRI(trailAuthor.GetString("followers"))}
 	tags := pub.ItemCollection{}
-	for i, m := range mentionedActors {
+	for _, m := range mentionedActors {
 		inbox := m.GetString("inbox")
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
-		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, handles[i]))
+		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, fmt.Sprintf("@%s@%s", m.GetString("preferred_username"), m.GetString("domain"))))
 		tags.Append(mention)
 
 		mentions = append(mentions, inbox)
@@ -91,24 +88,16 @@ func CreateTrailActivity(app core.App, actor *core.Record, trail *core.Record, t
 		return err
 	}
 
-	follows, err := app.FindRecordsByFilter("follows", "followee={:followee}&&status='accepted'", "", -1, 0, dbx.Params{"followee": trailAuthor.Id})
+	inboxes, err := followerInboxes(app, trailAuthor.Id)
 	if err != nil {
 		return err
 	}
-
-	recipients := mentions
-	for _, f := range follows {
-		follower, err := app.FindRecordById("activitypub_actors", f.GetString("follower"))
-		if err != nil {
-			return err
-		}
-		recipients = append(recipients, follower.GetString("inbox"))
-	}
+	recipients := append(mentions, inboxes...)
 
 	return PostActivity(app, trailAuthor, activity, recipients)
 }
 
-func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Record, typ pub.ActivityVocabularyType) error {
+func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Record, typ pub.ActivityVocabularyType) error {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
@@ -134,16 +123,16 @@ func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Recor
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, activityRecordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
 
-	mentionedActors, handles, err := ActorsFromMentions(app, actor, comment.GetString("text"))
+	mentionedActors, err := ActorsFromMentions(app, ctx, comment.GetString("text"))
 	if err != nil {
 		return err
 	}
 	recipients := []string{}
 	tags := pub.ItemCollection{}
-	for i, m := range mentionedActors {
+	for _, m := range mentionedActors {
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
-		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, handles[i]))
+		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, fmt.Sprintf("@%s@%s", m.GetString("preferred_username"), m.GetString("domain"))))
 		tags.Append(mention)
 
 		recipients = append(recipients, m.GetString("inbox"))
@@ -193,7 +182,7 @@ func CreateCommentActivity(app core.App, actor *core.Record, comment *core.Recor
 
 }
 
-func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.Record, typ pub.ActivityVocabularyType) error {
+func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.Record, typ pub.ActivityVocabularyType) error {
 
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -228,12 +217,7 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 	}
 
 	var trailIRI pub.IRI
-	if summitLogTrailAuthor.GetBool("isLocal") {
-		trailId := summitLog.GetString("trail")
-		trailIRI = pub.IRI(fmt.Sprintf("%s/api/v1/trail/%s", origin, trailId))
-	} else {
-		trailIRI = pub.IRI(summitLogTrail.GetString("iri"))
-	}
+	trailIRI = pub.IRI(summitLogTrail.GetString("iri"))
 
 	recordId := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
 
@@ -245,7 +229,7 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 		to.Append(pub.IRI(summitLogTrailAuthor.GetString("iri")))
 	}
 
-	mentionedActors, handles, err := ActorsFromMentions(app, actor, summitLog.GetString("text"))
+	mentionedActors, err := ActorsFromMentions(app, ctx, summitLog.GetString("text"))
 	if err != nil {
 		return err
 	}
@@ -253,11 +237,11 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 	mentions := []string{}
 	cc := pub.ItemCollection{pub.IRI(summitLogAuthor.GetString("followers"))}
 	mentionTags := pub.ItemCollection{}
-	for i, m := range mentionedActors {
+	for _, m := range mentionedActors {
 		inbox := m.GetString("inbox")
 		mention := pub.MentionNew(pub.IRI(m.GetString("iri")))
 		mention.Href = pub.IRI(m.GetString("iri"))
-		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, handles[i]))
+		mention.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, fmt.Sprintf("@%s@%s", m.GetString("preferred_username"), m.GetString("domain"))))
 		mentionTags.Append(mention)
 
 		mentions = append(mentions, inbox)
@@ -271,15 +255,14 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 		gpx = fmt.Sprintf("%s/api/v1/files/summit_logs/%s/%s", origin, summitLog.Id, summitLog.GetString("gpx"))
 	}
 
-	attachments := make(pub.ItemCollection, max(len(photos), 2))
+	attachments := make(pub.ItemCollection, 0, len(photos)+1)
 	for i := range len(photos) {
 		iri := fmt.Sprintf("%s/api/v1/files/summit_logs/%s/%s", origin, summitLog.Id, photos[i])
-
-		attachments[i] = pub.Document{
+		attachments.Append(pub.Document{
 			Type:      pub.ImageType,
 			MediaType: "image/jpeg",
 			URL:       pub.IRI(iri),
-		}
+		})
 	}
 	if gpx != "" {
 		attachments.Append(pub.Document{
@@ -321,7 +304,7 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 	logObject.Content = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, summitLog.GetString("text")))
 	logObject.AttributedTo = pub.IRI(summitLogAuthor.GetString("iri"))
 	logObject.Published = summitLog.GetDateTime("created").Time()
-	logObject.ID = pub.IRI(fmt.Sprintf("%s/api/v1/summit-log/%s", origin, summitLog.Id))
+	logObject.ID = pub.IRI(summitLog.GetString("iri"))
 	logObject.URL = pub.IRI(fmt.Sprintf("%s/trail/view/@%s/%s", origin, summitLogTrailAuthor.GetString("preferred_username"), summitLog.GetString("trail")))
 	logObject.InReplyTo = trailIRI
 	logObject.Tag = tags
@@ -335,20 +318,11 @@ func CreateSummitLogActivity(app core.App, actor *core.Record, summitLog *core.R
 	activity.CC = cc
 	activity.Published = time.Now()
 
-	follows, err := app.FindRecordsByFilter("follows", "followee={:followee}&&status='accepted'", "", -1, 0, dbx.Params{"followee": summitLogAuthor.Id})
+	inboxes, err := followerInboxes(app, summitLogAuthor.Id)
 	if err != nil {
 		return err
 	}
-
-	recipients := mentions
-
-	for _, f := range follows {
-		follower, err := app.FindRecordById("activitypub_actors", f.GetString("follower"))
-		if err != nil {
-			return err
-		}
-		recipients = append(recipients, follower.GetString("inbox"))
-	}
+	recipients := append(mentions, inboxes...)
 
 	if summitLogAuthor.Id != summitLogTrailAuthor.Id {
 		recipients = append(recipients, summitLogTrailAuthor.GetString("inbox"))
@@ -412,18 +386,9 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 		return err
 	}
 
-	follows, err := app.FindRecordsByFilter("follows", "followee={:followee}&&status='accepted'", "", -1, 0, dbx.Params{"followee": listAuthor.Id})
+	recipients, err := followerInboxes(app, listAuthor.Id)
 	if err != nil {
 		return err
-	}
-
-	recipients := []string{}
-	for _, f := range follows {
-		follower, err := app.FindRecordById("activitypub_actors", f.GetString("follower"))
-		if err != nil {
-			return err
-		}
-		recipients = append(recipients, follower.GetString("inbox"))
 	}
 
 	err = PostActivity(app, listAuthor, activity, recipients)
@@ -476,7 +441,10 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 		return err
 	}
 
-	trailObject, _ := pub.ToObject(activity.Object)
+	trailObject, err := pub.ToObject(activity.Object)
+	if err != nil {
+		return err
+	}
 
 	for _, t := range trailObject.Tag {
 		if t.GetType() == pub.MentionType {
@@ -494,11 +462,11 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 				Seen:   false,
 				Author: actor.Id,
 			}
-			return util.SendNotification(app, notification, mentionedActor)
+			util.SendNotification(app, notification, mentionedActor)
 		}
 	}
 
-	return err
+	return nil
 }
 
 func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, actor *core.Record) error {
@@ -512,14 +480,8 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 		return fmt.Errorf("error processing comment: InReplyTo empty")
 	}
 
-	trailUrl, err := url.Parse(commentObject.InReplyTo.GetLink().String())
-	if err != nil {
-		return err
-	}
-	trailId := path.Base(trailUrl.Path)
-
 	var trail *core.Record
-	trail, err = app.FindFirstRecordByFilter("trails", "iri={:iri} || id={:id}", dbx.Params{"id": trailId, "iri": commentObject.InReplyTo.GetID().String()})
+	trail, err = app.FindFirstRecordByData("trails", "iri", commentObject.InReplyTo.GetLink().String())
 
 	// if the trail is not present on this instance fetch it
 	if err != nil {
@@ -544,7 +506,7 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 	}
 
 	// no need to do anything else if the actor is local
-	if actor.GetBool("isLocal") {
+	if actor.GetBool("is_local") {
 		return nil
 	}
 
@@ -591,7 +553,7 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 				Seen:   false,
 				Author: actor.Id,
 			}
-			return util.SendNotification(app, notification, mentionedActor)
+			util.SendNotification(app, notification, mentionedActor)
 		}
 	}
 	if activity.Type == pub.CreateType {
@@ -619,13 +581,7 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		return err
 	}
 
-	trailIRI, err := url.Parse(logObject.InReplyTo.GetID().String())
-	if err != nil {
-		return err
-	}
-	trailId := path.Base(trailIRI.Path)
-
-	trail, err := app.FindFirstRecordByFilter("trails", "iri={:iri} || id={:id}", dbx.Params{"id": trailId, "iri": logObject.InReplyTo.GetID().String()})
+	trail, err := app.FindFirstRecordByData("trails", "iri", logObject.InReplyTo.GetID().String())
 	// if the trail is not present on this instance fetch it
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -648,6 +604,11 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		return err
 	}
 
+	// no need to do anything else if the actor is local
+	if actor.GetBool("is_local") {
+		return nil
+	}
+
 	newSummitLog := false
 	record, err := app.FindFirstRecordByData("summit_logs", "iri", logObject.ID.String())
 	if err != nil {
@@ -662,10 +623,6 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		} else {
 			return err
 		}
-	}
-	// no need to do anything else if the actor is local
-	if actor.GetBool("isLocal") {
-		return nil
 	}
 
 	var distance, duration, elevation_gain, elevation_loss float64
@@ -725,17 +682,21 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 			}
 		}
 
-		if len(photoURLs) > 0 {
-			photos := make([]*filesystem.File, len(photoURLs))
-			for i, purl := range photoURLs {
+		if len(photoURLs) == 0 {
+			record.Set("photos", []*filesystem.File{})
+		} else {
+			photos := []*filesystem.File{}
+			for _, purl := range photoURLs {
 				photo, err := filesystem.NewFileFromURL(context.Background(), purl)
 				if err != nil {
 					continue
 				}
-				photos[i] = photo
+				photos = append(photos, photo)
 			}
 
-			record.Set("photos", photos)
+			if len(photos) > 0 {
+				record.Set("photos", photos)
+			}
 		}
 
 		if gpxURL != "" {
@@ -771,7 +732,7 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 				Seen:   false,
 				Author: actor.Id,
 			}
-			return util.SendNotification(app, notification, mentionedActor)
+			util.SendNotification(app, notification, mentionedActor)
 		}
 	}
 
@@ -807,10 +768,10 @@ func processCreateOrUpdateListActivity(activity pub.Activity, app core.App, acto
 	return err
 }
 
-func ActorsFromMentions(app core.App, actor *core.Record, htmlStr string) ([]*core.Record, []string, error) {
+func ActorsFromMentions(app core.App, ctx context.Context, htmlStr string) ([]*core.Record, error) {
 	doc, err := html.Parse(strings.NewReader(htmlStr))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var handles []string
@@ -842,12 +803,12 @@ func ActorsFromMentions(app core.App, actor *core.Record, htmlStr string) ([]*co
 	f(doc)
 
 	for _, h := range handles {
-		actor, err := GetActorByHandle(app, actor, h, false)
+		actor, err := GetActorByHandle(app, ctx, h, false)
 		if err != nil {
 			continue
 		}
 		actors = append(actors, actor)
 	}
 
-	return actors, handles, nil
+	return actors, nil
 }

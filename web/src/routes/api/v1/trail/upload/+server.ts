@@ -6,9 +6,43 @@ import { trails_create } from "$lib/stores/trail_store";
 import { handleError } from "$lib/util/api_util";
 import { fromFile, gpx2trail } from "$lib/util/gpx_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
-import type { Hits, MeiliSearch } from "meilisearch";
+import type { Hits, Meilisearch } from "meilisearch";
 import { ClientResponseError } from "pocketbase";
 
+/**
+ * @swagger
+ * /api/v1/trail/upload:
+ *   put:
+ *     summary: Upload and parse GPX file as trail
+ *     description: Uploads a GPX file, parses it to extract trail data, performs duplicate detection, and indexes in search
+ *     tags:
+ *       - Trails
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *               name:
+ *                 type: string
+ *               ignoreDuplicates:
+ *                 type: boolean
+ *     responses:
+ *       201:
+ *         description: Trail created from GPX
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Trail'
+ *       400:
+ *         description: Bad Request - Invalid or empty GPX file
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function PUT(event: RequestEvent) {
     try {
         const data = await event.request.formData();
@@ -41,8 +75,17 @@ export async function PUT(event: RequestEvent) {
         }
 
         if (trail.lat && trail.lon) {
-            const location = await searchLocationReverse(trail.lat, trail.lon)
-            trail.location ??= location;
+            try {
+                const location = await searchLocationReverse(
+                    trail.lat,
+                    trail.lon,
+                    {},
+                    event.fetch,
+                )
+                trail.location ??= location;
+            } catch (e: any) {
+                console.warn("Reverse geocoding failed during upload", e);
+            }
         }
 
         trail.public = event.locals.settings.privacy?.trails == "public"
@@ -73,7 +116,7 @@ export async function PUT(event: RequestEvent) {
     }
 }
 
-async function findDuplicate(ms: MeiliSearch, t1: Trail) {
+async function findDuplicate(ms: Meilisearch, t1: Trail) {
     const response = await ms.index("trails").search("", {});
 
     const trails: TrailSearchResult[] = response.hits as Hits<TrailSearchResult>

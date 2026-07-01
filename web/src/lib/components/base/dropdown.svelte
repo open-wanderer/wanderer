@@ -3,6 +3,8 @@
         text: string;
         value: any;
         icon?: string;
+        separator?: boolean;
+        danger?: boolean;
     };
 </script>
 
@@ -24,7 +26,7 @@
     let dropdownElement: HTMLUListElement | undefined = $state();
     let dropdownToggleElement: HTMLDivElement;
 
-    export async function toggleMenu(e: MouseEvent) {        
+    export async function toggleMenu(e: MouseEvent) {
         e.stopPropagation();
         e.preventDefault();
 
@@ -81,7 +83,10 @@
         isOpen = false;
     }
 
-    function handleItemClick(e: MouseEvent, item: { text: string; value: any }) {
+    function handleItemClick(
+        e: MouseEvent,
+        item: { text: string; value: any },
+    ) {
         e.preventDefault();
         e.stopPropagation();
         onchange?.(item);
@@ -127,16 +132,24 @@
             bind:this={dropdownElement}
         >
             {#each items as item}
-                <li
-                    class="menu-item flex items-center px-4 py-3 cursor-pointer hover:bg-menu-item-background-hover focus:bg-menu-item-background-focus transition-colors"
-                    role="presentation"
-                    onclick={(e) => handleItemClick(e, item)}
-                >
-                    {#if item.icon}
-                        <i class="fa fa-{item.icon} mr-3"></i>
-                    {/if}
-                    <span class="whitespace-nowrap">{item.text}</span>
-                </li>
+                {#if item.separator}
+                    <li class="px-3 py-2" role="separator" aria-hidden="true">
+                        <div class="border-t border-input-border"></div>
+                    </li>
+                {:else}
+                    <li
+                        class="menu-item flex items-center px-4 py-3 cursor-pointer hover:bg-menu-item-background-hover focus:bg-menu-item-background-focus transition-colors"
+                        class:hover:text-red-500={item.danger}
+                        class:focus:text-red-500={item.danger}
+                        role="presentation"
+                        onclick={(e) => handleItemClick(e, item as { text: string; value: any })}
+                    >
+                        {#if item.icon}
+                            <i class="fa fa-{item.icon} mr-3"></i>
+                        {/if}
+                        <span class="whitespace-nowrap">{item.text}</span>
+                    </li>
+                {/if}
             {/each}
         </ul>
     {/if}

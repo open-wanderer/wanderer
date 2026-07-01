@@ -28,6 +28,7 @@ export class ClusterLayer implements BaseLayer {
             "clusters": { ...this.listeners["clusters"], ...listeners?.["clusters"] },
             "unclustered-point": { ...this.listeners["unclustered-point"], ...listeners?.["unclustered-point"] }
         }
+
         this.spec = {
             version: 8,
             name: "clusters",
@@ -36,8 +37,6 @@ export class ClusterLayer implements BaseLayer {
                 "cluster-trails": {
                     type: "geojson",
                     data: geojson,
-                    cluster: true,
-                    clusterRadius: 50,
                 }
             },
             layers: [
@@ -45,26 +44,37 @@ export class ClusterLayer implements BaseLayer {
                     id: "clusters",
                     type: "circle",
                     source: "cluster-trails",
-                    filter: ["has", "point_count"],
-                    maxzoom: 10,
+                    filter: ["all", ["!=", ["get", "is_large"], true], [">", ["get", "point_count"], 1]],
                     paint: {
                         "circle-color": "#242734",
                         "circle-radius": [
                             "step",
                             ["get", "point_count"],
                             10,
+                            5,
+                            12,
                             10,
                             15,
-                            20,
-                            20,
                             50,
-                            25,
+                            18,
                             100,
-                            30,
-                            200,
-                            35,
+                            22,
+                            500,
+                            25,
                         ],
-                        "circle-stroke-width": 3,
+                        "circle-stroke-width": 2,
+                        "circle-stroke-color": "#fff",
+                    },
+                },
+                {
+                    id: "unclustered-point",
+                    type: "circle",
+                    source: "cluster-trails",
+                    filter: ["all", ["!=", ["get", "is_large"], true], ["==", ["get", "point_count"], 1]],
+                    paint: {
+                        "circle-color": "#242734",
+                        "circle-radius": 5,
+                        "circle-stroke-width": 2,
                         "circle-stroke-color": "#fff",
                     },
                 },
@@ -72,28 +82,16 @@ export class ClusterLayer implements BaseLayer {
                     id: "cluster-count",
                     type: "symbol",
                     source: "cluster-trails",
-                    filter: ["has", "point_count"],
-                    maxzoom: 10,
+                    filter: ["all", ["!=", ["get", "is_large"], true], [">", ["get", "point_count"], 1]],
+                    layout: {
+                        "text-field": ["get", "point_count_abbreviated"],
+                        "text-font": ["Noto Sans Regular"],
+                        "text-size": 11,
+                        "text-allow-overlap": true,
+                        "text-ignore-placement": true,
+                    },
                     paint: {
                         "text-color": "#fff",
-                    },
-                    layout: {
-                        "text-field": "{point_count_abbreviated}",
-                        "text-font": ["Noto Sans Regular"],
-                        "text-size": 12,
-                    },
-                },
-                {
-                    id: "unclustered-point",
-                    type: "circle",
-                    source: "cluster-trails",
-                    maxzoom: 10,
-                    filter: ["!", ["has", "point_count"]],
-                    paint: {
-                        "circle-color": "#242734",
-                        "circle-radius": 7,
-                        "circle-stroke-width": 2,
-                        "circle-stroke-color": "#fff",
                     },
                 }
             ]
@@ -105,19 +103,26 @@ export class ClusterLayer implements BaseLayer {
         const features = this.map.queryRenderedFeatures(e.point, {
             layers: ["clusters"],
         });
-        const clusterId = features[0].properties.cluster_id;
-        const zoom = await (
-            this.map.getSource("cluster-trails") as M.GeoJSONSource
-        ).getClusterExpansionZoom(clusterId);
+        const feature = features[0];
+        if (!feature) {
+            return;
+        }
+
+        const currentZoom = this.map.getZoom();
         this.map.flyTo({
-            center: (features[0].geometry as any).coordinates,
-            zoom,
+            center: (feature.geometry as any).coordinates,
+            zoom: currentZoom + 2,
             maxDuration: 3000
         });
     }
 
     private zoomOnUnclusteredPoint(e: MapMouseEvent) {
-        const coordinates = (e as any).features[0].geometry.coordinates.slice();
+        const feature = (e as any).features?.[0];
+        if (!feature) {
+            return;
+        }
+
+        const coordinates = feature.geometry.coordinates.slice();
 
         this.map.flyTo({
             center: coordinates,

@@ -6,6 +6,40 @@ import { Collection, handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError, type ListResult } from 'pocketbase';
 
+/**
+ * @swagger
+ * /api/v1/profile/{handle}/feed:
+ *   get:
+ *     summary: Get user activity feed
+ *     description: Retrieves activity feed for a user, with federation support
+ *     tags:
+ *       - Profiles
+ *     parameters:
+ *       - in: path
+ *         name: handle
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: perPage
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: FeedItem list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ListResult'
+ *       404:
+ *         description: Not Found
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function GET(event: RequestEvent) {
     const handle = event.params.handle;
     if (!handle) {
@@ -19,7 +53,7 @@ export async function GET(event: RequestEvent) {
         const safeSearchParams = RecordListOptionsSchema.parse(searchParams);
 
         let feed: ListResult<FeedItem>;
-        if (actor.isLocal) {
+        if (actor.is_local) {
             feed = await event.locals.pb.collection(Collection.profile_feed)
                 .getList<FeedItem>(safeSearchParams.page, safeSearchParams.perPage, { ...safeSearchParams, filter: `actor='${actor.id}'` })
         } else {

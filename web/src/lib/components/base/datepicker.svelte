@@ -1,12 +1,14 @@
 <script lang="ts">
     import { _ } from "svelte-i18n";
     import type { ChangeEventHandler } from "svelte/elements";
-    
+
     interface Props {
         name?: string;
         value?: string | Date;
         label?: string;
         error?: string | string[] | null;
+        min?: string | number;
+        max?: string | number;
         onchange?: ChangeEventHandler<HTMLInputElement>;
     }
 
@@ -15,7 +17,9 @@
         value = $bindable(),
         label = "",
         error = "",
-        onchange
+        min,
+        max,
+        onchange,
     }: Props = $props();
 </script>
 
@@ -32,6 +36,8 @@
             class:border-red-400={(error?.length ?? 0) > 0}
             class:bg-input-background-error={(error?.length ?? 0) > 0}
             type="date"
+            {min}
+            {max}
             bind:value
             {onchange}
         />

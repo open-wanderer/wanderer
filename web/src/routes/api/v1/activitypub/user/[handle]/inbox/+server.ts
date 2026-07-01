@@ -4,11 +4,40 @@ import { handleError } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import type { APActivity } from 'activitypub-types';
 
+/**
+ * @swagger
+ * /api/v1/activitypub/user/{handle}/inbox:
+ *   post:
+ *     summary: Receive ActivityPub activities
+ *     description: Receives and processes incoming ActivityPub activities (Create, Update, Delete, Follow, etc.)
+ *     tags:
+ *       - ActivityPub
+ *     parameters:
+ *       - in: path
+ *         name: handle
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Activity processed
+ *       400:
+ *         description: Bad Request
+ *       500:
+ *         description: Internal Server Error
+ */
 export async function POST(event: RequestEvent) {
 
 
     try {
-        const activity: APActivity = await event.request.json()
+        const bodyText = await event.request.text()
+        const activity: APActivity = JSON.parse(bodyText)
         if (!activity.actor) {
             return json("Bad request", { status: 400 });
         }
@@ -26,7 +55,7 @@ export async function POST(event: RequestEvent) {
             method: "POST",
             fetch: event.fetch,
             headers: originalHeaders,
-            body: JSON.stringify(activity)
+            body: bodyText
         })
 
         if (success === false) {

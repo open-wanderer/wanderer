@@ -11,7 +11,13 @@
         formatHTMLAsText,
         formatTimeHHMM,
     } from "$lib/util/format_util";
-    import { _ } from "svelte-i18n";
+    import {
+        displayCategoryName,
+        displaySubcategoryLabel,
+        displayTrailCategoryBadgeIcon,
+        displayTrailCategoryIcon,
+    } from "$lib/util/category_util";
+    import { _, locale } from "svelte-i18n";
     import ShareInfo from "../share_info.svelte";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
     import Chip from "../base/chip.svelte";
@@ -57,6 +63,7 @@
         e.stopPropagation();
         expandedTags = !expandedTags;
     }
+
 </script>
 
 <li
@@ -133,7 +140,8 @@
         {#if trail.tags.length && trail.expand?.tags}
             <div class="flex flex-wrap gap-1 mb-3 items-center">
                 {#each expandedTags ? trail.expand.tags : trail.expand.tags.slice(0, 2) as tag}
-                    <Chip text={tag.name} closable={false} primary={false}></Chip>
+                    <Chip text={tag.name} closable={false} primary={false}
+                    ></Chip>
                 {/each}
 
                 {#if trail.expand.tags.length > 2}
@@ -154,7 +162,27 @@
         <div class="flex flex-wrap gap-x-8 gap-y-1">
             {#if trail.expand?.category?.name || trail.category}
                 <p>
-                    <i class="fa fa-shapes mr-3"> </i>{$_(trail.expand?.category?.name ?? trail.category ?? "-")}
+                    <span class="relative mr-3 inline-block w-4 text-center">
+                        <i class="fa {displayTrailCategoryIcon(trail)}"></i>
+                        {#if displayTrailCategoryBadgeIcon(trail)}
+                            <i
+                                class="fa {displayTrailCategoryBadgeIcon(
+                                    trail,
+                                )} absolute -right-1 -top-1 text-[8px]"
+                            ></i>
+                        {/if}
+                    </span>{displayCategoryName(
+                        trail.expand?.category ?? { name: trail.category ?? "" },
+                        $locale,
+                    ) || "-"}
+                    {#if trail.expand?.subcategory}
+                        <span class="text-gray-500">
+                            / {displaySubcategoryLabel(
+                                trail.expand.subcategory,
+                                $locale,
+                            )}
+                        </span>
+                    {/if}
                 </p>
             {/if}
             {#if trail.location}
@@ -164,6 +192,14 @@
             {/if}
             <p class="whitespace-nowrap">
                 <i class="fa fa-gauge mr-3"></i>{$_(trail.difficulty ?? "?")}
+            </p>
+            <p class="whitespace-nowrap">
+                <i
+                    class="fa {trail.completed
+                        ? 'fa-flag-checkered'
+                        : 'fa-compass-drafting'} mr-2"
+                ></i>
+                {$_(trail.completed ? "completed" : "not-completed")}
             </p>
         </div>
 

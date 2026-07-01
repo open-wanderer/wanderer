@@ -3,7 +3,6 @@
     import { Link } from "@tiptap/extension-link";
     import Mention from "@tiptap/extension-mention";
     import Placeholder from "@tiptap/extension-placeholder";
-    import { Underline } from "@tiptap/extension-underline";
     import StarterKit from "@tiptap/starter-kit";
     import { mount, onDestroy, onMount, unmount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
@@ -19,7 +18,7 @@
     import Toggle from "./toggle.svelte";
     import type { SearchItem } from "./search.svelte";
     import type { SuggestionProps } from "@tiptap/suggestion";
-    import type { Actor } from "$lib/models/activitypub/actor";
+    import type { Actor, ActorSearchResult } from "$lib/models/activitypub/actor";
     import { searchActors } from "$lib/stores/search_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
 
@@ -43,7 +42,7 @@
         error = "",
         placeholder = "",
         extraClasses = "",
-        searchListPosition = "absolute"
+        searchListPosition = "absolute",
     }: Props = $props();
 
     const fontSizes: SelectItem[] = [
@@ -74,8 +73,9 @@
         editor = new Editor({
             element: element,
             extensions: [
-                StarterKit,
-                Underline,
+                StarterKit.configure({
+                    link: false,
+                }),
                 Placeholder.configure({
                     placeholder: placeholder,
                 }),
@@ -87,10 +87,13 @@
                         return [
                             "a",
                             mergeAttributes(
-                                { href: `/profile/@${options.HTMLAttributes["data-label"]}` },
+                                {
+                                    href: `/profile/@${options.HTMLAttributes["data-label"]}`,
+                                },
                                 options.HTMLAttributes,
                             ),
                             options.renderText?.({
+                                suggestion: {...options.suggestion, editor: editor!},
                                 options: options,
                                 node,
                             }),
@@ -100,13 +103,13 @@
                         allowToIncludeChar: true,
                         items: async ({ query }) => {
                             try {
-                                const actors: Actor[] = await searchActors(
+                                const actors: ActorSearchResult[] = await searchActors(
                                     query,
                                     true,
                                 );
                                 return actors.map((a) => ({
                                     text: a.username!,
-                                    description: `@${a.preferred_username}${a.isLocal ? "" : "@" + a.domain}`,
+                                    description: `@${a.preferred_username}${a.is_local ? "" : "@" + a.domain}`,
                                     value: a,
                                     icon:
                                         a.icon ||
@@ -140,8 +143,9 @@
                                 if (!box) {
                                     return;
                                 }
-                                
-                                searchListElement.style.position = searchListPosition;
+
+                                searchListElement.style.position =
+                                    searchListPosition;
                                 searchListElement.style.top = `${box.bottom + window.scrollY + 4}px`;
                                 searchListElement.style.left = `${box.left + window.scrollX}px`;
                                 searchListElement.style.zIndex = "1001";
@@ -151,7 +155,7 @@
                                 return (_: Event, item: SearchItem) => {
                                     props.command({
                                         id: item.value.iri,
-                                        label: `${item.value.username}${item.value.isLocal ? "" : "@" + item.value.domain}`,
+                                        label: `${item.value.preferred_username}${item.value.is_local ? "" : "@" + item.value.domain}`,
                                     });
                                 };
                             }
@@ -178,12 +182,12 @@
 
                                 onKeyDown(props) {
                                     if (props.event.key === "Escape") {
-                                        this.onExit?.({} as unknown as any)
+                                        this.onExit?.({} as unknown as any);
 
                                         return true;
                                     }
 
-                                    return false
+                                    return false;
                                 },
                                 onExit() {
                                     unmount(component);
@@ -314,7 +318,7 @@
                 })
                 .run();
 
-                modal.closeModal();
+            modal.closeModal();
         } catch (e) {
             if (
                 e instanceof ZodError &&
