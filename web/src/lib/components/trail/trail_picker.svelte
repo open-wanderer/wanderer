@@ -36,7 +36,7 @@
             attributionControl: false,
             dragPan: false,
             scrollZoom: false,
-            preserveDrawingBuffer: true,
+            canvasContextAttributes: { preserveDrawingBuffer: true }
         });
     }
 

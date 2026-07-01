@@ -11,6 +11,8 @@ import (
 	"github.com/open-wanderer/wanderer/plugins/sdk"
 )
 
+const hammerheadJSONMaxBytes int64 = 16 * 1024 * 1024
+
 type hammerheadClient struct {
 	userID string
 	token  string
@@ -37,7 +39,7 @@ func login(email string, password string) (string, error) {
 		},
 		Expect: sdk.ResponseExpect{
 			ContentTypes: []string{"application/json"},
-			MaxBytes:     1048576,
+			MaxBytes:     hammerheadJSONMaxBytes,
 		},
 	}
 	response, body, err := sdk.HostRequest(spec)
@@ -92,7 +94,7 @@ func (c hammerheadClient) get(path string, query []sdk.QueryParam, out any) erro
 		},
 		Expect: sdk.ResponseExpect{
 			ContentTypes: []string{"application/json"},
-			MaxBytes:     1048576,
+			MaxBytes:     hammerheadJSONMaxBytes,
 		},
 	})
 	if err != nil {

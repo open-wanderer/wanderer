@@ -666,7 +666,7 @@
                     bind:map
                     {showGrid}
                     elevationProfileContainer="elevation-profile"
-                    mapOptions={{ preserveDrawingBuffer: true }}
+                    mapOptions={{ canvasContextAttributes: { preserveDrawingBuffer: true } }}
                 ></MapWithElevationMaplibre>
             </div>
             <div class="flex items-center min-w-0">
