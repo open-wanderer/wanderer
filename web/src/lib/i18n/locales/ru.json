@@ -26,6 +26,7 @@
   "already-account": "Уже есть аккаунт?",
   "altitude": "Высота",
   "amenity": "Инфраструктура",
+  "ammenity": "",
   "api-documentation": "Документация API",
   "api-tokens": "API токены",
   "api-tokens-hint": "API-токены могут быть использованы для предоставления сторонним приложениям доступа к вашей учетной записи wanderer.",
