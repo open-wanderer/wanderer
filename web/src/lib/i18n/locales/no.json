@@ -26,6 +26,7 @@
   "already-account": "Har du allerede en konto?",
   "altitude": "Høyde",
   "amenity": "Fasilitet",
+  "ammenity": "",
   "api-documentation": "API-dokumentasjon",
   "api-tokens": "API-tokens",
   "api-tokens-hint": "API-tokens kan brukes til å gi tredjepartsapplikasjoner tilgang til din Wanderer-konto.",
