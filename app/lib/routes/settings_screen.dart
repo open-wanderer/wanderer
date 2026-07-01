@@ -50,6 +50,12 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.push('/settings/notifications'),
           ),
           ListTile(
+            leading: const FaIcon(FontAwesomeIcons.layerGroup, size: 18),
+            title: Text(l10n.categories),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/categories'),
+          ),
+          ListTile(
             leading: const FaIcon(FontAwesomeIcons.palette, size: 18),
             title: Text(l10n.appearance),
             trailing: const Icon(Icons.chevron_right),
