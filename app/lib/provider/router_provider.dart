@@ -27,7 +27,10 @@ import 'package:wanderer/routes/settings_notifications_screen.dart';
 import 'package:wanderer/routes/trail_detail_map_screen.dart';
 import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/settings_appearance_screen.dart';
+import 'package:wanderer/routes/settings_categories_screen.dart';
+import 'package:wanderer/routes/settings_subcategories_screen.dart';
 import 'package:wanderer/routes/settings_screen.dart';
+import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/routes/navigation_screen.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
@@ -189,6 +192,17 @@ class Router extends _$Router {
             GoRoute(
               path: 'appearance',
               builder: (context, state) => const SettingsAppearanceScreen(),
+            ),
+            GoRoute(
+              path: 'categories',
+              builder: (context, state) => const SettingsCategoriesScreen(),
+              routes: [
+                GoRoute(
+                  path: 'subcategories',
+                  // ignore: lines_longer_than_80_chars
+                  builder: (context, state) => SettingsSubcategoriesScreen(category: state.extra as Category),
+                ),
+              ],
             ),
           ],
         ),
