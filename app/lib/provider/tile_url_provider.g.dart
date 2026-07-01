@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'map_style_provider.dart';
+part of 'tile_url_provider.dart';
 
 // **************************************************************************
 // RiverpodGenerator
@@ -9,35 +9,35 @@ part of 'map_style_provider.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
-@ProviderFor(mapStyle)
-final mapStyleProvider = MapStyleProvider._();
+@ProviderFor(tileUrl)
+final tileUrlProvider = TileUrlProvider._();
 
-final class MapStyleProvider
-    extends $FunctionalProvider<AsyncValue<Style>, Style, FutureOr<Style>>
-    with $FutureModifier<Style>, $FutureProvider<Style> {
-  MapStyleProvider._()
+final class TileUrlProvider
+    extends $FunctionalProvider<AsyncValue<String>, String, FutureOr<String>>
+    with $FutureModifier<String>, $FutureProvider<String> {
+  TileUrlProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'mapStyleProvider',
+        name: r'tileUrlProvider',
         isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$mapStyleHash();
+  String debugGetCreateSourceHash() => _$tileUrlHash();
 
   @$internal
   @override
-  $FutureProviderElement<Style> $createElement($ProviderPointer pointer) =>
+  $FutureProviderElement<String> $createElement($ProviderPointer pointer) =>
       $FutureProviderElement(pointer);
 
   @override
-  FutureOr<Style> create(Ref ref) {
-    return mapStyle(ref);
+  FutureOr<String> create(Ref ref) {
+    return tileUrl(ref);
   }
 }
 
-String _$mapStyleHash() => r'eae850bedebec4a35c65f7f3f5ff2eb425152904';
+String _$tileUrlHash() => r'd551b810e12dccf518878c47df66a4d8043f1c49';
