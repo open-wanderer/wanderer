@@ -12,6 +12,8 @@ import (
 	"github.com/open-wanderer/wanderer/plugins/sdk"
 )
 
+const stravaDownloadMaxBytes int64 = 16 * 1024 * 1024
+
 // Strava is migrating its API host: the new host "https://www.api-v3.strava.com"
 // is available from 2027-01-04 and the old one is retired on 2027-06-01 (June
 // 2026 Developer Program update). We cut over on 2027-03-01 — after the new host
@@ -132,7 +134,7 @@ func (c *stravaClient) request(path string, query []sdk.QueryParam, contentTypes
 		},
 		Expect: sdk.ResponseExpect{
 			ContentTypes: contentTypes,
-			MaxBytes:     1048576,
+			MaxBytes:     stravaDownloadMaxBytes,
 		},
 	})
 }
