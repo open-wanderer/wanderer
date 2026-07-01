@@ -26,6 +26,7 @@
   "already-account": "Hai già un account?",
   "altitude": "Altitudine",
   "amenity": "Amenity",
+  "ammenity": "",
   "api-documentation": "Documentazione API",
   "api-tokens": "API Tokens",
   "api-tokens-hint": "API Tokens can be used to grant 3rd party applications access to your wanderer account.",
