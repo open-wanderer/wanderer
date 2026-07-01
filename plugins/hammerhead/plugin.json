@@ -81,7 +81,7 @@
       ]
     },
     "downloads": {
-      "maxBytes": 1048576,
+      "maxBytes": 16777216,
       "contentTypes": [
         "application/json"
       ]
