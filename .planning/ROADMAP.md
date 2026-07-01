@@ -110,7 +110,21 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
   4. Reordering categories via drag handle persists the new order via `POST /user-category-preference/reorder`; reordering subcategories within `SettingsSubcategoriesScreen` persists via `POST /user-subcategory-preference/reorder`. Both reflect the saved order on reload, and a failed reorder reverts the list with an error toast.
   5. Turning off a category/subcategory that has the user's own trails shows a confirm dialog with the trail count and a link to view them before saving.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+**Wave 1**
+
+  - [ ] 12-01-PLAN.md — Provider reorder methods + sort/visibility helpers + own-trail count helper + l10n keys (foundation)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+  - [ ] 12-02-PLAN.md — SettingsCategoriesScreen: sorted list, visibility toggle, drag-handle reorder, own-trail confirm dialog (SETCAT-06/07/09/11)
+  - [ ] 12-03-PLAN.md — SettingsSubcategoriesScreen: parent-scoped list + empty state, toggle, reorder, own-trail confirm dialog (SETCAT-08/10/11)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+  - [ ] 12-04-PLAN.md — Settings "Categories" tile + go_router route wiring (SETCAT-01/02)
+
 **UI hint**: yes
 
 ## Progress
@@ -131,4 +145,4 @@ Phases execute in numeric order: 10 → 11 → 12 (11 and 12 are independent of 
 | 9. Notifications | v1.2 | 1/1 | Complete | 2026-06-21 |
 | 10. Category & Subcategory Data Layer | v1.3 | 4/4 | Complete    | 2026-06-29 |
 | 11. Trail Filter Subcategory Support | v1.3 | 0/TBD | Not started | - |
-| 12. Settings Categories Screen | v1.3 | 0/TBD | Not started | - |
+| 12. Settings Categories Screen | v1.3 | 0/4 | Not started | - |
