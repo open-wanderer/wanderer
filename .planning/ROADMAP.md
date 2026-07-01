@@ -48,7 +48,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 - [x] **Phase 10: Category & Subcategory Data Layer** - Updated Category model, new Subcategory model + entity + provider, locale-aware names, remove `Settings.category`, preference models + providers (SETCAT-03/04/05) (completed 2026-06-29)
 - [ ] **Phase 11: Trail Filter Subcategory Support** (2/4 plans) - `TrailFilter.subcategory`, subcategory chips in TrailFilterScreen and quick filter bar, locale-resolved category labels, hidden-category/subcategory omitted from filter chips (FILTER-06/07)
-- [ ] **Phase 12: Settings Categories Screen** - SettingsCategoriesScreen with visibility toggles + priority reordering, router wiring (UI only — providers come from Phase 10)
+- [ ] **Phase 12: Settings Categories Screen** - SettingsCategoriesScreen + SettingsSubcategoriesScreen with visibility toggles, drag-handle priority reordering, own-trail disable confirmation, router wiring (UI only — providers come from Phase 10)
 
 ## Phase Details
 
@@ -101,13 +101,14 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 **Goal**: A user can open Settings → Categories to control which categories and subcategories appear and in what priority order, with changes saved automatically.
 **Depends on**: Phase 10 (preference providers come from Phase 10)
-**Requirements**: SETCAT-01, SETCAT-02, SETCAT-06, SETCAT-07, SETCAT-08, SETCAT-09
+**Requirements**: SETCAT-01, SETCAT-02, SETCAT-06, SETCAT-07, SETCAT-08, SETCAT-09, SETCAT-10, SETCAT-11
 **Success Criteria** (what must be TRUE):
 
   1. From SettingsScreen the user taps a "Categories" tile and lands on SettingsCategoriesScreen via the `/settings/categories` route.
-  2. The screen lists categories sorted by priority (ascending, alphabetical for ties), each row showing the category icon and its locale-resolved name.
-  3. Toggling a category's visibility switch auto-saves to `/user-category-preference`; expanding a row reveals its subcategories, each with its own visibility switch that saves to `/user-subcategory-preference`.
-  4. Reordering categories with the ReorderableListView persists the new order via `POST /user-category-preference/reorder` and the list reflects the saved priority on reload.
+  2. The screen lists categories sorted by priority (ascending, alphabetical for ties), each row showing the category icon, its locale-resolved name, a visibility switch, and a drag handle.
+  3. Toggling a category's visibility switch auto-saves to `/user-category-preference`; tapping the row body (not the switch or drag handle) navigates to `SettingsSubcategoriesScreen` for that category, which lists its subcategories with their own visibility switches saving to `/user-subcategory-preference`.
+  4. Reordering categories via drag handle persists the new order via `POST /user-category-preference/reorder`; reordering subcategories within `SettingsSubcategoriesScreen` persists via `POST /user-subcategory-preference/reorder`. Both reflect the saved order on reload, and a failed reorder reverts the list with an error toast.
+  5. Turning off a category/subcategory that has the user's own trails shows a confirm dialog with the trail count and a link to view them before saving.
 
 **Plans**: TBD
 **UI hint**: yes

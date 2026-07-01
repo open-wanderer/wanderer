@@ -36,8 +36,10 @@ Requirements for milestone v1.3 — Category Redesign. Each maps to roadmap phas
 - [x] **SETCAT-05**: SubcategoryPreferenceNotifier provider fetches from `GET /user-subcategory-preference` and upserts via `PUT /user-subcategory-preference`
 - [ ] **SETCAT-06**: SettingsCategoriesScreen lists categories sorted by priority (ascending, alphabetical for ties), each row shows category icon and locale-resolved name
 - [ ] **SETCAT-07**: Each category row has a visibility SwitchListTile; toggling sends PUT to `/user-category-preference` with `visible: false/true` and auto-saves
-- [ ] **SETCAT-08**: Each category row is expandable (ExpansionTile) to reveal its subcategories, each with its own visibility SwitchListTile
-- [ ] **SETCAT-09**: SettingsCategoriesScreen uses ReorderableListView; completing a drag calls `POST /user-category-preference/reorder` with the new ordered list of category IDs
+- [ ] **SETCAT-08**: Tapping a category row (outside its switch/drag-handle) navigates to a new `SettingsSubcategoriesScreen` showing that category's subcategories, each with its own visibility SwitchListTile
+- [ ] **SETCAT-09**: SettingsCategoriesScreen uses ReorderableListView with a dedicated drag-handle icon per row (not whole-row drag); completing a drag calls `POST /user-category-preference/reorder` with the new ordered list of category IDs
+- [ ] **SETCAT-10**: `SettingsSubcategoriesScreen` uses the same ReorderableListView + drag-handle pattern as SETCAT-09 for its subcategories; completing a drag calls `POST /user-subcategory-preference/reorder` with the new ordered list of subcategory IDs, scoped to the parent category
+- [ ] **SETCAT-11**: Turning OFF a category's or subcategory's visibility switch when the user has their own trails in it shows a confirm dialog (own-trail count + link to view those trails); confirming saves the change, cancelling reverts the switch to on. Turning a switch ON never triggers this check. Plugin-mapping warnings (web-only feature) are not ported.
 
 ## Future Requirements
 
@@ -57,7 +59,7 @@ Requirements for milestone v1.3 — Category Redesign. Each maps to roadmap phas
 | Drag-to-reorder with pointer events (web style) | ReorderableListView is the Flutter-idiomatic equivalent |
 | Category/subcategory picker in trail form | Requires trail form rework; deferred to v1.4 |
 | Bulk-edit modal | Web-only feature; out of scope for mobile |
-| Subcategory reordering within a category | Lower priority; can add in future milestone |
+| Plugin-mapping warnings in the disable-confirm dialog | Integrations/plugin system out of scope for mobile settings v1 (see PROJECT.md) |
 
 ## Traceability
 
@@ -86,19 +88,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SETCAT-07 | Phase 12 | Pending |
 | SETCAT-08 | Phase 12 | Pending |
 | SETCAT-09 | Phase 12 | Pending |
+| SETCAT-10 | Phase 12 | Pending |
+| SETCAT-11 | Phase 12 | Pending |
 
 **Coverage:**
 
-- v1.3 requirements: 21 total
-- Mapped to phases: 21
+- v1.3 requirements: 23 total
+- Mapped to phases: 23
 - Unmapped: 0 ✓
 
 **By phase:**
 
 - Phase 10 (Category & Subcategory Data Layer): 8 requirements (CAT-01..05, SETCAT-03/04/05 — preference models + providers moved here so Phase 11 can use them)
 - Phase 11 (Trail Filter Subcategory Support): 7 requirements (FILTER-01..07)
-- Phase 12 (Settings Categories Screen): 6 requirements (SETCAT-01/02/06/07/08/09 — UI only, providers come from Phase 10)
+- Phase 12 (Settings Categories Screen): 8 requirements (SETCAT-01/02/06/07/08/09/10/11 — UI only, providers come from Phase 10)
 
 ---
 *Requirements defined: 2026-06-29*
-*Last updated: 2026-06-29 after adding FILTER-06/07 (hidden-category visibility in filter UI) — SETCAT-03/04/05 moved to Phase 10 so Phase 11 can read preferences*
+*Last updated: 2026-07-01 (Phase 12 discuss-phase) — SETCAT-08 replaced ExpansionTile with a dedicated SettingsSubcategoriesScreen supporting subcategory reorder (SETCAT-10); added SETCAT-11 (own-trail confirm dialog on disable). "Subcategory reordering" removed from Out of Scope; "Plugin-mapping warnings" added instead.*
