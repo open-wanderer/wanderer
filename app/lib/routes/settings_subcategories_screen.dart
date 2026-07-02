@@ -116,7 +116,12 @@ class _SettingsSubcategoriesScreenState
     // Combine the two async values into a single record so AsyncLoader renders
     // one skeleton for both the subcategory prefs and the parent category prefs
     // (error-first, then loading, then data), mirroring the sibling category
-    // screen's `combined` record.
+    // screen's `combined` record. Prefer whichever data each sub-provider
+    // still carries (Riverpod keeps `.value` populated through a seamless
+    // refresh after `invalidateSelf()`) over collapsing to a bare
+    // `.loading()` — a bare loading state has no previous value, which
+    // forced AsyncLoader's fallback to empty mockData and produced a
+    // visible flash on every toggle/reorder save.
     final combined = prefsAsync.hasError
         ? AsyncValue<
             ({
@@ -131,14 +136,8 @@ class _SettingsSubcategoriesScreenState
               List<CategoryPreference> categoryPrefs,
             })
           >.error(categoryPrefsAsync.error!, categoryPrefsAsync.stackTrace!)
-        : (prefsAsync.isLoading || categoryPrefsAsync.isLoading)
-        ? const AsyncValue<
-            ({
-              List<SubcategoryPreference> prefs,
-              List<CategoryPreference> categoryPrefs,
-            })
-          >.loading()
-        : AsyncValue<
+        : prefsAsync.hasValue && categoryPrefsAsync.hasValue
+        ? AsyncValue<
             ({
               List<SubcategoryPreference> prefs,
               List<CategoryPreference> categoryPrefs,
@@ -146,7 +145,13 @@ class _SettingsSubcategoriesScreenState
           >.data((
             prefs: prefsAsync.value ?? const [],
             categoryPrefs: categoryPrefsAsync.value ?? const [],
-          ));
+          ))
+        : const AsyncValue<
+            ({
+              List<SubcategoryPreference> prefs,
+              List<CategoryPreference> categoryPrefs,
+            })
+          >.loading();
 
     return Scaffold(
       appBar: AppBar(

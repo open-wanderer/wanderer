@@ -87,6 +87,11 @@ class _SettingsCategoriesScreenState
 
     // Combine the two async values into a single record so AsyncLoader (D-14)
     // renders one skeleton over the list rather than a bespoke spinner.
+    // Prefer whichever data each sub-provider still carries (Riverpod keeps
+    // `.value` populated through a seamless refresh after `invalidateSelf()`)
+    // over collapsing to a bare `.loading()` — a bare loading state has no
+    // previous value, which forced AsyncLoader's fallback to empty mockData
+    // and produced a visible flash on every toggle/reorder save.
     final combined = categoriesAsync.hasError
         ? AsyncValue<
             ({List<Category> categories, List<CategoryPreference> prefs})
@@ -95,16 +100,16 @@ class _SettingsCategoriesScreenState
         ? AsyncValue<
             ({List<Category> categories, List<CategoryPreference> prefs})
           >.error(prefsAsync.error!, prefsAsync.stackTrace!)
-        : (categoriesAsync.isLoading || prefsAsync.isLoading)
-        ? const AsyncValue<
-            ({List<Category> categories, List<CategoryPreference> prefs})
-          >.loading()
-        : AsyncValue<
+        : categoriesAsync.hasValue && prefsAsync.hasValue
+        ? AsyncValue<
             ({List<Category> categories, List<CategoryPreference> prefs})
           >.data((
             categories: categoriesAsync.value ?? const [],
             prefs: prefsAsync.value ?? const [],
-          ));
+          ))
+        : const AsyncValue<
+            ({List<Category> categories, List<CategoryPreference> prefs})
+          >.loading();
 
     return Scaffold(
       appBar: AppBar(
