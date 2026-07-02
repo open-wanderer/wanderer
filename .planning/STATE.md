@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 Phase: 12
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-07-02
+Last activity: 2026-07-02 - Completed quick task 260702-m4u: Make auth_provider.dart build() optimistic: return savedUserEntity immediately without awaiting _updateUserEntity, run it in background, logout on failure
 
 Progress: [██████████] 100% (v1.3 Phases 10 + 11 done)
 
@@ -116,6 +116,7 @@ Recent decisions affecting current work:
 | 260702-e3g | Fix non-optimistic reorder animation in SettingsCategoriesScreen and SettingsSubcategoriesScreen | 2026-07-02 | 6b3e6f6b | [260702-e3g-fix-non-optimistic-reorder-animation-in-](./quick/260702-e3g-fix-non-optimistic-reorder-animation-in-/) |
 | 260702-ek7 | Fix white flash on (sub)category toggle/reorder (AsyncLoader mockData fallback) | 2026-07-02 | 8a917b4c | [260702-ek7-fix-white-flash-on-sub-category-toggle-r](./quick/260702-ek7-fix-white-flash-on-sub-category-toggle-r/) |
 | 260702-ere | Cascade category visibility to SettingsSubcategoriesScreen (disabled category dims/disables its subcategory toggles) | 2026-07-02 | 108348b2 | [260702-ere-cascade-category-visibility-to-settingss](./quick/260702-ere-cascade-category-visibility-to-settingss/) |
+| 260702-m4u | Make auth_provider.dart build() optimistic: return savedUserEntity immediately without awaiting _updateUserEntity, run it in background, logout on failure | 2026-07-02 | d2d126a8 | [260702-m4u-make-auth-provider-dart-build-optimistic](./quick/260702-m4u-make-auth-provider-dart-build-optimistic/) |
 | 260702-gib | Add read-only subcategory chips under each category row in SettingsCategoriesScreen | 2026-07-02 | dbc1db3d | [260702-gib-add-subcategory-chips-under-each-categor](./quick/260702-gib-add-subcategory-chips-under-each-categor/) |
 
 ## Deferred Items
