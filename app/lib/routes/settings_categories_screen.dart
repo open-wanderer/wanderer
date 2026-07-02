@@ -340,7 +340,10 @@ class _SettingsCategoriesScreenState
   /// do — every self `/profile/{handle}/...` call site uses the `@`-prefixed
   /// handle. Navigating here does NOT save or disable; the user returns to an
   /// unchanged switch.
-  void _viewOwnTrails(BuildContext dialogContext, Category category) {
+  Future<void> _viewOwnTrails(
+    BuildContext dialogContext,
+    Category category,
+  ) async {
     final l10n = AppLocalizations.of(context)!;
     final username = ref.read(authProvider).value?.preferredUsername;
     if (username == null) {
@@ -365,9 +368,17 @@ class _SettingsCategoriesScreenState
 
     // Seed the destination screen's filter so the pushed list is pre-filtered.
     // profile_trail_screen keys its filter by exactly 'profile_trail_$handle'
-    // with the same `@`-prefixed handle.
-    // ignore: lines_longer_than_80_chars
-    ref.read(trailFilterProvider('profile_trail_$handle').notifier).updateFilter((f) => f.copyWith(category: [category], subcategory: const []));
+    // with the same `@`-prefixed handle. Await the provider's future first —
+    // updateFilter is a no-op while the provider has no value yet (e.g. first
+    // visit this session), which would otherwise silently drop the pre-filter.
+    final filterNotifier = ref.read(
+      trailFilterProvider('profile_trail_$handle').notifier,
+    );
+    await ref.read(trailFilterProvider('profile_trail_$handle').future);
+    if (!mounted) return;
+    filterNotifier.updateFilter(
+      (f) => f.copyWith(category: [category], subcategory: const []),
+    );
 
     Navigator.of(dialogContext).pop(false);
     if (!context.mounted) return;
