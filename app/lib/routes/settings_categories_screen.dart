@@ -39,13 +39,19 @@ class _SettingsCategoriesScreenState
   /// provider mid-drag).
   List<String> _orderedIds = const [];
 
-  /// True while a drag gesture is in progress (set in `onReorderStart`,
-  /// cleared in `onReorderEnd`). While true, `build()` must not reseed
-  /// `_orderedIds` from the provider-derived sort — an unrelated `ref.watch`
-  /// dependency change mid-drag (e.g. a background provider refresh) would
-  /// otherwise silently reset the working copy and desync/snap-back the
-  /// in-progress drag.
-  bool _dragging = false;
+  /// True for the entire drag→`reorder()` round-trip: set in `onReorderStart`
+  /// and cleared only after the async `reorder()` network call resolves
+  /// (success or caught failure) inside `_onReorder`. While true, `build()`
+  /// must not reseed `_orderedIds` from the provider-derived sort. This covers
+  /// two cases:
+  ///   1. The non-optimistic snap-back — clearing on drag-end (as before) let
+  ///      the next `build()` reseed `_orderedIds` from still-stale provider
+  ///      data before the server responded, snapping the dropped row back to
+  ///      its original slot until the provider re-emitted.
+  ///   2. WR-02 mid-drag protection — an unrelated `ref.watch` dependency
+  ///      change mid-drag (e.g. a background provider refresh) must not
+  ///      silently reset the optimistic working copy.
+  bool _reordering = false;
 
   /// Persists [op] and surfaces only an error toast on failure (D-08 — no
   /// success toast; the watched provider drives optimistic UI via
@@ -81,8 +87,7 @@ class _SettingsCategoriesScreenState
 
     // Combine the two async values into a single record so AsyncLoader (D-14)
     // renders one skeleton over the list rather than a bespoke spinner.
-    final combined =
-        categoriesAsync.hasError
+    final combined = categoriesAsync.hasError
         ? AsyncValue<
             ({List<Category> categories, List<CategoryPreference> prefs})
           >.error(categoriesAsync.error!, categoriesAsync.stackTrace!)
@@ -109,29 +114,32 @@ class _SettingsCategoriesScreenState
         ),
         title: Text(l10n.categories),
       ),
-      body: AsyncLoader<
-        ({List<Category> categories, List<CategoryPreference> prefs})
-      >(
-        asyncValue: combined,
-        mockData: const (categories: [], prefs: []),
-        builder: (data) {
-          final sorted = sortedCategoriesByPreference(
-            data.categories,
-            data.prefs,
-            locale,
-          );
-          // Seed the reorder working copy from the current sorted order. On the
-          // non-drag path this simply mirrors `sorted`; a drag mutates it
-          // optimistically (Task 2). Skip reseeding while a drag is in
-          // progress (WR-02) — an unrelated rebuild mid-drag must not clobber
-          // the optimistic working copy.
-          if (!_dragging) {
-            _orderedIds = sorted.map((c) => c.id).toList();
-          }
+      body:
+          AsyncLoader<
+            ({List<Category> categories, List<CategoryPreference> prefs})
+          >(
+            asyncValue: combined,
+            mockData: const (categories: [], prefs: []),
+            builder: (data) {
+              final sorted = sortedCategoriesByPreference(
+                data.categories,
+                data.prefs,
+                locale,
+              );
+              // Seed the reorder working copy from the current sorted order. On
+              // the idle path this simply mirrors `sorted`; a drag mutates it
+              // optimistically. Skip reseeding for the whole reorder round-trip
+              // (`_reordering`): while a drag is in progress OR the async
+              // `reorder()` is still in flight, a rebuild must not clobber the
+              // optimistic working copy — reseeding from the not-yet-updated
+              // provider would snap the dropped row back to its old slot.
+              if (!_reordering) {
+                _orderedIds = sorted.map((c) => c.id).toList();
+              }
 
-          return _buildList(sorted, data.prefs, locale, activeColor);
-        },
-      ),
+              return _buildList(sorted, data.prefs, locale, activeColor);
+            },
+          ),
     );
   }
 
@@ -161,9 +169,11 @@ class _SettingsCategoriesScreenState
       // ignore: deprecated_member_use
       onReorder: (oldIndex, newIndex) =>
           _onReorder(oldIndex, newIndex, prefs, locale),
-      // WR-02: guard the working copy against an unrelated rebuild mid-drag.
-      onReorderStart: (_) => setState(() => _dragging = true),
-      onReorderEnd: (_) => setState(() => _dragging = false),
+      // Guard the working copy for the full drag→reorder() round-trip. It is
+      // cleared inside `_onReorder` once the network call resolves — NOT on
+      // drag-end, which fires synchronously before `await reorder()` returns
+      // and would let the next build reseed stale data (the snap-back bug).
+      onReorderStart: (_) => setState(() => _reordering = true),
     );
   }
 
@@ -188,12 +198,19 @@ class _SettingsCategoriesScreenState
 
     final l10n = AppLocalizations.of(context)!;
     try {
-      await ref
-          .read(categoryPreferenceProvider.notifier)
-          .reorder(_orderedIds);
+      await ref.read(categoryPreferenceProvider.notifier).reorder(_orderedIds);
+      // Success: the provider has re-emitted the persisted order, so the guard
+      // can drop — the next build's reseed will now mirror the settled order.
+      if (!mounted) return;
+      setState(() => _reordering = false);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _orderedIds = snapshot);
+      // Failure: revert to the pre-drag snapshot, surface the error toast, and
+      // clear the guard so the reverted order is what future builds reseed.
+      setState(() {
+        _orderedIds = snapshot;
+        _reordering = false;
+      });
       ref
           .read(toastProvider.notifier)
           .add(
@@ -232,7 +249,10 @@ class _SettingsCategoriesScreenState
           Expanded(
             child: InkWell(
               // ignore: lines_longer_than_80_chars
-              onTap: () => context.push('/settings/categories/subcategories', extra: category),
+              onTap: () => context.push(
+                '/settings/categories/subcategories',
+                extra: category,
+              ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Row(
@@ -284,11 +304,7 @@ class _SettingsCategoriesScreenState
   Future<void> _onToggleOff(Category category) async {
     final int count;
     try {
-      count = await ownTrailCount(
-        ref,
-        isSubcategory: false,
-        id: category.id,
-      );
+      count = await ownTrailCount(ref, isSubcategory: false, id: category.id);
     } catch (_) {
       if (!mounted) return;
       final l10n = AppLocalizations.of(context)!;
@@ -319,9 +335,7 @@ class _SettingsCategoriesScreenState
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.settings_categories_confirm_disable_title),
-        content: Text(
-          l10n.settings_categories_confirm_disable_body(count),
-        ),
+        content: Text(l10n.settings_categories_confirm_disable_body(count)),
         actions: [
           TextButton(
             onPressed: () => _viewOwnTrails(dialogContext, category),
