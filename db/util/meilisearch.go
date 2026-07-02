@@ -15,7 +15,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
+func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
 	photos := r.GetStringSlice("photos")
 	thumbnail := ""
 	if len(photos) > 0 {
@@ -33,41 +33,73 @@ func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, 
 		tags[i] = v.GetString("name")
 	}
 
+	categoryID := r.GetString("category")
+	var categoryIDValue any
+	if categoryID != "" {
+		categoryIDValue = categoryID
+	}
+
+	subcategoryID := r.GetString("subcategory")
+	var subcategoryIDValue any
+	if subcategoryID != "" {
+		subcategoryIDValue = subcategoryID
+	}
+
 	category := ""
+	categoryIcon := ""
 	trailCategory := r.ExpandedOne("category")
 	if trailCategory != nil {
 		category = trailCategory.GetString("name")
+		categoryIcon = trailCategory.GetString("icon")
 	}
 
+	bounds := getStoredBounds(r)
+
 	domain := ""
-	if !author.GetBool("isLocal") {
+	if !author.GetBool("is_local") {
 		domain = author.GetString("domain")
 	}
 
+	diagonal := r.GetFloat("bounding_box_diagonal")
+	if diagonal == 0 && (bounds[0] != bounds[1] || bounds[2] != bounds[3]) {
+		diagonal = HaversineDistance(bounds[0], bounds[2], bounds[1], bounds[3])
+	}
+
 	document := map[string]any{
-		"id":             r.Id,
-		"author":         author.Id,
-		"author_name":    author.GetString("preferred_username"),
-		"author_avatar":  author.GetString("icon"),
-		"name":           r.GetString("name"),
-		"description":    r.GetString("description"),
-		"location":       r.GetString("location"),
-		"distance":       r.GetFloat("distance"),
-		"elevation_gain": r.GetFloat("elevation_gain"),
-		"elevation_loss": r.GetFloat("elevation_loss"),
-		"duration":       r.GetFloat("duration"),
-		"difficulty":     difficultyToNumber(r.GetString("difficulty")),
-		"category":       category,
-		"completed":      r.GetBool("completed"),
-		"date":           r.GetDateTime("date").Time().Unix(),
-		"created":        r.GetDateTime("created").Time().Unix(),
-		"public":         r.GetBool("public"),
-		"thumbnail":      thumbnail,
-		"gpx":            r.GetString("gpx"),
-		"tags":           tags,
-		"polyline":       r.GetString("polyline"),
-		"domain":         domain,
-		"iri":            r.GetString("iri"),
+		"id":                         r.Id,
+		"author":                     author.Id,
+		"author_name":                author.GetString("preferred_username"),
+		"author_avatar":              author.GetString("icon"),
+		"name":                       r.GetString("name"),
+		"description":                r.GetString("description"),
+		"location":                   r.GetString("location"),
+		"distance":                   r.GetFloat("distance"),
+		"elevation_gain":             r.GetFloat("elevation_gain"),
+		"elevation_loss":             r.GetFloat("elevation_loss"),
+		"duration":                   r.GetFloat("duration"),
+		"difficulty":                 difficultyToNumber(r.GetString("difficulty")),
+		"category":                   category,
+		"category_id":                categoryIDValue,
+		"category_icon":              categoryIcon,
+		"subcategory_id":             subcategoryIDValue,
+		"is_federated":               !author.GetBool("is_local"),
+		"federated_category_name":    r.GetString("federated_category_name"),
+		"federated_subcategory_name": r.GetString("federated_subcategory_name"),
+		"completed":                  r.GetBool("completed"),
+		"date":                       r.GetDateTime("date").Time().Unix(),
+		"created":                    r.GetDateTime("created").Time().Unix(),
+		"public":                     r.GetBool("public"),
+		"thumbnail":                  thumbnail,
+		"gpx":                        r.GetString("gpx"),
+		"tags":                       tags,
+		"polyline":                   r.GetString("polyline"),
+		"domain":                     domain,
+		"iri":                        r.GetString("iri"),
+		"min_lat":                    bounds[0],
+		"max_lat":                    bounds[1],
+		"min_lon":                    bounds[2],
+		"max_lon":                    bounds[3],
+		"bounding_box_diagonal":      diagonal,
 		"_geo": map[string]float64{
 			"lat": r.GetFloat("lat"),
 			"lng": r.GetFloat("lon"),
@@ -121,6 +153,22 @@ func difficultyToNumber(difficulty string) int32 {
 	return 0
 }
 
+func getStoredBounds(r *core.Record) [4]float64 {
+	lat := r.GetFloat("lat")
+	lon := r.GetFloat("lon")
+	defaultBounds := [4]float64{lat, lat, lon, lon}
+
+	minLat := r.GetFloat("min_lat")
+	maxLat := r.GetFloat("max_lat")
+	minLon := r.GetFloat("min_lon")
+	maxLon := r.GetFloat("max_lon")
+	if minLat == 0 && maxLat == 0 && minLon == 0 && maxLon == 0 && (lat != 0 || lon != 0) {
+		return defaultBounds
+	}
+
+	return [4]float64{minLat, maxLat, minLon, maxLon}
+}
+
 func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {
 
 	totalElevationGain := 0.0
@@ -129,7 +177,7 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	totalDuration := 0.0
 	trails := len(r.GetStringSlice("trails"))
 
-	if r.GetString("iri") != "" {
+	if r.GetString("iri") != "" && !author.GetBool("is_local") {
 		doc, err := documentFromRemoteRecord(r, "lists")
 		if err == nil {
 			totalElevationGain = doc["elevation_gain"].(float64)
@@ -153,7 +201,7 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	}
 
 	domain := ""
-	if !author.GetBool("isLocal") {
+	if !author.GetBool("is_local") {
 		domain = author.GetString("domain")
 	}
 
@@ -189,6 +237,21 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 		} else {
 			document["shares"] = []string{}
 		}
+	}
+
+	return document, nil
+}
+
+func documentFromActorRecord(r *core.Record) (map[string]any, error) {
+
+	document := map[string]any{
+		"id":                 r.Id,
+		"username":           r.GetString("username"),
+		"preferred_username": r.GetString("preferred_username"),
+		"domain":             r.GetString("domain"),
+		"iri":                r.GetString("iri"),
+		"icon":               r.GetString("icon"),
+		"is_local":           r.GetBool("is_local"),
 	}
 
 	return document, nil
@@ -281,7 +344,7 @@ func IndexTrails(app core.App, trails []*core.Record, client meilisearch.Service
 
 		author := r.ExpandedOne("author")
 
-		doc, err := documentFromTrailRecord(app, r, author, true)
+		doc, err := documentFromTrailRecord(r, author, true)
 		if err != nil {
 			return err
 		}
@@ -306,7 +369,7 @@ func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meili
 		return fmt.Errorf("meilisearch update trail: failed to expand category: %v", errs)
 	}
 
-	doc, err := documentFromTrailRecord(app, r, author, false)
+	doc, err := documentFromTrailRecord(r, author, false)
 	if err != nil {
 		return err
 	}
@@ -390,6 +453,37 @@ func UpdateList(app core.App, r *core.Record, author *core.Record, client meilis
 	}
 
 	if _, err = client.Index("lists").UpdateDocuments(documents, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func IndexActors(actors []*core.Record, client meilisearch.ServiceManager) error {
+	documents := make([]map[string]any, len(actors))
+
+	for i, r := range actors {
+
+		doc, err := documentFromActorRecord(r)
+		if err != nil {
+			return err
+		}
+		documents[i] = doc
+	}
+	if _, err := client.Index("actors").AddDocuments(documents, nil); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UpdateActor(r *core.Record, client meilisearch.ServiceManager) error {
+	documents, err := documentFromActorRecord(r)
+	if err != nil {
+		return err
+	}
+
+	if _, err = client.Index("actors").UpdateDocuments(documents, nil); err != nil {
 		return err
 	}
 

@@ -1,6 +1,8 @@
+import { RecordListOptionsSchema } from '$lib/models/api/base_schema';
 import { TrailCreateSchema } from '$lib/models/api/trail_schema';
 import type { Trail } from '$lib/models/trail';
-import { Collection, create, handleError, list } from '$lib/util/api_util';
+import { withTrailPreferencePocketBaseFilter } from '$lib/server/category_preference_filter';
+import { Collection, create, handleError } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 /**
@@ -42,7 +44,31 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  */
 export async function GET(event: RequestEvent) {
     try {
-        const r = await list<Trail>(event, Collection.trails);
+        const searchParams = Object.fromEntries(event.url.searchParams);
+        const safeSearchParams = RecordListOptionsSchema.parse(searchParams);
+        const { perPage, page, ...opts } = safeSearchParams;
+        const filter = await withTrailPreferencePocketBaseFilter(
+            event,
+            safeSearchParams.filter,
+        );
+        const listOptions = { ...opts, filter };
+        const r = (perPage ?? 0) < 0
+            ? {
+                  items: await event.locals.pb
+                      .collection(Collection.trails)
+                      .getFullList<Trail>(listOptions),
+                  perPage: -1,
+                  page: 1,
+                  totalItems: 0,
+                  totalPages: 1,
+              }
+            : await event.locals.pb
+                  .collection(Collection.trails)
+                  .getList<Trail>(page, perPage, listOptions);
+
+        if (perPage && perPage < 0) {
+            r.totalItems = r.items.length;
+        }
 
         for (const t of r.items) {
             if (!t.author || !event.locals.pb.authStore.record) {

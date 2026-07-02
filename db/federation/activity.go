@@ -18,10 +18,39 @@ import (
 
 	"github.com/go-ap/jsonld"
 	"github.com/go-fed/httpsig"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"golang.org/x/sync/semaphore"
 )
+
+var httpClient = &http.Client{Timeout: 10 * time.Second}
+
+// followerInboxes returns inbox URLs for all accepted followers of actorId
+// in a single JOIN query instead of one query per follower.
+func followerInboxes(app core.App, actorId string) ([]string, error) {
+	rows, err := app.DB().
+		Select("aa.inbox").
+		From("follows f").
+		InnerJoin("activitypub_actors aa", dbx.NewExp("f.follower = aa.id")).
+		Where(dbx.NewExp("f.followee = {:followee} AND f.status = 'accepted' AND aa.inbox != ''",
+			dbx.Params{"followee": actorId})).
+		Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var inboxes []string
+	for rows.Next() {
+		var inbox string
+		if err := rows.Scan(&inbox); err != nil {
+			return nil, err
+		}
+		inboxes = append(inboxes, inbox)
+	}
+	return inboxes, rows.Err()
+}
 
 func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, recipients []string) error {
 	go func() {
@@ -67,7 +96,6 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 		}
 		pubID := actor.GetString("iri") + "#main-key"
 
-		client := &http.Client{}
 		sem := semaphore.NewWeighted(5)
 
 		slices.Sort(recipients)
@@ -105,7 +133,7 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 					return
 				}
 
-				resp, err := client.Do(req)
+				resp, err := httpClient.Do(req)
 				if err != nil {
 					app.Logger().Error(fmt.Sprintf("Error sending to inbox %s: %s", inbox, err))
 					return

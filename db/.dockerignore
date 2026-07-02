@@ -6,6 +6,8 @@
 !integrations
 !main.go
 !migrations
+!plugins
+!pluginsystem
 !routes
 !templates
 !services

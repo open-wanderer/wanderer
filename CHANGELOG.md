@@ -82,7 +82,6 @@
 ## Maintenance
 - Meilisearch, PocketBase, Go, web/docs dependencies, CI actions, and Docker build setup updated.
 
-
 # v0.18.5
 ## Security
 - Fixes CVE-2022-39299 via xmldom upgrade (PR #820)

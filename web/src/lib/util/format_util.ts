@@ -13,7 +13,10 @@ export function formatTimeHHMM(seconds?: number) {
     return (h < 10 ? "0" : "") + h.toString() + "h " + (m < 10 ? "0" : "") + m.toString() + "m";
 }
 
-export function formatDistance(meters?: number) {
+export function formatDistance(
+    meters?: number,
+    options: { compact?: boolean } = {},
+) {
     if (meters === undefined) {
         return "-";
     }
@@ -22,7 +25,14 @@ export function formatDistance(meters?: number) {
 
     if (unit == "metric") {
         if (meters >= 1000) {
-            return `${(meters / 1000).toFixed(2)} km`
+            const kilometers = meters / 1000;
+            if (options.compact && kilometers >= 100) {
+                return `${kilometers.toFixed(0)} km`;
+            }
+            if (options.compact && kilometers >= 10) {
+                return `${kilometers.toFixed(1)} km`;
+            }
+            return `${kilometers.toFixed(2)} km`
         } else {
             return meters % 1 == 0 ? `${meters} m` : `${Math.round(meters)} m`;
         }

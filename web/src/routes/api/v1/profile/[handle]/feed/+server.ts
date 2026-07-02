@@ -53,7 +53,7 @@ export async function GET(event: RequestEvent) {
         const safeSearchParams = RecordListOptionsSchema.parse(searchParams);
 
         let feed: ListResult<FeedItem>;
-        if (actor.isLocal) {
+        if (actor.is_local) {
             feed = await event.locals.pb.collection(Collection.profile_feed)
                 .getList<FeedItem>(safeSearchParams.page, safeSearchParams.perPage, { ...safeSearchParams, filter: `actor='${actor.id}'` })
         } else {

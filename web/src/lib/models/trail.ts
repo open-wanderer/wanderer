@@ -3,6 +3,7 @@ import type { Actor } from "./activitypub/actor";
 import type { Category } from "./category";
 import type { Comment } from "./comment";
 import type GPX from "./gpx/gpx";
+import type { Subcategory } from "./subcategory";
 import type { SummitLog } from "./summit_log";
 import type { Tag } from "./tag";
 import type { TrailLike } from "./trail_like";
@@ -29,14 +30,17 @@ class Trail {
     created?: string;
     updated?: string;
     category?: string;
+    subcategory?: string;
     tags: string[];
     polyline?: string;
     domain?: string;
     iri?: string;
     like_count: number;
+    bounding_box_diagonal?: number;
     expand?: {
         tags?: Tag[]
         category?: Category;
+        subcategory?: Subcategory;
         waypoints_via_trail?: Waypoint[]
         summit_logs_via_trail?: SummitLog[]
         author?: Actor
@@ -69,13 +73,15 @@ class Trail {
             gpx?: string,
             gpx_data?: string,
             category?: Category,
+            subcategory?: Subcategory,
             waypoints?: Waypoint[],
             summit_logs?: SummitLog[],
             comments?: Comment[],
             shares?: TrailShare[],
             tags?: Tag[],
-            description?: string
-            created?: string
+            description?: string,
+            created?: string,
+            bounding_box_diagonal?: number
         }
 
     ) {
@@ -96,9 +102,13 @@ class Trail {
         this.photos = params?.photos ?? [];
         this.tags = [];
         this.gpx = params?.gpx;
+        this.category = params?.category?.id;
+        this.subcategory = params?.subcategory?.id;
+        this.bounding_box_diagonal = params?.bounding_box_diagonal ?? 0;
         this.like_count = 0
         this.expand = {
             category: params?.category,
+            subcategory: params?.subcategory,
             waypoints_via_trail: params?.waypoints ?? [],
             summit_logs_via_trail: params?.summit_logs ?? [],
             comments_via_trail: params?.comments ?? [],
@@ -126,6 +136,7 @@ class Trail {
             public: orig.public,
             tags: orig.expand?.tags,
             category: orig.expand?.category,
+            subcategory: orig.expand?.subcategory,
             gpx_data: orig.expand?.gpx_data,
             waypoints: orig.expand?.waypoints_via_trail?.map(wp => new Waypoint(wp.lat, wp.lon, {
                 id: cryptoRandomString({ length: 15 }),
@@ -140,6 +151,7 @@ class Trail {
 interface TrailFilter {
     q: string,
     category: string[],
+    subcategory: string[],
     tags: string[],
     difficulty: (0 | 1 | 2)[]
     author?: string;
@@ -184,6 +196,7 @@ interface TrailBoundingBox {
     min_lat: number,
     max_lon: number,
     min_lon: number,
+    has_trails?: boolean,
 }
 
 
@@ -201,6 +214,12 @@ interface TrailSearchResult {
     duration: number;
     difficulty: 0 | 1 | 2;
     category: string;
+    category_id?: string | null;
+    category_icon?: string;
+    subcategory_id?: string | null;
+    is_federated?: boolean;
+    federated_category_name?: string | null;
+    federated_subcategory_name?: string | null;
     completed: boolean;
     date: number;
     created: number;
@@ -214,6 +233,7 @@ interface TrailSearchResult {
     domain?: string;
     iri?: string;
     gpx: string;
+    bounding_box_diagonal: number;
     _geo: {
         lat: number,
         lng: number
@@ -234,6 +254,12 @@ export const defaultTrailSearchAttributes = [
     "duration",
     "difficulty",
     "category",
+    "category_id",
+    "category_icon",
+    "subcategory_id",
+    "is_federated",
+    "federated_category_name",
+    "federated_subcategory_name",
     "completed",
     "date",
     "created",
@@ -245,10 +271,10 @@ export const defaultTrailSearchAttributes = [
     "like_count",
     "shares",
     "iri",
+    "bounding_box_diagonal",
     "_geo",]
 
 
 export { Trail };
 
 export type { TrailBoundingBox, TrailFilter, TrailFilterValues, TrailSearchResult };
-

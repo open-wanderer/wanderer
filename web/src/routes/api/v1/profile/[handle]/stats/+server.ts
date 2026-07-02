@@ -58,7 +58,7 @@ export async function GET(event: RequestEvent) {
         }
 
         let summitLogs: SummitLog[];
-        if (actor.isLocal) {
+        if (actor.is_local) {
             summitLogs = await event.locals.pb.collection(Collection.summit_logs)
                 .getFullList<SummitLog>(safeSearchParams.page, { ...safeSearchParams })
         } else {

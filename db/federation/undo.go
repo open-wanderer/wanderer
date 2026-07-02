@@ -3,7 +3,6 @@ package federation
 import (
 	"fmt"
 	"os"
-	"path"
 	"time"
 
 	pub "github.com/go-ap/activitypub"
@@ -91,10 +90,6 @@ func CreateUnlikeActivity(app core.App, like *core.Record) error {
 	}
 
 	object := trail.GetString("iri")
-	if object == "" {
-		// trail is local
-		object = fmt.Sprintf("%s/api/v1/trail/%s", origin, trail.Id)
-	}
 
 	// find the original follow activity
 	likeActivityRecord, err := app.FindFirstRecordByFilter("activitypub_activities", "actor={:actor}&&object={:object}&&type={:type}", dbx.Params{"actor": actor.GetString("iri"), "object": object, "type": string(pub.LikeType)})
@@ -145,7 +140,7 @@ func ProcessUndoActivity(app core.App, actor *core.Record, activity pub.Activity
 
 func processUnfollowActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 	// this was a local follow
-	if actor.GetBool("isLocal") {
+	if actor.GetBool("is_local") {
 		return nil
 	}
 
@@ -169,14 +164,13 @@ func processUnfollowActivity(app core.App, actor *core.Record, activity pub.Acti
 }
 
 func processUnlikeActivity(app core.App, actor *core.Record, activity pub.Activity) error {
-	if actor.GetBool("isLocal") {
+	if actor.GetBool("is_local") {
 		return nil
 	}
 
 	likeActivity := activity.Object.(*pub.Activity)
 
-	trailId := path.Base(likeActivity.Object.GetID().String())
-	trail, err := app.FindRecordById("trails", trailId)
+	trail, err := app.FindFirstRecordByData("trails", "iri", likeActivity.Object.GetID().String())
 	if err != nil {
 		return err
 	}

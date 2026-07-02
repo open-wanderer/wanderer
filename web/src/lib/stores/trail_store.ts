@@ -1,28 +1,27 @@
 import type { SummitLog } from "$lib/models/summit_log";
 import type { Tag } from "$lib/models/tag";
-import { defaultTrailSearchAttributes, Trail, type TrailFilter, type TrailFilterValues, type TrailSearchResult } from "$lib/models/trail";
+import { MAP_MAX_POLYLINES } from "$lib/config/map";
+import { defaultTrailSearchAttributes, Trail, type TrailBoundingBox, type TrailFilter, type TrailFilterValues, type TrailSearchResult } from "$lib/models/trail";
 import type { Waypoint } from "$lib/models/waypoint";
 import { APIError } from "$lib/util/api_util";
 import { deepEqual } from "$lib/util/deep_util";
 import { getFileURL, objectToFormData } from "$lib/util/file_util";
+import { noSubcategoryFilterCategory } from "$lib/util/trail_filter_util";
 import * as M from "maplibre-gl";
 import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { summit_logs_create, summit_logs_delete, summit_logs_update } from "./summit_log_store";
+import { categories } from "./category_store";
+import { subcategories } from "./subcategory_store";
 import { tags_create } from "./tag_store";
 import { currentUser } from "./user_store";
 import { waypoints_create, waypoints_delete, waypoints_update } from "./waypoint_store";
 
-let trails: Trail[] = []
-export const trail: Writable<Trail> = writable(new Trail(""));
-
-export const editTrail: Writable<Trail> = writable(new Trail(""));
-
 export async function trails_index(perPage: number = 21, random: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const r = await f('/api/v1/trail?' + new URLSearchParams({
         "perPage": perPage.toString(),
-        expand: "category,waypoints_via_trail,summit_logs_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,tags",
         sort: random ? "@random" : "",
     }), {
         method: 'GET',
@@ -93,7 +92,50 @@ export async function trails_search_filter(filter: TrailFilter, page: number = 1
 
 }
 
-export async function trails_search_bounding_box(northEast: M.LngLat, southWest: M.LngLat, filter: TrailFilter, page: number = 1, includePolyline: boolean = true) {
+const DETAILED_CACHE_MAX_SIZE = Math.max(200, MAP_MAX_POLYLINES * 10);
+
+let trails: Trail[] = []
+const detailedCache = new Map<string, Trail>();
+let detailedCacheKey = "";
+
+function getDetailedCache(id: string): Trail | undefined {
+    const cached = detailedCache.get(id);
+    if (!cached) {
+        return undefined;
+    }
+
+    detailedCache.delete(id);
+    // Reinsert the entry so Map iteration order tracks recent usage for LRU eviction.
+    detailedCache.set(id, cached);
+    return cached;
+}
+
+function setDetailedCache(id: string, trail: Trail) {
+    detailedCache.delete(id);
+    detailedCache.set(id, trail);
+
+    while (detailedCache.size > DETAILED_CACHE_MAX_SIZE) {
+        const oldestKey = detailedCache.keys().next().value;
+        if (!oldestKey) {
+            break;
+        }
+        detailedCache.delete(oldestKey);
+    }
+}
+
+export const trail: Writable<Trail> = writable(new Trail(""));
+
+export const editTrail: Writable<Trail> = writable(new Trail(""));
+
+export async function trails_search_bounding_box(
+    northEast: M.LngLat,
+    southWest: M.LngLat,
+    filter: TrailFilter,
+    page: number = 1,
+    zoom: number = 11,
+    perPage: number = 50,
+    loadMapData: boolean = true
+) {
     const user = get(currentUser)
 
     let filterText: string = "";
@@ -102,42 +144,188 @@ export async function trails_search_bounding_box(northEast: M.LngLat, southWest:
         filterText = buildFilterText(user, filter, false);
     }
 
-    let r = await fetch("/api/v1/search/trails", {
-        method: "POST",
-        body: JSON.stringify({
-            q: "",
-            options: {
-                filter: [
-                    `_geoBoundingBox([${northEast.lat}, ${northEast.lng}], [${southWest.lat}, ${southWest.lng}])`,
-                    filterText
-                ],
-                sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`,],
-                attributesToRetrieve: [...defaultTrailSearchAttributes, ...(includePolyline ? ["polyline"] : [])],
-                hitsPerPage: 500,
-                page: page
-            }
-        }),
-    });
-    const result: { page: number, totalPages: number, hits: Hits<TrailSearchResult> } = await r.json();
-
-    if (result.hits.length == 0) {
-        trails = [];
-        return { trails: [], ...result }
+    let lonFilter = `max_lon >= ${southWest.lng} AND min_lon <= ${northEast.lng}`;
+    if (southWest.lng > northEast.lng) {
+        lonFilter = `(max_lon >= ${southWest.lng} OR min_lon <= ${northEast.lng})`;
     }
 
-    const resultTrails: Trail[] = await searchResultToTrailList(result.hits)
+    const geoFilter = `max_lat >= ${southWest.lat} AND min_lat <= ${northEast.lat} AND ${lonFilter}`;
+    const listFilter = [filterText, geoFilter].filter(Boolean).join(" AND ");
+    const cacheKey = JSON.stringify({
+        q: filter.q,
+        filterText,
+        sort: filter.sort,
+        sortOrder: filter.sortOrder,
+    });
+    if (cacheKey !== detailedCacheKey) {
+        detailedCache.clear();
+        detailedCacheKey = cacheKey;
+    }
 
-    trails = page > 1 ? trails.concat(resultTrails) : resultTrails
+    // Step 1: Fetch paginated trails for the side list.
+    const listResponse = await fetch("/api/v1/search/trails", {
+        method: "POST",
+        body: JSON.stringify({
+            q: filter.q,
+            options: {
+                filter: listFilter,
+                attributesToRetrieve: defaultTrailSearchAttributes,
+                sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`],
+                hitsPerPage: perPage,
+                page,
+            },
+        }),
+    });
 
-    return { trails, ...result };
+    if (!listResponse.ok) {
+        const response = await listResponse.json();
+        throw new APIError(listResponse.status, response.message, response.detail)
+    }
 
+    const listResult: { page: number, totalPages: number, totalHits?: number, estimatedTotalHits?: number, hits: Hits<TrailSearchResult> } = await listResponse.json();
+    const listTrails = listResult.hits.length > 0
+        ? await searchResultToTrailList(listResult.hits)
+        : [];
 
+    trails = page > 1 ? trails.concat(listTrails) : listTrails;
+
+    if (!loadMapData) {
+        return {
+            trails,
+            mapTrails: [],
+            clusters: undefined,
+            estimatedTotalHits: listResult.estimatedTotalHits,
+            totalHits: listResult.totalHits ?? listResult.estimatedTotalHits,
+            totalPages: listResult.totalPages
+        };
+    }
+
+    // Step 2: Fetch server-side clusters and unclustered points for the map.
+    let cr = await fetch("/api/v1/search/trails/cluster", {
+        method: "POST",
+        body: JSON.stringify({
+            southWest: { lat: southWest.lat, lng: southWest.lng },
+            northEast: { lat: northEast.lat, lng: northEast.lng },
+            zoom,
+            q: filter.q,
+            filterText
+        })
+    });
+
+    if (!cr.ok) {
+        const response = await cr.json();
+        throw new APIError(cr.status, response.message, response.detail)
+    }
+
+    const clusterResult = await cr.json();
+    const clusterFeatureCollection = clusterResult;
+
+    const unclusteredFeatures = clusterFeatureCollection.features
+        .filter((f: any) => !f.properties.cluster);
+
+    // Extract IDs of visible unclustered points that are large enough to show details for
+    const unclusteredIds = unclusteredFeatures
+        .filter((f: any) => f.properties.is_large)
+        .map((f: any) => f.properties.id);
+
+    // Step 3: Identify which visible trails are MISSING from the local cache
+    const missingIds = unclusteredIds.filter((id: string) => !detailedCache.has(id));
+
+    // Step 4: Only fetch details for missing trails
+    if (missingIds.length > 0) {
+        const batchSize = 100; // Meilisearch filter length safety
+        for (let i = 0; i < missingIds.length; i += batchSize) {
+            const batch = missingIds.slice(i, i + batchSize);
+            const detailBatchQuery = {
+                indexUid: "trails",
+                q: "",
+                filter: [`id IN [${batch.map((id: string) => `'${id}'`).join(",")}]`],
+                attributesToRetrieve: [...defaultTrailSearchAttributes, "polyline"],
+                hitsPerPage: batchSize,
+            };
+
+            const dr = await fetch("/api/v1/search/multi", {
+                method: "POST",
+                body: JSON.stringify({ queries: [detailBatchQuery] }),
+            });
+
+            if (dr.ok) {
+                const detailResult = await dr.json();
+                const newTrails = await searchResultToTrailList(detailResult.results[0].hits);
+                // Populate cache
+                newTrails.forEach(t => {
+                    if (t.id) setDetailedCache(t.id, t)
+                });
+            }
+        }
+    }
+
+    // Step 5: Convert unclustered hits to lightweight Trail objects for map popups/previews.
+    const mapTrails: Trail[] = unclusteredFeatures
+        .map((f: any) => {
+        const s = f.properties;
+        const lat = f.geometry.coordinates[1];
+        const lng = f.geometry.coordinates[0];
+
+        const cached = getDetailedCache(s.id);
+        if (cached) {
+            return {
+                ...cached,
+                lat,
+                lon: lng,
+                bounding_box_diagonal: s.bounding_box_diagonal ?? cached.bounding_box_diagonal,
+                // Strip polyline for small trails so they don't linger as lines when zoomed out
+                polyline: s.is_large ? cached.polyline : undefined,
+            };
+        }
+
+        // Lightweight fallback for map markers
+        const t: Trail & RecordModel = {
+            id: s.id,
+            lat: lat,
+            lon: lng,
+            name: "",
+            author: "",
+            photos: [],
+            public: true,
+            completed: false,
+            summit_logs: [],
+            waypoints: [],
+            tags: [],
+            category: "",
+            created: new Date(0).toISOString(),
+            date: new Date(0).toISOString(),
+            updated: new Date(0).toISOString(),
+            description: "",
+            difficulty: "easy",
+            distance: 0,
+            duration: 0,
+            elevation_gain: 0,
+            elevation_loss: 0,
+            location: "",
+            bounding_box_diagonal: s.bounding_box_diagonal ?? 0,
+            like_count: 0,
+            collectionId: "trails",
+            collectionName: "trails",
+            expand: { author: {} as any }
+        };
+        return t;
+    });
+
+    return {
+        trails,
+        mapTrails,
+        clusters: clusterFeatureCollection,
+        estimatedTotalHits: listResult.estimatedTotalHits ?? clusterResult.totalHits,
+        totalHits: listResult.totalHits ?? listResult.estimatedTotalHits ?? clusterResult.totalHits,
+        totalPages: listResult.totalPages
+    };
 }
 
 export async function trails_show(id: string, handle?: string, share?: string, loadGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
 
     const r = await f(`/api/v1/trail/${id}?` + new URLSearchParams({
-        expand: "category,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
         ...(handle ? { handle } : {}),
         ...(share ? { share } : {})
     }), {
@@ -208,7 +396,7 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
     }
 
     let r = await f(`/api/v1/trail/form?` + new URLSearchParams({
-        expand: "category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
     }), {
         method: 'PUT',
         body: formData,
@@ -334,9 +522,11 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
     }
 
 
-    let r = await fetch(`/api/v1/trail/form/${newTrail.id}?` + new URLSearchParams({
-        expand: "category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
-    }), {
+    const updateUrl = `/api/v1/trail/form/${newTrail.id}?` + new URLSearchParams({
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+    });
+
+    let r = await fetch(updateUrl, {
         method: 'POST',
         body: formData,
     })
@@ -360,6 +550,54 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
     return model;
 }
 
+export async function trails_update_metadata(
+    currentTrail: Trail,
+    patch: Pick<Partial<Trail>, "name" | "description" | "tags"> & {
+        expand?: Pick<NonNullable<Trail["expand"]>, "tags">;
+    },
+) {
+    const tagIds: string[] | undefined = patch.expand?.tags
+        ? []
+        : patch.tags;
+
+    for (const tag of patch.expand?.tags ?? []) {
+        if (!tag.id) {
+            const model = await tags_create(tag);
+            tagIds!.push(model.id!);
+        } else {
+            tagIds!.push(tag.id);
+        }
+    }
+
+    const searchParams = new URLSearchParams(
+        tagIds !== undefined ? { expand: "tags" } : {},
+    );
+    const query = searchParams.toString();
+    const url = `/api/v1/trail/${currentTrail.id}${query ? `?${query}` : ""}`;
+    const payload = {
+        name: patch.name ?? currentTrail.name,
+        ...(patch.description !== undefined
+            ? { description: patch.description }
+            : {}),
+        ...(tagIds !== undefined ? { tags: tagIds } : {}),
+    };
+
+    const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+
+    if (!r.ok) {
+        const response = await r.json();
+        throw new APIError(r.status, response.message, response.detail);
+    }
+
+    const model: Trail = await r.json();
+    trail.set(model);
+
+    return model;
+}
 
 export async function trails_delete(trail: Trail) {
     const r = await fetch('/api/v1/trail/' + trail.id, {
@@ -390,7 +628,7 @@ export async function trails_get_filter_values(f: (url: RequestInfo | URL, confi
 
 }
 
-export async function trails_get_bounding_box(f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<TrailFilterValues> {
+export async function trails_get_bounding_box(f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<TrailBoundingBox> {
     const r = await f('/api/v1/trail/bounding-box', {
         method: 'GET',
     })
@@ -452,11 +690,22 @@ export async function fetchGPX(trail: { gpx?: string } & Record<string, any>, f:
 
 export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Promise<Trail[]> {
     const trails: Trail[] = []
+    const categoryById = new Map(get(categories).map((category) => [category.id, category]));
+    const subcategoryById = new Map(
+        get(subcategories).map((subcategory) => [subcategory.id, subcategory]),
+    );
+
     for (const h of hits) {
+        const created = Number(h.created || 0);
+        const date = Number(h.date || 0);
+        const category = h.category_id ? categoryById.get(h.category_id) : undefined;
+        const subcategory = h.subcategory_id
+            ? subcategoryById.get(h.subcategory_id)
+            : undefined;
         const t: Trail & RecordModel = {
             collectionId: "trails",
             collectionName: "trails",
-            updated: new Date(h.created * 1000).toISOString(),
+            updated: new Date(created * 1000).toISOString(),
             author: h.author_name,
             name: h.name,
             photos: h.thumbnail ? [h.thumbnail] : [],
@@ -465,9 +714,10 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
             summit_logs: [],
             waypoints: [],
             tags: h.tags ?? [],
-            category: h.category,
-            created: new Date(h.created * 1000).toISOString(),
-            date: new Date(h.date * 1000).toISOString(),
+            category: h.category_id ?? "",
+            subcategory: h.subcategory_id ?? "",
+            created: new Date(created * 1000).toISOString(),
+            date: new Date(date * 1000).toISOString(),
             description: h.description,
             difficulty: h.difficulty == 0 ? "easy" : h.difficulty == 1 ? "moderate" : "difficult",
             distance: h.distance,
@@ -480,14 +730,23 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
             location: h.location,
             gpx: h.gpx,
             polyline: h.polyline,
+            bounding_box_diagonal: h.bounding_box_diagonal ?? 0,
             domain: h.domain,
             iri: h.iri,
             thumbnail: 0,
             like_count: h.like_count,
             expand: {
+                category: category ?? (h.category
+                    ? {
+                          id: h.category_id ?? "",
+                          name: h.category,
+                          icon: h.category_icon,
+                      }
+                    : undefined),
+                subcategory,
                 author: {
                     collectionId: "activitypub_actors",
-                    isLocal: (h.domain?.length ?? 0) == 0,
+                    is_local: (h.domain?.length ?? 0) == 0,
                     id: h.author,
                     icon: h.author_avatar,
                     preferred_username: h.author_name,
@@ -600,9 +859,52 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
         filterText += ` AND date <= ${new Date(filter.endDate).getTime() / 1000}`
     }
 
-    if (filter.category.length > 0) {
-        const categoryValues = filter.category.map(category => `'${category}'`).join(", ");
-        filterText += ` AND category IN [${categoryValues}]`;
+    const selectedSubcategoryIds = filter.subcategory ?? [];
+    if (filter.category.length > 0 || selectedSubcategoryIds.length > 0) {
+        const selectedNoSubcategoryCategoryIds = selectedSubcategoryIds
+            .map(noSubcategoryFilterCategory)
+            .filter((category): category is string => category !== undefined);
+        const selectedRealSubcategoryIds = selectedSubcategoryIds.filter(
+            (id) => noSubcategoryFilterCategory(id) === undefined,
+        );
+        const selectedSubcategoryParentIds = new Set(
+            get(subcategories)
+                .filter((subcategory) => selectedRealSubcategoryIds.includes(subcategory.id))
+                .map((subcategory) => subcategory.category),
+        );
+        for (const categoryId of selectedNoSubcategoryCategoryIds) {
+            selectedSubcategoryParentIds.add(categoryId);
+        }
+        const categoriesWithoutSubcategoryFilter = filter.category.filter(
+            (category) => !selectedSubcategoryParentIds.has(category),
+        );
+        const categoryParts: string[] = [];
+
+        if (categoriesWithoutSubcategoryFilter.length > 0) {
+            const categoryValues = categoriesWithoutSubcategoryFilter
+                .map(category => `'${category}'`)
+                .join(", ");
+            categoryParts.push(`category_id IN [${categoryValues}]`);
+        }
+
+        if (selectedNoSubcategoryCategoryIds.length > 0) {
+            const noSubcategoryParts = selectedNoSubcategoryCategoryIds.map(
+                (category) =>
+                    `(category_id = '${category}' AND subcategory_id IS NULL)`,
+            );
+            categoryParts.push(...noSubcategoryParts);
+        }
+
+        if (selectedRealSubcategoryIds.length > 0) {
+            const subcategoryValues = selectedRealSubcategoryIds
+                .map(subcategory => `'${subcategory}'`)
+                .join(", ");
+            categoryParts.push(`subcategory_id IN [${subcategoryValues}]`);
+        }
+
+        if (categoryParts.length > 0) {
+            filterText += ` AND (${categoryParts.join(" OR ")})`;
+        }
     }
 
     if (filter.tags.length > 0) {

@@ -21,6 +21,7 @@ const TrailCreateSchema = z.object({
     thumbnail: z.number().int().nonnegative().optional(),
     like_count: z.number().int().min(0).optional().default(0),
     category: z.string().length(15).optional().or(z.literal('')),
+    subcategory: z.string().length(15).optional().or(z.literal('')),
     tags: z.array(z.string()).default([]),
     gpx: z.string().optional(),
     author: z.string().length(15),
@@ -45,8 +46,9 @@ const TrailUpdateSchema = z.object({
     "photos-": z.string().optional(),
     "photos+": z.string().optional(),
     thumbnail: z.number().int().nonnegative().optional(),
-    like_count: z.number().int().min(0).optional().default(0),
+    like_count: z.number().int().min(0).optional(),
     category: z.string().optional(),
+    subcategory: z.string().optional(),
     tags: z.array(z.string()).optional(),
     gpx: z.string().optional(),
 }) satisfies ZodType<Partial<Trail>>

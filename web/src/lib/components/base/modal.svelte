@@ -8,6 +8,7 @@
         children?: Snippet<[any]>;
         content?: Snippet;
         footer?: Snippet<[any]>;
+        onclose?: () => void;
     }
 
     let {
@@ -17,6 +18,7 @@
         children,
         content,
         footer,
+        onclose,
     }: Props = $props();
 
     export function openModal() {
@@ -42,6 +44,7 @@
     {id}
     tabindex="-1"
     aria-hidden="true"
+    onclose={() => onclose?.()}
     class="{size} max-h-full rounded-xl text-content"
 >
     <!-- Modal content -->

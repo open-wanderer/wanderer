@@ -2,8 +2,9 @@ import * as M from "maplibre-gl";
 import { DebugLayer } from "./debug-layer";
 import { baseMapStyles, defaultMapState, type BaseLayer, type MapState } from "./layers";
 import { OverlayLayer } from "./overlay-layer";
-import { OverpassLayer } from "./overpass-layer";
+import { OverpassLayer, type OverpassPopupActionFactory } from "./overpass-layer";
 
+const DEFAULT_GLYPHS = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
 
 
 export class LayerManager {
@@ -11,9 +12,11 @@ export class LayerManager {
     state!: MapState;
     layers: Record<string, BaseLayer> = {};
     private addedListeners: Set<string> = new Set();
+    private overpassActionFactory?: OverpassPopupActionFactory;
 
-    constructor(map: M.Map) {
+    constructor(map: M.Map, options?: { overpassActionFactory?: OverpassPopupActionFactory }) {
         this.map = map;
+        this.overpassActionFactory = options?.overpassActionFactory;
 
         const storedMapState = localStorage.getItem("map-state")
         if (storedMapState) {
@@ -40,7 +43,7 @@ export class LayerManager {
         try {
             this.update(this.state, true);
 
-            const overpassLayer = new OverpassLayer(this.map)
+            const overpassLayer = new OverpassLayer(this.map, this.overpassActionFactory)
             const debugLayer = new DebugLayer()
 
             this.addLayer("overpass", overpassLayer)
@@ -116,6 +119,14 @@ export class LayerManager {
             if (!this.map.getSource(id)) {
                 this.map.addSource(id, s)
             }
+        }
+
+        const style = this.map.getStyle();
+        if (
+            !style.glyphs &&
+            layer.spec.layers.some((l) => l.type === "symbol" && l.layout && "text-field" in l.layout)
+        ) {
+            this.map.setGlyphs(layer.spec.glyphs ?? DEFAULT_GLYPHS);
         }
 
         for (const l of layer.spec.layers) {

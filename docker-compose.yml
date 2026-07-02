@@ -41,6 +41,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/pb_data:/pb_data
+      - ./data/plugins:/data/plugins
     healthcheck:
       test: ["CMD", "/curl", "--fail", "http://localhost:8090/health"]
       interval: 15s
@@ -67,6 +68,7 @@ services:
       OVERPASS_API_URL: https://overpass-api.de
       VALHALLA_URL: https://valhalla1.openstreetmap.de
       NOMINATIM_URL: https://nominatim.openstreetmap.org
+      PUBLIC_MAP_MAX_POLYLINES: 100
     volumes:
       - ./data/uploads:/app/uploads
       # - ./data/about.md:/app/build/client/md/about.md

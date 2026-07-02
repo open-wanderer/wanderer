@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Actor } from "$lib/models/activitypub/actor";
+    import type { Actor, ActorSearchResult } from "$lib/models/activitypub/actor";
     import { searchActors } from "$lib/stores/search_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import { _ } from "svelte-i18n";
@@ -32,10 +32,10 @@
             return;
         }
         try {
-            const actors: Actor[] = await searchActors(q, includeSelf);
+            const actors: ActorSearchResult[] = await searchActors(q, includeSelf);
             searchItems = actors.map((a) => ({
                 text: a.username,
-                description: `@${a.preferred_username}${a.isLocal ? "" : "@" + a.domain}`,
+                description: `@${a.preferred_username}${a.is_local ? "" : "@" + a.domain}`,
                 value: a,
                 icon: "user",
             }));

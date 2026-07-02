@@ -1,31 +1,31 @@
 <script lang="ts">
     import Button from "$lib/components/base/button.svelte";
     import Editor from "$lib/components/base/editor.svelte";
-    import type { SelectItem } from "$lib/components/base/select.svelte";
-    import Select from "$lib/components/base/select.svelte";
-    import type { Category } from "$lib/models/category.js";
     import { settings_update } from "$lib/stores/settings_store";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
     import { currentUser, users_update } from "$lib/stores/user_store";
+    import {
+        designSelectableCategories,
+        displayCategoryIcon,
+        displayCategoryName,
+    } from "$lib/util/category_util";
     import { getFileURL } from "$lib/util/file_util";
     import { untrack } from "svelte";
-    import { _ } from "svelte-i18n";
+    import { _, locale } from "svelte-i18n";
 
     let { data } = $props();
 
     let settings = $state(untrack(() => data.settings));
 
-    let selectedCategory = $state(
-        untrack(() => data.settings?.category || data.categories[0].id),
-    );
-
     let bio = $state(untrack(() => data.settings?.bio ?? ""));
 
-    let categoryItems: SelectItem[] = $derived.by(() =>
-        data.categories.map((c: Category) => ({
-            text: $_(c.name),
-            value: c.id,
-        })),
+    // Read-only display of the user's most important category; managed via priorities.
+    let favouriteCategory = $derived(
+        designSelectableCategories(
+            data.categories,
+            data.categoryPreferences,
+            $locale,
+        )[0],
     );
 
     function openFileBrowser() {
@@ -64,12 +64,6 @@
         }
     }
 
-    async function handleCategorySelection(value: string) {
-        await settings_update({
-            id: settings.id,
-            category: value,
-        });
-    }
 </script>
 
 <svelte:head>
@@ -124,11 +118,24 @@
 
         <div>
             <h4 class="text-xl font-medium mb-2">{$_("favourite-sport")}</h4>
-            <Select
-                items={categoryItems}
-                bind:value={selectedCategory}
-                onchange={handleCategorySelection}
-            ></Select>
+            <div class="flex items-center gap-3">
+                {#if favouriteCategory}
+                    <span class="flex items-center gap-2">
+                        <i class="fa {displayCategoryIcon(favouriteCategory)}"></i>
+                        {displayCategoryName(favouriteCategory, $locale)}
+                    </span>
+                {:else}
+                    <span class="text-gray-500">—</span>
+                {/if}
+                <a
+                    href="/settings/categories"
+                    class="btn-icon tooltip inline-flex items-center justify-center"
+                    aria-label={$_("edit")}
+                    data-title={$_("edit")}
+                >
+                    <i class="fa fa-pen text-sm"></i>
+                </a>
+            </div>
         </div>
     </div>
 {/if}

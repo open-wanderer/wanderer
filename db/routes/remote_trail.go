@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"pocketbase/federation"
 	"pocketbase/util"
 	"strconv"
@@ -79,6 +78,13 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 				}
 				return e.InternalServerError("Sync failed", err)
 			}
+			if record.Id == "" {
+				// Local content that does not exist (e.g. a stale URL to a
+				// missing local trail): performFullSync short-circuits local
+				// IRIs and returns the unsaved shell — surface a real 404
+				// instead of running access/expand on a non-existent record.
+				return e.NotFoundError("Trail not found", nil)
+			}
 		} else {
 			// We already have it locally. Show and update background.
 			updatedAt := record.GetDateTime("updated").Time()
@@ -120,7 +126,10 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 func findLocalTrailByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle, trailID string) (*core.Record, error) {
 	// 1. Get Actor to build the IRI
 	actor, err := federation.GetActorByHandle(e.App, ctx, handle, false)
-	if err != nil {
+	if err != nil && !errors.Is(err, federation.ErrProfilePrivate) {
+		return nil, err
+	}
+	if actor == nil {
 		return nil, err
 	}
 
@@ -146,19 +155,38 @@ func findLocalTrailByRemoteInfo(e *core.RequestEvent, ctx context.Context, handl
 // --- Core Sync Logic ---
 
 func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTrail *core.Record) (*core.Record, error) {
-	client := util.SafeHTTPClient()
-
 	iri := localTrail.GetString("iri")
+
+	// Never federate with ourselves: a trail whose IRI is empty or points back
+	// to this instance is local content (we are the source of truth). Syncing it
+	// would fetch our own origin (or fail on an empty URL); just clear the stale
+	// flag so the record is no longer stuck in a permanent re-sync loop.
+	if iri == "" || util.IsLocalIRI(iri) {
+		if localTrail.GetBool("needs_full_sync") {
+			localTrail.Set("needs_full_sync", false)
+			if err := app.Save(localTrail); err != nil {
+				return localTrail, err
+			}
+		}
+		return localTrail, nil
+	}
+
+	client := util.SafeHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
-	remoteUrl.RawQuery = reqURL.RawQuery // Forward params
+	query := reqURL.Query()
+	query.Del("handle")
+	remoteUrl.RawQuery = query.Encode()
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
 	req, _ := http.NewRequestWithContext(ctx, "GET", remoteUrl.String(), nil)
 	res, err := client.Do(req)
-	if err != nil || res.StatusCode != 200 {
+	if err != nil {
 		return localTrail, err
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return localTrail, fmt.Errorf("remote trail fetch %s returned: %d", remoteUrl.String(), res.StatusCode)
+	}
 
 	var remoteMap map[string]any
 	if err := json.NewDecoder(res.Body).Decode(&remoteMap); err != nil {
@@ -209,15 +237,39 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 // --- Sub-Sync Helpers ---
 
 func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
-	// Resolve Category if present in expand
+	var federatedCategoryName, federatedSubcategoryName string
+
 	if expand, ok := data["expand"].(map[string]any); ok {
 		if cat, ok := expand["category"].(map[string]any); ok {
 			if name, ok := cat["name"].(string); ok {
-				if c, _ := app.FindFirstRecordByData("categories", "name", name); c != nil {
-					record.Set("category", c.Id)
-				}
+				federatedCategoryName = name
 			}
 		}
+		if subcat, ok := expand["subcategory"].(map[string]any); ok {
+			if name, ok := subcat["name"].(string); ok {
+				federatedSubcategoryName = name
+			}
+		}
+	}
+
+	if federatedCategoryName != "" {
+		record.Set("federated_category_name", federatedCategoryName)
+	}
+	if federatedSubcategoryName != "" {
+		record.Set("federated_subcategory_name", federatedSubcategoryName)
+	}
+
+	category, subcategory, err := util.ResolveCategoryAndSubcategoryByNormalizedNames(app, federatedCategoryName, federatedSubcategoryName)
+	if err == nil && category != nil {
+		record.Set("category", category.Id)
+		if subcategory != nil {
+			record.Set("subcategory", subcategory.Id)
+		} else {
+			record.Set("subcategory", "")
+		}
+	} else if err == nil && federatedCategoryName != "" {
+		record.Set("category", "")
+		record.Set("subcategory", "")
 	}
 
 	// Resolve Tags
@@ -232,8 +284,11 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 	delete(data, "gpx")
 	delete(data, "author")
 	delete(data, "category")
+	delete(data, "subcategory")
 	delete(data, "tags")
 	delete(data, "iri")
+	delete(data, "federated_category_name")
+	delete(data, "federated_subcategory_name")
 
 	record.Load(data)
 }
@@ -321,13 +376,10 @@ func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, ori
 		slID, _ := raw["id"].(string)
 		iri, _ := raw["iri"].(string)
 		if iri == "" {
-			iri = fmt.Sprintf("%s/api/v1/summit_logs/%s", origin, slID)
+			iri = fmt.Sprintf("%s/api/v1/summit-log/%s", origin, slID)
 		}
 
-		remoteSummitLogUrl, _ := url.Parse(iri)
-		possibleLocalId := path.Base(remoteSummitLogUrl.Path)
-
-		sl, _ := txApp.FindFirstRecordByFilter("summit_logs", "iri={:iri} || id={:id}", dbx.Params{"id": possibleLocalId, "iri": iri})
+		sl, _ := txApp.FindFirstRecordByData("summit_logs", "iri", iri)
 		if sl == nil {
 			sl = core.NewRecord(col)
 		}

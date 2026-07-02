@@ -51,7 +51,7 @@ func CreateTrailLikeHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
-		if !actor.GetBool("isLocal") {
+		if !actor.GetBool("is_local") {
 			// this happens if someone likes a remote trail
 			// we create a local copy
 			// no need to create an activity for that
@@ -107,7 +107,7 @@ func DeleteTrailLikeHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
-		if !actor.GetBool("isLocal") {
+		if !actor.GetBool("is_local") {
 			// this happens if someone likes a remote trail
 			// we create a local copy
 			// no need to create an activity for that

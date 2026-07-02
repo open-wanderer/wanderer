@@ -86,7 +86,7 @@
             return;
         }
 
-        if (!item.value.isLocal && !trail.public) {
+        if (!item.value.is_local && !trail.public) {
             displayShareError = true;
             return;
         }
@@ -167,11 +167,11 @@
                             <img
                                 class="rounded-full w-8 aspect-square mr-2"
                                 src={share.expand.actor.icon ||
-                                    `https://api.dicebear.com/7.x/initials/svg?seed=${share.expand.actor.username}&backgroundType=gradientLinear`}
+                                    `https://api.dicebear.com/7.x/initials/svg?seed=${share.expand.actor.preferred_username}&backgroundType=gradientLinear`}
                                 alt="avatar"
                             />
                             <p>
-                                {`@${share.expand.actor.username}${share.expand.actor.isLocal ? "" : "@" + share.expand.actor.domain}`}
+                                {`@${share.expand.actor.username}${share.expand.actor.is_local ? "" : "@" + share.expand.actor.domain}`}
                             </p>
                             <span
                                 class="basis-full text-sm text-gray-500 text-end"
@@ -179,13 +179,13 @@
                             >
                             <div
                                 class="shrink-0"
-                                class:tooltip={!share.expand.actor.isLocal}
+                                class:tooltip={!share.expand.actor.is_local}
                                 data-title={$_("remote-users-cannot-edit")}
                             >
                                 <Select
                                     value={share.permission}
                                     items={permissionSelectItems}
-                                    disabled={!share.expand.actor.isLocal}
+                                    disabled={!share.expand.actor.is_local}
                                     onchange={(value) =>
                                         updateSharePermission(share, value)}
                                 ></Select>
