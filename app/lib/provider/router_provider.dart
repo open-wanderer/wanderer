@@ -199,8 +199,16 @@ class Router extends _$Router {
               routes: [
                 GoRoute(
                   path: 'subcategories',
-                  // ignore: lines_longer_than_80_chars
-                  builder: (context, state) => SettingsSubcategoriesScreen(category: state.extra as Category),
+                  builder: (context, state) {
+                    final extra = state.extra;
+                    if (extra is! Category) {
+                      // extra is lost across process restart / deep-link —
+                      // fall back so the user isn't left on a crashed
+                      // screen.
+                      return const SettingsCategoriesScreen();
+                    }
+                    return SettingsSubcategoriesScreen(category: extra);
+                  },
                 ),
               ],
             ),
