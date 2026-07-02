@@ -27,7 +27,7 @@ class AsyncLoader<T> extends StatelessWidget {
 
     final data = switch (asyncValue) {
       AsyncData<T>(value: final v) => v,
-      _ => mockData,
+      _ => asyncValue.value ?? mockData,
     };
 
     return Skeletonizer(
