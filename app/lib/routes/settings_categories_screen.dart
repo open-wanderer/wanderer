@@ -39,6 +39,14 @@ class _SettingsCategoriesScreenState
   /// provider mid-drag).
   List<String> _orderedIds = const [];
 
+  /// True while a drag gesture is in progress (set in `onReorderStart`,
+  /// cleared in `onReorderEnd`). While true, `build()` must not reseed
+  /// `_orderedIds` from the provider-derived sort — an unrelated `ref.watch`
+  /// dependency change mid-drag (e.g. a background provider refresh) would
+  /// otherwise silently reset the working copy and desync/snap-back the
+  /// in-progress drag.
+  bool _dragging = false;
+
   /// Persists [op] and surfaces only an error toast on failure (D-08 — no
   /// success toast; the watched provider drives optimistic UI via
   /// `invalidateSelf`).
@@ -114,8 +122,12 @@ class _SettingsCategoriesScreenState
           );
           // Seed the reorder working copy from the current sorted order. On the
           // non-drag path this simply mirrors `sorted`; a drag mutates it
-          // optimistically (Task 2).
-          _orderedIds = sorted.map((c) => c.id).toList();
+          // optimistically (Task 2). Skip reseeding while a drag is in
+          // progress (WR-02) — an unrelated rebuild mid-drag must not clobber
+          // the optimistic working copy.
+          if (!_dragging) {
+            _orderedIds = sorted.map((c) => c.id).toList();
+          }
 
           return _buildList(sorted, data.prefs, locale, activeColor);
         },
@@ -149,6 +161,9 @@ class _SettingsCategoriesScreenState
       // ignore: deprecated_member_use
       onReorder: (oldIndex, newIndex) =>
           _onReorder(oldIndex, newIndex, prefs, locale),
+      // WR-02: guard the working copy against an unrelated rebuild mid-drag.
+      onReorderStart: (_) => setState(() => _dragging = true),
+      onReorderEnd: (_) => setState(() => _dragging = false),
     );
   }
 
