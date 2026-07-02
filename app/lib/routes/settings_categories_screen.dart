@@ -6,10 +6,14 @@ import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/category_preference.dart';
+import 'package:wanderer/models/subcategory.dart';
+import 'package:wanderer/models/subcategory_preference.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/category_preference_provider.dart';
+import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/util/category_icon_util.dart';
 import 'package:wanderer/util/category_preference_sort.dart';
@@ -79,6 +83,11 @@ class _SettingsCategoriesScreenState
     final l10n = AppLocalizations.of(context)!;
     final categoriesAsync = ref.watch(categoryProvider);
     final prefsAsync = ref.watch(categoryPreferenceProvider);
+    // subcategoryProvider is a synchronous List (like categoryProvider); it does
+    // NOT participate in the async error/loading combine. subcategoryPrefsAsync
+    // IS async and MUST join the combine.
+    final subcategories = ref.watch(subcategoryProvider);
+    final subcategoryPrefsAsync = ref.watch(subcategoryPreferenceProvider);
     final locale = Localizations.localeOf(context);
     final colorScheme = Theme.of(context).colorScheme;
     final activeColor = Theme.of(context).brightness == Brightness.dark
@@ -94,21 +103,51 @@ class _SettingsCategoriesScreenState
     // and produced a visible flash on every toggle/reorder save.
     final combined = categoriesAsync.hasError
         ? AsyncValue<
-            ({List<Category> categories, List<CategoryPreference> prefs})
+            ({
+              List<Category> categories,
+              List<CategoryPreference> prefs,
+              List<SubcategoryPreference> subcategoryPrefs,
+            })
           >.error(categoriesAsync.error!, categoriesAsync.stackTrace!)
         : prefsAsync.hasError
         ? AsyncValue<
-            ({List<Category> categories, List<CategoryPreference> prefs})
+            ({
+              List<Category> categories,
+              List<CategoryPreference> prefs,
+              List<SubcategoryPreference> subcategoryPrefs,
+            })
           >.error(prefsAsync.error!, prefsAsync.stackTrace!)
-        : categoriesAsync.hasValue && prefsAsync.hasValue
+        : subcategoryPrefsAsync.hasError
         ? AsyncValue<
-            ({List<Category> categories, List<CategoryPreference> prefs})
+            ({
+              List<Category> categories,
+              List<CategoryPreference> prefs,
+              List<SubcategoryPreference> subcategoryPrefs,
+            })
+          >.error(
+            subcategoryPrefsAsync.error!,
+            subcategoryPrefsAsync.stackTrace!,
+          )
+        : categoriesAsync.hasValue &&
+              prefsAsync.hasValue &&
+              subcategoryPrefsAsync.hasValue
+        ? AsyncValue<
+            ({
+              List<Category> categories,
+              List<CategoryPreference> prefs,
+              List<SubcategoryPreference> subcategoryPrefs,
+            })
           >.data((
             categories: categoriesAsync.value ?? const [],
             prefs: prefsAsync.value ?? const [],
+            subcategoryPrefs: subcategoryPrefsAsync.value ?? const [],
           ))
         : const AsyncValue<
-            ({List<Category> categories, List<CategoryPreference> prefs})
+            ({
+              List<Category> categories,
+              List<CategoryPreference> prefs,
+              List<SubcategoryPreference> subcategoryPrefs,
+            })
           >.loading();
 
     return Scaffold(
@@ -121,10 +160,14 @@ class _SettingsCategoriesScreenState
       ),
       body:
           AsyncLoader<
-            ({List<Category> categories, List<CategoryPreference> prefs})
+            ({
+              List<Category> categories,
+              List<CategoryPreference> prefs,
+              List<SubcategoryPreference> subcategoryPrefs,
+            })
           >(
             asyncValue: combined,
-            mockData: const (categories: [], prefs: []),
+            mockData: const (categories: [], prefs: [], subcategoryPrefs: []),
             builder: (data) {
               final sorted = sortedCategoriesByPreference(
                 data.categories,
@@ -142,7 +185,14 @@ class _SettingsCategoriesScreenState
                 _orderedIds = sorted.map((c) => c.id).toList();
               }
 
-              return _buildList(sorted, data.prefs, locale, activeColor);
+              return _buildList(
+                sorted,
+                data.prefs,
+                locale,
+                activeColor,
+                subcategories,
+                data.subcategoryPrefs,
+              );
             },
           ),
     );
@@ -158,6 +208,8 @@ class _SettingsCategoriesScreenState
     List<CategoryPreference> prefs,
     Locale locale,
     Color activeColor,
+    List<Subcategory> subcategories,
+    List<SubcategoryPreference> subcategoryPrefs,
   ) {
     final byId = {for (final c in sorted) c.id: c};
     return ReorderableListView.builder(
@@ -166,7 +218,15 @@ class _SettingsCategoriesScreenState
       itemBuilder: (context, index) {
         final category = byId[_orderedIds[index]];
         if (category == null) return const SizedBox.shrink();
-        return _buildRow(category, index, prefs, locale, activeColor);
+        return _buildRow(
+          category,
+          index,
+          prefs,
+          locale,
+          activeColor,
+          subcategories,
+          subcategoryPrefs,
+        );
       },
       // The index-shift `if (newIndex > oldIndex) newIndex -= 1` inside
       // _onReorder is the canonical onReorder contract; onReorderItem is not
@@ -247,50 +307,110 @@ class _SettingsCategoriesScreenState
     List<CategoryPreference> prefs,
     Locale locale,
     Color activeColor,
+    List<Subcategory> subcategories,
+    List<SubcategoryPreference> subcategoryPrefs,
   ) {
     final isVisible = categoryVisible(category.id, prefs);
+    // This category's subcategories (same filter the sibling subcategory screen
+    // uses). Read-only chips beneath the row surface them at a glance without
+    // opening the leaf screen.
+    final subs = subcategories
+        .where((s) => s.category == category.id)
+        .toList();
     return Padding(
       key: ValueKey(category.id),
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ReorderableDragStartListener(
-            index: index,
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8),
-              child: Icon(Icons.drag_handle),
-            ),
-          ),
-          Expanded(
-            child: InkWell(
-              // ignore: lines_longer_than_80_chars
-              onTap: () => context.push(
-                '/settings/categories/subcategories',
-                extra: category,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  children: [
-                    categoryFilterAvatar(category),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        category.displayName(locale),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+          Row(
+            children: [
+              ReorderableDragStartListener(
+                index: index,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Icon(Icons.drag_handle),
                 ),
               ),
+              Expanded(
+                child: InkWell(
+                  // ignore: lines_longer_than_80_chars
+                  onTap: () => context.push(
+                    '/settings/categories/subcategories',
+                    extra: category,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      children: [
+                        categoryFilterAvatar(category),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            category.displayName(locale),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Switch(
+                value: isVisible,
+                activeThumbColor: activeColor,
+                onChanged: (v) => _onToggle(category, v),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+          // Read-only subcategory chip row (mirrors web
+          // `{#if childSubcategories.length > 0}`). Each chip dims solely on the
+          // subcategory's OWN visibility — deliberately NOT compounded with the
+          // parent category's visibility (user's explicit divergence from web).
+          if (subs.isNotEmpty)
+            Padding(
+              // Left-align the chips under the category label, roughly matching
+              // the drag-handle + avatar + gap lead-in.
+              padding: const EdgeInsets.only(
+                left: 52,
+                right: 8,
+                bottom: 8,
+              ),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final s in subs)
+                    Opacity(
+                      // Dim ONLY on the subcategory's own visibility toggle.
+                      opacity: subcategoryVisible(s.id, subcategoryPrefs)
+                          ? 1.0
+                          : 0.5,
+                      // A BARE Chip is non-interactive in both states: no
+                      // onTap/onPressed/onDeleted and not an
+                      // Action/Choice/Input/Filter chip, so it has no tap
+                      // affordance.
+                      child: Chip(
+                        avatar: subcategoryFilterAvatar(
+                          context,
+                          s,
+                          category,
+                          locale,
+                        ),
+                        label: Text(
+                          s.displayName(locale),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        labelStyle: Theme.of(context).textTheme.bodySmall,
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          Switch(
-            value: isVisible,
-            activeThumbColor: activeColor,
-            onChanged: (v) => _onToggle(category, v),
-          ),
-          const SizedBox(width: 8),
         ],
       ),
     );
