@@ -277,8 +277,23 @@ class _SettingsSubcategoriesScreenState
   /// pre-filtered to the subcategory. Confirm saves; cancel is a no-op (the
   /// switch reverts because provider state was never changed).
   Future<void> _onToggleOff(Subcategory sub) async {
-    // ignore: lines_longer_than_80_chars
-    final count = await ownTrailCount(ref, isSubcategory: true, id: sub.id);
+    final int count;
+    try {
+      count = await ownTrailCount(ref, isSubcategory: true, id: sub.id);
+    } catch (_) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: l10n.error_saving_settings,
+            ),
+          );
+      return;
+    }
     if (!mounted) return;
 
     if (count == 0) {

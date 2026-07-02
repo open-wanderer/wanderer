@@ -267,11 +267,27 @@ class _SettingsCategoriesScreenState
   /// category. Confirm saves; cancel is a no-op (the switch reverts because
   /// provider state was never changed).
   Future<void> _onToggleOff(Category category) async {
-    final count = await ownTrailCount(
-      ref,
-      isSubcategory: false,
-      id: category.id,
-    );
+    final int count;
+    try {
+      count = await ownTrailCount(
+        ref,
+        isSubcategory: false,
+        id: category.id,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: l10n.error_saving_settings,
+            ),
+          );
+      return;
+    }
     if (!mounted) return;
 
     if (count == 0) {
