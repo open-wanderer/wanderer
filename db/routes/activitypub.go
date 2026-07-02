@@ -184,7 +184,16 @@ func ActivitypubTrail(e *core.RequestEvent) error {
 
 	trail, err := e.App.FindRecordById("trails", id)
 	if err != nil {
+		return e.NotFoundError("trail not found", nil)
+	}
+
+	reqInfo, err := e.RequestInfo()
+	if err != nil {
 		return err
+	}
+	canAccess, err := e.App.CanAccessRecord(trail, reqInfo, trail.Collection().ViewRule)
+	if err != nil || !canAccess {
+		return e.NotFoundError("trail not found", nil)
 	}
 
 	trailObject, err := util.ObjectFromTrail(e.App, trail, nil)
@@ -199,7 +208,16 @@ func ActivitypubComment(e *core.RequestEvent) error {
 
 	comment, err := e.App.FindRecordById("comments", id)
 	if err != nil {
+		return e.NotFoundError("comment not found", nil)
+	}
+
+	reqInfo, err := e.RequestInfo()
+	if err != nil {
 		return err
+	}
+	canAccess, err := e.App.CanAccessRecord(comment, reqInfo, comment.Collection().ViewRule)
+	if err != nil || !canAccess {
+		return e.NotFoundError("comment not found", nil)
 	}
 
 	commentObject, err := util.ObjectFromComment(e.App, comment, nil)
