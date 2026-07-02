@@ -158,51 +158,80 @@ class _SettingsCategoriesScreenState
         ),
         title: Text(l10n.categories),
       ),
-      body:
-          AsyncLoader<
-            ({
-              List<Category> categories,
-              List<CategoryPreference> prefs,
-              List<SubcategoryPreference> subcategoryPrefs,
-            })
-          >(
-            asyncValue: combined,
-            mockData: const (categories: [], prefs: [], subcategoryPrefs: []),
-            builder: (data) {
-              final sorted = sortedCategoriesByPreference(
-                data.categories,
-                data.prefs,
-                locale,
-              );
-              // Seed the reorder working copy from the current sorted order. On
-              // the idle path this simply mirrors `sorted`; a drag mutates it
-              // optimistically. Skip reseeding for the whole reorder round-trip
-              // (`_reordering`): while a drag is in progress OR the async
-              // `reorder()` is still in flight, a rebuild must not clobber the
-              // optimistic working copy — reseeding from the not-yet-updated
-              // provider would snap the dropped row back to its old slot.
-              if (!_reordering) {
-                _orderedIds = sorted.map((c) => c.id).toList();
-              }
-
-              return _buildList(
-                sorted,
-                data.prefs,
-                locale,
-                activeColor,
-                subcategories,
-                data.subcategoryPrefs,
-              );
-            },
+      body: Column(
+        children: [
+          // Explains what this screen controls and its two row gestures
+          // (long-press to reorder vs. tap to open the subcategory editor)
+          // up front, since neither is otherwise self-evident once the drag
+          // handle icon was removed.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text(
+              l10n.settings_categories_reorder_hint,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
           ),
+          Expanded(
+            child:
+                AsyncLoader<
+                  ({
+                    List<Category> categories,
+                    List<CategoryPreference> prefs,
+                    List<SubcategoryPreference> subcategoryPrefs,
+                  })
+                >(
+                  asyncValue: combined,
+                  mockData: const (
+                    categories: [],
+                    prefs: [],
+                    subcategoryPrefs: [],
+                  ),
+                  builder: (data) {
+                    final sorted = sortedCategoriesByPreference(
+                      data.categories,
+                      data.prefs,
+                      locale,
+                    );
+                    // Seed the reorder working copy from the current sorted
+                    // order. On the idle path this simply mirrors `sorted`; a
+                    // drag mutates it optimistically. Skip reseeding for the
+                    // whole reorder round-trip (`_reordering`): while a drag
+                    // is in progress OR the async `reorder()` is still in
+                    // flight, a rebuild must not clobber the optimistic
+                    // working copy — reseeding from the not-yet-updated
+                    // provider would snap the dropped row back to its old
+                    // slot.
+                    if (!_reordering) {
+                      _orderedIds = sorted.map((c) => c.id).toList();
+                    }
+
+                    return _buildList(
+                      sorted,
+                      data.prefs,
+                      locale,
+                      activeColor,
+                      subcategories,
+                      data.subcategoryPrefs,
+                    );
+                  },
+                ),
+          ),
+        ],
+      ),
     );
   }
 
   /// Renders the reorderable category list from the local `_orderedIds` working
   /// copy (Pitfall 2 — never render reorder from the re-sorting provider
-  /// mid-drag). `buildDefaultDragHandles: false` disables whole-row/long-press
-  /// drag (D-01); the only drag affordance is the explicit
-  /// `ReorderableDragStartListener` handle built in `_buildRow`.
+  /// mid-drag). `buildDefaultDragHandles: true` (the default) wraps the whole
+  /// row in Flutter's built-in `ReorderableDelayedDragStartListener` on
+  /// iOS/Android — no explicit handle icon is shown; a long-press anywhere on
+  /// the row starts the drag, while quick taps still fall through to the
+  /// row's own `InkWell`/`Switch`.
   Widget _buildList(
     List<Category> sorted,
     List<CategoryPreference> prefs,
@@ -213,7 +242,6 @@ class _SettingsCategoriesScreenState
   ) {
     final byId = {for (final c in sorted) c.id: c};
     return ReorderableListView.builder(
-      buildDefaultDragHandles: false,
       itemCount: _orderedIds.length,
       itemBuilder: (context, index) {
         final category = byId[_orderedIds[index]];
@@ -298,9 +326,11 @@ class _SettingsCategoriesScreenState
     }
   }
 
-  /// A single category row: drag handle (Task 2) + tappable body (navigate,
-  /// Task 2) + trailing visibility Switch. An explicit Row, not a switch-tile
-  /// (Pattern 2 — the body must navigate independently of the switch).
+  /// A single category row: tappable body (navigate, Task 2) + trailing
+  /// visibility Switch. Reordering starts on a long-press anywhere on the row
+  /// (see `_buildList`'s `buildDefaultDragHandles`), so there is no explicit
+  /// drag-handle widget here. An explicit Row, not a switch-tile (Pattern 2 —
+  /// the body must navigate independently of the switch).
   Widget _buildRow(
     Category category,
     int index,
@@ -314,104 +344,78 @@ class _SettingsCategoriesScreenState
     // This category's subcategories (same filter the sibling subcategory screen
     // uses). Read-only chips beneath the row surface them at a glance without
     // opening the leaf screen.
-    final subs = subcategories
-        .where((s) => s.category == category.id)
-        .toList();
-    return Padding(
+    final subs = subcategories.where((s) => s.category == category.id).toList();
+    return InkWell(
       key: ValueKey(category.id),
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              ReorderableDragStartListener(
-                index: index,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Icon(Icons.drag_handle),
-                ),
-              ),
-              Expanded(
-                child: InkWell(
-                  // ignore: lines_longer_than_80_chars
-                  onTap: () => context.push(
-                    '/settings/categories/subcategories',
-                    extra: category,
+      onTap: subs.isNotEmpty
+          ? () => context.push(
+              '/settings/categories/subcategories',
+              extra: category,
+            )
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            categoryFilterAvatar(category, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    category.displayName(locale),
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Row(
+                  if (subs.isNotEmpty) ...{
+                    const SizedBox(height: 12),
+
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
                       children: [
-                        categoryFilterAvatar(category),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            category.displayName(locale),
-                            overflow: TextOverflow.ellipsis,
+                        for (final s in subs)
+                          Opacity(
+                            opacity: subcategoryVisible(s.id, subcategoryPrefs)
+                                ? 1.0
+                                : 0.3,
+                            child: Chip(
+                              avatar: subcategoryBadgeAvatar(
+                                s,
+                                color: Theme.of(context).colorScheme.onSurface,
+                                size: 10,
+                              ),
+                              shape: StadiumBorder(
+                                side: BorderSide(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                              ),
+                              label: Text(
+                                s.displayName(locale),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              labelStyle: Theme.of(context).textTheme.bodySmall,
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
                           ),
-                        ),
                       ],
                     ),
-                  ),
-                ),
-              ),
-              Switch(
-                value: isVisible,
-                activeThumbColor: activeColor,
-                onChanged: (v) => _onToggle(category, v),
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
-          // Read-only subcategory chip row (mirrors web
-          // `{#if childSubcategories.length > 0}`). Each chip dims solely on the
-          // subcategory's OWN visibility — deliberately NOT compounded with the
-          // parent category's visibility (user's explicit divergence from web).
-          if (subs.isNotEmpty)
-            Padding(
-              // Left-align the chips under the category label, roughly matching
-              // the drag-handle + avatar + gap lead-in.
-              padding: const EdgeInsets.only(
-                left: 52,
-                right: 8,
-                bottom: 8,
-              ),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final s in subs)
-                    Opacity(
-                      // Dim ONLY on the subcategory's own visibility toggle.
-                      opacity: subcategoryVisible(s.id, subcategoryPrefs)
-                          ? 1.0
-                          : 0.5,
-                      // A BARE Chip is non-interactive in both states: no
-                      // onTap/onPressed/onDeleted and not an
-                      // Action/Choice/Input/Filter chip, so it has no tap
-                      // affordance.
-                      child: Chip(
-                        avatar: subcategoryFilterAvatar(
-                          context,
-                          s,
-                          category,
-                          locale,
-                        ),
-                        label: Text(
-                          s.displayName(locale),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        labelStyle: Theme.of(context).textTheme.bodySmall,
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
+                  },
                 ],
               ),
             ),
-        ],
+            Switch(
+              value: isVisible,
+              activeThumbColor: activeColor,
+              onChanged: (v) => _onToggle(category, v),
+            ),
+          ],
+        ),
       ),
     );
   }

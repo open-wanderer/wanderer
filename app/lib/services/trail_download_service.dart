@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:path/path.dart' as p;
@@ -48,7 +49,9 @@ class TrailDownloadService {
     final Map<String, List<String>> waypointLocalPhotos = {};
     for (final waypoint in waypoints) {
       if (waypoint.photos.isEmpty) continue;
-      final waypointDir = Directory('${trailDir.path}/waypoints/${waypoint.id}');
+      final waypointDir = Directory(
+        '${trailDir.path}/waypoints/${waypoint.id}',
+      );
       waypointLocalPhotos[waypoint.id] = await _downloadPhotos(
         waypoint.photos
             .map((p) => waypoint.getFileUrl(baseUrl, p))
@@ -258,10 +261,10 @@ class TrailDownloadService {
         return savePath;
       } on DioException catch (e) {
         if (CancelToken.isCancel(e)) rethrow;
-        print('Failed to download photo $url: $e');
+        debugPrint('Failed to download photo $url: $e');
         return null;
       } catch (e) {
-        print('Failed to download photo $url: $e');
+        debugPrint('Failed to download photo $url: $e');
         return null;
       }
     }).toList();

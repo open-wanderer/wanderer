@@ -304,13 +304,16 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               children: [
                                 Text(
                                   l10n.categories,
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
                                 IconButton(
                                   onPressed: () => Navigator.of(context).pop(),
-                                  icon:
-                                      FaIcon(FontAwesomeIcons.xmark, size: 18),
+                                  icon: FaIcon(
+                                    FontAwesomeIcons.xmark,
+                                    size: 18,
+                                  ),
                                 ),
                               ],
                             ),
@@ -322,11 +325,11 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               keepSelectedOnTap: true,
                               labelBuilder: (c) => c.displayName(locale),
                               avatarBuilder: (c) => categoryFilterAvatar(c),
-                          badgeCountBuilder: (c) => currentFilter.subcategory
-                              .where((s) => s.category == c.id)
-                              .length,
-                              onItemTap: (c) =>
-                                  focusedCategoryId.value = c.id,
+                              badgeCountBuilder: (c) => currentFilter
+                                  .subcategory
+                                  .where((s) => s.category == c.id)
+                                  .length,
+                              onItemTap: (c) => focusedCategoryId.value = c.id,
                               onChanged: (selected) {
                                 final removedIds = currentFilter.category
                                     .map((c) => c.id)
@@ -340,7 +343,9 @@ class TrailQuickFilterBar extends ConsumerWidget {
                                     )
                                     .toList();
                                 ref
-                                    .read(trailFilterProvider(filterId).notifier)
+                                    .read(
+                                      trailFilterProvider(filterId).notifier,
+                                    )
                                     .updateFilter(
                                       (f) => f.copyWith(
                                         category: selected,
@@ -359,7 +364,9 @@ class TrailQuickFilterBar extends ConsumerWidget {
                                     .where((s) => s.category != c.id)
                                     .toList();
                                 ref
-                                    .read(trailFilterProvider(filterId).notifier)
+                                    .read(
+                                      trailFilterProvider(filterId).notifier,
+                                    )
                                     .updateFilter(
                                       (f) => f.copyWith(
                                         category: newCats,
@@ -395,14 +402,13 @@ class TrailQuickFilterBar extends ConsumerWidget {
                                               s.displayName(locale),
                                           avatarBuilder: (s) =>
                                               subcategoryFilterAvatar(
-                                            context,
-                                            s,
-                                            currentFilter.category
-                                                .firstWhereOrNull(
-                                              (c) => c.id == s.category,
-                                            ),
-                                            locale,
-                                          ),
+                                                s,
+                                                currentFilter.category
+                                                    .firstWhereOrNull(
+                                                      (c) => c.id == s.category,
+                                                    ),
+                                                locale,
+                                              ),
                                           onChanged: (sel) => ref
                                               .read(
                                                 trailFilterProvider(
@@ -431,7 +437,6 @@ class TrailQuickFilterBar extends ConsumerWidget {
       },
     );
   }
-
 
   void _showDifficultySheet(
     BuildContext context,

@@ -3061,6 +3061,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This category has no subcategories to configure.'**
   String get settings_categories_empty_body;
+
+  /// No description provided for @settings_categories_reorder_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories control which trail types you see and in what order. Turn one off to hide it as a filter — your trails stay published, they just won\'t appear under that category. Tap a category to manage its subcategories individually.\n\nTo change the order, press and hold a row, then drag it to a new position. The order you set here is reflected everywhere categories are shown.'**
+  String get settings_categories_reorder_hint;
 }
 
 class _AppLocalizationsDelegate

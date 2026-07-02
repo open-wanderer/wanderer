@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Category Redesign
 status: verifying
-stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-07-01T18:06:01.173Z"
-last_activity: 2026-06-30 -- Phase 11 complete (all 4 plans, 7/7 requirements verified)
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-07-02T11:21:04.470Z"
+last_activity: 2026-07-02
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
-  percent: 67
+  completed_phases: 3
+  total_plans: 12
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -21,13 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 12 — Settings Categories Screen (next)
+**Current focus:** Phase 12 — settings-categories-screen
 
 ## Current Position
 
-Phase: 11 (trail-filter-subcategory-support) — COMPLETE ✓
-Status: Phase 11 verified 7/7 requirements. Ready for Phase 12.
-Last activity: 2026-06-30 -- Phase 11 complete (all 4 plans, 7/7 requirements verified)
+Phase: 12
+Plan: Not started
+Status: Phase complete — ready for verification
+Last activity: 2026-07-02
 
 Progress: [██████████] 100% (v1.3 Phases 10 + 11 done)
 
@@ -35,7 +36,7 @@ Progress: [██████████] 100% (v1.3 Phases 10 + 11 done)
 
 - [x] **Phase 10: Category & Subcategory Data Layer** — CAT-01..05 (models, ObjectBox entity, provider, remove `Settings.category`)
 - [x] **Phase 11: Trail Filter Subcategory Support** — FILTER-01..05 (TrailFilter model, TrailFilterScreen chips, quick filter bar)
-- [ ] **Phase 12: Settings Categories Screen** — SETCAT-01..09 (preference models + providers, SettingsCategoriesScreen, router wiring)
+- [x] **Phase 12: Settings Categories Screen** — SETCAT-01..09 (preference models + providers, SettingsCategoriesScreen, router wiring)
 
 Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of each other).
 
@@ -43,7 +44,7 @@ Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of e
 
 **Velocity (v1.0–v1.2):**
 
-- Total plans completed: 25
+- Total plans completed: 29
 - Average duration: — min
 - Total execution time: — hours
 
@@ -56,6 +57,7 @@ Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of e
 | 08 | 3 | - | - |
 | 09 | 1 | - | - |
 | 10 | 4 | - | - |
+| 12 | 4 | - | - |
 
 *Updated after each plan completion*
 | Phase 10 P01 | 5 | 2 tasks | 6 files |
@@ -66,6 +68,10 @@ Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of e
 | Phase 11 P02 | 6 | 2 tasks | 30 files |
 | Phase 11 P03 | ~25 | 2+ tasks | 2 files |
 | Phase 11 P04 | ~15 | 1 task | 1 file |
+| Phase 12 P01 | 8 | 3 tasks | 5 files |
+| Phase 12 P02 | 14min | 3 tasks | 1 files |
+| Phase 12 P03 | 5min | 2 tasks | 1 files |
+| Phase 12 P04 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -89,6 +95,11 @@ Recent decisions affecting current work:
 - [Phase ?]: [11-02] WandererFilterChip gained optional avatarBuilder (Widget? Function(T)) wired to FilterChip.avatar, backward compatible; subcategories l10n key added to all 14 ARBs (en has @metadata) and l10n.subcategories regenerated for Plans 03/04
 - [11-03] Subcategory chips scoped to _focusedCategoryId (last-tapped category); badgeCountBuilder shows selected-subcategory count per category chip; category_icon_util.dart extracted as shared icon util for filters + all trail display widgets; TrailCategoryLabel ConsumerWidget shows "Category / Subcategory" format with FA badge overlay
 - [11-04] ValueNotifier<String?> for bottom-sheet scoped subcategory state; _isCategoryActive uses OR logic (category.isNotEmpty || subcategory.isNotEmpty)
+- [Phase ?]: [12-01] Provider reorder methods mirror upsert (apiProvider.post + invalidateSelf, no client user field, T-12-01); sort/visibility helpers are pure functions so callers pass fetched data; own-trail count reads totalHits ?? estimatedTotalHits ?? hits.length ?? 0 via author-scoped /profile/{handle}/trails
+- [Phase ?]: SettingsCategoriesScreen folds category + preference providers into one record AsyncValue for a single AsyncLoader skeleton
+- [Phase ?]: Reorder uses onReorder + explicit index-shift (plan-mandated grep contract); onReorderItem deprecation scoped-ignored
+- [Phase ?]: View-trails resolves @-prefixed handle from authProvider.preferredUsername with null guard
+- [12-03] SettingsSubcategoriesScreen mirrors the sibling category screen (D-06) but wraps only the async preference provider in AsyncLoader (subcategoryProvider is a synchronous List) and scopes reorder to the parent via reorder(widget.category.id, ids) (SETCAT-10); subcategory rows are leaf (no body-tap nav)
 
 ### Pending Todos
 
@@ -97,6 +108,15 @@ Recent decisions affecting current work:
 ### Blockers/Concerns
 
 - None for v1.3 — work mirrors a shipped web PR (#1059); API endpoints exist server-side and the Flutter settings/filter infrastructure from v1.0–v1.2 is in place.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260702-e3g | Fix non-optimistic reorder animation in SettingsCategoriesScreen and SettingsSubcategoriesScreen | 2026-07-02 | 6b3e6f6b | [260702-e3g-fix-non-optimistic-reorder-animation-in-](./quick/260702-e3g-fix-non-optimistic-reorder-animation-in-/) |
+| 260702-ek7 | Fix white flash on (sub)category toggle/reorder (AsyncLoader mockData fallback) | 2026-07-02 | 8a917b4c | [260702-ek7-fix-white-flash-on-sub-category-toggle-r](./quick/260702-ek7-fix-white-flash-on-sub-category-toggle-r/) |
+| 260702-ere | Cascade category visibility to SettingsSubcategoriesScreen (disabled category dims/disables its subcategory toggles) | 2026-07-02 | 108348b2 | [260702-ere-cascade-category-visibility-to-settingss](./quick/260702-ere-cascade-category-visibility-to-settingss/) |
+| 260702-gib | Add read-only subcategory chips under each category row in SettingsCategoriesScreen | 2026-07-02 | dbc1db3d | [260702-gib-add-subcategory-chips-under-each-categor](./quick/260702-gib-add-subcategory-chips-under-each-categor/) |
 
 ## Deferred Items
 
@@ -112,9 +132,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-01T18:06:01.161Z
-Stopped at: Phase 12 UI-SPEC approved
-Resume file: .planning/phases/12-settings-categories-screen/12-UI-SPEC.md
+Last session: 2026-07-01T20:40:29.725Z
+Stopped at: Completed 12-03-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

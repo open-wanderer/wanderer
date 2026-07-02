@@ -242,12 +242,16 @@ class _SettingsSubcategoriesScreenState
 
   /// Renders the reorderable subcategory list from the local `_orderedIds`
   /// working copy (Pitfall 2 — never render reorder from the re-sorting provider
-  /// mid-drag). `buildDefaultDragHandles: false` disables whole-row/long-press
-  /// drag (D-01); the only drag affordance is the explicit
-  /// `ReorderableDragStartListener` handle built in `_buildRow`.
+  /// mid-drag). `buildDefaultDragHandles: true` (the default) wraps the whole
+  /// row in Flutter's built-in `ReorderableDelayedDragStartListener` on
+  /// iOS/Android — no explicit handle icon is shown; a long-press anywhere on
+  /// the row starts the drag, while quick taps still reach the row's `Switch`.
+  /// Reordering stays available even when [categoryOn] is false — only the
+  /// per-row visibility toggle cascades on the parent's state.
   ///
-  /// [categoryOn] is the parent-category visibility: when false the whole list
-  /// drag-disables and every row dims (quick-260702-ere cascade).
+  /// [categoryOn] is the parent-category visibility: when false every row's
+  /// Switch dims/disables (quick-260702-ere cascade), but drag-reordering is
+  /// unaffected.
   Widget _buildList(
     List<Subcategory> sorted,
     List<SubcategoryPreference> prefs,
@@ -257,7 +261,6 @@ class _SettingsSubcategoriesScreenState
   ) {
     final byId = {for (final s in sorted) s.id: s};
     return ReorderableListView.builder(
-      buildDefaultDragHandles: false,
       itemCount: _orderedIds.length,
       itemBuilder: (context, index) {
         final sub = byId[_orderedIds[index]];
@@ -332,16 +335,20 @@ class _SettingsSubcategoriesScreenState
     }
   }
 
-  /// A single subcategory row: drag handle (Task 2) + leading avatar + name +
-  /// trailing visibility Switch. An explicit Row, not a switch-tile widget
-  /// (Pattern 2 — mirrors the sibling category screen, D-06). Rows are LEAF —
-  /// no body-tap navigation (D-06).
+  /// A single subcategory row: leading avatar + name + trailing visibility
+  /// Switch, styled identically to the sibling category screen's row (D-06) —
+  /// same padding/spacing/bold-name treatment, minus the subcategory chips
+  /// (this screen has no nested children to show). Reordering starts on a
+  /// long-press anywhere on the row (see `_buildList`'s
+  /// `buildDefaultDragHandles`), so there is no explicit drag-handle widget
+  /// here. Rows are LEAF — no body-tap navigation (D-06).
   ///
-  /// [categoryOn] is the parent-category visibility (quick-260702-ere cascade,
-  /// mirroring web `disabled={... || !categoryVisible}` /
+  /// [categoryOn] is the parent-category visibility (quick-260702-ere
+  /// cascade, mirroring web `disabled={... || !categoryVisible}` /
   /// `class:opacity-60={!categoryVisible}`): when false, the Switch shows OFF
-  /// and non-interactive (onChanged null), the whole row dims to 0.6, and the
-  /// drag handle drops its `ReorderableDragStartListener`.
+  /// and non-interactive (onChanged null) and the whole row dims to 0.6.
+  /// Drag-reordering is NOT gated on [categoryOn] — it stays available
+  /// regardless of the parent's visibility.
   Widget _buildRow(
     Subcategory sub,
     int index,
@@ -359,27 +366,11 @@ class _SettingsSubcategoriesScreenState
       key: ValueKey(sub.id),
       opacity: categoryOn ? 1.0 : 0.6,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
         child: Row(
           children: [
-            // Drag affordance only when the parent is on; when off, a plain
-            // (dimmed via the outer Opacity) handle with no drag listener so
-            // parent-off rows cannot be reordered.
-            if (categoryOn)
-              ReorderableDragStartListener(
-                index: index,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Icon(Icons.drag_handle),
-                ),
-              )
-            else
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(Icons.drag_handle),
-              ),
-            subcategoryFilterAvatar(context, sub, widget.category, locale),
-            const SizedBox(width: 12),
+            subcategoryFilterAvatar(sub, widget.category, locale),
+            const SizedBox(width: 24),
             Expanded(
               child: Text(
                 sub.displayName(locale),
@@ -393,7 +384,6 @@ class _SettingsSubcategoriesScreenState
               // parent category is off (Flutter's standard mechanism).
               onChanged: categoryOn ? (v) => _onToggle(sub, v) : null,
             ),
-            const SizedBox(width: 8),
           ],
         ),
       ),
@@ -453,12 +443,8 @@ class _SettingsSubcategoriesScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-          l10n.settings_categories_confirm_disable_subcategory_title,
-        ),
-        content: Text(
-          l10n.settings_categories_confirm_disable_body(count),
-        ),
+        title: Text(l10n.settings_categories_confirm_disable_subcategory_title),
+        content: Text(l10n.settings_categories_confirm_disable_body(count)),
         actions: [
           TextButton(
             onPressed: () => _viewOwnTrails(dialogContext, sub),

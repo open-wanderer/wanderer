@@ -48,7 +48,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 - [x] **Phase 10: Category & Subcategory Data Layer** - Updated Category model, new Subcategory model + entity + provider, locale-aware names, remove `Settings.category`, preference models + providers (SETCAT-03/04/05) (completed 2026-06-29)
 - [ ] **Phase 11: Trail Filter Subcategory Support** (2/4 plans) - `TrailFilter.subcategory`, subcategory chips in TrailFilterScreen and quick filter bar, locale-resolved category labels, hidden-category/subcategory omitted from filter chips (FILTER-06/07)
-- [ ] **Phase 12: Settings Categories Screen** - SettingsCategoriesScreen + SettingsSubcategoriesScreen with visibility toggles, drag-handle priority reordering, own-trail disable confirmation, router wiring (UI only — providers come from Phase 10)
+- [x] **Phase 12: Settings Categories Screen** - SettingsCategoriesScreen + SettingsSubcategoriesScreen with visibility toggles, drag-handle priority reordering, own-trail disable confirmation, router wiring (UI only — providers come from Phase 10) (completed 2026-07-01)
 
 ## Phase Details
 
@@ -114,16 +114,16 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 **Wave 1**
 
-  - [ ] 12-01-PLAN.md — Provider reorder methods + sort/visibility helpers + own-trail count helper + l10n keys (foundation)
+  - [x] 12-01-PLAN.md — Provider reorder methods + sort/visibility helpers + own-trail count helper + l10n keys (foundation)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-  - [ ] 12-02-PLAN.md — SettingsCategoriesScreen: sorted list, visibility toggle, drag-handle reorder, own-trail confirm dialog (SETCAT-06/07/09/11)
-  - [ ] 12-03-PLAN.md — SettingsSubcategoriesScreen: parent-scoped list + empty state, toggle, reorder, own-trail confirm dialog (SETCAT-08/10/11)
+  - [x] 12-02-PLAN.md — SettingsCategoriesScreen: sorted list, visibility toggle, drag-handle reorder, own-trail confirm dialog (SETCAT-06/07/09/11)
+  - [x] 12-03-PLAN.md — SettingsSubcategoriesScreen: parent-scoped list + empty state, toggle, reorder, own-trail confirm dialog (SETCAT-08/10/11)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-  - [ ] 12-04-PLAN.md — Settings "Categories" tile + go_router route wiring (SETCAT-01/02)
+  - [x] 12-04-PLAN.md — Settings "Categories" tile + go_router route wiring (SETCAT-01/02)
 
 **UI hint**: yes
 
@@ -145,4 +145,4 @@ Phases execute in numeric order: 10 → 11 → 12 (11 and 12 are independent of 
 | 9. Notifications | v1.2 | 1/1 | Complete | 2026-06-21 |
 | 10. Category & Subcategory Data Layer | v1.3 | 4/4 | Complete    | 2026-06-29 |
 | 11. Trail Filter Subcategory Support | v1.3 | 0/TBD | Not started | - |
-| 12. Settings Categories Screen | v1.3 | 0/4 | Not started | - |
+| 12. Settings Categories Screen | v1.3 | 4/4 | Complete    | 2026-07-02 |

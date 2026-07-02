@@ -120,8 +120,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   avatarBuilder: (c) => _categoryAvatar(c),
                   badgeCountBuilder: (c) =>
                       f.subcategory.where((s) => s.category == c.id).length,
-                  onItemTap: (c) =>
-                      setState(() => _focusedCategoryId = c.id),
+                  onItemTap: (c) => setState(() => _focusedCategoryId = c.id),
                   onChanged: (categories) {
                     final removedIds = f.category
                         .map((c) => c.id)
@@ -514,12 +513,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
   Widget _categoryAvatar(Category c) => categoryFilterAvatar(c);
 
   Widget _subcategoryAvatar(Subcategory s, Category? parent) =>
-      subcategoryFilterAvatar(
-        context,
-        s,
-        parent,
-        Localizations.localeOf(context),
-      );
+      subcategoryFilterAvatar(s, parent, Localizations.localeOf(context));
 }
 
 class _AuthorChip extends StatelessWidget {

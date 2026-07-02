@@ -29,17 +29,17 @@ Requirements for milestone v1.3 — Category Redesign. Each maps to roadmap phas
 
 ### Settings Categories
 
-- [ ] **SETCAT-01**: SettingsScreen gains a "Categories" list tile (FontAwesome tag or layer-group icon) navigating to `/settings/categories`
-- [ ] **SETCAT-02**: go_router registers `/settings/categories` route pointing to `SettingsCategoriesScreen`
+- [x] **SETCAT-01**: SettingsScreen gains a "Categories" list tile (FontAwesome tag or layer-group icon) navigating to `/settings/categories`
+- [x] **SETCAT-02**: go_router registers `/settings/categories` route pointing to `SettingsCategoriesScreen`
 - [x] **SETCAT-03**: `CategoryPreference` and `SubcategoryPreference` freezed models created with `id?`, `user`, `category`/`subcategory`, `visible?`, `priority?`
 - [x] **SETCAT-04**: CategoryPreferenceNotifier provider fetches from `GET /user-category-preference` and upserts via `PUT /user-category-preference`
 - [x] **SETCAT-05**: SubcategoryPreferenceNotifier provider fetches from `GET /user-subcategory-preference` and upserts via `PUT /user-subcategory-preference`
-- [ ] **SETCAT-06**: SettingsCategoriesScreen lists categories sorted by priority (ascending, alphabetical for ties), each row shows category icon and locale-resolved name
-- [ ] **SETCAT-07**: Each category row has a visibility SwitchListTile; toggling sends PUT to `/user-category-preference` with `visible: false/true` and auto-saves
-- [ ] **SETCAT-08**: Tapping a category row (outside its switch/drag-handle) navigates to a new `SettingsSubcategoriesScreen` showing that category's subcategories, each with its own visibility SwitchListTile
-- [ ] **SETCAT-09**: SettingsCategoriesScreen uses ReorderableListView with a dedicated drag-handle icon per row (not whole-row drag); completing a drag calls `POST /user-category-preference/reorder` with the new ordered list of category IDs
-- [ ] **SETCAT-10**: `SettingsSubcategoriesScreen` uses the same ReorderableListView + drag-handle pattern as SETCAT-09 for its subcategories; completing a drag calls `POST /user-subcategory-preference/reorder` with the new ordered list of subcategory IDs, scoped to the parent category
-- [ ] **SETCAT-11**: Turning OFF a category's or subcategory's visibility switch when the user has their own trails in it shows a confirm dialog (own-trail count + link to view those trails); confirming saves the change, cancelling reverts the switch to on. Turning a switch ON never triggers this check. Plugin-mapping warnings (web-only feature) are not ported.
+- [x] **SETCAT-06**: SettingsCategoriesScreen lists categories sorted by priority (ascending, alphabetical for ties), each row shows category icon and locale-resolved name
+- [x] **SETCAT-07**: Each category row has a visibility SwitchListTile; toggling sends PUT to `/user-category-preference` with `visible: false/true` and auto-saves
+- [x] **SETCAT-08**: Tapping a category row (outside its switch/drag-handle) navigates to a new `SettingsSubcategoriesScreen` showing that category's subcategories, each with its own visibility SwitchListTile
+- [x] **SETCAT-09**: SettingsCategoriesScreen uses ReorderableListView with a dedicated drag-handle icon per row (not whole-row drag); completing a drag calls `POST /user-category-preference/reorder` with the new ordered list of category IDs
+- [x] **SETCAT-10**: `SettingsSubcategoriesScreen` uses the same ReorderableListView + drag-handle pattern as SETCAT-09 for its subcategories; completing a drag calls `POST /user-subcategory-preference/reorder` with the new ordered list of subcategory IDs, scoped to the parent category
+- [x] **SETCAT-11**: Turning OFF a category's or subcategory's visibility switch when the user has their own trails in it shows a confirm dialog (own-trail count + link to view those trails); confirming saves the change, cancelling reverts the switch to on. Turning a switch ON never triggers this check. Plugin-mapping warnings (web-only feature) are not ported.
 
 ## Future Requirements
 
@@ -79,17 +79,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FILTER-05 | Phase 11 | Pending |
 | FILTER-06 | Phase 11 | Pending |
 | FILTER-07 | Phase 11 | Pending |
-| SETCAT-01 | Phase 12 | Pending |
-| SETCAT-02 | Phase 12 | Pending |
+| SETCAT-01 | Phase 12 | Complete |
+| SETCAT-02 | Phase 12 | Complete |
 | SETCAT-03 | Phase 10 | Complete |
 | SETCAT-04 | Phase 10 | Complete |
 | SETCAT-05 | Phase 10 | Complete |
-| SETCAT-06 | Phase 12 | Pending |
-| SETCAT-07 | Phase 12 | Pending |
-| SETCAT-08 | Phase 12 | Pending |
-| SETCAT-09 | Phase 12 | Pending |
-| SETCAT-10 | Phase 12 | Pending |
-| SETCAT-11 | Phase 12 | Pending |
+| SETCAT-06 | Phase 12 | Complete |
+| SETCAT-07 | Phase 12 | Complete |
+| SETCAT-08 | Phase 12 | Complete |
+| SETCAT-09 | Phase 12 | Complete |
+| SETCAT-10 | Phase 12 | Complete |
+| SETCAT-11 | Phase 12 | Complete |
 
 **Coverage:**
 
