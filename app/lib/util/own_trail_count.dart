@@ -41,8 +41,13 @@ Future<int> ownTrailCount(
 
   // Meilisearch returns totalHits (finite) or estimatedTotalHits depending on
   // config; prefer totalHits, then fall back to the returned hits length (A1).
-  return (data['totalHits'] ??
+  // Coerce defensively (WR-03) rather than blind-casting — these fields are
+  // dynamic JSON values and may arrive as a double depending on the JSON
+  // serializer / proxy layer between the Go backend and the client.
+  final raw =
+      data['totalHits'] ??
       data['estimatedTotalHits'] ??
       (data['hits'] as List?)?.length ??
-      0) as int;
+      0;
+  return raw is int ? raw : (raw as num).toInt();
 }
