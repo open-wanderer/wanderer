@@ -204,6 +204,16 @@ class _SettingsCategoriesScreenState
     final l10n = AppLocalizations.of(context)!;
     try {
       await ref.read(categoryPreferenceProvider.notifier).reorder(_orderedIds);
+      // reorder() calls invalidateSelf() internally but does not wait for the
+      // resulting refetch — clearing the guard here would let a rebuild land
+      // with _reordering already false while prefsAsync.value still carries
+      // the pre-reorder order (Riverpod keeps the previous value through the
+      // loading state), reseeding _orderedIds back to the stale order for one
+      // frame before the refetch resolves and snaps it forward again (the
+      // reported flash). Await the refetch itself so the guard only drops
+      // once the provider's data actually reflects the new order.
+      if (!mounted) return;
+      await ref.read(categoryPreferenceProvider.future);
       // Success: the provider has re-emitted the persisted order, so the guard
       // can drop — the next build's reseed will now mirror the settled order.
       if (!mounted) return;
