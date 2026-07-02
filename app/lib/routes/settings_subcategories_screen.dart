@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/category_preference.dart';
 import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/subcategory_preference.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/category_preference_provider.dart';
 import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
@@ -29,6 +31,13 @@ import 'package:wanderer/util/own_trail_count.dart';
 /// reorder to that category. A `ConsumerStatefulWidget` because it holds the
 /// local `_orderedIds` drag working copy (never rendered from the re-sorting
 /// provider mid-drag) and needs `mounted` guards after async saves.
+///
+/// Parent-category visibility cascades into every row (quick-260702-ere,
+/// mirroring web `settings/categories/+page.svelte`): when the parent category
+/// is disabled, each subcategory Switch renders OFF and non-interactive, the
+/// row dims to 0.6 opacity, and drag-reordering is disabled. This is
+/// presentation-only — the parent's state never mutates a subcategory's stored
+/// `visible` value, so re-enabling the parent restores each saved preference.
 class SettingsSubcategoriesScreen extends ConsumerStatefulWidget {
   const SettingsSubcategoriesScreen({super.key, required this.category});
 
@@ -87,10 +96,12 @@ class _SettingsSubcategoriesScreenState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    // subcategoryProvider is a synchronous List; only the preference provider is
-    // async, so AsyncLoader (D-14) wraps just the prefs load.
+    // subcategoryProvider is a synchronous List; only the preference providers
+    // are async, so AsyncLoader (D-14) wraps just the prefs loads.
     final subcategories = ref.watch(subcategoryProvider);
     final prefsAsync = ref.watch(subcategoryPreferenceProvider);
+    // Parent-category preferences drive the visibility cascade (read-only here).
+    final categoryPrefsAsync = ref.watch(categoryPreferenceProvider);
     final locale = Localizations.localeOf(context);
     final colorScheme = Theme.of(context).colorScheme;
     final activeColor = Theme.of(context).brightness == Brightness.dark
@@ -102,6 +113,41 @@ class _SettingsSubcategoriesScreenState
         .where((s) => s.category == widget.category.id)
         .toList();
 
+    // Combine the two async values into a single record so AsyncLoader renders
+    // one skeleton for both the subcategory prefs and the parent category prefs
+    // (error-first, then loading, then data), mirroring the sibling category
+    // screen's `combined` record.
+    final combined = prefsAsync.hasError
+        ? AsyncValue<
+            ({
+              List<SubcategoryPreference> prefs,
+              List<CategoryPreference> categoryPrefs,
+            })
+          >.error(prefsAsync.error!, prefsAsync.stackTrace!)
+        : categoryPrefsAsync.hasError
+        ? AsyncValue<
+            ({
+              List<SubcategoryPreference> prefs,
+              List<CategoryPreference> categoryPrefs,
+            })
+          >.error(categoryPrefsAsync.error!, categoryPrefsAsync.stackTrace!)
+        : (prefsAsync.isLoading || categoryPrefsAsync.isLoading)
+        ? const AsyncValue<
+            ({
+              List<SubcategoryPreference> prefs,
+              List<CategoryPreference> categoryPrefs,
+            })
+          >.loading()
+        : AsyncValue<
+            ({
+              List<SubcategoryPreference> prefs,
+              List<CategoryPreference> categoryPrefs,
+            })
+          >.data((
+            prefs: prefsAsync.value ?? const [],
+            categoryPrefs: categoryPrefsAsync.value ?? const [],
+          ));
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -111,35 +157,55 @@ class _SettingsSubcategoriesScreenState
         // Parent category's localized name (D-06).
         title: Text(widget.category.displayName(locale)),
       ),
-      body: AsyncLoader<List<SubcategoryPreference>>(
-        asyncValue: prefsAsync,
-        mockData: const [],
-        builder: (prefs) {
-          // Empty state — the screen stays reachable even with no subcategories
-          // (D-07).
-          if (filtered.isEmpty) {
-            return _buildEmptyState(l10n);
-          }
+      body:
+          AsyncLoader<
+            ({
+              List<SubcategoryPreference> prefs,
+              List<CategoryPreference> categoryPrefs,
+            })
+          >(
+            asyncValue: combined,
+            mockData: const (prefs: [], categoryPrefs: []),
+            builder: (data) {
+              // Empty state — the screen stays reachable even with no
+              // subcategories (D-07).
+              if (filtered.isEmpty) {
+                return _buildEmptyState(l10n);
+              }
 
-          final sorted = sortedSubcategoriesByPreference(
-            filtered,
-            prefs,
-            locale,
-          );
-          // Seed the reorder working copy from the current sorted order. On the
-          // idle path this simply mirrors `sorted`; a drag mutates it
-          // optimistically. Skip reseeding for the whole reorder round-trip
-          // (`_reordering`): while a drag is in progress OR the async
-          // `reorder()` is still in flight, a rebuild must not clobber the
-          // optimistic working copy — reseeding from the not-yet-updated
-          // provider would snap the dropped row back to its old slot.
-          if (!_reordering) {
-            _orderedIds = sorted.map((s) => s.id).toList();
-          }
+              // Parent visibility, computed once per build from the read-only
+              // category prefs. Named `catVisible` to avoid shadowing the
+              // `categoryVisible` helper. Drives the row cascade below.
+              final catVisible = categoryVisible(
+                widget.category.id,
+                data.categoryPrefs,
+              );
 
-          return _buildList(sorted, prefs, locale, activeColor);
-        },
-      ),
+              final sorted = sortedSubcategoriesByPreference(
+                filtered,
+                data.prefs,
+                locale,
+              );
+              // Seed the reorder working copy from the current sorted order. On
+              // the idle path this simply mirrors `sorted`; a drag mutates it
+              // optimistically. Skip reseeding for the whole reorder round-trip
+              // (`_reordering`): while a drag is in progress OR the async
+              // `reorder()` is still in flight, a rebuild must not clobber the
+              // optimistic working copy — reseeding from the not-yet-updated
+              // provider would snap the dropped row back to its old slot.
+              if (!_reordering) {
+                _orderedIds = sorted.map((s) => s.id).toList();
+              }
+
+              return _buildList(
+                sorted,
+                data.prefs,
+                locale,
+                activeColor,
+                catVisible,
+              );
+            },
+          ),
     );
   }
 
@@ -174,11 +240,15 @@ class _SettingsSubcategoriesScreenState
   /// mid-drag). `buildDefaultDragHandles: false` disables whole-row/long-press
   /// drag (D-01); the only drag affordance is the explicit
   /// `ReorderableDragStartListener` handle built in `_buildRow`.
+  ///
+  /// [categoryOn] is the parent-category visibility: when false the whole list
+  /// drag-disables and every row dims (quick-260702-ere cascade).
   Widget _buildList(
     List<Subcategory> sorted,
     List<SubcategoryPreference> prefs,
     Locale locale,
     Color activeColor,
+    bool categoryOn,
   ) {
     final byId = {for (final s in sorted) s.id: s};
     return ReorderableListView.builder(
@@ -187,7 +257,7 @@ class _SettingsSubcategoriesScreenState
       itemBuilder: (context, index) {
         final sub = byId[_orderedIds[index]];
         if (sub == null) return const SizedBox.shrink();
-        return _buildRow(sub, index, prefs, locale, activeColor);
+        return _buildRow(sub, index, prefs, locale, activeColor, categoryOn);
       },
       // The index-shift `if (newIndex > oldIndex) newIndex -= 1` inside
       // _onReorder is the canonical onReorder contract; onReorderItem is not
@@ -251,41 +321,66 @@ class _SettingsSubcategoriesScreenState
   /// trailing visibility Switch. An explicit Row, not a switch-tile widget
   /// (Pattern 2 — mirrors the sibling category screen, D-06). Rows are LEAF —
   /// no body-tap navigation (D-06).
+  ///
+  /// [categoryOn] is the parent-category visibility (quick-260702-ere cascade,
+  /// mirroring web `disabled={... || !categoryVisible}` /
+  /// `class:opacity-60={!categoryVisible}`): when false, the Switch shows OFF
+  /// and non-interactive (onChanged null), the whole row dims to 0.6, and the
+  /// drag handle drops its `ReorderableDragStartListener`.
   Widget _buildRow(
     Subcategory sub,
     int index,
     List<SubcategoryPreference> prefs,
     Locale locale,
     Color activeColor,
+    bool categoryOn,
   ) {
-    final isVisible = subcategoryVisible(sub.id, prefs);
-    return Padding(
+    // Presentation-only: derive display state from read data. When the parent
+    // is off, the switch reads OFF regardless of the subcategory's own stored
+    // `visible` — but that stored value is never written, so re-enabling the
+    // parent restores it for free.
+    final effectiveVisible = categoryOn && subcategoryVisible(sub.id, prefs);
+    return Opacity(
       key: ValueKey(sub.id),
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          ReorderableDragStartListener(
-            index: index,
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8),
-              child: Icon(Icons.drag_handle),
+      opacity: categoryOn ? 1.0 : 0.6,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            // Drag affordance only when the parent is on; when off, a plain
+            // (dimmed via the outer Opacity) handle with no drag listener so
+            // parent-off rows cannot be reordered.
+            if (categoryOn)
+              ReorderableDragStartListener(
+                index: index,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Icon(Icons.drag_handle),
+                ),
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(Icons.drag_handle),
+              ),
+            subcategoryFilterAvatar(context, sub, widget.category, locale),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                sub.displayName(locale),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-          subcategoryFilterAvatar(context, sub, widget.category, locale),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              sub.displayName(locale),
-              overflow: TextOverflow.ellipsis,
+            Switch(
+              value: effectiveVisible,
+              activeThumbColor: activeColor,
+              // null renders the Switch disabled/non-interactive when the
+              // parent category is off (Flutter's standard mechanism).
+              onChanged: categoryOn ? (v) => _onToggle(sub, v) : null,
             ),
-          ),
-          Switch(
-            value: isVisible,
-            activeThumbColor: activeColor,
-            onChanged: (v) => _onToggle(sub, v),
-          ),
-          const SizedBox(width: 8),
-        ],
+            const SizedBox(width: 8),
+          ],
+        ),
       ),
     );
   }
