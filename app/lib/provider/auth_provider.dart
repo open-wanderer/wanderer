@@ -1,4 +1,5 @@
-import 'package:dio/dio.dart';
+import 'dart:async';
+
 import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/user_entity.dart';
@@ -36,14 +37,16 @@ class Auth extends _$Auth {
     final pbAuthCookie = cookies.where((c) => c.name == 'pb_auth').firstOrNull;
 
     if (pbAuthCookie != null) {
-      try {
-        await _updateUserEntity(savedUserEntity.id);
-      } on DioException catch (err) {
-        if (err.response?.statusCode == 404) {
+      // Optimistically return the cached user immediately so startup does not
+      // block on a network round-trip. Refresh the user in the background; if
+      // the refresh reveals an invalid session (e.g. a 404 DioException, or any
+      // other error), log the user out.
+      unawaited(
+        _updateUserEntity(savedUserEntity.id).catchError((Object err) {
           logout();
           return null;
-        }
-      }
+        }),
+      );
       return savedUserEntity;
     }
     return null;
