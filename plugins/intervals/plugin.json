@@ -1,0 +1,104 @@
+{
+  "manifestVersion": "1.0",
+  "id": "intervals",
+  "type": "trails",
+  "name": "Intervals.icu",
+  "description": "Imports activities and GPS streams from Intervals.icu.",
+  "version": "0.1.0",
+  "runtime": {
+    "type": "wasm",
+    "entrypoint": "plugin.wasm"
+  },
+  "capabilities": [
+    {
+      "name": "list_activities",
+      "version": "v1",
+      "export": "list_activities_v1"
+    },
+    {
+      "name": "get_activity_detail",
+      "version": "v1",
+      "export": "get_activity_detail_v1"
+    }
+  ],
+  "auth": {
+    "contexts": {
+      "intervals_credentials": {
+        "type": "session",
+        "fields": [
+          "athleteId",
+          "apiKey"
+        ],
+        "secretFields": [
+          "apiKey"
+        ],
+        "refresh": {
+          "mode": "plugin",
+          "function": "refresh_session_v1"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "network": {
+      "connectors": [
+        {
+          "name": "api",
+          "type": "public_api",
+          "fixedBaseURL": "https://intervals.icu/api/v1",
+          "allowedPathPrefixes": [
+            "/"
+          ]
+        }
+      ]
+    },
+    "auth": [
+      "intervals_credentials"
+    ],
+    "downloads": {
+      "maxBytes": 16777216,
+      "contentTypes": [
+        "application/json",
+        "application/gpx+xml",
+        "application/xml",
+        "text/xml",
+        "application/octet-stream"
+      ]
+    }
+  },
+  "configSchema": [
+    {
+      "key": "after",
+      "type": "date",
+      "label": "Start date",
+      "labels": {
+        "de": "Startdatum",
+        "en": "Start date"
+      },
+      "description": "Ignore activities before this date.",
+      "descriptions": {
+        "de": "Aktivitäten vor diesem Datum ignorieren.",
+        "en": "Ignore activities before this date."
+      }
+    }
+  ],
+  "hostConfig": {
+    "categoryMapping": {
+      "Ride": { "category": "Biking", "subcategory": "Road" },
+      "Run": { "category": "Running", "subcategory": "Road" },
+      "Hike": "Hiking",
+      "Walk": "Walking",
+      "Swim": "Other",
+      "VirtualRide": "Biking",
+      "WeightTraining": "Other"
+    }
+  },
+  "metadata": {
+    "descriptions": {
+      "en": "Imports activities and GPS streams from Intervals.icu."
+    },
+    "icons": {
+      "light": "icon.svg"
+    }
+  }
+}
