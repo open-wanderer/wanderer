@@ -3,18 +3,18 @@ package tiles
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"time"
 
 	dbx "github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
 
 const (
-	pmtilesSource = "https://build.protomaps.com/20260610.pmtiles"
-
 	maxZoom = 14
 
 	cacheDir = "./pb_data/pmtiles_cache"
@@ -96,6 +96,27 @@ func findOrCreateRecord(app core.App, cell GridCell) (*core.Record, error) {
 	return record, nil
 }
 
+func getValidProtomapsURL() string {
+	now := time.Now().UTC()
+
+	todayURL := fmt.Sprintf("https://build.protomaps.com/%s.pmtiles", now.Format("20060102"))
+	if urlExists(todayURL) {
+		return todayURL
+	}
+
+	yesterdayURL := fmt.Sprintf("https://build.protomaps.com/%s.pmtiles", now.AddDate(0, 0, -1).Format("20060102"))
+	return yesterdayURL
+}
+
+func urlExists(url string) bool {
+	resp, err := http.Head(url)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
+}
+
 func generateCell(app core.App, record *core.Record, cell GridCell) error {
 	outputPath := CellPath(cell)
 
@@ -112,6 +133,8 @@ func generateCell(app core.App, record *core.Record, cell GridCell) error {
 	)
 
 	log.Printf("[tiles] generating cell %s (bbox: %s)", cell.CacheKey(), bbox)
+
+	pmtilesSource := getValidProtomapsURL()
 
 	cmd := exec.Command("pmtiles", "extract",
 		pmtilesSource,
