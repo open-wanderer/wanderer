@@ -5,6 +5,8 @@
         icon?: string;
         separator?: boolean;
         danger?: boolean;
+        disabled?: boolean;
+        tooltip?: string;
     };
 </script>
 
@@ -15,11 +17,18 @@
     interface Props {
         items?: DropdownItem[];
         size?: string;
+        matchToggleWidth?: boolean;
         children?: Snippet<[any]>;
         onchange?: (item: DropdownItem) => void;
     }
 
-    let { items = [], size = "regular", children, onchange }: Props = $props();
+    let {
+        items = [],
+        size = "regular",
+        matchToggleWidth = false,
+        children,
+        onchange,
+    }: Props = $props();
 
     let isOpen = $state(false);
 
@@ -32,10 +41,17 @@
 
         isOpen = !isOpen;
 
-        if (isOpen && dropdownElement) {
+        if (isOpen) {
             await tick();
 
+            if (!dropdownElement) {
+                return;
+            }
+
             const toggleRect = dropdownToggleElement.getBoundingClientRect();
+            if (matchToggleWidth) {
+                dropdownElement.style.width = `${toggleRect.width}px`;
+            }
             const dropdownRect = dropdownElement.getBoundingClientRect();
             dropdownElement.style.visibility = "";
 
@@ -83,12 +99,12 @@
         isOpen = false;
     }
 
-    function handleItemClick(
-        e: MouseEvent,
-        item: { text: string; value: any },
-    ) {
+    function handleItemClick(e: MouseEvent, item: DropdownItem) {
         e.preventDefault();
         e.stopPropagation();
+        if (item.disabled) {
+            return;
+        }
         onchange?.(item);
         closeMenu();
     }
@@ -108,7 +124,7 @@
 
 <svelte:window onmouseup={handleWindowClick} />
 
-<div class="dropdown relative">
+<div class="dropdown relative" class:w-full={matchToggleWidth}>
     <div class="dropdown-toggle" bind:this={dropdownToggleElement}>
         {#if children}{@render children({ toggleMenu })}{:else}
             <button
@@ -141,8 +157,14 @@
                         class="menu-item flex items-center px-4 py-3 cursor-pointer hover:bg-menu-item-background-hover focus:bg-menu-item-background-focus transition-colors"
                         class:hover:text-red-500={item.danger}
                         class:focus:text-red-500={item.danger}
+                        class:cursor-not-allowed={item.disabled}
+                        class:opacity-50={item.disabled}
+                        class:hover:bg-transparent={item.disabled}
+                        class:focus:bg-transparent={item.disabled}
+                        class:tooltip={!!item.tooltip}
+                        data-title={item.tooltip}
                         role="presentation"
-                        onclick={(e) => handleItemClick(e, item as { text: string; value: any })}
+                        onclick={(e) => handleItemClick(e, item)}
                     >
                         {#if item.icon}
                             <i class="fa fa-{item.icon} mr-3"></i>

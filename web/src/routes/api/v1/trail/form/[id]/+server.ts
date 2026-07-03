@@ -1,5 +1,6 @@
 import type { Trail } from "$lib/models/trail";
 import { Collection, handleError, uploadUpdate } from "$lib/util/api_util";
+import { enrichTrailAssetExpands } from "$lib/util/asset_link_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 
 /**
@@ -38,7 +39,10 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  */
 export async function POST(event: RequestEvent) {
     try {        
-        const r = await uploadUpdate<Trail>(event, Collection.trails)
+        let r = await uploadUpdate<Trail>(event, Collection.trails)
+        r = await event.locals.pb.collection(Collection.trails).getOne<Trail>(r.id!, {
+            expand: event.url.searchParams.get("expand") ?? undefined,
+        });
         enrichRecord(r);
         return json(r);
     } catch (e) {
@@ -52,4 +56,5 @@ function enrichRecord(r: Trail) {
     for (const log of r.expand?.summit_logs_via_trail ?? []) {
         log.date = log.date.substring(0, 10);
     }
+    enrichTrailAssetExpands(r);
 }

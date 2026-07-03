@@ -9,7 +9,7 @@ export interface PluginSystemCapability {
 export interface PluginSystemManifest {
     manifestVersion: string;
     id: string;
-    type: "trails";
+    type: "trails" | "assets";
     name: string;
     displayName?: string;
     description?: string;
@@ -30,7 +30,7 @@ export interface PluginSystemManifest {
 
 export interface PluginSystemPlugin {
     id: string;
-    type: "trails";
+    type: "trails" | "assets";
     name: string;
     displayName?: string;
     description?: string;

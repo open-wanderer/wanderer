@@ -509,6 +509,44 @@ func TestValidateRemoteMediaURLSyntax(t *testing.T) {
 	})
 }
 
+func TestPhotoAssetInputPreservesZeroCoordinates(t *testing.T) {
+	zero := 0.0
+	input := photoAssetInput(Options{
+		UserID: "user1",
+		Manifest: pluginsystem.Manifest{
+			ID: "immich",
+		},
+	}, PhotoAssetTarget{}, pluginsystem.Photo{
+		ExternalID: "asset1",
+		Lat:        &zero,
+		Lon:        &zero,
+	})
+
+	if !input.HasLat || !input.HasLon {
+		t.Fatalf("expected explicit zero coordinates to be marked present: %#v", input)
+	}
+	if input.Lat != 0 || input.Lon != 0 {
+		t.Fatalf("unexpected coordinates: %v, %v", input.Lat, input.Lon)
+	}
+}
+
+func TestPhotoAssetInputPreservesTakenAt(t *testing.T) {
+	takenAt := time.Date(2024, 7, 25, 10, 27, 38, 339000000, time.UTC)
+	input := photoAssetInput(Options{
+		UserID: "user1",
+		Manifest: pluginsystem.Manifest{
+			ID: "immich",
+		},
+	}, PhotoAssetTarget{}, pluginsystem.Photo{
+		ExternalID: "asset1",
+		TakenAt:    &takenAt,
+	})
+
+	if input.TakenAt == nil || !input.TakenAt.Equal(takenAt) {
+		t.Fatalf("expected taken_at to be preserved, got %#v", input.TakenAt)
+	}
+}
+
 func TestPhotoFile(t *testing.T) {
 	ctx := context.Background()
 
@@ -539,6 +577,45 @@ func TestPluginMediaBudgetRemainingBytes(t *testing.T) {
 	budget.bytes = util.DefaultPluginMaxImportMediaBytes
 	if got := budget.remainingBytes(); got != 0 {
 		t.Fatalf("got %d, want exhausted budget", got)
+	}
+}
+
+func TestPhotoImportLimitResolution(t *testing.T) {
+	defaults := Options{}
+	if got := defaults.maxPhotosPerTrail(); got != 0 {
+		t.Fatalf("got trail limit %d, want unlimited", got)
+	}
+	if got := defaults.maxPhotosPerWaypoint(); got != 0 {
+		t.Fatalf("got waypoint limit %d, want unlimited", got)
+	}
+	if got := defaults.maxPhotosPerSummitLog(); got != 0 {
+		t.Fatalf("got summit log limit %d, want unlimited", got)
+	}
+
+	empty := Options{PhotoLimits: &PhotoImportLimits{}}
+	if got := empty.maxPhotosPerTrail(); got != util.DefaultPluginMaxPhotosPerTrail {
+		t.Fatalf("got trail limit %d, want %d", got, util.DefaultPluginMaxPhotosPerTrail)
+	}
+	if got := empty.maxPhotosPerWaypoint(); got != util.DefaultPluginMaxPhotosPerWaypoint {
+		t.Fatalf("got waypoint limit %d, want %d", got, util.DefaultPluginMaxPhotosPerWaypoint)
+	}
+	if got := empty.maxPhotosPerSummitLog(); got != util.DefaultPluginMaxPhotosPerSummitLog {
+		t.Fatalf("got summit log limit %d, want %d", got, util.DefaultPluginMaxPhotosPerSummitLog)
+	}
+
+	custom := Options{PhotoLimits: &PhotoImportLimits{
+		MaxPhotosPerTrail:     11,
+		MaxPhotosPerWaypoint:  3,
+		MaxPhotosPerSummitLog: 7,
+	}}
+	if got := custom.maxPhotosForAssetTarget(PhotoAssetTarget{Trail: "trail1"}); got != 11 {
+		t.Fatalf("got trail target limit %d, want 11", got)
+	}
+	if got := custom.maxPhotosForAssetTarget(PhotoAssetTarget{Waypoint: "waypoint1"}); got != 3 {
+		t.Fatalf("got waypoint target limit %d, want 3", got)
+	}
+	if got := custom.maxPhotosForAssetTarget(PhotoAssetTarget{SummitLog: "summit1"}); got != 7 {
+		t.Fatalf("got summit log target limit %d, want 7", got)
 	}
 }
 

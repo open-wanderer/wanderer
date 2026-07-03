@@ -359,7 +359,11 @@ func buildTargetSelectionStats(
 
 	geometryCentralityScore := trailGeometryCentralityScore(trail, groupTrails, referenceTrails, coordsByTrailID)
 	hasDescription := strings.TrimSpace(trail.GetString("description")) != ""
-	photoCount := len(trail.GetStringSlice("photos"))
+	assets, err := util.PhotoAssetsForTarget(app, "trail", trail.Id, -1)
+	if err != nil {
+		return targetSelectionStats{}, err
+	}
+	photoCount := len(assets)
 	tagCount := len(trail.GetStringSlice("tags"))
 	priorityClass := targetPriorityClass(summitLogCount, externalReferenceCount, commentCount, photoCount, hasDescription)
 
@@ -1191,6 +1195,12 @@ func mergeTrailIntoTarget(ctx mergeContext) (mergeSideEffects, error) {
 		return sideEffects, err
 	}
 
+	if ctx.Settings.Photos {
+		if err := reassignTrailAssets(ctx); err != nil {
+			return sideEffects, err
+		}
+	}
+
 	if ctx.Settings.Delete {
 		if err := ctx.App.Delete(ctx.Source); err != nil {
 			return sideEffects, err
@@ -1198,6 +1208,26 @@ func mergeTrailIntoTarget(ctx mergeContext) (mergeSideEffects, error) {
 	}
 
 	return sideEffects, nil
+}
+
+func reassignTrailAssets(ctx mergeContext) error {
+	links, err := ctx.App.FindRecordsByFilter(
+		"trail_assets",
+		"trail={:trail}",
+		"",
+		-1,
+		0,
+		dbx.Params{"trail": ctx.Source.Id},
+	)
+	if err != nil {
+		return err
+	}
+	for _, link := range links {
+		if _, err := util.EnsureAssetLink(ctx.App, "trail_assets", "trail", ctx.Target.Id, link.GetString("asset")); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func createTrailSummitLog(ctx mergeContext) (string, error) {
@@ -1222,16 +1252,6 @@ func createTrailSummitLog(ctx mergeContext) (string, error) {
 		return "", err
 	} else if gpxFile != nil {
 		record.Set("gpx", gpxFile)
-	}
-
-	if ctx.Settings.Photos {
-		photos, err := cloneRecordFiles(ctx.App, ctx.Source, "photos")
-		if err != nil {
-			return "", err
-		}
-		if len(photos) > 0 {
-			record.Set("photos", photos)
-		}
 	}
 
 	if err := ctx.App.Save(record); err != nil {
@@ -1283,21 +1303,39 @@ func mergeExistingSummitLogs(ctx mergeContext) ([]string, error) {
 			record.Set("gpx", gpxFile)
 		}
 
-		photos, err := cloneRecordFiles(ctx.App, sourceLog, "photos")
-		if err != nil {
-			return nil, err
-		}
-		if len(photos) > 0 {
-			record.Set("photos", photos)
-		}
-
 		if err := ctx.App.Save(record); err != nil {
 			return nil, err
 		}
+
+		if err := reassignSummitLogAssets(ctx.App, sourceLog.Id, record.Id); err != nil {
+			return nil, err
+		}
+
 		createdIDs = append(createdIDs, record.Id)
 	}
 
 	return createdIDs, nil
+}
+
+func reassignSummitLogAssets(app core.App, sourceSummitLogID, targetSummitLogID string) error {
+	links, err := app.FindRecordsByFilter(
+		"summit_log_assets",
+		"summit_log={:sl}",
+		"",
+		-1,
+		0,
+		dbx.Params{"sl": sourceSummitLogID},
+	)
+	if err != nil {
+		return err
+	}
+	for _, link := range links {
+		assetID := link.GetString("asset")
+		if _, err := util.EnsureAssetLink(app, "summit_log_assets", "summit_log", targetSummitLogID, assetID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func isPrimaryTrailSummitLog(source *core.Record, sourceLog *core.Record) bool {
@@ -1524,22 +1562,6 @@ func buildMergedCommentText(app core.App, comment *core.Record) string {
 
 	createdDate := comment.GetDateTime("created").Time().Format("2006-01-02")
 	return fmt.Sprintf("%s (%s)\n\n%s", authorHandle, createdDate, comment.GetString("text"))
-}
-
-func cloneRecordFiles(app core.App, record *core.Record, field string) ([]*filesystem.File, error) {
-	fileNames := record.GetStringSlice(field)
-	files := make([]*filesystem.File, 0, len(fileNames))
-	for _, name := range fileNames {
-		file, err := cloneRecordFileByName(app, record, name)
-		if err != nil {
-			return nil, err
-		}
-		if file != nil {
-			files = append(files, file)
-		}
-	}
-
-	return files, nil
 }
 
 func cloneRecordFile(app core.App, record *core.Record, field string) (*filesystem.File, error) {

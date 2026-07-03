@@ -102,7 +102,10 @@ type RefreshSessionOutput struct {
 }
 
 type SyncLimits struct {
-	MaxItems int `json:"maxItems,omitempty"`
+	MaxItems              int `json:"maxItems,omitempty"`
+	MaxPhotosPerTrail     int `json:"maxPhotosPerTrail,omitempty"`
+	MaxPhotosPerWaypoint  int `json:"maxPhotosPerWaypoint,omitempty"`
+	MaxPhotosPerSummitLog int `json:"maxPhotosPerSummitLog,omitempty"`
 }
 
 type ListInput struct {
@@ -124,6 +127,7 @@ type DetailInput struct {
 	Instance InstanceRef    `json:"instance"`
 	Auth     map[string]any `json:"auth,omitempty"`
 	Options  map[string]any `json:"options,omitempty"`
+	Limits   SyncLimits     `json:"limits,omitempty"`
 	Summary  TrailSummary   `json:"summary"`
 }
 
@@ -177,6 +181,7 @@ type Photo struct {
 	ExternalID  string      `json:"externalId,omitempty"`
 	Filename    string      `json:"filename,omitempty"`
 	ContentType string      `json:"contentType,omitempty"`
+	TakenAt     string      `json:"takenAt,omitempty"`
 	Lat         *float64    `json:"lat,omitempty"`
 	Lon         *float64    `json:"lon,omitempty"`
 	Source      MediaSource `json:"source"`

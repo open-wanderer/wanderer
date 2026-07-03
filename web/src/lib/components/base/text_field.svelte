@@ -11,7 +11,10 @@
         error?: string | string[] | null;
         icon?: string;
         extraClasses?: string;
-        type?: "text" | "password" | "search" | "url";
+        type?: "text" | "password" | "search" | "url" | "number";
+        min?: string | number;
+        max?: string | number;
+        step?: string | number;
         autocomplete?: "on" | "off";
         onchange?: ChangeEventHandler<HTMLInputElement>;
         oninput?: FormEventHandler<HTMLInputElement>;
@@ -29,6 +32,9 @@
         icon = "",
         extraClasses = "",
         type = "text",
+        min,
+        max,
+        step,
         autocomplete = "on",
         onchange,
         oninput,
@@ -60,6 +66,9 @@
             class:text-gray-500={disabled}
             {disabled}
             {autocomplete}
+            {min}
+            {max}
+            {step}
             use:typeAction
             bind:value
             {onchange}

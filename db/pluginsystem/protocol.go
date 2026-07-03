@@ -5,6 +5,7 @@ const (
 	RuntimeWASM     = "wasm"
 
 	PluginTypeTrails = "trails"
+	PluginTypeAssets = "assets"
 
 	AuthTypeOAuth2  = "oauth2"
 	AuthTypeAPIKey  = "api_key"
@@ -67,6 +68,9 @@ type ConfigField struct {
 	Descriptions map[string]string   `json:"descriptions,omitempty"`
 	Options      []ConfigFieldOption `json:"options,omitempty"`
 	Default      any                 `json:"default,omitempty"`
+	Min          *float64            `json:"min,omitempty"`
+	Max          *float64            `json:"max,omitempty"`
+	Step         *float64            `json:"step,omitempty"`
 	Required     bool                `json:"required,omitempty"`
 	Hidden       bool                `json:"hidden,omitempty"`
 }

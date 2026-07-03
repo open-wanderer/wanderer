@@ -2,10 +2,8 @@
     import { goto } from "$app/navigation";
     import MergeDialog from "$lib/components/trail/trail_merge_dialog.svelte";
     import TrailListItem from "$lib/components/trail/trail_list_item.svelte";
-    import TrailMergeModal, {
-        type MergeSelection,
-        type MergeSettings,
-    } from "$lib/components/trail/trail_merge_modal.svelte";
+    import TrailMergeModal from "$lib/components/trail/trail_merge_modal.svelte";
+    import type { MergeSelection, MergeSettings } from "$lib/components/trail/trail_merge_types";
     import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
     import type { Trail } from "$lib/models/trail";
     import {
@@ -23,7 +21,6 @@
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
     import { APIError } from "$lib/util/api_util";
     import { _ } from "svelte-i18n";
-    import { onMount } from "svelte";
 
     type SimilarTrailGroupView = TrailMergeSuggestGroup & {
         trails: Trail[];
@@ -31,7 +28,8 @@
         suggestedTargetTrailId: string;
     };
 
-    let loading = $state(true);
+    let hasScanned = $state(false);
+    let loading = $state(false);
     let groups = $state<SimilarTrailGroupView[]>([]);
     let loadError = $state("");
     let openMapGroupId = $state<string | null>(null);
@@ -42,11 +40,8 @@
 
     let trailMergeModal: TrailMergeModal;
 
-    onMount(async () => {
-        await loadGroups();
-    });
-
     async function loadGroups() {
+        hasScanned = true;
         loading = true;
         loadError = "";
         openMapGroupId = null;
@@ -216,49 +211,44 @@
     }
 </script>
 
-<svelte:head>
-    <title>{$_("similar-trails-maintenance-title")} | wanderer</title>
-</svelte:head>
-
 <div class="space-y-6">
-    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div class="space-y-2">
-            <h1 class="text-3xl font-bold">{$_("similar-trails-maintenance-title")}</h1>
-            <p class="text-sm text-gray-500 max-w-3xl">
-                {$_("similar-trails-maintenance-description")}
-            </p>
-        </div>
+    <div class="flex justify-end">
         <button class="btn-secondary shrink-0" onclick={loadGroups} disabled={loading}>
+            <i class="fa fa-magnifying-glass mr-2"></i>
             {$_("similar-trails-scan")}
         </button>
     </div>
 
-    {#if loading}
-        <div class="rounded-2xl border border-input-border p-6 flex items-center gap-3">
+    {#if !hasScanned}
+        <div class="rounded-lg border border-input-border p-6 text-sm text-gray-500">
+            {$_("duplicate-maintenance-trails-ready")}
+        </div>
+    {:else if loading}
+        <div class="rounded-lg border border-input-border p-6 flex items-center gap-3">
             <div class="spinner light:spinner-dark"></div>
             <p class="text-sm text-gray-500">{$_("similar-trails-loading")}</p>
         </div>
     {:else if loadError}
-        <div class="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300">
+        <div class="rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300">
             {loadError}
         </div>
     {:else if groups.length === 0}
-        <div class="rounded-2xl border border-input-border p-6 text-sm text-gray-500">
+        <div class="rounded-lg border border-input-border p-6 text-sm text-gray-500">
             {$_("similar-trails-empty")}
         </div>
     {:else}
         <div class="space-y-6">
             {#each groups as group}
-                <section class="rounded-2xl border border-input-border overflow-hidden">
+                <section class="rounded-lg border border-input-border overflow-hidden">
                     <div class="p-5 flex flex-col gap-4">
                         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div class="space-y-2">
                                 <div class="flex flex-wrap items-center gap-3">
-                                    <h2 class="text-xl font-semibold">
+                                    <h3 class="text-xl font-semibold">
                                         {$_("similar-trails-group-size", {
                                             values: { n: group.trails.length },
                                         })}
-                                    </h2>
+                                    </h3>
                                 </div>
                                 {#if group.targetTrailId === group.suggestedTargetTrailId}
                                     <p class="text-sm text-gray-500">
@@ -266,7 +256,7 @@
                                     </p>
                                 {/if}
                                 {#if group.indirect}
-                                    <div class="rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-800 dark:text-yellow-200">
+                                    <div class="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-800 dark:text-yellow-200">
                                         {$_("similar-trails-indirect-hint")}
                                     </div>
                                 {/if}
@@ -285,14 +275,14 @@
 
                         {#if openMapGroupId === group.groupId}
                             <div class="border-t border-input-border p-5 space-y-3">
-                                <h3 class="text-lg font-semibold">{$_("similar-trails-map-title")}</h3>
+                                <h4 class="text-lg font-semibold">{$_("similar-trails-map-title")}</h4>
                                 {#if mapLoadingGroupId === group.groupId}
                                     <div class="flex items-center gap-3 py-6">
                                         <div class="spinner light:spinner-dark"></div>
                                         <p class="text-sm text-gray-500">{$_("similar-trails-map-loading")}</p>
                                     </div>
                                 {:else if mapTrailsByGroupId[group.groupId]}
-                                    <div class="h-[26rem] rounded-2xl overflow-hidden border border-input-border">
+                                    <div class="h-[26rem] rounded-lg overflow-hidden border border-input-border">
                                         <MapWithElevationMaplibre
                                             trails={mapTrailsByGroupId[group.groupId]}
                                             showTerrain={true}

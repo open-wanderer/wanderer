@@ -12,6 +12,7 @@ import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { summit_logs_create, summit_logs_delete, summit_logs_update } from "./summit_log_store";
+import { asset_photo_url, assets_create, assets_delete_removed, assets_import_plugin_links, assets_link } from "./asset_store";
 import { categories } from "./category_store";
 import { subcategories } from "./subcategory_store";
 import { tags_create } from "./tag_store";
@@ -21,7 +22,7 @@ import { waypoints_create, waypoints_delete, waypoints_update } from "./waypoint
 export async function trails_index(perPage: number = 21, random: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const r = await f('/api/v1/trail?' + new URLSearchParams({
         "perPage": perPage.toString(),
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,tags",
         sort: random ? "@random" : "",
     }), {
         method: 'GET',
@@ -325,7 +326,7 @@ export async function trails_search_bounding_box(
 export async function trails_show(id: string, handle?: string, share?: string, loadGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
 
     const r = await f(`/api/v1/trail/${id}?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
         ...(handle ? { handle } : {}),
         ...(share ? { share } : {})
     }), {
@@ -385,18 +386,14 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
 
     trail.author = user.actor
 
-    const formData = objectToFormData(trail, ["expand"])
+    const formData = objectToFormData(trail, ["photos", "expand", "_assetLinks", "_assetPluginLinks"])
 
     if (gpx) {
         formData.set("gpx", gpx);
     }
 
-    for (const photo of photos) {
-        formData.set("photos", photo)
-    }
-
     let r = await f(`/api/v1/trail/form?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags",
     }), {
         method: 'PUT',
         body: formData,
@@ -408,6 +405,22 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
     }
 
     let model: Trail = await r.json();
+
+    if (photos.length) {
+        await assets_create(photos, {
+            trail: model.id,
+        }, f);
+    }
+    if (trail._assetLinks?.length) {
+        await assets_link(trail._assetLinks, {
+            trail: model.id,
+        }, f);
+    }
+    if (trail._assetPluginLinks?.length) {
+        await assets_import_plugin_links(trail._assetPluginLinks, {
+            trail: model.id,
+        }, f);
+    }
 
     const createdSummitLogs: SummitLog[] = [];
     for (const summitLog of trail.expand?.summit_logs_via_trail ?? []) {
@@ -440,6 +453,13 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
             ...(model.expand.waypoints_via_trail ?? []),
             ...createdWaypoints,
         ];
+    }
+
+    const refreshed = await f(`/api/v1/trail/${model.id}?` + new URLSearchParams({
+        expand: "category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags",
+    }));
+    if (refreshed.ok) {
+        model = await refreshed.json();
     }
 
     return model;
@@ -503,7 +523,7 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
         newTrail.tags = newTrail.tags.filter(t => t != tag.id);
     }
 
-    const formData = objectToFormData(newTrail, ["expand", ...(exclude ?? [])])
+    const formData = objectToFormData(newTrail, ["expand", "photos", "_assetLinks", "_assetPluginLinks", ...(exclude ?? [])])
 
     if (gpx) {
         formData.append("gpx", gpx);
@@ -523,7 +543,7 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
 
 
     const updateUrl = `/api/v1/trail/form/${newTrail.id}?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags",
     });
 
     let r = await fetch(updateUrl, {
@@ -538,6 +558,33 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
 
 
     let model: Trail = await r.json();
+
+    await assets_delete_removed(oldTrail.photos, newTrail.photos, { trail: newTrail.id! });
+    model.photos = newTrail.photos;
+    let shouldRefreshTrail = false;
+    if (photos?.length) {
+        await assets_create(photos, {
+            trail: model.id,
+        });
+        shouldRefreshTrail = true;
+    }
+    if (newTrail._assetLinks?.length) {
+        const assets = await assets_link(newTrail._assetLinks, {
+            trail: model.id,
+        });
+        model.photos = [...(model.photos ?? []), ...assets.map(asset_photo_url)];
+        shouldRefreshTrail = true;
+    }
+    if (newTrail._assetPluginLinks?.length) {
+        const assets = await assets_import_plugin_links(newTrail._assetPluginLinks, {
+            trail: model.id,
+        });
+        model.photos = [...(model.photos ?? []), ...assets.map(asset_photo_url)];
+        shouldRefreshTrail = true;
+    }
+    if (shouldRefreshTrail) {
+        model = await trails_show(model.id!, undefined, undefined, true);
+    }
 
     for (const log of model.expand?.summit_logs_via_trail ?? []) {
         if (!log.expand) {

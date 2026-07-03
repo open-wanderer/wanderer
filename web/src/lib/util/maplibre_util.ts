@@ -28,6 +28,20 @@ export class FontawesomeMarker extends M.Marker {
     }
 }
 
+export function markerElement(marker?: { getElement: () => HTMLElement } | null): HTMLElement | undefined {
+    return marker?.getElement();
+}
+
+export function syncMarkerHighlightClass(
+    elements: Iterable<HTMLElement | null | undefined>,
+    highlightedElement: HTMLElement | null | undefined,
+    className: string,
+) {
+    for (const element of elements) {
+        element?.classList.toggle(className, Boolean(highlightedElement && element === highlightedElement));
+    }
+}
+
 export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker: M.Marker, wpId?: string) => void): FontawesomeMarker {
     const safeMarkerIcon = waypoint.icon && icons.includes(waypoint.icon) ? waypoint.icon : "circle";
     const marker = new FontawesomeMarker({

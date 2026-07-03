@@ -149,8 +149,8 @@ func ValidateManifest(manifest Manifest) error {
 	if !pluginIDPattern.MatchString(manifest.ID) {
 		return fmt.Errorf("id must match %s", pluginIDPattern.String())
 	}
-	if manifest.Type != PluginTypeTrails {
-		return fmt.Errorf("%w: type must be %q", ErrUnsupportedPluginType, PluginTypeTrails)
+	if manifest.Type != PluginTypeTrails && manifest.Type != PluginTypeAssets {
+		return fmt.Errorf("%w: type must be one of %q, %q", ErrUnsupportedPluginType, PluginTypeTrails, PluginTypeAssets)
 	}
 	if strings.TrimSpace(manifest.Name) == "" {
 		return fmt.Errorf("name is required")
@@ -176,7 +176,48 @@ func ValidateManifest(manifest Manifest) error {
 	if err := validatePermissions(manifest.Permissions, manifest.Auth); err != nil {
 		return err
 	}
+	if err := validateConfigSchema(manifest.ConfigSchema); err != nil {
+		return err
+	}
 	return nil
+}
+
+func validateConfigSchema(fields []ConfigField) error {
+	for _, field := range fields {
+		if strings.TrimSpace(field.Key) == "" {
+			return fmt.Errorf("configSchema field key is required")
+		}
+		switch field.Type {
+		case "boolean", "date", "number", "select", "text", "url":
+		default:
+			return fmt.Errorf("configSchema field %q has unsupported type %q", field.Key, field.Type)
+		}
+		if field.Type != "number" {
+			continue
+		}
+		if field.Default != nil && !isJSONNumber(field.Default) {
+			return fmt.Errorf("configSchema number field %q default must be a number", field.Key)
+		}
+		if field.Min != nil && field.Max != nil && *field.Min > *field.Max {
+			return fmt.Errorf("configSchema number field %q min must be <= max", field.Key)
+		}
+		if field.Step != nil && *field.Step <= 0 {
+			return fmt.Errorf("configSchema number field %q step must be > 0", field.Key)
+		}
+	}
+	return nil
+}
+
+func isJSONNumber(value any) bool {
+	switch value := value.(type) {
+	case float64, float32, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return true
+	case json.Number:
+		_, err := value.Float64()
+		return err == nil
+	default:
+		return false
+	}
 }
 
 func validateCapabilities(capabilities []CapabilityManifest) error {

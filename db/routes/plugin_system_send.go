@@ -4,18 +4,18 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/tools/security"
 
 	"pocketbase/pluginsystem"
+	"pocketbase/services/pluginhost"
 	"pocketbase/util"
 )
 
@@ -200,24 +200,9 @@ func readTrailGPX(app core.App, trail *core.Record) ([]byte, error) {
 // decryptedInstanceAuth returns auth fields in the shape expected by host-side
 // auth injection and plugin input preparation.
 func decryptedInstanceAuth(instance *core.Record) (map[string]any, error) {
-	auth := pluginsystem.JSONMapFromRecord(instance, "auth")
-	if len(auth) == 0 {
-		return map[string]any{}, nil
-	}
-	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
-	if encryptionKey == "" {
+	auth, err := pluginhost.DecryptedInstanceAuth(instance)
+	if errors.Is(err, pluginhost.ErrMissingEncryptionKey) {
 		return nil, apis.NewBadRequestError("POCKETBASE_ENCRYPTION_KEY not set", nil)
 	}
-	for key, value := range auth {
-		secret, ok := value.(string)
-		if !ok || secret == "" || !util.CanDecryptSecret(secret) {
-			continue
-		}
-		decrypted, err := security.Decrypt(secret, encryptionKey)
-		if err != nil {
-			return nil, fmt.Errorf("decrypt %s: %w", key, err)
-		}
-		auth[key] = string(decrypted)
-	}
-	return auth, nil
+	return auth, err
 }

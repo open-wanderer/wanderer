@@ -4,11 +4,13 @@ import type { Category } from "./category";
 import type { Comment } from "./comment";
 import type GPX from "./gpx/gpx";
 import type { Subcategory } from "./subcategory";
-import type { SummitLog } from "./summit_log";
+import { SummitLog } from "./summit_log";
 import type { Tag } from "./tag";
 import type { TrailLike } from "./trail_like";
 import type { TrailShare } from "./trail_share";
 import { Waypoint } from "./waypoint";
+import type { Asset, AssetLink } from "./asset";
+import type { PhotoLibraryPluginLink } from "./photo_library";
 
 class Trail {
     id?: string;
@@ -26,6 +28,8 @@ class Trail {
     lon?: number;
     thumbnail?: number;
     photos: string[];
+    _assetLinks?: string[];
+    _assetPluginLinks?: PhotoLibraryPluginLink[];
     gpx?: string;
     created?: string;
     updated?: string;
@@ -43,6 +47,8 @@ class Trail {
         subcategory?: Subcategory;
         waypoints_via_trail?: Waypoint[]
         summit_logs_via_trail?: SummitLog[]
+        assets_via_trail?: Asset[]
+        trail_assets_via_trail?: AssetLink[]
         author?: Actor
         comments_via_trail?: Comment[]
         gpx_data?: string
@@ -122,14 +128,16 @@ class Trail {
     }
 
     static from(orig: Trail): Trail {
-        return new Trail(orig.name, {
+        const clonedTrail = new Trail(orig.name, {
             date: orig.date,
             description: orig.description,
             difficulty: orig.difficulty,
+            completed: orig.completed,
             distance: orig.distance,
             duration: orig.duration,
             elevation_gain: orig.elevation_gain,
             elevation_loss: orig.elevation_loss,
+            thumbnail: orig.thumbnail,
             lat: orig.lat,
             lon: orig.lon,
             location: orig.location,
@@ -138,14 +146,82 @@ class Trail {
             category: orig.expand?.category,
             subcategory: orig.expand?.subcategory,
             gpx_data: orig.expand?.gpx_data,
-            waypoints: orig.expand?.waypoints_via_trail?.map(wp => new Waypoint(wp.lat, wp.lon, {
-                id: cryptoRandomString({ length: 15 }),
-                description: wp.description,
-                icon: wp.icon,
-                name: wp.name,
-            })),
+            waypoints: orig.expand?.waypoints_via_trail?.map(cloneWaypoint),
+            summit_logs: orig.expand?.summit_logs_via_trail?.map(cloneSummitLog),
         })
+        clonedTrail._assetLinks = linkedAssetIds(orig.expand?.trail_assets_via_trail);
+        clonedTrail.photos = assetPhotosFromLinks(orig.expand?.trail_assets_via_trail);
+        if (clonedTrail.expand) {
+            clonedTrail.expand.assets_via_trail = assetsFromLinks(orig.expand?.trail_assets_via_trail);
+        }
+        return clonedTrail;
     }
+}
+
+function cloneWaypoint(wp: Waypoint): Waypoint {
+    const cloned = new Waypoint(wp.lat, wp.lon, {
+        id: cryptoRandomString({ length: 15 }),
+        description: wp.description,
+        icon: wp.icon,
+        name: wp.name,
+    });
+    cloned.distance_from_start = wp.distance_from_start;
+    cloned._assetLinks = linkedAssetIds(wp.expand?.waypoint_assets_via_waypoint);
+    cloned.photos = assetPhotosFromLinks(wp.expand?.waypoint_assets_via_waypoint);
+    cloned.expand = {
+        assets_via_waypoint: assetsFromLinks(wp.expand?.waypoint_assets_via_waypoint),
+    };
+    return cloned;
+}
+
+function cloneSummitLog(log: SummitLog): SummitLog {
+    const cloned = new SummitLog(log.date, {
+        text: log.text,
+        distance: log.distance,
+        elevation_gain: log.elevation_gain,
+        elevation_loss: log.elevation_loss,
+        duration: log.duration,
+    });
+    cloned.expand = {
+        gpx_data: log.expand?.gpx_data,
+        assets_via_summit_log: assetsFromLinks(log.expand?.summit_log_assets_via_summit_log),
+    };
+    cloned._assetLinks = linkedAssetIds(log.expand?.summit_log_assets_via_summit_log);
+    cloned.photos = assetPhotosFromLinks(log.expand?.summit_log_assets_via_summit_log);
+    return cloned;
+}
+
+function linkedAssetIds(links?: AssetLink[]): string[] | undefined {
+    const ids = linkableAssetLinks(links)
+        .map((link) => link.asset)
+        .filter(Boolean) ?? [];
+    return ids.length ? Array.from(new Set(ids)) : undefined;
+}
+
+function assetPhotosFromLinks(links?: AssetLink[]): string[] {
+    return assetsFromLinks(links)
+        .filter((asset) => asset.type === "photo" && (asset.file || (asset.storage_mode && asset.storage_mode !== "copy")))
+        .map((asset) =>
+            asset.file
+                ? `/api/v1/files/${asset.collectionId}/${asset.id}/${asset.file}`
+                : `/api/v1/assets/${asset.id}/file`,
+        );
+}
+
+function assetsFromLinks(links?: AssetLink[]): Asset[] {
+    return linkableAssetLinks(links)
+        .map((link) => link.expand?.asset)
+        .filter((asset): asset is Asset => Boolean(asset));
+}
+
+function linkableAssetLinks(links?: AssetLink[]): AssetLink[] {
+    return links
+        ?.filter((link) => !isGeneratedRoutePreviewAsset(link.expand?.asset)) ?? [];
+}
+
+function isGeneratedRoutePreviewAsset(asset?: Asset): boolean {
+    const generated = asset?.metadata?.generated as { kind?: string } | undefined;
+    return generated?.kind === "route-preview";
 }
 
 interface TrailFilter {

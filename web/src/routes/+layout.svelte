@@ -9,10 +9,10 @@
     import { page } from "$app/state";
     import { env } from "$env/dynamic/public";
     import Toast from "$lib/components/base/toast.svelte";
+    import BackgroundTasksDialog from "$lib/components/background_tasks_dialog.svelte";
     import Footer from "$lib/components/footer.svelte";
     import NavBar from "$lib/components/nav_bar.svelte";
     import PageLoadingBar from "$lib/components/page_loading_bar.svelte";
-    import UploadDialog from "$lib/components/settings/upload_dialog.svelte";
     import { currentUser } from "$lib/stores/user_store";
     import { load_plugin_data_once } from "$lib/stores/plugin_store";
     import { isRouteProtected } from "$lib/util/authorization_util";
@@ -97,7 +97,7 @@
 <NavBar user={data.user}></NavBar>
 <PageLoadingBar class="text-content"></PageLoadingBar>
 <Toast></Toast>
-<UploadDialog></UploadDialog>
+<BackgroundTasksDialog></BackgroundTasksDialog>
 {@render children?.()}
 
 <Footer></Footer>

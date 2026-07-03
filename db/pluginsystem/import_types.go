@@ -73,3 +73,10 @@ type MediaRef struct {
 	Query     []QueryParam `json:"query,omitempty"`
 	AssetID   string       `json:"assetId,omitempty"`
 }
+
+type RemotePhotoAsset struct {
+	PluginID    string      `json:"pluginId"`
+	Filename    string      `json:"filename,omitempty"`
+	ContentType string      `json:"contentType,omitempty"`
+	Source      MediaSource `json:"source"`
+}

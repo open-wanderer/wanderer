@@ -1,5 +1,6 @@
 import type { icons } from "$lib/util/icon_util";
 import * as M from "maplibre-gl";
+import type { Asset, AssetLink } from "./asset";
 
 class Waypoint {
     id?: string;
@@ -12,8 +13,14 @@ class Waypoint {
     marker?: M.Marker;
     photos: string[];
     _photos?: File[];
+    _assetCandidates?: { pluginId?: string; assetId: string; lat: number; lon: number; originalFileName?: string; takenAt?: string }[];
+    _assetLinks?: string[];
     author: string;
     trail?: string;
+    expand?: {
+        assets_via_waypoint?: Asset[];
+        waypoint_assets_via_waypoint?: AssetLink[];
+    }
 
     constructor(lat: number, lon: number, params?: {
         id?: string, name?: string, description?: string, icon?: typeof icons[number], marker?: M.Marker, photos?: string[], trail?: string

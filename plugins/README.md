@@ -28,7 +28,7 @@ cd plugins/strava
 make build
 ```
 
-Repeat for `hammerhead` and `komoot` as needed.
+Repeat for `hammerhead`, `immich` and `komoot` as needed.
 
 Release builds create plugin bundle archives in CI. The database Docker image does not include plugins; users install release bundles into `data/plugins`.
 
@@ -201,11 +201,17 @@ Manifest `configSchema` defines plugin-owned settings that are passed to plugin 
 | `planned` | Enables `list_routes.v1` sync. |
 | `completed` | Enables `list_activities.v1` sync. |
 | `privacy` | Chooses provider visibility or local user privacy settings. |
-| `merge.available` | Controls whether the UI offers auto-merge for this plugin. Defaults to `true`. |
-| `merge.enabled` | Runs auto-merge after trail import. |
+| `merge.available` | Trail plugins only. Controls whether the UI offers auto-merge for this plugin. Defaults to `true`. |
+| `merge.enabled` | Trail plugins only. Runs auto-merge after trail import. |
 | `createSummitLogForCompleted` | Creates summit logs for completed imports. |
 | `categoryMapping` | Maps `metadata.providerCategory` to local category or subcategory targets. |
 | `connectors` | Provides host-owned base URL, TLS, private-network, and storage redirect settings for configured connectors. |
+| `photoMode` | Asset plugins only. Controls whether imported photos are copied immediately or kept as private remote links for non-public targets. |
+| `maxPhotosPerTrail` | Asset plugins only. Maximum number of asset plugin photos imported for one trail. Defaults to `20`. |
+| `maxPhotosPerWaypoint` | Asset plugins only. Maximum number of asset plugin photos imported for one waypoint. Defaults to `5`. |
+| `maxPhotosPerSummitLog` | Asset plugins only. Maximum number of asset plugin photos imported for one summit log. Defaults to `20`. |
+| `autoAttach.trailPlugins` | Asset plugins only. Enables automatic photo attachment after completed trail plugin imports with track timestamps. Defaults to `true`. |
+| `autoAttach.upload` | Asset plugins only. Enables automatic photo attachment after GPX uploads with track timestamps. Defaults to `true`. |
 
 The settings UI lets users edit `categoryMapping` per plugin instance for trail import plugins.
 Mapping values can be strings for broad category-only compatibility, or objects
@@ -230,6 +236,30 @@ keys still use the raw provider category values emitted as
 Trail import plugins should keep provider-specific category values in `metadata.providerCategory`. They may also provide provider summary metrics in `metadata.distance`, `metadata.elevationGain`, `metadata.elevationLoss`, and `metadata.duration`; the host uses those positive values instead of GPX-derived summary metrics and falls back to GPX when a value is missing. Plugins may provide an intended start coordinate in `metadata.providerStart` as `{ "lat": 47.123, "lon": 8.456 }`; the host uses it only when it is close enough to the imported GPX track to be plausible.
 
 Photo descriptors may be returned either on the imported trail or on individual waypoints. The host downloads those media files and stores them on the corresponding PocketBase records.
+
+### Asset library flow
+
+Asset plugins use `type: "assets"` and expose `asset_library.v1`. The host calls
+that export with an action in `request.action`:
+
+| Action | Purpose |
+| --- | --- |
+| `check` | Validate the submitted credentials and connector configuration. |
+| `candidates` | Return external photo candidates for a trail or coordinate. |
+| `import` | Return `Photo` descriptors for selected external asset IDs. |
+| `thumbnail` | Return a preview photo descriptor for one external asset ID. |
+
+The host creates wanderer asset records from returned photos. Depending on
+`hostConfig.photoMode`, files are either copied immediately or stored as private
+remote link metadata and materialized later. Public trail targets are copied
+instead of linked because private provider media cannot be served anonymously.
+Asset plugins should keep `externalId` stable so the host can avoid duplicate
+imports. The host sends the photo limits in `input.limits`; automatic attachment
+flows enforce those limits before storing asset records.
+When asset photos create new waypoints, the host merges nearby photos using the
+trail category's waypoint merge settings and names new waypoints from nearby
+OpenStreetMap points of interest, falling back to reverse geocoding and then the
+photo coordinate.
 
 ### List plugins
 
@@ -274,12 +304,15 @@ the simple fallback string.
   "configSchema": [
     {
       "key": "maxPhotos",
-      "type": "text",
+      "type": "number",
       "label": "Max photos",
       "labels": {
         "de": "Max. Fotos",
         "en": "Max photos"
       },
+      "default": -1,
+      "min": -1,
+      "step": 1,
       "description": "Maximum photos to import per hike. Use 0 for none or -1 for all.",
       "descriptions": {
         "de": "Maximale Anzahl Fotos pro Wanderung. 0 importiert keine Fotos, -1 alle.",

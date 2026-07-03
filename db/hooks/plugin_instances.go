@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/pocketbase/dbx"
+	assetservice "pocketbase/services/assets"
 	"pocketbase/util"
 
 	"github.com/pocketbase/pocketbase/apis"
@@ -70,6 +71,9 @@ func CreateUpdatePluginInstanceSuccessHandler() func(e *core.RecordEvent) error 
 // changed auth fields before the update is persisted.
 func UpdatePluginInstanceHandler() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
+		if err := preventAssetPluginDisableWithRemoteLinks(e.App, e.Record); err != nil {
+			return err
+		}
 		ensurePluginInstanceStatus(e.Record)
 		mergePluginInstanceDefaultConfig(e.App, e.Record)
 		if err := encryptPluginInstanceAuth(e.App, e.Record); err != nil {
@@ -78,6 +82,28 @@ func UpdatePluginInstanceHandler() func(e *core.RecordEvent) error {
 
 		return e.Next()
 	}
+}
+
+func preventAssetPluginDisableWithRemoteLinks(app core.App, r *core.Record) error {
+	if !r.Original().GetBool("enabled") || r.GetBool("enabled") {
+		return nil
+	}
+	pluginID := r.GetString("plugin_id")
+	plugin, err := pluginsystem.LoadInstalledPlugin(app, "", pluginID)
+	if err != nil || plugin.Manifest.Type != pluginsystem.PluginTypeAssets {
+		return nil
+	}
+	summary, err := assetservice.RemotePluginAssetsSummaryForUser(app, r.GetString("user"), pluginID)
+	if err != nil {
+		return err
+	}
+	if summary.Count == 0 {
+		return nil
+	}
+	return apis.NewBadRequestError("Plugin has linked remote photos. Download linked photos before disabling this plugin.", map[string]any{
+		"count":       summary.Count,
+		"publicCount": summary.PublicCount,
+	})
 }
 
 func mergePluginInstanceDefaultConfig(app core.App, r *core.Record) {

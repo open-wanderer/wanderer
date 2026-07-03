@@ -2,7 +2,6 @@
     import emptyStateUploadDark from "$lib/assets/svgs/empty_states/empty_state_upload_dark.svg";
     import emptyStateUploadLight from "$lib/assets/svgs/empty_states/empty_state_upload_light.svg";
     import Button from "$lib/components/base/button.svelte";
-    import { } from "$lib/components/settings/upload_dialog.svelte";
     import TrailExportModal from "$lib/components/trail/trail_export_modal.svelte";
     import { theme } from "$lib/stores/theme_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";

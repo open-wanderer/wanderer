@@ -3,6 +3,7 @@ import { TrailCreateSchema } from '$lib/models/api/trail_schema';
 import type { Trail } from '$lib/models/trail';
 import { withTrailPreferencePocketBaseFilter } from '$lib/server/category_preference_filter';
 import { Collection, create, handleError } from '$lib/util/api_util';
+import { enrichTrailAssetExpands } from '$lib/util/asset_link_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 /**
@@ -79,6 +80,8 @@ export async function GET(event: RequestEvent) {
             }
 
             t.expand?.waypoints_via_trail?.sort((a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0))
+
+            enrichTrailAssetExpands(t);
         }
         return json(r)
     } catch (e: any) {
@@ -126,4 +129,5 @@ function enrichRecord(r: Trail) {
     for (const log of r.expand?.summit_logs_via_trail ?? []) {
         log.date = log.date.substring(0, 10);
     }
+    enrichTrailAssetExpands(r);
 }

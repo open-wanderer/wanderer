@@ -44,7 +44,7 @@
     import EmptyStateComment from "../empty_states/empty_state_comment.svelte";
     import EmptyStateDescription from "../empty_states/empty_state_description.svelte";
     import EmptyStatePhotos from "../empty_states/empty_state_photos.svelte";
-    import PhotoGallery from "../photo_gallery.svelte";
+    import PhotoGallery from "../photo/photo_gallery.svelte";
     import ShareInfo from "../share_info.svelte";
     import SummitLogTable from "../summit_log/summit_log_table.svelte";
     import MapWithElevationMaplibre from "./map_with_elevation_maplibre.svelte";

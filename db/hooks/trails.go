@@ -5,12 +5,14 @@ import (
 	"log"
 	"os"
 	"pocketbase/federation"
+	assetservice "pocketbase/services/assets"
 	"pocketbase/util"
 	"time"
 
 	"github.com/go-ap/activitypub"
 	pub "github.com/go-ap/activitypub"
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -116,6 +118,66 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		}
 
 		return nil
+	}
+}
+
+func MaterializePrivateRemoteAssetLinksBeforePublish() func(e *core.RecordRequestEvent) error {
+	return func(e *core.RecordRequestEvent) error {
+		wasPublic := e.Record.Original().GetBool("public")
+		isPublic := e.Record.GetBool("public")
+		if !wasPublic && isPublic {
+			if err := assetservice.MaterializePrivateRemotePluginAssetsForTrail(e.Request.Context(), e.App, e.Record.Id); err != nil {
+				return apis.NewBadRequestError("Could not publish trail because linked remote photos could not be downloaded. Please download or remove linked photos first.", err)
+			}
+		}
+		return e.Next()
+	}
+}
+
+// MaterializePrivateRemoteAssetOnPublicLink materializes a private remote plugin
+// photo when it is linked to an already-public trail. The publish hook only
+// covers the private->public transition, so a link added to a trail that is
+// already public would otherwise stay link_private and produce a dead
+// /api/v1/assets/{id}/file URL for public/federated consumers (the file endpoint
+// serves 404 for link_private assets on public trails).
+func MaterializePrivateRemoteAssetOnPublicLink(targetField string) func(e *core.RecordRequestEvent) error {
+	return func(e *core.RecordRequestEvent) error {
+		assetID := e.Record.GetString("asset")
+		targetID := e.Record.GetString(targetField)
+
+		trailID, err := util.TrailIDForLinkTarget(e.App, targetField, targetID)
+		if err != nil {
+			return err
+		}
+		if trailID == "" {
+			return e.Next()
+		}
+
+		trail, err := e.App.FindRecordById("trails", trailID)
+		if err != nil {
+			return err
+		}
+		if trail.GetBool("public") {
+			if err := assetservice.MaterializePrivateRemotePluginAsset(e.Request.Context(), e.App, assetID); err != nil {
+				return apis.NewBadRequestError("Could not link remote photo because it could not be downloaded. Please download or remove the photo first.", err)
+			}
+		}
+		return e.Next()
+	}
+}
+
+func DeleteTrailAssetCleanupHandler() func(e *core.RecordRequestEvent) error {
+	return func(e *core.RecordRequestEvent) error {
+		assetIDs, err := util.AssetIDsForTrail(e.App, e.Record.Id)
+		if err != nil {
+			return err
+		}
+
+		if err := e.Next(); err != nil {
+			return err
+		}
+
+		return util.DeleteAssetsIfOrphaned(e.App, assetIDs)
 	}
 }
 

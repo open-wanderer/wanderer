@@ -1,0 +1,25 @@
+import { handleError } from "$lib/util/api_util";
+import { json, type RequestEvent } from "@sveltejs/kit";
+import { z } from "zod";
+
+const paramsSchema = z.object({
+    plugin: z.string().min(1).max(128).regex(/^[a-zA-Z0-9._-]+$/),
+});
+
+export async function POST(event: RequestEvent) {
+    try {
+        const params = paramsSchema.parse(event.params);
+        const data = await event.request.json().catch(() => ({}));
+        const r = await event.locals.pb.send(
+            `/plugins/assets/${encodeURIComponent(params.plugin)}/materialize-all`,
+            {
+                method: "POST",
+                body: JSON.stringify(data),
+                headers: { "Content-Type": "application/json" },
+            },
+        );
+        return json(r);
+    } catch (e: any) {
+        return handleError(e);
+    }
+}

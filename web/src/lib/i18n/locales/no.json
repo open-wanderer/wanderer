@@ -231,6 +231,8 @@
   "plugins": "Programtillegg",
   "plugin-type-trails": "Trails",
   "plugin-type-trails-description": "Trail-programtillegg kobler Wanderer til eksterne tjenester og synkroniserer ruter eller aktiviteter automatisk i bakgrunnen.",
+  "plugin-type-assets": "Ressurser",
+  "plugin-type-assets-description": "Ressursprogramtillegg kobler Wanderer til eksterne mediebiblioteker og importerer bilder eller andre ressurser.",
   "invalid-date": "Ugyldig dato",
   "invalid-username": "Ugyldig brukernavn",
   "italian": "Italiensk",

@@ -18,8 +18,11 @@ Common protocol types:
 
 Provider HTTP requests use connector targets. Plugins provide a connector name,
 a relative path, and ordered query parameters; the host owns the final base URL,
-path scope, redirects, TLS, and private-network policy. Public external media
-URLs remain available only through `MediaSource{Type: "url"}`.
+path scope, redirects, TLS, and private-network policy. Returned media can use
+either a public external URL with `MediaSource{Type: "url"}` or provider-owned
+connector media with `MediaSource{Type: "connector", MediaRef: ...}`. Connector
+media is fetched through the same manifest policy, optional host-injected auth,
+TLS/IP checks, and redirect limits as host HTTP requests.
 
 Host HTTP request bodies support JSON, `application/x-www-form-urlencoded`, and
 multipart. Use `PostJSON` for JSON and `PostForm` for ordered form fields. Any

@@ -3,7 +3,7 @@ export function getFileURL(record: { [key: string]: any; }, filename?: string, t
     if (!filename) {
         return "";
     }
-    if (isURL(filename)) {
+    if (isURL(filename) || filename.startsWith('/')) {
         return filename;
     }
 

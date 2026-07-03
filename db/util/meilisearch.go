@@ -15,15 +15,11 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
-	photos := r.GetStringSlice("photos")
+func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
 	thumbnail := ""
-	if len(photos) > 0 {
-		thumbnailIndex := r.GetInt("thumbnail")
-		if thumbnailIndex >= len(photos) {
-			thumbnailIndex = 0
-		}
-		thumbnail = photos[thumbnailIndex]
+	assets, err := PhotoAssetsForTarget(app, "trail", r.Id, 1)
+	if err == nil && len(assets) > 0 {
+		thumbnail = AssetPublicMediaURL(assets[0], "")
 	}
 
 	tagRecords := r.ExpandedAll("tags")
@@ -344,7 +340,7 @@ func IndexTrails(app core.App, trails []*core.Record, client meilisearch.Service
 
 		author := r.ExpandedOne("author")
 
-		doc, err := documentFromTrailRecord(r, author, true)
+		doc, err := documentFromTrailRecord(app, r, author, true)
 		if err != nil {
 			return err
 		}
@@ -369,7 +365,7 @@ func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meili
 		return fmt.Errorf("meilisearch update trail: failed to expand category: %v", errs)
 	}
 
-	doc, err := documentFromTrailRecord(r, author, false)
+	doc, err := documentFromTrailRecord(app, r, author, false)
 	if err != nil {
 		return err
 	}

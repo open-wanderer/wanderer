@@ -26,6 +26,8 @@ services:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?}
       POCKETBASE_ENCRYPTION_KEY: ${POCKETBASE_ENCRYPTION_KEY:?}
       ORIGIN: ${ORIGIN:?}
+      OVERPASS_API_URL: https://overpass-api.de
+      NOMINATIM_URL: https://nominatim.openstreetmap.org
     restart: unless-stopped
     volumes:
       - pb_data:/pb_data

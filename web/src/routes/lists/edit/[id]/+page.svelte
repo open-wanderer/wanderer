@@ -58,12 +58,16 @@
 
     let trailsOnMap: Trail[] = $state([]);
 
+    const ClientTrailCreateSchema = TrailCreateSchema.extend({
+        photos: z.array(z.string()).default([]),
+    });
+
     const ClientListCreateSchema = ListCreateSchema.extend({
         _photos: z.array(z.instanceof(File)).optional(),
         avatar: z.string().or(z.instanceof(File)).optional(),
         expand: z
             .object({
-                trails: z.array(TrailCreateSchema).optional(),
+                trails: z.array(ClientTrailCreateSchema).optional(),
                 list_share_via_list: z
                     .array(
                         z.object({

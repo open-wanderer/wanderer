@@ -109,6 +109,19 @@ export async function PUT(event: RequestEvent) {
             console.error(e)
             return handleError(e)
         }
+
+        if (trail.id) {
+            try {
+                await event.locals.pb.send("/plugins/assets/auto-attach", {
+                    method: "POST",
+                    body: JSON.stringify({ trailId: trail.id, provider: "upload" }),
+                    headers: { "Content-Type": "application/json" },
+                });
+            } catch (e: any) {
+                console.warn("Asset plugin auto attach failed during upload", e);
+            }
+        }
+
         return json(trail);
 
     } catch (e: any) {
