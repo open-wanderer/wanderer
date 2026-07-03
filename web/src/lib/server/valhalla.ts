@@ -1,6 +1,17 @@
-import { resolveBaseUrl } from "$lib/server/url";
+import { resolveBaseUrl, type ExternalServiceUrlKey } from "$lib/server/url";
 
-export function getValhallaBaseUrl(): string | null {
-    const url = resolveBaseUrl("VALHALLA_URL");
-    return url || null;
+function getServiceUrl(key: ExternalServiceUrlKey): string | null {
+    return resolveBaseUrl(key) || null;
+}
+
+export function getValhallaRouteUrl(): string | null {
+    return getServiceUrl("VALHALLA_ROUTE_URL");
+}
+
+export function getValhallaHeightUrl(): string | null {
+    return getServiceUrl("VALHALLA_HEIGHT_URL");
+}
+
+export function getValhallaNavigateUrl(): string | null {
+    return getServiceUrl("VALHALLA_NAVIGATE_URL");
 }

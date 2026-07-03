@@ -1,9 +1,9 @@
-import { getValhallaBaseUrl } from '$lib/server/valhalla';
 import { handleError } from '$lib/util/api_util';
 import { decodePolyline } from '$lib/util/polyline_util';
 import { NavigateRequestSchema } from '$lib/models/api/valhalla_navigate_schema';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import type { NavigateManeuver } from '$lib/models/api/valhalla_navigate_schema';
+import { getValhallaNavigateUrl } from '$lib/server/valhalla';
 
 /**
  * @swagger
@@ -82,9 +82,9 @@ export async function POST(event: RequestEvent) {
   }
 
   try {
-    const baseUrl = getValhallaBaseUrl();
-    if (!baseUrl) {
-      return json({ message: "VALHALLA_URL not set" }, { status: 400 });
+    const navigateUrl = getValhallaNavigateUrl();
+    if (!navigateUrl) {
+      return json({ message: "VALHALLA_NAVIGATE_URL not set" }, { status: 400 });
     }
 
     const body = NavigateRequestSchema.parse(await event.request.json());
@@ -96,7 +96,7 @@ export async function POST(event: RequestEvent) {
       shape_match: "map_snap",
     };
 
-    const res = await event.fetch(baseUrl + "/trace_route", {
+    const res = await event.fetch(navigateUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(valhallaReq),
