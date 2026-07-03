@@ -6,6 +6,7 @@ import 'package:wanderer/models/trail_like.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/util/gpx_util.dart';
 
 part 'trail_provider.g.dart';
 
@@ -37,7 +38,7 @@ class TrailNotifier extends _$TrailNotifier {
           throw Exception("No gpx data received from server");
         }
 
-        final sanitizedGpx = _sanitizeGpxEmail(gpxResponse.data as String);
+        final sanitizedGpx = sanitizeGpxEmail(gpxResponse.data as String);
         final parsedGpx = GpxReader().fromString(sanitizedGpx);
 
         trail = trail.copyWith(
@@ -86,15 +87,6 @@ class TrailNotifier extends _$TrailNotifier {
     } catch (_) {
       // Leave state unchanged on failure (graceful degradation).
     }
-  }
-
-  String _sanitizeGpxEmail(String xml) {
-    // GPX 1.1 requires <email id="user" domain="example.com"/> but some files
-    // use the non-standard text form <email>user@example.com</email>.
-    return xml.replaceAllMapped(
-      RegExp(r'<email>([^@<]+)@([^<]+)</email>'),
-      (m) => '<email id="${m[1]}" domain="${m[2]}"/>',
-    );
   }
 
   Future<void> unlike(String actorId) async {

@@ -4,6 +4,7 @@ import 'package:wanderer/entities/actor_entity.dart';
 import 'package:wanderer/entities/category_entity.dart';
 import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/util/gpx_util.dart';
 
 @Entity()
 class TrailEntity {
@@ -160,7 +161,9 @@ extension TrailEntityMapping on TrailEntity {
         author: author.target?.toModel(),
         category: category.target?.toModel(),
         gpxData: gpxData,
-        gpx: gpxData != null ? GpxReader().fromString(gpxData!) : null,
+        gpx: gpxData != null
+            ? GpxReader().fromString(sanitizeGpxEmail(gpxData!))
+            : null,
         waypointsViaTrail: waypoints.map((w) => w.toModel()).toList(),
       ),
     );

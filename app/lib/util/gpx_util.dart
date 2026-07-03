@@ -9,6 +9,17 @@ import 'package:latlong2/latlong.dart';
 ///
 /// Shared by [launchNavigation] (online path) and [downloadTrail]
 /// (cache-write path) so the two costing derivations can never diverge.
+/// GPX 1.1 requires `<email id="user" domain="example.com"/>` but some files
+/// use the non-standard text form `<email>user@example.com</email>`, which
+/// crashes `GpxReader` with `Bad state: No element`. Rewrites the latter into
+/// the attribute form expected by the `gpx` package before parsing.
+String sanitizeGpxEmail(String xml) {
+  return xml.replaceAllMapped(
+    RegExp(r'<email>([^@<]+)@([^<]+)</email>'),
+    (m) => '<email id="${m[1]}" domain="${m[2]}"/>',
+  );
+}
+
 String costingForCategory(String? category) {
   final lower = (category ?? '').toLowerCase();
   if (lower.contains('bike') ||
