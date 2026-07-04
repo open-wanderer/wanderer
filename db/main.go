@@ -118,7 +118,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	assetLinkReindexHandler := hooks.ReindexTrailOnAssetLinkChange(client)
 	app.OnRecordAfterCreateSuccess("trail_assets", "waypoint_assets", "summit_log_assets").BindFunc(assetLinkReindexHandler)
 	app.OnRecordAfterDeleteSuccess("trail_assets", "waypoint_assets", "summit_log_assets").BindFunc(assetLinkReindexHandler)
-	app.OnRecordUpdateRequest("trails").BindFunc(hooks.MaterializePrivateRemoteAssetLinksBeforePublish())
+	app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.MaterializePrivateRemoteAssetLinksAfterPublish())
 	app.OnRecordCreateRequest("trail_assets").BindFunc(hooks.MaterializePrivateRemoteAssetOnPublicLink("trail"))
 	app.OnRecordCreateRequest("waypoint_assets").BindFunc(hooks.MaterializePrivateRemoteAssetOnPublicLink("waypoint"))
 	app.OnRecordCreateRequest("summit_log_assets").BindFunc(hooks.MaterializePrivateRemoteAssetOnPublicLink("summit_log"))
@@ -159,6 +159,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordAfterCreateSuccess("plugin_instances").BindFunc(hooks.CreateUpdatePluginInstanceSuccessHandler())
 	app.OnRecordUpdate("plugin_instances").BindFunc(hooks.UpdatePluginInstanceHandler())
 	app.OnRecordAfterUpdateSuccess("plugin_instances").BindFunc(hooks.CreateUpdatePluginInstanceSuccessHandler())
+	app.OnRecordDeleteRequest("plugin_instances").BindFunc(hooks.DeletePluginInstanceHandler())
 
 	app.OnRecordsListRequest("feed", "profile_feed").BindFunc(hooks.ListFeedHandler())
 

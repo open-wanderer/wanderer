@@ -121,18 +121,29 @@ export async function processUploadQueue(batchSize: number = 3, ignoreDuplicates
             );
         }
         const results = await Promise.all(
-            uploadPromises.map((p) => p.catch((e) => e)),
+            uploadPromises.map((p) =>
+                p.then(
+                    () => ({ ok: true as const }),
+                    (error) => ({ ok: false as const, error }),
+                ),
+            ),
         );
-        results.forEach((r, i) => {
+        results.forEach((result, i) => {
             const u = batch[i];
-            if (r instanceof APIError && r.message == "Duplicate trail") {
-                u.status = "duplicate"
-                u.duplicate = { id: r.detail.id, domain: r.detail.domain, name: r.detail.name };
-            } else if (r instanceof APIError) {
-                u.status = "error"
-                u.error = r.message
-            } else {
+            if (result.ok) {
                 u.status = "success"
+            } else if (result.error instanceof APIError && result.error.message == "Duplicate trail") {
+                u.status = "duplicate"
+                u.duplicate = { id: result.error.detail.id, domain: result.error.detail.domain, name: result.error.detail.name };
+            } else if (result.error instanceof APIError) {
+                u.status = "error"
+                u.error = result.error.message
+            } else if (result.error instanceof Error) {
+                u.status = "error"
+                u.error = result.error.message
+            } else {
+                u.status = "error"
+                u.error = String(result.error || "Upload failed")
             }
             uploadStore.completedUploads.push(u);
             syncUploadTask(u);

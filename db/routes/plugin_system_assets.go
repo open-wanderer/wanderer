@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -24,8 +23,6 @@ import (
 const pluginAssetThumbnailMaxBytes int64 = 8 << 20
 const defaultAssetPluginMaxWaypoints = 25
 const pluginAssetMaintenanceProvider = "maintenance"
-
-var assetMaintenanceRoutePreviewFilenamePattern = regexp.MustCompile(`^route_[a-z0-9]{8,}\.(webp|png|jpe?g)$`)
 
 type pluginAssetLibraryRequest struct {
 	PluginID  string `json:"pluginId,omitempty"`
@@ -337,7 +334,7 @@ func PluginSystemAssetThumbnail(e *core.RequestEvent) error {
 	fetched, err := importer.FetchPhotoMedia(e.Request.Context(), output.Photos[0], importer.Options{
 		UserID:   e.Auth.Id,
 		Manifest: plugin.Manifest,
-		Policy:   pluginInstancePolicy(plugin, config).WithHostAuth(auth),
+		Policy:   pluginhost.InstancePolicy(plugin, config).WithHostAuth(auth),
 		Auth:     auth,
 	}, pluginAssetThumbnailMaxBytes)
 	if err != nil {
@@ -493,9 +490,9 @@ func autoAttachAssetPluginsForTrail(ctx context.Context, app core.App, userID st
 			app.Logger().Warn("skipping asset auto attach with invalid auth", "plugin", plugin.Manifest.ID, "instance", instance.Id, "error", err)
 			continue
 		}
-		config := effectivePluginConfig(app, plugin.Manifest.ID, instance)
+		config := pluginhost.EffectiveConfig(app, plugin.Manifest.ID, instance)
 		config = assetPluginConnectorConfig(plugin, config)
-		if !assetPluginProviderEnabled(pluginHostConfig(config), provider) {
+		if !assetPluginProviderEnabled(pluginhost.HostConfig(config), provider) {
 			continue
 		}
 		result := pluginAssetAutoAttachPluginResult{
@@ -560,9 +557,9 @@ func pluginAssetMaintenanceTrailCandidate(app core.App, trail *core.Record) plug
 		ID:            trail.Id,
 		Name:          trail.GetString("name"),
 		Location:      trail.GetString("location"),
-		Date:          recordDateTimeRFC3339(trail, "date"),
-		Created:       recordDateTimeRFC3339(trail, "created"),
-		Updated:       recordDateTimeRFC3339(trail, "updated"),
+		Date:          util.RecordDateTimeRFC3339(trail, "date"),
+		Created:       util.RecordDateTimeRFC3339(trail, "created"),
+		Updated:       util.RecordDateTimeRFC3339(trail, "updated"),
 		Completed:     trail.GetBool("completed"),
 		Public:        trail.GetBool("public"),
 		Distance:      trail.GetFloat("distance"),
@@ -584,7 +581,7 @@ func trailMaintenanceThumbnail(app core.App, trailID string) string {
 		if err != nil {
 			continue
 		}
-		if asset.GetString("type") == "photo" && assetMaintenanceIsGeneratedRoutePreviewAsset(asset) {
+		if asset.GetString("type") == "photo" && util.IsGeneratedRoutePreviewAsset(asset) {
 			return util.AssetPublicMediaURL(asset, "")
 		}
 	}
@@ -601,60 +598,11 @@ func trailHasVisiblePhotoAssets(app core.App, trailID string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		if asset.GetString("type") == "photo" && !assetMaintenanceIsGeneratedRoutePreviewAsset(asset) {
+		if asset.GetString("type") == "photo" && !util.IsGeneratedRoutePreviewAsset(asset) {
 			return true, nil
 		}
 	}
 	return false, nil
-}
-
-func assetMaintenanceIsGeneratedRoutePreviewAsset(record *core.Record) bool {
-	metadata := map[string]any{}
-	if err := record.UnmarshalJSONField("metadata", &metadata); err == nil {
-		if assetMaintenanceMetadataString(metadata, "generated", "kind") == "route-preview" {
-			return true
-		}
-	}
-	filename := strings.ToLower(assetMaintenanceFilename(record, metadata))
-	hasLegacyGeneratedName := strings.HasPrefix(filename, "wanderer-route-preview") || assetMaintenanceRoutePreviewFilenamePattern.MatchString(filename)
-	return hasLegacyGeneratedName && record.GetString("external_provider") == "" && record.GetDateTime("taken_at").IsZero()
-}
-
-func assetMaintenanceFilename(record *core.Record, metadata map[string]any) string {
-	if remoteFilename := assetMaintenanceMetadataString(metadata, "remote", "filename"); remoteFilename != "" {
-		return remoteFilename
-	}
-	if sourceFile := assetMaintenanceMetadataString(metadata, "source_file"); sourceFile != "" {
-		return sourceFile
-	}
-	if file := record.GetString("file"); file != "" {
-		return file
-	}
-	if externalID := record.GetString("external_id"); externalID != "" {
-		return externalID
-	}
-	return record.Id
-}
-
-func assetMaintenanceMetadataString(metadata map[string]any, path ...string) string {
-	var current any = metadata
-	for _, part := range path {
-		values, ok := current.(map[string]any)
-		if !ok {
-			return ""
-		}
-		current = values[part]
-	}
-	value, _ := current.(string)
-	return strings.TrimSpace(value)
-}
-
-func recordDateTimeRFC3339(record *core.Record, field string) string {
-	value := record.GetDateTime(field)
-	if value.IsZero() {
-		return ""
-	}
-	return value.Time().Format(time.RFC3339)
 }
 
 func autoAttachAssetPluginForTrail(ctx context.Context, app core.App, userID string, trailID string, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, config map[string]any) (int, error) {
@@ -756,7 +704,7 @@ func assetPluginInvocation(e *core.RequestEvent, pluginID string) (pluginsystem.
 	if err != nil {
 		return pluginsystem.LocalPlugin{}, pluginsystem.CapabilityManifest{}, nil, nil, nil, err
 	}
-	config := effectivePluginConfig(e.App, plugin.Manifest.ID, instance)
+	config := pluginhost.EffectiveConfig(e.App, plugin.Manifest.ID, instance)
 	config = assetPluginConnectorConfig(plugin, config)
 	return plugin, capability, instance, auth, config, nil
 }
@@ -794,7 +742,7 @@ func assetPluginDraftInvocation(e *core.RequestEvent, pluginID string, submitted
 	}
 	mergeSubmittedPluginAuth(auth, submittedAuth)
 
-	config := effectivePluginConfig(e.App, plugin.Manifest.ID, instance)
+	config := pluginhost.EffectiveConfig(e.App, plugin.Manifest.ID, instance)
 	if submittedConfig != nil {
 		pluginsystem.DeepMergeConfig(config, submittedConfig)
 	}
@@ -824,7 +772,7 @@ func callAssetPlugin(ctx context.Context, plugin pluginsystem.LocalPlugin, capab
 	if err != nil {
 		return pluginAssetLibraryOutput{}, err
 	}
-	policy := pluginInstancePolicy(plugin, config).WithHostAuth(auth)
+	policy := pluginhost.InstancePolicy(plugin, config).WithHostAuth(auth)
 	session, err := runtime.OpenSession(ctx, plugin, policy)
 	if err != nil {
 		return pluginAssetLibraryOutput{}, err
@@ -835,8 +783,8 @@ func callAssetPlugin(ctx context.Context, plugin pluginsystem.LocalPlugin, capab
 	input := pluginAssetLibraryInput{
 		Instance: pluginsystem.InstanceRef{ID: instance.Id, PluginID: instance.GetString("plugin_id")},
 		Auth:     pluginsystem.PluginInputAuth(plugin, auth),
-		Config:   pluginRuntimeConfig(config),
-		Limits:   pluginPhotoImportLimits(pluginHostConfig(config)),
+		Config:   pluginhost.RuntimeConfig(config),
+		Limits:   pluginPhotoImportLimits(pluginhost.HostConfig(config)),
 		Request:  request,
 	}
 	inputBytes, err := json.Marshal(input)
@@ -1031,14 +979,14 @@ func importAssetPluginPhotosToTarget(e *core.RequestEvent, plugin pluginsystem.L
 	if err != nil {
 		return err
 	}
-	hostConfig := pluginHostConfig(config)
+	hostConfig := pluginhost.HostConfig(config)
 	records, err := importer.ImportPhotoAssets(e.Request.Context(), e.App, output.Photos, importer.Options{
 		UserID:      e.Auth.Id,
 		ActorID:     actor.Id,
 		PhotoMode:   util.ConfigString(hostConfig, "photoMode"),
 		PhotoLimits: assetPluginPhotoImportLimits(hostConfig, false),
 		Manifest:    plugin.Manifest,
-		Policy:      pluginInstancePolicy(plugin, config).WithHostAuth(auth),
+		Policy:      pluginhost.InstancePolicy(plugin, config).WithHostAuth(auth),
 		Auth:        auth,
 	}, importer.PhotoAssetTarget{
 		Trail:       data.TrailID,
@@ -1070,14 +1018,14 @@ func importAssetPluginPhotosForTrail(ctx context.Context, app core.App, userID s
 	if err != nil {
 		return nil, err
 	}
-	hostConfig := pluginHostConfig(config)
+	hostConfig := pluginhost.HostConfig(config)
 	opts := importer.Options{
 		UserID:      userID,
 		ActorID:     actor.Id,
 		PhotoMode:   util.ConfigString(hostConfig, "photoMode"),
 		PhotoLimits: assetPluginPhotoImportLimits(hostConfig, enforceLimits),
 		Manifest:    plugin.Manifest,
-		Policy:      pluginInstancePolicy(plugin, config).WithHostAuth(auth),
+		Policy:      pluginhost.InstancePolicy(plugin, config).WithHostAuth(auth),
 		Auth:        auth,
 	}
 	if waypointID != "" {
@@ -1091,11 +1039,8 @@ func importAssetPluginPhotosForTrail(ctx context.Context, app core.App, userID s
 		}
 		results := make([]pluginAssetImportResult, 0, len(records))
 		waypoint, _ := app.FindRecordById("waypoints", waypointID)
-		for i, record := range records {
-			result := pluginAssetImportResult{Asset: record, Waypoint: waypoint}
-			if i < len(output.Photos) {
-				result.AssetID = output.Photos[i].ExternalID
-			}
+		for _, record := range records {
+			result := pluginAssetImportResult{AssetID: record.GetString("external_id"), Asset: record, Waypoint: waypoint}
 			results = append(results, result)
 		}
 		return results, nil
@@ -1124,21 +1069,20 @@ func importAssetPluginPhotosForTrail(ctx context.Context, app core.App, userID s
 		if len(photos) == 0 {
 			continue
 		}
-		if !assetPluginClusterHasWaypointTarget(cluster) {
-			continue
-		}
 		var waypoint *core.Record
 		createdWaypoint := false
 		target := importer.PhotoAssetTarget{
 			Trail:       data.TrailID,
 			PublicTrail: trailIsPublic(app, data.TrailID),
 		}
-		var err error
-		waypoint, createdWaypoint, err = assetPluginWaypointForCluster(ctx, app, actor.Id, data.TrailID, cluster, trackPoints, mergeSettings)
-		if err != nil {
-			return nil, err
+		if assetPluginClusterHasWaypointTarget(cluster) {
+			var err error
+			waypoint, createdWaypoint, err = assetPluginWaypointForCluster(ctx, app, actor.Id, data.TrailID, cluster, trackPoints, mergeSettings)
+			if err != nil {
+				return nil, err
+			}
+			target.Waypoint = waypoint.Id
 		}
-		target.Waypoint = waypoint.Id
 		records, err := importer.ImportPhotoAssets(ctx, app, photos, opts, target)
 		if err != nil {
 			if createdWaypoint {
@@ -1183,7 +1127,7 @@ func assetPluginWaypointForCluster(ctx context.Context, app core.App, actorID st
 	}
 	name := ""
 	if cluster.Count > 0 {
-		resolvedName, _ := assetPluginWaypointNameWithLogger(ctx, app.Logger(), cluster.Lat, cluster.Lon, mergeSettings.Radius)
+		resolvedName, _ := assetPluginWaypointName(ctx, app.Logger(), cluster.Lat, cluster.Lon, mergeSettings.Radius)
 		name = resolvedName
 	}
 	waypoint, err := createAssetPluginWaypoint(app, actorID, trailID, name, cluster.Lat, cluster.Lon, trackPoints)
@@ -1229,7 +1173,7 @@ func assetPluginPhotoClusterID(index int, photo pluginsystem.Photo) string {
 }
 
 func assetPluginMaxWaypoints(config map[string]any) int {
-	pluginConfig := pluginRuntimeConfig(config)
+	pluginConfig := pluginhost.RuntimeConfig(config)
 	if len(pluginConfig) == 0 {
 		pluginConfig = config
 	}
@@ -1245,9 +1189,7 @@ func limitAssetPluginWaypointClusters(clusters []waypointPhotoCluster, maxNewWay
 	newWaypointCount := 0
 	for _, cluster := range clusters {
 		if !assetPluginClusterCreatesWaypoint(cluster) {
-			if assetPluginClusterHasWaypointTarget(cluster) {
-				limited = append(limited, cluster)
-			}
+			limited = append(limited, cluster)
 			continue
 		}
 		if newWaypointCount >= maxNewWaypoints {
@@ -1317,18 +1259,9 @@ func assetPluginProviderEnabled(hostConfig map[string]any, provider string) bool
 	if provider == "" {
 		return false
 	}
-	if legacyProvidersConfigured(hostConfig) {
-		return legacyAssetPluginProviderEnabled(hostConfig, provider)
-	}
 	key := autoAttachProviderKey(provider)
 	if raw, ok := hostConfig["autoAttach"].(map[string]any); ok {
 		return autoAttachEnabled(raw, key)
-	}
-	if raw, ok := hostConfig["autoAttach"].(map[string]bool); ok {
-		if value, ok := raw[key]; ok {
-			return value
-		}
-		return true
 	}
 	return true
 }
@@ -1350,37 +1283,6 @@ func autoAttachEnabled(raw map[string]any, key string) bool {
 	}
 	enabled, ok := value.(bool)
 	return !ok || enabled
-}
-
-func legacyProvidersConfigured(hostConfig map[string]any) bool {
-	switch raw := hostConfig["providers"].(type) {
-	case []any:
-		return len(raw) > 0
-	case []string:
-		return len(raw) > 0
-	default:
-		return false
-	}
-}
-
-func legacyAssetPluginProviderEnabled(hostConfig map[string]any, provider string) bool {
-	switch raw := hostConfig["providers"].(type) {
-	case []any:
-		for _, value := range raw {
-			configured := strings.TrimSpace(fmt.Sprint(value))
-			if configured == provider || (provider != "upload" && configured != "upload") {
-				return true
-			}
-		}
-	case []string:
-		for _, value := range raw {
-			configured := strings.TrimSpace(value)
-			if configured == provider || (provider != "upload" && configured != "upload") {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func existingTrailAssetExternalIDs(app core.App, userID string, pluginID string, trailID string, assetIDs []string) (map[string]bool, error) {

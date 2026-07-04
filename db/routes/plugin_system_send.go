@@ -95,9 +95,9 @@ func PluginSystemTrailSend(e *core.RequestEvent) error {
 			ContentBase64: base64.StdEncoding.EncodeToString(gpx),
 		},
 	}
-	config := effectivePluginConfig(e.App, plugin.Manifest.ID, instance)
-	pluginConfig := pluginRuntimeConfig(config)
-	policy := pluginInstancePolicy(plugin, config)
+	config := pluginhost.EffectiveConfig(e.App, plugin.Manifest.ID, instance)
+	pluginConfig := pluginhost.RuntimeConfig(config)
+	policy := pluginhost.InstancePolicy(plugin, config)
 	input.Config = pluginConfig
 	inputBytes, err := json.Marshal(input)
 	if err != nil {

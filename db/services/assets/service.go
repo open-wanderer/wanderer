@@ -2,6 +2,7 @@ package assets
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -149,6 +150,37 @@ func MaterializePrivateRemotePluginAssetsForTrail(ctx context.Context, app core.
 		}
 	}
 	return nil
+}
+
+func EnsurePublicTrailSafeAssetLink(ctx context.Context, app core.App, collectionName string, targetField string, targetID string, assetID string) (*core.Record, error) {
+	if err := MaterializePrivateRemotePluginAssetForPublicLink(ctx, app, targetField, targetID, assetID); err != nil {
+		return nil, err
+	}
+	return util.EnsureAssetLink(app, collectionName, targetField, targetID, assetID)
+}
+
+func MaterializePrivateRemotePluginAssetForPublicLink(ctx context.Context, app core.App, targetField string, targetID string, assetID string) error {
+	trailID, err := util.TrailIDForLinkTarget(app, targetField, targetID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	if trailID == "" {
+		return nil
+	}
+	trail, err := app.FindRecordById("trails", trailID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	if !trail.GetBool("public") {
+		return nil
+	}
+	return MaterializePrivateRemotePluginAsset(ctx, app, assetID)
 }
 
 func IsRemotePhotoStorageMode(mode string) bool {

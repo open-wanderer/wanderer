@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -32,6 +33,8 @@ type AssetLinkTarget struct {
 	Field      string
 	ID         string
 }
+
+var routePreviewFilenamePattern = regexp.MustCompile(`^route_[a-z0-9]{8,}\.(webp|png|jpe?g)$`)
 
 func CreatePhotoAsset(app core.App, input PhotoAssetInput) (*core.Record, error) {
 	storageMode := input.StorageMode
@@ -269,6 +272,60 @@ func AssetPublicFileURL(record *core.Record, origin string) string {
 		return ""
 	}
 	return withOrigin(origin, fmt.Sprintf("/api/v1/files/%s/%s/%s", collectionID, record.Id, file))
+}
+
+func AssetMetadataString(metadata map[string]any, path ...string) string {
+	var current any = metadata
+	for _, part := range path {
+		values, ok := current.(map[string]any)
+		if !ok {
+			return ""
+		}
+		current = values[part]
+	}
+	value, _ := current.(string)
+	return strings.TrimSpace(value)
+}
+
+func AssetFilename(record *core.Record, metadata map[string]any) string {
+	if record == nil {
+		return ""
+	}
+	if remoteFilename := AssetMetadataString(metadata, "remote", "filename"); remoteFilename != "" {
+		return remoteFilename
+	}
+	if sourceFile := AssetMetadataString(metadata, "source_file"); sourceFile != "" {
+		return sourceFile
+	}
+	if file := record.GetString("file"); file != "" {
+		return file
+	}
+	if externalID := record.GetString("external_id"); externalID != "" {
+		return externalID
+	}
+	return record.Id
+}
+
+func IsGeneratedRoutePreviewAsset(record *core.Record) bool {
+	if record == nil {
+		return false
+	}
+	metadata := map[string]any{}
+	_ = record.UnmarshalJSONField("metadata", &metadata)
+	if AssetMetadataString(metadata, "generated", "kind") == "route-preview" {
+		return true
+	}
+	filename := strings.ToLower(AssetFilename(record, metadata))
+	hasLegacyGeneratedName := strings.HasPrefix(filename, "wanderer-route-preview") || routePreviewFilenamePattern.MatchString(filename)
+	return hasLegacyGeneratedName && record.GetString("external_provider") == "" && record.GetDateTime("taken_at").IsZero()
+}
+
+func RecordDateTimeRFC3339(record *core.Record, field string) string {
+	value := record.GetDateTime(field)
+	if value.IsZero() {
+		return ""
+	}
+	return value.Time().Format(time.RFC3339)
 }
 
 func AssetFileRedirectURL(record *core.Record) string {
@@ -638,6 +695,21 @@ func AssetIDsForTrail(app core.App, trailID string) ([]string, error) {
 	assetIDs = append(assetIDs, recordFieldValues(summitLogLinks, "asset")...)
 
 	return UniqueNonEmptyStrings(assetIDs), nil
+}
+
+func DeleteTrailAndOrphanedAssets(app core.App, trail *core.Record) error {
+	if trail == nil {
+		return nil
+	}
+	assetIDs, err := AssetIDsForTrail(app, trail.Id)
+	if err != nil {
+		return err
+	}
+	authorID := trail.GetString("author")
+	if err := app.Delete(trail); err != nil {
+		return err
+	}
+	return DeleteAssetsIfOrphanedByAuthor(app, assetIDs, authorID)
 }
 
 func DeleteAssetsIfOrphaned(app core.App, assetIDs []string) error {

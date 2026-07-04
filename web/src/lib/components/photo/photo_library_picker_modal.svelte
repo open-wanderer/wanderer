@@ -95,16 +95,9 @@
     let highlightedClusterKey = $state<string | undefined>();
     let previewIndex = $state(0);
     let existingWandererExternalKeys = $state(new Set<string>());
-    let clusters = $state<PhotoCluster[]>([]);
+    let mapZoom = $state(0);
     let mapBounds = $state<M.LngLatBounds | undefined>();
-    const initialDateRange = dateSliderDefaults();
-    let dateRangeYears = $state(initialDateRange.years);
-    let dateRangeMin = $state(initialDateRange.min);
-    let dateRangeMax = $state(initialDateRange.max);
-    let selectedDateStart = $state(initialDateRange.start);
-    let selectedDateEnd = $state(initialDateRange.end);
-    let dateRangeKey = $state(initialDateRange.key);
-    let dateRangeResetKey = $state(initialDateRange.resetKey);
+    let dateRange = $state(dateSliderDefaults());
 
     onDestroy(() => {
         destroyMap();
@@ -113,11 +106,12 @@
     const hasAssetPlugin = $derived(assetPluginProviders.length > 0);
     const pluginPath = $derived(pluginId ? `/api/v1/plugins/assets/${encodeURIComponent(pluginId)}` : undefined);
     const providerCandidates = $derived(filterByProvider(candidates));
+    const clusters = $derived(mapReady ? buildClusters(providerCandidates, mapZoom, mapBounds) : []);
     const mapCandidates = $derived(filterByMapBounds(providerCandidates));
     const visibleCandidates = $derived(activeClusterKey ? filterByActiveCluster(providerCandidates) : mapCandidates);
     const selectedCandidates = $derived(candidates.filter((candidate) => selectedKeys.has(candidateKey(candidate))));
     const providerOptions = $derived(buildProviderOptions(candidates));
-    const dateRangeLabel = $derived(formatDateRangeLabel(selectedDateStart, selectedDateEnd));
+    const dateRangeLabel = $derived(formatDateRangeLabel(dateRange.start, dateRange.end, dateRange.min, dateRange.max));
     const previewCandidate = $derived(visibleCandidates[Math.min(previewIndex, Math.max(visibleCandidates.length - 1, 0))]);
     const mapFiltered = $derived(
         Boolean(mapBounds) &&
@@ -151,6 +145,14 @@
     });
 
     $effect(() => {
+        const ready = mapReady;
+        const currentClusters = clusters;
+        if (ready) {
+            untrack(() => syncPhotoMarkers(currentClusters));
+        }
+    });
+
+    $effect(() => {
         highlightedClusterKey;
         activeClusterKey;
         syncMarkerStyles();
@@ -158,14 +160,8 @@
 
     $effect(() => {
         const next = dateSliderDefaults();
-        if (next.resetKey !== dateRangeResetKey) {
-            dateRangeYears = next.years;
-            dateRangeMin = next.min;
-            dateRangeMax = next.max;
-            selectedDateStart = next.start;
-            selectedDateEnd = next.end;
-            dateRangeKey = next.key;
-            dateRangeResetKey = next.resetKey;
+        if (next.resetKey !== dateRange.resetKey) {
+            dateRange = next;
         }
     });
 
@@ -201,6 +197,7 @@
         existingWandererExternalKeys = new Set();
         activeClusterKey = undefined;
         highlightedClusterKey = undefined;
+        mapZoom = 0;
         mapBounds = undefined;
         previewIndex = 0;
         try {
@@ -581,8 +578,11 @@
         const nextEnd = clampDateSliderValue(end);
         const expanded = expandDateRangeIfNeeded(nextStart, nextEnd);
         if (!expanded) {
-            selectedDateStart = nextStart;
-            selectedDateEnd = nextEnd;
+            dateRange = {
+                ...dateRange,
+                start: nextStart,
+                end: nextEnd,
+            };
         }
         destroyMap();
         await loadCandidates();
@@ -593,11 +593,11 @@
     }
 
     function selectedTimeWindow() {
-        const start = clampDateSliderValue(selectedDateStart);
-        const end = clampDateSliderValue(selectedDateEnd);
+        const start = clampDateSliderValue(dateRange.start);
+        const end = clampDateSliderValue(dateRange.end);
         return {
-            ...(start > dateRangeMin ? { takenAfter: new Date(start).toISOString() } : {}),
-            ...(end < dateRangeMax ? { takenBefore: endOfLocalDay(new Date(end)).toISOString() } : {}),
+            ...(start > dateRange.min ? { takenAfter: new Date(start).toISOString() } : {}),
+            ...(end < dateRange.max ? { takenBefore: endOfLocalDay(new Date(end)).toISOString() } : {}),
         };
     }
 
@@ -651,23 +651,26 @@
     }
 
     function expandDateRangeIfNeeded(start: number, end: number) {
-        if (start <= dateRangeMin) {
+        if (start <= dateRange.min) {
             return false;
         }
-        if (start > dateRangeMin + (dateRangeMax - dateRangeMin) * DATE_RANGE_EXPAND_THRESHOLD) {
+        if (start > dateRange.min + (dateRange.max - dateRange.min) * DATE_RANGE_EXPAND_THRESHOLD) {
             return false;
         }
-        const nextYears = nextDateRangeYearStep(dateRangeYears);
+        const nextYears = nextDateRangeYearStep(dateRange.years);
         if (!nextYears) {
             return false;
         }
         const nextRange = dateSliderBounds(nextYears);
-        dateRangeYears = nextYears;
-        dateRangeMin = nextRange.min;
-        dateRangeMax = nextRange.max;
-        selectedDateStart = clamp(start, nextRange.min, nextRange.max);
-        selectedDateEnd = clamp(end, nextRange.min, nextRange.max);
-        dateRangeKey = dateSliderKey(nextRange.min, nextRange.max);
+        dateRange = {
+            ...dateRange,
+            years: nextYears,
+            min: nextRange.min,
+            max: nextRange.max,
+            start: clamp(start, nextRange.min, nextRange.max),
+            end: clamp(end, nextRange.min, nextRange.max),
+            key: dateSliderKey(nextRange.min, nextRange.max),
+        };
         return true;
     }
 
@@ -734,7 +737,7 @@
     }
 
     function clampDateSliderValue(value: number) {
-        return clamp(Math.round(value), dateRangeMin, dateRangeMax);
+        return clamp(Math.round(value), dateRange.min, dateRange.max);
     }
 
     function startOfLocalDay(date: Date) {
@@ -749,9 +752,9 @@
         return Math.max(min, Math.min(max, value));
     }
 
-    function formatDateRangeLabel(start: number, end: number) {
-        const hasStart = start > dateRangeMin;
-        const hasEnd = end < dateRangeMax;
+    function formatDateRangeLabel(start: number, end: number, min: number, max: number) {
+        const hasStart = start > min;
+        const hasEnd = end < max;
         if (hasStart && hasEnd) {
             return `${formatDateValue(start)} - ${formatDateValue(end)}`;
         }
@@ -814,6 +817,7 @@
         map?.remove();
         map = undefined;
         mapReady = false;
+        mapZoom = 0;
         mapBounds = undefined;
     }
 
@@ -824,35 +828,22 @@
         clearMapLayers();
         closePopup();
 
-        const bounds = new M.LngLatBounds();
-        let hasBounds = false;
         const trailGeoJSON = resolveTrailGeoJSON();
         if (trailGeoJSON?.features?.length) {
             addTrailLayer(trailGeoJSON);
-            hasBounds = extendBoundsWithGeoJSON(bounds, trailGeoJSON) || hasBounds;
         }
 
-        hasBounds = extendBoundsWithCandidates(bounds, providerCandidates) || hasBounds;
-
-        if (hasBounds) {
-            map.fitBounds(bounds, {
-                padding: 40,
-                maxZoom: 15,
-                animate: false,
-            });
-        }
-        updateMapBounds();
-        syncPhotoMarkers();
+        fitMapToBounds(contentBounds(trailGeoJSON));
+        updateMapViewport();
     }
 
-    function syncPhotoMarkers() {
+    function syncPhotoMarkers(currentClusters: PhotoCluster[]) {
         if (!map || !mapReady) {
             return;
         }
         clearPhotoMarkers();
         closePopup();
-        clusters = buildClusters(providerCandidates, map.getZoom(), map.getBounds());
-        for (const cluster of clusters) {
+        for (const cluster of currentClusters) {
             const element = createMarkerElement(cluster);
             const marker = new M.Marker({ element, anchor: "center" })
                 .setLngLat([cluster.lon, cluster.lat])
@@ -863,15 +854,16 @@
     }
 
     function syncMapViewport() {
-        updateMapBounds();
-        syncPhotoMarkers();
+        updateMapViewport();
     }
 
-    function updateMapBounds() {
+    function updateMapViewport() {
         if (!map || !mapReady) {
+            mapZoom = 0;
             mapBounds = undefined;
             return;
         }
+        mapZoom = map.getZoom();
         mapBounds = map.getBounds();
     }
 
@@ -879,14 +871,22 @@
         if (!map || !mapReady) {
             return;
         }
+        fitMapToBounds(contentBounds());
+        syncMapViewport();
+    }
+
+    function contentBounds(trailGeoJSON = resolveTrailGeoJSON()) {
         const bounds = new M.LngLatBounds();
         let hasBounds = false;
-        const trailGeoJSON = resolveTrailGeoJSON();
         if (trailGeoJSON?.features?.length) {
             hasBounds = extendBoundsWithGeoJSON(bounds, trailGeoJSON) || hasBounds;
         }
         hasBounds = extendBoundsWithCandidates(bounds, providerCandidates) || hasBounds;
-        if (!hasBounds) {
+        return hasBounds ? bounds : undefined;
+    }
+
+    function fitMapToBounds(bounds?: M.LngLatBounds) {
+        if (!map || !bounds) {
             return;
         }
         map.fitBounds(bounds, {
@@ -894,7 +894,6 @@
             maxZoom: 15,
             animate: false,
         });
-        syncMapViewport();
     }
 
     function mapSyncKey() {
@@ -914,7 +913,6 @@
         if (!map) {
             return;
         }
-        clearPhotoMarkers();
         if (map.getLayer("photo-picker-trail")) {
             map.removeLayer("photo-picker-trail");
         }
@@ -1132,13 +1130,13 @@
                                 {/if}
                             </div>
                             <div class="px-4">
-                                {#key dateRangeKey}
+                                {#key dateRange.key}
                                     <DoubleSlider
-                                        minValue={dateRangeMin}
-                                        maxValue={dateRangeMax}
+                                        minValue={dateRange.min}
+                                        maxValue={dateRange.max}
                                         step={DAY_MS}
-                                        bind:currentMin={selectedDateStart}
-                                        bind:currentMax={selectedDateEnd}
+                                        bind:currentMin={dateRange.start}
+                                        bind:currentMax={dateRange.end}
                                         onset={handleDateRangeChange}
                                     ></DoubleSlider>
                                 {/key}

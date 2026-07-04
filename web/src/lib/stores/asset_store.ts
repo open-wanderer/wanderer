@@ -1,4 +1,5 @@
 import type { Asset } from "$lib/models/asset";
+import { assetIdFromPhotoURL, assetPhotoURL } from "$lib/util/asset_link_util";
 import type { GPSCoordinates, PhotoExifMetadata } from "$lib/util/exif_util";
 import { APIError } from "$lib/util/api_util";
 
@@ -196,22 +197,8 @@ export async function assets_set_trail_thumbnail(
     }
 }
 
-export function asset_photo_url(asset: Asset): string {
-    if (asset.file) {
-        return `/api/v1/files/${asset.collectionId}/${asset.id}/${asset.file}`;
-    }
-    return `/api/v1/assets/${asset.id}/file`;
-}
-
-export function assetIdFromPhotoUrl(photo: string): string | undefined {
-    const remoteMatch = photo.match(/\/api\/v1\/assets\/([a-z0-9]{15})\/file/);
-    if (remoteMatch) {
-        return remoteMatch[1];
-    }
-
-    const fileMatch = photo.match(/\/api\/v1\/files\/[^/]+\/([a-z0-9]{15})\//);
-    return fileMatch?.[1];
-}
+export const asset_photo_url = assetPhotoURL;
+export const assetIdFromPhotoUrl = assetIdFromPhotoURL;
 
 function generatedAssetKind(file: File): string | undefined {
     return generatedAssetKinds.get(file);

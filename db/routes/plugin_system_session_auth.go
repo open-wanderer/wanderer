@@ -8,6 +8,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"pocketbase/pluginsystem"
+	"pocketbase/services/pluginhost"
 )
 
 type pluginSessionAuthValidateRequest struct {
@@ -87,7 +88,7 @@ func PluginSystemSessionAuthValidate(e *core.RequestEvent) error {
 	// path is sufficient for public_api session plugins such as komoot and
 	// hammerhead, but configured connectors need host config for policy
 	// resolution and refresh input parity with production auth injection.
-	policy := pluginInstancePolicy(plugin, map[string]any{}).WithHostAuth(auth)
+	policy := pluginhost.InstancePolicy(plugin, map[string]any{}).WithHostAuth(auth)
 	output, err := runtime.Call(e.Request.Context(), plugin, authContext.Refresh.Function, inputBytes, policy)
 	if err != nil {
 		return apis.NewBadRequestError("plugin credentials validation failed", err)

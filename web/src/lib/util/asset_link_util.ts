@@ -2,6 +2,7 @@ import type { Asset, AssetLink } from "$lib/models/asset";
 import type { SummitLog } from "$lib/models/summit_log";
 import type { Trail } from "$lib/models/trail";
 import type { Waypoint } from "$lib/models/waypoint";
+import { isURL } from "$lib/util/file_util";
 
 interface AssetPhotoOptions {
     share?: string;
@@ -16,12 +17,27 @@ export function assetsFromLinks(links?: AssetLink[]): Asset[] {
 
 export function assetPhotos(assets?: Asset[], options?: AssetPhotoOptions): string[] {
     return assets
-        ?.filter((asset) => asset.type === "photo" && (asset.file || (asset.storage_mode && asset.storage_mode !== "copy")))
+        ?.filter(isDisplayablePhotoAsset)
         .map((asset) =>
-            withAssetAccessQuery(asset.file
-                ? `/api/v1/files/${asset.collectionId}/${asset.id}/${asset.file}`
-                : `/api/v1/assets/${asset.id}/file`, options),
+            withAssetAccessQuery(assetPhotoURL(asset), options),
         ) ?? [];
+}
+
+export function assetPhotoURL(asset: Asset): string {
+    if (asset.file) {
+        return `/api/v1/files/${asset.collectionId}/${asset.id}/${asset.file}`;
+    }
+    return `/api/v1/assets/${asset.id}/file`;
+}
+
+export function assetIdFromPhotoURL(photo: string): string | undefined {
+    const remoteMatch = photo.match(/\/api\/v1\/assets\/([a-z0-9]{15})\/file/);
+    if (remoteMatch) {
+        return remoteMatch[1];
+    }
+
+    const fileMatch = photo.match(/\/api\/v1\/files\/[^/]+\/([a-z0-9]{15})\//);
+    return fileMatch?.[1];
 }
 
 export function enrichTrailAssetExpands(trail: Trail, options?: AssetPhotoOptions) {
@@ -86,8 +102,14 @@ function thumbnailPhotoIndex(assets?: Asset[], links?: AssetLink[]): number | un
     if (!thumbnailAssetID) {
         return undefined;
     }
-    const index = assets.findIndex((asset) => asset.id === thumbnailAssetID);
+    const index = assets
+        .filter(isDisplayablePhotoAsset)
+        .findIndex((asset) => asset.id === thumbnailAssetID);
     return index >= 0 ? index : undefined;
+}
+
+function isDisplayablePhotoAsset(asset: Asset): boolean {
+    return asset.type === "photo" && Boolean(asset.file || (asset.storage_mode && asset.storage_mode !== "copy"));
 }
 
 function withAssetAccessQuery(url: string, options?: AssetPhotoOptions): string {
@@ -99,17 +121,8 @@ function withAssetAccessQuery(url: string, options?: AssetPhotoOptions): string 
 }
 
 function withOrigin(url: string, origin?: string): string {
-    if (!origin || isAbsoluteURL(url)) {
+    if (!origin || isURL(url)) {
         return url;
     }
     return new URL(url, origin).toString();
-}
-
-function isAbsoluteURL(url: string): boolean {
-    try {
-        const parsed = new URL(url);
-        return parsed.protocol === "http:" || parsed.protocol === "https:";
-    } catch {
-        return false;
-    }
 }

@@ -38,7 +38,12 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
-    try {        
+    try {
+        const formData = await event.request.clone().formData();
+        if (formData.has("photos")) {
+            return json({ message: "trail_photos_form_field_removed" }, { status: 400 });
+        }
+
         let r = await uploadUpdate<Trail>(event, Collection.trails)
         r = await event.locals.pb.collection(Collection.trails).getOne<Trail>(r.id!, {
             expand: event.url.searchParams.get("expand") ?? undefined,

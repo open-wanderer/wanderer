@@ -84,10 +84,27 @@ func UpdatePluginInstanceHandler() func(e *core.RecordEvent) error {
 	}
 }
 
+func DeletePluginInstanceHandler() func(e *core.RecordRequestEvent) error {
+	return func(e *core.RecordRequestEvent) error {
+		if err := preventAssetPluginDeleteWithRemoteLinks(e.App, e.Record); err != nil {
+			return err
+		}
+		return e.Next()
+	}
+}
+
 func preventAssetPluginDisableWithRemoteLinks(app core.App, r *core.Record) error {
 	if !r.Original().GetBool("enabled") || r.GetBool("enabled") {
 		return nil
 	}
+	return preventAssetPluginRemovalWithRemoteLinks(app, r, "disabling")
+}
+
+func preventAssetPluginDeleteWithRemoteLinks(app core.App, r *core.Record) error {
+	return preventAssetPluginRemovalWithRemoteLinks(app, r, "deleting")
+}
+
+func preventAssetPluginRemovalWithRemoteLinks(app core.App, r *core.Record, action string) error {
 	pluginID := r.GetString("plugin_id")
 	plugin, err := pluginsystem.LoadInstalledPlugin(app, "", pluginID)
 	if err != nil || plugin.Manifest.Type != pluginsystem.PluginTypeAssets {
@@ -100,7 +117,7 @@ func preventAssetPluginDisableWithRemoteLinks(app core.App, r *core.Record) erro
 	if summary.Count == 0 {
 		return nil
 	}
-	return apis.NewBadRequestError("Plugin has linked remote photos. Download linked photos before disabling this plugin.", map[string]any{
+	return apis.NewBadRequestError("Plugin has linked remote photos. Download linked photos before "+action+" this plugin.", map[string]any{
 		"count":       summary.Count,
 		"publicCount": summary.PublicCount,
 	})

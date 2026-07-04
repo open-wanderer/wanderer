@@ -100,8 +100,9 @@
                         const photoBlob = await fetch(photoURL).then(
                             (response) => response.blob(),
                         );
-                        const photoData = new File([photoBlob], photo);
-                        photoFolder?.file(photo, photoData, { base64: true });
+                        const photoName = photoExportFilename(photo);
+                        const photoData = new File([photoBlob], photoName);
+                        photoFolder?.file(photoName, photoData, { base64: true });
                     }
                 }
                 if (exportSettings.summitLog) {
@@ -125,6 +126,15 @@
                 icon: "close",
                 text: $_("error-exporting-trail"),
             });
+        }
+    }
+
+    function photoExportFilename(photo: string): string {
+        try {
+            const url = new URL(photo, window.location.origin);
+            return decodeURIComponent(url.pathname.split("/").filter(Boolean).pop() ?? "photo");
+        } catch {
+            return photo.split("/").filter(Boolean).pop() ?? "photo";
         }
     }
 </script>

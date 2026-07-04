@@ -16,6 +16,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 
 	"pocketbase/federation"
+	assetservice "pocketbase/services/assets"
 	"pocketbase/util"
 )
 
@@ -87,6 +88,7 @@ type SuggestGroupsResponse struct {
 type mergeContext struct {
 	App      core.App
 	Client   meilisearch.ServiceManager
+	Context  context.Context
 	Actor    *core.Record
 	ActorID  string
 	Target   *core.Record
@@ -203,6 +205,7 @@ func Merge(app core.App, client meilisearch.ServiceManager, ctx context.Context,
 		mergeCtx := mergeContext{
 			App:      txApp,
 			Client:   client,
+			Context:  ctx,
 			Actor:    actor,
 			ActorID:  actor.Id,
 			Target:   target,
@@ -1202,7 +1205,7 @@ func mergeTrailIntoTarget(ctx mergeContext) (mergeSideEffects, error) {
 	}
 
 	if ctx.Settings.Delete {
-		if err := ctx.App.Delete(ctx.Source); err != nil {
+		if err := util.DeleteTrailAndOrphanedAssets(ctx.App, ctx.Source); err != nil {
 			return sideEffects, err
 		}
 	}
@@ -1223,7 +1226,7 @@ func reassignTrailAssets(ctx mergeContext) error {
 		return err
 	}
 	for _, link := range links {
-		if _, err := util.EnsureAssetLink(ctx.App, "trail_assets", "trail", ctx.Target.Id, link.GetString("asset")); err != nil {
+		if _, err := assetservice.EnsurePublicTrailSafeAssetLink(ctx.Context, ctx.App, "trail_assets", "trail", ctx.Target.Id, link.GetString("asset")); err != nil {
 			return err
 		}
 	}
@@ -1307,7 +1310,7 @@ func mergeExistingSummitLogs(ctx mergeContext) ([]string, error) {
 			return nil, err
 		}
 
-		if err := reassignSummitLogAssets(ctx.App, sourceLog.Id, record.Id); err != nil {
+		if err := reassignSummitLogAssets(ctx, sourceLog.Id, record.Id); err != nil {
 			return nil, err
 		}
 
@@ -1317,8 +1320,8 @@ func mergeExistingSummitLogs(ctx mergeContext) ([]string, error) {
 	return createdIDs, nil
 }
 
-func reassignSummitLogAssets(app core.App, sourceSummitLogID, targetSummitLogID string) error {
-	links, err := app.FindRecordsByFilter(
+func reassignSummitLogAssets(ctx mergeContext, sourceSummitLogID, targetSummitLogID string) error {
+	links, err := ctx.App.FindRecordsByFilter(
 		"summit_log_assets",
 		"summit_log={:sl}",
 		"",
@@ -1331,7 +1334,7 @@ func reassignSummitLogAssets(app core.App, sourceSummitLogID, targetSummitLogID 
 	}
 	for _, link := range links {
 		assetID := link.GetString("asset")
-		if _, err := util.EnsureAssetLink(app, "summit_log_assets", "summit_log", targetSummitLogID, assetID); err != nil {
+		if _, err := assetservice.EnsurePublicTrailSafeAssetLink(ctx.Context, ctx.App, "summit_log_assets", "summit_log", targetSummitLogID, assetID); err != nil {
 			return err
 		}
 	}

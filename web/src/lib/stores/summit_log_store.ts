@@ -131,23 +131,27 @@ export async function summit_logs_update(oldSummitLog: SummitLog, newSummitLog: 
         const assets = await assets_create(newSummitLog._photos, {
             summit_log: model.id,
         });
-        model.photos = [...newSummitLog.photos, ...assets.map(asset_photo_url)];
+        model.photos = uniquePhotoURLs([...(newSummitLog.photos ?? []), ...assets.map(asset_photo_url)]);
     }
     if (newSummitLog._assetLinks?.length) {
         const assets = await assets_link(newSummitLog._assetLinks, {
             summit_log: model.id,
         });
-        model.photos = [...(model.photos ?? newSummitLog.photos), ...assets.map(asset_photo_url)];
+        model.photos = uniquePhotoURLs([...(model.photos ?? newSummitLog.photos ?? []), ...assets.map(asset_photo_url)]);
     }
     if (newSummitLog._assetPluginLinks?.length) {
         const assets = await assets_import_plugin_links(newSummitLog._assetPluginLinks, {
             trail: model.trail,
             summit_log: model.id,
         });
-        model.photos = [...(model.photos ?? newSummitLog.photos), ...assets.map(asset_photo_url)];
+        model.photos = uniquePhotoURLs([...(model.photos ?? newSummitLog.photos ?? []), ...assets.map(asset_photo_url)]);
     }
 
     return model;
+}
+
+function uniquePhotoURLs(photos: string[]): string[] {
+    return [...new Set(photos)];
 }
 
 export async function summit_logs_delete(summitLog: SummitLog) {

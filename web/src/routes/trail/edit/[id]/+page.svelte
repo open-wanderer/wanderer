@@ -428,6 +428,7 @@
                     setFields(createdTrail);
                     trail.set(createdTrail);
                     savedTrail = createdTrail;
+                    savedAtLeastOnce = true;
                 } else {
                     const updatedTrail = await trails_update(
                         $trail,
@@ -437,6 +438,7 @@
                     );
                     setFields(updatedTrail);
                     savedTrail = updatedTrail;
+                    savedAtLeastOnce = true;
                 }
                 photoFiles = [];
                 pendingTrailPhotoCandidates = [];
@@ -466,8 +468,6 @@
                     );
                     pendingAssetPlugins = [];
                 }
-
-                savedAtLeastOnce = true;
                 show_toast({
                     type: "success",
                     icon: "check",

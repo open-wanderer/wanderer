@@ -78,7 +78,7 @@ export async function POST(event: RequestEvent) {
             .filter((asset) => asset.file || (asset.storage_mode && asset.storage_mode !== "copy"))
             .filter((asset) => !isGeneratedRoutePreviewAsset(asset))
             .filter((asset) => assetWithinTimeWindow(asset, timeWindow))
-            .filter((asset) => asset.lat !== undefined && asset.lon !== undefined)
+            .filter(assetHasCoordinates)
             .map((asset) => toCandidate(asset, data.lat, data.lon, trackPoints))
             .filter((candidate) => candidate.distance <= maxDistance);
         const existingExternalRefs = candidatePool
@@ -196,6 +196,16 @@ function assetThumbnailUrl(asset: Asset): string {
         return `/api/v1/files/${asset.collectionId}/${asset.id}/${asset.file}`;
     }
     return `/api/v1/assets/${asset.id}/file`;
+}
+
+function assetHasCoordinates(asset: Asset): asset is Asset & { lat: number; lon: number } {
+    return (
+        typeof asset.lat === "number" &&
+        typeof asset.lon === "number" &&
+        Number.isFinite(asset.lat) &&
+        Number.isFinite(asset.lon) &&
+        (asset.lat !== 0 || asset.lon !== 0)
+    );
 }
 
 function isGeneratedRoutePreviewAsset(asset: Asset): boolean {

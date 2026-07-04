@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"pocketbase/pluginsystem"
+	"pocketbase/services/pluginhost"
 )
 
 func TestPluginInstancePolicyUsesHostConnectorConfig(t *testing.T) {
@@ -38,7 +39,7 @@ func TestPluginInstancePolicyUsesHostConnectorConfig(t *testing.T) {
 		},
 	}
 
-	policy := pluginInstancePolicy(plugin, config)
+	policy := pluginhost.InstancePolicy(plugin, config)
 	connector, ok := policy.Connectors["media"]
 	if !ok {
 		t.Fatal("expected configured connector to be resolved from host config")

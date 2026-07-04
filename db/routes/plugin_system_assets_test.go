@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"pocketbase/pluginsystem"
+	"pocketbase/util"
 
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -26,8 +27,6 @@ func TestAssetPluginProviderEnabledDefaultsToEnabled(t *testing.T) {
 		{"explicit upload false disables upload", map[string]any{"autoAttach": map[string]any{"upload": false}}, "upload", false},
 		{"explicit trail false disables trail plugins", map[string]any{"autoAttach": map[string]any{"trailPlugins": false}}, "komoot", false},
 		{"explicit trail false keeps manual maintenance enabled", map[string]any{"autoAttach": map[string]any{"trailPlugins": false}}, pluginAssetMaintenanceProvider, true},
-		{"legacy providers still gate upload", map[string]any{"providers": []any{"trailPlugins"}}, "upload", false},
-		{"legacy providers still gate trail plugins", map[string]any{"providers": []any{"upload"}}, "komoot", false},
 	}
 
 	for _, tc := range cases {
@@ -113,7 +112,7 @@ func TestAssetMaintenanceIsGeneratedRoutePreviewAsset(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			record := newAssetMaintenanceRecord(tc.values)
-			if got := assetMaintenanceIsGeneratedRoutePreviewAsset(record); got != tc.want {
+			if got := util.IsGeneratedRoutePreviewAsset(record); got != tc.want {
 				t.Fatalf("got %v, want %v", got, tc.want)
 			}
 		})
@@ -337,10 +336,10 @@ func TestLimitAssetPluginWaypointClustersLimitsNewWaypointsOnly(t *testing.T) {
 
 	limited := limitAssetPluginWaypointClusters(clusters, 2)
 
-	if len(limited) != 4 {
-		t.Fatalf("got %d clusters, want 4: %#v", len(limited), limited)
+	if len(limited) != 5 {
+		t.Fatalf("got %d clusters, want 5: %#v", len(limited), limited)
 	}
-	if limited[0].Waypoint != "wp1" || limited[1].Photos[0] != "new-a" || limited[2].Photos[0] != "new-b" || limited[3].Waypoint != "wp2" {
+	if limited[0].Waypoint != "wp1" || limited[1].Photos[0] != "standalone" || limited[2].Photos[0] != "new-a" || limited[3].Photos[0] != "new-b" || limited[4].Waypoint != "wp2" {
 		t.Fatalf("unexpected limited clusters: %#v", limited)
 	}
 }
@@ -425,7 +424,7 @@ func TestAssetPluginWaypointNameUsesOverpassPOI(t *testing.T) {
 	t.Setenv("NOMINATIM_URL", server.URL)
 	withAssetPluginWaypointNameHTTPClient(t, server.Client())
 
-	name, err := assetPluginWaypointName(context.Background(), 46, 8, 50)
+	name, err := assetPluginWaypointName(context.Background(), nil, 46, 8, 50)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -459,7 +458,7 @@ func TestAssetPluginWaypointNameFallsBackToNominatim(t *testing.T) {
 	t.Setenv("NOMINATIM_URL", server.URL)
 	withAssetPluginWaypointNameHTTPClient(t, server.Client())
 
-	name, err := assetPluginWaypointName(context.Background(), 46, 8, 50)
+	name, err := assetPluginWaypointName(context.Background(), nil, 46, 8, 50)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -491,7 +490,7 @@ func TestAssetPluginWaypointNameFallsBackToLowerNominatimZoom(t *testing.T) {
 	t.Setenv("NOMINATIM_URL", server.URL)
 	withAssetPluginWaypointNameHTTPClient(t, server.Client())
 
-	name, err := assetPluginWaypointName(context.Background(), 46, 8, 50)
+	name, err := assetPluginWaypointName(context.Background(), nil, 46, 8, 50)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -519,7 +518,7 @@ func TestAssetPluginWaypointNameFallsBackToCoordinates(t *testing.T) {
 	t.Setenv("NOMINATIM_URL", server.URL)
 	withAssetPluginWaypointNameHTTPClient(t, server.Client())
 
-	name, err := assetPluginWaypointName(context.Background(), 46.123456, 8.654321, 50)
+	name, err := assetPluginWaypointName(context.Background(), nil, 46.123456, 8.654321, 50)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

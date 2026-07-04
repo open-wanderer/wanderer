@@ -69,17 +69,21 @@ export async function waypoints_update(oldWaypoint: Waypoint, newWaypoint: Waypo
         const assets = await assets_create(newWaypoint._photos, {
             waypoint: model.id,
         });
-        model.photos = [...newWaypoint.photos, ...assets.map(asset_photo_url)];
+        model.photos = uniquePhotoURLs([...(newWaypoint.photos ?? []), ...assets.map(asset_photo_url)]);
     }
     if (newWaypoint._assetLinks?.length) {
         const assets = await assets_link(newWaypoint._assetLinks, {
             waypoint: model.id,
         });
-        model.photos = [...(model.photos ?? newWaypoint.photos ?? []), ...assets.map(asset_photo_url)];
+        model.photos = uniquePhotoURLs([...(model.photos ?? newWaypoint.photos ?? []), ...assets.map(asset_photo_url)]);
     }
 
     return model;
 
+}
+
+function uniquePhotoURLs(photos: string[]): string[] {
+    return [...new Set(photos)];
 }
 
 export async function waypoints_delete(waypoint: Waypoint) {

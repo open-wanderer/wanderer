@@ -3,6 +3,7 @@ import type { SummitLog } from '$lib/models/summit_log';
 import { enrichSummitLogAssetPhotos, withRequiredExpand } from '$lib/server/profile_asset_util';
 import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { Collection, handleError } from '$lib/util/api_util';
+import { isURL } from '$lib/util/file_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError } from 'pocketbase';
 
@@ -91,20 +92,11 @@ export async function GET(event: RequestEvent) {
 }
 
 function normalizeRemoteFileURL(file: string, origin: string, collection: string, recordId: string): string {
-    if (isAbsoluteURL(file)) {
+    if (isURL(file)) {
         return file;
     }
     if (file.startsWith("/")) {
         return new URL(file, origin).toString();
     }
     return new URL(`/api/v1/files/${collection}/${recordId}/${file}`, origin).toString();
-}
-
-function isAbsoluteURL(url: string): boolean {
-    try {
-        const parsed = new URL(url);
-        return parsed.protocol === "http:" || parsed.protocol === "https:";
-    } catch {
-        return false;
-    }
 }

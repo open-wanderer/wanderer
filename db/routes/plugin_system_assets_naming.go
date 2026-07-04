@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"net/http"
 	"net/url"
@@ -54,15 +55,7 @@ type assetPluginNominatimReverseResponse struct {
 	Address     map[string]string `json:"address"`
 }
 
-type assetPluginWaypointNameLogger interface {
-	Info(msg string, args ...any)
-}
-
-func assetPluginWaypointName(ctx context.Context, lat float64, lon float64, radius float64) (string, error) {
-	return assetPluginWaypointNameWithLogger(ctx, nil, lat, lon, radius)
-}
-
-func assetPluginWaypointNameWithLogger(ctx context.Context, logger assetPluginWaypointNameLogger, lat float64, lon float64, radius float64) (string, error) {
+func assetPluginWaypointName(ctx context.Context, logger *slog.Logger, lat float64, lon float64, radius float64) (string, error) {
 	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
 		return "", nil
 	}
@@ -421,7 +414,7 @@ func assetPluginLooksLikeHouseNumber(name string) bool {
 	return hasDigit
 }
 
-func assetPluginLogResolved(logger assetPluginWaypointNameLogger, source string, name string, lat float64, lon float64, radius float64, err error) {
+func assetPluginLogResolved(logger *slog.Logger, source string, name string, lat float64, lon float64, radius float64, err error) {
 	if logger == nil {
 		return
 	}

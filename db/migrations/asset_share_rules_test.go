@@ -9,14 +9,45 @@ import (
 func TestAssetReadRuleIncludesTrailSharing(t *testing.T) {
 	for _, want := range []string{
 		"trail_assets_via_asset.trail.trail_share_via_trail.actor.user ?= @request.auth.id",
-		"trail_assets_via_asset.trail.trail_link_share_via_trail.token = @request.query.share",
+		"trail_assets_via_asset.trail.trail_link_share_via_trail.token ?= @request.query.share",
 		"waypoint_assets_via_asset.waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id",
-		"waypoint_assets_via_asset.waypoint.trail.trail_link_share_via_trail.token = @request.query.share",
+		"waypoint_assets_via_asset.waypoint.trail.trail_link_share_via_trail.token ?= @request.query.share",
 		"summit_log_assets_via_asset.summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id",
-		"summit_log_assets_via_asset.summit_log.trail.trail_link_share_via_trail.token = @request.query.share",
+		"summit_log_assets_via_asset.summit_log.trail.trail_link_share_via_trail.token ?= @request.query.share",
 	} {
 		if !strings.Contains(assetReadRule, want) {
 			t.Fatalf("assetReadRule does not contain %q", want)
+		}
+	}
+}
+
+func TestAssetReadRuleUsesAnyMatchForAssetBackRelations(t *testing.T) {
+	for _, want := range []string{
+		"trail_assets_via_asset.trail.author.user ?= @request.auth.id",
+		"trail_assets_via_asset.trail.public ?= true",
+		"waypoint_assets_via_asset.waypoint.trail.author.user ?= @request.auth.id",
+		"waypoint_assets_via_asset.waypoint.author.user ?= @request.auth.id",
+		"waypoint_assets_via_asset.waypoint.trail.public ?= true",
+		"summit_log_assets_via_asset.summit_log.author.user ?= @request.auth.id",
+		"summit_log_assets_via_asset.summit_log.trail.author.user ?= @request.auth.id",
+		"summit_log_assets_via_asset.summit_log.trail.public ?= true",
+	} {
+		if !strings.Contains(assetReadRule, want) {
+			t.Fatalf("assetReadRule does not contain any-match condition %q", want)
+		}
+	}
+	for _, forbidden := range []string{
+		"trail_assets_via_asset.trail.author.user = @request.auth.id",
+		"trail_assets_via_asset.trail.public = true",
+		"waypoint_assets_via_asset.waypoint.trail.author.user = @request.auth.id",
+		"waypoint_assets_via_asset.waypoint.author.user = @request.auth.id",
+		"waypoint_assets_via_asset.waypoint.trail.public = true",
+		"summit_log_assets_via_asset.summit_log.author.user = @request.auth.id",
+		"summit_log_assets_via_asset.summit_log.trail.author.user = @request.auth.id",
+		"summit_log_assets_via_asset.summit_log.trail.public = true",
+	} {
+		if strings.Contains(assetReadRule, forbidden) {
+			t.Fatalf("assetReadRule still contains all-match condition %q", forbidden)
 		}
 	}
 }
@@ -43,7 +74,7 @@ func TestAssetLinkRulesSeparateReadAndWriteSharing(t *testing.T) {
 				if !strings.Contains(rule, "trail_share_via_trail.actor.user ?= @request.auth.id") {
 					t.Fatalf("%s %s does not allow view shares: %s", tt.name, field, rule)
 				}
-				if !strings.Contains(rule, "trail_link_share_via_trail.token = @request.query.share") {
+				if !strings.Contains(rule, "trail_link_share_via_trail.token ?= @request.query.share") {
 					t.Fatalf("%s %s does not allow link shares: %s", tt.name, field, rule)
 				}
 				if strings.Contains(rule, `permission = "edit"`) {

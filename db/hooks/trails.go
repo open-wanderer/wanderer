@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -121,14 +122,18 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 	}
 }
 
-func MaterializePrivateRemoteAssetLinksBeforePublish() func(e *core.RecordRequestEvent) error {
-	return func(e *core.RecordRequestEvent) error {
+func MaterializePrivateRemoteAssetLinksAfterPublish() func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
 		wasPublic := e.Record.Original().GetBool("public")
 		isPublic := e.Record.GetBool("public")
 		if !wasPublic && isPublic {
-			if err := assetservice.MaterializePrivateRemotePluginAssetsForTrail(e.Request.Context(), e.App, e.Record.Id); err != nil {
-				return apis.NewBadRequestError("Could not publish trail because linked remote photos could not be downloaded. Please download or remove linked photos first.", err)
-			}
+			app := e.App
+			trailID := e.Record.Id
+			go func() {
+				if err := assetservice.MaterializePrivateRemotePluginAssetsForTrail(context.Background(), app, trailID); err != nil {
+					app.Logger().Warn("failed to materialize private remote assets after trail publish", "trail", trailID, "error", err)
+				}
+			}()
 		}
 		return e.Next()
 	}
@@ -158,7 +163,7 @@ func MaterializePrivateRemoteAssetOnPublicLink(targetField string) func(e *core.
 			return err
 		}
 		if trail.GetBool("public") {
-			if err := assetservice.MaterializePrivateRemotePluginAsset(e.Request.Context(), e.App, assetID); err != nil {
+			if err := assetservice.MaterializePrivateRemotePluginAssetForPublicLink(e.Request.Context(), e.App, targetField, targetID, assetID); err != nil {
 				return apis.NewBadRequestError("Could not link remote photo because it could not be downloaded. Please download or remove the photo first.", err)
 			}
 		}

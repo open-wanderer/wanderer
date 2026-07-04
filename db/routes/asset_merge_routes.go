@@ -44,7 +44,7 @@ func AssetMerge(e *core.RequestEvent) error {
 		return apis.NewBadRequestError("asset_merge_invalid_request", err)
 	}
 
-	response, err := assetmerge.Merge(e.App, actorID, request.TargetAssetID, request.SourceAssetIDs)
+	response, err := assetmerge.MergeWithContext(e.Request.Context(), e.App, actorID, request.TargetAssetID, request.SourceAssetIDs)
 	if err != nil {
 		return apis.NewBadRequestError(err.Error(), err)
 	}

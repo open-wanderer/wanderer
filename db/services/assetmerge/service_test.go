@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"pocketbase/util"
+
 	"github.com/pocketbase/pocketbase/core"
 	pbtests "github.com/pocketbase/pocketbase/tests"
 )
@@ -108,8 +110,8 @@ func TestMergeCopiesMissingSourceMetadataToTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if metadataString(metadata, "source_file") != "source.jpg" {
-		t.Fatalf("source_file metadata = %q, want source.jpg", metadataString(metadata, "source_file"))
+	if util.AssetMetadataString(metadata, "source_file") != "source.jpg" {
+		t.Fatalf("source_file metadata = %q, want source.jpg", util.AssetMetadataString(metadata, "source_file"))
 	}
 	assertMergedAssetSnapshotContains(t, updated, source.Id, "source.jpg")
 }
@@ -155,8 +157,8 @@ func TestMergePreservesConflictingSourceMetadataSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if metadataString(metadata, "source_file") != "target.jpg" {
-		t.Fatalf("target source_file metadata was overwritten: %q", metadataString(metadata, "source_file"))
+	if util.AssetMetadataString(metadata, "source_file") != "target.jpg" {
+		t.Fatalf("target source_file metadata was overwritten: %q", util.AssetMetadataString(metadata, "source_file"))
 	}
 	assertMergedAssetSnapshotContains(t, updated, source.Id, "source.jpg")
 }

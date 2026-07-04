@@ -2,6 +2,7 @@ import type { FeedItem } from "$lib/models/feed";
 import type { SummitLog } from "$lib/models/summit_log";
 import type { Trail } from "$lib/models/trail";
 import { enrichSummitLogAssetExpands, enrichTrailAssetExpands } from "$lib/util/asset_link_util";
+import { isURL } from "$lib/util/file_util";
 
 export function enrichFeedItemAssetPhotos(feedItems: FeedItem[], origin?: string) {
     for (const feedItem of feedItems) {
@@ -74,20 +75,11 @@ function normalizePhotoURLs(photos: string[] | undefined, origin: string | undef
 }
 
 function normalizePhotoURL(photo: string, origin: string | undefined, collection: string, recordId: string): string {
-    if (!origin || isAbsoluteURL(photo)) {
+    if (!origin || isURL(photo)) {
         return photo;
     }
     if (photo.startsWith("/")) {
         return new URL(photo, origin).toString();
     }
     return new URL(`/api/v1/files/${collection}/${recordId}/${photo}`, origin).toString();
-}
-
-function isAbsoluteURL(url: string): boolean {
-    try {
-        const parsed = new URL(url);
-        return parsed.protocol === "http:" || parsed.protocol === "https:";
-    } catch {
-        return false;
-    }
 }

@@ -1,6 +1,7 @@
 package assetmerge
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -8,11 +9,11 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
 
+	assetservice "pocketbase/services/assets"
 	"pocketbase/util"
 
 	"github.com/pocketbase/dbx"
@@ -122,8 +123,6 @@ var assetLinkCollections = []linkCollection{
 	{name: "waypoint_assets", field: "waypoint"},
 	{name: "summit_log_assets", field: "summit_log"},
 }
-
-var legacyRoutePreviewFilenamePattern = regexp.MustCompile(`^route_[a-z0-9]{8,}\.(webp|png|jpe?g)$`)
 
 // SuggestGroups returns groups of photo assets that are likely duplicates.
 // Local copied assets are matched by file hash; remote/private assets use
@@ -261,6 +260,10 @@ func SuggestGroups(app core.App, actorID string) (*SuggestResponse, error) {
 // Merge reassigns all links from the source assets to the target asset and
 // removes the now-duplicate source asset records.
 func Merge(app core.App, actorID string, targetAssetID string, sourceAssetIDs []string) (*MergeResponse, error) {
+	return MergeWithContext(context.Background(), app, actorID, targetAssetID, sourceAssetIDs)
+}
+
+func MergeWithContext(ctx context.Context, app core.App, actorID string, targetAssetID string, sourceAssetIDs []string) (*MergeResponse, error) {
 	if strings.TrimSpace(actorID) == "" {
 		return nil, ErrMissingUserID
 	}
@@ -303,7 +306,7 @@ func Merge(app core.App, actorID string, targetAssetID string, sourceAssetIDs []
 				return ErrSourceAssetAuthorMismatch
 			}
 
-			reassigned, err := reassignAssetLinks(txApp, sourceAssetID, targetAssetID)
+			reassigned, err := reassignAssetLinks(ctx, txApp, sourceAssetID, targetAssetID)
 			if err != nil {
 				return err
 			}
@@ -464,7 +467,7 @@ func buildAssetInfo(app core.App, fsys *filesystem.System, record *core.Record) 
 	return info, nil
 }
 
-func reassignAssetLinks(app core.App, sourceAssetID string, targetAssetID string) (int, error) {
+func reassignAssetLinks(ctx context.Context, app core.App, sourceAssetID string, targetAssetID string) (int, error) {
 	reassigned := 0
 	for _, collection := range assetLinkCollections {
 		links, err := app.FindRecordsByFilter(
@@ -480,7 +483,7 @@ func reassignAssetLinks(app core.App, sourceAssetID string, targetAssetID string
 		}
 		for _, link := range links {
 			targetID := link.GetString(collection.field)
-			if _, err := util.EnsureAssetLink(app, collection.name, collection.field, targetID, targetAssetID); err != nil {
+			if _, err := assetservice.EnsurePublicTrailSafeAssetLink(ctx, app, collection.name, collection.field, targetID, targetAssetID); err != nil {
 				return reassigned, err
 			}
 			if err := app.Delete(link); err != nil {
@@ -531,18 +534,18 @@ func summarizeAsset(info *assetInfo) AssetSummary {
 		ID:               record.Id,
 		CollectionID:     collectionID,
 		CollectionName:   collectionName,
-		Created:          dateTimeString(record, "created"),
-		Updated:          dateTimeString(record, "updated"),
+		Created:          util.RecordDateTimeRFC3339(record, "created"),
+		Updated:          util.RecordDateTimeRFC3339(record, "updated"),
 		Type:             record.GetString("type"),
 		File:             record.GetString("file"),
 		StorageMode:      record.GetString("storage_mode"),
 		RemoteStatus:     record.GetString("remote_status"),
 		ExternalProvider: record.GetString("external_provider"),
 		ExternalID:       record.GetString("external_id"),
-		TakenAt:          dateTimeString(record, "taken_at"),
+		TakenAt:          util.RecordDateTimeRFC3339(record, "taken_at"),
 		Lat:              optionalFloat(record, "lat"),
 		Lon:              optionalFloat(record, "lon"),
-		OriginalFileName: assetFilename(record, info.metadata),
+		OriginalFileName: util.AssetFilename(record, info.metadata),
 		ThumbnailURL:     util.AssetPublicMediaURL(record, ""),
 		Links:            info.links,
 	}
@@ -563,11 +566,11 @@ func chooseTargetAsset(infos []*assetInfo) *assetInfo {
 }
 
 func betterTarget(a, b *assetInfo) bool {
-	if a.links.Total != b.links.Total {
-		return a.links.Total > b.links.Total
-	}
 	if hasLocalCopy(a.record) != hasLocalCopy(b.record) {
 		return hasLocalCopy(a.record)
+	}
+	if a.links.Total != b.links.Total {
+		return a.links.Total > b.links.Total
 	}
 	if metadataCompleteness(a) != metadataCompleteness(b) {
 		return metadataCompleteness(a) > metadataCompleteness(b)
@@ -585,16 +588,16 @@ func targetReason(component []*assetInfo, target *assetInfo) string {
 		if info.record.Id == target.record.Id {
 			continue
 		}
-		if target.links.Total > info.links.Total {
-			return targetReasonMostLinks
+		if hasLocalCopy(target.record) && !hasLocalCopy(info.record) {
+			return targetReasonLocalCopy
 		}
 	}
 	for _, info := range component {
 		if info.record.Id == target.record.Id {
 			continue
 		}
-		if hasLocalCopy(target.record) && !hasLocalCopy(info.record) {
-			return targetReasonLocalCopy
+		if target.links.Total > info.links.Total {
+			return targetReasonMostLinks
 		}
 	}
 	for _, info := range component {
@@ -656,18 +659,18 @@ func recordContentHash(fsys *filesystem.System, record *core.Record) (string, bo
 }
 
 func legacySourceFileKey(info *assetInfo) string {
-	sourceFile := strings.ToLower(strings.TrimSpace(metadataString(info.metadata, "source_file")))
+	sourceFile := strings.ToLower(strings.TrimSpace(util.AssetMetadataString(info.metadata, "source_file")))
 	if sourceFile == "" {
 		return ""
 	}
 	if info.hasLat && info.hasLon {
-		return fmt.Sprintf("%s:%s:%0.4f:%0.4f", metadataString(info.metadata, "source_collection"), sourceFile, roundFloat(info.lat, 4), roundFloat(info.lon, 4))
+		return fmt.Sprintf("%s:%s:%0.4f:%0.4f", util.AssetMetadataString(info.metadata, "source_collection"), sourceFile, roundFloat(info.lat, 4), roundFloat(info.lon, 4))
 	}
-	sourceRecord := metadataString(info.metadata, "source_record")
+	sourceRecord := util.AssetMetadataString(info.metadata, "source_record")
 	if sourceRecord == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s:%s:%s", metadataString(info.metadata, "source_collection"), sourceRecord, sourceFile)
+	return fmt.Sprintf("%s:%s:%s", util.AssetMetadataString(info.metadata, "source_collection"), sourceRecord, sourceFile)
 }
 
 func timeLocationKey(info *assetInfo) string {
@@ -701,51 +704,8 @@ func metadataMap(record *core.Record) (map[string]any, error) {
 	return metadata, nil
 }
 
-func metadataString(metadata map[string]any, path ...string) string {
-	var current any = metadata
-	for _, part := range path {
-		values, ok := current.(map[string]any)
-		if !ok {
-			return ""
-		}
-		current = values[part]
-	}
-	value, _ := current.(string)
-	return strings.TrimSpace(value)
-}
-
-func assetFilename(record *core.Record, metadata map[string]any) string {
-	if remoteFilename := metadataString(metadata, "remote", "filename"); remoteFilename != "" {
-		return remoteFilename
-	}
-	if sourceFile := metadataString(metadata, "source_file"); sourceFile != "" {
-		return sourceFile
-	}
-	if file := record.GetString("file"); file != "" {
-		return file
-	}
-	if externalID := record.GetString("external_id"); externalID != "" {
-		return externalID
-	}
-	return record.Id
-}
-
 func isGeneratedRoutePreviewAsset(record *core.Record) bool {
-	metadata, err := metadataMap(record)
-	if err == nil && metadataString(metadata, "generated", "kind") == "route-preview" {
-		return true
-	}
-	filename := strings.ToLower(assetFilename(record, metadata))
-	hasLegacyGeneratedName := strings.HasPrefix(filename, "wanderer-route-preview") || legacyRoutePreviewFilenamePattern.MatchString(filename)
-	return hasLegacyGeneratedName && record.GetString("external_provider") == "" && record.GetDateTime("taken_at").IsZero()
-}
-
-func dateTimeString(record *core.Record, field string) string {
-	value := record.GetDateTime(field)
-	if value.IsZero() {
-		return ""
-	}
-	return value.Time().Format(time.RFC3339)
+	return util.IsGeneratedRoutePreviewAsset(record)
 }
 
 func optionalFloat(record *core.Record, field string) *float64 {
