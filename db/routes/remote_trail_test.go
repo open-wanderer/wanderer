@@ -43,6 +43,26 @@ func TestRemoteTrailSyncQueryWithNilURL(t *testing.T) {
 	}
 }
 
+func TestLegacyRecordPhotosBuildsFederatedPhotos(t *testing.T) {
+	photos := legacyRecordPhotos("https://remote.example", "trail", "trail1", map[string]any{
+		"photos":    []any{"first.jpg", "second.jpg"},
+		"thumbnail": float64(1),
+	})
+
+	if len(photos) != 2 {
+		t.Fatalf("got %d photos, want 2", len(photos))
+	}
+	if photos[0].FileURL != "https://remote.example/api/v1/files/trails/trail1/first.jpg" {
+		t.Fatalf("unexpected first photo url %q", photos[0].FileURL)
+	}
+	if photos[0].IsThumbnail {
+		t.Fatal("first photo should not be thumbnail")
+	}
+	if !photos[1].IsThumbnail {
+		t.Fatal("second photo should be thumbnail")
+	}
+}
+
 func expandSet(value string) map[string]bool {
 	result := map[string]bool{}
 	for _, part := range strings.Split(value, ",") {

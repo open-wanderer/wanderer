@@ -20,11 +20,12 @@ type FederatedPhoto struct {
 	// CanonicalID is the photo's stable identity at the author's origin.
 	CanonicalID string
 	// FileURL is where the photo bytes can be fetched from.
-	FileURL string
-	Lat     float64
-	Lon     float64
-	HasLat  bool
-	HasLon  bool
+	FileURL     string
+	Lat         float64
+	Lon         float64
+	HasLat      bool
+	HasLon      bool
+	IsThumbnail bool
 }
 
 // CanonicalFederatedAssetID returns the cross-instance identity of a local
@@ -85,12 +86,16 @@ func ReconcileFederatedPhotoAssets(app core.App, ctx context.Context, targetFiel
 	}
 
 	remote := make(map[string]struct{}, len(photos))
+	thumbnailAssetID := ""
 	for _, photo := range photos {
 		if photo.CanonicalID == "" {
 			continue
 		}
 		remote[photo.CanonicalID] = struct{}{}
-		if _, ok := managed[photo.CanonicalID]; ok {
+		if existingManaged := managed[photo.CanonicalID]; existingManaged != nil {
+			if photo.IsThumbnail {
+				thumbnailAssetID = existingManaged.Id
+			}
 			continue
 		}
 
@@ -125,6 +130,9 @@ func ReconcileFederatedPhotoAssets(app core.App, ctx context.Context, targetFiel
 			if err := LinkAssetToPhotoTargets(app, existingAsset.Id, input); err != nil {
 				return err
 			}
+			if photo.IsThumbnail {
+				thumbnailAssetID = existingAsset.Id
+			}
 			continue
 		}
 
@@ -133,7 +141,17 @@ func ReconcileFederatedPhotoAssets(app core.App, ctx context.Context, targetFiel
 			continue
 		}
 		input.File = file
-		if _, err := CreatePhotoAsset(app, input); err != nil {
+		asset, err := CreatePhotoAsset(app, input)
+		if err != nil {
+			return err
+		}
+		if photo.IsThumbnail && asset != nil {
+			thumbnailAssetID = asset.Id
+		}
+	}
+
+	if targetField == "trail" && thumbnailAssetID != "" {
+		if err := SetTrailThumbnailAsset(app, targetID, thumbnailAssetID); err != nil {
 			return err
 		}
 	}

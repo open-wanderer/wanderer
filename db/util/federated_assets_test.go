@@ -150,6 +150,34 @@ func TestTrailThumbnailAssetPrefersMarkedLink(t *testing.T) {
 	}
 }
 
+func TestReconcileFederatedPhotoAssetsSetsTrailThumbnail(t *testing.T) {
+	app := setupFederatedAssetsTestApp(t)
+	defer app.Cleanup()
+
+	first := createFederatedTestAsset(t, app, "actor1", "https://origin/api/v1/assets/a1")
+	marked := createFederatedTestAsset(t, app, "actor1", "https://origin/api/v1/assets/a2")
+
+	photos := []FederatedPhoto{
+		{CanonicalID: "https://origin/api/v1/assets/a1", FileURL: "https://invalid.invalid/a1"},
+		{CanonicalID: "https://origin/api/v1/assets/a2", FileURL: "https://invalid.invalid/a2", IsThumbnail: true},
+	}
+	if err := ReconcileFederatedPhotoAssets(app, context.Background(), "trail", "trail1", "actor1", photos); err != nil {
+		t.Fatal(err)
+	}
+
+	thumbnail, err := TrailThumbnailAsset(app, "trail1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if thumbnail == nil || thumbnail.Id != marked.Id {
+		t.Fatalf("got thumbnail %v, want %s", thumbnail, marked.Id)
+	}
+	assertFederatedLinkCount(t, app, "trail_assets", "trail", "trail1", 2)
+	if first.Id == marked.Id {
+		t.Fatal("test assets unexpectedly share an id")
+	}
+}
+
 func setupFederatedAssetsTestApp(t *testing.T) *pbtests.TestApp {
 	t.Helper()
 

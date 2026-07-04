@@ -1,4 +1,5 @@
 import { TrailUpdateSchema } from '$lib/models/api/trail_schema';
+import { applyLegacyPhotoNamesForMissingAssetExpands } from "$lib/server/legacy_photo_compat";
 import type { Trail } from "$lib/models/trail";
 import { Collection, handleError, remove, update } from "$lib/util/api_util";
 import { enrichTrailAssetExpands } from "$lib/util/asset_link_util";
@@ -44,6 +45,7 @@ export async function GET(event: RequestEvent) {
         })
 
         await enrichRecord(trail, url.searchParams.get("share") ?? undefined);
+        await applyLegacyPhotoNamesForMissingAssetExpands(event, trail);
         trail.expand?.waypoints_via_trail?.sort((a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0))
         return json(trail)
     } catch (e: any) {

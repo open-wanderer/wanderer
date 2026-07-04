@@ -412,6 +412,34 @@ func TrailThumbnailURL(app core.App, trailID string, origin string) (string, err
 	return AssetPublicMediaURL(asset, origin), nil
 }
 
+func SetTrailThumbnailAsset(app core.App, trailID string, assetID string) error {
+	if trailID == "" {
+		return nil
+	}
+	links, err := app.FindRecordsByFilter(
+		"trail_assets",
+		"trail={:trail}",
+		"",
+		-1,
+		0,
+		dbx.Params{"trail": trailID},
+	)
+	if err != nil {
+		return err
+	}
+	for _, link := range links {
+		shouldBeThumbnail := assetID != "" && link.GetString("asset") == assetID
+		if link.GetBool("is_thumbnail") == shouldBeThumbnail {
+			continue
+		}
+		link.Set("is_thumbnail", shouldBeThumbnail)
+		if err := app.Save(link); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func AssetLinkCollectionForTarget(targetField string) (string, error) {
 	switch targetField {
 	case "trail":

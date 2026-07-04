@@ -219,7 +219,7 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 
 		// Materialize federated photos into the asset model. Done after the save
 		// so the trail has an ID to link the asset against.
-		if err := syncRecordPhotos(txApp, ctx, "trail", localTrail.Id, localTrail.GetString("author"), origin, remoteMap); err != nil {
+		if err := syncRecordPhotos(txApp, ctx, "trail", localTrail.Id, remoteID, localTrail.GetString("author"), origin, remoteMap); err != nil {
 			return err
 		}
 
@@ -426,7 +426,7 @@ func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, orig
 			return err
 		}
 
-		if err := syncRecordPhotos(txApp, ctx, "waypoint", wp.Id, wp.GetString("author"), origin, raw); err != nil {
+		if err := syncRecordPhotos(txApp, ctx, "waypoint", wp.Id, wpID, wp.GetString("author"), origin, raw); err != nil {
 			return err
 		}
 	}
@@ -474,7 +474,7 @@ func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, ori
 			return err
 		}
 
-		if err := syncRecordPhotos(txApp, ctx, "summit_log", sl.Id, sl.GetString("author"), origin, raw); err != nil {
+		if err := syncRecordPhotos(txApp, ctx, "summit_log", sl.Id, slID, sl.GetString("author"), origin, raw); err != nil {
 			return err
 		}
 	}
@@ -496,13 +496,14 @@ func syncRecordFiles(ctx context.Context, record *core.Record, collection, remot
 // reconciled against the target by their canonical origin identity: new photos
 // are downloaded size-bounded via util.FetchPublicFile, known ones are kept,
 // and photos the origin no longer lists are unlinked again.
-func syncRecordPhotos(app core.App, ctx context.Context, targetField, targetID, author, origin string, data map[string]any) error {
+func syncRecordPhotos(app core.App, ctx context.Context, targetField, targetID, remoteID, author, origin string, data map[string]any) error {
 	if targetID == "" || author == "" {
 		return nil
 	}
 
 	photos := []util.FederatedPhoto{}
-	for _, asset := range remotePhotoAssets(data, targetField) {
+	for _, link := range remotePhotoAssetLinks(data, targetField) {
+		asset := link.Asset
 		fileURL := remoteAssetFileURL(origin, asset)
 		canonicalID := remoteAssetCanonicalID(origin, asset)
 		if fileURL == "" || canonicalID == "" {
@@ -511,6 +512,7 @@ func syncRecordPhotos(app core.App, ctx context.Context, targetField, targetID, 
 		photo := util.FederatedPhoto{
 			CanonicalID: canonicalID,
 			FileURL:     fileURL,
+			IsThumbnail: link.IsThumbnail,
 		}
 		if lat, ok := asset["lat"].(float64); ok && lat != 0 {
 			photo.Lat, photo.HasLat = lat, true
@@ -520,12 +522,20 @@ func syncRecordPhotos(app core.App, ctx context.Context, targetField, targetID, 
 		}
 		photos = append(photos, photo)
 	}
+	if len(photos) == 0 {
+		photos = legacyRecordPhotos(origin, targetField, remoteID, data)
+	}
 	return util.ReconcileFederatedPhotoAssets(app, ctx, targetField, targetID, author, photos)
 }
 
-// remotePhotoAssets extracts the expanded photo asset records that travel with a
+type remotePhotoAssetLink struct {
+	Asset       map[string]any
+	IsThumbnail bool
+}
+
+// remotePhotoAssetLinks extracts expanded photo asset records that travel with a
 // synced target through its asset-link expand (…_assets_via_…[].expand.asset).
-func remotePhotoAssets(data map[string]any, targetField string) []map[string]any {
+func remotePhotoAssetLinks(data map[string]any, targetField string) []remotePhotoAssetLink {
 	var linkKey string
 	switch targetField {
 	case "trail":
@@ -547,7 +557,7 @@ func remotePhotoAssets(data map[string]any, targetField string) []map[string]any
 		return nil
 	}
 
-	assets := make([]map[string]any, 0, len(links))
+	assetLinks := make([]remotePhotoAssetLink, 0, len(links))
 	for _, l := range links {
 		linkMap, ok := l.(map[string]any)
 		if !ok {
@@ -564,9 +574,73 @@ func remotePhotoAssets(data map[string]any, targetField string) []map[string]any
 		if t, _ := asset["type"].(string); t != "photo" {
 			continue
 		}
-		assets = append(assets, asset)
+		assetLinks = append(assetLinks, remotePhotoAssetLink{
+			Asset:       asset,
+			IsThumbnail: boolValue(linkMap["is_thumbnail"]),
+		})
 	}
-	return assets
+	return assetLinks
+}
+
+func legacyRecordPhotos(origin string, targetField string, remoteID string, data map[string]any) []util.FederatedPhoto {
+	collection := legacyPhotoCollection(targetField)
+	if collection == "" || remoteID == "" {
+		return nil
+	}
+	rawPhotos, ok := data["photos"].([]any)
+	if !ok {
+		return nil
+	}
+
+	thumbnailIndex := -1
+	if targetField == "trail" {
+		if rawIndex, ok := data["thumbnail"].(float64); ok {
+			thumbnailIndex = int(rawIndex)
+		}
+	}
+
+	photos := make([]util.FederatedPhoto, 0, len(rawPhotos))
+	for i, rawPhoto := range rawPhotos {
+		photo, ok := rawPhoto.(string)
+		if !ok || photo == "" {
+			continue
+		}
+		fileURL := legacyPhotoURL(origin, collection, remoteID, photo)
+		photos = append(photos, util.FederatedPhoto{
+			CanonicalID: fileURL,
+			FileURL:     fileURL,
+			IsThumbnail: i == thumbnailIndex,
+		})
+	}
+	return photos
+}
+
+func legacyPhotoCollection(targetField string) string {
+	switch targetField {
+	case "trail":
+		return "trails"
+	case "waypoint":
+		return "waypoints"
+	case "summit_log":
+		return "summit_logs"
+	default:
+		return ""
+	}
+}
+
+func legacyPhotoURL(origin string, collection string, remoteID string, photo string) string {
+	if strings.HasPrefix(photo, "http://") || strings.HasPrefix(photo, "https://") {
+		return photo
+	}
+	if strings.HasPrefix(photo, "/") {
+		return strings.TrimRight(origin, "/") + photo
+	}
+	return fmt.Sprintf("%s/api/v1/files/%s/%s/%s", strings.TrimRight(origin, "/"), collection, remoteID, url.PathEscape(photo))
+}
+
+func boolValue(value any) bool {
+	v, _ := value.(bool)
+	return v
 }
 
 // remoteAssetCanonicalID mirrors util.CanonicalFederatedAssetID for a remote
