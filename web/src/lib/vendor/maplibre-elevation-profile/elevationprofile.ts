@@ -707,7 +707,14 @@ export class ElevationProfile {
                             wpDiv.style.top = `8px`; // Position horizontally
 
                             // Add custom HTML content (e.g., icon + label)
-                            wpDiv.innerHTML = `<div class="tooltip" data-title="${this.waypoints[index]?.name ?? "?"}"><i class="fa fa-${this.waypoints.at(index)?.icon ?? 'circle'}"></i></div>`;
+                            const tooltipDiv = document.createElement("div");
+                            tooltipDiv.className = "tooltip";
+                            tooltipDiv.dataset.title = this.waypoints[index]?.name ?? "?";
+                            const iconEl = document.createElement("i");
+                            const safeIcon = this.waypoints.at(index)?.icon ?? "circle";
+                            iconEl.className = `fa fa-${/^[a-z0-9-]+$/.test(safeIcon) ? safeIcon : "circle"}`;
+                            tooltipDiv.appendChild(iconEl);
+                            wpDiv.appendChild(tooltipDiv);
 
                             waypointContainer.appendChild(wpDiv); // Add to container
                         });

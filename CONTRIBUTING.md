@@ -49,6 +49,14 @@ Every pull request should include a clear description of the change.
 
 For UI changes, please include screenshots when helpful.
 
+## Plugin system
+
+`wanderer` has a WASM-based plugin system (see [`plugins/README.md`](plugins/README.md)) that separates the plugin *platform* from the individual *plugins*.
+
+Contributions to the platform itself are welcome — the SDK (`plugins/sdk/`), the host interface and sync/import runtime, the manifest schema, the bundled first-party plugins under `plugins/`, and the plugin author docs. If the platform is missing something your plugin needs, please open an issue or start a discussion; extending the SDK or host interface is exactly the kind of contribution we're looking for.
+
+New third-party provider plugins, however, are best kept in your own repository. Plugins build into self-contained WASM bundles that install into `data/plugins` at runtime, so you can develop, version, and release them independently, without opening a pull request against this repository.
+
 ## Bug fixes and reproduction steps
 
 When fixing a bug, please describe how it can be reproduced from an end-user perspective.
