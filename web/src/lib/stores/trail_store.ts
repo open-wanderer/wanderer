@@ -12,7 +12,7 @@ import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { summit_logs_create, summit_logs_delete, summit_logs_update } from "./summit_log_store";
-import { asset_photo_url, assets_create, assets_delete_removed, assets_import_plugin_links, assets_link } from "./asset_store";
+import { asset_photo_url, assets_create, assets_delete_removed, assets_import_plugin_links, assets_link, assets_set_trail_thumbnail } from "./asset_store";
 import { categories } from "./category_store";
 import { subcategories } from "./subcategory_store";
 import { tags_create } from "./tag_store";
@@ -461,6 +461,8 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
     if (refreshed.ok) {
         model = await refreshed.json();
     }
+    await assets_set_trail_thumbnail(model.id!, model.photos?.at(trail.thumbnail ?? 0), f);
+    model = await trails_show(model.id!, undefined, undefined, false, f);
 
     return model;
 
@@ -529,19 +531,6 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
         formData.append("gpx", gpx);
     }
 
-    if (photos) {
-        for (const photo of photos) {
-            formData.append("photos+", photo)
-        }
-    }
-
-    const deletedPhotos = oldTrail.photos.filter(oldPhoto => !newTrail.photos.find(newPhoto => newPhoto === oldPhoto));
-
-    for (const deletedPhoto of deletedPhotos) {
-        formData.append("photos-", deletedPhoto.replace(/^.*[\\/]/, ''));
-    }
-
-
     const updateUrl = `/api/v1/trail/form/${newTrail.id}?` + new URLSearchParams({
         expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags",
     });
@@ -585,6 +574,8 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
     if (shouldRefreshTrail) {
         model = await trails_show(model.id!, undefined, undefined, true);
     }
+    await assets_set_trail_thumbnail(model.id!, model.photos?.at(newTrail.thumbnail ?? 0));
+    model = await trails_show(model.id!, undefined, undefined, true);
 
     for (const log of model.expand?.summit_logs_via_trail ?? []) {
         if (!log.expand) {

@@ -25,7 +25,7 @@ func init() {
 		if err := createAssetLinkCollection(app, summitLogAssetLinkCollectionJSON()); err != nil {
 			return err
 		}
-		if err := updateAssetsForLinkCollections(app, assetCollection); err != nil {
+		if err := updateAssetSharingAccessRules(app); err != nil {
 			return err
 		}
 
@@ -38,29 +38,35 @@ func init() {
 
 		return nil
 	}, func(app core.App) error {
-		if err := restoreLegacyPhotoFields(app); err != nil {
-			return err
-		}
-
-		for _, name := range []string{"summit_log_assets", "waypoint_assets", "trail_assets"} {
-			collection, err := app.FindCollectionByNameOrId(name)
-			if err == nil {
-				if err := app.Delete(collection); err != nil {
-					return err
-				}
-			}
-		}
-
-		collection, err := app.FindCollectionByNameOrId("assetcollect001")
-		if err != nil {
-			return err
-		}
-
-		return app.Delete(collection)
+		// Rollbacks are performed by restoring a full backup. A partial down
+		// migration would remove migrated asset data without restoring photos.
+		return nil
 	})
 }
 
 const assetFileMaxBytes int64 = 50 << 20
+
+const (
+	trailAssetTargetViewRule = `trail.author.user = @request.auth.id || trail.public = true || (@request.auth.id != "" && trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (trail.trail_link_share_via_trail.token != "" && trail.trail_link_share_via_trail.token = @request.query.share)`
+	trailAssetTargetEditRule = `trail.author.user = @request.auth.id || (trail.trail_share_via_trail.actor.user ?= @request.auth.id && trail.trail_share_via_trail.permission = "edit")`
+	trailAssetReadRule       = `asset.author.user = @request.auth.id || ` + trailAssetTargetViewRule
+	trailAssetCreateRule     = `@request.auth.id != "" && asset.author.user = @request.auth.id && (` + trailAssetTargetEditRule + `)`
+	trailAssetWriteRule      = `@request.auth.id != "" && (asset.author.user = @request.auth.id || ` + trailAssetTargetEditRule + `)`
+
+	waypointAssetTargetViewRule = `waypoint.trail.author.user = @request.auth.id || waypoint.author.user = @request.auth.id || waypoint.trail.public = true || (@request.auth.id != "" && waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (waypoint.trail.trail_link_share_via_trail.token != "" && waypoint.trail.trail_link_share_via_trail.token = @request.query.share)`
+	waypointAssetTargetEditRule = `waypoint.trail.author.user = @request.auth.id || waypoint.author.user = @request.auth.id || (waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id && waypoint.trail.trail_share_via_trail.permission = "edit")`
+	waypointAssetReadRule       = `asset.author.user = @request.auth.id || ` + waypointAssetTargetViewRule
+	waypointAssetCreateRule     = `@request.auth.id != "" && asset.author.user = @request.auth.id && (` + waypointAssetTargetEditRule + `)`
+	waypointAssetWriteRule      = `@request.auth.id != "" && (asset.author.user = @request.auth.id || ` + waypointAssetTargetEditRule + `)`
+
+	summitLogAssetTargetViewRule = `summit_log.trail.author.user = @request.auth.id || summit_log.author.user = @request.auth.id || summit_log.trail.public = true || (@request.auth.id != "" && summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (summit_log.trail.trail_link_share_via_trail.token != "" && summit_log.trail.trail_link_share_via_trail.token = @request.query.share)`
+	summitLogAssetTargetEditRule = `summit_log.trail.author.user = @request.auth.id || summit_log.author.user = @request.auth.id || (summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id && summit_log.trail.trail_share_via_trail.permission = "edit")`
+	summitLogAssetReadRule       = `asset.author.user = @request.auth.id || ` + summitLogAssetTargetViewRule
+	summitLogAssetCreateRule     = `@request.auth.id != "" && asset.author.user = @request.auth.id && (` + summitLogAssetTargetEditRule + `)`
+	summitLogAssetWriteRule      = `@request.auth.id != "" && (asset.author.user = @request.auth.id || ` + summitLogAssetTargetEditRule + `)`
+
+	assetReadRule = `author.user = @request.auth.id || trail_assets_via_asset.trail.author.user = @request.auth.id || trail_assets_via_asset.trail.public = true || (@request.auth.id != "" && trail_assets_via_asset.trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (trail_assets_via_asset.trail.trail_link_share_via_trail.token != "" && trail_assets_via_asset.trail.trail_link_share_via_trail.token = @request.query.share) || waypoint_assets_via_asset.waypoint.trail.author.user = @request.auth.id || waypoint_assets_via_asset.waypoint.author.user = @request.auth.id || waypoint_assets_via_asset.waypoint.trail.public = true || (@request.auth.id != "" && waypoint_assets_via_asset.waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (waypoint_assets_via_asset.waypoint.trail.trail_link_share_via_trail.token != "" && waypoint_assets_via_asset.waypoint.trail.trail_link_share_via_trail.token = @request.query.share) || summit_log_assets_via_asset.summit_log.author.user = @request.auth.id || summit_log_assets_via_asset.summit_log.trail.author.user = @request.auth.id || summit_log_assets_via_asset.summit_log.trail.public = true || (@request.auth.id != "" && summit_log_assets_via_asset.summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (summit_log_assets_via_asset.summit_log.trail.trail_link_share_via_trail.token != "" && summit_log_assets_via_asset.summit_log.trail.trail_link_share_via_trail.token = @request.query.share)`
+)
 
 type photoMigrationConfig struct {
 	Collection          string
@@ -318,23 +324,66 @@ func createAssetLinkCollection(app core.App, jsonData string) error {
 }
 
 func updateAssetsForLinkCollections(app core.App, collection *core.Collection) error {
-	if err := json.Unmarshal([]byte(`{
-		"listRule": "author.user = @request.auth.id || trail_assets_via_asset.trail.author.user = @request.auth.id || trail_assets_via_asset.trail.public = true || waypoint_assets_via_asset.waypoint.trail.author.user = @request.auth.id || waypoint_assets_via_asset.waypoint.trail.public = true || summit_log_assets_via_asset.summit_log.author.user = @request.auth.id || summit_log_assets_via_asset.summit_log.trail.public = true",
-		"viewRule": "author.user = @request.auth.id || trail_assets_via_asset.trail.author.user = @request.auth.id || trail_assets_via_asset.trail.public = true || waypoint_assets_via_asset.waypoint.trail.author.user = @request.auth.id || waypoint_assets_via_asset.waypoint.trail.public = true || summit_log_assets_via_asset.summit_log.author.user = @request.auth.id || summit_log_assets_via_asset.summit_log.trail.public = true"
-	}`), collection); err != nil {
+	if err := json.Unmarshal([]byte(fmt.Sprintf(`{
+		"listRule": %q,
+		"viewRule": %q
+	}`, assetReadRule, assetReadRule)), collection); err != nil {
 		return err
 	}
 	return app.Save(collection)
 }
 
+func updateAssetSharingAccessRules(app core.App) error {
+	assetCollection, err := app.FindCollectionByNameOrId("assets")
+	if err != nil {
+		return err
+	}
+	if err := updateAssetsForLinkCollections(app, assetCollection); err != nil {
+		return err
+	}
+
+	linkCollections := []struct {
+		Name       string
+		CreateRule string
+		ReadRule   string
+		WriteRule  string
+	}{
+		{"trail_assets", trailAssetCreateRule, trailAssetReadRule, trailAssetWriteRule},
+		{"waypoint_assets", waypointAssetCreateRule, waypointAssetReadRule, waypointAssetWriteRule},
+		{"summit_log_assets", summitLogAssetCreateRule, summitLogAssetReadRule, summitLogAssetWriteRule},
+	}
+
+	for _, update := range linkCollections {
+		collection, err := app.FindCollectionByNameOrId(update.Name)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal([]byte(fmt.Sprintf(`{
+			"createRule": %q,
+			"deleteRule": %q,
+			"listRule": %q,
+			"updateRule": %q,
+			"viewRule": %q
+		}`, update.CreateRule, update.WriteRule, update.ReadRule, update.WriteRule, update.ReadRule)), collection); err != nil {
+			return err
+		}
+		if err := app.Save(collection); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func trailAssetLinkCollectionJSON() string {
-	return `{
-		"createRule": "@request.auth.id != \"\" && asset.author.user = @request.auth.id && (trail.author.user = @request.auth.id || (trail.trail_share_via_trail.actor.user ?= @request.auth.id && trail.trail_share_via_trail.permission = \"edit\"))",
-		"deleteRule": "@request.auth.id != \"\" && (asset.author.user = @request.auth.id || trail.author.user = @request.auth.id || (trail.trail_share_via_trail.actor.user ?= @request.auth.id && trail.trail_share_via_trail.permission = \"edit\"))",
+	return fmt.Sprintf(`{
+		"createRule": %q,
+		"deleteRule": %q,
 		"fields": [
 			{"autogeneratePattern":"[a-z0-9]{15}","hidden":false,"id":"txttrailassetid","max":15,"min":15,"name":"id","pattern":"^[a-z0-9]+$","presentable":false,"primaryKey":true,"required":true,"system":true,"type":"text"},
 			{"cascadeDelete":true,"collectionId":"assetcollect001","hidden":false,"id":"reltrassetaset","maxSelect":1,"minSelect":0,"name":"asset","presentable":false,"required":true,"system":false,"type":"relation"},
 			{"cascadeDelete":true,"collectionId":"e864strfxo14pm4","hidden":false,"id":"reltrassettrai","maxSelect":1,"minSelect":0,"name":"trail","presentable":false,"required":true,"system":false,"type":"relation"},
+			{"hidden":false,"id":"booltrassetthu","name":"is_thumbnail","presentable":false,"required":false,"system":false,"type":"bool"},
 			{"hidden":false,"id":"auttrassetcre","name":"created","onCreate":true,"onUpdate":false,"presentable":false,"system":false,"type":"autodate"},
 			{"hidden":false,"id":"auttrassetupd","name":"updated","onCreate":true,"onUpdate":true,"presentable":false,"system":false,"type":"autodate"}
 		],
@@ -344,19 +393,19 @@ func trailAssetLinkCollectionJSON() string {
 			"CREATE INDEX idx_trail_assets_trail ON trail_assets (trail)",
 			"CREATE INDEX idx_trail_assets_asset ON trail_assets (asset)"
 		],
-		"listRule": "asset.author.user = @request.auth.id || trail.author.user = @request.auth.id || trail.public = true || (trail.trail_share_via_trail.actor.user ?= @request.auth.id && trail.trail_share_via_trail.permission = \"edit\")",
+		"listRule": %q,
 		"name": "trail_assets",
 		"system": false,
 		"type": "base",
-		"updateRule": "@request.auth.id != \"\" && (asset.author.user = @request.auth.id || trail.author.user = @request.auth.id || (trail.trail_share_via_trail.actor.user ?= @request.auth.id && trail.trail_share_via_trail.permission = \"edit\"))",
-		"viewRule": "asset.author.user = @request.auth.id || trail.author.user = @request.auth.id || trail.public = true || (trail.trail_share_via_trail.actor.user ?= @request.auth.id && trail.trail_share_via_trail.permission = \"edit\")"
-	}`
+		"updateRule": %q,
+		"viewRule": %q
+	}`, trailAssetCreateRule, trailAssetWriteRule, trailAssetReadRule, trailAssetWriteRule, trailAssetReadRule)
 }
 
 func waypointAssetLinkCollectionJSON() string {
-	return `{
-		"createRule": "@request.auth.id != \"\" && asset.author.user = @request.auth.id && (waypoint.trail.author.user = @request.auth.id || waypoint.author.user = @request.auth.id || (waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id && waypoint.trail.trail_share_via_trail.permission = \"edit\"))",
-		"deleteRule": "@request.auth.id != \"\" && (asset.author.user = @request.auth.id || waypoint.trail.author.user = @request.auth.id || waypoint.author.user = @request.auth.id || (waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id && waypoint.trail.trail_share_via_trail.permission = \"edit\"))",
+	return fmt.Sprintf(`{
+		"createRule": %q,
+		"deleteRule": %q,
 		"fields": [
 			{"autogeneratePattern":"[a-z0-9]{15}","hidden":false,"id":"txtwpassetid01","max":15,"min":15,"name":"id","pattern":"^[a-z0-9]+$","presentable":false,"primaryKey":true,"required":true,"system":true,"type":"text"},
 			{"cascadeDelete":true,"collectionId":"assetcollect001","hidden":false,"id":"relwpassetasse","maxSelect":1,"minSelect":0,"name":"asset","presentable":false,"required":true,"system":false,"type":"relation"},
@@ -370,19 +419,19 @@ func waypointAssetLinkCollectionJSON() string {
 			"CREATE INDEX idx_waypoint_assets_waypoint ON waypoint_assets (waypoint)",
 			"CREATE INDEX idx_waypoint_assets_asset ON waypoint_assets (asset)"
 		],
-		"listRule": "asset.author.user = @request.auth.id || waypoint.trail.author.user = @request.auth.id || waypoint.author.user = @request.auth.id || waypoint.trail.public = true || (waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id && waypoint.trail.trail_share_via_trail.permission = \"edit\")",
+		"listRule": %q,
 		"name": "waypoint_assets",
 		"system": false,
 		"type": "base",
-		"updateRule": "@request.auth.id != \"\" && (asset.author.user = @request.auth.id || waypoint.trail.author.user = @request.auth.id || waypoint.author.user = @request.auth.id || (waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id && waypoint.trail.trail_share_via_trail.permission = \"edit\"))",
-		"viewRule": "asset.author.user = @request.auth.id || waypoint.trail.author.user = @request.auth.id || waypoint.author.user = @request.auth.id || waypoint.trail.public = true || (waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id && waypoint.trail.trail_share_via_trail.permission = \"edit\")"
-	}`
+		"updateRule": %q,
+		"viewRule": %q
+	}`, waypointAssetCreateRule, waypointAssetWriteRule, waypointAssetReadRule, waypointAssetWriteRule, waypointAssetReadRule)
 }
 
 func summitLogAssetLinkCollectionJSON() string {
-	return `{
-		"createRule": "@request.auth.id != \"\" && asset.author.user = @request.auth.id && (summit_log.trail.author.user = @request.auth.id || summit_log.author.user = @request.auth.id || (summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id && summit_log.trail.trail_share_via_trail.permission = \"edit\"))",
-		"deleteRule": "@request.auth.id != \"\" && (asset.author.user = @request.auth.id || summit_log.trail.author.user = @request.auth.id || summit_log.author.user = @request.auth.id || (summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id && summit_log.trail.trail_share_via_trail.permission = \"edit\"))",
+	return fmt.Sprintf(`{
+		"createRule": %q,
+		"deleteRule": %q,
 		"fields": [
 			{"autogeneratePattern":"[a-z0-9]{15}","hidden":false,"id":"txtslassetid01","max":15,"min":15,"name":"id","pattern":"^[a-z0-9]+$","presentable":false,"primaryKey":true,"required":true,"system":true,"type":"text"},
 			{"cascadeDelete":true,"collectionId":"assetcollect001","hidden":false,"id":"relslassetasse","maxSelect":1,"minSelect":0,"name":"asset","presentable":false,"required":true,"system":false,"type":"relation"},
@@ -396,13 +445,13 @@ func summitLogAssetLinkCollectionJSON() string {
 			"CREATE INDEX idx_summit_log_assets_summit_log ON summit_log_assets (summit_log)",
 			"CREATE INDEX idx_summit_log_assets_asset ON summit_log_assets (asset)"
 		],
-		"listRule": "asset.author.user = @request.auth.id || summit_log.author.user = @request.auth.id || summit_log.trail.author.user = @request.auth.id || summit_log.trail.public = true || (summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id && summit_log.trail.trail_share_via_trail.permission = \"edit\")",
+		"listRule": %q,
 		"name": "summit_log_assets",
 		"system": false,
 		"type": "base",
-		"updateRule": "@request.auth.id != \"\" && (asset.author.user = @request.auth.id || summit_log.trail.author.user = @request.auth.id || summit_log.author.user = @request.auth.id || (summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id && summit_log.trail.trail_share_via_trail.permission = \"edit\"))",
-		"viewRule": "asset.author.user = @request.auth.id || summit_log.author.user = @request.auth.id || summit_log.trail.author.user = @request.auth.id || summit_log.trail.public = true || (summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id && summit_log.trail.trail_share_via_trail.permission = \"edit\")"
-	}`
+		"updateRule": %q,
+		"viewRule": %q
+	}`, summitLogAssetCreateRule, summitLogAssetWriteRule, summitLogAssetReadRule, summitLogAssetWriteRule, summitLogAssetReadRule)
 }
 
 func migrateExistingPhotosToAssets(app core.App, assetCollection *core.Collection) error {
@@ -471,7 +520,8 @@ func migrateRecordPhotosToAssets(app core.App, fsys *filesystem.System, assetCol
 		return fmt.Errorf("missing asset author for %s %s", cfg.Collection, source.Id)
 	}
 
-	for _, photo := range photos {
+	thumbnailIndex := source.GetInt("thumbnail")
+	for i, photo := range photos {
 		reader, err := fsys.GetReader(source.BaseFilesPath() + "/" + photo)
 		if err != nil {
 			return err
@@ -527,6 +577,9 @@ func migrateRecordPhotosToAssets(app core.App, fsys *filesystem.System, assetCol
 		link := core.NewRecord(linkCollection)
 		link.Set("asset", asset.Id)
 		link.Set(cfg.LinkField, source.Id)
+		if cfg.Collection == "trails" && i == thumbnailIndex {
+			link.Set("is_thumbnail", true)
+		}
 		if err := app.Save(link); err != nil {
 			return err
 		}
@@ -552,80 +605,6 @@ func removeLegacyPhotoFields(app core.App) error {
 			return err
 		}
 		collection.Fields.RemoveById(f.FieldID)
-		if err := app.Save(collection); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func restoreLegacyPhotoFields(app core.App) error {
-	fields := []struct {
-		Collection string
-		FieldJSON  string
-	}{
-		{
-			Collection: "trails",
-			FieldJSON: `{
-				"hidden": false,
-				"id": "aqbpyawe",
-				"maxSelect": 99,
-				"maxSize": 20971520,
-				"mimeTypes": ["image/jpeg","image/vnd.mozilla.apng","image/png","image/webp","image/svg+xml","image/heic","video/mp4","video/webm","video/ogg"],
-				"name": "photos",
-				"presentable": false,
-				"protected": false,
-				"required": false,
-				"system": false,
-				"thumbs": ["600x0"],
-				"type": "file"
-			}`,
-		},
-		{
-			Collection: "waypoints",
-			FieldJSON: `{
-				"hidden": false,
-				"id": "tfhs3juh",
-				"maxSelect": 99,
-				"maxSize": 20971520,
-				"mimeTypes": ["image/jpeg","image/png","image/vnd.mozilla.apng","image/webp","image/svg+xml","video/ogg","video/mp4","video/webm"],
-				"name": "photos",
-				"presentable": false,
-				"protected": false,
-				"required": false,
-				"system": false,
-				"thumbs": null,
-				"type": "file"
-			}`,
-		},
-		{
-			Collection: "summit_logs",
-			FieldJSON: `{
-				"hidden": false,
-				"id": "ixnksbkt",
-				"maxSelect": 99,
-				"maxSize": 20971520,
-				"mimeTypes": ["image/jpeg","image/png","image/vnd.mozilla.apng","image/webp","image/svg+xml","image/heic","video/ogg","video/mp4","video/webm"],
-				"name": "photos",
-				"presentable": false,
-				"protected": false,
-				"required": false,
-				"system": false,
-				"thumbs": null,
-				"type": "file"
-			}`,
-		},
-	}
-
-	for _, f := range fields {
-		collection, err := app.FindCollectionByNameOrId(f.Collection)
-		if err != nil {
-			return err
-		}
-		if err := collection.Fields.AddMarshaledJSON([]byte(f.FieldJSON)); err != nil {
-			return err
-		}
 		if err := app.Save(collection); err != nil {
 			return err
 		}

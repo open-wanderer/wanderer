@@ -157,6 +157,8 @@
     function handlePhotoDelete(index: number) {
         if (thumbnail == index) {
             thumbnail = 0;
+        } else if (thumbnail > index) {
+            thumbnail -= 1;
         }
 
         if (index >= photos.length) {

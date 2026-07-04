@@ -1,6 +1,6 @@
 import { RecordListOptionsSchema } from '$lib/models/api/base_schema';
 import { type FeedItem } from '$lib/models/feed';
-import type { Trail } from '$lib/models/trail';
+import { enrichFeedItemAssetPhotos } from '$lib/server/profile_asset_util';
 import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { Collection, handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
@@ -66,18 +66,12 @@ export async function GET(event: RequestEvent) {
                 throw new ClientResponseError({ status: response.status, response: errorResponse });
             }
             feed = await response.json()
-
-            feed.items.forEach(f => {
-                if (f.type == "trail") {
-                    const trail = f.expand.item as Trail
-                    trail.photos = trail.photos.map(p =>
-                        `${origin}/api/v1/files/trails/${f.item}/${p}`
-                    )
-                }
-
-            })
+            enrichFeedItemAssetPhotos(feed.items, origin);
         }
 
+        if (actor.is_local) {
+            enrichFeedItemAssetPhotos(feed.items);
+        }
 
         return json(feed)
     } catch (e) {

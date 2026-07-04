@@ -1,5 +1,6 @@
 import type { Actor } from "./activitypub/actor";
 import type { List } from "./list";
+import type { SummitLog } from "./summit_log";
 import type { Trail } from "./trail";
 
 interface FeedItem {
@@ -9,7 +10,7 @@ interface FeedItem {
     type: "trail" | "list" | "summit_log"
     expand: {
         actor?: Actor,
-        item: Trail | List
+        item: Trail | List | SummitLog
     }
     created: string;
 

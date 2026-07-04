@@ -28,6 +28,7 @@ export interface AssetLink {
     trail?: string;
     waypoint?: string;
     summit_log?: string;
+    is_thumbnail?: boolean;
     expand?: {
         asset?: Asset;
     };

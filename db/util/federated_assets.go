@@ -162,7 +162,7 @@ func ReconcileFederatedPhotoAssets(app core.App, ctx context.Context, targetFiel
 				return err
 			}
 		}
-		if _, err := DeleteAssetIfOrphaned(app, record.Id); err != nil {
+		if _, err := DeleteAssetIfOrphanedByAuthor(app, record.Id, authorID); err != nil {
 			return err
 		}
 	}

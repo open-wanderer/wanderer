@@ -96,7 +96,7 @@ func DeleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
-		if err := util.DeleteAssetsIfOrphaned(e.App, assetIDs); err != nil {
+		if err := util.DeleteAssetsIfOrphanedByAuthor(e.App, assetIDs, e.Record.GetString("author")); err != nil {
 			return err
 		}
 

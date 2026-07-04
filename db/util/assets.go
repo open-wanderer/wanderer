@@ -323,7 +323,10 @@ func PhotoAssetsForTarget(app core.App, targetField string, targetID string, lim
 	if targetID == "" {
 		return []*core.Record{}, nil
 	}
-	links, err := app.FindRecordsByFilter(linkCollection, targetField+"={:id}", "", -1, 0, dbx.Params{"id": targetID})
+	links, err := app.FindRecordsByFilter(linkCollection, targetField+"={:id}", "+created", -1, 0, dbx.Params{"id": targetID})
+	if err != nil && strings.Contains(err.Error(), "invalid sort field") {
+		links, err = app.FindRecordsByFilter(linkCollection, targetField+"={:id}", "", -1, 0, dbx.Params{"id": targetID})
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +334,82 @@ func PhotoAssetsForTarget(app core.App, targetField string, targetID string, lim
 	for _, link := range links {
 		assetIDs = append(assetIDs, link.GetString("asset"))
 	}
-	return recordsByFieldValues(app, "assets", "id", assetIDs, "type='photo'", nil, "-created", limit)
+	assets, err := recordsByFieldValues(app, "assets", "id", assetIDs, "type='photo'", nil, "", -1)
+	if err != nil {
+		return nil, err
+	}
+	assetsByID := make(map[string]*core.Record, len(assets))
+	for _, asset := range assets {
+		assetsByID[asset.Id] = asset
+	}
+
+	ordered := make([]*core.Record, 0, len(assets))
+	for _, assetID := range assetIDs {
+		asset := assetsByID[assetID]
+		if asset == nil {
+			continue
+		}
+		ordered = append(ordered, asset)
+		if limit > 0 && len(ordered) >= limit {
+			break
+		}
+	}
+
+	return ordered, nil
+}
+
+func TrailThumbnailAsset(app core.App, trailID string) (*core.Record, error) {
+	if trailID == "" {
+		return nil, nil
+	}
+
+	links, err := app.FindRecordsByFilter(
+		"trail_assets",
+		"trail={:trail} && is_thumbnail=true",
+		"-updated",
+		1,
+		0,
+		dbx.Params{"trail": trailID},
+	)
+	if err != nil && strings.Contains(err.Error(), "invalid sort field") {
+		links, err = app.FindRecordsByFilter(
+			"trail_assets",
+			"trail={:trail} && is_thumbnail=true",
+			"",
+			1,
+			0,
+			dbx.Params{"trail": trailID},
+		)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(links) > 0 {
+		asset, err := app.FindRecordById("assets", links[0].GetString("asset"))
+		if err != nil {
+			return nil, err
+		}
+		if asset.GetString("type") == "photo" {
+			return asset, nil
+		}
+	}
+
+	assets, err := PhotoAssetsForTarget(app, "trail", trailID, 1)
+	if err != nil {
+		return nil, err
+	}
+	if len(assets) == 0 {
+		return nil, nil
+	}
+	return assets[0], nil
+}
+
+func TrailThumbnailURL(app core.App, trailID string, origin string) (string, error) {
+	asset, err := TrailThumbnailAsset(app, trailID)
+	if err != nil || asset == nil {
+		return "", err
+	}
+	return AssetPublicMediaURL(asset, origin), nil
 }
 
 func AssetLinkCollectionForTarget(targetField string) (string, error) {
@@ -535,8 +613,12 @@ func AssetIDsForTrail(app core.App, trailID string) ([]string, error) {
 }
 
 func DeleteAssetsIfOrphaned(app core.App, assetIDs []string) error {
+	return DeleteAssetsIfOrphanedByAuthor(app, assetIDs, "")
+}
+
+func DeleteAssetsIfOrphanedByAuthor(app core.App, assetIDs []string, authorID string) error {
 	for _, assetID := range UniqueNonEmptyStrings(assetIDs) {
-		if _, err := DeleteAssetIfOrphaned(app, assetID); err != nil {
+		if _, err := DeleteAssetIfOrphanedByAuthor(app, assetID, authorID); err != nil {
 			return err
 		}
 	}
@@ -544,6 +626,10 @@ func DeleteAssetsIfOrphaned(app core.App, assetIDs []string) error {
 }
 
 func DeleteAssetIfOrphaned(app core.App, assetID string) (bool, error) {
+	return DeleteAssetIfOrphanedByAuthor(app, assetID, "")
+}
+
+func DeleteAssetIfOrphanedByAuthor(app core.App, assetID string, authorID string) (bool, error) {
 	linked, err := AssetHasLinks(app, assetID)
 	if err != nil {
 		return false, err
@@ -557,6 +643,9 @@ func DeleteAssetIfOrphaned(app core.App, assetID string) (bool, error) {
 		return false, err
 	}
 	if len(assets) == 0 {
+		return false, nil
+	}
+	if authorID != "" && assets[0].GetString("author") != authorID {
 		return false, nil
 	}
 	if err := app.Delete(assets[0]); err != nil {

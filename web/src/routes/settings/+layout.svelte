@@ -55,6 +55,10 @@
                     text: $_("trail-photo-maintenance-title"),
                     value: "/settings/maintenance/trail-photos",
                 },
+                {
+                    text: $_("orphaned-assets-maintenance-title"),
+                    value: "/settings/maintenance/orphaned-assets",
+                },
             ],
         },
         { text: `${$_("import")}/${$_("export")}`, value: "/settings/export" },

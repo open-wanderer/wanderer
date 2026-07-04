@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { FeedItem } from "$lib/models/feed";
     import type { List } from "$lib/models/list";
+    import type { SummitLog } from "$lib/models/summit_log";
     import type { Trail } from "$lib/models/trail";
     import { getFileURL, isVideoURL } from "$lib/util/file_util";
     import {
@@ -30,18 +31,50 @@
         formatTimeSince(new Date(feedItem.created ?? "")),
     );
 
-    const photos = $derived((feedItem.expand.item as Trail).photos);
-    const location = $derived((feedItem.expand.item as Trail).location);
-    const category = $derived(
-        (feedItem.expand.item as Trail).expand?.category,
+    const trail = $derived(
+        feedItem.type === "trail"
+            ? (feedItem.expand.item as Trail)
+            : undefined,
     );
-    const subcategory = $derived(
-        (feedItem.expand.item as Trail).expand?.subcategory,
+    const list = $derived(
+        feedItem.type === "list" ? (feedItem.expand.item as List) : undefined,
     );
+    const summitLog = $derived(
+        feedItem.type === "summit_log"
+            ? (feedItem.expand.item as SummitLog)
+            : undefined,
+    );
+    const activity = $derived(trail ?? summitLog);
 
-    const trails = $derived((feedItem.expand.item as List).trails);
+    const photos = $derived(activity?.photos ?? []);
+    const location = $derived(trail?.location);
+    const category = $derived(trail?.expand?.category);
+    const subcategory = $derived(trail?.expand?.subcategory);
+    const trails = $derived(list?.trails);
 
     const author = $derived(feedItem.expand.item.expand?.author);
+    const actorHandle = $derived(
+        `${author?.preferred_username}@${author?.domain}`,
+    );
+    const itemTitle = $derived(
+        trail?.name ??
+            list?.name ??
+            summitLog?.expand?.trail?.name ??
+            $_("summit-log", { values: { n: 1 } }),
+    );
+    const itemDescription = $derived(
+        trail?.description ?? list?.description ?? summitLog?.text ?? "",
+    );
+    const itemHref = $derived(
+        feedItem.type === "trail"
+            ? `/trail/view/@${actorHandle}/${feedItem.item}`
+            : feedItem.type === "list"
+              ? `/lists/@${actorHandle}/${feedItem.item}`
+              : `/profile/${actorHandle}/stats`,
+    );
+    const photoCollection = $derived(
+        feedItem.type === "summit_log" ? "summit_logs" : "trails",
+    );
 
     function feedCategoryIcon() {
         if (subcategory) {
@@ -58,6 +91,10 @@
             <i class="fa fa-route mr-2"></i>{$_("trail", { values: { n: 1 } })}
         {:else if feedItem.type === "list"}
             <i class="fa fa-layer-group mr-2"></i>{$_("list", {
+                values: { n: 1 },
+            })}
+        {:else if feedItem.type === "summit_log"}
+            <i class="fa fa-mountain mr-2"></i>{$_("summit-log", {
                 values: { n: 1 },
             })}
         {/if}
@@ -87,12 +124,11 @@
     </a>
     <a
         class="block"
-        href={(feedItem.type === "trail" ? "/trail/view/" : "/lists/") +
-            `@${author?.preferred_username}@${author?.domain}/${feedItem.item}`}
+        href={itemHref}
     >
         <div class="feed-card-body">
             <h3 class="text-2xl font-semibold mb-2">
-                {feedItem.expand.item.name}
+                {itemTitle}
             </h3>
             <div class="flex flex-wrap gap-x-8 gap-y-1">
                 {#if category}
@@ -124,23 +160,23 @@
             >
                 <span
                     ><i class="fa fa-left-right mr-2"></i>{formatDistance(
-                        feedItem.expand.item.distance,
+                        activity?.distance,
                     )}</span
                 >
                 <span
                     ><i class="fa fa-clock mr-2"></i>{formatTimeHHMM(
-                        feedItem.expand.item.duration,
+                        activity?.duration,
                     )}</span
                 >
                 <span
                     ><i class="fa fa-arrow-trend-up mr-2"></i>{formatElevation(
-                        feedItem.expand.item.elevation_gain,
+                        activity?.elevation_gain,
                     )}</span
                 >
                 <span
                     ><i class="fa fa-arrow-trend-down mr-2"
                     ></i>{formatElevation(
-                        feedItem.expand.item.elevation_loss,
+                        activity?.elevation_loss,
                     )}</span
                 >
             </div>
@@ -167,7 +203,7 @@
                                 loop
                                 src={getFileURL(
                                     {
-                                        collectionId: "trails",
+                                        collectionId: photoCollection,
                                         id: feedItem.item,
                                     },
                                     photo,
@@ -179,7 +215,7 @@
                                 class:row-span-2={i == 0 && photos.length > 2}
                                 src={getFileURL(
                                     {
-                                        collectionId: "trails",
+                                        collectionId: photoCollection,
                                         id: feedItem.item,
                                     },
                                     photo,
@@ -190,17 +226,14 @@
                     {/each}
                 </div>
             {/if}
-            {#if feedItem.expand.item.description?.length}
+            {#if itemDescription.length}
                 <p class="text-sm whitespace-pre-wrap mt-6">
                     {formatHTMLAsText(
                         !fullDescription
-                            ? feedItem.expand.item.description?.substring(
-                                  0,
-                                  100,
-                              )
-                            : feedItem.expand.item.description,
+                            ? itemDescription.substring(0, 100)
+                            : itemDescription,
                     )}
-                    {#if (feedItem.expand.item.description?.length ?? 0) > 100 && !fullDescription}
+                    {#if itemDescription.length > 100 && !fullDescription}
                         <button
                             onclick={(e) => {
                                 e.stopPropagation();

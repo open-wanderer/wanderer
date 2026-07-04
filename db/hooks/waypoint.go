@@ -39,6 +39,6 @@ func DeleteWaypointHandler() func(e *core.RecordRequestEvent) error {
 			return err
 		}
 
-		return util.DeleteAssetsIfOrphaned(e.App, assetIDs)
+		return util.DeleteAssetsIfOrphanedByAuthor(e.App, assetIDs, e.Record.GetString("author"))
 	}
 }

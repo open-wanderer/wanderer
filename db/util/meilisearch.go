@@ -17,9 +17,8 @@ import (
 
 func documentFromTrailRecord(app core.App, r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
 	thumbnail := ""
-	assets, err := PhotoAssetsForTarget(app, "trail", r.Id, 1)
-	if err == nil && len(assets) > 0 {
-		thumbnail = AssetPublicMediaURL(assets[0], "")
+	if thumbnailURL, err := TrailThumbnailURL(app, r.Id, ""); err == nil {
+		thumbnail = thumbnailURL
 	}
 
 	tagRecords := r.ExpandedAll("tags")

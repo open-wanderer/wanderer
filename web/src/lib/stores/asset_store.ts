@@ -179,6 +179,23 @@ export async function assets_delete_removed(
     }
 }
 
+export async function assets_set_trail_thumbnail(
+    trailId: string,
+    photo: string | undefined,
+    f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch,
+): Promise<void> {
+    const asset = photo ? assetIdFromPhotoUrl(photo) : null;
+    const r = await f(`/api/v1/trail/${trailId}/thumbnail`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ asset }),
+    });
+    if (!r.ok) {
+        const response = await r.json();
+        throw new APIError(r.status, response.message, response.detail);
+    }
+}
+
 export function asset_photo_url(asset: Asset): string {
     if (asset.file) {
         return `/api/v1/files/${asset.collectionId}/${asset.id}/${asset.file}`;
@@ -186,7 +203,7 @@ export function asset_photo_url(asset: Asset): string {
     return `/api/v1/assets/${asset.id}/file`;
 }
 
-function assetIdFromPhotoUrl(photo: string): string | undefined {
+export function assetIdFromPhotoUrl(photo: string): string | undefined {
     const remoteMatch = photo.match(/\/api\/v1\/assets\/([a-z0-9]{15})\/file/);
     if (remoteMatch) {
         return remoteMatch[1];

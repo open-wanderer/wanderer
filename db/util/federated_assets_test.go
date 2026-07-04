@@ -94,6 +94,62 @@ func TestReconcileFederatedPhotoAssetsKeepsLegacyPhotosUntouched(t *testing.T) {
 	}
 }
 
+func TestDeleteAssetIfOrphanedByAuthorKeepsForeignOrphan(t *testing.T) {
+	app := setupFederatedAssetsTestApp(t)
+	defer app.Cleanup()
+
+	asset := createFederatedTestAsset(t, app, "actor2", "")
+	deleted, err := DeleteAssetIfOrphanedByAuthor(app, asset.Id, "actor1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deleted {
+		t.Fatal("foreign orphaned asset was deleted")
+	}
+	if _, err := app.FindRecordById("assets", asset.Id); err != nil {
+		t.Fatal("foreign orphaned asset was removed")
+	}
+}
+
+func TestDeleteAssetIfOrphanedByAuthorDeletesOwnedOrphan(t *testing.T) {
+	app := setupFederatedAssetsTestApp(t)
+	defer app.Cleanup()
+
+	asset := createFederatedTestAsset(t, app, "actor1", "")
+	deleted, err := DeleteAssetIfOrphanedByAuthor(app, asset.Id, "actor1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !deleted {
+		t.Fatal("owned orphaned asset was not deleted")
+	}
+	if _, err := app.FindRecordById("assets", asset.Id); err == nil {
+		t.Fatal("owned orphaned asset still exists")
+	}
+}
+
+func TestTrailThumbnailAssetPrefersMarkedLink(t *testing.T) {
+	app := setupFederatedAssetsTestApp(t)
+	defer app.Cleanup()
+
+	first := createFederatedTestAsset(t, app, "actor1", "https://origin/api/v1/assets/a1")
+	marked := createFederatedTestAsset(t, app, "actor1", "https://origin/api/v1/assets/a2")
+	createFederatedTestLink(t, app, "trail_assets", "trail", "trail1", first.Id)
+	link := createFederatedTestLink(t, app, "trail_assets", "trail", "trail1", marked.Id)
+	link.Set("is_thumbnail", true)
+	if err := app.Save(link); err != nil {
+		t.Fatal(err)
+	}
+
+	thumbnail, err := TrailThumbnailAsset(app, "trail1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if thumbnail == nil || thumbnail.Id != marked.Id {
+		t.Fatalf("got thumbnail %v, want %s", thumbnail, marked.Id)
+	}
+}
+
 func setupFederatedAssetsTestApp(t *testing.T) *pbtests.TestApp {
 	t.Helper()
 
@@ -135,6 +191,9 @@ func setupFederatedAssetsTestApp(t *testing.T) *pbtests.TestApp {
 			&core.TextField{Name: "asset"},
 			&core.TextField{Name: config.field},
 		)
+		if config.name == "trail_assets" {
+			collection.Fields.Add(&core.BoolField{Name: "is_thumbnail"})
+		}
 		if err := app.Save(collection); err != nil {
 			app.Cleanup()
 			t.Fatal(err)
@@ -165,12 +224,14 @@ func createFederatedTestAsset(t *testing.T, app core.App, author string, externa
 	return record
 }
 
-func createFederatedTestLink(t *testing.T, app core.App, collectionName string, targetField string, targetID string, assetID string) {
+func createFederatedTestLink(t *testing.T, app core.App, collectionName string, targetField string, targetID string, assetID string) *core.Record {
 	t.Helper()
 
-	if _, err := EnsureAssetLink(app, collectionName, targetField, targetID, assetID); err != nil {
+	record, err := EnsureAssetLink(app, collectionName, targetField, targetID, assetID)
+	if err != nil {
 		t.Fatal(err)
 	}
+	return record
 }
 
 func assertFederatedAssetCount(t *testing.T, app core.App, want int) {

@@ -61,6 +61,8 @@ export async function DELETE(event: RequestEvent) {
         const linkTargets = assetLinkTargets(targets);
 
         if (linkTargets.length > 0) {
+            const asset = await event.locals.pb.collection(Collection.assets).getOne<Asset>(safeParams.id);
+            const canDeleteOrphanedAsset = Boolean(event.locals.user.actor && asset.author === event.locals.user.actor);
             for (const target of linkTargets) {
                 const links = await event.locals.pb.collection(target.collection).getFullList({
                     filter: event.locals.pb.filter(`asset = {:asset} && ${target.field} = {:target}`, {
@@ -73,7 +75,9 @@ export async function DELETE(event: RequestEvent) {
                     await event.locals.pb.collection(target.collection).delete(link.id);
                 }
             }
-            const assetDeleted = await deleteAssetIfOrphaned(event, safeParams.id);
+            const assetDeleted = canDeleteOrphanedAsset
+                ? await deleteAssetIfOrphaned(event, safeParams.id)
+                : false;
             return json({ acknowledged: true, assetDeleted });
         }
 
