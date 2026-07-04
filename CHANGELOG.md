@@ -1,7 +1,9 @@
-# [Unreleased]
+# 0.19.3
 
-## Features
-- Server-side map clustering and zoom-aware polyline filtering: The world map now performs trail clustering on the server to improve performance. At lower zoom levels, smaller trails are clustered, while at higher zoom levels the largest routes in the current view are shown as detailed polylines. The maximum number of simultaneously visible polylines can be configured via the PUBLIC_MAP_MAX_POLYLINES environment variable.
+## Security
+- Fixed unauthenticated IDOR on `GET /activitypub/trail/{id}` and `GET /activitypub/comment/{id}` — private records are now access-checked before being returned. (GHSA-9qg7-jr2x-prvh, reported by [@de3erve-hunter](https://github.com/de3erve-hunter))
+- Fixed stored XSS via `waypoint.icon` in map markers — the icon value is now validated against an allowlist before being passed to `insertAdjacentHTML`. (GHSA-hx3v-rv4v-w875, reported by [@de3erve-hunter](https://github.com/de3erve-hunter))
+- Fixed stored XSS via `waypoint.name` and `waypoint.icon` in the elevation profile — replaced unsafe `innerHTML` assignment with safe DOM construction. (GHSA-m7v2-6gj3-3g2p, reported by [@de3erve-hunter](https://github.com/de3erve-hunter))
 
 # v0.19.2
 ## Documentation
