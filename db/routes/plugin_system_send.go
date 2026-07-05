@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -70,7 +69,7 @@ func PluginSystemTrailSend(e *core.RequestEvent) error {
 		return apis.NewForbiddenError("not allowed to send this trail", nil)
 	}
 
-	gpx, err := readTrailGPX(e.App, trail)
+	gpx, err := util.ReadTrailGPX(e.App, trail)
 	if err != nil {
 		return err
 	}
@@ -172,29 +171,6 @@ func executeHostRequest(ctx context.Context, manifest pluginsystem.Manifest, pol
 		)
 	}
 	return nil
-}
-
-// readTrailGPX loads the trail GPX file that can be inserted into a plugin's
-// multipart send plan.
-func readTrailGPX(app core.App, trail *core.Record) ([]byte, error) {
-	gpxPath := trail.GetString("gpx")
-	if gpxPath == "" {
-		return nil, nil
-	}
-
-	fsys, err := app.NewFilesystem()
-	if err != nil {
-		return nil, err
-	}
-	defer fsys.Close()
-
-	reader, err := fsys.GetReader(trail.BaseFilesPath() + "/" + gpxPath)
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	return io.ReadAll(reader)
 }
 
 // decryptedInstanceAuth returns auth fields in the shape expected by host-side

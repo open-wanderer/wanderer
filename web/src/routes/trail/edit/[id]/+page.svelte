@@ -26,7 +26,12 @@
     import { SummitLog } from "$lib/models/summit_log";
     import { Trail } from "$lib/models/trail";
     import type { Asset } from "$lib/models/asset";
-    import type { PhotoLibraryCandidate, PhotoLibraryPluginLink } from "$lib/models/photo_library";
+    import {
+        mergePhotoLibraryPluginLinks,
+        photoLibraryCandidateKey,
+        photoLibraryPluginLinks,
+        type PhotoLibraryCandidate,
+    } from "$lib/models/photo_library";
     import type { RoutingOptions, ValhallaAnchor } from "$lib/models/valhalla";
     import type { OverpassPopupActionFactory } from "$lib/vendor/maplibre-layer-manager/overpass-layer";
     import { type OverpassPopupAction } from "$lib/util/maplibre_util";
@@ -227,6 +232,14 @@
     const ClientWaypointCreateSchema = WaypointCreateSchema.extend({
         photos: z.array(z.string()).default([]),
         _assetLinks: z.array(z.string()).optional(),
+        _assetPluginLinks: z
+            .array(
+                z.object({
+                    pluginId: z.string(),
+                    assetIds: z.array(z.string()),
+                }),
+            )
+            .optional(),
         expand: z
             .object({
                 assets_via_waypoint: z.array(ClientAssetSchema).optional(),
@@ -275,15 +288,6 @@
 
     let savedAtLeastOnce = $state(false);
 
-    type AssetPluginPending = {
-        pluginId: string;
-        waypointId?: string;
-        assetIds: string[];
-        lat: number;
-        lon: number;
-        name?: string;
-    };
-    let pendingAssetPlugins: AssetPluginPending[] = [];
     let assetPluginId = $derived(data.assetPlugins[0] ?? "immich");
     let canImportPhotosFromLibrary = $derived(!isNewTrail || savedAtLeastOnce);
     let photoImportDropdownItems: DropdownItem[] = $derived([
@@ -418,7 +422,6 @@
                         ?.trkpt?.at(0)?.$.lon;
                 }
 
-                let savedTrail: Trail;
                 if (page.params.id === "new" && !savedAtLeastOnce) {
                     const createdTrail = await trails_create(
                         form as Trail,
@@ -427,7 +430,6 @@
                     );
                     setFields(createdTrail);
                     trail.set(createdTrail);
-                    savedTrail = createdTrail;
                     savedAtLeastOnce = true;
                 } else {
                     const updatedTrail = await trails_update(
@@ -437,37 +439,11 @@
                         gpxFile,
                     );
                     setFields(updatedTrail);
-                    savedTrail = updatedTrail;
                     savedAtLeastOnce = true;
                 }
                 photoFiles = [];
                 pendingTrailPhotoCandidates = [];
 
-                if (pendingAssetPlugins.length > 0 && data.assetPlugins.length > 0) {
-                    await Promise.all(
-                        pendingAssetPlugins.map(async (pending) => {
-                            if (!data.assetPlugins.includes(pending.pluginId)) {
-                                return;
-                            }
-                            const waypointId = resolveSavedWaypointId(pending, savedTrail);
-                            const plugin = encodeURIComponent(pending.pluginId);
-                            const response = await fetch(`/api/v1/plugins/assets/${plugin}/import-to-waypoint`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                    trailId: savedTrail.id,
-                                    waypointId,
-                                    assetIds: pending.assetIds,
-                                }),
-                            });
-                            if (!response.ok) {
-                                const error = await response.json().catch(() => ({}));
-                                throw new Error(error.message ?? "Asset plugin import-to-waypoint failed");
-                            }
-                        }),
-                    );
-                    pendingAssetPlugins = [];
-                }
                 show_toast({
                     type: "success",
                     icon: "check",
@@ -769,30 +745,9 @@
         }
     }
 
-    function resolveSavedWaypointId(pending: AssetPluginPending, savedTrail: Trail): string {
-        const waypoints = savedTrail.expand?.waypoints_via_trail ?? [];
-        if (pending.waypointId && waypoints.some((wp) => wp.id === pending.waypointId)) {
-            return pending.waypointId;
-        }
-
-        const match = waypoints.find((wp) =>
-            Math.abs(Number(wp.lat) - Number(pending.lat)) < 0.0000001 &&
-            Math.abs(Number(wp.lon) - Number(pending.lon)) < 0.0000001 &&
-            (wp.name ?? "") === (pending.name ?? "")
-        );
-        if (match?.id) {
-            return match.id;
-        }
-
-        throw new Error("Unable to resolve saved waypoint for asset plugin import");
-    }
-
     function onAssetPluginImport(importedWaypoints: Waypoint[]) {
         if (!importedWaypoints.length) return;
         const waypoints = importedWaypoints;
-        for (const waypoint of waypoints) {
-            trackAssetCandidates(waypoint, waypoint._assetCandidates);
-        }
         const nextWaypoints = mergeAssetPluginWaypoints(
             $formData.expand!.waypoints_via_trail ?? [],
             waypoints,
@@ -807,8 +762,8 @@
                 (candidate) =>
                     !pendingTrailPhotoCandidates.some(
                         (pending) =>
-                            photoLibraryCandidateKey(pending) ===
-                            photoLibraryCandidateKey(candidate),
+                            photoLibraryCandidateKey(pending, assetPluginId) ===
+                            photoLibraryCandidateKey(candidate, assetPluginId),
                     ),
             ),
         ];
@@ -836,7 +791,7 @@
         ]));
         target._assetPluginLinks = mergePhotoLibraryPluginLinks(
             target._assetPluginLinks,
-            photoLibraryPluginLinks(pluginCandidates),
+            photoLibraryPluginLinks(pluginCandidates, assetPluginId),
         );
         target.photos = Array.from(
             new Set([
@@ -853,39 +808,6 @@
             target._assetLinks?.length ||
             target._assetPluginLinks?.some((link) => link.assetIds.length),
         );
-    }
-
-    function mergePhotoLibraryPluginLinks(
-        existing: PhotoLibraryPluginLink[] | undefined,
-        incoming: PhotoLibraryPluginLink[],
-    ): PhotoLibraryPluginLink[] | undefined {
-        const grouped = new Map<string, string[]>();
-        for (const link of [...(existing ?? []), ...incoming]) {
-            grouped.set(link.pluginId, Array.from(new Set([
-                ...(grouped.get(link.pluginId) ?? []),
-                ...link.assetIds,
-            ])));
-        }
-        const merged = Array.from(grouped.entries())
-            .map(([pluginId, assetIds]) => ({ pluginId, assetIds }))
-            .filter((link) => link.assetIds.length);
-        return merged.length ? merged : undefined;
-    }
-
-    function photoLibraryPluginLinks(candidates: PhotoLibraryCandidate[]): PhotoLibraryPluginLink[] {
-        const grouped = new Map<string, string[]>();
-        for (const candidate of candidates) {
-            const providerId = candidate.pluginId ?? candidate.providerId ?? assetPluginId;
-            grouped.set(providerId, [...(grouped.get(providerId) ?? []), candidate.assetId]);
-        }
-        return Array.from(grouped.entries()).map(([pluginId, assetIds]) => ({
-            pluginId,
-            assetIds,
-        }));
-    }
-
-    function photoLibraryCandidateKey(candidate: PhotoLibraryCandidate) {
-        return `${candidate.source ?? "plugin"}:${candidate.providerId ?? candidate.pluginId ?? assetPluginId}:${candidate.assetId}`;
     }
 
     function mergeAssetPluginWaypoints(existing: Waypoint[], imported: Waypoint[]) {
@@ -925,6 +847,10 @@
             ...(existing._assetLinks ?? []),
             ...(incoming._assetLinks ?? []),
         ]));
+        const assetPluginLinks = mergePhotoLibraryPluginLinks(
+            existing._assetPluginLinks,
+            incoming._assetPluginLinks,
+        );
         return {
             ...existing,
             ...incoming,
@@ -936,6 +862,7 @@
             ],
             _assetCandidates: candidates.length ? candidates : undefined,
             _assetLinks: assetLinks.length ? assetLinks : undefined,
+            _assetPluginLinks: assetPluginLinks,
         };
     }
 
@@ -970,8 +897,6 @@
     }
 
     async function saveWaypoint(savedWaypoint: Waypoint) {
-        const candidates = savedWaypoint._assetCandidates;
-
         const editedWaypointIndex =
             $formData.expand!.waypoints_via_trail?.findIndex(
                 (s) => s.id == savedWaypoint.id,
@@ -979,7 +904,6 @@
 
         if (editedWaypointIndex >= 0) {
             commitWaypoint(savedWaypoint);
-            trackAssetCandidates(savedWaypoint, candidates);
             return true;
         }
 
@@ -995,55 +919,7 @@
         }
 
         commitWaypoint(savedWaypoint);
-        trackAssetCandidates(savedWaypoint, candidates);
         return true;
-    }
-
-    function trackAssetCandidates(
-        savedWaypoint: Waypoint,
-        candidates: typeof savedWaypoint._assetCandidates,
-    ) {
-        if (!candidates?.length) return;
-        const grouped = new Map<string, NonNullable<typeof candidates>>();
-        for (const candidate of candidates) {
-            const pluginId = candidate.pluginId ?? assetPluginId;
-            grouped.set(pluginId, [...(grouped.get(pluginId) ?? []), candidate]);
-        }
-        for (const [pluginId, pluginCandidates] of grouped) {
-            const pendingKey = waypointPendingKey(savedWaypoint);
-            const existing = pendingAssetPlugins.findIndex(
-                (p) => p.pluginId === pluginId && assetPluginPendingKey(p) === pendingKey,
-            );
-            const pending = {
-                waypointId: savedWaypoint.id,
-                pluginId,
-                assetIds: pluginCandidates.map((c) => c.assetId),
-                lat: savedWaypoint.lat,
-                lon: savedWaypoint.lon,
-                name: savedWaypoint.name,
-            };
-            if (existing >= 0) {
-                pendingAssetPlugins[existing] = pending;
-            } else {
-                pendingAssetPlugins.push(pending);
-            }
-        }
-    }
-
-    function waypointPendingKey(waypoint: Pick<Waypoint, "id" | "lat" | "lon" | "name">) {
-        return waypoint.id
-            ? `id:${waypoint.id}`
-            : waypointPositionPendingKey(waypoint.lat, waypoint.lon, waypoint.name);
-    }
-
-    function assetPluginPendingKey(pending: AssetPluginPending) {
-        return pending.waypointId
-            ? `id:${pending.waypointId}`
-            : waypointPositionPendingKey(pending.lat, pending.lon, pending.name);
-    }
-
-    function waypointPositionPendingKey(lat: number, lon: number, name?: string) {
-        return `position:${lat}:${lon}:${name ?? ""}`;
     }
 
     async function findMergeableWaypoint(savedWaypoint: Waypoint) {

@@ -469,6 +469,62 @@ func TrailThumbnailURL(app core.App, trailID string, origin string) (string, err
 	return AssetPublicMediaURL(asset, origin), nil
 }
 
+func TrailThumbnailURLs(app core.App, trails []*core.Record, origin string) (map[string]string, error) {
+	urls := make(map[string]string, len(trails))
+	if len(trails) == 0 {
+		return urls, nil
+	}
+
+	trailIDs := make([]any, 0, len(trails))
+	for _, trail := range trails {
+		trailIDs = append(trailIDs, trail.Id)
+	}
+
+	links := []*core.Record{}
+	err := app.RecordQuery("trail_assets").
+		AndWhere(dbx.In("trail", trailIDs...)).
+		OrderBy("created ASC").
+		All(&links)
+	if err != nil {
+		return nil, err
+	}
+	if errs := app.ExpandRecords(links, []string{"asset"}, nil); len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand trail asset links: %v", errs)
+	}
+
+	fallbacks := map[string]string{}
+	thumbnailUpdatedAt := map[string]time.Time{}
+	for _, link := range links {
+		asset := link.ExpandedOne("asset")
+		if asset == nil || asset.GetString("type") != "photo" {
+			continue
+		}
+		url := AssetPublicMediaURL(asset, origin)
+		if url == "" {
+			continue
+		}
+		trailID := link.GetString("trail")
+		if fallbacks[trailID] == "" {
+			fallbacks[trailID] = url
+		}
+		if !link.GetBool("is_thumbnail") {
+			continue
+		}
+		updatedAt := link.GetDateTime("updated").Time()
+		if urls[trailID] == "" || updatedAt.After(thumbnailUpdatedAt[trailID]) {
+			urls[trailID] = url
+			thumbnailUpdatedAt[trailID] = updatedAt
+		}
+	}
+
+	for trailID, fallback := range fallbacks {
+		if urls[trailID] == "" {
+			urls[trailID] = fallback
+		}
+	}
+	return urls, nil
+}
+
 func SetTrailThumbnailAsset(app core.App, trailID string, assetID string) error {
 	if trailID == "" {
 		return nil

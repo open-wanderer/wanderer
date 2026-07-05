@@ -1,8 +1,8 @@
 import { TrailUpdateSchema } from '$lib/models/api/trail_schema';
 import { applyLegacyPhotoNamesForMissingAssetExpands } from "$lib/server/legacy_photo_compat";
+import { enrichTrailResponse, withTrailAssetExpandParams } from "$lib/server/trail_response_util";
 import type { Trail } from "$lib/models/trail";
 import { Collection, handleError, remove, update } from "$lib/util/api_util";
-import { enrichTrailAssetExpands } from "$lib/util/asset_link_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 
 /**
@@ -39,7 +39,8 @@ export async function GET(event: RequestEvent) {
     const { url, params } = event;
 
     try {
-        let trail: Trail = await event.locals.pb.send(`/remote/trail/${params.id}?` + url.searchParams, {
+        const searchParams = withTrailAssetExpandParams(url.searchParams);
+        let trail: Trail = await event.locals.pb.send(`/remote/trail/${params.id}?` + searchParams, {
             method: "GET",
             fetch: event.fetch,
         })
@@ -75,9 +76,5 @@ export async function DELETE(event: RequestEvent) {
 
 
 async function enrichRecord(r: Trail, share?: string) {
-    r.date = r.date?.substring(0, 10) ?? "";
-    for (const log of r.expand?.summit_logs_via_trail ?? []) {
-        log.date = log.date.substring(0, 10);
-    }
-    enrichTrailAssetExpands(r, { share });
+    enrichTrailResponse(r, { share });
 }

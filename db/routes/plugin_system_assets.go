@@ -2,11 +2,14 @@ package routes
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io"
+	"math"
 	"net/http"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"pocketbase/plugins/importer"
@@ -21,8 +24,25 @@ import (
 )
 
 const pluginAssetThumbnailMaxBytes int64 = 8 << 20
+const pluginAssetThumbnailCacheMaxBytes int64 = 64 << 20
+const pluginAssetThumbnailCacheMaxEntries = 512
+const pluginAssetThumbnailCacheTTL = 24 * time.Hour
 const defaultAssetPluginMaxWaypoints = 25
 const pluginAssetMaintenanceProvider = "maintenance"
+
+type pluginAssetThumbnailCacheEntry struct {
+	ContentType string
+	Body        []byte
+	ETag        string
+	ExpiresAt   time.Time
+	LastAccess  time.Time
+}
+
+var pluginAssetThumbnailCache = struct {
+	sync.Mutex
+	items      map[string]pluginAssetThumbnailCacheEntry
+	totalBytes int64
+}{items: map[string]pluginAssetThumbnailCacheEntry{}}
 
 type pluginAssetLibraryRequest struct {
 	PluginID  string `json:"pluginId,omitempty"`
@@ -39,6 +59,25 @@ type pluginAssetLibraryRequest struct {
 	WaypointID  string   `json:"waypointId,omitempty"`
 	SummitLogID string   `json:"summitLogId,omitempty"`
 	AssetIDs    []string `json:"assetIds,omitempty"`
+
+	latSet bool
+	lonSet bool
+}
+
+func (r *pluginAssetLibraryRequest) UnmarshalJSON(data []byte) error {
+	type requestAlias pluginAssetLibraryRequest
+	var decoded requestAlias
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	decoded.latSet = raw["lat"] != nil
+	decoded.lonSet = raw["lon"] != nil
+	*r = pluginAssetLibraryRequest(decoded)
+	return nil
 }
 
 type pluginAssetLibraryInput struct {
@@ -82,6 +121,10 @@ type pluginAssetLibraryOutput struct {
 }
 
 type pluginAssetCandidate struct {
+	Source            string  `json:"source,omitempty"`
+	ProviderID        string  `json:"providerId,omitempty"`
+	ExternalProvider  string  `json:"externalProvider,omitempty"`
+	ExternalID        string  `json:"externalId,omitempty"`
 	AssetID           string  `json:"assetId"`
 	OriginalFileName  string  `json:"originalFileName"`
 	TakenAt           string  `json:"takenAt"`
@@ -93,6 +136,20 @@ type pluginAssetCandidate struct {
 	DistanceFromStart float64 `json:"distanceFromStart"`
 	City              string  `json:"city,omitempty"`
 	Country           string  `json:"country,omitempty"`
+	ThumbnailURL      string  `json:"thumbnailUrl,omitempty"`
+}
+
+type assetLibraryExternalRef struct {
+	Provider string `json:"provider"`
+	ID       string `json:"id"`
+}
+
+type assetLibraryResponse struct {
+	HasTimestamps        bool                      `json:"hasTimestamps"`
+	Candidates           []pluginAssetCandidate    `json:"candidates"`
+	ExistingExternalRefs []assetLibraryExternalRef `json:"existingExternalRefs"`
+	HasMore              bool                      `json:"hasMore"`
+	TakenAfter           string                    `json:"takenAfter"`
 }
 
 type pluginAssetImportResult struct {
@@ -264,18 +321,24 @@ func PluginSystemAssetMaintenanceTrails(e *core.RequestEvent) error {
 		return err
 	}
 
+	trailsWithGPX := make([]*core.Record, 0, len(trails))
 	for _, trail := range trails {
 		if strings.TrimSpace(trail.GetString("gpx")) == "" {
 			continue
 		}
-		hasPhotos, err := trailHasVisiblePhotoAssets(e.App, trail.Id)
-		if err != nil {
-			return err
-		}
-		if hasPhotos {
+		trailsWithGPX = append(trailsWithGPX, trail)
+	}
+
+	visiblePhotos, thumbnails, err := trailAssetMaintenanceState(e.App, trailsWithGPX)
+	if err != nil {
+		return err
+	}
+
+	for _, trail := range trailsWithGPX {
+		if visiblePhotos[trail.Id] {
 			continue
 		}
-		response.Trails = append(response.Trails, pluginAssetMaintenanceTrailCandidate(e.App, trail))
+		response.Trails = append(response.Trails, pluginAssetMaintenanceTrailCandidate(trail, thumbnails[trail.Id]))
 	}
 
 	return e.JSON(http.StatusOK, response)
@@ -318,6 +381,10 @@ func PluginSystemAssetThumbnail(e *core.RequestEvent) error {
 	if err != nil {
 		return err
 	}
+	cacheKey := pluginAssetThumbnailCacheKey(e.Auth.Id, pluginID, instance.Id, assetID)
+	if entry, ok := getPluginAssetThumbnailCache(cacheKey); ok {
+		return writePluginAssetThumbnail(e, entry)
+	}
 	output, err := callAssetPlugin(e.Request.Context(), plugin, capability, instance, auth, config, pluginAssetLibraryActionInput{
 		Action:   "thumbnail",
 		AssetIDs: []string{assetID},
@@ -344,8 +411,173 @@ func PluginSystemAssetThumbnail(e *core.RequestEvent) error {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
-	e.Response.Header().Set("Cache-Control", "private, max-age=300")
-	return e.Blob(http.StatusOK, contentType, fetched.Body)
+	entry := pluginAssetThumbnailCacheEntry{
+		ContentType: contentType,
+		Body:        fetched.Body,
+		ETag:        pluginAssetThumbnailETag(fetched.Body),
+		ExpiresAt:   time.Now().Add(pluginAssetThumbnailCacheTTL),
+		LastAccess:  time.Now(),
+	}
+	putPluginAssetThumbnailCache(cacheKey, entry)
+	return writePluginAssetThumbnail(e, entry)
+}
+
+func AssetLibraryCandidates(e *core.RequestEvent) error {
+	if e.Auth == nil {
+		return apis.NewUnauthorizedError("authentication required", nil)
+	}
+
+	actor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
+	if err != nil {
+		return apis.NewUnauthorizedError("actor not found", err)
+	}
+
+	var data pluginAssetLibraryRequest
+	if err := e.BindBody(&data); err != nil {
+		return apis.NewBadRequestError("Failed to read request data", err)
+	}
+
+	if data.TrailID != "" {
+		if err := ensureOwnsTrail(e.App, e.Auth.Id, data.TrailID); err != nil {
+			return err
+		}
+	}
+	if data.WaypointID != "" {
+		if err := ensureOwnsWaypoint(e.App, e.Auth.Id, data.WaypointID, data.TrailID); err != nil {
+			return err
+		}
+	}
+	if data.SummitLogID != "" {
+		if err := ensureOwnsSummitLog(e.App, e.Auth.Id, data.SummitLogID, data.TrailID); err != nil {
+			return err
+		}
+	}
+
+	request, err := assetLibraryActionInputForWandererLibrary(e.App, data)
+	if err != nil {
+		return apis.NewBadRequestError("invalid asset library request", err)
+	}
+
+	linkedAssetIDs, err := assetLibraryLinkedAssetIDs(e.App, data)
+	if err != nil {
+		return err
+	}
+
+	hasLocation := data.latSet && data.lonSet
+	records, err := assetLibraryRecords(e.App, actor.Id, request, hasLocation)
+	if err != nil {
+		return err
+	}
+
+	maxDistance := assetLibraryMaxDistance(request, hasLocation)
+	candidatePool := make([]pluginAssetCandidate, 0, len(records))
+	for _, record := range records {
+		candidate, ok := assetLibraryCandidate(record, request, hasLocation)
+		if !ok || candidate.Distance > maxDistance {
+			continue
+		}
+		candidatePool = append(candidatePool, candidate)
+	}
+
+	existingExternalRefs := make([]assetLibraryExternalRef, 0)
+	candidates := make([]pluginAssetCandidate, 0, len(candidatePool))
+	for _, candidate := range candidatePool {
+		if candidate.ExternalProvider != "" && candidate.ExternalID != "" {
+			existingExternalRefs = append(existingExternalRefs, assetLibraryExternalRef{
+				Provider: candidate.ExternalProvider,
+				ID:       candidate.ExternalID,
+			})
+		}
+		if !linkedAssetIDs[candidate.AssetID] {
+			candidates = append(candidates, candidate)
+		}
+	}
+	sortAssetLibraryCandidates(candidates, len(request.Points) > 0)
+
+	hasTimestamps := false
+	for _, candidate := range candidates {
+		if strings.TrimSpace(candidate.TakenAt) != "" {
+			hasTimestamps = true
+			break
+		}
+	}
+
+	return e.JSON(http.StatusOK, assetLibraryResponse{
+		HasTimestamps:        hasTimestamps,
+		Candidates:           candidates,
+		ExistingExternalRefs: existingExternalRefs,
+		HasMore:              false,
+		TakenAfter:           "",
+	})
+}
+
+func pluginAssetThumbnailCacheKey(userID string, pluginID string, instanceID string, assetID string) string {
+	return strings.Join([]string{userID, pluginID, instanceID, assetID}, "\x00")
+}
+
+func getPluginAssetThumbnailCache(key string) (pluginAssetThumbnailCacheEntry, bool) {
+	pluginAssetThumbnailCache.Lock()
+	defer pluginAssetThumbnailCache.Unlock()
+
+	entry, ok := pluginAssetThumbnailCache.items[key]
+	if !ok {
+		return pluginAssetThumbnailCacheEntry{}, false
+	}
+	if time.Now().After(entry.ExpiresAt) {
+		delete(pluginAssetThumbnailCache.items, key)
+		pluginAssetThumbnailCache.totalBytes -= int64(len(entry.Body))
+		return pluginAssetThumbnailCacheEntry{}, false
+	}
+	entry.LastAccess = time.Now()
+	pluginAssetThumbnailCache.items[key] = entry
+	return entry, true
+}
+
+func putPluginAssetThumbnailCache(key string, entry pluginAssetThumbnailCacheEntry) {
+	if int64(len(entry.Body)) > pluginAssetThumbnailCacheMaxBytes {
+		return
+	}
+
+	pluginAssetThumbnailCache.Lock()
+	defer pluginAssetThumbnailCache.Unlock()
+
+	if existing, ok := pluginAssetThumbnailCache.items[key]; ok {
+		pluginAssetThumbnailCache.totalBytes -= int64(len(existing.Body))
+	}
+	pluginAssetThumbnailCache.items[key] = entry
+	pluginAssetThumbnailCache.totalBytes += int64(len(entry.Body))
+
+	for len(pluginAssetThumbnailCache.items) > pluginAssetThumbnailCacheMaxEntries ||
+		pluginAssetThumbnailCache.totalBytes > pluginAssetThumbnailCacheMaxBytes {
+		oldestKey := ""
+		var oldestAccess time.Time
+		for key, entry := range pluginAssetThumbnailCache.items {
+			if oldestKey == "" || entry.LastAccess.Before(oldestAccess) {
+				oldestKey = key
+				oldestAccess = entry.LastAccess
+			}
+		}
+		if oldestKey == "" {
+			break
+		}
+		oldest := pluginAssetThumbnailCache.items[oldestKey]
+		delete(pluginAssetThumbnailCache.items, oldestKey)
+		pluginAssetThumbnailCache.totalBytes -= int64(len(oldest.Body))
+	}
+}
+
+func writePluginAssetThumbnail(e *core.RequestEvent, entry pluginAssetThumbnailCacheEntry) error {
+	e.Response.Header().Set("Cache-Control", fmt.Sprintf("private, max-age=%d", int(pluginAssetThumbnailCacheTTL.Seconds())))
+	e.Response.Header().Set("ETag", entry.ETag)
+	if e.Request.Header.Get("If-None-Match") == entry.ETag {
+		return e.NoContent(http.StatusNotModified)
+	}
+	return e.Blob(http.StatusOK, entry.ContentType, entry.Body)
+}
+
+func pluginAssetThumbnailETag(body []byte) string {
+	sum := sha256.Sum256(body)
+	return fmt.Sprintf("%q", fmt.Sprintf("plugin-thumb-%x", sum[:]))
 }
 
 func pluginSystemAssetCall(e *core.RequestEvent, action string) error {
@@ -552,7 +784,7 @@ func enabledAssetPluginCount(app core.App, userID string) (int, error) {
 	return count, nil
 }
 
-func pluginAssetMaintenanceTrailCandidate(app core.App, trail *core.Record) pluginAssetTrailPhotoMaintenanceCandidate {
+func pluginAssetMaintenanceTrailCandidate(trail *core.Record, thumbnail string) pluginAssetTrailPhotoMaintenanceCandidate {
 	return pluginAssetTrailPhotoMaintenanceCandidate{
 		ID:            trail.Id,
 		Name:          trail.GetString("name"),
@@ -567,42 +799,51 @@ func pluginAssetMaintenanceTrailCandidate(app core.App, trail *core.Record) plug
 		ElevationLoss: trail.GetFloat("elevation_loss"),
 		Duration:      trail.GetFloat("duration"),
 		Difficulty:    trail.GetString("difficulty"),
-		Thumbnail:     trailMaintenanceThumbnail(app, trail.Id),
+		Thumbnail:     thumbnail,
 	}
 }
 
-func trailMaintenanceThumbnail(app core.App, trailID string) string {
-	assetIDs, err := util.AssetIDsForTrail(app, trailID)
-	if err != nil {
-		return ""
+func trailAssetMaintenanceState(app core.App, trails []*core.Record) (map[string]bool, map[string]string, error) {
+	visiblePhotos := make(map[string]bool, len(trails))
+	thumbnails := make(map[string]string, len(trails))
+	if len(trails) == 0 {
+		return visiblePhotos, thumbnails, nil
 	}
-	for _, assetID := range assetIDs {
-		asset, err := app.FindRecordById("assets", assetID)
-		if err != nil {
+
+	trailIDs := make([]any, 0, len(trails))
+	for _, trail := range trails {
+		trailIDs = append(trailIDs, trail.Id)
+	}
+
+	links := []*core.Record{}
+	err := app.RecordQuery("trail_assets").
+		AndWhere(dbx.In("trail", trailIDs...)).
+		OrderBy("created ASC").
+		All(&links)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if errs := app.ExpandRecords(links, []string{"asset"}, nil); len(errs) > 0 {
+		return nil, nil, fmt.Errorf("failed to expand trail asset links: %v", errs)
+	}
+
+	for _, link := range links {
+		trailID := link.GetString("trail")
+		asset := link.ExpandedOne("asset")
+		if asset == nil || asset.GetString("type") != "photo" {
 			continue
 		}
-		if asset.GetString("type") == "photo" && util.IsGeneratedRoutePreviewAsset(asset) {
-			return util.AssetPublicMediaURL(asset, "")
+		if util.IsGeneratedRoutePreviewAsset(asset) {
+			if thumbnails[trailID] == "" {
+				thumbnails[trailID] = util.AssetPublicMediaURL(asset, "")
+			}
+			continue
 		}
+		visiblePhotos[trailID] = true
 	}
-	return ""
-}
 
-func trailHasVisiblePhotoAssets(app core.App, trailID string) (bool, error) {
-	assetIDs, err := util.AssetIDsForTrail(app, trailID)
-	if err != nil {
-		return false, err
-	}
-	for _, assetID := range assetIDs {
-		asset, err := app.FindRecordById("assets", assetID)
-		if err != nil {
-			return false, err
-		}
-		if asset.GetString("type") == "photo" && !util.IsGeneratedRoutePreviewAsset(asset) {
-			return true, nil
-		}
-	}
-	return false, nil
+	return visiblePhotos, thumbnails, nil
 }
 
 func autoAttachAssetPluginForTrail(ctx context.Context, app core.App, userID string, trailID string, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, config map[string]any) (int, error) {
@@ -806,8 +1047,8 @@ func assetLibraryActionInput(e *core.RequestEvent, data pluginAssetLibraryReques
 	return assetLibraryActionInputForApp(e.App, data, false)
 }
 
-func assetLibraryActionInputForApp(app core.App, data pluginAssetLibraryRequest, useTrailTime bool) (pluginAssetLibraryActionInput, error) {
-	request := pluginAssetLibraryActionInput{
+func newAssetLibraryActionInput(data pluginAssetLibraryRequest) pluginAssetLibraryActionInput {
+	return pluginAssetLibraryActionInput{
 		Action:       data.Action,
 		TrailID:      data.TrailID,
 		Lat:          data.Lat,
@@ -817,6 +1058,10 @@ func assetLibraryActionInputForApp(app core.App, data pluginAssetLibraryRequest,
 		DoubleRadius: data.DoubleRadius,
 		AssetIDs:     data.AssetIDs,
 	}
+}
+
+func assetLibraryActionInputForApp(app core.App, data pluginAssetLibraryRequest, useTrailTime bool) (pluginAssetLibraryActionInput, error) {
+	request := newAssetLibraryActionInput(data)
 	if err := applyAssetLibraryExplicitTimeWindow(&request); err != nil {
 		return request, err
 	}
@@ -856,24 +1101,45 @@ func assetLibraryActionInputForApp(app core.App, data pluginAssetLibraryRequest,
 	return request, nil
 }
 
+func assetLibraryActionInputForWandererLibrary(app core.App, data pluginAssetLibraryRequest) (pluginAssetLibraryActionInput, error) {
+	request := newAssetLibraryActionInput(data)
+	if err := applyAssetLibraryExplicitTimeWindow(&request); err != nil {
+		return request, err
+	}
+
+	if strings.TrimSpace(data.TrailData) != "" {
+		points, start, end, err := trailTrackPointsFromBytes([]byte(data.TrailData))
+		if err != nil {
+			app.Logger().Warn("unable to parse trail data for asset library", "trail", data.TrailID, "error", err)
+		} else {
+			applyAssetLibraryTrackPoints(&request, points, start, end)
+			return request, nil
+		}
+	}
+
+	if data.TrailID == "" {
+		return request, nil
+	}
+	trail, err := app.FindRecordById("trails", data.TrailID)
+	if err != nil {
+		return request, err
+	}
+	points, start, end, err := trailTrackPoints(app, trail)
+	if err != nil {
+		app.Logger().Warn("unable to read trail data for asset library", "trail", data.TrailID, "error", err)
+		return request, nil
+	}
+	applyAssetLibraryTrackPoints(&request, points, start, end)
+	return request, nil
+}
+
 func trailTrackPoints(app core.App, trail *core.Record) ([]pluginAssetTrackPoint, time.Time, time.Time, error) {
-	gpxName := trail.GetString("gpx")
-	if gpxName == "" {
+	content, err := util.ReadTrailGPX(app, trail)
+	if err != nil {
+		return nil, time.Time{}, time.Time{}, err
+	}
+	if len(content) == 0 {
 		return nil, time.Time{}, time.Time{}, nil
-	}
-	fsys, err := app.NewFilesystem()
-	if err != nil {
-		return nil, time.Time{}, time.Time{}, err
-	}
-	defer fsys.Close()
-	reader, err := fsys.GetReader(trail.BaseFilesPath() + "/" + gpxName)
-	if err != nil {
-		return nil, time.Time{}, time.Time{}, err
-	}
-	defer reader.Close()
-	content, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, time.Time{}, time.Time{}, err
 	}
 	return trailTrackPointsFromBytes(content)
 }
@@ -961,6 +1227,266 @@ func decimateTrackPoints(points []pluginAssetTrackPoint, limit int) []pluginAsse
 		decimated = append(decimated, points[i])
 	}
 	return decimated
+}
+
+func assetLibraryLinkedAssetIDs(app core.App, data pluginAssetLibraryRequest) (map[string]bool, error) {
+	linked := map[string]bool{}
+	targets := []struct {
+		collection string
+		field      string
+		id         string
+	}{
+		{collection: "trail_assets", field: "trail", id: data.TrailID},
+		{collection: "waypoint_assets", field: "waypoint", id: data.WaypointID},
+		{collection: "summit_log_assets", field: "summit_log", id: data.SummitLogID},
+	}
+
+	for _, target := range targets {
+		if target.id == "" {
+			continue
+		}
+		assetIDs, err := util.AssetIDsForLinkTarget(app, target.collection, target.field, target.id)
+		if err != nil {
+			return nil, err
+		}
+		for _, assetID := range assetIDs {
+			linked[assetID] = true
+		}
+	}
+	return linked, nil
+}
+
+func assetLibraryRecords(app core.App, actorID string, request pluginAssetLibraryActionInput, hasLocation bool) ([]*core.Record, error) {
+	filters := []string{"author={:author}", "type='photo'"}
+	params := dbx.Params{"author": actorID}
+	if request.TakenAfter != "" {
+		filters = append(filters, "taken_at >= {:takenAfter}")
+		params["takenAfter"] = request.TakenAfter
+	}
+	if request.TakenBefore != "" {
+		filters = append(filters, "taken_at <= {:takenBefore}")
+		params["takenBefore"] = request.TakenBefore
+	}
+	if bounds, ok := assetLibraryCoordinateBounds(request, hasLocation); ok {
+		filters = append(filters, "lat >= {:minLat}", "lat <= {:maxLat}", "lon >= {:minLon}", "lon <= {:maxLon}")
+		params["minLat"] = bounds.minLat
+		params["maxLat"] = bounds.maxLat
+		params["minLon"] = bounds.minLon
+		params["maxLon"] = bounds.maxLon
+	}
+	return app.FindRecordsByFilter(
+		"assets",
+		strings.Join(filters, " && "),
+		"-taken_at,-created",
+		-1,
+		0,
+		params,
+	)
+}
+
+type assetLibraryBounds struct {
+	minLat float64
+	maxLat float64
+	minLon float64
+	maxLon float64
+}
+
+func assetLibraryCoordinateBounds(request pluginAssetLibraryActionInput, hasLocation bool) (assetLibraryBounds, bool) {
+	if !hasLocation && len(request.Points) == 0 {
+		return assetLibraryBounds{}, false
+	}
+
+	minLat := math.Inf(1)
+	maxLat := math.Inf(-1)
+	minLon := math.Inf(1)
+	maxLon := math.Inf(-1)
+	addPoint := func(lat float64, lon float64) {
+		if !isFiniteCoordinate(lat, lon) {
+			return
+		}
+		minLat = math.Min(minLat, lat)
+		maxLat = math.Max(maxLat, lat)
+		minLon = math.Min(minLon, lon)
+		maxLon = math.Max(maxLon, lon)
+	}
+	for _, point := range request.Points {
+		addPoint(point.Lat, point.Lon)
+	}
+	if hasLocation {
+		addPoint(request.Lat, request.Lon)
+	}
+	if math.IsInf(minLat, 1) {
+		return assetLibraryBounds{}, false
+	}
+
+	paddingMeters := assetLibraryMaxDistance(request, hasLocation)
+	if math.IsInf(paddingMeters, 1) {
+		return assetLibraryBounds{}, false
+	}
+	latPadding := paddingMeters / 111320
+	minLat = math.Max(-90, minLat-latPadding)
+	maxLat = math.Min(90, maxLat+latPadding)
+
+	maxAbsLat := math.Max(math.Abs(minLat), math.Abs(maxLat))
+	cosLat := math.Cos(maxAbsLat * math.Pi / 180)
+	if cosLat <= 0.01 {
+		return assetLibraryBounds{}, false
+	}
+	lonPadding := paddingMeters / (111320 * cosLat)
+	minLon -= lonPadding
+	maxLon += lonPadding
+	if minLon < -180 || maxLon > 180 {
+		return assetLibraryBounds{}, false
+	}
+
+	return assetLibraryBounds{
+		minLat: minLat,
+		maxLat: maxLat,
+		minLon: minLon,
+		maxLon: maxLon,
+	}, true
+}
+
+func isFiniteCoordinate(lat float64, lon float64) bool {
+	return !math.IsNaN(lat) && !math.IsInf(lat, 0) &&
+		!math.IsNaN(lon) && !math.IsInf(lon, 0) &&
+		lat >= -90 && lat <= 90 &&
+		lon >= -180 && lon <= 180
+}
+
+func assetLibraryMaxDistance(request pluginAssetLibraryActionInput, hasLocation bool) float64 {
+	if !hasLocation && len(request.Points) == 0 {
+		return math.Inf(1)
+	}
+	if request.DoubleRadius {
+		return 2000
+	}
+	return 1000
+}
+
+func assetLibraryCandidate(record *core.Record, request pluginAssetLibraryActionInput, hasLocation bool) (pluginAssetCandidate, bool) {
+	thumbnailURL := util.AssetPublicMediaURL(record, "")
+	if thumbnailURL == "" || util.IsGeneratedRoutePreviewAsset(record) {
+		return pluginAssetCandidate{}, false
+	}
+
+	lat := record.GetFloat("lat")
+	lon := record.GetFloat("lon")
+	if lat == 0 && lon == 0 {
+		return pluginAssetCandidate{}, false
+	}
+
+	metadata := map[string]any{}
+	_ = record.UnmarshalJSONField("metadata", &metadata)
+	nearest, hasNearest := nearestAssetLibraryTrackPoint(request.Points, lat, lon)
+	distance := 0.0
+	pointLat := 0.0
+	pointLon := 0.0
+	distanceFromStart := 0.0
+	if hasNearest {
+		distance = nearest.distanceToPhoto
+		pointLat = nearest.lat
+		pointLon = nearest.lon
+		distanceFromStart = nearest.distanceFromStart
+	} else if hasLocation {
+		distance = util.HaversineDistanceMeters(request.Lat, request.Lon, lat, lon)
+	}
+
+	providerID := record.GetString("external_provider")
+	if providerID == "" {
+		providerID = "wanderer"
+	}
+	takenAt := util.RecordDateTimeRFC3339(record, "taken_at")
+	if takenAt == "" {
+		takenAt = util.RecordDateTimeRFC3339(record, "created")
+	}
+
+	return pluginAssetCandidate{
+		Source:            "wanderer",
+		ProviderID:        providerID,
+		ExternalProvider:  record.GetString("external_provider"),
+		ExternalID:        record.GetString("external_id"),
+		AssetID:           record.Id,
+		OriginalFileName:  assetLibraryFilename(record, metadata),
+		TakenAt:           takenAt,
+		Lat:               lat,
+		Lon:               lon,
+		PointLat:          pointLat,
+		PointLon:          pointLon,
+		Distance:          distance,
+		DistanceFromStart: distanceFromStart,
+		City:              "",
+		Country:           "",
+		ThumbnailURL:      thumbnailURL,
+	}, true
+}
+
+func assetLibraryFilename(record *core.Record, metadata map[string]any) string {
+	if file := record.GetString("file"); file != "" {
+		return file
+	}
+	if remoteFilename := util.AssetMetadataString(metadata, "remote", "filename"); remoteFilename != "" {
+		return remoteFilename
+	}
+	if externalID := record.GetString("external_id"); externalID != "" {
+		return externalID
+	}
+	return record.Id
+}
+
+type nearestAssetLibraryPoint struct {
+	lat               float64
+	lon               float64
+	distanceFromStart float64
+	distanceToPhoto   float64
+}
+
+func nearestAssetLibraryTrackPoint(points []pluginAssetTrackPoint, lat float64, lon float64) (nearestAssetLibraryPoint, bool) {
+	var best nearestAssetLibraryPoint
+	found := false
+	for _, point := range points {
+		distanceToPhoto := util.HaversineDistanceMeters(point.Lat, point.Lon, lat, lon)
+		if !found || distanceToPhoto < best.distanceToPhoto {
+			best = nearestAssetLibraryPoint{
+				lat:               point.Lat,
+				lon:               point.Lon,
+				distanceFromStart: point.Distance,
+				distanceToPhoto:   distanceToPhoto,
+			}
+			found = true
+		}
+	}
+	return best, found
+}
+
+func sortAssetLibraryCandidates(candidates []pluginAssetCandidate, hasTrackPoints bool) {
+	sort.Slice(candidates, func(i int, j int) bool {
+		a := candidates[i]
+		b := candidates[j]
+		if hasTrackPoints && a.DistanceFromStart != b.DistanceFromStart {
+			return a.DistanceFromStart < b.DistanceFromStart
+		}
+		if a.Distance != b.Distance {
+			return a.Distance < b.Distance
+		}
+		aTime := assetLibraryCandidateTime(a.TakenAt)
+		bTime := assetLibraryCandidateTime(b.TakenAt)
+		if !aTime.Equal(bTime) {
+			return aTime.After(bTime)
+		}
+		return a.AssetID < b.AssetID
+	})
+}
+
+func assetLibraryCandidateTime(value string) time.Time {
+	if strings.TrimSpace(value) == "" {
+		return time.Time{}
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
 }
 
 func importAssetPluginPhotos(e *core.RequestEvent, plugin pluginsystem.LocalPlugin, instance *core.Record, auth map[string]any, config map[string]any, output pluginAssetLibraryOutput, data pluginAssetLibraryRequest, waypointID string) error {

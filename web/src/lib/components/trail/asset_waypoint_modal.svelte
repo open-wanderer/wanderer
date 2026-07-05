@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { PhotoLibraryCandidate } from "$lib/models/photo_library";
+    import { photoLibraryPluginLinks, type PhotoLibraryCandidate } from "$lib/models/photo_library";
     import type { PluginProvider } from "$lib/models/plugin_provider";
     import { Waypoint } from "$lib/models/waypoint";
     import { _ } from "svelte-i18n";
@@ -156,6 +156,7 @@
             originalFileName: candidate.originalFileName,
             takenAt: candidate.takenAt,
         }));
+        waypoint._assetPluginLinks = photoLibraryPluginLinks(pluginCandidates, pluginId);
         return waypoint;
     }
 

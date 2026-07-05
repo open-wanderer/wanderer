@@ -7,17 +7,18 @@ import { isURL } from "$lib/util/file_util";
 interface AssetPhotoOptions {
     share?: string;
     origin?: string;
+    includeGeneratedRoutePreview?: boolean;
 }
 
-export function assetsFromLinks(links?: AssetLink[]): Asset[] {
-    return links
+export function assetsFromLinks(links?: AssetLink[], options?: AssetPhotoOptions): Asset[] {
+    return linkableAssetLinks(links, options)
         ?.map((link) => link.expand?.asset)
         .filter((asset): asset is Asset => Boolean(asset)) ?? [];
 }
 
 export function assetPhotos(assets?: Asset[], options?: AssetPhotoOptions): string[] {
     return assets
-        ?.filter(isDisplayablePhotoAsset)
+        ?.filter((asset) => isDisplayablePhotoAsset(asset, options))
         .map((asset) =>
             withAssetAccessQuery(assetPhotoURL(asset), options),
         ) ?? [];
@@ -89,6 +90,14 @@ export function enrichSummitLogAssetExpands(log: SummitLog, options?: AssetPhoto
     log.photos = assetPhotos(log.expand.assets_via_summit_log, options);
 }
 
+export function linkableAssetLinks(links?: AssetLink[], options?: AssetPhotoOptions): AssetLink[] {
+    if (options?.includeGeneratedRoutePreview !== false) {
+        return links ?? [];
+    }
+    return links
+        ?.filter((link) => !isGeneratedRoutePreviewAsset(link.expand?.asset)) ?? [];
+}
+
 function linkedAssets(existing?: Asset[], links?: AssetLink[]): Asset[] {
     const linked = assetsFromLinks(links);
     return linked.length || links ? linked : existing ?? [];
@@ -103,13 +112,20 @@ function thumbnailPhotoIndex(assets?: Asset[], links?: AssetLink[]): number | un
         return undefined;
     }
     const index = assets
-        .filter(isDisplayablePhotoAsset)
+        .filter((asset) => isDisplayablePhotoAsset(asset))
         .findIndex((asset) => asset.id === thumbnailAssetID);
     return index >= 0 ? index : undefined;
 }
 
-function isDisplayablePhotoAsset(asset: Asset): boolean {
-    return asset.type === "photo" && Boolean(asset.file || (asset.storage_mode && asset.storage_mode !== "copy"));
+function isDisplayablePhotoAsset(asset: Asset, options?: AssetPhotoOptions): boolean {
+    return asset.type === "photo" &&
+        (options?.includeGeneratedRoutePreview !== false || !isGeneratedRoutePreviewAsset(asset)) &&
+        Boolean(asset.file || (asset.storage_mode && asset.storage_mode !== "copy"));
+}
+
+export function isGeneratedRoutePreviewAsset(asset?: Asset): boolean {
+    const generated = asset?.metadata?.generated as { kind?: string } | undefined;
+    return generated?.kind === "route-preview";
 }
 
 function withAssetAccessQuery(url: string, options?: AssetPhotoOptions): string {

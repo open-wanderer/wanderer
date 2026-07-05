@@ -8,7 +8,7 @@
     import { fetchGPX, trails_index, trails_upload } from "$lib/stores/trail_store";
     import { processUploadQueue, uploadStore, type Upload } from "$lib/stores/upload_store.svelte";
     import { currentUser } from "$lib/stores/user_store";
-    import { getFileURL, saveAs } from "$lib/util/file_util";
+    import { getFileURL, photoExportFilename, saveAs } from "$lib/util/file_util";
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
     import JSZip from "jszip";
@@ -129,14 +129,6 @@
         }
     }
 
-    function photoExportFilename(photo: string): string {
-        try {
-            const url = new URL(photo, window.location.origin);
-            return decodeURIComponent(url.pathname.split("/").filter(Boolean).pop() ?? "photo");
-        } catch {
-            return photo.split("/").filter(Boolean).pop() ?? "photo";
-        }
-    }
 </script>
 
 <svelte:head>

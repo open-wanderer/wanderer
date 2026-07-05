@@ -196,6 +196,8 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/waypoint/cluster", routes.WaypointCluster)
 	se.Router.POST("/category-preferences/reorder", routes.CategoryPreferencesReorder)
 	se.Router.POST("/subcategory-preferences/reorder", routes.SubcategoryPreferencesReorder)
+	se.Router.GET("/geocoding/reverse", routes.GeocodingReverse)
+	se.Router.GET("/geocoding/search", routes.GeocodingSearch)
 
 	se.Router.POST("/trail-merge/suggest", routes.TrailMergeSuggest)
 	se.Router.POST("/trail-merge", routes.TrailMerge(client))
@@ -227,6 +229,8 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/plugins/oauth/callback", routes.PluginSystemOAuthCallback)
 	se.Router.POST("/plugins/oauth/revoke", routes.PluginSystemOAuthRevoke)
 
+	se.Router.POST("/assets/library", routes.AssetLibraryCandidates)
+	se.Router.DELETE("/assets/{id}", routes.AssetDelete)
 	se.Router.GET("/assets/{id}/file", routes.AssetFile)
 
 	se.Router.POST("/activitypub/activity/process", routes.ActivitypubActivityProcess)

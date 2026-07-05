@@ -4,7 +4,7 @@ import { type AuthRecord, type ListResult } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { currentUser } from "./user_store";
 import { isURL, objectToFormData } from "$lib/util/file_util";
-import { asset_photo_url, assets_create, assets_delete_removed, assets_import_plugin_links, assets_link } from "./asset_store";
+import { assets_attach_to_target, assets_delete_removed } from "./asset_store";
 
 export const summitLog: Writable<SummitLog> = writable(new SummitLog(new Date().toISOString().substring(0, 10)));
 export const summitLogs: Writable<SummitLog[]> = writable([]);
@@ -63,25 +63,17 @@ export async function summit_logs_create(summitLog: SummitLog, f: (url: RequestI
 
     let model: SummitLog = await r.json();
 
-    if (summitLog._photos?.length) {
-        const assets = await assets_create(summitLog._photos, {
-            summit_log: model.id,
-        }, f);
-        model.photos = [...(model.photos ?? []), ...assets.map(asset_photo_url)];
-    }
-    if (summitLog._assetLinks?.length) {
-        const assets = await assets_link(summitLog._assetLinks, {
-            summit_log: model.id,
-        }, f);
-        model.photos = [...(model.photos ?? []), ...assets.map(asset_photo_url)];
-    }
-    if (summitLog._assetPluginLinks?.length) {
-        const assets = await assets_import_plugin_links(summitLog._assetPluginLinks, {
+    model.photos = await assets_attach_to_target({
+        files: summitLog._photos,
+        assetIds: summitLog._assetLinks,
+        pluginLinks: summitLog._assetPluginLinks,
+        target: {
             trail: model.trail,
             summit_log: model.id,
-        }, f);
-        model.photos = [...(model.photos ?? []), ...assets.map(asset_photo_url)];
-    }
+        },
+        existingPhotos: model.photos,
+        f,
+    });
 
     return model;
 }
@@ -127,31 +119,18 @@ export async function summit_logs_update(oldSummitLog: SummitLog, newSummitLog: 
     await assets_delete_removed(oldSummitLog.photos, newSummitLog.photos, {
         summit_log: model.id,
     });
-    if (newSummitLog._photos?.length) {
-        const assets = await assets_create(newSummitLog._photos, {
-            summit_log: model.id,
-        });
-        model.photos = uniquePhotoURLs([...(newSummitLog.photos ?? []), ...assets.map(asset_photo_url)]);
-    }
-    if (newSummitLog._assetLinks?.length) {
-        const assets = await assets_link(newSummitLog._assetLinks, {
-            summit_log: model.id,
-        });
-        model.photos = uniquePhotoURLs([...(model.photos ?? newSummitLog.photos ?? []), ...assets.map(asset_photo_url)]);
-    }
-    if (newSummitLog._assetPluginLinks?.length) {
-        const assets = await assets_import_plugin_links(newSummitLog._assetPluginLinks, {
+    model.photos = await assets_attach_to_target({
+        files: newSummitLog._photos,
+        assetIds: newSummitLog._assetLinks,
+        pluginLinks: newSummitLog._assetPluginLinks,
+        target: {
             trail: model.trail,
             summit_log: model.id,
-        });
-        model.photos = uniquePhotoURLs([...(model.photos ?? newSummitLog.photos ?? []), ...assets.map(asset_photo_url)]);
-    }
+        },
+        existingPhotos: model.photos ?? newSummitLog.photos,
+    });
 
     return model;
-}
-
-function uniquePhotoURLs(photos: string[]): string[] {
-    return [...new Set(photos)];
 }
 
 export async function summit_logs_delete(summitLog: SummitLog) {

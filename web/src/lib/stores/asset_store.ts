@@ -18,6 +18,15 @@ interface AssetPluginImportResult {
     asset?: Asset;
 }
 
+interface AssetAttachmentInput {
+    files?: File[];
+    assetIds?: string[];
+    pluginLinks?: AssetPluginLink[];
+    target: AssetTarget;
+    existingPhotos?: string[];
+    f?: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response>;
+}
+
 const generatedAssetKinds = new WeakMap<File, string>();
 const assetFileMetadata = new WeakMap<File, PhotoExifMetadata>();
 
@@ -153,6 +162,28 @@ export async function assets_import_plugin_links(
     return assets;
 }
 
+export function has_asset_attachments(input: Pick<AssetAttachmentInput, "files" | "assetIds" | "pluginLinks">): boolean {
+    return Boolean(
+        input.files?.length ||
+        input.assetIds?.length ||
+        input.pluginLinks?.some((link) => link.assetIds.length),
+    );
+}
+
+export async function assets_attach_to_target(input: AssetAttachmentInput): Promise<string[]> {
+    const f = input.f ?? fetch;
+    const photos = [...(input.existingPhotos ?? [])];
+    const appendAssets = (assets: Asset[]) => {
+        photos.push(...assets.map(asset_photo_url));
+    };
+
+    appendAssets(await assets_create(input.files ?? [], input.target, f));
+    appendAssets(await assets_link(input.assetIds, input.target, f));
+    appendAssets(await assets_import_plugin_links(input.pluginLinks, input.target, f));
+
+    return uniquePhotoURLs(photos);
+}
+
 export async function assets_delete_removed(
     oldPhotos: string[] | undefined,
     newPhotos: string[] | undefined,
@@ -202,4 +233,8 @@ export const assetIdFromPhotoUrl = assetIdFromPhotoURL;
 
 function generatedAssetKind(file: File): string | undefined {
     return generatedAssetKinds.get(file);
+}
+
+function uniquePhotoURLs(photos: string[]): string[] {
+    return [...new Set(photos)];
 }

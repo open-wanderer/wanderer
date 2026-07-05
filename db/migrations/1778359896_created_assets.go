@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/pocketbase/pocketbase/core"
 	m "github.com/pocketbase/pocketbase/migrations"
@@ -128,7 +130,9 @@ func createAssetsCollection(app core.App) (*core.Collection, error) {
 				"protected": false,
 				"required": false,
 				"system": false,
-				"thumbs": null,
+				"thumbs": [
+					"600x0"
+				],
 				"type": "file"
 			},
 			{
@@ -514,27 +518,26 @@ func migrateRecordPhotosToAssets(app core.App, fsys *filesystem.System, assetCol
 
 	author, err := resolveAssetAuthor(app, source.GetString("author"))
 	if err != nil {
-		return err
+		app.Logger().Warn("skipping legacy photos with unresolved author during asset migration", "collection", cfg.Collection, "record", source.Id, "author", source.GetString("author"), "error", err)
+		return nil
 	}
 	if author == "" {
-		return fmt.Errorf("missing asset author for %s %s", cfg.Collection, source.Id)
+		app.Logger().Warn("skipping legacy photos with missing author during asset migration", "collection", cfg.Collection, "record", source.Id)
+		return nil
 	}
 
 	thumbnailIndex := source.GetInt("thumbnail")
 	for i, photo := range photos {
-		reader, err := fsys.GetReader(source.BaseFilesPath() + "/" + photo)
+		tempPath, cleanup, err := copyLegacyPhotoToTempFile(fsys, source, photo)
 		if err != nil {
-			return err
+			app.Logger().Warn("skipping invalid legacy photo during asset migration", "collection", cfg.Collection, "record", source.Id, "photo", photo, "error", err)
+			continue
 		}
-		data, err := io.ReadAll(reader)
-		reader.Close()
+		file, err := filesystem.NewFileFromPath(tempPath)
 		if err != nil {
-			return err
-		}
-
-		file, err := filesystem.NewFileFromBytes(data, photo)
-		if err != nil {
-			return err
+			cleanup()
+			app.Logger().Warn("skipping invalid legacy photo during asset migration", "collection", cfg.Collection, "record", source.Id, "photo", photo, "error", err)
+			continue
 		}
 
 		asset := core.NewRecord(assetCollection)
@@ -571,8 +574,10 @@ func migrateRecordPhotosToAssets(app core.App, fsys *filesystem.System, assetCol
 		}
 
 		if err := app.Save(asset); err != nil {
+			cleanup()
 			return err
 		}
+		cleanup()
 
 		link := core.NewRecord(linkCollection)
 		link.Set("asset", asset.Id)
@@ -587,6 +592,43 @@ func migrateRecordPhotosToAssets(app core.App, fsys *filesystem.System, assetCol
 
 	source.Set("photos", []string{})
 	return app.Save(source)
+}
+
+func copyLegacyPhotoToTempFile(fsys *filesystem.System, source *core.Record, photo string) (string, func(), error) {
+	reader, err := fsys.GetReader(source.BaseFilesPath() + "/" + photo)
+	if err != nil {
+		return "", func() {}, err
+	}
+	defer reader.Close()
+
+	tempDir, err := os.MkdirTemp("", "wanderer-asset-migration-*")
+	if err != nil {
+		return "", func() {}, err
+	}
+	cleanup := func() {
+		_ = os.RemoveAll(tempDir)
+	}
+
+	name := filepath.Base(photo)
+	if name == "." || name == string(filepath.Separator) {
+		name = "photo"
+	}
+	tempPath := filepath.Join(tempDir, name)
+	target, err := os.Create(tempPath)
+	if err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+	if _, err := io.Copy(target, reader); err != nil {
+		_ = target.Close()
+		cleanup()
+		return "", func() {}, err
+	}
+	if err := target.Close(); err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+	return tempPath, cleanup, nil
 }
 
 func removeLegacyPhotoFields(app core.App) error {
@@ -626,7 +668,7 @@ func resolveAssetAuthor(app core.App, rawAuthor string) (string, error) {
 	}
 	actor, err := app.FindFirstRecordByData("activitypub_actors", "user", rawAuthor)
 	if err != nil {
-		return rawAuthor, nil
+		return "", nil
 	}
 	return actor.Id, nil
 }

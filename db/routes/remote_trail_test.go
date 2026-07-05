@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"errors"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
@@ -12,7 +14,7 @@ func TestRemoteTrailSyncQueryAddsRequiredExpands(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	query := remoteTrailSyncQuery(reqURL)
+	query := remoteTrailSyncQuery(reqURL, true)
 
 	if got := query.Get("handle"); got != "" {
 		t.Fatalf("handle query should not be forwarded, got %q", got)
@@ -22,7 +24,7 @@ func TestRemoteTrailSyncQueryAddsRequiredExpands(t *testing.T) {
 	}
 
 	expands := expandSet(query.Get("expand"))
-	for _, required := range remoteTrailSyncExpandPaths {
+	for _, required := range allRemoteTrailSyncExpandPaths() {
 		if !expands[required] {
 			t.Fatalf("expected required expand %q in %q", required, query.Get("expand"))
 		}
@@ -33,13 +35,37 @@ func TestRemoteTrailSyncQueryAddsRequiredExpands(t *testing.T) {
 }
 
 func TestRemoteTrailSyncQueryWithNilURL(t *testing.T) {
-	query := remoteTrailSyncQuery(nil)
+	query := remoteTrailSyncQuery(nil, true)
 
 	expands := expandSet(query.Get("expand"))
-	for _, required := range remoteTrailSyncExpandPaths {
+	for _, required := range allRemoteTrailSyncExpandPaths() {
 		if !expands[required] {
 			t.Fatalf("expected required expand %q in %q", required, query.Get("expand"))
 		}
+	}
+}
+
+func TestRemoteTrailSyncQueryWithoutAssetExpands(t *testing.T) {
+	reqURL, err := url.Parse("https://local.example/api/v1/trail/abc?expand=tags,trail_assets_via_trail.asset,waypoints_via_trail.waypoint_assets_via_waypoint.asset")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	query := remoteTrailSyncQuery(reqURL, false)
+
+	expands := expandSet(query.Get("expand"))
+	for _, removed := range remoteTrailSyncAssetExpandPaths {
+		if expands[removed] {
+			t.Fatalf("did not expect asset expand %q in %q", removed, query.Get("expand"))
+		}
+	}
+	for _, required := range remoteTrailSyncCoreExpandPaths {
+		if !expands[required] {
+			t.Fatalf("expected core expand %q in %q", required, query.Get("expand"))
+		}
+	}
+	if !expands["tags"] {
+		t.Fatalf("expected caller expand tags to be preserved, got %q", query.Get("expand"))
 	}
 }
 
@@ -63,6 +89,65 @@ func TestLegacyRecordPhotosBuildsFederatedPhotos(t *testing.T) {
 	}
 }
 
+func TestSyncRecordPhotoListSkipsFallbackWithoutAssetExpandsOrLegacyPhotos(t *testing.T) {
+	photos, authoritative := syncRecordPhotoList("trail", "trail1", "https://remote.example", map[string]any{}, false)
+
+	if authoritative {
+		t.Fatal("fallback response without asset expands or legacy photos should not be authoritative")
+	}
+	if len(photos) != 0 {
+		t.Fatalf("got %d photos, want 0", len(photos))
+	}
+}
+
+func TestSyncRecordPhotoListTreatsPrimaryEmptyAssetExpandsAsAuthoritative(t *testing.T) {
+	photos, authoritative := syncRecordPhotoList("trail", "trail1", "https://remote.example", map[string]any{}, true)
+
+	if !authoritative {
+		t.Fatal("primary response with requested asset expands should be authoritative")
+	}
+	if len(photos) != 0 {
+		t.Fatalf("got %d photos, want 0", len(photos))
+	}
+}
+
+func TestSyncRecordPhotoListTreatsLegacyEmptyPhotosAsAuthoritative(t *testing.T) {
+	photos, authoritative := syncRecordPhotoList("trail", "trail1", "https://remote.example", map[string]any{
+		"photos": []any{},
+	}, false)
+
+	if !authoritative {
+		t.Fatal("legacy photos field should make fallback response authoritative")
+	}
+	if len(photos) != 0 {
+		t.Fatalf("got %d photos, want 0", len(photos))
+	}
+}
+
+func TestShouldRetryRemoteFetchWithoutAssetExpands(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "bad request", err: &remoteFetchStatusError{StatusCode: http.StatusBadRequest}, want: true},
+		{name: "uri too long", err: &remoteFetchStatusError{StatusCode: http.StatusRequestURITooLong}, want: true},
+		{name: "headers too large", err: &remoteFetchStatusError{StatusCode: http.StatusRequestHeaderFieldsTooLarge}, want: true},
+		{name: "unprocessable entity", err: &remoteFetchStatusError{StatusCode: http.StatusUnprocessableEntity}, want: true},
+		{name: "rate limited", err: &remoteFetchStatusError{StatusCode: http.StatusTooManyRequests}, want: false},
+		{name: "server error", err: &remoteFetchStatusError{StatusCode: http.StatusBadGateway}, want: false},
+		{name: "network error", err: errors.New("connection reset"), want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shouldRetryRemoteFetchWithoutAssetExpands(tt.err); got != tt.want {
+				t.Fatalf("retry = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func expandSet(value string) map[string]bool {
 	result := map[string]bool{}
 	for _, part := range strings.Split(value, ",") {
@@ -82,4 +167,9 @@ func countExpand(value string, needle string) int {
 		}
 	}
 	return count
+}
+
+func allRemoteTrailSyncExpandPaths() []string {
+	paths := append([]string{}, remoteTrailSyncCoreExpandPaths...)
+	return append(paths, remoteTrailSyncAssetExpandPaths...)
 }

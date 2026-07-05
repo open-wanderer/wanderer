@@ -11,6 +11,7 @@ import type { TrailShare } from "./trail_share";
 import { Waypoint } from "./waypoint";
 import type { Asset, AssetLink } from "./asset";
 import type { PhotoLibraryPluginLink } from "./photo_library";
+import { assetPhotos, assetsFromLinks, linkableAssetLinks } from "$lib/util/asset_link_util";
 
 class Trail {
     id?: string;
@@ -192,36 +193,17 @@ function cloneSummitLog(log: SummitLog): SummitLog {
 }
 
 function linkedAssetIds(links?: AssetLink[]): string[] | undefined {
-    const ids = linkableAssetLinks(links)
+    const ids = linkableAssetLinks(links, { includeGeneratedRoutePreview: false })
         .map((link) => link.asset)
         .filter(Boolean) ?? [];
     return ids.length ? Array.from(new Set(ids)) : undefined;
 }
 
 function assetPhotosFromLinks(links?: AssetLink[]): string[] {
-    return assetsFromLinks(links)
-        .filter((asset) => asset.type === "photo" && (asset.file || (asset.storage_mode && asset.storage_mode !== "copy")))
-        .map((asset) =>
-            asset.file
-                ? `/api/v1/files/${asset.collectionId}/${asset.id}/${asset.file}`
-                : `/api/v1/assets/${asset.id}/file`,
-        );
-}
-
-function assetsFromLinks(links?: AssetLink[]): Asset[] {
-    return linkableAssetLinks(links)
-        .map((link) => link.expand?.asset)
-        .filter((asset): asset is Asset => Boolean(asset));
-}
-
-function linkableAssetLinks(links?: AssetLink[]): AssetLink[] {
-    return links
-        ?.filter((link) => !isGeneratedRoutePreviewAsset(link.expand?.asset)) ?? [];
-}
-
-function isGeneratedRoutePreviewAsset(asset?: Asset): boolean {
-    const generated = asset?.metadata?.generated as { kind?: string } | undefined;
-    return generated?.kind === "route-preview";
+    return assetPhotos(
+        assetsFromLinks(links, { includeGeneratedRoutePreview: false }),
+        { includeGeneratedRoutePreview: false },
+    );
 }
 
 interface TrailFilter {

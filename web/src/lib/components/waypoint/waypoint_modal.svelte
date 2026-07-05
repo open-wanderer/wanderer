@@ -19,7 +19,7 @@
     import AssetPhotoPickerModal from "../trail/asset_photo_picker_modal.svelte";
     import type { Waypoint } from "$lib/models/waypoint";
     import type { PluginProvider } from "$lib/models/plugin_provider";
-    import type { PhotoLibraryCandidate } from "$lib/models/photo_library";
+    import { photoLibraryPluginLinks, type PhotoLibraryCandidate } from "$lib/models/photo_library";
 
     interface Props {
         children?: Snippet<[any]>;
@@ -42,6 +42,15 @@
     const ClientWaypointCreateSchema = WaypointCreateSchema.extend({
         photos: z.array(z.string()).default([]),
         _photos: z.array(z.instanceof(File)).optional(),
+        _assetLinks: z.array(z.string()).optional(),
+        _assetPluginLinks: z
+            .array(
+                z.object({
+                    pluginId: z.string(),
+                    assetIds: z.array(z.string()),
+                }),
+            )
+            .optional(),
     });
 
     const { form, errors, data, setFields } = createForm<
@@ -66,6 +75,7 @@
                     originalFileName: c.originalFileName,
                     takenAt: c.takenAt,
                 }));
+                wp._assetPluginLinks = photoLibraryPluginLinks(pluginCandidates, pluginId);
                 wp._assetLinks = wandererCandidates.map((c) => c.assetId);
                 wp.photos = [
                     ...(wp.photos ?? []),

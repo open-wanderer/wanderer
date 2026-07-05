@@ -38,6 +38,8 @@ export async function GET(event: RequestEvent) {
 
     const safeSearchParams = z.object({
         share: z.string().regex(/^[a-z0-9]{32}$/).optional(),
+        thumb: z.string().regex(/[0-9]*x[0-9]*[tbf]?/).optional(),
+        size: z.string().regex(/[0-9]*x[0-9]*[tbf]?/).optional(),
     }).safeParse(Object.fromEntries(event.url.searchParams));
 
     if (!safeSearchParams.success) {
@@ -50,7 +52,14 @@ export async function GET(event: RequestEvent) {
         headers.Authorization = `Bearer ${token}`;
     }
 
-    const query = new URLSearchParams(safeSearchParams.data);
+    const query = new URLSearchParams();
+    if (safeSearchParams.data.share) {
+        query.set("share", safeSearchParams.data.share);
+    }
+    const thumb = safeSearchParams.data.thumb ?? safeSearchParams.data.size;
+    if (thumb) {
+        query.set("thumb", thumb);
+    }
     const assetURL = event.locals.pb.buildURL(
         `assets/${safeParams.data.id}/file${query.size ? `?${query}` : ""}`,
     );

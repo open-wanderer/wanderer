@@ -60,29 +60,16 @@ export async function DELETE(event: RequestEvent) {
 
         const linkTargets = assetLinkTargets(targets);
 
-        if (linkTargets.length > 0) {
-            const asset = await event.locals.pb.collection(Collection.assets).getOne<Asset>(safeParams.id);
-            const canDeleteOrphanedAsset = Boolean(event.locals.user.actor && asset.author === event.locals.user.actor);
-            for (const target of linkTargets) {
-                const links = await event.locals.pb.collection(target.collection).getFullList({
-                    filter: event.locals.pb.filter(`asset = {:asset} && ${target.field} = {:target}`, {
-                        asset: safeParams.id,
-                        target: target.id,
-                    }),
-                    requestKey: null,
-                });
-                for (const link of links) {
-                    await event.locals.pb.collection(target.collection).delete(link.id);
-                }
-            }
-            const assetDeleted = canDeleteOrphanedAsset
-                ? await deleteAssetIfOrphaned(event, safeParams.id)
-                : false;
-            return json({ acknowledged: true, assetDeleted });
+        const searchParams = new URLSearchParams();
+        for (const target of linkTargets) {
+            searchParams.set(target.field, target.id);
         }
-
-        const success = await event.locals.pb.collection(Collection.assets).delete(safeParams.id);
-        return json({ acknowledged: success });
+        const query = searchParams.toString();
+        const response = await event.locals.pb.send(`/assets/${safeParams.id}${query ? `?${query}` : ""}`, {
+            method: "DELETE",
+            fetch: event.fetch,
+        });
+        return json(response);
     } catch (e: any) {
         return handleError(e);
     }
@@ -141,45 +128,10 @@ export async function PATCH(event: RequestEvent) {
 function assetLinkTargets(targets: { trail?: string; waypoint?: string; summit_log?: string }) {
     const trailIsDirectTarget = targets.trail && !targets.waypoint && !targets.summit_log;
     return [
-        { collection: Collection.trail_assets, field: "trail", id: trailIsDirectTarget ? targets.trail : undefined },
-        { collection: Collection.waypoint_assets, field: "waypoint", id: targets.waypoint },
-        { collection: Collection.summit_log_assets, field: "summit_log", id: targets.summit_log },
-    ].filter((target): target is { collection: Collection; field: string; id: string } => Boolean(target.id));
-}
-
-async function deleteAssetIfOrphaned(event: RequestEvent, assetId: string): Promise<boolean> {
-    const linked = await assetHasLinks(event, assetId);
-    if (linked) {
-        return false;
-    }
-
-    try {
-        return await event.locals.pb.collection(Collection.assets).delete(assetId);
-    } catch (e: any) {
-        if (e?.status === 404) {
-            return false;
-        }
-        throw e;
-    }
-}
-
-async function assetHasLinks(event: RequestEvent, assetId: string): Promise<boolean> {
-    for (const collection of [
-        Collection.trail_assets,
-        Collection.waypoint_assets,
-        Collection.summit_log_assets,
-    ]) {
-        const links = await event.locals.pb.collection(collection).getFullList({
-            filter: event.locals.pb.filter("asset = {:asset}", {
-                asset: assetId,
-            }),
-            requestKey: null,
-        });
-        if (links.length > 0) {
-            return true;
-        }
-    }
-    return false;
+        { field: "trail", id: trailIsDirectTarget ? targets.trail : undefined },
+        { field: "waypoint", id: targets.waypoint },
+        { field: "summit_log", id: targets.summit_log },
+    ].filter((target): target is { field: string; id: string } => Boolean(target.id));
 }
 
 function assetHasCoordinates(asset: Pick<Asset, "lat" | "lon">): boolean {

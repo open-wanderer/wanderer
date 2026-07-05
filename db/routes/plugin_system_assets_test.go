@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -211,6 +212,59 @@ func TestApplyAssetLibraryTrackPointsKeepsExplicitTimeWindow(t *testing.T) {
 
 	if request.StartedAt != "2026-01-01T00:00:00Z" || request.EndedAt != "2026-01-31T23:59:59Z" {
 		t.Fatalf("got %s - %s, want explicit window", request.StartedAt, request.EndedAt)
+	}
+}
+
+func TestPluginAssetLibraryRequestTracksZeroLocationPresence(t *testing.T) {
+	var request pluginAssetLibraryRequest
+	if err := json.Unmarshal([]byte(`{"lat":0,"lon":0}`), &request); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !request.latSet || !request.lonSet {
+		t.Fatalf("got latSet=%v lonSet=%v, want both present", request.latSet, request.lonSet)
+	}
+}
+
+func TestAssetLibraryFilenameKeepsStoredFileBeforeRemoteName(t *testing.T) {
+	record := newAssetMaintenanceRecord(map[string]any{
+		"file":        "stored.jpg",
+		"external_id": "external-id",
+	})
+	metadata := map[string]any{
+		"remote": map[string]any{"filename": "remote.jpg"},
+	}
+
+	if got := assetLibraryFilename(record, metadata); got != "stored.jpg" {
+		t.Fatalf("got %q, want stored file name", got)
+	}
+}
+
+func TestSortAssetLibraryCandidatesUsesRouteOrderBeforeDistance(t *testing.T) {
+	candidates := []pluginAssetCandidate{
+		{AssetID: "later-nearer", DistanceFromStart: 300, Distance: 1, TakenAt: "2026-01-02T00:00:00Z"},
+		{AssetID: "earlier-farther", DistanceFromStart: 100, Distance: 50, TakenAt: "2026-01-01T00:00:00Z"},
+	}
+
+	sortAssetLibraryCandidates(candidates, true)
+
+	if candidates[0].AssetID != "earlier-farther" {
+		t.Fatalf("got first candidate %q, want route-order candidate", candidates[0].AssetID)
+	}
+}
+
+func TestAssetLibraryCoordinateBoundsExpandsRouteByRadius(t *testing.T) {
+	bounds, ok := assetLibraryCoordinateBounds(pluginAssetLibraryActionInput{
+		Points: []pluginAssetTrackPoint{
+			{Lat: 46.00, Lon: 8.00},
+			{Lat: 46.01, Lon: 8.02},
+		},
+	}, false)
+
+	if !ok {
+		t.Fatal("expected coordinate bounds")
+	}
+	if bounds.minLat >= 46.00 || bounds.maxLat <= 46.01 || bounds.minLon >= 8.00 || bounds.maxLon <= 8.02 {
+		t.Fatalf("bounds were not expanded around route: %#v", bounds)
 	}
 }
 

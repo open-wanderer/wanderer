@@ -150,6 +150,11 @@ func SuggestGroups(app core.App, actorID string) (*SuggestResponse, error) {
 	}
 	defer fsys.Close()
 
+	linkCountsByID, err := linkCountsByAssetID(app, records)
+	if err != nil {
+		return nil, err
+	}
+
 	infos := make(map[string]*assetInfo, len(records))
 	groupsByKey := map[string][]string{}
 	reasonByKey := map[string]matchReason{}
@@ -167,7 +172,7 @@ func SuggestGroups(app core.App, actorID string) (*SuggestResponse, error) {
 		if isGeneratedRoutePreviewAsset(record) {
 			continue
 		}
-		info, err := buildAssetInfo(app, fsys, record)
+		info, err := buildAssetInfo(app, fsys, record, linkCountsByID[record.Id])
 		if err != nil {
 			return nil, err
 		}
@@ -435,12 +440,8 @@ func sourceAssetMetadataSnapshot(source *core.Record, metadata map[string]any) m
 	return snapshot
 }
 
-func buildAssetInfo(app core.App, fsys *filesystem.System, record *core.Record) (*assetInfo, error) {
+func buildAssetInfo(app core.App, fsys *filesystem.System, record *core.Record, links LinkCounts) (*assetInfo, error) {
 	metadata, err := metadataMap(record)
-	if err != nil {
-		return nil, err
-	}
-	links, err := linkCounts(app, record.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -449,8 +450,13 @@ func buildAssetInfo(app core.App, fsys *filesystem.System, record *core.Record) 
 		metadata: metadata,
 		links:    links,
 	}
-	if hash, ok := recordContentHash(fsys, record); ok {
+	if hash := metadataContentHash(metadata); hash != "" {
 		info.contentHash = hash
+	} else if hash, ok := recordContentHash(fsys, record); ok {
+		info.contentHash = hash
+		if err := persistAssetContentHash(app, record, metadata, hash); err != nil {
+			app.Logger().Warn("failed to persist asset content hash", "asset", record.Id, "error", err)
+		}
 	}
 	if taken := record.GetDateTime("taken_at"); !taken.IsZero() {
 		info.takenAt = taken.Time()
@@ -465,6 +471,12 @@ func buildAssetInfo(app core.App, fsys *filesystem.System, record *core.Record) 
 		info.hasLon = true
 	}
 	return info, nil
+}
+
+func persistAssetContentHash(app core.App, record *core.Record, metadata map[string]any, hash string) error {
+	metadata["content_hash"] = hash
+	record.Set("metadata", metadata)
+	return app.UnsafeWithoutHooks().Save(record)
 }
 
 func reassignAssetLinks(ctx context.Context, app core.App, sourceAssetID string, targetAssetID string) (int, error) {
@@ -495,30 +507,49 @@ func reassignAssetLinks(ctx context.Context, app core.App, sourceAssetID string,
 	return reassigned, nil
 }
 
-func linkCounts(app core.App, assetID string) (LinkCounts, error) {
-	var counts LinkCounts
-	for _, collection := range assetLinkCollections {
-		links, err := app.FindRecordsByFilter(
-			collection.name,
-			"asset={:asset}",
-			"",
-			-1,
-			0,
-			dbx.Params{"asset": assetID},
-		)
-		if err != nil {
-			return counts, err
-		}
-		switch collection.name {
-		case "trail_assets":
-			counts.Trails = len(links)
-		case "waypoint_assets":
-			counts.Waypoints = len(links)
-		case "summit_log_assets":
-			counts.SummitLogs = len(links)
-		}
-		counts.Total += len(links)
+func linkCountsByAssetID(app core.App, records []*core.Record) (map[string]LinkCounts, error) {
+	counts := make(map[string]LinkCounts, len(records))
+	if len(records) == 0 {
+		return counts, nil
 	}
+
+	assetIDs := make([]any, 0, len(records))
+	for _, record := range records {
+		assetIDs = append(assetIDs, record.Id)
+		counts[record.Id] = LinkCounts{}
+	}
+
+	type linkCountRow struct {
+		Asset string `db:"asset"`
+		Count int    `db:"count"`
+	}
+
+	for _, collection := range assetLinkCollections {
+		rows := []linkCountRow{}
+		err := app.DB().
+			Select("asset", "COUNT(*) AS count").
+			From(collection.name).
+			Where(dbx.In("asset", assetIDs...)).
+			GroupBy("asset").
+			All(&rows)
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			linkCounts := counts[row.Asset]
+			switch collection.name {
+			case "trail_assets":
+				linkCounts.Trails = row.Count
+			case "waypoint_assets":
+				linkCounts.Waypoints = row.Count
+			case "summit_log_assets":
+				linkCounts.SummitLogs = row.Count
+			}
+			linkCounts.Total += row.Count
+			counts[row.Asset] = linkCounts
+		}
+	}
+
 	return counts, nil
 }
 
@@ -638,6 +669,17 @@ func metadataCompleteness(info *assetInfo) int {
 
 func hasLocalCopy(record *core.Record) bool {
 	return record.GetString("file") != "" && (record.GetString("storage_mode") == "" || record.GetString("storage_mode") == "copy")
+}
+
+func metadataContentHash(metadata map[string]any) string {
+	hash := strings.TrimSpace(util.AssetMetadataString(metadata, "content_hash"))
+	if len(hash) != sha256.Size*2 {
+		return ""
+	}
+	if _, err := hex.DecodeString(hash); err != nil {
+		return ""
+	}
+	return strings.ToLower(hash)
 }
 
 func recordContentHash(fsys *filesystem.System, record *core.Record) (string, bool) {

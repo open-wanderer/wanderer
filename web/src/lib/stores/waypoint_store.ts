@@ -3,7 +3,7 @@ import { APIError } from "$lib/util/api_util";
 import { get, writable, type Writable } from "svelte/store";
 import { currentUser } from "./user_store";
 import type { AuthRecord } from "pocketbase";
-import { asset_photo_url, assets_create, assets_delete_removed, assets_link } from "./asset_store";
+import { assets_attach_to_target, assets_delete_removed } from "./asset_store";
 
 export const waypoint: Writable<Waypoint> = writable(new Waypoint(0, 0));
 
@@ -17,7 +17,7 @@ export async function waypoints_create(waypoint: Waypoint, f: (url: RequestInfo 
 
     let r = await f('/api/v1/waypoint', {
         method: 'PUT',
-        body: JSON.stringify({ ...waypoint, photos: [], _photos: undefined, _assetCandidates: undefined, _assetLinks: undefined }),
+        body: JSON.stringify({ ...waypoint, photos: [], _photos: undefined, _assetCandidates: undefined, _assetLinks: undefined, _assetPluginLinks: undefined }),
     })
 
     if (!r.ok) {
@@ -27,18 +27,17 @@ export async function waypoints_create(waypoint: Waypoint, f: (url: RequestInfo 
 
 
     let model: Waypoint = await r.json();
-    if (waypoint._photos && waypoint._photos.length) {
-        const assets = await assets_create(waypoint._photos, {
+    model.photos = await assets_attach_to_target({
+        files: waypoint._photos,
+        assetIds: waypoint._assetLinks,
+        pluginLinks: waypoint._assetPluginLinks,
+        target: {
+            trail: model.trail ?? waypoint.trail,
             waypoint: model.id,
-        }, f);
-        model.photos = assets.map(asset_photo_url);
-    }
-    if (waypoint._assetLinks?.length) {
-        const assets = await assets_link(waypoint._assetLinks, {
-            waypoint: model.id,
-        }, f);
-        model.photos = [...(model.photos ?? []), ...assets.map(asset_photo_url)];
-    }
+        },
+        existingPhotos: model.photos,
+        f,
+    });
 
     return model;
 
@@ -53,7 +52,7 @@ export async function waypoints_update(oldWaypoint: Waypoint, newWaypoint: Waypo
 
     let r = await fetch('/api/v1/waypoint/' + newWaypoint.id, {
         method: 'POST',
-        body: JSON.stringify({ ...newWaypoint, photos: [], _photos: undefined, _assetCandidates: undefined, _assetLinks: undefined }),
+        body: JSON.stringify({ ...newWaypoint, photos: [], _photos: undefined, _assetCandidates: undefined, _assetLinks: undefined, _assetPluginLinks: undefined }),
     })
 
     if (!r.ok) {
@@ -65,25 +64,19 @@ export async function waypoints_update(oldWaypoint: Waypoint, newWaypoint: Waypo
     await assets_delete_removed(oldWaypoint.photos, newWaypoint.photos, {
         waypoint: model.id,
     });
-    if (newWaypoint._photos?.length) {
-        const assets = await assets_create(newWaypoint._photos, {
+    model.photos = await assets_attach_to_target({
+        files: newWaypoint._photos,
+        assetIds: newWaypoint._assetLinks,
+        pluginLinks: newWaypoint._assetPluginLinks,
+        target: {
+            trail: model.trail ?? newWaypoint.trail,
             waypoint: model.id,
-        });
-        model.photos = uniquePhotoURLs([...(newWaypoint.photos ?? []), ...assets.map(asset_photo_url)]);
-    }
-    if (newWaypoint._assetLinks?.length) {
-        const assets = await assets_link(newWaypoint._assetLinks, {
-            waypoint: model.id,
-        });
-        model.photos = uniquePhotoURLs([...(model.photos ?? newWaypoint.photos ?? []), ...assets.map(asset_photo_url)]);
-    }
+        },
+        existingPhotos: model.photos ?? newWaypoint.photos,
+    });
 
     return model;
 
-}
-
-function uniquePhotoURLs(photos: string[]): string[] {
-    return [...new Set(photos)];
 }
 
 export async function waypoints_delete(waypoint: Waypoint) {

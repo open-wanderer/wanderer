@@ -163,6 +163,39 @@ func TestMergePreservesConflictingSourceMetadataSnapshot(t *testing.T) {
 	assertMergedAssetSnapshotContains(t, updated, source.Id, "source.jpg")
 }
 
+func TestPersistAssetContentHashSkipsAssetUpdateHooks(t *testing.T) {
+	app := setupAssetMergeTestApp(t)
+	defer app.Cleanup()
+
+	asset := createTestAsset(t, app, "user1", "", "")
+
+	updateHooks := 0
+	app.OnRecordAfterUpdateSuccess("assets").BindFunc(func(e *core.RecordEvent) error {
+		updateHooks++
+		return e.Next()
+	})
+
+	hash := strings.Repeat("a", 64)
+	if err := persistAssetContentHash(app, asset, map[string]any{}, hash); err != nil {
+		t.Fatal(err)
+	}
+	if updateHooks != 0 {
+		t.Fatalf("asset update hooks fired %d times, want 0", updateHooks)
+	}
+
+	updated, err := app.FindRecordById("assets", asset.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata, err := metadataMap(updated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := util.AssetMetadataString(metadata, "content_hash"); got != hash {
+		t.Fatalf("content_hash = %q, want %q", got, hash)
+	}
+}
+
 func setupAssetMergeTestApp(t *testing.T) *pbtests.TestApp {
 	t.Helper()
 

@@ -13,10 +13,14 @@ export async function GET(event: RequestEvent) {
         throw error(400, "Invalid asset plugin thumbnail request");
     }
 
-    const headers: HeadersInit = {};
+    const headers: Record<string, string> = {};
     const token = event.locals.pb.authStore.token;
     if (token) {
         headers.Authorization = `Bearer ${token}`;
+    }
+    const ifNoneMatch = event.request.headers.get("If-None-Match");
+    if (ifNoneMatch) {
+        headers["If-None-Match"] = ifNoneMatch;
     }
 
     const thumbnailURL = event.locals.pb.buildURL(
@@ -24,7 +28,7 @@ export async function GET(event: RequestEvent) {
     );
     const response = await event.fetch(thumbnailURL, { headers });
 
-    if (!response.ok) {
+    if (!response.ok && response.status !== 304) {
         throw error(response.status, "Thumbnail not available");
     }
 

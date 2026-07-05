@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	assetservice "pocketbase/services/assets"
 	"pocketbase/util"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -180,6 +182,111 @@ func PluginSystemAssetMaterializeStatus(e *core.RequestEvent) error {
 	return e.JSON(http.StatusOK, job)
 }
 
+func AssetDelete(e *core.RequestEvent) error {
+	if e.Auth == nil {
+		return apis.NewUnauthorizedError("authentication required", nil)
+	}
+	assetID := e.Request.PathValue("id")
+	if assetID == "" {
+		return apis.NewBadRequestError("asset id is required", nil)
+	}
+
+	actor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
+	if err != nil {
+		return apis.NewUnauthorizedError("actor not found", err)
+	}
+
+	targets, err := assetDeleteLinkTargets(e)
+	if err != nil {
+		return err
+	}
+
+	if len(targets) == 0 {
+		asset, err := e.App.FindRecordById("assets", assetID)
+		if err != nil {
+			return e.NotFoundError("asset not found", err)
+		}
+		if asset.GetString("author") != actor.Id {
+			return apis.NewForbiddenError("Insufficient permissions for asset", nil)
+		}
+		if err := e.App.Delete(asset); err != nil {
+			return err
+		}
+		return e.JSON(http.StatusOK, map[string]any{"acknowledged": true})
+	}
+
+	assetDeleted := false
+	if err := e.App.RunInTransaction(func(txApp core.App) error {
+		for _, target := range targets {
+			links, err := txApp.FindRecordsByFilter(
+				target.collection,
+				"asset={:asset} && "+target.field+"={:target}",
+				"",
+				-1,
+				0,
+				dbx.Params{"asset": assetID, "target": target.id},
+			)
+			if err != nil {
+				return err
+			}
+			for _, link := range links {
+				if err := txApp.Delete(link); err != nil {
+					return err
+				}
+			}
+		}
+
+		deleted, err := util.DeleteAssetIfOrphanedByAuthor(txApp, assetID, actor.Id)
+		if err != nil {
+			return err
+		}
+		assetDeleted = deleted
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return e.JSON(http.StatusOK, map[string]any{
+		"acknowledged": true,
+		"assetDeleted": assetDeleted,
+	})
+}
+
+type assetDeleteLinkTarget struct {
+	collection string
+	field      string
+	id         string
+}
+
+func assetDeleteLinkTargets(e *core.RequestEvent) ([]assetDeleteLinkTarget, error) {
+	query := e.Request.URL.Query()
+	trailID := query.Get("trail")
+	waypointID := query.Get("waypoint")
+	summitLogID := query.Get("summit_log")
+	trailIsDirectTarget := trailID != "" && waypointID == "" && summitLogID == ""
+
+	targets := []assetDeleteLinkTarget{}
+	if trailIsDirectTarget {
+		if err := ensureOwnsTrail(e.App, e.Auth.Id, trailID); err != nil {
+			return nil, err
+		}
+		targets = append(targets, assetDeleteLinkTarget{collection: "trail_assets", field: "trail", id: trailID})
+	}
+	if waypointID != "" {
+		if err := ensureOwnsWaypoint(e.App, e.Auth.Id, waypointID, trailID); err != nil {
+			return nil, err
+		}
+		targets = append(targets, assetDeleteLinkTarget{collection: "waypoint_assets", field: "waypoint", id: waypointID})
+	}
+	if summitLogID != "" {
+		if err := ensureOwnsSummitLog(e.App, e.Auth.Id, summitLogID, trailID); err != nil {
+			return nil, err
+		}
+		targets = append(targets, assetDeleteLinkTarget{collection: "summit_log_assets", field: "summit_log", id: summitLogID})
+	}
+	return targets, nil
+}
+
 func AssetFile(e *core.RequestEvent) error {
 	assetID := e.Request.PathValue("id")
 	if assetID == "" {
@@ -200,7 +307,7 @@ func AssetFile(e *core.RequestEvent) error {
 	}
 
 	if fileURL := util.AssetFileRedirectURL(asset); fileURL != "" {
-		return e.Redirect(http.StatusFound, fileURL)
+		return e.Redirect(http.StatusFound, assetFileRedirectURLWithThumb(fileURL, e.Request.URL.Query().Get("thumb")))
 	}
 
 	storageMode := asset.GetString("storage_mode")
@@ -228,6 +335,20 @@ func AssetFile(e *core.RequestEvent) error {
 	}
 	e.Response.Header().Set("Cache-Control", "private, max-age=300")
 	return e.Blob(http.StatusOK, contentType, fetched.Body)
+}
+
+func assetFileRedirectURLWithThumb(fileURL string, thumb string) string {
+	if thumb == "" {
+		return fileURL
+	}
+	parsed, err := url.Parse(fileURL)
+	if err != nil {
+		return fileURL
+	}
+	query := parsed.Query()
+	query.Set("thumb", thumb)
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
 }
 
 func ensureAssetPlugin(app core.App, pluginID string) error {

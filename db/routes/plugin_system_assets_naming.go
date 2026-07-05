@@ -25,10 +25,11 @@ const (
 )
 
 var (
-	assetPluginWaypointNameHTTPClient = &http.Client{Timeout: 8 * time.Second}
-	assetPluginNominatimMu            sync.Mutex
-	assetPluginLastNominatimCall      time.Time
-	assetPluginNominatimZoomLevels    = []int{18, 16, 14, 12, 10}
+	assetPluginWaypointNameDefaultHTTPClient = &http.Client{Timeout: 8 * time.Second}
+	assetPluginWaypointNameHTTPClient        = assetPluginWaypointNameDefaultHTTPClient
+	assetPluginNominatimMu                   sync.Mutex
+	assetPluginLastNominatimCall             time.Time
+	assetPluginNominatimZoomLevels           = []int{18, 16, 14, 12, 10}
 )
 
 type assetPluginOverpassResponse struct {
@@ -311,14 +312,25 @@ func assetPluginNominatimRateLimit(ctx context.Context, baseURL string) error {
 }
 
 func assetPluginFetchJSON(ctx context.Context, requestURL string, out any) error {
+	headers := assetPluginFetchHeaders()
+	if assetPluginWaypointNameHTTPClient != assetPluginWaypointNameDefaultHTTPClient {
+		return assetPluginFetchJSONWithClient(ctx, requestURL, out, headers)
+	}
+
+	fetched, err := util.FetchPublicURLWithHeaders(ctx, requestURL, assetPluginHTTPResponseLimit, headers)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(fetched.Body, out)
+}
+
+func assetPluginFetchJSONWithClient(ctx context.Context, requestURL string, out any, headers map[string]string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "wanderer")
-	if origin := strings.TrimRight(os.Getenv("ORIGIN"), "/"); origin != "" {
-		req.Header.Set("Referer", origin)
+	for key, value := range headers {
+		req.Header.Set(key, value)
 	}
 
 	resp, err := assetPluginWaypointNameHTTPClient.Do(req)
@@ -333,6 +345,17 @@ func assetPluginFetchJSON(ctx context.Context, requestURL string, out any) error
 	}
 
 	return json.NewDecoder(io.LimitReader(resp.Body, assetPluginHTTPResponseLimit)).Decode(out)
+}
+
+func assetPluginFetchHeaders() map[string]string {
+	headers := map[string]string{
+		"Accept":     "application/json",
+		"User-Agent": "wanderer",
+	}
+	if origin := strings.TrimRight(os.Getenv("ORIGIN"), "/"); origin != "" {
+		headers["Referer"] = origin
+	}
+	return headers
 }
 
 func assetPluginExternalServiceBaseURL(key string, fallback string) string {

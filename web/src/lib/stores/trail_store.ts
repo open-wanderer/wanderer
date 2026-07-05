@@ -12,7 +12,7 @@ import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { summit_logs_create, summit_logs_delete, summit_logs_update } from "./summit_log_store";
-import { asset_photo_url, assets_create, assets_delete_removed, assets_import_plugin_links, assets_link, assets_set_trail_thumbnail } from "./asset_store";
+import { assets_attach_to_target, assets_delete_removed, assets_set_trail_thumbnail, has_asset_attachments } from "./asset_store";
 import { categories } from "./category_store";
 import { subcategories } from "./subcategory_store";
 import { tags_create } from "./tag_store";
@@ -406,21 +406,15 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
 
     let model: Trail = await r.json();
 
-    if (photos.length) {
-        await assets_create(photos, {
+    await assets_attach_to_target({
+        files: photos,
+        assetIds: trail._assetLinks,
+        pluginLinks: trail._assetPluginLinks,
+        target: {
             trail: model.id,
-        }, f);
-    }
-    if (trail._assetLinks?.length) {
-        await assets_link(trail._assetLinks, {
-            trail: model.id,
-        }, f);
-    }
-    if (trail._assetPluginLinks?.length) {
-        await assets_import_plugin_links(trail._assetPluginLinks, {
-            trail: model.id,
-        }, f);
-    }
+        },
+        f,
+    });
 
     const createdSummitLogs: SummitLog[] = [];
     for (const summitLog of trail.expand?.summit_logs_via_trail ?? []) {
@@ -548,33 +542,33 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
 
     let model: Trail = await r.json();
 
+    const photoSelectionChanged = !stringArraysEqual(oldTrail.photos, newTrail.photos);
     await assets_delete_removed(oldTrail.photos, newTrail.photos, { trail: newTrail.id! });
     model.photos = newTrail.photos;
-    let shouldRefreshTrail = false;
-    if (photos?.length) {
-        await assets_create(photos, {
+    const shouldRefreshTrail = has_asset_attachments({
+        files: photos,
+        assetIds: newTrail._assetLinks,
+        pluginLinks: newTrail._assetPluginLinks,
+    });
+    model.photos = await assets_attach_to_target({
+        files: photos,
+        assetIds: newTrail._assetLinks,
+        pluginLinks: newTrail._assetPluginLinks,
+        target: {
             trail: model.id,
-        });
-        shouldRefreshTrail = true;
-    }
-    if (newTrail._assetLinks?.length) {
-        const assets = await assets_link(newTrail._assetLinks, {
-            trail: model.id,
-        });
-        model.photos = [...(model.photos ?? []), ...assets.map(asset_photo_url)];
-        shouldRefreshTrail = true;
-    }
-    if (newTrail._assetPluginLinks?.length) {
-        const assets = await assets_import_plugin_links(newTrail._assetPluginLinks, {
-            trail: model.id,
-        });
-        model.photos = [...(model.photos ?? []), ...assets.map(asset_photo_url)];
-        shouldRefreshTrail = true;
-    }
+        },
+        existingPhotos: model.photos,
+    });
     if (shouldRefreshTrail) {
         model = await trails_show(model.id!, undefined, undefined, true);
     }
-    await assets_set_trail_thumbnail(model.id!, model.photos?.at(newTrail.thumbnail ?? 0));
+    const thumbnailChanged = newTrail.thumbnail !== undefined && oldTrail.thumbnail !== newTrail.thumbnail;
+    const assetSelectionChanged = photoSelectionChanged ||
+        Boolean(photos?.length || newTrail._assetLinks?.length || newTrail._assetPluginLinks?.length);
+    const thumbnailCandidates = model.photos ?? newTrail.photos;
+    if (thumbnailCandidates !== undefined && (thumbnailChanged || assetSelectionChanged)) {
+        await assets_set_trail_thumbnail(model.id!, thumbnailCandidates.at(newTrail.thumbnail ?? 0));
+    }
     model = await trails_show(model.id!, undefined, undefined, true);
 
     for (const log of model.expand?.summit_logs_via_trail ?? []) {
@@ -985,4 +979,14 @@ function compareObjectArrays<T extends { id?: string }>(oldArray: T[], newArray:
         updated: updatedObjects,
         unchanged: unchangedObjects,
     };
+}
+
+function stringArraysEqual(left?: string[], right?: string[]) {
+    if (left === right) {
+        return true;
+    }
+    if (!left || !right || left.length !== right.length) {
+        return false;
+    }
+    return left.every((value, index) => value === right[index]);
 }

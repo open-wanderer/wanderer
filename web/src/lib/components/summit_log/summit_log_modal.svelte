@@ -19,7 +19,11 @@
     import TrailPicker from "../trail/trail_picker.svelte";
     import type { SummitLog } from "$lib/models/summit_log";
     import Editor from "../base/editor.svelte";
-    import type { PhotoLibraryCandidate, PhotoLibraryPluginLink } from "$lib/models/photo_library";
+    import {
+        photoLibraryCandidateKey,
+        photoLibraryPluginLinks,
+        type PhotoLibraryCandidate,
+    } from "$lib/models/photo_library";
     import type { PluginProvider } from "$lib/models/plugin_provider";
     interface Props {
         children?: Snippet<[any]>;
@@ -99,7 +103,7 @@
                 const pluginCandidates = pendingCandidates.filter((candidate) => candidate.source !== "wanderer");
                 const wandererCandidates = pendingCandidates.filter((candidate) => candidate.source === "wanderer");
                 form._assetLinks = wandererCandidates.map((candidate) => candidate.assetId);
-                form._assetPluginLinks = pluginLinksFromCandidates(pluginCandidates);
+                form._assetPluginLinks = photoLibraryPluginLinks(pluginCandidates, pluginId);
                 form.photos = [
                     ...(form.photos ?? []),
                     ...wandererCandidates
@@ -191,19 +195,7 @@
     }
 
     function candidateKey(candidate: PhotoLibraryCandidate): string {
-        return `${candidate.source ?? "plugin"}:${candidate.providerId ?? candidate.pluginId ?? pluginId}:${candidate.assetId}`;
-    }
-
-    function pluginLinksFromCandidates(candidates: PhotoLibraryCandidate[]): PhotoLibraryPluginLink[] {
-        const grouped = new Map<string, string[]>();
-        for (const candidate of candidates) {
-            const providerId = candidate.pluginId ?? candidate.providerId ?? pluginId;
-            grouped.set(providerId, [...(grouped.get(providerId) ?? []), candidate.assetId]);
-        }
-        return Array.from(grouped.entries()).map(([providerId, assetIds]) => ({
-            pluginId: providerId,
-            assetIds,
-        }));
+        return photoLibraryCandidateKey(candidate, pluginId);
     }
 
     const canUsePhotoLibrary = $derived(Boolean(trailId));

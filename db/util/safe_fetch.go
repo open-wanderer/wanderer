@@ -54,6 +54,10 @@ type ConnectorHTTPPolicy struct {
 }
 
 func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFetchResult, error) {
+	return FetchPublicURLWithHeaders(ctx, rawURL, maxBytes, nil)
+}
+
+func FetchPublicURLWithHeaders(ctx context.Context, rawURL string, maxBytes int64, headers map[string]string) (*SafeFetchResult, error) {
 	if maxBytes <= 0 {
 		maxBytes = DefaultPluginMediaMaxBytes
 	}
@@ -77,6 +81,12 @@ func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFe
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
+	}
+	for key, value := range headers {
+		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" {
+			continue
+		}
+		req.Header.Set(key, value)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
