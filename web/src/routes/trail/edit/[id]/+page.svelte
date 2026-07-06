@@ -22,7 +22,7 @@
     import GPXWaypoint from "$lib/models/gpx/waypoint";
     import type { List } from "$lib/models/list";
     import { SummitLog } from "$lib/models/summit_log";
-    import { Trail } from "$lib/models/trail";
+    import { Trail, hasDuplicatePhotos } from "$lib/models/trail";
     import type { RoutingOptions, ValhallaAnchor } from "$lib/models/valhalla";
     import type { OverpassPopupActionFactory } from "$lib/vendor/maplibre-layer-manager/overpass-layer";
     import { type OverpassPopupAction } from "$lib/util/maplibre_util";
@@ -142,7 +142,7 @@
     let replacingRoute = $state(false);
     let isNewTrail = $derived(page.params.id === "new");
     let shouldStartDrawingOnLoad = $derived(
-        data.isDuplicateTrail || (!isNewTrail && !data.trail.completed),
+        Boolean(data.duplicateOptions) || (!isNewTrail && !data.trail.completed),
     );
 
     function routeCalculationErrorText(error: unknown) {
@@ -193,6 +193,12 @@
         _duplicatePhotoSource?: PhotoCloneSource;
         _photos?: File[];
     };
+    type PhotoCloneEntry = [string, File[]];
+    type DuplicateLegacyPhotoClones = {
+        trailPhotos: File[];
+        waypointPhotosById: Map<string, File[]>;
+        summitLogPhotosById: Map<string, File[]>;
+    };
 
     const ClientTrailCreateSchema = TrailCreateSchema.extend({
         expand: z
@@ -221,8 +227,7 @@
     let routeSegments = $state<TrackSegment[]>([]);
 
     let savedAtLeastOnce = $state(false);
-    let duplicateLegacyPhotosPrepared = false;
-    let duplicateLegacyPhotosPromise: Promise<void> | undefined;
+    let duplicateLegacyPhotosPromise: Promise<DuplicateLegacyPhotoClones> | undefined;
 
     let tagItems: ComboboxItem[] = $state([]);
 
@@ -274,7 +279,10 @@
                 form.photos = form.photos.filter(
                     (p) => !p.startsWith("data:image/svg+xml;base64"),
                 );
-                await prepareDuplicateLegacyPhotos(form as Trail);
+                Object.assign(
+                    form,
+                    await prepareDuplicateLegacyPhotos(form as Trail),
+                );
 
                 if (!form.photos?.length && !photoFiles.length) {
                     const canvas = document.querySelector(
@@ -400,7 +408,9 @@
             }
         }
 
-        void prepareDuplicateLegacyPhotos($formData as Trail);
+        void prepareDuplicateLegacyPhotos($formData as Trail, {
+            syncFormData: true,
+        });
     });
 
     function fitCurrentRoute() {
@@ -1558,58 +1568,154 @@
         return valhallaStore.route.flatten().length > 0;
     }
 
-    async function prepareDuplicateLegacyPhotos(target: Trail) {
+    async function prepareDuplicateLegacyPhotos(
+        target: Trail,
+        options: { syncFormData?: boolean } = {},
+    ) {
         if (
-            duplicateLegacyPhotosPrepared ||
             !isNewTrail ||
             savedAtLeastOnce ||
+            !hasDuplicatePhotos(data.duplicateOptions) ||
             !data.duplicateSourceTrail
         ) {
-            return;
+            return target;
         }
         duplicateLegacyPhotosPromise ??= cloneDuplicateLegacyPhotos(target);
-        await duplicateLegacyPhotosPromise;
+        const clonedPhotos = await duplicateLegacyPhotosPromise;
+        appendDuplicateTrailPhotoFiles(clonedPhotos.trailPhotos);
+
+        if (options.syncFormData) {
+            formData.set(
+                applyDuplicateLegacyPhotoClones(
+                    $formData as Trail,
+                    clonedPhotos,
+                ),
+            );
+        }
+
+        return applyDuplicateLegacyPhotoClones(target, clonedPhotos);
     }
 
-    async function cloneDuplicateLegacyPhotos(target: Trail) {
+    async function cloneDuplicateLegacyPhotos(
+        target: Trail,
+    ): Promise<DuplicateLegacyPhotoClones> {
         const duplicateSourceTrail = data.duplicateSourceTrail;
         if (!duplicateSourceTrail) {
-            return;
-        }
-        const clonedTrailPhotos = await clonePhotoFiles(
-            photoCloneSourceFromRecord(duplicateSourceTrail),
-        );
-        if (clonedTrailPhotos.length) {
-            photoFiles = [...photoFiles, ...clonedTrailPhotos];
+            return emptyDuplicateLegacyPhotoClones();
         }
 
-        for (const waypoint of target.expand?.waypoints_via_trail ?? []) {
-            await appendClonedPhotos(waypoint as Waypoint & PhotoCloneTarget);
-        }
+        const [trailPhotos, waypointEntries, summitLogEntries] =
+            await Promise.all([
+                data.duplicateOptions?.trailPhotos
+                    ? clonePhotoFiles(photoCloneSourceFromRecord(duplicateSourceTrail))
+                    : Promise.resolve([]),
+                data.duplicateOptions?.waypointPhotos
+                    ? clonePhotoFilesByTargetId(
+                          target.expand?.waypoints_via_trail ?? [],
+                      )
+                    : Promise.resolve([]),
+                data.duplicateOptions?.summitLogPhotos
+                    ? clonePhotoFilesByTargetId(
+                          target.expand?.summit_logs_via_trail ?? [],
+                      )
+                    : Promise.resolve([]),
+            ]);
 
-        for (const log of target.expand?.summit_logs_via_trail ?? []) {
-            await appendClonedPhotos(log as SummitLog & PhotoCloneTarget);
-        }
-
-        if (target.expand?.waypoints_via_trail) {
-            target.expand.waypoints_via_trail = [
-                ...target.expand.waypoints_via_trail,
-            ];
-        }
-        if (target.expand?.summit_logs_via_trail) {
-            target.expand.summit_logs_via_trail = [
-                ...target.expand.summit_logs_via_trail,
-            ];
-        }
-
-        duplicateLegacyPhotosPrepared = true;
+        return {
+            trailPhotos,
+            waypointPhotosById: new Map(waypointEntries),
+            summitLogPhotosById: new Map(summitLogEntries),
+        };
     }
 
-    async function appendClonedPhotos(target: PhotoCloneTarget) {
-        const clonedPhotos = await clonePhotoFiles(target._duplicatePhotoSource);
-        if (clonedPhotos.length) {
-            target._photos = [...(target._photos ?? []), ...clonedPhotos];
+    function emptyDuplicateLegacyPhotoClones(): DuplicateLegacyPhotoClones {
+        return {
+            trailPhotos: [],
+            waypointPhotosById: new Map(),
+            summitLogPhotosById: new Map(),
+        };
+    }
+
+    function appendDuplicateTrailPhotoFiles(clonedPhotos: File[]) {
+        const missingPhotos = clonedPhotos.filter(
+            (photo) => !photoFiles.includes(photo),
+        );
+        if (missingPhotos.length) {
+            photoFiles = [...photoFiles, ...missingPhotos];
         }
+    }
+
+    async function clonePhotoFilesByTargetId(
+        targets: ({ id?: string } & PhotoCloneTarget)[],
+    ): Promise<PhotoCloneEntry[]> {
+        const entries = await Promise.all(
+            targets.map(async (target) => {
+                const clonedPhotos = await clonePhotoFiles(
+                    target._duplicatePhotoSource,
+                );
+                if (!target.id || !clonedPhotos.length) {
+                    return undefined;
+                }
+                return [target.id, clonedPhotos] as PhotoCloneEntry;
+            }),
+        );
+
+        return entries.filter((entry): entry is PhotoCloneEntry =>
+            Boolean(entry),
+        );
+    }
+
+    function applyDuplicateLegacyPhotoClones(
+        target: Trail,
+        clonedPhotos: DuplicateLegacyPhotoClones,
+    ): Trail {
+        return {
+            ...target,
+            expand: {
+                ...target.expand,
+                waypoints_via_trail: mergeDuplicatePhotoClones(
+                    target.expand?.waypoints_via_trail ?? [],
+                    clonedPhotos.waypointPhotosById,
+                ),
+                summit_logs_via_trail: mergeDuplicatePhotoClones(
+                    target.expand?.summit_logs_via_trail ?? [],
+                    clonedPhotos.summitLogPhotosById,
+                ),
+            },
+        };
+    }
+
+    function mergeDuplicatePhotoClones<T extends { id?: string } & PhotoCloneTarget>(
+        targets: T[],
+        clonedPhotosById: Map<string, File[]>,
+    ): T[] {
+        return targets.map((target) =>
+            withMergedDuplicatePhotos(
+                target,
+                target.id ? clonedPhotosById.get(target.id) : undefined,
+            ),
+        );
+    }
+
+    function withMergedDuplicatePhotos<T extends PhotoCloneTarget>(
+        target: T,
+        clonedPhotos?: File[],
+    ): T {
+        if (!clonedPhotos?.length) {
+            return target;
+        }
+        const existingPhotos = target._photos ?? [];
+        const missingPhotos = clonedPhotos.filter(
+            (photo) => !existingPhotos.includes(photo),
+        );
+        if (!missingPhotos.length) {
+            return target;
+        }
+
+        return {
+            ...target,
+            _photos: [...existingPhotos, ...missingPhotos],
+        };
     }
 
     async function clonePhotoFiles(source?: PhotoCloneSource): Promise<File[]> {

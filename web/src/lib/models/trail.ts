@@ -10,6 +10,14 @@ import type { TrailLike } from "./trail_like";
 import type { TrailShare } from "./trail_share";
 import { Waypoint } from "./waypoint";
 
+const defaultTrailDuplicateOptions: TrailDuplicateOptions = {
+    waypoints: true,
+    summitLogs: false,
+    trailPhotos: false,
+    waypointPhotos: false,
+    summitLogPhotos: false,
+};
+
 class Trail {
     id?: string;
     name: string;
@@ -121,7 +129,9 @@ class Trail {
         this.author = "000000000000000"
     }
 
-    static from(orig: Trail, actorId?: string): Trail {
+    static from(orig: Trail, actorId?: string, options: Partial<TrailDuplicateOptions> = {}): Trail {
+        const duplicateOptions = normalizeTrailDuplicateOptions(options);
+
         return new Trail(orig.name, {
             date: orig.date,
             description: orig.description,
@@ -140,12 +150,16 @@ class Trail {
             category: orig.expand?.category,
             subcategory: orig.expand?.subcategory,
             gpx_data: orig.expand?.gpx_data,
-            waypoints: orig.expand?.waypoints_via_trail?.map((waypoint) =>
-                cloneWaypoint(waypoint, actorId),
-            ),
-            summit_logs: orig.expand?.summit_logs_via_trail?.map((log) =>
-                cloneSummitLog(log, actorId),
-            ),
+            waypoints: duplicateOptions.waypoints
+                ? orig.expand?.waypoints_via_trail?.map((waypoint) =>
+                    cloneWaypoint(waypoint, actorId),
+                )
+                : [],
+            summit_logs: duplicateOptions.summitLogs
+                ? orig.expand?.summit_logs_via_trail?.map((log) =>
+                    cloneSummitLog(log, actorId),
+                )
+                : [],
             bounding_box_diagonal: orig.bounding_box_diagonal,
         })
     }
@@ -186,6 +200,40 @@ interface DuplicatePhotoSource {
     collectionId?: string;
     collectionName?: string;
     photos: string[];
+}
+
+interface TrailDuplicateOptions {
+    waypoints: boolean;
+    summitLogs: boolean;
+    trailPhotos: boolean;
+    waypointPhotos: boolean;
+    summitLogPhotos: boolean;
+}
+
+function normalizeTrailDuplicateOptions(
+    options: Partial<TrailDuplicateOptions> = {},
+): TrailDuplicateOptions {
+    const normalized = {
+        ...defaultTrailDuplicateOptions,
+        ...options,
+    };
+
+    if (!normalized.waypoints) {
+        normalized.waypointPhotos = false;
+    }
+    if (!normalized.summitLogs) {
+        normalized.summitLogPhotos = false;
+    }
+
+    return normalized;
+}
+
+function hasDuplicatePhotos(options?: TrailDuplicateOptions) {
+    return Boolean(
+        options?.trailPhotos ||
+        options?.waypointPhotos ||
+        options?.summitLogPhotos,
+    );
 }
 
 function addDuplicatePhotoSource<T extends object>(target: T, source: object) {
@@ -340,6 +388,17 @@ export const defaultTrailSearchAttributes = [
     "_geo",]
 
 
-export { Trail };
+export {
+    Trail,
+    defaultTrailDuplicateOptions,
+    hasDuplicatePhotos,
+    normalizeTrailDuplicateOptions,
+};
 
-export type { TrailBoundingBox, TrailFilter, TrailFilterValues, TrailSearchResult };
+export type {
+    TrailBoundingBox,
+    TrailDuplicateOptions,
+    TrailFilter,
+    TrailFilterValues,
+    TrailSearchResult,
+};
