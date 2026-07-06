@@ -6,6 +6,7 @@ import https from "node:https";
 // Defense-in-depth cap: we buffer the response in memory before returning it.
 const MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024; // 100 MB
 const REQUEST_TIMEOUT_MS = 15_000;
+const MAX_REDIRECTS = 5;
 
 /**
  * Error raised while fetching an external URL. `status` is the HTTP status the
@@ -148,14 +149,9 @@ function isBlockedHostname(hostname: string): boolean {
 
 type ValidatedTarget = { parsed: URL; ip: string; family: number };
 
-/**
- * Guards against SSRF (GHSA-7vqq-mjjr-h9j5). Resolves the hostname, throws if
- * ANY resolved address is private/reserved, and returns the exact IP to connect
- * to. The caller pins the socket to this IP (see fetchPinned) so the validated
- * address is the one actually used — closing the DNS-rebinding
- * time-of-check/time-of-use window.
- */
-async function resolveAndValidate(rawUrl: unknown): Promise<ValidatedTarget> {
+/** Parses a candidate URL (initial request or redirect target) and rejects
+ * disallowed protocols/hostnames before any DNS lookup is attempted. */
+function parseAndCheckUrl(rawUrl: unknown): URL {
     if (typeof rawUrl !== "string" || rawUrl.length === 0) throw new DownloadError("invalid_url");
 
     let parsed: URL;
@@ -168,6 +164,18 @@ async function resolveAndValidate(rawUrl: unknown): Promise<ValidatedTarget> {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new DownloadError("invalid_url");
     if (isBlockedHostname(parsed.hostname)) throw new DownloadError("invalid_url");
 
+    return parsed;
+}
+
+/**
+ * Guards against SSRF (GHSA-7vqq-mjjr-h9j5). Resolves the hostname, throws if
+ * ANY resolved address is private/reserved, and returns the exact IP to connect
+ * to. The caller pins the socket to this IP (see fetchSingleHop) so the
+ * validated address is the one actually used — closing the DNS-rebinding
+ * time-of-check/time-of-use window. Called again for every redirect hop, so a
+ * chain can't bounce through validation on the first URL and land elsewhere.
+ */
+async function resolveAndValidate(parsed: URL): Promise<ValidatedTarget> {
     // URL hostnames wrap IPv6 literals in brackets; strip them for net/dns.
     const host = parsed.hostname.replace(/^\[|\]$/g, "");
 
@@ -194,17 +202,20 @@ async function resolveAndValidate(rawUrl: unknown): Promise<ValidatedTarget> {
 
 export type ExternalFile = { contentType: string | null; body: Buffer };
 
+type HopResult = { type: "redirect"; location: string } | ({ type: "final" } & ExternalFile);
+
 /**
- * Fetches the target with the socket pinned to `ip` (the validated address) and
- * redirects disallowed entirely — a 3xx is rejected rather than followed, so a
- * validator-passing public URL cannot bounce the request to an internal host.
+ * Performs a single request with the socket pinned to `ip` (the validated
+ * address). A 3xx response is surfaced as a `redirect` result rather than
+ * being followed automatically — the caller re-validates the target and pins
+ * a fresh connection for it (see fetchExternalFile).
  */
-function fetchPinned(target: ValidatedTarget): Promise<ExternalFile> {
+function fetchSingleHop(target: ValidatedTarget): Promise<HopResult> {
     const { parsed, ip, family } = target;
     const isHttps = parsed.protocol === "https:";
     const client = isHttps ? https : http;
 
-    return new Promise<ExternalFile>((resolve, reject) => {
+    return new Promise<HopResult>((resolve, reject) => {
         let settled = false;
         const finish = (fn: () => void) => {
             if (settled) return;
@@ -236,8 +247,13 @@ function fetchPinned(target: ValidatedTarget): Promise<ExternalFile> {
             (res) => {
                 const status = res.statusCode ?? 0;
                 if (status >= 300 && status < 400) {
+                    const location = res.headers.location;
                     res.destroy();
-                    finish(() => reject(new DownloadError("redirect_not_allowed")));
+                    if (!location) {
+                        finish(() => reject(new DownloadError("redirect_not_allowed")));
+                    } else {
+                        finish(() => resolve({ type: "redirect", location }));
+                    }
                     return;
                 }
                 if (status < 200 || status >= 300) {
@@ -260,6 +276,7 @@ function fetchPinned(target: ValidatedTarget): Promise<ExternalFile> {
                 res.on("end", () =>
                     finish(() =>
                         resolve({
+                            type: "final",
                             contentType: (res.headers["content-type"] as string | undefined) ?? null,
                             body: Buffer.concat(chunks),
                         }),
@@ -279,10 +296,36 @@ function fetchPinned(target: ValidatedTarget): Promise<ExternalFile> {
 
 /**
  * SSRF-safe fetch of a user-supplied URL. Validates the URL and its resolved
- * IPs, pins the connection to the validated address, and disallows redirects.
+ * IPs, pins each connection to its validated address, and re-validates every
+ * redirect hop the same way (capped at {@link MAX_REDIRECTS}) rather than
+ * either blindly following redirects or banning them outright — a redirect
+ * chain can't bypass validation on any hop.
  * Throws {@link DownloadError} on any validation/transport failure.
  */
 export async function fetchExternalFile(rawUrl: unknown): Promise<ExternalFile> {
-    const target = await resolveAndValidate(rawUrl);
-    return fetchPinned(target);
+    let parsed = parseAndCheckUrl(rawUrl);
+
+    for (let hop = 0; ; hop++) {
+        const target = await resolveAndValidate(parsed);
+        const result = await fetchSingleHop(target);
+
+        if (result.type === "final") {
+            return { contentType: result.contentType, body: result.body };
+        }
+
+        if (hop >= MAX_REDIRECTS) {
+            throw new DownloadError("too_many_redirects");
+        }
+
+        // Resolve a possibly-relative Location against the current URL, then
+        // re-run the full protocol/hostname/DNS/IP validation on the target —
+        // exactly as if it were the original user-supplied URL.
+        let next: URL;
+        try {
+            next = new URL(result.location, parsed);
+        } catch {
+            throw new DownloadError("invalid_url");
+        }
+        parsed = parseAndCheckUrl(next.toString());
+    }
 }
