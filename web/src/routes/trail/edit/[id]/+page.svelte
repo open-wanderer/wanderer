@@ -117,6 +117,7 @@
     let { data } = $props();
 
     let map: M.Map | undefined = $state();
+    let mapWithElevation: MapWithElevationMaplibre | undefined = $state();
     let mapPopup: M.Popup | undefined;
     let mapTrail: Trail[] = $state([]);
     let lists = $state(untrack(() => data.lists));
@@ -140,6 +141,9 @@
     let showWaypointsWhileDrawing = $state(true);
     let replacingRoute = $state(false);
     let isNewTrail = $derived(page.params.id === "new");
+    let shouldStartDrawingOnLoad = $derived(
+        data.isDuplicateTrail || (!isNewTrail && !data.trail.completed),
+    );
 
     function routeCalculationErrorText(error: unknown) {
         if (error instanceof Error && error.message) {
@@ -332,9 +336,10 @@
         clearRoute();
         clearUndoRedoStack();
 
-        if ($formData.expand!.gpx_data) {
+        const initialGpxData = $formData.expand?.gpx_data;
+        if (initialGpxData) {
             $formData.id ??= cryptoRandomString({ length: 15 });
-            const gpx = GPX.parse($formData.expand!.gpx_data);
+            const gpx = GPX.parse(initialGpxData);
             if (!(gpx instanceof Error)) {
                 if (gpx.rte && !gpx.trk) {
                     gpx.trk = [
@@ -354,28 +359,20 @@
 
                 updateTrailOnMap();
 
-                if (!isNewTrail) {
+                if (shouldStartDrawingOnLoad) {
                     startDrawing();
                 }
             }
         }
     });
 
-    function fitCurrentRoute(initializedMap: M.Map) {
+    function fitCurrentRoute() {
         const bounds = valhallaStore.route.toGeoJSON().bbox;
         if (!bounds) {
             return;
         }
 
-        initializedMap.fitBounds(bounds as M.LngLatBoundsLike, {
-            animate: false,
-            padding: {
-                top: 16,
-                left: 16,
-                right: 16,
-                bottom: 16,
-            },
-        });
+        mapWithElevation?.fitToBounds(bounds as M.LngLatBoundsLike);
     }
 
     function handleMapInit(initializedMap: M.Map) {
@@ -384,8 +381,8 @@
                 anchor.marker?.addTo(initializedMap);
             }
         }
-        if (!isNewTrail) {
-            fitCurrentRoute(initializedMap);
+        if ($formData.expand?.gpx_data) {
+            fitCurrentRoute();
         }
     }
 
@@ -478,9 +475,7 @@
             replacingRoute = false;
             if (!isNewTrail) {
                 startDrawing();
-                if (map) {
-                    fitCurrentRoute(map);
-                }
+                fitCurrentRoute();
             }
 
             updateTrailOnMap();
@@ -2191,6 +2186,7 @@
                 onmarkerdragend={moveMarker}
                 activeTrail={0}
                 bind:map
+                bind:this={mapWithElevation}
                 oninit={handleMapInit}
                 onclick={(target) => handleMapClick(target)}
                 oncontextmenu={(target) => handleMapContextMenu(target)}
