@@ -33,7 +33,7 @@ export const load: Load = async ({ params, fetch, url }) => {
             if (originalTrail.author === user?.actor) {
                 duplicateSourceTrail = originalTrail;
             }
-            trail = Trail.from(originalTrail)
+            trail = Trail.from(originalTrail, user?.actor)
         } else {
             const defaultCategory =
                 designSelectableCategories(

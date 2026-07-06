@@ -121,7 +121,7 @@ class Trail {
         this.author = "000000000000000"
     }
 
-    static from(orig: Trail): Trail {
+    static from(orig: Trail, actorId?: string): Trail {
         return new Trail(orig.name, {
             date: orig.date,
             description: orig.description,
@@ -140,33 +140,40 @@ class Trail {
             category: orig.expand?.category,
             subcategory: orig.expand?.subcategory,
             gpx_data: orig.expand?.gpx_data,
-            waypoints: orig.expand?.waypoints_via_trail?.map(cloneWaypoint),
-            summit_logs: orig.expand?.summit_logs_via_trail?.map(cloneSummitLog),
+            waypoints: orig.expand?.waypoints_via_trail?.map((waypoint) =>
+                cloneWaypoint(waypoint, actorId),
+            ),
+            summit_logs: orig.expand?.summit_logs_via_trail?.map((log) =>
+                cloneSummitLog(log, actorId),
+            ),
             bounding_box_diagonal: orig.bounding_box_diagonal,
         })
     }
 }
 
-function cloneWaypoint(wp: Waypoint): Waypoint {
+function cloneWaypoint(wp: Waypoint, actorId?: string): Waypoint {
     const cloned = new Waypoint(wp.lat, wp.lon, {
         id: cryptoRandomString({ length: 15 }),
         description: wp.description,
         icon: wp.icon,
         name: wp.name,
     });
+    cloned.author = actorId ?? wp.author;
     cloned.distance_from_start = wp.distance_from_start;
     addDuplicatePhotoSource(cloned, wp);
     return cloned;
 }
 
-function cloneSummitLog(log: SummitLog): SummitLog {
+function cloneSummitLog(log: SummitLog, actorId?: string): SummitLog {
     const cloned = new SummitLog(log.date, {
+        id: cryptoRandomString({ length: 15 }),
         text: log.text,
         distance: log.distance,
         elevation_gain: log.elevation_gain,
         elevation_loss: log.elevation_loss,
         duration: log.duration,
     });
+    cloned.author = actorId ?? log.author;
     cloned.expand = {
         gpx_data: log.expand?.gpx_data,
     };
