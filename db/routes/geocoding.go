@@ -64,7 +64,7 @@ func geocodingNominatim(e *core.RequestEvent, path string, params url.Values) er
 	}
 
 	var raw json.RawMessage
-	if err := assetPluginFetchJSON(e.Request.Context(), requestURL, &raw); err != nil {
+	if err := assetPluginFetchJSON(e.Request.Context(), baseURL, requestURL, &raw); err != nil {
 		return apis.NewBadRequestError("Nominatim request failed", err)
 	}
 	return e.Blob(http.StatusOK, "application/json", raw)

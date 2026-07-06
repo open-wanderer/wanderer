@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -14,12 +15,14 @@ import (
 
 	"pocketbase/plugins/importer"
 	"pocketbase/pluginsystem"
+	assetservice "pocketbase/services/assets"
 	"pocketbase/services/pluginhost"
 	"pocketbase/util"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 	"github.com/tkrajina/gpxgo/gpx"
 )
 
@@ -38,11 +41,22 @@ type pluginAssetThumbnailCacheEntry struct {
 	LastAccess  time.Time
 }
 
+type pluginAssetThumbnailFetchCall struct {
+	done  chan struct{}
+	entry pluginAssetThumbnailCacheEntry
+	err   error
+}
+
 var pluginAssetThumbnailCache = struct {
 	sync.Mutex
 	items      map[string]pluginAssetThumbnailCacheEntry
 	totalBytes int64
 }{items: map[string]pluginAssetThumbnailCacheEntry{}}
+
+var pluginAssetThumbnailFetches = struct {
+	sync.Mutex
+	calls map[string]*pluginAssetThumbnailFetchCall
+}{calls: map[string]*pluginAssetThumbnailFetchCall{}}
 
 type pluginAssetLibraryRequest struct {
 	PluginID  string `json:"pluginId,omitempty"`
@@ -59,6 +73,8 @@ type pluginAssetLibraryRequest struct {
 	WaypointID  string   `json:"waypointId,omitempty"`
 	SummitLogID string   `json:"summitLogId,omitempty"`
 	AssetIDs    []string `json:"assetIds,omitempty"`
+	Page        int      `json:"page,omitempty"`
+	PerPage     int      `json:"perPage,omitempty"`
 
 	latSet bool
 	lonSet bool
@@ -74,10 +90,15 @@ func (r *pluginAssetLibraryRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	decoded.latSet = raw["lat"] != nil
-	decoded.lonSet = raw["lon"] != nil
+	decoded.latSet = jsonValueProvided(raw, "lat")
+	decoded.lonSet = jsonValueProvided(raw, "lon")
 	*r = pluginAssetLibraryRequest(decoded)
 	return nil
+}
+
+func jsonValueProvided(raw map[string]json.RawMessage, key string) bool {
+	value, ok := raw[key]
+	return ok && strings.TrimSpace(string(value)) != "null"
 }
 
 type pluginAssetLibraryInput struct {
@@ -100,6 +121,12 @@ type pluginAssetLibraryActionInput struct {
 	TakenBefore  string                  `json:"takenBefore,omitempty"`
 	DoubleRadius bool                    `json:"doubleRadius,omitempty"`
 	AssetIDs     []string                `json:"assetIds,omitempty"`
+}
+
+type assetLibraryPagination struct {
+	Page    int
+	PerPage int
+	Enabled bool
 }
 
 type pluginAssetTrackPoint struct {
@@ -140,8 +167,8 @@ type pluginAssetCandidate struct {
 }
 
 type assetLibraryExternalRef struct {
-	Provider string `json:"provider"`
-	ID       string `json:"id"`
+	Provider string `db:"provider" json:"provider"`
+	ID       string `db:"id" json:"id"`
 }
 
 type assetLibraryResponse struct {
@@ -377,35 +404,68 @@ func PluginSystemAssetThumbnail(e *core.RequestEvent) error {
 	if pluginID == "" || assetID == "" {
 		return apis.NewBadRequestError("plugin and asset are required", nil)
 	}
-	plugin, capability, instance, auth, config, err := assetPluginInvocation(e, pluginID)
+	entry, err := fetchPluginAssetThumbnailEntryForUser(e.Request.Context(), e.App, e.Auth.Id, "", pluginID, assetID)
 	if err != nil {
 		return err
 	}
-	cacheKey := pluginAssetThumbnailCacheKey(e.Auth.Id, pluginID, instance.Id, assetID)
-	if entry, ok := getPluginAssetThumbnailCache(cacheKey); ok {
-		return writePluginAssetThumbnail(e, entry)
+	return writePluginAssetThumbnail(e, entry)
+}
+
+func fetchPluginAssetThumbnailEntryForUser(ctx context.Context, app core.App, userID string, actorID string, pluginID string, assetID string) (pluginAssetThumbnailCacheEntry, error) {
+	plugin, capability, instance, auth, config, err := assetPluginInvocationForUser(app, userID, pluginID)
+	if err != nil {
+		return pluginAssetThumbnailCacheEntry{}, err
 	}
-	output, err := callAssetPlugin(e.Request.Context(), plugin, capability, instance, auth, config, pluginAssetLibraryActionInput{
+	cacheKey := pluginAssetThumbnailCacheKey(userID, pluginID, instance.Id, assetID)
+	if entry, ok := getPluginAssetThumbnailCache(cacheKey); ok {
+		return entry, nil
+	}
+
+	call, owner := beginPluginAssetThumbnailFetch(cacheKey)
+	if !owner {
+		select {
+		case <-ctx.Done():
+			return pluginAssetThumbnailCacheEntry{}, ctx.Err()
+		case <-call.done:
+			return call.entry, call.err
+		}
+	}
+
+	var entry pluginAssetThumbnailCacheEntry
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			finishPluginAssetThumbnailFetch(cacheKey, call, entry, fmt.Errorf("thumbnail fetch panicked: %v", recovered))
+			panic(recovered)
+		}
+		finishPluginAssetThumbnailFetch(cacheKey, call, entry, err)
+	}()
+	entry, err = fetchPluginAssetThumbnailEntryUncached(ctx, cacheKey, plugin, capability, instance, auth, config, userID, actorID, assetID)
+	return entry, err
+}
+
+func fetchPluginAssetThumbnailEntryUncached(ctx context.Context, cacheKey string, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, config map[string]any, userID string, actorID string, assetID string) (pluginAssetThumbnailCacheEntry, error) {
+	output, err := callAssetPlugin(ctx, plugin, capability, instance, auth, config, pluginAssetLibraryActionInput{
 		Action:   "thumbnail",
 		AssetIDs: []string{assetID},
 	})
 	if err != nil {
-		return err
+		return pluginAssetThumbnailCacheEntry{}, err
 	}
 	if output.Error != nil {
-		return apis.NewBadRequestError(output.Error.Message, output.Error)
+		return pluginAssetThumbnailCacheEntry{}, apis.NewBadRequestError(output.Error.Message, output.Error)
 	}
 	if len(output.Photos) == 0 {
-		return e.NotFoundError("thumbnail not found", nil)
+		return pluginAssetThumbnailCacheEntry{}, apis.NewNotFoundError("thumbnail not found", nil)
 	}
-	fetched, err := importer.FetchPhotoMedia(e.Request.Context(), output.Photos[0], importer.Options{
-		UserID:   e.Auth.Id,
+	fetched, err := importer.FetchPhotoMedia(ctx, output.Photos[0], importer.Options{
+		UserID:   userID,
+		ActorID:  actorID,
 		Manifest: plugin.Manifest,
 		Policy:   pluginhost.InstancePolicy(plugin, config).WithHostAuth(auth),
 		Auth:     auth,
 	}, pluginAssetThumbnailMaxBytes)
 	if err != nil {
-		return e.NotFoundError("thumbnail not available", err)
+		return pluginAssetThumbnailCacheEntry{}, apis.NewNotFoundError("thumbnail not available", err)
 	}
 	contentType := fetched.ContentType
 	if contentType == "" {
@@ -419,7 +479,51 @@ func PluginSystemAssetThumbnail(e *core.RequestEvent) error {
 		LastAccess:  time.Now(),
 	}
 	putPluginAssetThumbnailCache(cacheKey, entry)
-	return writePluginAssetThumbnail(e, entry)
+	return entry, nil
+}
+
+func beginPluginAssetThumbnailFetch(cacheKey string) (*pluginAssetThumbnailFetchCall, bool) {
+	pluginAssetThumbnailFetches.Lock()
+	defer pluginAssetThumbnailFetches.Unlock()
+
+	if call, ok := pluginAssetThumbnailFetches.calls[cacheKey]; ok {
+		return call, false
+	}
+	call := &pluginAssetThumbnailFetchCall{done: make(chan struct{})}
+	pluginAssetThumbnailFetches.calls[cacheKey] = call
+	return call, true
+}
+
+func finishPluginAssetThumbnailFetch(cacheKey string, call *pluginAssetThumbnailFetchCall, entry pluginAssetThumbnailCacheEntry, err error) {
+	pluginAssetThumbnailFetches.Lock()
+	call.entry = entry
+	call.err = err
+	delete(pluginAssetThumbnailFetches.calls, cacheKey)
+	close(call.done)
+	pluginAssetThumbnailFetches.Unlock()
+}
+
+func fetchAssetRecordPluginThumbnailEntry(ctx context.Context, app core.App, asset *core.Record) (pluginAssetThumbnailCacheEntry, error) {
+	remote, err := assetservice.RemotePhotoAssetFromRecord(asset)
+	if err != nil {
+		return pluginAssetThumbnailCacheEntry{}, err
+	}
+	pluginID := strings.TrimSpace(remote.PluginID)
+	if pluginID == "" {
+		pluginID = strings.TrimSpace(asset.GetString("external_provider"))
+	}
+	if pluginID == "" {
+		return pluginAssetThumbnailCacheEntry{}, fmt.Errorf("remote asset has no plugin id")
+	}
+	assetID := strings.TrimSpace(asset.GetString("external_id"))
+	if assetID == "" {
+		return pluginAssetThumbnailCacheEntry{}, fmt.Errorf("remote asset has no external id")
+	}
+	userID, err := util.AssetAuthorUserID(app, asset)
+	if err != nil {
+		return pluginAssetThumbnailCacheEntry{}, err
+	}
+	return fetchPluginAssetThumbnailEntryForUser(ctx, app, userID, asset.GetString("author"), pluginID, assetID)
 }
 
 func AssetLibraryCandidates(e *core.RequestEvent) error {
@@ -438,17 +542,17 @@ func AssetLibraryCandidates(e *core.RequestEvent) error {
 	}
 
 	if data.TrailID != "" {
-		if err := ensureOwnsTrail(e.App, e.Auth.Id, data.TrailID); err != nil {
+		if err := ensureCanEditTrailTarget(e.App, e.Auth.Id, data.TrailID); err != nil {
 			return err
 		}
 	}
 	if data.WaypointID != "" {
-		if err := ensureOwnsWaypoint(e.App, e.Auth.Id, data.WaypointID, data.TrailID); err != nil {
+		if err := ensureCanEditWaypointTarget(e.App, e.Auth.Id, data.WaypointID, data.TrailID); err != nil {
 			return err
 		}
 	}
 	if data.SummitLogID != "" {
-		if err := ensureOwnsSummitLog(e.App, e.Auth.Id, data.SummitLogID, data.TrailID); err != nil {
+		if err := ensureCanEditSummitLogTarget(e.App, e.Auth.Id, data.SummitLogID, data.TrailID); err != nil {
 			return err
 		}
 	}
@@ -464,7 +568,8 @@ func AssetLibraryCandidates(e *core.RequestEvent) error {
 	}
 
 	hasLocation := data.latSet && data.lonSet
-	records, err := assetLibraryRecords(e.App, actor.Id, request, hasLocation)
+	pagination := assetLibraryPaginationForRequest(data, request, hasLocation)
+	records, hasMore, err := assetLibraryRecords(e.App, actor.Id, request, hasLocation, pagination)
 	if err != nil {
 		return err
 	}
@@ -479,15 +584,12 @@ func AssetLibraryCandidates(e *core.RequestEvent) error {
 		candidatePool = append(candidatePool, candidate)
 	}
 
-	existingExternalRefs := make([]assetLibraryExternalRef, 0)
+	existingExternalRefs, err := assetLibraryExistingExternalRefs(e.App, actor.Id)
+	if err != nil {
+		return err
+	}
 	candidates := make([]pluginAssetCandidate, 0, len(candidatePool))
 	for _, candidate := range candidatePool {
-		if candidate.ExternalProvider != "" && candidate.ExternalID != "" {
-			existingExternalRefs = append(existingExternalRefs, assetLibraryExternalRef{
-				Provider: candidate.ExternalProvider,
-				ID:       candidate.ExternalID,
-			})
-		}
 		if !linkedAssetIDs[candidate.AssetID] {
 			candidates = append(candidates, candidate)
 		}
@@ -506,7 +608,7 @@ func AssetLibraryCandidates(e *core.RequestEvent) error {
 		HasTimestamps:        hasTimestamps,
 		Candidates:           candidates,
 		ExistingExternalRefs: existingExternalRefs,
-		HasMore:              false,
+		HasMore:              hasMore,
 		TakenAfter:           "",
 	})
 }
@@ -567,8 +669,9 @@ func putPluginAssetThumbnailCache(key string, entry pluginAssetThumbnailCacheEnt
 }
 
 func writePluginAssetThumbnail(e *core.RequestEvent, entry pluginAssetThumbnailCacheEntry) error {
-	e.Response.Header().Set("Cache-Control", fmt.Sprintf("private, max-age=%d", int(pluginAssetThumbnailCacheTTL.Seconds())))
+	e.Response.Header().Set("Cache-Control", "private, no-cache")
 	e.Response.Header().Set("ETag", entry.ETag)
+	e.Response.Header().Set("Vary", "Authorization")
 	if e.Request.Header.Get("If-None-Match") == entry.ETag {
 		return e.NoContent(http.StatusNotModified)
 	}
@@ -926,15 +1029,19 @@ func assetPluginAutoAttachHasTimeWindow(request pluginAssetLibraryActionInput) b
 }
 
 func assetPluginInvocation(e *core.RequestEvent, pluginID string) (pluginsystem.LocalPlugin, pluginsystem.CapabilityManifest, *core.Record, map[string]any, map[string]any, error) {
-	instance, err := e.App.FindFirstRecordByFilter(
+	return assetPluginInvocationForUser(e.App, e.Auth.Id, pluginID)
+}
+
+func assetPluginInvocationForUser(app core.App, userID string, pluginID string) (pluginsystem.LocalPlugin, pluginsystem.CapabilityManifest, *core.Record, map[string]any, map[string]any, error) {
+	instance, err := app.FindFirstRecordByFilter(
 		"plugin_instances",
 		"user={:user} && plugin_id={:plugin_id} && enabled=true",
-		dbx.Params{"user": e.Auth.Id, "plugin_id": pluginID},
+		dbx.Params{"user": userID, "plugin_id": pluginID},
 	)
 	if err != nil {
 		return pluginsystem.LocalPlugin{}, pluginsystem.CapabilityManifest{}, nil, nil, nil, apis.NewBadRequestError("no enabled asset plugin instance configured for this plugin", nil)
 	}
-	plugin, capability, err := localPluginCapability(e.App, pluginID, "asset_library", "v1")
+	plugin, capability, err := localPluginCapability(app, pluginID, "asset_library", "v1")
 	if err != nil {
 		return pluginsystem.LocalPlugin{}, pluginsystem.CapabilityManifest{}, nil, nil, nil, err
 	}
@@ -945,7 +1052,7 @@ func assetPluginInvocation(e *core.RequestEvent, pluginID string) (pluginsystem.
 	if err != nil {
 		return pluginsystem.LocalPlugin{}, pluginsystem.CapabilityManifest{}, nil, nil, nil, err
 	}
-	config := pluginhost.EffectiveConfig(e.App, plugin.Manifest.ID, instance)
+	config := pluginhost.EffectiveConfig(app, plugin.Manifest.ID, instance)
 	config = assetPluginConnectorConfig(plugin, config)
 	return plugin, capability, instance, auth, config, nil
 }
@@ -1256,16 +1363,42 @@ func assetLibraryLinkedAssetIDs(app core.App, data pluginAssetLibraryRequest) (m
 	return linked, nil
 }
 
-func assetLibraryRecords(app core.App, actorID string, request pluginAssetLibraryActionInput, hasLocation bool) ([]*core.Record, error) {
+func assetLibraryPaginationForRequest(data pluginAssetLibraryRequest, request pluginAssetLibraryActionInput, hasLocation bool) assetLibraryPagination {
+	if hasLocation || len(request.Points) > 0 {
+		return assetLibraryPagination{}
+	}
+	perPage := data.PerPage
+	if perPage <= 0 {
+		perPage = 100
+	}
+	if perPage > 250 {
+		perPage = 250
+	}
+	page := data.Page
+	if page <= 0 {
+		page = 1
+	}
+	return assetLibraryPagination{Page: page, PerPage: perPage, Enabled: true}
+}
+
+func assetLibraryRecords(app core.App, actorID string, request pluginAssetLibraryActionInput, hasLocation bool, pagination assetLibraryPagination) ([]*core.Record, bool, error) {
 	filters := []string{"author={:author}", "type='photo'"}
 	params := dbx.Params{"author": actorID}
 	if request.TakenAfter != "" {
+		takenAfter, err := normalizeAssetLibraryDateFilter(request.TakenAfter)
+		if err != nil {
+			return nil, false, apis.NewBadRequestError("invalid takenAfter", err)
+		}
 		filters = append(filters, "taken_at >= {:takenAfter}")
-		params["takenAfter"] = request.TakenAfter
+		params["takenAfter"] = takenAfter
 	}
 	if request.TakenBefore != "" {
+		takenBefore, err := normalizeAssetLibraryDateFilter(request.TakenBefore)
+		if err != nil {
+			return nil, false, apis.NewBadRequestError("invalid takenBefore", err)
+		}
 		filters = append(filters, "taken_at <= {:takenBefore}")
-		params["takenBefore"] = request.TakenBefore
+		params["takenBefore"] = takenBefore
 	}
 	if bounds, ok := assetLibraryCoordinateBounds(request, hasLocation); ok {
 		filters = append(filters, "lat >= {:minLat}", "lat <= {:maxLat}", "lon >= {:minLon}", "lon <= {:maxLon}")
@@ -1274,14 +1407,53 @@ func assetLibraryRecords(app core.App, actorID string, request pluginAssetLibrar
 		params["minLon"] = bounds.minLon
 		params["maxLon"] = bounds.maxLon
 	}
-	return app.FindRecordsByFilter(
+	limit := -1
+	offset := 0
+	if pagination.Enabled {
+		limit = pagination.PerPage + 1
+		offset = (pagination.Page - 1) * pagination.PerPage
+	}
+	records, err := app.FindRecordsByFilter(
 		"assets",
 		strings.Join(filters, " && "),
 		"-taken_at,-created",
-		-1,
-		0,
+		limit,
+		offset,
 		params,
 	)
+	if err != nil {
+		return nil, false, err
+	}
+	hasMore := false
+	if pagination.Enabled && len(records) > pagination.PerPage {
+		hasMore = true
+		records = records[:pagination.PerPage]
+	}
+	return records, hasMore, nil
+}
+
+func assetLibraryExistingExternalRefs(app core.App, actorID string) ([]assetLibraryExternalRef, error) {
+	rows := []assetLibraryExternalRef{}
+	err := app.DB().
+		Select("external_provider AS provider", "external_id AS id").
+		From("assets").
+		Where(dbx.NewExp(
+			"author={:author} AND external_provider != '' AND external_id != ''",
+			dbx.Params{"author": actorID},
+		)).
+		All(&rows)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func normalizeAssetLibraryDateFilter(value string) (string, error) {
+	parsed, err := types.ParseDateTime(value)
+	if err != nil {
+		return "", err
+	}
+	return parsed.String(), nil
 }
 
 type assetLibraryBounds struct {
@@ -1931,11 +2103,7 @@ func userOwnsTrail(app core.App, userID, trailID string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	actor, err := app.FindRecordById("activitypub_actors", trail.GetString("author"))
-	if err != nil {
-		return false, err
-	}
-	return actor.GetString("user") == userID, nil
+	return actorBelongsToUser(app, userID, trail.GetString("author"))
 }
 
 func userOwnsWaypoint(app core.App, userID, waypointID, trailID string) (bool, error) {
@@ -1964,6 +2132,120 @@ func userOwnsSummitLog(app core.App, userID, summitLogID, trailID string) (bool,
 		return false, nil
 	}
 	return userOwnsTrail(app, userID, summitLog.GetString("trail"))
+}
+
+func userCanEditTrailTarget(app core.App, userID, trailID string) (bool, error) {
+	if userID == "" || trailID == "" {
+		return false, nil
+	}
+	owns, err := userOwnsTrail(app, userID, trailID)
+	if err != nil {
+		return false, err
+	}
+	if owns {
+		return true, nil
+	}
+
+	actor, err := app.FindFirstRecordByData("activitypub_actors", "user", userID)
+	if err != nil {
+		return false, err
+	}
+	_, err = app.FindFirstRecordByFilter(
+		"trail_share",
+		"trail={:trail} && actor={:actor} && permission='edit'",
+		dbx.Params{"trail": trailID, "actor": actor.Id},
+	)
+	if err == nil {
+		return true, nil
+	}
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return false, err
+}
+
+func userCanEditWaypointTarget(app core.App, userID, waypointID, trailID string) (bool, error) {
+	if userID == "" || waypointID == "" {
+		return false, nil
+	}
+	waypoint, err := app.FindRecordById("waypoints", waypointID)
+	if err != nil {
+		return false, err
+	}
+	if trailID != "" && waypoint.GetString("trail") != trailID {
+		return false, nil
+	}
+	if ok, err := actorBelongsToUser(app, userID, waypoint.GetString("author")); err != nil || ok {
+		return ok, err
+	}
+	return userCanEditTrailTarget(app, userID, waypoint.GetString("trail"))
+}
+
+func userCanEditSummitLogTarget(app core.App, userID, summitLogID, trailID string) (bool, error) {
+	if userID == "" || summitLogID == "" {
+		return false, nil
+	}
+	summitLog, err := app.FindRecordById("summit_logs", summitLogID)
+	if err != nil {
+		return false, err
+	}
+	if trailID != "" && summitLog.GetString("trail") != trailID {
+		return false, nil
+	}
+	if ok, err := actorBelongsToUser(app, userID, summitLog.GetString("author")); err != nil || ok {
+		return ok, err
+	}
+	return userCanEditTrailTarget(app, userID, summitLog.GetString("trail"))
+}
+
+func actorBelongsToUser(app core.App, userID, actorID string) (bool, error) {
+	if userID == "" || actorID == "" {
+		return false, nil
+	}
+	if actorID == userID {
+		return true, nil
+	}
+	actor, err := app.FindRecordById("activitypub_actors", actorID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+	return actor.GetString("user") == userID, nil
+}
+
+func ensureCanEditTrailTarget(app core.App, userID, trailID string) error {
+	ok, err := userCanEditTrailTarget(app, userID, trailID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return apis.NewForbiddenError("Insufficient permissions for trail", nil)
+	}
+	return nil
+}
+
+func ensureCanEditSummitLogTarget(app core.App, userID, summitLogID, trailID string) error {
+	ok, err := userCanEditSummitLogTarget(app, userID, summitLogID, trailID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return apis.NewForbiddenError("Insufficient permissions for summit log", nil)
+	}
+	return nil
+}
+
+func ensureCanEditWaypointTarget(app core.App, userID, waypointID, trailID string) error {
+	ok, err := userCanEditWaypointTarget(app, userID, waypointID, trailID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return apis.NewForbiddenError("Insufficient permissions for waypoint", nil)
+	}
+	return nil
 }
 
 func ensureOwnsTrail(app core.App, userID, trailID string) error {

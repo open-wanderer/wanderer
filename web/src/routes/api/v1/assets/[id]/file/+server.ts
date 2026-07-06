@@ -38,8 +38,8 @@ export async function GET(event: RequestEvent) {
 
     const safeSearchParams = z.object({
         share: z.string().regex(/^[a-z0-9]{32}$/).optional(),
-        thumb: z.string().regex(/[0-9]*x[0-9]*[tbf]?/).optional(),
-        size: z.string().regex(/[0-9]*x[0-9]*[tbf]?/).optional(),
+        thumb: z.string().regex(/^[0-9]+x[0-9]+[tbf]?$/).optional(),
+        size: z.string().regex(/^[0-9]+x[0-9]+[tbf]?$/).optional(),
     }).safeParse(Object.fromEntries(event.url.searchParams));
 
     if (!safeSearchParams.success) {

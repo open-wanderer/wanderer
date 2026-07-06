@@ -34,6 +34,15 @@ type RemotePluginAssetsJob struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+type assetOrphansDeleteRequest struct {
+	AssetIDs []string `json:"assetIds"`
+}
+
+type assetOrphansDeleteFailure struct {
+	ID    string `json:"id"`
+	Error string `json:"error"`
+}
+
 // Remote plugin asset jobs are intentionally process-local. They provide
 // lightweight status reporting for the single-instance deployment model; jobs
 // are not durable across restarts and are not shared between app instances.
@@ -252,6 +261,120 @@ func AssetDelete(e *core.RequestEvent) error {
 	})
 }
 
+func AssetOrphansDelete(e *core.RequestEvent) error {
+	if e.Auth == nil {
+		return apis.NewUnauthorizedError("authentication required", nil)
+	}
+
+	actor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
+	if err != nil {
+		return apis.NewUnauthorizedError("actor not found", err)
+	}
+
+	var data assetOrphansDeleteRequest
+	if err := e.BindBody(&data); err != nil {
+		return apis.NewBadRequestError("Failed to read request data", err)
+	}
+	assetIDs := util.UniqueNonEmptyStrings(data.AssetIDs)
+	if len(assetIDs) > 500 {
+		return apis.NewBadRequestError("Too many assets requested", nil)
+	}
+
+	deleted := []string{}
+	skipped := []string{}
+	failed := []assetOrphansDeleteFailure{}
+
+	if err := e.App.RunInTransaction(func(txApp core.App) error {
+		assets, err := assetRecordsByIDs(txApp, assetIDs)
+		if err != nil {
+			return err
+		}
+		linked, err := assetIDsWithLinks(txApp, assetIDs)
+		if err != nil {
+			return err
+		}
+
+		for _, assetID := range assetIDs {
+			asset := assets[assetID]
+			if asset == nil {
+				failed = append(failed, assetOrphansDeleteFailure{ID: assetID, Error: "asset not found"})
+				continue
+			}
+			if asset.GetString("author") != actor.Id || linked[assetID] {
+				skipped = append(skipped, assetID)
+				continue
+			}
+			if err := txApp.Delete(asset); err != nil {
+				failed = append(failed, assetOrphansDeleteFailure{ID: assetID, Error: err.Error()})
+				continue
+			}
+			deleted = append(deleted, assetID)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return e.JSON(http.StatusOK, map[string]any{
+		"deleted": deleted,
+		"skipped": skipped,
+		"failed":  failed,
+	})
+}
+
+func assetRecordsByIDs(app core.App, assetIDs []string) (map[string]*core.Record, error) {
+	records := map[string]*core.Record{}
+	for _, chunk := range stringChunks(assetIDs, 200) {
+		values := make([]any, 0, len(chunk))
+		for _, id := range chunk {
+			values = append(values, id)
+		}
+		found := []*core.Record{}
+		if err := app.RecordQuery("assets").AndWhere(dbx.In("id", values...)).All(&found); err != nil {
+			return nil, err
+		}
+		for _, record := range found {
+			records[record.Id] = record
+		}
+	}
+	return records, nil
+}
+
+func assetIDsWithLinks(app core.App, assetIDs []string) (map[string]bool, error) {
+	linked := map[string]bool{}
+	for _, collection := range []string{"trail_assets", "waypoint_assets", "summit_log_assets"} {
+		for _, chunk := range stringChunks(assetIDs, 200) {
+			values := make([]any, 0, len(chunk))
+			for _, id := range chunk {
+				values = append(values, id)
+			}
+			links := []*core.Record{}
+			if err := app.RecordQuery(collection).AndWhere(dbx.In("asset", values...)).All(&links); err != nil {
+				return nil, err
+			}
+			for _, link := range links {
+				linked[link.GetString("asset")] = true
+			}
+		}
+	}
+	return linked, nil
+}
+
+func stringChunks(values []string, size int) [][]string {
+	if size <= 0 || len(values) == 0 {
+		return nil
+	}
+	chunks := make([][]string, 0, (len(values)+size-1)/size)
+	for start := 0; start < len(values); start += size {
+		end := start + size
+		if end > len(values) {
+			end = len(values)
+		}
+		chunks = append(chunks, values[start:end])
+	}
+	return chunks
+}
+
 type assetDeleteLinkTarget struct {
 	collection string
 	field      string
@@ -267,19 +390,19 @@ func assetDeleteLinkTargets(e *core.RequestEvent) ([]assetDeleteLinkTarget, erro
 
 	targets := []assetDeleteLinkTarget{}
 	if trailIsDirectTarget {
-		if err := ensureOwnsTrail(e.App, e.Auth.Id, trailID); err != nil {
+		if err := ensureCanEditTrailTarget(e.App, e.Auth.Id, trailID); err != nil {
 			return nil, err
 		}
 		targets = append(targets, assetDeleteLinkTarget{collection: "trail_assets", field: "trail", id: trailID})
 	}
 	if waypointID != "" {
-		if err := ensureOwnsWaypoint(e.App, e.Auth.Id, waypointID, trailID); err != nil {
+		if err := ensureCanEditWaypointTarget(e.App, e.Auth.Id, waypointID, trailID); err != nil {
 			return nil, err
 		}
 		targets = append(targets, assetDeleteLinkTarget{collection: "waypoint_assets", field: "waypoint", id: waypointID})
 	}
 	if summitLogID != "" {
-		if err := ensureOwnsSummitLog(e.App, e.Auth.Id, summitLogID, trailID); err != nil {
+		if err := ensureCanEditSummitLogTarget(e.App, e.Auth.Id, summitLogID, trailID); err != nil {
 			return nil, err
 		}
 		targets = append(targets, assetDeleteLinkTarget{collection: "summit_log_assets", field: "summit_log", id: summitLogID})
@@ -317,6 +440,14 @@ func AssetFile(e *core.RequestEvent) error {
 	linkedToPublicTrail := util.IsAssetLinkedToPublicTrail(e.App, asset)
 	if storageMode == "link_private" && linkedToPublicTrail {
 		return e.NotFoundError("", nil)
+	}
+
+	if e.Request.URL.Query().Get("thumb") != "" {
+		entry, err := fetchAssetRecordPluginThumbnailEntry(e.Request.Context(), e.App, asset)
+		if err != nil {
+			return e.NotFoundError("", err)
+		}
+		return writePluginAssetThumbnail(e, entry)
 	}
 
 	fetched, err := assetservice.FetchRemotePluginAsset(e.Request.Context(), e.App, asset, util.DefaultPluginMediaMaxBytes)

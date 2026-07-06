@@ -454,7 +454,7 @@ func buildAssetInfo(app core.App, fsys *filesystem.System, record *core.Record, 
 		info.contentHash = hash
 	} else if hash, ok := recordContentHash(fsys, record); ok {
 		info.contentHash = hash
-		if err := persistAssetContentHash(app, record, metadata, hash); err != nil {
+		if err := persistAssetContentHash(app, record, hash); err != nil {
 			app.Logger().Warn("failed to persist asset content hash", "asset", record.Id, "error", err)
 		}
 	}
@@ -473,10 +473,22 @@ func buildAssetInfo(app core.App, fsys *filesystem.System, record *core.Record, 
 	return info, nil
 }
 
-func persistAssetContentHash(app core.App, record *core.Record, metadata map[string]any, hash string) error {
+func persistAssetContentHash(app core.App, record *core.Record, hash string) error {
+	current, err := app.FindRecordById("assets", record.Id)
+	if err != nil {
+		return err
+	}
+	if current.GetString("file") != record.GetString("file") {
+		return nil
+	}
+	metadata, err := metadataMap(current)
+	if err != nil {
+		return err
+	}
 	metadata["content_hash"] = hash
-	record.Set("metadata", metadata)
-	return app.UnsafeWithoutHooks().Save(record)
+	current.Set("metadata", metadata)
+	current.IgnoreUnchangedFields(true)
+	return app.UnsafeWithoutHooks().Save(current)
 }
 
 func reassignAssetLinks(ctx context.Context, app core.App, sourceAssetID string, targetAssetID string) (int, error) {

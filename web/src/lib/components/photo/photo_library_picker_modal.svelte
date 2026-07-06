@@ -19,6 +19,7 @@
     interface LibraryOutput {
         candidates?: PhotoLibraryCandidate[];
         existingExternalRefs?: { provider: string; id: string }[];
+        hasMore?: boolean;
         error?: { message?: string };
     }
 
@@ -41,6 +42,7 @@
     const DATE_RANGE_YEAR_STEPS = [1, 5, 10];
     const DATE_RANGE_EXPAND_THRESHOLD = 1 / 3;
     const DEFAULT_LOOKBACK_YEARS = 1;
+    const WANDERER_LIBRARY_PER_PAGE = 100;
 
     interface Props {
         id?: string;
@@ -86,6 +88,7 @@
     let popup: M.Popup | undefined;
 
     let loading = $state(false);
+    let loadingMore = $state(false);
     let saving = $state(false);
     let error = $state("");
     let candidates = $state<PhotoLibraryCandidate[]>([]);
@@ -98,6 +101,8 @@
     let mapZoom = $state(0);
     let mapBounds = $state<M.LngLatBounds | undefined>();
     let dateRange = $state(dateSliderDefaults());
+    let wandererPage = $state(1);
+    let wandererHasMore = $state(false);
 
     onDestroy(() => {
         destroyMap();
@@ -111,6 +116,7 @@
     const visibleCandidates = $derived(activeClusterKey ? filterByActiveCluster(providerCandidates) : mapCandidates);
     const selectedCandidates = $derived(candidates.filter((candidate) => selectedKeys.has(candidateKey(candidate))));
     const providerOptions = $derived(buildProviderOptions(candidates));
+    const showWandererLoadMore = $derived(wandererHasMore && (providerFilter === "all" || providerFilter === WANDERER_PROVIDER_ID));
     const dateRangeLabel = $derived(formatDateRangeLabel(dateRange.start, dateRange.end, dateRange.min, dateRange.max));
     const previewCandidate = $derived(visibleCandidates[Math.min(previewIndex, Math.max(visibleCandidates.length - 1, 0))]);
     const mapFiltered = $derived(
@@ -176,16 +182,17 @@
         syncMap();
     }
 
-    function requestBody() {
+    function requestBody(extra: Record<string, unknown> = {}) {
         return {
             ...(trailId ? { trailId } : {}),
             ...(waypointId ? { waypointId } : {}),
             ...(summitLogId ? { summitLogId } : {}),
             ...(hasCoordinate(lat) && hasCoordinate(lon) ? { lat, lon } : {}),
-            ...(trailData ? { trailData } : {}),
+            ...(!trailId && trailData ? { trailData } : {}),
             ...(trailPolyline ? { trailPolyline } : {}),
             ...selectedTimeWindow(),
             doubleRadius,
+            ...extra,
         };
     }
 
@@ -195,6 +202,8 @@
         candidates = [];
         selectedKeys = new Set();
         existingWandererExternalKeys = new Set();
+        wandererPage = 1;
+        wandererHasMore = false;
         activeClusterKey = undefined;
         highlightedClusterKey = undefined;
         mapZoom = 0;
@@ -202,7 +211,7 @@
         previewIndex = 0;
         try {
             const loaders: Promise<PhotoLibraryCandidate[]>[] = [
-                loadWandererCandidates(),
+                loadWandererCandidates(1),
             ];
             if (pluginPath && hasAssetPlugin) {
                 loaders.unshift(loadPluginCandidates());
@@ -242,11 +251,14 @@
         }));
     }
 
-    async function loadWandererCandidates(): Promise<PhotoLibraryCandidate[]> {
+    async function loadWandererCandidates(page: number): Promise<PhotoLibraryCandidate[]> {
         const r = await fetch("/api/v1/assets/library", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody()),
+            body: JSON.stringify(requestBody({
+                page,
+                perPage: WANDERER_LIBRARY_PER_PAGE,
+            })),
         });
         if (!r.ok) {
             const response = await r.json().catch(() => ({}));
@@ -255,11 +267,32 @@
         const output: LibraryOutput = await r.json();
         const refs = output.existingExternalRefs ?? [];
         existingWandererExternalKeys = new Set(refs.map((ref) => externalRefKey(ref.provider, ref.id)));
+        wandererPage = page;
+        wandererHasMore = output.hasMore === true;
         return (output.candidates ?? []).map((candidate) => ({
             ...candidate,
             source: "wanderer",
             providerId: candidate.providerId ?? "wanderer",
         }));
+    }
+
+    async function loadMoreWandererCandidates() {
+        if (!wandererHasMore || loadingMore) {
+            return;
+        }
+        loadingMore = true;
+        error = "";
+        try {
+            const next = await loadWandererCandidates(wandererPage + 1);
+            candidates = uniqueCandidates([...candidates, ...next]);
+            await tick();
+            syncMap();
+        } catch (e: any) {
+            console.error(e);
+            error = e?.message ?? "Unable to load wanderer photos";
+        } finally {
+            loadingMore = false;
+        }
     }
 
     function uniqueCandidates(items: PhotoLibraryCandidate[]) {
@@ -1211,6 +1244,19 @@
                                         </button>
                                     </div>
                                 {/each}
+                                {#if showWandererLoadMore}
+                                    <div class="border-t border-separator p-3 text-center">
+                                        <button type="button" class="btn-link text-sm" onclick={loadMoreWandererCandidates} disabled={loadingMore}>
+                                            {loadingMore ? $_("loading") : $_("more")}
+                                        </button>
+                                    </div>
+                                {/if}
+                            </div>
+                        {:else if showWandererLoadMore}
+                            <div class="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-input-border text-sm text-gray-500">
+                                <button type="button" class="btn-link text-sm" onclick={loadMoreWandererCandidates} disabled={loadingMore}>
+                                    {loadingMore ? $_("loading") : $_("more")}
+                                </button>
                             </div>
                         {:else}
                             <div class="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-input-border text-sm text-gray-500">

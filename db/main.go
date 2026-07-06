@@ -112,6 +112,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordUpdateRequest("trails").BindFunc(hooks.ValidateTrailSubcategoryHandler())
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client))
 
+	app.OnRecordUpdate("assets").BindFunc(hooks.InvalidateAssetContentHashOnFileChange())
 	app.OnRecordAfterCreateSuccess("assets").BindFunc(hooks.ReindexTrailOnAssetChange(client))
 	app.OnRecordAfterUpdateSuccess("assets").BindFunc(hooks.ReindexTrailOnAssetChange(client))
 	app.OnRecordAfterDeleteSuccess("assets").BindFunc(hooks.ReindexTrailOnAssetChange(client))
@@ -230,6 +231,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/plugins/oauth/revoke", routes.PluginSystemOAuthRevoke)
 
 	se.Router.POST("/assets/library", routes.AssetLibraryCandidates)
+	se.Router.DELETE("/assets/orphans", routes.AssetOrphansDelete)
 	se.Router.DELETE("/assets/{id}", routes.AssetDelete)
 	se.Router.GET("/assets/{id}/file", routes.AssetFile)
 

@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -475,45 +476,41 @@ func TrailThumbnailURLs(app core.App, trails []*core.Record, origin string) (map
 		return urls, nil
 	}
 
-	trailIDs := make([]any, 0, len(trails))
+	assetCollection, err := app.FindCollectionByNameOrId("assets")
+	if err != nil {
+		return nil, err
+	}
+
+	trailIDs := make([]string, 0, len(trails))
 	for _, trail := range trails {
 		trailIDs = append(trailIDs, trail.Id)
 	}
 
-	links := []*core.Record{}
-	err := app.RecordQuery("trail_assets").
-		AndWhere(dbx.In("trail", trailIDs...)).
-		OrderBy("created ASC").
-		All(&links)
-	if err != nil {
-		return nil, err
-	}
-	if errs := app.ExpandRecords(links, []string{"asset"}, nil); len(errs) > 0 {
-		return nil, fmt.Errorf("failed to expand trail asset links: %v", errs)
-	}
-
 	fallbacks := map[string]string{}
-	thumbnailUpdatedAt := map[string]time.Time{}
-	for _, link := range links {
-		asset := link.ExpandedOne("asset")
-		if asset == nil || asset.GetString("type") != "photo" {
-			continue
+	thumbnailUpdatedAt := map[string]string{}
+	for _, chunk := range stringChunks(trailIDs, 200) {
+		rows, err := trailThumbnailRows(app, chunk)
+		if err != nil {
+			return nil, err
 		}
-		url := AssetPublicMediaURL(asset, origin)
-		if url == "" {
-			continue
-		}
-		trailID := link.GetString("trail")
-		if fallbacks[trailID] == "" {
-			fallbacks[trailID] = url
-		}
-		if !link.GetBool("is_thumbnail") {
-			continue
-		}
-		updatedAt := link.GetDateTime("updated").Time()
-		if urls[trailID] == "" || updatedAt.After(thumbnailUpdatedAt[trailID]) {
-			urls[trailID] = url
-			thumbnailUpdatedAt[trailID] = updatedAt
+		for _, row := range rows {
+			if row.AssetType != "photo" || isGeneratedRoutePreviewAssetFields(row) {
+				continue
+			}
+			url := assetPublicMediaURLFromFields(assetCollection.Id, row.AssetID, row.File, row.StorageMode, origin)
+			if url == "" {
+				continue
+			}
+			if fallbacks[row.TrailID] == "" {
+				fallbacks[row.TrailID] = url
+			}
+			if !row.IsThumbnail {
+				continue
+			}
+			if urls[row.TrailID] == "" || row.LinkUpdated > thumbnailUpdatedAt[row.TrailID] {
+				urls[row.TrailID] = url
+				thumbnailUpdatedAt[row.TrailID] = row.LinkUpdated
+			}
 		}
 	}
 
@@ -523,6 +520,105 @@ func TrailThumbnailURLs(app core.App, trails []*core.Record, origin string) (map
 		}
 	}
 	return urls, nil
+}
+
+type trailThumbnailRow struct {
+	TrailID          string `db:"trail_id"`
+	AssetID          string `db:"asset_id"`
+	IsThumbnail      bool   `db:"is_thumbnail"`
+	LinkUpdated      string `db:"link_updated"`
+	LinkCreated      string `db:"link_created"`
+	AssetType        string `db:"asset_type"`
+	File             string `db:"file"`
+	StorageMode      string `db:"storage_mode"`
+	ExternalProvider string `db:"external_provider"`
+	TakenAt          string `db:"taken_at"`
+	Metadata         string `db:"metadata"`
+}
+
+func trailThumbnailRows(app core.App, trailIDs []string) ([]trailThumbnailRow, error) {
+	if len(trailIDs) == 0 {
+		return []trailThumbnailRow{}, nil
+	}
+	values := make([]any, 0, len(trailIDs))
+	for _, trailID := range trailIDs {
+		values = append(values, trailID)
+	}
+	rows := []trailThumbnailRow{}
+	err := app.DB().
+		Select(
+			"ta.trail AS trail_id",
+			"ta.asset AS asset_id",
+			"ta.is_thumbnail AS is_thumbnail",
+			"ta.updated AS link_updated",
+			"ta.created AS link_created",
+			"a.type AS asset_type",
+			"COALESCE(a.file, '') AS file",
+			"COALESCE(a.storage_mode, '') AS storage_mode",
+			"COALESCE(a.external_provider, '') AS external_provider",
+			"COALESCE(a.taken_at, '') AS taken_at",
+			"COALESCE(a.metadata, '') AS metadata",
+		).
+		From("trail_assets ta").
+		InnerJoin("assets a", dbx.NewExp("a.id = ta.asset")).
+		Where(dbx.In("ta.trail", values...)).
+		OrderBy("ta.created ASC").
+		All(&rows)
+	return rows, err
+}
+
+func isGeneratedRoutePreviewAssetFields(row trailThumbnailRow) bool {
+	metadata := map[string]any{}
+	if raw := strings.TrimSpace(row.Metadata); raw != "" && raw != "null" {
+		_ = json.Unmarshal([]byte(raw), &metadata)
+	}
+	if AssetMetadataString(metadata, "generated", "kind") == "route-preview" {
+		return true
+	}
+	filename := strings.ToLower(assetFilenameFromFields(row, metadata))
+	hasLegacyGeneratedName := strings.HasPrefix(filename, "wanderer-route-preview") || routePreviewFilenamePattern.MatchString(filename)
+	return hasLegacyGeneratedName && row.ExternalProvider == "" && strings.TrimSpace(row.TakenAt) == ""
+}
+
+func assetFilenameFromFields(row trailThumbnailRow, metadata map[string]any) string {
+	if remoteFilename := AssetMetadataString(metadata, "remote", "filename"); remoteFilename != "" {
+		return remoteFilename
+	}
+	if sourceFile := AssetMetadataString(metadata, "source_file"); sourceFile != "" {
+		return sourceFile
+	}
+	if row.File != "" {
+		return row.File
+	}
+	return row.AssetID
+}
+
+func assetPublicMediaURLFromFields(collectionID string, assetID string, file string, storageMode string, origin string) string {
+	if assetID == "" {
+		return ""
+	}
+	if file != "" && collectionID != "" {
+		return withOrigin(origin, fmt.Sprintf("/api/v1/files/%s/%s/%s", collectionID, assetID, file))
+	}
+	if storageMode == "" || storageMode == "copy" {
+		return ""
+	}
+	return withOrigin(origin, fmt.Sprintf("/api/v1/assets/%s/file", assetID))
+}
+
+func stringChunks(values []string, size int) [][]string {
+	if size <= 0 || len(values) == 0 {
+		return nil
+	}
+	chunks := make([][]string, 0, (len(values)+size-1)/size)
+	for start := 0; start < len(values); start += size {
+		end := start + size
+		if end > len(values) {
+			end = len(values)
+		}
+		chunks = append(chunks, values[start:end])
+	}
+	return chunks
 }
 
 func SetTrailThumbnailAsset(app core.App, trailID string, assetID string) error {

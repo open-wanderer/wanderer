@@ -33,40 +33,19 @@ export async function GET(event: RequestEvent) {
 
 export async function DELETE(event: RequestEvent) {
     try {
-        const actor = event.locals.user?.actor;
         if (!event.locals.user) {
             return json({ message: "Unauthorized" }, { status: 401 });
         }
-        if (!actor) {
-            return json({ message: "Actor not found" }, { status: 401 });
-        }
 
         const data = OrphanedAssetDeleteSchema.parse(await event.request.json());
-        const deleted: string[] = [];
-        const skipped: string[] = [];
-        const failed: { id: string; error: string }[] = [];
+        const response = await event.locals.pb.send("/assets/orphans", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+            fetch: event.fetch,
+        });
 
-        for (const assetId of Array.from(new Set(data.assetIds))) {
-            try {
-                const asset = await event.locals.pb.collection(Collection.assets).getOne<Asset>(assetId, {
-                    requestKey: null,
-                });
-                if (asset.author !== actor || await assetHasLinks(event, assetId)) {
-                    skipped.push(assetId);
-                    continue;
-                }
-
-                await event.locals.pb.collection(Collection.assets).delete(assetId, { requestKey: null });
-                deleted.push(assetId);
-            } catch (e: any) {
-                failed.push({
-                    id: assetId,
-                    error: e instanceof Error ? e.message : "delete_failed",
-                });
-            }
-        }
-
-        return json({ deleted, skipped, failed });
+        return json(response);
     } catch (e: any) {
         return handleError(e);
     }
@@ -84,19 +63,6 @@ async function linkedAssetIdsForAuthor(event: RequestEvent, actor: string): Prom
         }
     }
     return linked;
-}
-
-async function assetHasLinks(event: RequestEvent, assetId: string): Promise<boolean> {
-    for (const collection of assetLinkCollections()) {
-        const links = await event.locals.pb.collection(collection).getFullList({
-            filter: event.locals.pb.filter("asset = {:asset}", { asset: assetId }),
-            requestKey: null,
-        });
-        if (links.length > 0) {
-            return true;
-        }
-    }
-    return false;
 }
 
 function assetLinkCollections() {

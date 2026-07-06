@@ -13,6 +13,8 @@ const LibraryRequestSchema = z.object({
     takenAfter: z.string().datetime().optional(),
     takenBefore: z.string().datetime().optional(),
     doubleRadius: z.boolean().optional(),
+    page: z.number().int().min(1).optional(),
+    perPage: z.number().int().min(1).max(250).optional(),
 });
 
 export async function POST(event: RequestEvent) {

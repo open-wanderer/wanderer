@@ -150,6 +150,43 @@ func TestTrailThumbnailAssetPrefersMarkedLink(t *testing.T) {
 	}
 }
 
+func TestTrailThumbnailURLsUsesMarkedPhotoAndSkipsGeneratedPreview(t *testing.T) {
+	app := setupFederatedAssetsTestApp(t)
+	defer app.Cleanup()
+
+	preview := createFederatedTestAsset(t, app, "actor1", "")
+	preview.Set("file", "wanderer-route-preview.webp")
+	if err := app.Save(preview); err != nil {
+		t.Fatal(err)
+	}
+	photo := createFederatedTestAsset(t, app, "actor1", "")
+	photo.Set("file", "photo.jpg")
+	if err := app.Save(photo); err != nil {
+		t.Fatal(err)
+	}
+	createFederatedTestLink(t, app, "trail_assets", "trail", "trail1", preview.Id)
+	link := createFederatedTestLink(t, app, "trail_assets", "trail", "trail1", photo.Id)
+	link.Set("is_thumbnail", true)
+	if err := app.Save(link); err != nil {
+		t.Fatal(err)
+	}
+	trail := core.NewRecord(core.NewBaseCollection("trails"))
+	trail.Id = "trail1"
+
+	urls, err := TrailThumbnailURLs(app, []*core.Record{trail}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	collection, err := app.FindCollectionByNameOrId("assets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "/api/v1/files/" + collection.Id + "/" + photo.Id + "/photo.jpg"
+	if urls["trail1"] != want {
+		t.Fatalf("thumbnail URL = %q, want %q", urls["trail1"], want)
+	}
+}
+
 func TestReconcileFederatedPhotoAssetsSetsTrailThumbnail(t *testing.T) {
 	app := setupFederatedAssetsTestApp(t)
 	defer app.Cleanup()
@@ -192,6 +229,7 @@ func setupFederatedAssetsTestApp(t *testing.T) *pbtests.TestApp {
 		&core.TextField{Name: "storage_mode"},
 		&core.TextField{Name: "remote_status"},
 		&core.TextField{Name: "author"},
+		&core.TextField{Name: "file"},
 		&core.TextField{Name: "external_provider"},
 		&core.TextField{Name: "external_id"},
 		&core.DateField{Name: "taken_at"},
@@ -222,6 +260,10 @@ func setupFederatedAssetsTestApp(t *testing.T) *pbtests.TestApp {
 		if config.name == "trail_assets" {
 			collection.Fields.Add(&core.BoolField{Name: "is_thumbnail"})
 		}
+		collection.Fields.Add(
+			&core.AutodateField{Name: "created", OnCreate: true},
+			&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true},
+		)
 		if err := app.Save(collection); err != nil {
 			app.Cleanup()
 			t.Fatal(err)

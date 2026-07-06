@@ -25,11 +25,14 @@ const (
 )
 
 var (
-	assetPluginWaypointNameDefaultHTTPClient = &http.Client{Timeout: 8 * time.Second}
-	assetPluginWaypointNameHTTPClient        = assetPluginWaypointNameDefaultHTTPClient
-	assetPluginNominatimMu                   sync.Mutex
-	assetPluginLastNominatimCall             time.Time
-	assetPluginNominatimZoomLevels           = []int{18, 16, 14, 12, 10}
+	assetPluginWaypointNameDefaultHTTPClient = &http.Client{
+		Timeout:       8 * time.Second,
+		CheckRedirect: assetPluginTrustedServiceRedirectPolicy,
+	}
+	assetPluginWaypointNameHTTPClient = assetPluginWaypointNameDefaultHTTPClient
+	assetPluginNominatimMu            sync.Mutex
+	assetPluginLastNominatimCall      time.Time
+	assetPluginNominatimZoomLevels    = []int{18, 16, 14, 12, 10}
 )
 
 type assetPluginOverpassResponse struct {
@@ -103,7 +106,7 @@ func assetPluginOverpassPOIName(ctx context.Context, lat float64, lon float64, r
 	}
 
 	var result assetPluginOverpassResponse
-	if err := assetPluginFetchJSON(ctx, requestURL, &result); err != nil {
+	if err := assetPluginFetchJSON(ctx, baseURL, requestURL, &result); err != nil {
 		return "", err
 	}
 	return assetPluginBestOverpassPOIName(result.Elements, lat, lon, radius), nil
@@ -240,7 +243,7 @@ func assetPluginNominatimReverseNameAtZoom(ctx context.Context, baseURL string, 
 	}
 
 	var result assetPluginNominatimReverseResponse
-	if err := assetPluginFetchJSON(ctx, requestURL, &result); err != nil {
+	if err := assetPluginFetchJSON(ctx, baseURL, requestURL, &result); err != nil {
 		return "", err
 	}
 	return assetPluginNominatimWaypointName(result), nil
@@ -311,9 +314,9 @@ func assetPluginNominatimRateLimit(ctx context.Context, baseURL string) error {
 	return nil
 }
 
-func assetPluginFetchJSON(ctx context.Context, requestURL string, out any) error {
+func assetPluginFetchJSON(ctx context.Context, baseURL string, requestURL string, out any) error {
 	headers := assetPluginFetchHeaders()
-	if assetPluginWaypointNameHTTPClient != assetPluginWaypointNameDefaultHTTPClient {
+	if assetPluginWaypointNameHTTPClient != assetPluginWaypointNameDefaultHTTPClient || assetPluginUsesTrustedServiceClient(baseURL) {
 		return assetPluginFetchJSONWithClient(ctx, requestURL, out, headers)
 	}
 
@@ -322,6 +325,26 @@ func assetPluginFetchJSON(ctx context.Context, requestURL string, out any) error
 		return err
 	}
 	return json.Unmarshal(fetched.Body, out)
+}
+
+func assetPluginUsesTrustedServiceClient(baseURL string) bool {
+	normalized := strings.TrimRight(assetPluginNormalizeBaseURL(baseURL), "/")
+	return normalized != strings.TrimRight(assetPluginOverpassDefaultURL, "/") &&
+		normalized != strings.TrimRight(assetPluginNominatimDefaultURL, "/")
+}
+
+func assetPluginTrustedServiceRedirectPolicy(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return fmt.Errorf("stopped after 10 redirects")
+	}
+	if len(via) == 0 {
+		return nil
+	}
+	origin := via[0].URL
+	if req.URL.Scheme != origin.Scheme || req.URL.Host != origin.Host {
+		return fmt.Errorf("external service redirect changed origin")
+	}
+	return nil
 }
 
 func assetPluginFetchJSONWithClient(ctx context.Context, requestURL string, out any, headers map[string]string) error {

@@ -219,7 +219,7 @@ func MaterializeRemotePluginAsset(ctx context.Context, app core.App, asset *core
 }
 
 func FetchRemotePluginAsset(ctx context.Context, app core.App, asset *core.Record, maxBytes int64) (*util.SafeFetchResult, error) {
-	remote, err := remotePhotoAssetFromRecord(asset)
+	remote, err := RemotePhotoAssetFromRecord(asset)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +380,7 @@ func privateRemotePluginPhotoAssetsByIDs(app core.App, actorID string, assetIDs 
 	return records, nil
 }
 
-func remotePhotoAssetFromRecord(asset *core.Record) (pluginsystem.RemotePhotoAsset, error) {
+func RemotePhotoAssetFromRecord(asset *core.Record) (pluginsystem.RemotePhotoAsset, error) {
 	raw := asset.Get("metadata")
 	rawBytes, err := json.Marshal(raw)
 	if err != nil {

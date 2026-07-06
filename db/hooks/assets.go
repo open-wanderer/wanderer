@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"encoding/json"
 	"pocketbase/util"
 	"sync"
 	"time"
@@ -10,6 +11,39 @@ import (
 )
 
 const assetLinkReindexDelay = 500 * time.Millisecond
+
+func InvalidateAssetContentHashOnFileChange() func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		if e.Record.Original().Id == "" || e.Record.GetString("file") == e.Record.Original().GetString("file") {
+			return e.Next()
+		}
+		metadata, err := assetMetadataMap(e.Record)
+		if err != nil {
+			return err
+		}
+		if _, ok := metadata["content_hash"]; !ok {
+			return e.Next()
+		}
+		delete(metadata, "content_hash")
+		e.Record.Set("metadata", metadata)
+		return e.Next()
+	}
+}
+
+func assetMetadataMap(record *core.Record) (map[string]any, error) {
+	result := map[string]any{}
+	rawBytes, err := json.Marshal(record.Get("metadata"))
+	if err != nil {
+		return nil, err
+	}
+	if len(rawBytes) == 0 || string(rawBytes) == "null" {
+		return result, nil
+	}
+	if err := json.Unmarshal(rawBytes, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
 
 func ReindexTrailOnAssetChange(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {

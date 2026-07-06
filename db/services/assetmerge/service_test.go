@@ -176,7 +176,7 @@ func TestPersistAssetContentHashSkipsAssetUpdateHooks(t *testing.T) {
 	})
 
 	hash := strings.Repeat("a", 64)
-	if err := persistAssetContentHash(app, asset, map[string]any{}, hash); err != nil {
+	if err := persistAssetContentHash(app, asset, hash); err != nil {
 		t.Fatal(err)
 	}
 	if updateHooks != 0 {
@@ -196,6 +196,84 @@ func TestPersistAssetContentHashSkipsAssetUpdateHooks(t *testing.T) {
 	}
 }
 
+func TestPersistAssetContentHashDoesNotOverwriteConcurrentRecordChanges(t *testing.T) {
+	app := setupAssetMergeTestApp(t)
+	defer app.Cleanup()
+
+	asset := createTestAsset(t, app, "user1", "", "")
+	asset.Set("file", "photo.jpg")
+	if err := app.Save(asset); err != nil {
+		t.Fatal(err)
+	}
+	stale := asset.Clone()
+
+	current, err := app.FindRecordById("assets", asset.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current.Set("lat", 46.123)
+	if err := app.Save(current); err != nil {
+		t.Fatal(err)
+	}
+
+	hash := strings.Repeat("b", 64)
+	if err := persistAssetContentHash(app, stale, hash); err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := app.FindRecordById("assets", asset.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := updated.GetFloat("lat"); got != 46.123 {
+		t.Fatalf("lat = %f, want 46.123", got)
+	}
+	metadata, err := metadataMap(updated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := util.AssetMetadataString(metadata, "content_hash"); got != hash {
+		t.Fatalf("content_hash = %q, want %q", got, hash)
+	}
+}
+
+func TestPersistAssetContentHashSkipsStaleFileSnapshot(t *testing.T) {
+	app := setupAssetMergeTestApp(t)
+	defer app.Cleanup()
+
+	asset := createTestAsset(t, app, "user1", "", "")
+	asset.Set("file", "old.jpg")
+	if err := app.Save(asset); err != nil {
+		t.Fatal(err)
+	}
+	stale := asset.Clone()
+
+	current, err := app.FindRecordById("assets", asset.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current.Set("file", "new.jpg")
+	if err := app.Save(current); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := persistAssetContentHash(app, stale, strings.Repeat("c", 64)); err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := app.FindRecordById("assets", asset.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata, err := metadataMap(updated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := util.AssetMetadataString(metadata, "content_hash"); got != "" {
+		t.Fatalf("content_hash = %q, want empty", got)
+	}
+}
+
 func setupAssetMergeTestApp(t *testing.T) *pbtests.TestApp {
 	t.Helper()
 
@@ -209,6 +287,7 @@ func setupAssetMergeTestApp(t *testing.T) *pbtests.TestApp {
 		&core.TextField{Name: "type"},
 		&core.TextField{Name: "storage_mode"},
 		&core.TextField{Name: "remote_status"},
+		&core.TextField{Name: "file"},
 		&core.TextField{Name: "author"},
 		&core.TextField{Name: "external_provider"},
 		&core.TextField{Name: "external_id"},

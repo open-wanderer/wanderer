@@ -225,6 +225,75 @@ func TestPluginAssetLibraryRequestTracksZeroLocationPresence(t *testing.T) {
 	}
 }
 
+func TestPluginAssetLibraryRequestIgnoresNullLocationPresence(t *testing.T) {
+	var request pluginAssetLibraryRequest
+	if err := json.Unmarshal([]byte(`{"lat":null,"lon":null}`), &request); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if request.latSet || request.lonSet {
+		t.Fatalf("got latSet=%v lonSet=%v, want both absent", request.latSet, request.lonSet)
+	}
+}
+
+func TestAssetPluginUsesTrustedServiceClientForCustomServiceBase(t *testing.T) {
+	cases := []struct {
+		baseURL string
+		want    bool
+	}{
+		{assetPluginOverpassDefaultURL, false},
+		{assetPluginNominatimDefaultURL + "/", false},
+		{"http://nominatim:8080", true},
+		{"https://maps.example.test/nominatim", true},
+	}
+	for _, tc := range cases {
+		if got := assetPluginUsesTrustedServiceClient(tc.baseURL); got != tc.want {
+			t.Fatalf("assetPluginUsesTrustedServiceClient(%q) = %v, want %v", tc.baseURL, got, tc.want)
+		}
+	}
+}
+
+func TestNormalizeAssetLibraryDateFilterUsesPocketBaseDateLayout(t *testing.T) {
+	got, err := normalizeAssetLibraryDateFilter("2026-07-05T09:00:00Z")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "2026-07-05 09:00:00.000Z" {
+		t.Fatalf("got %q, want PocketBase date layout", got)
+	}
+}
+
+func TestAssetLibraryPaginationForRequestUsesDefaultsAndClamps(t *testing.T) {
+	pagination := assetLibraryPaginationForRequest(pluginAssetLibraryRequest{
+		Page:    0,
+		PerPage: 999,
+	}, pluginAssetLibraryActionInput{}, false)
+
+	if !pagination.Enabled {
+		t.Fatal("pagination should be enabled")
+	}
+	if pagination.Page != 1 || pagination.PerPage != 250 {
+		t.Fatalf("pagination = %#v, want page 1 perPage 250", pagination)
+	}
+}
+
+func TestAssetLibraryPaginationForRequestSkipsSpatialMatching(t *testing.T) {
+	withLocation := assetLibraryPaginationForRequest(pluginAssetLibraryRequest{
+		Page:    2,
+		PerPage: 100,
+	}, pluginAssetLibraryActionInput{}, true)
+	if withLocation.Enabled {
+		t.Fatal("location matching should not be paginated before distance ranking")
+	}
+
+	withTrack := assetLibraryPaginationForRequest(pluginAssetLibraryRequest{
+		Page:    2,
+		PerPage: 100,
+	}, pluginAssetLibraryActionInput{Points: []pluginAssetTrackPoint{{Lat: 46, Lon: 8}}}, false)
+	if withTrack.Enabled {
+		t.Fatal("track matching should not be paginated before route ranking")
+	}
+}
+
 func TestAssetLibraryFilenameKeepsStoredFileBeforeRemoteName(t *testing.T) {
 	record := newAssetMaintenanceRecord(map[string]any{
 		"file":        "stored.jpg",
