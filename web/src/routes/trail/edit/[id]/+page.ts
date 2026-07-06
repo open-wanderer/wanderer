@@ -24,9 +24,11 @@ export const load: Load = async ({ params, fetch, url }) => {
     const lists = await lists_index({ q: "", author: user?.actor ?? "" }, 1, -1, fetch)
 
     let trail: Trail;
+    let isDuplicateTrail = false;
     if (params.id === "new") {
         // duplicate trail
         if (url.searchParams.has("orig")) {
+            isDuplicateTrail = true;
             const originalId = url.searchParams.get("orig")!;
             const originalTrail = await trails_show(originalId, undefined, undefined, true, fetch);
             trail = Trail.from(originalTrail)
@@ -48,6 +50,7 @@ export const load: Load = async ({ params, fetch, url }) => {
 
     return {
         trail: trail,
+        isDuplicateTrail,
         lists: lists,
         categories: categories,
         categoryPreferences: categoryPreferences,

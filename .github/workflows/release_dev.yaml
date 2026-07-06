@@ -23,7 +23,11 @@ jobs:
 
       - name: Bump versions
         run: |
-          LAST_TAG=$(git describe --tags --abbrev=0)
+          LAST_TAG=$(git tag --merged HEAD --list 'v*' --sort=-version:refname | head -n1)
+          if [ -z "$LAST_TAG" ]; then
+            echo "No root release tag matching v* found on this branch." >&2
+            exit 1
+          fi
           BASE_VERSION=${LAST_TAG#v}
           FULL_SHA=$(git rev-parse HEAD)
           VERSION="${BASE_VERSION}-dev+${FULL_SHA}"
