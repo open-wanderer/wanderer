@@ -1,3 +1,4 @@
+import { withTrailPreferenceMeiliFilter } from "$lib/server/category_preference_filter";
 import { error, json, type RequestEvent } from "@sveltejs/kit";
 import Supercluster from "supercluster";
 import { MAP_MAX_POLYLINES } from "$lib/config/map";
@@ -33,7 +34,10 @@ export async function POST(event: RequestEvent) {
         const summaryQuery = {
             indexUid: "trails",
             q,
-            filter: [geoFilter, filterText].filter(f => f && f !== ""),
+            filter: await withTrailPreferenceMeiliFilter(
+                event,
+                [geoFilter, filterText].filter(f => f && f !== ""),
+            ),
             attributesToRetrieve: ["id", "_geo", "bounding_box_diagonal"],
             limit: 10000, 
         };

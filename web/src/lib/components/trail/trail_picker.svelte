@@ -5,7 +5,7 @@
     import { fromFile } from "$lib/util/gpx_util";
     import { onMount } from "svelte";
     interface Props {
-        trailFile: File | undefined | null;
+        trailFile: File | Blob | undefined | null;
         trailData: string | undefined;
         hasTrail?: boolean;
         label?: string;
@@ -36,7 +36,7 @@
             attributionControl: false,
             dragPan: false,
             scrollZoom: false,
-            preserveDrawingBuffer: true,
+            canvasContextAttributes: { preserveDrawingBuffer: true }
         });
     }
 

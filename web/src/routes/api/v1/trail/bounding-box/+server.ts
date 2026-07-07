@@ -1,6 +1,6 @@
-import { type TrailBoundingBox, type TrailFilterValues } from '$lib/models/trail';
-import { handleError } from '$lib/util/api_util';
-import { error, json, type RequestEvent } from '@sveltejs/kit';
+import { withTrailPreferenceMeiliFilter } from "$lib/server/category_preference_filter";
+import type { TrailBoundingBox } from "$lib/models/trail";
+import { error, json, type RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -37,13 +37,78 @@ export async function GET(event: RequestEvent) {
             max_lat: 0,
             min_lat: 0,
             max_lon: 0,
-            min_lon: 0
+            min_lon: 0,
+            has_trails: false,
         });
     }
     try {
-        const r = await event.locals.pb.collection('trails_bounding_box').getOne<TrailBoundingBox>(event.locals.user.actor!)
-        return json(r)
+        const filter = await withTrailPreferenceMeiliFilter(event, undefined);
+        const attributesToRetrieve = ["min_lat", "max_lat", "min_lon", "max_lon"];
+        const r = await event.locals.ms.multiSearch({
+            queries: [
+                {
+                    indexUid: "trails",
+                    q: "",
+                    filter,
+                    attributesToRetrieve,
+                    sort: ["min_lat:asc"],
+                    limit: 1,
+                },
+                {
+                    indexUid: "trails",
+                    q: "",
+                    filter,
+                    attributesToRetrieve,
+                    sort: ["max_lat:desc"],
+                    limit: 1,
+                },
+                {
+                    indexUid: "trails",
+                    q: "",
+                    filter,
+                    attributesToRetrieve,
+                    sort: ["min_lon:asc"],
+                    limit: 1,
+                },
+                {
+                    indexUid: "trails",
+                    q: "",
+                    filter,
+                    attributesToRetrieve,
+                    sort: ["max_lon:desc"],
+                    limit: 1,
+                },
+            ],
+        });
+
+        const [minLatResult, maxLatResult, minLonResult, maxLonResult] = r.results;
+        const hasTrails =
+            minLatResult.hits.length > 0 &&
+            maxLatResult.hits.length > 0 &&
+            minLonResult.hits.length > 0 &&
+            maxLonResult.hits.length > 0;
+
+        if (!hasTrails) {
+            return json({
+                min_lat: 0,
+                max_lat: 0,
+                min_lon: 0,
+                max_lon: 0,
+                has_trails: false,
+            });
+        }
+
+        const boundingBox: TrailBoundingBox = {
+            min_lat: minLatResult.hits[0].min_lat,
+            max_lat: maxLatResult.hits[0].max_lat,
+            min_lon: minLonResult.hits[0].min_lon,
+            max_lon: maxLonResult.hits[0].max_lon,
+            has_trails: true,
+        };
+
+        return json(boundingBox)
     } catch (e: any) {
-        return handleError(e);
+        console.error(e);
+        throw error(e.httpStatus || 500, e.message ?? "Unable to get trail bounding box");
     }
 }

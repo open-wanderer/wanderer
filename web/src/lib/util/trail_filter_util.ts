@@ -1,5 +1,17 @@
 import type { TrailFilter } from "$lib/models/trail";
 
+const NO_SUBCATEGORY_FILTER_PREFIX = "__no_subcategory__:";
+
+export function noSubcategoryFilterValue(categoryId: string): string {
+    return `${NO_SUBCATEGORY_FILTER_PREFIX}${categoryId}`;
+}
+
+export function noSubcategoryFilterCategory(value: string): string | undefined {
+    return value.startsWith(NO_SUBCATEGORY_FILTER_PREFIX)
+        ? value.substring(NO_SUBCATEGORY_FILTER_PREFIX.length)
+        : undefined;
+}
+
 const TRAIL_SORT_OPTIONS = new Set([
     "name",
     "distance",
@@ -95,6 +107,7 @@ export function sanitizeTrailFilter(
         ...defaultFilter,
         q: getString(source.q, defaultFilter.q),
         category: getStringArray(source.category, defaultFilter.category),
+        subcategory: getStringArray(source.subcategory, defaultFilter.subcategory),
         tags: getStringArray(source.tags, defaultFilter.tags),
         difficulty: parseDifficulty(source.difficulty, defaultFilter.difficulty),
         author: getString(source.author, defaultFilter.author),

@@ -1,6 +1,9 @@
 package util
 
-import "github.com/pocketbase/pocketbase/core"
+import (
+	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/core"
+)
 
 type FeedType string
 
@@ -11,6 +14,17 @@ const (
 )
 
 func InsertIntoFeed(app core.App, actorId string, authorId string, itemId string, feedType FeedType) (*core.Record, error) {
+	// an item appears at most once in an actor's feed — repeated Update
+	// activities for an already-known item must not create duplicate entries
+	existing, err := app.FindFirstRecordByFilter(
+		"feed",
+		"actor = {:actor} && item = {:item}",
+		dbx.Params{"actor": actorId, "item": itemId},
+	)
+	if err == nil && existing != nil {
+		return existing, nil
+	}
+
 	collection, err := app.FindCollectionByNameOrId("feed")
 	if err != nil {
 		return nil, err

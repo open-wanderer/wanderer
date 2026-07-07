@@ -237,15 +237,39 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 // --- Sub-Sync Helpers ---
 
 func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
-	// Resolve Category if present in expand
+	var federatedCategoryName, federatedSubcategoryName string
+
 	if expand, ok := data["expand"].(map[string]any); ok {
 		if cat, ok := expand["category"].(map[string]any); ok {
 			if name, ok := cat["name"].(string); ok {
-				if c, _ := app.FindFirstRecordByData("categories", "name", name); c != nil {
-					record.Set("category", c.Id)
-				}
+				federatedCategoryName = name
 			}
 		}
+		if subcat, ok := expand["subcategory"].(map[string]any); ok {
+			if name, ok := subcat["name"].(string); ok {
+				federatedSubcategoryName = name
+			}
+		}
+	}
+
+	if federatedCategoryName != "" {
+		record.Set("federated_category_name", federatedCategoryName)
+	}
+	if federatedSubcategoryName != "" {
+		record.Set("federated_subcategory_name", federatedSubcategoryName)
+	}
+
+	category, subcategory, err := util.ResolveCategoryAndSubcategoryByNormalizedNames(app, federatedCategoryName, federatedSubcategoryName)
+	if err == nil && category != nil {
+		record.Set("category", category.Id)
+		if subcategory != nil {
+			record.Set("subcategory", subcategory.Id)
+		} else {
+			record.Set("subcategory", "")
+		}
+	} else if err == nil && federatedCategoryName != "" {
+		record.Set("category", "")
+		record.Set("subcategory", "")
 	}
 
 	// Resolve Tags
@@ -260,8 +284,11 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 	delete(data, "gpx")
 	delete(data, "author")
 	delete(data, "category")
+	delete(data, "subcategory")
 	delete(data, "tags")
 	delete(data, "iri")
+	delete(data, "federated_category_name")
+	delete(data, "federated_subcategory_name")
 
 	record.Load(data)
 }

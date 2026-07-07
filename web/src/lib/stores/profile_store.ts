@@ -118,7 +118,7 @@ export async function profile_stats_index(handle: string, filter: SummitLogFilte
 
     const r = await f(`/api/v1/profile/${handle}/stats?` + new URLSearchParams({
         filter: filterText,
-        expand: "trail.category,author",
+        expand: "trail.category,trail.subcategory,trail.subcategory.category,author",
         sort: "+date",
     }), {
         method: 'GET',

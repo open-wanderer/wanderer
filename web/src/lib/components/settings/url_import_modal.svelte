@@ -18,7 +18,7 @@
     let loading: boolean = false;
 
     export function openModal() {
-        setFields("url", "")
+        setFields("url", "");
         setErrors("url", []);
         loading = false;
         modal.openModal();
@@ -61,10 +61,11 @@
                 uploadStore.enqueuedUploads.push(u);
 
                 await processUploadQueue();
-                loading = false;
                 modal.closeModal();
             } catch (error) {
                 console.error("Error:", error);
+            } finally {
+                loading = false;
             }
         },
     });
@@ -88,10 +89,14 @@
     {/snippet}
     {#snippet footer()}
         <div class="flex items-center gap-4">
-            <button type="button" class="btn-secondary" onclick={() => modal.closeModal()}
-                >{$_("cancel")}</button
+            <button
+                type="button"
+                class="btn-secondary"
+                onclick={() => modal.closeModal()}>{$_("cancel")}</button
             >
-            <Button primary type="submit" form="url-import-form" {loading}>{$_("import")}</Button>
+            <Button primary type="submit" form="url-import-form" {loading}
+                >{$_("import")}</Button
+            >
         </div>
     {/snippet}</Modal
 >

@@ -6,7 +6,7 @@ import { writable, type Writable } from "svelte/store";
 export const categories: Writable<Category[]> = writable([])
 
 export async function categories_index(f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
-    const r = await f('/api/v1/category', {
+    const r = await f('/api/v1/category?perPage=-1&sort=name', {
         method: 'GET',
     })
     if (!r.ok) {

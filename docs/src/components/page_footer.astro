@@ -1,0 +1,165 @@
+---
+import LogoTextLight from "../assets/logo_text_light.svg";
+---
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <LogoTextLight />
+    </div>
+
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <div class="footer-col">
+        <h3 class="footer-col-heading">Product</h3>
+        <ul class="footer-links">
+          <li>
+            <a
+              href="https://demo.wanderer.to"
+              target="_blank"
+              rel="noopener noreferrer">Live Demo</a
+            >
+          </li>
+          <li><a href="/run/installation/quick">Quick Start</a></li>
+          <li><a href="/changelog">Changelog</a></li>
+          <li><a href="/servers">Instances</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h3 class="footer-col-heading">Docs</h3>
+        <ul class="footer-links">
+          <li><a href="/use/create-a-trail">Using wanderer</a></li>
+          <li><a href="/run/environment-configuration">Configuration</a></li>
+          <li><a href="/develop/federation">Federation</a></li>
+          <li><a href="/api-reference">API Reference</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h3 class="footer-col-heading">Community</h3>
+        <ul class="footer-links">
+          <li>
+            <a
+              href="https://github.com/open-wanderer/wanderer"
+              target="_blank"
+              rel="noopener noreferrer">GitHub</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://discord.gg/USSEBY98CP"
+              target="_blank"
+              rel="noopener noreferrer">Discord</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://github.com/open-wanderer/wanderer/issues"
+              target="_blank"
+              rel="noopener noreferrer">Issues</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://github.com/open-wanderer/wanderer/pulls"
+              target="_blank"
+              rel="noopener noreferrer">Contribute</a
+            >
+          </li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h3 class="footer-col-heading">Support</h3>
+        <ul class="footer-links">
+          <li>
+            <a
+              href="https://www.buymeacoffee.com/wanderertrails"
+              target="_blank"
+              rel="noopener noreferrer">Buy Me a Coffee</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://liberapay.com/wanderer/"
+              target="_blank"
+              rel="noopener noreferrer">Liberapay</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://pocketbase.io/"
+              target="_blank"
+              rel="noopener noreferrer">PocketBase</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://www.meilisearch.com/"
+              target="_blank"
+              rel="noopener noreferrer">meilisearch</a
+            >
+          </li>
+        </ul>
+      </div>
+    </nav>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: var(--polar-night);
+    border-top: 1px solid var(--dusk-divide);
+    padding: clamp(2.5rem, 5vw, 4rem) clamp(1rem, 4vw, 2.5rem);
+  }
+
+  .footer-inner {
+    max-width: var(--container);
+    margin-inline: auto;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: clamp(2rem, 5vw, 5rem);
+    align-items: start;
+  }
+
+  @media (max-width: 640px) {
+    .footer-inner {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .footer-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .footer-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 2rem;
+  }
+
+  .footer-col-heading {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--summit-fog);
+    text-transform: uppercase;
+    margin-bottom: 0.875rem;
+  }
+
+  .footer-links {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .footer-links a {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.55);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .footer-links a:hover {
+    color: var(--white);
+  }
+</style>

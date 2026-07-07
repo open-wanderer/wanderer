@@ -97,5 +97,23 @@
         "region": ["Europe", "Germany"],
         "language": ["German", "English"],
         "category": ["Cycling", "Hiking"]
+    },
+    {
+        "name": "Glitchy.Social Wanderer",
+        "url": "https://wanderer.glitchy.social",
+        "description": "Wanderer instance for Glitchy.Social users",
+        "image": "/server/imgs/glitchy.social.jpg",
+        "region": ["Ukraine"],
+        "language": ["English", "Ukrainian"],
+        "category": ["General Outdoor"]
+    },
+    {
+        "name": "wanderer alojado por Lynze",
+        "url": "https://wanderer.lynze.net",
+        "description": "Una instancia wanderer para usuarios de España",
+        "image": "/server/imgs/lynze.net.jpg",
+        "region": ["Spain"],
+        "language": ["Spanish", "Official Spanish Languages"],
+        "category": ["Hiking", "Biking"]
     }
 ]

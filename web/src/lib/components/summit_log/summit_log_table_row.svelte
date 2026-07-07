@@ -8,7 +8,8 @@
         formatHTMLAsText,
         formatTimeHHMM,
     } from "$lib/util/format_util";
-    import { _ } from "svelte-i18n";
+    import { displayCategoryName } from "$lib/util/category_util";
+    import { _, locale } from "svelte-i18n";
     import PhotoGallery from "../photo_gallery.svelte";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
 
@@ -159,7 +160,14 @@
     </td>
     {#if showCategory}
         <td>
-            {$_(log.expand?.trail?.expand?.category?.name ?? "-")}
+            {#if log.expand?.trail?.expand?.category}
+                {displayCategoryName(
+                    log.expand.trail.expand.category,
+                    $locale,
+                )}
+            {:else}
+                -
+            {/if}
         </td>
     {/if}
     {#if showTrail}
