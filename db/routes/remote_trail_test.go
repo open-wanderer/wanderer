@@ -3,9 +3,13 @@ package routes
 import (
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
+
+	"github.com/pocketbase/pocketbase/core"
 )
 
 func TestRemoteTrailSyncQueryAddsRequiredExpands(t *testing.T) {
@@ -145,6 +149,30 @@ func TestShouldRetryRemoteFetchWithoutAssetExpands(t *testing.T) {
 				t.Fatalf("retry = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSyncRecordFilesSkipsEmptyGPX(t *testing.T) {
+	var requests int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&requests, 1)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	record := core.NewRecord(core.NewBaseCollection("summit_logs"))
+
+	syncRecordFiles(
+		t.Context(),
+		record,
+		"summit_logs",
+		"9300091648c5ddc",
+		server.URL,
+		map[string]any{"gpx": ""},
+	)
+
+	if got := atomic.LoadInt32(&requests); got != 0 {
+		t.Fatalf("empty gpx triggered %d file requests, want 0", got)
 	}
 }
 

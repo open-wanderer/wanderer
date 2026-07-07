@@ -745,20 +745,18 @@
         id: string | undefined,
         geojson: GeoJSON | null | undefined,
     ) {
-        if (
-            !map ||
-            !trail ||
-            !id ||
-            !(layerManager.layers[id] instanceof TrailLayer)
-        ) {
+        const layer = trailLayer(id);
+        if (!map || !trail || !layer) {
             return;
         }
+
+        removeStartEndMarkers(id);
 
         const startMarker = new FontawesomeMarker(
             { icon: "fa fa-bullseye" },
             {},
         );
-        layerManager.layers[id].markers.start = startMarker;
+        layer.markers.start = startMarker;
 
         if (!geojson) {
             if (trail.lon && trail.lat) {
@@ -777,7 +775,7 @@
             { icon: "fa fa-flag-checkered" },
             {},
         );
-        layerManager.layers[id].markers.end = endMarker;
+        layer.markers.end = endMarker;
 
         startMarker.setLngLat(startEndPoint[0] as M.LngLatLike);
         endMarker.setLngLat(
@@ -797,11 +795,22 @@
     }
 
     function removeStartEndMarkers(id: string | undefined) {
-        if (!id) {
+        const layer = trailLayer(id);
+        if (!layer) {
             return;
         }
-        layerManager.layers[id].markers?.start?.remove();
-        layerManager.layers[id].markers?.end?.remove();
+        layer.markers.start?.remove();
+        layer.markers.end?.remove();
+        delete layer.markers.start;
+        delete layer.markers.end;
+    }
+
+    function trailLayer(id: string | undefined): TrailLayer | undefined {
+        if (!id || !layerManager) {
+            return undefined;
+        }
+        const layer = layerManager.layers[id];
+        return layer instanceof TrailLayer ? layer : undefined;
     }
 
     function showWaypoints() {

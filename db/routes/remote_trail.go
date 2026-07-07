@@ -569,7 +569,7 @@ func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, ori
 
 func syncRecordFiles(ctx context.Context, record *core.Record, collection, remoteID, origin string, data map[string]any) {
 	// Handle GPX
-	if gpx, ok := data["gpx"].(string); ok && record.GetString("gpx") == "" {
+	if gpx, ok := data["gpx"].(string); ok && gpx != "" && record.GetString("gpx") == "" {
 		if f, err := downloadFile(ctx, origin, collection, remoteID, gpx); err == nil {
 			record.Set("gpx", f)
 		}
