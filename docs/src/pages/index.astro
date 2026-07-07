@@ -1,0 +1,2101 @@
+---
+import { Image } from "astro:assets";
+import featuresImg from "../assets/hero.png";
+import PageNav from "../components/page_nav.astro";
+import PageFooter from "../components/page_footer.astro";
+
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/ibm-plex-sans/700.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/600.css";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>wanderer — Your trails. Your data. Your server.</title>
+    <meta
+      name="description"
+      content="The open-source, self-hosted trail catalogue. Organize, plan, and share GPS tracks without the algorithm, the paywall, or the subscription."
+    />
+    <link rel="icon" href="/favicon.svg" />
+  </head>
+
+  <body>
+    <!-- ─── NAV ──────────────────────────────────────────────────────────── -->
+    <PageNav />
+
+    <!-- ─── HERO ──────────────────────────────────────────────────────────── -->
+    <section class="hero">
+      <canvas id="hero-topo" aria-hidden="true"></canvas>
+      <div class="hero-content">
+        <div class="hero-badge">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+            ><path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"
+            ></path></svg
+          >
+          Open source · AGPLv3 · Self-hosted
+        </div>
+
+        <h1
+          class="hero-headline"
+          aria-label="Your trails. Your data. Your server."
+        >
+          <span class="hero-line">Your trails.</span>
+          <span class="hero-line hero-line--dim">Your data.</span>
+          <span class="hero-line hero-line--dimmer">Your server.</span>
+        </h1>
+
+        <p class="hero-sub">
+          The open-source trail catalogue: organize, plan, and share GPS tracks
+          without any paywall or subscription.
+        </p>
+
+        <div class="hero-ctas">
+          <a href="/run/installation/quick" class="cta-primary">
+            Quick Start
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg
+            >
+          </a>
+          <a
+            href="https://demo.wanderer.to"
+            class="cta-secondary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Try the Demo
+          </a>
+        </div>
+      </div>
+
+      <div class="hero-screenshot" aria-hidden="true">
+        <div class="hero-screenshot-frame">
+          <video
+            class="hero-img"
+            src="/trailer.mp4"
+            poster="/favicon.svg"
+            autoplay
+            muted
+            loop
+            playsinline></video>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PATHS ────────────────────────────────────────────────────────── -->
+    <section class="paths" aria-label="How to get started">
+      <div class="path path--self-host reveal">
+        <div class="path-eyebrow">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="2" y="3" width="20" height="14" rx="2"></rect><path
+              d="M8 21h8M12 17v4"></path>
+          </svg>
+          Self-host
+        </div>
+        <h2 class="path-heading">Run your own instance.</h2>
+        <p class="path-body">
+          Your data, your rules, your server. Download the compose file and
+          start it. Wanderer is up in under 90 seconds.
+        </p>
+        <div
+          class="code-block"
+          role="region"
+          aria-label="Installation commands"
+        >
+          <div class="code-block-header">
+            <span class="code-lang">bash</span>
+            <span class="code-comment"># download &amp; launch</span>
+          </div>
+          <pre
+            class="code-pre"><code class="code-content"><span class="code-comment-line"># Download the compose file</span>
+<span class="code-cmd">wget</span> https://raw.githubusercontent.com/open-wanderer/wanderer/main/docker-compose.yml
+
+<span class="code-comment-line"># Start wanderer</span>
+<span class="code-cmd">docker</span> compose up -d</code></pre>
+        </div>
+        <div class="path-actions">
+          <a href="/run/installation/quick" class="cta-primary">
+            Full installation guide
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg
+            >
+          </a>
+          <a href="/run/environment-configuration" class="cta-secondary">
+            Environment config
+          </a>
+        </div>
+      </div>
+
+      <div class="path-divider" aria-hidden="true"><span>or</span></div>
+
+      <a href="/servers" class="path path--join reveal">
+        <div class="path-eyebrow">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10"></circle><path d="M12 8v4l3 3"
+            ></path>
+          </svg>
+          Join a server
+        </div>
+        <h2 class="path-heading">Find a community to join.</h2>
+        <p class="path-body">
+          Don't want to manage infrastructure? Join an existing wanderer
+          instance run by someone you trust.
+        </p>
+        <ol class="path-steps" aria-label="How to join a wanderer server">
+          <li class="path-step">
+            <span class="path-step-num" aria-hidden="true">1</span>
+            <div class="path-step-body">
+              <strong>Find someone running wanderer</strong>
+              <span
+                >A friend, hiking club, or outdoor organization who self-hosts
+                an instance.</span
+              >
+            </div>
+          </li>
+          <li class="path-step">
+            <span class="path-step-num" aria-hidden="true">2</span>
+            <div class="path-step-body">
+              <strong>Request an account</strong>
+              <span>Register on their instance.</span>
+            </div>
+          </li>
+          <li class="path-step">
+            <span class="path-step-num" aria-hidden="true">3</span>
+            <div class="path-step-body">
+              <strong>Connect across instances</strong>
+              <span
+                >Follow trails and explorers on other servers via ActivityPub
+                federation.</span
+              >
+            </div>
+          </li>
+        </ol>
+        <span class="path-cta">
+          Browse servers
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg
+          >
+        </span>
+      </a>
+    </section>
+
+    <!-- ─── PILLARS ──────────────────────────────────────────────────────── -->
+    <section class="pillars" aria-label="Why wanderer">
+      <div class="section-container">
+        <div class="pillar reveal">
+          <div class="pillar-marker" aria-hidden="true">01</div>
+          <div class="pillar-body">
+            <h2 class="pillar-heading">Own your data.</h2>
+            <p class="pillar-text">
+              Your GPS tracks live on your server, in your database, under your
+              control. No vendor lock-in, no terms-of-service changes, no sudden
+              sunset. Export any time in open formats.
+            </p>
+          </div>
+        </div>
+
+        <div class="pillar-rule" aria-hidden="true"></div>
+
+        <div class="pillar reveal">
+          <div class="pillar-marker" aria-hidden="true">02</div>
+          <div class="pillar-body">
+            <h2 class="pillar-heading">Every feature. Always free.</h2>
+            <p class="pillar-text">
+              Search, plan, share, map layers, summit logs, statistics, lists:
+              no tier, no paywall, no annual plan required. Install it and use
+              everything.
+            </p>
+          </div>
+        </div>
+
+        <div class="pillar-rule" aria-hidden="true"></div>
+
+        <div class="pillar reveal">
+          <div class="pillar-marker" aria-hidden="true">03</div>
+          <div class="pillar-body">
+            <h2 class="pillar-heading">Built on the open web.</h2>
+            <p class="pillar-text">
+              ActivityPub federation means your wanderer instance can share
+              trails with other instances. Follow explorers across servers — no
+              account needed on theirs.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── FEATURES ────────────────────────────────────────────────────── -->
+    <section class="features" aria-label="Features">
+      <div class="section-container">
+        <div class="features-grid">
+          <div class="features-text reveal">
+            <h2 class="section-heading">
+              Everything you need to manage your trail data.
+            </h2>
+            <p class="section-body">
+              From a post-hike GPX upload to a multi-week expedition plan,
+              wanderer gives you the full toolkit — without the commercial
+              baggage.
+            </p>
+            <ul class="feature-list" aria-label="Feature list">
+              <li class="feature-item">
+                <svg
+                  class="feature-icon"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  ><polyline points="9 11 12 14 22 4"></polyline><path
+                    d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                  ></path></svg
+                >
+                <span>Upload GPX, KML, FIT and more</span>
+              </li>
+              <li class="feature-item">
+                <svg
+                  class="feature-icon"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  ><polyline points="9 11 12 14 22 4"></polyline><path
+                    d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                  ></path></svg
+                >
+                <span>Full-text and map-based search</span>
+              </li>
+              <li class="feature-item">
+                <svg
+                  class="feature-icon"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  ><polyline points="9 11 12 14 22 4"></polyline><path
+                    d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                  ></path></svg
+                >
+                <span>Route planning with Valhalla routing</span>
+              </li>
+              <li class="feature-item">
+                <svg
+                  class="feature-icon"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  ><polyline points="9 11 12 14 22 4"></polyline><path
+                    d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                  ></path></svg
+                >
+                <span>Elevation profiles and statistics</span>
+              </li>
+              <li class="feature-item">
+                <svg
+                  class="feature-icon"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  ><polyline points="9 11 12 14 22 4"></polyline><path
+                    d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                  ></path></svg
+                >
+                <span>Lists, summit logs, and tags</span>
+              </li>
+              <li class="feature-item">
+                <svg
+                  class="feature-icon"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  ><polyline points="9 11 12 14 22 4"></polyline><path
+                    d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                  ></path></svg
+                >
+                <span>Photo galleries and waypoints</span>
+              </li>
+              <li class="feature-item">
+                <svg
+                  class="feature-icon"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  ><polyline points="9 11 12 14 22 4"></polyline><path
+                    d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                  ></path></svg
+                >
+                <span>Mobile app for iOS and Android</span>
+              </li>
+              <li class="feature-item">
+                <svg
+                  class="feature-icon"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  ><polyline points="9 11 12 14 22 4"></polyline><path
+                    d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                  ></path></svg
+                >
+                <span>Plugin system for extensibility</span>
+              </li>
+            </ul>
+            <a href="/use/create-a-trail" class="text-link">
+              Explore all features
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg
+              >
+            </a>
+          </div>
+
+          <div class="features-screenshot reveal">
+            <Image
+              src={featuresImg}
+              alt="wanderer features overview showing trail cards and map interface"
+              width={900}
+              quality={80}
+              loading="lazy"
+              class="features-img"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── FEDERATION ──────────────────────────────────────────────────── -->
+    <section class="federation" aria-label="ActivityPub federation">
+      <div class="section-container">
+        <div class="federation-layout">
+          <div class="federation-text reveal">
+            <div class="fed-tag" aria-hidden="true">ActivityPub</div>
+            <h2 class="section-heading federation-heading">
+              The social layer<br />for outdoor explorers.
+            </h2>
+            <p class="section-body">
+              wanderer is built on ActivityPub — the same open standard that
+              powers Mastodon and Pixelfed. Follow explorers on other instances
+              and their public trails, comments, and summit logs appear in your
+              feed — no account on their server required.
+            </p>
+            <p class="section-body">
+              No walled gardens. No platform permission. Your data stays on your
+              server; the social layer spans all of them.
+            </p>
+            <div class="fed-links">
+              <a href="/develop/federation" class="text-link">
+                Federation docs
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  ><path d="M5 12h14M12 5l7 7-7 7"></path></svg
+                >
+              </a>
+              <a href="/servers" class="text-link">
+                Discover instances
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  ><path d="M5 12h14M12 5l7 7-7 7"></path></svg
+                >
+              </a>
+            </div>
+          </div>
+
+          <div class="federation-visual reveal" aria-hidden="true">
+            <svg
+              class="fed-diagram"
+              viewBox="0 0 580 205"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <defs>
+                <!--
+                  Mountain paths from logo_dark.svg (512×512).
+                  viewBox crops to the three triangle peaks (x96–416, y155–311).
+                -->
+                <symbol id="wdr-mountains" viewBox="96 155 320 156">
+                  <path
+                    d="M348.212 206.014C349.872 203.329 354.021 203.329 355.681 206.014L416.362 304.207C418.022 306.893 415.947 310.25 412.628 310.25H291.265C287.945 310.25 285.871 306.893 287.531 304.207L348.212 206.014Z"
+                    fill="white"
+                    opacity="0.5"></path>
+                  <path
+                    d="M164.723 183.276C166.612 180.005 171.334 180.005 173.223 183.276L242.282 302.889C244.17 306.161 241.809 310.25 238.032 310.25H99.9145C96.137 310.25 93.776 306.161 95.6648 302.889L164.723 183.276Z"
+                    fill="white"
+                    opacity="0.5"></path>
+                  <path
+                    d="M266.25 155C268.56 151 274.333 151 276.643 155L361.08 301.25C363.389 305.25 360.503 310.25 355.884 310.25H187.009C182.39 310.25 179.503 305.25 181.813 301.25L266.25 155Z"
+                    fill="white"></path>
+                </symbol>
+                <clipPath id="flow-clip">
+                  <rect x="130" y="0" width="320" height="205"></rect>
+                </clipPath>
+              </defs>
+
+              <!-- ── Instance A ── -->
+              <rect
+                x="5"
+                y="10"
+                width="120"
+                height="150"
+                rx="8"
+                fill="#1e2028"
+                stroke="#374151"
+                stroke-width="1"></rect>
+              <use href="#wdr-mountains" x="17" y="38" width="96" height="47"
+              ></use>
+              <text
+                x="65"
+                y="118"
+                text-anchor="middle"
+                fill="#94a3b8"
+                font-family="IBM Plex Mono, monospace"
+                font-size="9.5">wanderer</text
+              >
+              <text
+                x="65"
+                y="148"
+                text-anchor="middle"
+                fill="#ffffff"
+                font-family="IBM Plex Mono, monospace"
+                font-size="10.5"
+                font-weight="600">instance A</text
+              >
+
+              <!-- ── Instance B ── -->
+              <rect
+                x="455"
+                y="10"
+                width="120"
+                height="150"
+                rx="8"
+                fill="#1e2028"
+                stroke="#374151"
+                stroke-width="1"></rect>
+              <use href="#wdr-mountains" x="467" y="38" width="96" height="47"
+              ></use>
+              <text
+                x="515"
+                y="118"
+                text-anchor="middle"
+                fill="#94a3b8"
+                font-family="IBM Plex Mono, monospace"
+                font-size="9.5">wanderer</text
+              >
+              <text
+                x="515"
+                y="148"
+                text-anchor="middle"
+                fill="#ffffff"
+                font-family="IBM Plex Mono, monospace"
+                font-size="10.5"
+                font-weight="600">instance B</text
+              >
+
+              <!-- ── Channel 1: A → B at y=72 ── -->
+              <line
+                x1="130"
+                y1="72"
+                x2="455"
+                y2="72"
+                stroke="#374151"
+                stroke-width="1.5"></line>
+              <path
+                d="M449 67 L455 72 L449 77"
+                stroke="#374151"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+
+              <!-- ── Channel 2: B → A at y=108 ── -->
+              <line
+                x1="130"
+                y1="108"
+                x2="455"
+                y2="108"
+                stroke="#374151"
+                stroke-width="1.5"></line>
+              <path
+                d="M136 103 L130 108 L136 113"
+                stroke="#374151"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"></path>
+
+              <!-- ── Content type pills (between channels, y=84–102) ── -->
+              <rect
+                x="153"
+                y="81"
+                width="46"
+                height="18"
+                rx="4"
+                fill="#242734"
+                stroke="#374151"
+                stroke-width="1"></rect>
+              <text
+                x="176"
+                y="94"
+                text-anchor="middle"
+                fill="#ffffff"
+                font-family="IBM Plex Sans, sans-serif"
+                font-size="9.5"
+                font-weight="500">trails</text
+              >
+
+              <rect
+                x="271"
+                y="81"
+                width="38"
+                height="18"
+                rx="4"
+                fill="#242734"
+                stroke="#374151"
+                stroke-width="1"></rect>
+              <text
+                x="290"
+                y="94"
+                text-anchor="middle"
+                fill="#ffffff"
+                font-family="IBM Plex Sans, sans-serif"
+                font-size="9.5"
+                font-weight="500">lists</text
+              >
+
+              <rect
+                x="371"
+                y="81"
+                width="62"
+                height="18"
+                rx="4"
+                fill="#242734"
+                stroke="#374151"
+                stroke-width="1"></rect>
+              <text
+                x="402"
+                y="94"
+                text-anchor="middle"
+                fill="#ffffff"
+                font-family="IBM Plex Sans, sans-serif"
+                font-size="9.5"
+                font-weight="500">comments</text
+              >
+
+              <!-- ── Dots on channel 1 (A → B), 3 staggered ── -->
+              <g clip-path="url(#flow-clip)">
+                <circle r="4" fill="#ffffff">
+                  <animateMotion
+                    dur="3s"
+                    repeatCount="indefinite"
+                    path="M130,72 L455,72"></animateMotion>
+                </circle>
+                <circle r="4" fill="#ffffff" opacity="0.6">
+                  <animateMotion
+                    dur="3s"
+                    begin="1s"
+                    repeatCount="indefinite"
+                    path="M130,72 L455,72"></animateMotion>
+                </circle>
+                <circle r="4" fill="#ffffff" opacity="0.3">
+                  <animateMotion
+                    dur="3s"
+                    begin="2s"
+                    repeatCount="indefinite"
+                    path="M130,72 L455,72"></animateMotion>
+                </circle>
+
+                <!-- ── Dots on channel 2 (B → A), 3 staggered ── -->
+                <circle r="4" fill="#94a3b8">
+                  <animateMotion
+                    dur="3s"
+                    repeatCount="indefinite"
+                    path="M455,108 L130,108"></animateMotion>
+                </circle>
+                <circle r="4" fill="#94a3b8" opacity="0.6">
+                  <animateMotion
+                    dur="3s"
+                    begin="1s"
+                    repeatCount="indefinite"
+                    path="M455,108 L130,108"></animateMotion>
+                </circle>
+                <circle r="4" fill="#94a3b8" opacity="0.3">
+                  <animateMotion
+                    dur="3s"
+                    begin="2s"
+                    repeatCount="indefinite"
+                    path="M455,108 L130,108"></animateMotion>
+                </circle>
+              </g>
+
+              <!-- ── Protocol label ── -->
+              <text
+                x="292"
+                y="185"
+                text-anchor="middle"
+                fill="#94a3b8"
+                font-family="IBM Plex Mono, monospace"
+                font-size="9.5"
+                letter-spacing="0.08em">ACTIVITYPUB</text
+              >
+            </svg>
+
+            <div class="fed-caption">
+              Follow an explorer on any instance — their public trails appear in
+              your feed.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SUPPORT ──────────────────────────────────────────────────────── -->
+    <section class="support" aria-label="Support wanderer">
+      <div class="section-container">
+        <div class="support-layout">
+          <div class="support-text reveal">
+            <h2 class="section-heading">Keep wanderer going.</h2>
+            <p class="section-body">
+              wanderer is free and open-source, maintained by a small team of
+              people who spend their weekends building this instead of hiking
+              it. If it's useful to you, consider supporting the project.
+            </p>
+          </div>
+
+          <div class="support-actions reveal">
+            <a
+              href="https://www.buymeacoffee.com/wanderertrails"
+              class="support-btn support-btn--coffee"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Support wanderer on Buy Me a Coffee"
+            >
+              <svg
+                width="17"
+                height="24"
+                viewBox="0 0 884 1279"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M791.109 297.518L790.231 297.002L788.201 296.383C789.018 297.072 790.04 297.472 791.109 297.518V297.518Z"
+                  fill="white"></path>
+                <path
+                  d="M803.896 388.891L802.916 389.166L803.896 388.891Z"
+                  fill="white"></path>
+                <path
+                  d="M791.484 297.377C791.359 297.361 791.237 297.332 791.118 297.29C791.111 297.371 791.111 297.453 791.118 297.534C791.252 297.516 791.379 297.462 791.484 297.377V297.377Z"
+                  fill="white"></path>
+                <path
+                  d="M791.113 297.529H791.244V297.447L791.113 297.529Z"
+                  fill="white"></path>
+                <path
+                  d="M803.111 388.726L804.591 387.883L805.142 387.573L805.641 387.04C804.702 387.444 803.846 388.016 803.111 388.726V388.726Z"
+                  fill="white"></path>
+                <path
+                  d="M793.669 299.515L792.223 298.138L791.243 297.605C791.77 298.535 792.641 299.221 793.669 299.515V299.515Z"
+                  fill="white"></path>
+                <path
+                  d="M430.019 1186.18C428.864 1186.68 427.852 1187.46 427.076 1188.45L427.988 1187.87C428.608 1187.3 429.485 1186.63 430.019 1186.18Z"
+                  fill="white"></path>
+                <path
+                  d="M641.187 1144.63C641.187 1143.33 640.551 1143.57 640.705 1148.21C640.705 1147.84 640.86 1147.46 640.929 1147.1C641.015 1146.27 641.084 1145.46 641.187 1144.63Z"
+                  fill="white"></path>
+                <path
+                  d="M619.284 1186.18C618.129 1186.68 617.118 1187.46 616.342 1188.45L617.254 1187.87C617.873 1187.3 618.751 1186.63 619.284 1186.18Z"
+                  fill="white"></path>
+                <path
+                  d="M281.304 1196.06C280.427 1195.3 279.354 1194.8 278.207 1194.61C279.136 1195.06 280.065 1195.51 280.684 1195.85L281.304 1196.06Z"
+                  fill="white"></path>
+                <path
+                  d="M247.841 1164.01C247.704 1162.66 247.288 1161.35 246.619 1160.16C247.093 1161.39 247.489 1162.66 247.806 1163.94L247.841 1164.01Z"
+                  fill="white"></path>
+                <path
+                  d="M472.623 590.836C426.682 610.503 374.546 632.802 306.976 632.802C278.71 632.746 250.58 628.868 223.353 621.274L270.086 1101.08C271.74 1121.13 280.876 1139.83 295.679 1153.46C310.482 1167.09 329.87 1174.65 349.992 1174.65C349.992 1174.65 416.254 1178.09 438.365 1178.09C462.161 1178.09 533.516 1174.65 533.516 1174.65C553.636 1174.65 573.019 1167.08 587.819 1153.45C602.619 1139.82 611.752 1121.13 613.406 1101.08L663.459 570.876C641.091 563.237 618.516 558.161 593.068 558.161C549.054 558.144 513.591 573.303 472.623 590.836Z"
+                  fill="#FFDD00"></path>
+                <path
+                  d="M78.6885 386.132L79.4799 386.872L79.9962 387.182C79.5987 386.787 79.1603 386.435 78.6885 386.132V386.132Z"
+                  fill="white"></path>
+                <path
+                  d="M879.567 341.849L872.53 306.352C866.215 274.503 851.882 244.409 819.19 232.898C808.711 229.215 796.821 227.633 788.786 220.01C780.751 212.388 778.376 200.55 776.518 189.572C773.076 169.423 769.842 149.257 766.314 129.143C763.269 111.85 760.86 92.4243 752.928 76.56C742.604 55.2584 721.182 42.8009 699.88 34.559C688.965 30.4844 677.826 27.0375 666.517 24.2352C613.297 10.1947 557.342 5.03277 502.591 2.09047C436.875 -1.53577 370.983 -0.443234 305.422 5.35968C256.625 9.79894 205.229 15.1674 158.858 32.0469C141.91 38.224 124.445 45.6399 111.558 58.7341C95.7448 74.8221 90.5829 99.7026 102.128 119.765C110.336 134.012 124.239 144.078 138.985 150.737C158.192 159.317 178.251 165.846 198.829 170.215C256.126 182.879 315.471 187.851 374.007 189.968C438.887 192.586 503.87 190.464 568.44 183.618C584.408 181.863 600.347 179.758 616.257 177.304C634.995 174.43 647.022 149.928 641.499 132.859C634.891 112.453 617.134 104.538 597.055 107.618C594.095 108.082 591.153 108.512 588.193 108.942L586.06 109.252C579.257 110.113 572.455 110.915 565.653 111.661C551.601 113.175 537.515 114.414 523.394 115.378C491.768 117.58 460.057 118.595 428.363 118.647C397.219 118.647 366.058 117.769 334.983 115.722C320.805 114.793 306.661 113.611 292.552 112.177C286.134 111.506 279.733 110.801 273.333 110.009L267.241 109.235L265.917 109.046L259.602 108.134C246.697 106.189 233.792 103.953 221.025 101.251C219.737 100.965 218.584 100.249 217.758 99.2193C216.932 98.1901 216.482 96.9099 216.482 95.5903C216.482 94.2706 216.932 92.9904 217.758 91.9612C218.584 90.9319 219.737 90.2152 221.025 89.9293H221.266C232.33 87.5721 243.479 85.5589 254.663 83.8038C258.392 83.2188 262.131 82.6453 265.882 82.0832H265.985C272.988 81.6186 280.026 80.3625 286.994 79.5366C347.624 73.2302 408.614 71.0801 469.538 73.1014C499.115 73.9618 528.676 75.6996 558.116 78.6935C564.448 79.3474 570.746 80.0357 577.043 80.8099C579.452 81.1025 581.878 81.4465 584.305 81.7391L589.191 82.4445C603.438 84.5667 617.61 87.1419 631.708 90.1703C652.597 94.7128 679.422 96.1925 688.713 119.077C691.673 126.338 693.015 134.408 694.649 142.03L696.731 151.752C696.786 151.926 696.826 152.105 696.852 152.285C701.773 175.227 706.7 198.169 711.632 221.111C711.994 222.806 712.002 224.557 711.657 226.255C711.312 227.954 710.621 229.562 709.626 230.982C708.632 232.401 707.355 233.6 705.877 234.504C704.398 235.408 702.75 235.997 701.033 236.236H700.895L697.884 236.649L694.908 237.044C685.478 238.272 676.038 239.419 666.586 240.486C647.968 242.608 629.322 244.443 610.648 245.992C573.539 249.077 536.356 251.102 499.098 252.066C480.114 252.57 461.135 252.806 442.162 252.771C366.643 252.712 291.189 248.322 216.173 239.625C208.051 238.662 199.93 237.629 191.808 236.58C198.106 237.389 187.231 235.96 185.029 235.651C179.867 234.928 174.705 234.177 169.543 233.397C152.216 230.798 134.993 227.598 117.7 224.793C96.7944 221.352 76.8005 223.073 57.8906 233.397C42.3685 241.891 29.8055 254.916 21.8776 270.735C13.7217 287.597 11.2956 305.956 7.64786 324.075C4.00009 342.193 -1.67805 361.688 0.472751 380.288C5.10128 420.431 33.165 453.054 73.5313 460.35C111.506 467.232 149.687 472.807 187.971 477.556C338.361 495.975 490.294 498.178 641.155 484.129C653.44 482.982 665.708 481.732 677.959 480.378C681.786 479.958 685.658 480.398 689.292 481.668C692.926 482.938 696.23 485.005 698.962 487.717C701.694 490.429 703.784 493.718 705.08 497.342C706.377 500.967 706.846 504.836 706.453 508.665L702.633 545.797C694.936 620.828 687.239 695.854 679.542 770.874C671.513 849.657 663.431 928.434 655.298 1007.2C653.004 1029.39 650.71 1051.57 648.416 1073.74C646.213 1095.58 645.904 1118.1 641.757 1139.68C635.218 1173.61 612.248 1194.45 578.73 1202.07C548.022 1209.06 516.652 1212.73 485.161 1213.01C450.249 1213.2 415.355 1211.65 380.443 1211.84C343.173 1212.05 297.525 1208.61 268.756 1180.87C243.479 1156.51 239.986 1118.36 236.545 1085.37C231.957 1041.7 227.409 998.039 222.9 954.381L197.607 711.615L181.244 554.538C180.968 551.94 180.693 549.376 180.435 546.76C178.473 528.023 165.207 509.681 144.301 510.627C126.407 511.418 106.069 526.629 108.168 546.76L120.298 663.214L145.385 904.104C152.532 972.528 159.661 1040.96 166.773 1109.41C168.15 1122.52 169.44 1135.67 170.885 1148.78C178.749 1220.43 233.465 1259.04 301.224 1269.91C340.799 1276.28 381.337 1277.59 421.497 1278.24C472.979 1279.07 524.977 1281.05 575.615 1271.72C650.653 1257.95 706.952 1207.85 714.987 1130.13C717.282 1107.69 719.576 1085.25 721.87 1062.8C729.498 988.559 737.115 914.313 744.72 840.061L769.601 597.451L781.009 486.263C781.577 480.749 783.905 475.565 787.649 471.478C791.392 467.391 796.352 464.617 801.794 463.567C823.25 459.386 843.761 452.245 859.023 435.916C883.318 409.918 888.153 376.021 879.567 341.849ZM72.4301 365.835C72.757 365.68 72.1548 368.484 71.8967 369.792C71.8451 367.813 71.9483 366.058 72.4301 365.835ZM74.5121 381.94C74.6842 381.819 75.2003 382.508 75.7337 383.334C74.925 382.576 74.4089 382.009 74.4949 381.94H74.5121ZM76.5597 384.641C77.2996 385.897 77.6953 386.689 76.5597 384.641V384.641ZM80.672 387.979H80.7752C80.7752 388.1 80.9645 388.22 81.0333 388.341C80.9192 388.208 80.7925 388.087 80.6548 387.979H80.672ZM800.796 382.989C793.088 390.319 781.473 393.726 769.996 395.43C641.292 414.529 510.713 424.199 380.597 419.932C287.476 416.749 195.336 406.407 103.144 393.382C94.1102 392.109 84.3197 390.457 78.1082 383.798C66.4078 371.237 72.1548 345.944 75.2003 330.768C77.9878 316.865 83.3218 298.334 99.8572 296.355C125.667 293.327 155.64 304.218 181.175 308.09C211.917 312.781 242.774 316.538 273.745 319.36C405.925 331.405 540.325 329.529 671.92 311.91C695.905 308.686 719.805 304.941 743.619 300.674C764.835 296.871 788.356 289.731 801.175 311.703C809.967 326.673 811.137 346.701 809.778 363.615C809.359 370.984 806.139 377.915 800.779 382.989H800.796Z"
+                  fill="white"></path>
+              </svg>
+              <div class="support-btn-text">
+                <span class="support-btn-label">Buy Me a Coffee</span>
+                <span class="support-btn-sub">One-time or recurring</span>
+              </div>
+            </a>
+
+            <a
+              href="https://liberapay.com/wanderer/"
+              class="support-btn support-btn--liberapay"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Support wanderer on Liberapay"
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 80 80"
+                fill="none"
+                aria-hidden="true"
+              >
+                <g transform="translate(-78.37-208.06)" fill="white">
+                  <path
+                    d="m104.28 271.1c-3.571 0-6.373-.466-8.41-1.396-2.037-.93-3.495-2.199-4.375-3.809-.88-1.609-1.308-3.457-1.282-5.544.025-2.086.313-4.311.868-6.675l9.579-40.05 11.69-1.81-10.484 43.44c-.202.905-.314 1.735-.339 2.489-.026.754.113 1.421.415 1.999.302.579.817 1.044 1.546 1.395.729.353 1.747.579 3.055.679l-2.263 9.278"
+                  ></path>
+                  <path
+                    d="m146.52 246.14c0 3.671-.604 7.03-1.811 10.07-1.207 3.043-2.879 5.669-5.01 7.881-2.138 2.213-4.702 3.935-7.693 5.167-2.992 1.231-6.248 1.848-9.767 1.848-1.71 0-3.42-.151-5.129-.453l-3.394 13.651h-11.162l12.52-52.19c2.01-.603 4.311-1.143 6.901-1.622 2.589-.477 5.393-.716 8.41-.716 2.815 0 5.242.428 7.278 1.282 2.037.855 3.708 2.024 5.02 3.507 1.307 1.484 2.274 3.219 2.904 5.205.627 1.987.942 4.11.942 6.373m-27.378 15.461c.854.202 1.91.302 3.167.302 1.961 0 3.746-.364 5.355-1.094 1.609-.728 2.979-1.747 4.111-3.055 1.131-1.307 2.01-2.877 2.64-4.714.628-1.835.943-3.858.943-6.071 0-2.161-.479-3.998-1.433-5.506-.956-1.508-2.615-2.263-4.978-2.263-1.61 0-3.118.151-4.525.453l-5.28 21.948"
+                  ></path>
+                </g>
+              </svg>
+              <div class="support-btn-text">
+                <span class="support-btn-label">Liberapay</span>
+                <span class="support-btn-sub">Regular contributions</span>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── COMMUNITY ────────────────────────────────────────────────────── -->
+    <section class="community" aria-label="Community">
+      <div class="section-container">
+        <div class="community-heading reveal">
+          <h2 class="section-heading">Built in the open.</h2>
+          <p class="section-body">
+            wanderer is developed entirely in public. Report bugs, request
+            features, submit code, or just hang out with other trail
+            enthusiasts.
+          </p>
+        </div>
+
+        <div class="community-cards">
+          <a
+            href="https://github.com/open-wanderer/wanderer"
+            class="community-card reveal"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <div class="community-card-icon">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+                ><path
+                  d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                ></path></svg
+              >
+            </div>
+            <div class="community-card-body">
+              <h3 class="community-card-title">Star on GitHub</h3>
+              <p class="community-card-desc">
+                Browse the source, open issues, and follow what's next.
+              </p>
+            </div>
+            <svg
+              class="community-card-arrow"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              ><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg
+            >
+          </a>
+
+          <a
+            href="https://discord.gg/USSEBY98CP"
+            class="community-card reveal"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <div class="community-card-icon">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+                ><path
+                  d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.101 18.08.114 18.1.132 18.11a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"
+                ></path></svg
+              >
+            </div>
+            <div class="community-card-body">
+              <h3 class="community-card-title">Join Discord</h3>
+              <p class="community-card-desc">
+                Chat with the team and other wanderer users in real time.
+              </p>
+            </div>
+            <svg
+              class="community-card-arrow"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              ><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg
+            >
+          </a>
+
+          <a
+            href="https://github.com/open-wanderer/wanderer/pulls"
+            class="community-card reveal"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <div class="community-card-icon">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                ><circle cx="18" cy="18" r="3"></circle><circle
+                  cx="6"
+                  cy="6"
+                  r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line
+                  x1="6"
+                  y1="9"
+                  x2="6"
+                  y2="21"></line></svg
+              >
+            </div>
+            <div class="community-card-body">
+              <h3 class="community-card-title">Contribute</h3>
+              <p class="community-card-desc">
+                Submit a pull request, fix a bug, or propose new features.
+              </p>
+            </div>
+            <svg
+              class="community-card-arrow"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              ><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg
+            >
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── FOOTER ──────────────────────────────────────────────────────── -->
+    <PageFooter />
+  </body>
+</html>
+
+<style>
+  /* ── Reset & Base ───────────────────────────────────────────────────────── */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family:
+      "IBM Plex Sans",
+      -apple-system,
+      BlinkMacSystemFont,
+      sans-serif;
+    background: #12141c;
+    color: #ffffff;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: clip;
+  }
+
+  a {
+    color: inherit;
+  }
+  img,
+  video {
+    display: block;
+    max-width: 100%;
+  }
+
+  /* ── Tokens ─────────────────────────────────────────────────────────────── */
+  :root {
+    --polar-night: #242734;
+    --deep-void: #12141c;
+    --surface-dark: #1e2028;
+    --carbon: #262831;
+    --dusk-divide: #374151;
+    --summit-fog: #94a3b8;
+    --white: #ffffff;
+    --signal-red: #ef4444;
+
+    --container: min(1160px, 100% - 3rem);
+    --section-py: clamp(4rem, 8vw, 7rem);
+  }
+
+  /* ── Section Container ──────────────────────────────────────────────────── */
+  .section-container {
+    width: var(--container);
+    margin-inline: auto;
+  }
+
+  /* ── Typography Helpers ─────────────────────────────────────────────────── */
+  .section-heading {
+    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin-bottom: 1rem;
+  }
+
+  .section-body {
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    color: var(--summit-fog);
+    max-width: 56ch;
+    margin-bottom: 1rem;
+  }
+
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--white);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+    padding-bottom: 1px;
+    transition:
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+  .text-link:hover {
+    border-color: var(--white);
+  }
+  .text-link:focus-visible {
+    outline: 2px solid var(--summit-fog);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+
+  /* ── Scroll Reveal ──────────────────────────────────────────────────────── */
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition:
+        opacity 0.65s cubic-bezier(0.33, 1, 0.68, 1),
+        transform 0.65s cubic-bezier(0.33, 1, 0.68, 1);
+    }
+    .reveal.is-visible {
+      opacity: 1;
+      transform: none;
+    }
+    .reveal:nth-child(2) {
+      transition-delay: 0.1s;
+    }
+    .reveal:nth-child(3) {
+      transition-delay: 0.2s;
+    }
+  }
+
+  /* ── CTAs ──────────────────────────────────────────────────────────────── */
+  .cta-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--white);
+    color: var(--deep-void);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border-radius: 8px;
+    text-decoration: none;
+    transition:
+      background 0.15s ease,
+      transform 0.15s ease;
+    white-space: nowrap;
+  }
+  .cta-primary:hover {
+    background: #e5e7eb;
+  }
+  .cta-primary:focus-visible {
+    outline: 2px solid var(--summit-fog);
+    outline-offset: 3px;
+  }
+
+  .cta-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    color: var(--white);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    text-decoration: none;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease;
+    white-space: nowrap;
+  }
+  .cta-secondary:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .cta-secondary:focus-visible {
+    outline: 2px solid var(--summit-fog);
+    outline-offset: 3px;
+  }
+
+  /* ── NAV ────────────────────────────────────────────────────────────────── */
+
+  /* ── HERO TOPO CANVAS ───────────────────────────────────────────────────── */
+  #hero-topo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .hero-content,
+  .hero-screenshot {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── HERO ───────────────────────────────────────────────────────────────── */
+  .hero {
+    background: linear-gradient(
+      to bottom,
+      #0b0d16 0%,
+      #12141c 30%,
+      #1b1e2c 62%,
+      #242734 100%
+    );
+    position: relative;
+    padding: clamp(4rem, 8vw, 6rem) clamp(1rem, 4vw, 2.5rem) 0;
+    overflow: hidden;
+  }
+
+  .hero-content {
+    max-width: var(--container);
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--summit-fog);
+    background: rgba(55, 65, 81, 0.4);
+    border: 1px solid var(--dusk-divide);
+    border-radius: 9999px;
+    margin-bottom: 2.25rem;
+    animation: badge-in 0.6s cubic-bezier(0.33, 1, 0.68, 1) both;
+  }
+
+  @keyframes badge-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .hero-headline {
+    font-size: clamp(2.75rem, 7vw, 5.25rem);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-line {
+    display: block;
+    animation: line-in 0.7s cubic-bezier(0.33, 1, 0.68, 1) both;
+  }
+  .hero-line:nth-child(1) {
+    animation-delay: 0.1s;
+  }
+  .hero-line:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  .hero-line:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  .hero-line--dim {
+    opacity: 0.65;
+  }
+  .hero-line--dimmer {
+    opacity: 0.35;
+  }
+
+  @keyframes line-in {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .hero-line--dim {
+    animation-fill-mode: both;
+  }
+  .hero-line--dimmer {
+    animation-fill-mode: both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-badge,
+    .hero-line {
+      animation: none;
+    }
+    .hero-line--dim {
+      opacity: 0.65;
+    }
+    .hero-line--dimmer {
+      opacity: 0.35;
+    }
+  }
+
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.1875rem);
+    line-height: 1.65;
+    color: var(--summit-fog);
+    max-width: 52ch;
+    margin-inline: auto;
+    margin-bottom: 2.5rem;
+    animation: line-in 0.7s cubic-bezier(0.33, 1, 0.68, 1) 0.4s both;
+  }
+
+  .hero-ctas {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.875rem;
+    flex-wrap: wrap;
+    margin-bottom: clamp(3rem, 6vw, 5rem);
+    animation: line-in 0.7s cubic-bezier(0.33, 1, 0.68, 1) 0.5s both;
+  }
+
+  .hero-screenshot {
+    max-width: min(960px, 100%);
+    margin-inline: auto;
+  }
+
+  .hero-screenshot-frame {
+    border-radius: 16px 16px 0 0;
+    border: 1px solid var(--dusk-divide);
+    border-bottom: none;
+    overflow: hidden;
+  }
+
+  .hero-img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* ── Paths ────────────────────────────────────────────────────────────────
+     Two-option split: self-host vs join a server
+  ─────────────────────────────────────────────────────────────────────────── */
+  .paths {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: stretch;
+    border-top: 1px solid var(--dusk-divide);
+    border-bottom: 1px solid var(--dusk-divide);
+  }
+
+  .path {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: clamp(2.5rem, 5vw, 4rem) clamp(1.5rem, 4vw, 3.5rem);
+    text-decoration: none;
+    color: var(--white);
+    transition: background-color 0.2s ease;
+    min-width: 0;
+  }
+
+  .path:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+  .path:focus-visible {
+    outline: 2px solid var(--summit-fog);
+    outline-offset: -2px;
+  }
+
+  .path--self-host {
+    background-color: var(--surface-dark);
+  }
+  .path--join {
+    cursor: pointer;
+    background-color: transparent;
+  }
+
+  .path-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--summit-fog);
+  }
+
+  .path-heading {
+    font-size: clamp(1.375rem, 2.5vw, 1.875rem);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .path-body {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--summit-fog);
+    max-width: 44ch;
+    margin: 0;
+  }
+
+  .path-code {
+    margin: 0;
+    padding: 0.875rem 1rem;
+    background-color: var(--deep-void);
+    border: 1px solid var(--dusk-divide);
+    border-radius: 6px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.875rem;
+    color: var(--white);
+    overflow-x: auto;
+    align-self: flex-start;
+  }
+  .path-code code {
+    font-family: inherit;
+  }
+  .path-code .code-cmd {
+    color: var(--summit-fog);
+  }
+
+  .path-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--dusk-divide);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .path-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--dusk-divide);
+  }
+  .path-step:last-child {
+    border-bottom: none;
+  }
+
+  .path-step-num {
+    flex-shrink: 0;
+    width: 1.375rem;
+    height: 1.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--dusk-divide);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--summit-fog);
+    margin-top: 1px;
+  }
+
+  .path-step-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .path-step-body strong {
+    font-weight: 600;
+    color: var(--white);
+  }
+  .path-step-body span {
+    color: var(--summit-fog);
+  }
+
+  .path-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--white);
+    margin-top: auto;
+    padding-top: 0.5rem;
+  }
+
+  .path-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: auto;
+    padding-top: 0.5rem;
+  }
+
+  .path-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    border-left: 1px solid var(--dusk-divide);
+    border-right: 1px solid var(--dusk-divide);
+    position: relative;
+  }
+  .path-divider span {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--summit-fog);
+    background-color: var(--deep-void);
+    padding: 0.5rem 0;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+
+  @media (max-width: 860px) {
+    .paths {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto auto;
+    }
+    .path-divider {
+      width: auto;
+      height: 48px;
+      flex-direction: row;
+      border-left: none;
+      border-right: none;
+      border-top: 1px solid var(--dusk-divide);
+      border-bottom: 1px solid var(--dusk-divide);
+    }
+    .path-divider span {
+      writing-mode: horizontal-tb;
+      padding: 0 0.5rem;
+    }
+  }
+
+  /* ── PILLARS ────────────────────────────────────────────────────────────── */
+  .pillars {
+    background: var(--deep-void);
+    padding: var(--section-py) clamp(1rem, 4vw, 2.5rem);
+  }
+
+  .pillar {
+    display: grid;
+    grid-template-columns: 4rem 1fr;
+    gap: 0 2rem;
+    padding: 2.5rem 0;
+    align-items: start;
+  }
+
+  .pillar-rule {
+    border-top: 1px solid var(--dusk-divide);
+    width: 100%;
+  }
+
+  .pillar-marker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8125rem;
+    color: var(--summit-fog);
+    letter-spacing: 0.05em;
+    padding-top: 0.25rem;
+  }
+
+  .pillar-heading {
+    font-size: clamp(1.375rem, 2.5vw, 1.875rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.625rem;
+  }
+
+  .pillar-text {
+    font-size: 1rem;
+    line-height: 1.75;
+    color: var(--summit-fog);
+    max-width: 60ch;
+  }
+
+  /* ── FEATURES ───────────────────────────────────────────────────────────── */
+  .features {
+    background: var(--surface-dark);
+    padding: var(--section-py) clamp(1rem, 4vw, 2.5rem);
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(2rem, 5vw, 5rem);
+    align-items: center;
+  }
+
+  @media (max-width: 768px) {
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+    .features-screenshot {
+      order: -1;
+    }
+  }
+
+  .feature-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.625rem 1.5rem;
+    margin: 1.5rem 0 2rem;
+  }
+
+  @media (max-width: 480px) {
+    .feature-list {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .feature-item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--summit-fog);
+  }
+
+  .feature-icon {
+    flex-shrink: 0;
+    color: var(--white);
+    position: relative;
+    top: 2px;
+  }
+
+  .features-img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    /* border: 1px solid var(--dusk-divide); */
+  }
+
+  /* ── FEDERATION ─────────────────────────────────────────────────────────── */
+  .federation {
+    background: #070a24;
+    padding: var(--section-py) clamp(1rem, 4vw, 2.5rem);
+  }
+
+  .federation-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(2.5rem, 6vw, 6rem);
+    align-items: center;
+  }
+
+  @media (max-width: 768px) {
+    .federation-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .federation-heading {
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+  }
+
+  .fed-tag {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--summit-fog);
+    border: 1px solid var(--dusk-divide);
+    border-radius: 4px;
+    margin-bottom: 1.25rem;
+    text-transform: uppercase;
+  }
+
+  .fed-links {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .fed-diagram {
+    width: 100%;
+    height: auto;
+    max-width: 480px;
+    display: block;
+    margin-inline: auto;
+  }
+
+  .fed-caption {
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--summit-fog);
+    margin-top: 1rem;
+    font-family: "IBM Plex Mono", monospace;
+  }
+
+  .federation-visual {
+    text-align: center;
+  }
+
+  .code-block {
+    background: #070a24;
+    border: 1px solid var(--dusk-divide);
+    border-radius: 8px;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .code-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid var(--dusk-divide);
+  }
+
+  .code-lang {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    color: var(--dusk-divide);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .code-comment {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    color: var(--dusk-divide);
+  }
+
+  .code-pre {
+    padding: 1.5rem 1.25rem;
+    overflow-x: auto;
+    margin: 0;
+  }
+
+  .code-content {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.9375rem;
+    line-height: 1.85;
+    white-space: pre;
+    color: var(--summit-fog);
+  }
+
+  .code-comment-line {
+    color: var(--dusk-divide);
+  }
+  .code-cmd {
+    color: #79c0ff;
+  }
+
+  /* ── SUPPORT ────────────────────────────────────────────────────────────── */
+  .support {
+    background: var(--deep-void);
+    padding: var(--section-py) clamp(1rem, 4vw, 2.5rem);
+    border-top: 1px solid var(--dusk-divide);
+  }
+
+  .support-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(2rem, 5vw, 5rem);
+    align-items: center;
+  }
+
+  @media (max-width: 640px) {
+    .support-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .support-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .support-btn {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.125rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    border: 1px solid var(--dusk-divide);
+    background: var(--surface-dark);
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      transform 0.15s ease;
+  }
+  .support-btn:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: #262831;
+    transform: translateY(-2px);
+  }
+  .support-btn:focus-visible {
+    outline: 2px solid var(--summit-fog);
+    outline-offset: 3px;
+  }
+
+  .support-btn--coffee {
+    color: var(--white);
+  }
+  .support-btn--liberapay {
+    color: var(--white);
+  }
+
+  .support-btn-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+  .support-btn-label {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .support-btn-sub {
+    font-size: 0.8125rem;
+    color: var(--summit-fog);
+  }
+
+  /* ── COMMUNITY ──────────────────────────────────────────────────────────── */
+  .community {
+    background: var(--polar-night);
+    padding: var(--section-py) clamp(1rem, 4vw, 2.5rem);
+    border-top: 1px solid var(--dusk-divide);
+  }
+
+  .community-heading {
+    max-width: 52ch;
+    margin-bottom: clamp(2rem, 4vw, 3rem);
+  }
+
+  .community-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .community-card {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--surface-dark);
+    border: 1px solid var(--dusk-divide);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color 0.2s ease;
+  }
+  .community-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  .community-card:hover .community-card-arrow {
+    color: var(--white);
+    transform: translateX(3px);
+  }
+
+  .community-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: rgba(55, 65, 81, 0.5);
+    border: 1px solid var(--dusk-divide);
+    border-radius: 6px;
+    flex-shrink: 0;
+    color: var(--summit-fog);
+  }
+  .community-card:hover .community-card-icon {
+    color: var(--white);
+  }
+
+  .community-card-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .community-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 0.25rem;
+  }
+
+  .community-card-desc {
+    font-size: 0.875rem;
+    color: var(--summit-fog);
+    line-height: 1.5;
+  }
+
+  .community-card-arrow {
+    color: var(--dusk-divide);
+    flex-shrink: 0;
+    transition:
+      color 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  /* ── Feature list responsive ─────────────────────────────────────────── */
+  @media (max-width: 480px) {
+    .feature-list {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  // Scroll reveal via IntersectionObserver
+  if (typeof IntersectionObserver !== "undefined") {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12 },
+    );
+    document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+  }
+
+  // ── Hero topo contour background ─────────────────────────────────────────
+  (function () {
+    const el = document.getElementById("hero-topo");
+    if (!(el instanceof HTMLCanvasElement)) return;
+    // Reassign to a typed const so TypeScript carries HTMLCanvasElement into closures
+    const canvas: HTMLCanvasElement = el;
+
+    const rawCtx = canvas.getContext("2d");
+    if (!rawCtx) return;
+    const ctx: CanvasRenderingContext2D = rawCtx;
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    let w = 0,
+      h = 0;
+    let rafId: number | null = null;
+    let t = 2.4; // start mid-noise for an interesting initial frame
+    let mouseX = 0.5,
+      targetMouseX = 0.5;
+
+    // ── Value noise with smooth interpolation ──────────────────────────────
+    function hash(ix: number, iy: number): number {
+      const n = Math.sin(ix * 127.1 + iy * 311.7) * 43758.5453;
+      return n - Math.floor(n);
+    }
+    function smoothstep(x: number): number {
+      return x * x * (3 - 2 * x);
+    }
+    function valueNoise(x: number, y: number): number {
+      const xi = Math.floor(x),
+        yi = Math.floor(y);
+      const xf = x - xi,
+        yf = y - yi;
+      const u = smoothstep(xf),
+        v = smoothstep(yf);
+      const a = hash(xi, yi),
+        b = hash(xi + 1, yi);
+      const c = hash(xi, yi + 1),
+        d = hash(xi + 1, yi + 1);
+      return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+    }
+
+    // Fractional Brownian Motion — 3 octaves of value noise
+    function fbm(x: number, y: number): number {
+      const v =
+        valueNoise(x, y) * 0.5 +
+        valueNoise(x * 2.1 + 1.7, y * 2.1 + 9.2) * 0.25 +
+        valueNoise(x * 4.3 + 4.3, y * 4.3 + 2.8) * 0.125;
+      return (v / 0.875) * 2 - 1; // normalise to [-1, 1]
+    }
+
+    const LEVELS = 24;
+    const NOISE_SCALE = 0.0028;
+    const AMPLITUDE = 0.095;
+
+    function resize(): void {
+      const hero = canvas.closest(".hero");
+      if (!(hero instanceof HTMLElement)) return;
+      w = canvas.width = hero.offsetWidth;
+      h = canvas.height = hero.offsetHeight;
+    }
+
+    function drawFrame(): void {
+      if (!w || !h) return;
+      ctx.clearRect(0, 0, w, h);
+
+      mouseX += (targetMouseX - mouseX) * 0.04;
+
+      for (let i = 0; i < LEVELS; i++) {
+        const progress = i / (LEVELS - 1);
+        const baseY = h * (0.05 + 0.92 * progress);
+        const parallax = (mouseX - 0.5) * w * 0.03 * (0.2 + progress * 0.8);
+        const opacity = 0.018 + progress * 0.062;
+        const lineW = 0.3 + progress * 0.8;
+
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(255,255,255,${opacity.toFixed(3)})`;
+        ctx.lineWidth = lineW;
+
+        const steps = Math.ceil(w / 2.5);
+        for (let j = 0; j <= steps; j++) {
+          const x = (j / steps) * w;
+          const nx = (x + parallax) * NOISE_SCALE + t * 0.07;
+          const ny = baseY * NOISE_SCALE * 0.55 + i * 0.18;
+          const nv = fbm(nx, ny);
+          const y = baseY + nv * h * AMPLITUDE;
+          j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+
+    function tick(): void {
+      t += 0.003;
+      drawFrame();
+      rafId = requestAnimationFrame(tick);
+    }
+
+    function pause(): void {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    }
+
+    function resume(): void {
+      if (!reducedMotion && rafId === null) tick();
+    }
+
+    // Keep canvas matched to hero dimensions
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(resize);
+      const hero = canvas.closest(".hero");
+      if (hero) ro.observe(hero);
+    } else {
+      window.addEventListener("resize", resize, { passive: true });
+    }
+
+    // Pause rendering when hero scrolls out of view
+    if (typeof IntersectionObserver !== "undefined") {
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => (e.isIntersecting ? resume() : pause()));
+        },
+        { threshold: 0 },
+      );
+      io.observe(canvas);
+    }
+
+    document.addEventListener(
+      "mousemove",
+      (e: MouseEvent) => {
+        targetMouseX = e.clientX / window.innerWidth;
+      },
+      { passive: true },
+    );
+
+    resize();
+
+    if (reducedMotion) {
+      drawFrame();
+    } else {
+      tick();
+    }
+  })();
+</script>
