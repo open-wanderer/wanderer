@@ -386,7 +386,7 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
 
     trail.author = user.actor
 
-    const formData = objectToFormData(trail, ["photos", "expand", "_assetLinks", "_assetPluginLinks", "_duplicatePhotoSource"])
+    const formData = objectToFormData(trail, ["photos", "expand", "_assetLinks", "_assetPluginLinks"])
 
     if (gpx) {
         formData.set("gpx", gpx);

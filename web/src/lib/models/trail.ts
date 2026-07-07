@@ -190,7 +190,6 @@ function cloneWaypoint(wp: Waypoint, actorId?: string, options?: TrailDuplicateO
     cloned.author = actorId ?? wp.author;
     cloned.distance_from_start = wp.distance_from_start;
     if (options?.waypointPhotos) {
-        addDuplicatePhotoSource(cloned, wp);
         cloned._assetLinks = linkedAssetIds(wp.expand?.waypoint_assets_via_waypoint);
         cloned.photos = assetPhotosFromLinks(wp.expand?.waypoint_assets_via_waypoint);
         cloned.expand = {
@@ -214,19 +213,11 @@ function cloneSummitLog(log: SummitLog, actorId?: string, options?: TrailDuplica
         gpx_data: log.expand?.gpx_data,
     };
     if (options?.summitLogPhotos) {
-        addDuplicatePhotoSource(cloned, log);
         cloned.expand.assets_via_summit_log = assetsFromLinks(log.expand?.summit_log_assets_via_summit_log);
         cloned._assetLinks = linkedAssetIds(log.expand?.summit_log_assets_via_summit_log);
         cloned.photos = assetPhotosFromLinks(log.expand?.summit_log_assets_via_summit_log);
     }
     return cloned;
-}
-
-interface DuplicatePhotoSource {
-    id: string;
-    collectionId?: string;
-    collectionName?: string;
-    photos: string[];
 }
 
 interface TrailDuplicateOptions {
@@ -253,39 +244,6 @@ function normalizeTrailDuplicateOptions(
     }
 
     return normalized;
-}
-
-function hasDuplicatePhotos(options?: TrailDuplicateOptions) {
-    return Boolean(
-        options?.trailPhotos ||
-        options?.waypointPhotos ||
-        options?.summitLogPhotos,
-    );
-}
-
-function addDuplicatePhotoSource<T extends object>(target: T, source: object) {
-    const photoSource = duplicatePhotoSource(source);
-    if (photoSource) {
-        (target as T & { _duplicatePhotoSource?: DuplicatePhotoSource })._duplicatePhotoSource = photoSource;
-    }
-}
-
-function duplicatePhotoSource(source: object): DuplicatePhotoSource | undefined {
-    const record = source as {
-        id?: string;
-        collectionId?: string;
-        collectionName?: string;
-        photos?: string[];
-    };
-    if (!record.id || !record.photos?.length) {
-        return undefined;
-    }
-    return {
-        id: record.id,
-        collectionId: record.collectionId,
-        collectionName: record.collectionName,
-        photos: record.photos,
-    };
 }
 
 function linkedAssetIds(links?: AssetLink[]): string[] | undefined {
@@ -432,7 +390,6 @@ export const defaultTrailSearchAttributes = [
 export {
     Trail,
     defaultTrailDuplicateOptions,
-    hasDuplicatePhotos,
     normalizeTrailDuplicateOptions,
 };
 

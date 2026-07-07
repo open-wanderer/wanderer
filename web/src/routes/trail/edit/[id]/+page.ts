@@ -1,7 +1,6 @@
 import {
     Trail,
     defaultTrailDuplicateOptions,
-    hasDuplicatePhotos,
     normalizeTrailDuplicateOptions,
     type TrailDuplicateOptions,
 } from "$lib/models/trail";
@@ -32,7 +31,6 @@ export const load: Load = async ({ params, fetch, url }) => {
     const lists = await lists_index({ q: "", author: user?.actor ?? "" }, 1, -1, fetch)
 
     let trail: Trail;
-    let duplicateSourceTrail: Trail | undefined;
     let duplicateOptions: TrailDuplicateOptions | undefined;
     if (params.id === "new") {
         // duplicate trail
@@ -46,9 +44,6 @@ export const load: Load = async ({ params, fetch, url }) => {
                 true,
                 fetch,
             );
-            if (hasDuplicatePhotos(duplicateOptions)) {
-                duplicateSourceTrail = originalTrail;
-            }
             trail = Trail.from(originalTrail, user?.actor, duplicateOptions)
         } else {
             const defaultCategory =
@@ -93,7 +88,6 @@ export const load: Load = async ({ params, fetch, url }) => {
 
     return {
         trail,
-        duplicateSourceTrail,
         duplicateOptions,
         lists,
         categories,

@@ -24,7 +24,7 @@
     import GPXWaypoint from "$lib/models/gpx/waypoint";
     import type { List } from "$lib/models/list";
     import { SummitLog } from "$lib/models/summit_log";
-    import { Trail, hasDuplicatePhotos } from "$lib/models/trail";
+    import { Trail } from "$lib/models/trail";
     import type { Asset } from "$lib/models/asset";
     import {
         mergePhotoLibraryPluginLinks,
@@ -216,13 +216,6 @@
         assetIds: z.array(z.string()),
     });
 
-    const PhotoCloneSourceSchema = z.object({
-        id: z.string(),
-        collectionId: z.string().optional(),
-        collectionName: z.string().optional(),
-        photos: z.array(z.string()).default([]),
-    });
-
     const ClientSummitLogCreateSchema = SummitLogCreateSchema.extend({
         photos: z.array(z.string()).default([]),
         _photos: z.array(z.instanceof(File)).optional(),
@@ -231,7 +224,6 @@
         _assetPluginLinks: z
             .array(PhotoLibraryPluginLinkSchema)
             .optional(),
-        _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
         expand: z
             .object({
                 gpx_data: z.string().optional(),
@@ -248,7 +240,6 @@
         _assetPluginLinks: z
             .array(PhotoLibraryPluginLinkSchema)
             .optional(),
-        _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
         expand: z
             .object({
                 assets_via_waypoint: z.array(ClientAssetSchema).optional(),
@@ -283,18 +274,6 @@
             .optional(),
     });
 
-    type PhotoCloneSource = z.infer<typeof PhotoCloneSourceSchema>;
-    type PhotoCloneTarget = {
-        _duplicatePhotoSource?: PhotoCloneSource;
-        _photos?: File[];
-    };
-    type PhotoCloneEntry = [string, File[]];
-    type DuplicateLegacyPhotoClones = {
-        trailPhotos: File[];
-        waypointPhotosById: Map<string, File[]>;
-        summitLogPhotosById: Map<string, File[]>;
-    };
-
     let routingOptions: RoutingOptions = $state({
         autoRouting: true,
         modeOfTransport: "pedestrian",
@@ -303,7 +282,6 @@
     let routeSegments = $state<TrackSegment[]>([]);
 
     let savedAtLeastOnce = $state(false);
-    let duplicateLegacyPhotosPromise: Promise<DuplicateLegacyPhotoClones> | undefined;
 
     let assetPluginId = $derived(data.assetPlugins[0] ?? "immich");
     let canImportPhotosFromLibrary = $derived(!isNewTrail || savedAtLeastOnce);
@@ -391,10 +369,6 @@
                 }
                 form.photos = form.photos.filter(
                     (p) => !p.startsWith("data:image/svg+xml;base64"),
-                );
-                Object.assign(
-                    form,
-                    await prepareDuplicateLegacyPhotos(form as Trail),
                 );
                 applyTrailPhotoLibrarySelection(form as Trail);
 
@@ -533,10 +507,6 @@
                 }
             }
         }
-
-        void prepareDuplicateLegacyPhotos($formData as Trail, {
-            syncFormData: true,
-        });
     });
 
     function fitCurrentRoute() {
@@ -1825,216 +1795,6 @@
         const t: Trail = JSON.parse(JSON.stringify($formData));
         t.expand!.gpx = valhallaStore.route;
         mapTrail = [t];
-    }
-
-    async function prepareDuplicateLegacyPhotos(
-        target: Trail,
-        options: { syncFormData?: boolean } = {},
-    ) {
-        if (
-            !isNewTrail ||
-            savedAtLeastOnce ||
-            !hasDuplicatePhotos(data.duplicateOptions) ||
-            !data.duplicateSourceTrail
-        ) {
-            return target;
-        }
-        duplicateLegacyPhotosPromise ??= cloneDuplicateLegacyPhotos(target);
-        const clonedPhotos = await duplicateLegacyPhotosPromise;
-        appendDuplicateTrailPhotoFiles(clonedPhotos.trailPhotos);
-
-        if (options.syncFormData) {
-            formData.set(
-                applyDuplicateLegacyPhotoClones(
-                    $formData as Trail,
-                    clonedPhotos,
-                ),
-            );
-        }
-
-        return applyDuplicateLegacyPhotoClones(target, clonedPhotos);
-    }
-
-    async function cloneDuplicateLegacyPhotos(
-        target: Trail,
-    ): Promise<DuplicateLegacyPhotoClones> {
-        const duplicateSourceTrail = data.duplicateSourceTrail;
-        if (!duplicateSourceTrail) {
-            return emptyDuplicateLegacyPhotoClones();
-        }
-
-        const [trailPhotos, waypointEntries, summitLogEntries] =
-            await Promise.all([
-                data.duplicateOptions?.trailPhotos
-                    ? clonePhotoFiles(photoCloneSourceFromRecord(duplicateSourceTrail))
-                    : Promise.resolve([]),
-                data.duplicateOptions?.waypointPhotos
-                    ? clonePhotoFilesByTargetId(
-                          target.expand?.waypoints_via_trail ?? [],
-                      )
-                    : Promise.resolve([]),
-                data.duplicateOptions?.summitLogPhotos
-                    ? clonePhotoFilesByTargetId(
-                          target.expand?.summit_logs_via_trail ?? [],
-                      )
-                    : Promise.resolve([]),
-            ]);
-
-        return {
-            trailPhotos,
-            waypointPhotosById: new Map(waypointEntries),
-            summitLogPhotosById: new Map(summitLogEntries),
-        };
-    }
-
-    function emptyDuplicateLegacyPhotoClones(): DuplicateLegacyPhotoClones {
-        return {
-            trailPhotos: [],
-            waypointPhotosById: new Map(),
-            summitLogPhotosById: new Map(),
-        };
-    }
-
-    function appendDuplicateTrailPhotoFiles(clonedPhotos: File[]) {
-        const missingPhotos = clonedPhotos.filter(
-            (photo) => !photoFiles.includes(photo),
-        );
-        if (missingPhotos.length) {
-            photoFiles = [...photoFiles, ...missingPhotos];
-        }
-    }
-
-    async function clonePhotoFilesByTargetId(
-        targets: ({ id?: string } & PhotoCloneTarget)[],
-    ): Promise<PhotoCloneEntry[]> {
-        const entries = await Promise.all(
-            targets.map(async (target) => {
-                const clonedPhotos = await clonePhotoFiles(
-                    target._duplicatePhotoSource,
-                );
-                if (!target.id || !clonedPhotos.length) {
-                    return undefined;
-                }
-                return [target.id, clonedPhotos] as PhotoCloneEntry;
-            }),
-        );
-
-        return entries.filter((entry): entry is PhotoCloneEntry =>
-            Boolean(entry),
-        );
-    }
-
-    function applyDuplicateLegacyPhotoClones(
-        target: Trail,
-        clonedPhotos: DuplicateLegacyPhotoClones,
-    ): Trail {
-        return {
-            ...target,
-            expand: {
-                ...target.expand,
-                waypoints_via_trail: mergeDuplicatePhotoClones(
-                    target.expand?.waypoints_via_trail ?? [],
-                    clonedPhotos.waypointPhotosById,
-                ),
-                summit_logs_via_trail: mergeDuplicatePhotoClones(
-                    target.expand?.summit_logs_via_trail ?? [],
-                    clonedPhotos.summitLogPhotosById,
-                ),
-            },
-        };
-    }
-
-    function mergeDuplicatePhotoClones<T extends { id?: string } & PhotoCloneTarget>(
-        targets: T[],
-        clonedPhotosById: Map<string, File[]>,
-    ): T[] {
-        return targets.map((target) =>
-            withMergedDuplicatePhotos(
-                target,
-                target.id ? clonedPhotosById.get(target.id) : undefined,
-            ),
-        );
-    }
-
-    function withMergedDuplicatePhotos<T extends PhotoCloneTarget>(
-        target: T,
-        clonedPhotos?: File[],
-    ): T {
-        if (!clonedPhotos?.length) {
-            return target;
-        }
-        const existingPhotos = target._photos ?? [];
-        const missingPhotos = clonedPhotos.filter(
-            (photo) => !existingPhotos.includes(photo),
-        );
-        if (!missingPhotos.length) {
-            return target;
-        }
-
-        return {
-            ...target,
-            _photos: [...existingPhotos, ...missingPhotos],
-        };
-    }
-
-    async function clonePhotoFiles(source?: PhotoCloneSource): Promise<File[]> {
-        if (!source?.photos.length) {
-            return [];
-        }
-
-        const files: File[] = [];
-        for (const photo of source.photos) {
-            try {
-                const response = await fetch(photoCloneURL(source, photo));
-                if (!response.ok) {
-                    console.warn(`Unable to clone photo ${photo}: ${response.status}`);
-                    continue;
-                }
-                const blob = await response.blob();
-                files.push(
-                    new File([blob], photoCloneFileName(photo), {
-                        type: blob.type || "application/octet-stream",
-                    }),
-                );
-            } catch (error) {
-                console.warn(`Unable to clone photo ${photo}`, error);
-            }
-        }
-        return files;
-    }
-
-    function photoCloneSourceFromRecord(record: {
-        id?: string;
-        collectionId?: string;
-        collectionName?: string;
-        photos?: string[];
-    }): PhotoCloneSource | undefined {
-        if (!record.id || !record.photos?.length) {
-            return undefined;
-        }
-        return {
-            id: record.id,
-            collectionId: record.collectionId,
-            collectionName: record.collectionName,
-            photos: record.photos,
-        };
-    }
-
-    function photoCloneURL(source: PhotoCloneSource, photo: string) {
-        if (photo.startsWith("http://") || photo.startsWith("https://")) {
-            return photo;
-        }
-        const collection = source.collectionId ?? source.collectionName;
-        if (!collection) {
-            throw new Error("Unable to clone photo without collection");
-        }
-        return `/api/v1/files/${collection}/${source.id}/${photo}`;
-    }
-
-    function photoCloneFileName(photo: string) {
-        return decodeURIComponent(
-            photo.split("?")[0].split("/").pop() || "photo",
-        );
     }
 
     function handleSearchClick(item: SearchItem) {

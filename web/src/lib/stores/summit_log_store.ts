@@ -41,7 +41,7 @@ export async function summit_logs_create(summitLog: SummitLog, f: (url: RequestI
 
     summitLog.author = user.actor
 
-    const formData = objectToFormData(summitLog, ["expand", "photos", "_photos", "_gpx", "_assetLinks", "_assetPluginLinks", "_duplicatePhotoSource"])
+    const formData = objectToFormData(summitLog, ["expand", "photos", "_photos", "_gpx", "_assetLinks", "_assetPluginLinks"])
 
     const gpx = summitLogGPXFile(summitLog);
     if (gpx) {
@@ -95,7 +95,7 @@ export async function summit_logs_update(oldSummitLog: SummitLog, newSummitLog: 
 
     newSummitLog.author = user.actor
 
-    const formData = objectToFormData(newSummitLog, ["expand", "gpx", "photos", "_photos", "_gpx", "_assetLinks", "_assetPluginLinks", "_duplicatePhotoSource"])
+    const formData = objectToFormData(newSummitLog, ["expand", "gpx", "photos", "_photos", "_gpx", "_assetLinks", "_assetPluginLinks"])
 
     if (newSummitLog._gpx) {
         formData.append("gpx", newSummitLog._gpx);
