@@ -1,7 +1,7 @@
 # v0.20.0
 
 ## Breaking Changes
-- Trail categories have been reworked into a refined category model with subcategories, a new category settings page, and the option to disable individual categories. Custom category setups may need to be reviewed after the upgrade. (PR #1059)
+- Trail categories have been reworked into a refined category model with subcategories, a new category settings page, and the option to disable individual categories. Custom category that were added before v0.20.0 may need to be reviewed after the upgrade. (PR #1059)
 
 ## Features
 - New plugin system: integrations (Strava, Komoot, Hammerhead) now run as sandboxed WASM plugins, providing the foundation for third-party plugins. (PR #1034)
@@ -14,6 +14,7 @@
 
 ## Security
 - Hardened ActivityPub federation and fixed an N+1 query in the follower fanout. (PR #1056)
+- Fixed an unauthenticated SSRF in `POST /api/v1/trail/download`, which allowed the server to be tricked into fetching internal-network or cloud metadata endpoints via a user-supplied URL. (GHSA-7vqq-mjjr-h9j5, reported by [@guwu1017](https://github.com/guwu1017), PR #1104)
 
 ## Bug Fixes
 - Public trails from users with private profiles no longer return a 404. (PR #1002, thanks @Guacam-Ole)
@@ -23,13 +24,16 @@
 - Fixed the polyline database field size for long trails. (PR #1047)
 - Fixed the waypoint actor in integrations. (PR #1049)
 - Fixed the missing tmp directory in the Docker image. (PR #1069)
-- Migrated the rich text editor (tiptap) to v3. (PR #1075)
+- Fixed duplicate feed entries created by repeated remote trail/list `Update` activities. (PR #1052, thanks @Guacam-Ole)
+- Increased the plugin request size limit, fixing failures on large activity responses for long trails. (PR #1083)
 
 ## Documentation
 - Overhauled the documentation homepage and added a servers page. (PR #1084)
 
 ## Maintenance
+- Migrated the rich text editor (tiptap) to v3. (PR #1075)
 - Updated web, docs, Go, and Docker dependencies as well as CI actions.
+- Removed legacy self-hosted search Docker image sources, dropped since v0.14.0. (PR #1054)
 
 # 0.19.3
 
