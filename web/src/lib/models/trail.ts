@@ -13,6 +13,14 @@ import type { Asset, AssetLink } from "./asset";
 import type { PhotoLibraryPluginLink } from "./photo_library";
 import { assetPhotos, assetsFromLinks, linkableAssetLinks } from "$lib/util/asset_link_util";
 
+const defaultTrailDuplicateOptions: TrailDuplicateOptions = {
+    waypoints: true,
+    summitLogs: false,
+    trailPhotos: false,
+    waypointPhotos: false,
+    summitLogPhotos: false,
+};
+
 class Trail {
     id?: string;
     name: string;
@@ -128,7 +136,9 @@ class Trail {
         this.author = "000000000000000"
     }
 
-    static from(orig: Trail): Trail {
+    static from(orig: Trail, actorId?: string, options: Partial<TrailDuplicateOptions> = {}): Trail {
+        const duplicateOptions = normalizeTrailDuplicateOptions(options);
+
         const clonedTrail = new Trail(orig.name, {
             date: orig.date,
             description: orig.description,
@@ -147,55 +157,141 @@ class Trail {
             category: orig.expand?.category,
             subcategory: orig.expand?.subcategory,
             gpx_data: orig.expand?.gpx_data,
-            waypoints: orig.expand?.waypoints_via_trail?.map(cloneWaypoint),
-            summit_logs: orig.expand?.summit_logs_via_trail?.map(cloneSummitLog),
+            waypoints: duplicateOptions.waypoints
+                ? orig.expand?.waypoints_via_trail?.map((waypoint) =>
+                    cloneWaypoint(waypoint, actorId, duplicateOptions),
+                )
+                : [],
+            summit_logs: duplicateOptions.summitLogs
+                ? orig.expand?.summit_logs_via_trail?.map((log) =>
+                    cloneSummitLog(log, actorId, duplicateOptions),
+                )
+                : [],
+            bounding_box_diagonal: orig.bounding_box_diagonal,
         })
-        clonedTrail._assetLinks = linkedAssetIds(orig.expand?.trail_assets_via_trail);
-        clonedTrail.photos = assetPhotosFromLinks(orig.expand?.trail_assets_via_trail);
-        if (clonedTrail.expand) {
-            clonedTrail.expand.assets_via_trail = assetsFromLinks(orig.expand?.trail_assets_via_trail);
+        if (duplicateOptions.trailPhotos) {
+            clonedTrail._assetLinks = linkedAssetIds(orig.expand?.trail_assets_via_trail);
+            clonedTrail.photos = assetPhotosFromLinks(orig.expand?.trail_assets_via_trail);
+            if (clonedTrail.expand) {
+                clonedTrail.expand.assets_via_trail = assetsFromLinks(orig.expand?.trail_assets_via_trail);
+            }
         }
         return clonedTrail;
     }
 }
 
-function cloneWaypoint(wp: Waypoint): Waypoint {
+function cloneWaypoint(wp: Waypoint, actorId?: string, options?: TrailDuplicateOptions): Waypoint {
     const cloned = new Waypoint(wp.lat, wp.lon, {
         id: cryptoRandomString({ length: 15 }),
         description: wp.description,
         icon: wp.icon,
         name: wp.name,
     });
+    cloned.author = actorId ?? wp.author;
     cloned.distance_from_start = wp.distance_from_start;
-    cloned._assetLinks = linkedAssetIds(wp.expand?.waypoint_assets_via_waypoint);
-    cloned.photos = assetPhotosFromLinks(wp.expand?.waypoint_assets_via_waypoint);
-    cloned.expand = {
-        assets_via_waypoint: assetsFromLinks(wp.expand?.waypoint_assets_via_waypoint),
-    };
+    if (options?.waypointPhotos) {
+        addDuplicatePhotoSource(cloned, wp);
+        cloned._assetLinks = linkedAssetIds(wp.expand?.waypoint_assets_via_waypoint);
+        cloned.photos = assetPhotosFromLinks(wp.expand?.waypoint_assets_via_waypoint);
+        cloned.expand = {
+            assets_via_waypoint: assetsFromLinks(wp.expand?.waypoint_assets_via_waypoint),
+        };
+    }
     return cloned;
 }
 
-function cloneSummitLog(log: SummitLog): SummitLog {
+function cloneSummitLog(log: SummitLog, actorId?: string, options?: TrailDuplicateOptions): SummitLog {
     const cloned = new SummitLog(log.date, {
+        id: cryptoRandomString({ length: 15 }),
         text: log.text,
         distance: log.distance,
         elevation_gain: log.elevation_gain,
         elevation_loss: log.elevation_loss,
         duration: log.duration,
     });
+    cloned.author = actorId ?? log.author;
     cloned.expand = {
         gpx_data: log.expand?.gpx_data,
-        assets_via_summit_log: assetsFromLinks(log.expand?.summit_log_assets_via_summit_log),
     };
-    cloned._assetLinks = linkedAssetIds(log.expand?.summit_log_assets_via_summit_log);
-    cloned.photos = assetPhotosFromLinks(log.expand?.summit_log_assets_via_summit_log);
+    if (options?.summitLogPhotos) {
+        addDuplicatePhotoSource(cloned, log);
+        cloned.expand.assets_via_summit_log = assetsFromLinks(log.expand?.summit_log_assets_via_summit_log);
+        cloned._assetLinks = linkedAssetIds(log.expand?.summit_log_assets_via_summit_log);
+        cloned.photos = assetPhotosFromLinks(log.expand?.summit_log_assets_via_summit_log);
+    }
     return cloned;
+}
+
+interface DuplicatePhotoSource {
+    id: string;
+    collectionId?: string;
+    collectionName?: string;
+    photos: string[];
+}
+
+interface TrailDuplicateOptions {
+    waypoints: boolean;
+    summitLogs: boolean;
+    trailPhotos: boolean;
+    waypointPhotos: boolean;
+    summitLogPhotos: boolean;
+}
+
+function normalizeTrailDuplicateOptions(
+    options: Partial<TrailDuplicateOptions> = {},
+): TrailDuplicateOptions {
+    const normalized = {
+        ...defaultTrailDuplicateOptions,
+        ...options,
+    };
+
+    if (!normalized.waypoints) {
+        normalized.waypointPhotos = false;
+    }
+    if (!normalized.summitLogs) {
+        normalized.summitLogPhotos = false;
+    }
+
+    return normalized;
+}
+
+function hasDuplicatePhotos(options?: TrailDuplicateOptions) {
+    return Boolean(
+        options?.trailPhotos ||
+        options?.waypointPhotos ||
+        options?.summitLogPhotos,
+    );
+}
+
+function addDuplicatePhotoSource<T extends object>(target: T, source: object) {
+    const photoSource = duplicatePhotoSource(source);
+    if (photoSource) {
+        (target as T & { _duplicatePhotoSource?: DuplicatePhotoSource })._duplicatePhotoSource = photoSource;
+    }
+}
+
+function duplicatePhotoSource(source: object): DuplicatePhotoSource | undefined {
+    const record = source as {
+        id?: string;
+        collectionId?: string;
+        collectionName?: string;
+        photos?: string[];
+    };
+    if (!record.id || !record.photos?.length) {
+        return undefined;
+    }
+    return {
+        id: record.id,
+        collectionId: record.collectionId,
+        collectionName: record.collectionName,
+        photos: record.photos,
+    };
 }
 
 function linkedAssetIds(links?: AssetLink[]): string[] | undefined {
     const ids = linkableAssetLinks(links, { includeGeneratedRoutePreview: false })
         .map((link) => link.asset)
-        .filter(Boolean) ?? [];
+        .filter((id): id is string => Boolean(id));
     return ids.length ? Array.from(new Set(ids)) : undefined;
 }
 
@@ -333,6 +429,17 @@ export const defaultTrailSearchAttributes = [
     "_geo",]
 
 
-export { Trail };
+export {
+    Trail,
+    defaultTrailDuplicateOptions,
+    hasDuplicatePhotos,
+    normalizeTrailDuplicateOptions,
+};
 
-export type { TrailBoundingBox, TrailFilter, TrailFilterValues, TrailSearchResult };
+export type {
+    TrailBoundingBox,
+    TrailDuplicateOptions,
+    TrailFilter,
+    TrailFilterValues,
+    TrailSearchResult,
+};

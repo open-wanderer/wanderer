@@ -1,4 +1,10 @@
-import { Trail } from "$lib/models/trail";
+import {
+    Trail,
+    defaultTrailDuplicateOptions,
+    hasDuplicatePhotos,
+    normalizeTrailDuplicateOptions,
+    type TrailDuplicateOptions,
+} from "$lib/models/trail";
 import { categories_index } from "$lib/stores/category_store";
 import { category_preferences_index } from "$lib/stores/category_preference_store";
 import { lists_index } from "$lib/stores/list_store";
@@ -26,12 +32,24 @@ export const load: Load = async ({ params, fetch, url }) => {
     const lists = await lists_index({ q: "", author: user?.actor ?? "" }, 1, -1, fetch)
 
     let trail: Trail;
+    let duplicateSourceTrail: Trail | undefined;
+    let duplicateOptions: TrailDuplicateOptions | undefined;
     if (params.id === "new") {
         // duplicate trail
         if (url.searchParams.has("orig")) {
+            duplicateOptions = duplicateOptionsFromURL(url);
             const originalId = url.searchParams.get("orig")!;
-            const originalTrail = await trails_show(originalId, undefined, undefined, true, fetch);
-            trail = Trail.from(originalTrail)
+            const originalTrail = await trails_show(
+                originalId,
+                undefined,
+                undefined,
+                true,
+                fetch,
+            );
+            if (hasDuplicatePhotos(duplicateOptions)) {
+                duplicateSourceTrail = originalTrail;
+            }
+            trail = Trail.from(originalTrail, user?.actor, duplicateOptions)
         } else {
             const defaultCategory =
                 designSelectableCategories(
@@ -45,7 +63,13 @@ export const load: Load = async ({ params, fetch, url }) => {
                 : new Trail("");
         }
     } else {
-        trail = await trails_show(params.id, undefined, url.searchParams.get("share") ?? undefined, true, fetch);
+        trail = await trails_show(
+            params.id,
+            undefined,
+            url.searchParams.get("share") ?? undefined,
+            true,
+            fetch,
+        );
     }
 
     const [pluginInstances, plugins] = user
@@ -69,6 +93,8 @@ export const load: Load = async ({ params, fetch, url }) => {
 
     return {
         trail,
+        duplicateSourceTrail,
+        duplicateOptions,
         lists,
         categories,
         categoryPreferences,
@@ -79,3 +105,42 @@ export const load: Load = async ({ params, fetch, url }) => {
         assetPluginActive,
     }
 };
+
+function duplicateOptionsFromURL(url: URL): TrailDuplicateOptions {
+    return normalizeTrailDuplicateOptions({
+        waypoints: copyOption(
+            url,
+            "copyWaypoints",
+            defaultTrailDuplicateOptions.waypoints,
+        ),
+        summitLogs: copyOption(
+            url,
+            "copySummitLogs",
+            defaultTrailDuplicateOptions.summitLogs,
+        ),
+        trailPhotos: copyOption(
+            url,
+            "copyTrailPhotos",
+            defaultTrailDuplicateOptions.trailPhotos,
+        ),
+        waypointPhotos: copyOption(
+            url,
+            "copyWaypointPhotos",
+            defaultTrailDuplicateOptions.waypointPhotos,
+        ),
+        summitLogPhotos: copyOption(
+            url,
+            "copySummitLogPhotos",
+            defaultTrailDuplicateOptions.summitLogPhotos,
+        ),
+    });
+}
+
+function copyOption(url: URL, name: string, fallback: boolean) {
+    const value = url.searchParams.get(name);
+    if (value === null) {
+        return fallback;
+    }
+
+    return value === "true";
+}
