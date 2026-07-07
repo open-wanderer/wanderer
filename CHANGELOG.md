@@ -1,7 +1,15 @@
 # v0.20.0
 
 ## Breaking Changes
-- Trail categories have been reworked into a refined category model with subcategories, a new category settings page, and the option to disable individual categories. Custom category that were added before v0.20.0 may need to be reviewed after the upgrade. (PR #1059)
+> [!CAUTION] 
+With this update we introduce a new plugin system: integrations (Strava, Komoot, Hammerhead) now run as sandboxed WASM plugins, providing the foundation for third-party plugins (PR #1034).
+If you host your own instance, you must now manually install the plugins you want your users to access:
+1. Update `docker-compose.yml`: Map the new `/data/plugins` folder in your `db` service's volumes section to ensure plugins can be installed. Refer to the sample `yml` in the repository if necessary.
+
+2. Install Plugins: Follow the [documentation](https://wanderer.to/run/installation/plugins) to download and activate your preferred plugins after updating.
+
+
+Trail categories have been reworked into a refined category model with subcategories, a new category settings page, and the option to disable individual categories. Custom category that were added before v0.20.0 may need to be reviewed after the upgrade. (PR #1059)
 
 ## Features
 - New plugin system: integrations (Strava, Komoot, Hammerhead) now run as sandboxed WASM plugins, providing the foundation for third-party plugins. (PR #1034)
