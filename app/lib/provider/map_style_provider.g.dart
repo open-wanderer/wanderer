@@ -40,4 +40,4 @@ final class MapStyleProvider
   }
 }
 
-String _$mapStyleHash() => r'eae850bedebec4a35c65f7f3f5ff2eb425152904';
+String _$mapStyleHash() => r'94d4f7aa84e50773ae9e264ed19d19e6f8db9c53';

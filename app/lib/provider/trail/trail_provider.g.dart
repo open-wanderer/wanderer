@@ -50,7 +50,7 @@ final class TrailNotifierProvider
   }
 }
 
-String _$trailNotifierHash() => r'e984c18a9dd00804d582262d127be4b770badee9';
+String _$trailNotifierHash() => r'c70ed1c80b561c62f2ad51a6295217b717a20e6e';
 
 final class TrailNotifierFamily extends $Family
     with
