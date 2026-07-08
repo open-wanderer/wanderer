@@ -1,50 +1,52 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Category Redesign
-status: verifying
-stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-07-02T11:21:04.470Z"
-last_activity: 2026-07-02
+milestone: v1.4
+milestone_name: MapLibre Migration
+status: planning
+last_updated: "2026-07-08T16:10:00.000Z"
+last_activity: 2026-07-08
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-29)
+See: .planning/PROJECT.md (updated 2026-07-08)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 12 — settings-categories-screen
+**Current focus:** Phase 13 — Glyph & Sprite Endpoint
 
 ## Current Position
 
-Phase: 12
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-07-02 - Completed quick task 260702-m4u: Make auth_provider.dart build() optimistic: return savedUserEntity immediately without awaiting _updateUserEntity, run it in background, logout on failure
+Phase: 13 of 18 (Glyph & Sprite Endpoint) — first of six v1.4 phases
+Plan: —
+Status: Ready to plan
+Last activity: 2026-07-08 — v1.4 roadmap created (Phases 13–18, 41 requirements mapped)
 
-Progress: [██████████] 100% (v1.3 Phases 10 + 11 done)
+Progress: [░░░░░░░░░░] 0%
 
-## v1.3 Phases
+## v1.4 Phases
 
-- [x] **Phase 10: Category & Subcategory Data Layer** — CAT-01..05 (models, ObjectBox entity, provider, remove `Settings.category`)
-- [x] **Phase 11: Trail Filter Subcategory Support** — FILTER-01..05 (TrailFilter model, TrailFilterScreen chips, quick filter bar)
-- [x] **Phase 12: Settings Categories Screen** — SETCAT-01..09 (preference models + providers, SettingsCategoriesScreen, router wiring)
+- [ ] **Phase 13: Glyph & Sprite Endpoint** — GLYPH-01/02/03 (Go, `db/routes/`)
+- [ ] **Phase 14: Coordinate Type Migration** — TYPE-01/02 (`Geographic`, `LngLatBounds`)
+- [ ] **Phase 15: MapLibre Core, Trail Rendering & Offline Parity** — STYLE-01..04, GLYPH-04, CORE-01..04, TRAIL-01..05, OFFL-01..06
+- [ ] **Phase 16: List & Map Screens on MapLibre** — CORE-08, CLUS-01..05
+- [ ] **Phase 17: Navigation on MapLibre** — NAV-01..04, CORE-05/06/07
+- [ ] **Phase 18: Retire flutter_map and the flomp Forks** — CLEAN-01/02/03
 
-Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of each other).
+Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share no code and may run in parallel; both gate Phase 15.
 
 ## Performance Metrics
 
-**Velocity (v1.0–v1.2):**
+**Velocity (v1.0–v1.3):**
 
-- Total plans completed: 29
+- Total plans completed: 33
 - Average duration: — min
 - Total execution time: — hours
 
@@ -52,26 +54,11 @@ Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of e
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 06 | 4 | - | - |
-| 07 | 1 | - | - |
-| 08 | 3 | - | - |
-| 09 | 1 | - | - |
-| 10 | 4 | - | - |
-| 12 | 4 | - | - |
+| 10 | 4 | ~19 min | ~5 min |
+| 11 | 4 | ~50 min | ~13 min |
+| 12 | 4 | ~30 min | ~8 min |
 
 *Updated after each plan completion*
-| Phase 10 P01 | 5 | 2 tasks | 6 files |
-| Phase 10 P02 | 4 | 2 tasks tasks | 4 files files |
-| Phase 10 P03 | 4 | 2 tasks | 10 files |
-| Phase 10 P04 | 6 | 3 tasks | 9 files |
-| Phase 11 P01 | 4 | 2 tasks | 4 files |
-| Phase 11 P02 | 6 | 2 tasks | 30 files |
-| Phase 11 P03 | ~25 | 2+ tasks | 2 files |
-| Phase 11 P04 | ~15 | 1 task | 1 file |
-| Phase 12 P01 | 8 | 3 tasks | 5 files |
-| Phase 12 P02 | 14min | 3 tasks | 1 files |
-| Phase 12 P03 | 5min | 2 tasks | 1 files |
-| Phase 12 P04 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -80,50 +67,42 @@ Execution order: 10 → 11 → 12 (11 and 12 both depend on 10; independent of e
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [v1.3 roadmap] Phase 10 is the data-layer foundation (Category + Subcategory models, ObjectBox entity, provider, `Settings.category` removal); both Phase 11 and Phase 12 depend on its locale-resolved names and Subcategory provider
-- [v1.3 roadmap] CAT-05 (remove `Settings.category`) lives in Phase 10 with the rest of the model cleanup, not in the Settings screen phase — it's a data-model change, replaced by priority-based category preferences
-- [v1.3 roadmap] Phases 11 (filters) and 12 (Settings Categories) are independent of each other; coarse granularity keeps each requirement cluster as one cohesive phase rather than splitting model/provider/UI into separate phases
-- [v1.2] freezed 3.x: @JsonSerializable(explicitToJson: true) must be on the factory constructor, not above @freezed — critical for the new Subcategory/preference freezed models in v1.3
-- [v1.2] `State.mounted` in ConsumerState, `context.mounted` in ConsumerWidget helpers — reuse for SettingsCategoriesScreen async guards
-- [v1.2] `Settings` freezed model + `settingsProvider.saveToServer()` shared across settings screens — but v1.3 category preferences use dedicated `/user-category-preference` and `/user-subcategory-preference` endpoints, not Settings
-- [Phase ?]: [10-01] Removed Category.img (zero call sites) for icon, mirroring web category.ts; CategoryTranslation reused by Subcategory via import
-- [Phase ?]: [10-02] Reused SettingsEntity.notificationsJson JSON-blob shape for translations on Category/Subcategory entities; subcategory parent is an indexed String column (not ToOne) per CAT-03
-- [Phase ?]: [10-03] Preference models are flat freezed (no explicitToJson); providers use anonymous gate returning [] with no API call (D-07) and never send a client user field (server injects it, Security V4/T-10-05)
-- [Phase ?]: [10-04] CategoryNotifier overwrites all CategoryEntity rows on every /category fetch (D-02); SubcategoryNotifier is cache-first synchronous build + background /subcategory refresh (D-03/D-04)
-- [Phase ?]: [10-04] Settings.category removed via compiler-driven sweep; ObjectBox drops the property on next app open, no migration script (D-09)
-- [Phase ?]: [11-01] TrailFilter gained @Default(<Subcategory>[]) subcategory field; toFilterText() now emits ID-based (category_id IN [...] OR subcategory_id IN [...]) group, replacing the broken name-based category clause (RESEARCH Pitfall 1 fix)
-- [Phase ?]: [11-02] WandererFilterChip gained optional avatarBuilder (Widget? Function(T)) wired to FilterChip.avatar, backward compatible; subcategories l10n key added to all 14 ARBs (en has @metadata) and l10n.subcategories regenerated for Plans 03/04
-- [11-03] Subcategory chips scoped to _focusedCategoryId (last-tapped category); badgeCountBuilder shows selected-subcategory count per category chip; category_icon_util.dart extracted as shared icon util for filters + all trail display widgets; TrailCategoryLabel ConsumerWidget shows "Category / Subcategory" format with FA badge overlay
-- [11-04] ValueNotifier<String?> for bottom-sheet scoped subcategory state; _isCategoryActive uses OR logic (category.isNotEmpty || subcategory.isNotEmpty)
-- [Phase ?]: [12-01] Provider reorder methods mirror upsert (apiProvider.post + invalidateSelf, no client user field, T-12-01); sort/visibility helpers are pure functions so callers pass fetched data; own-trail count reads totalHits ?? estimatedTotalHits ?? hits.length ?? 0 via author-scoped /profile/{handle}/trails
-- [Phase ?]: SettingsCategoriesScreen folds category + preference providers into one record AsyncValue for a single AsyncLoader skeleton
-- [Phase ?]: Reorder uses onReorder + explicit index-shift (plan-mandated grep contract); onReorderItem deprecation scoped-ignored
-- [Phase ?]: View-trails resolves @-prefixed handle from authProvider.preferredUsername with null guard
-- [12-03] SettingsSubcategoriesScreen mirrors the sibling category screen (D-06) but wraps only the async preference provider in AsyncLoader (subcategoryProvider is a synchronous List) and scopes reorder to the parent via reorder(widget.category.id, ids) (SETCAT-10); subcategory rows are leaf (no body-tap nav)
+- [v1.4 roadmap] Phase 15 carries 20 requirements *because the offline gate forces it*: `MultiPmTilesVectorTileProvider` lives inside `wanderer_map.dart`, so the moment CORE-01 turns `WandererMap` into a `MapLibreMap`, the `pmtiles://` path (OFFL-03/05) and `file://` glyph path (OFFL-01/02/04) must land in the same phase or a downloaded trail regresses.
+- [v1.4 roadmap] TYPE-01/02 lands early as its own Phase 14, ahead of all map code. `Geographic(lon:, lat:)` reverses `LatLng(lat, lon)` — a transposed coordinate is silent. Isolating it under the existing `gpx_util`/`polyline_util` tests gives one clean signal. Cost: temporary `Geographic → LatLng` adapters at four un-migrated `flutter_map` call sites, each deleted as its screen migrates.
+- [v1.4 roadmap] CORE-05/06/07 are assigned to Phase 17 (navigation), not to a foundation phase. Each retires a file or a pubspec plugin, and `navigation_screen` is the last holdout for all three (`map_compass.dart`, `AnimatedMapController`, `CurrentLocationLayer`). Earlier phases swap their own call sites but cannot delete.
+- [v1.4 roadmap] CORE-08 added during roadmap creation — `list_detail_map_screen` and `list_detail_screen` build `FlutterMap` directly, so CORE-01 (scoped to `WandererMap`) never covered them.
+- [v1.4] Migrate to `maplibre`, not `maplibre_gl` — FFI/JNI bindings, reads our style JSON directly.
+- [v1.4] Clustering reuses `POST /search/trails/cluster` rather than maplibre's `cluster: true` — the endpoint exists, web already renders its output, and maplibre's `GeoJsonSource` exposes no cluster fields.
+- [v1.4] Style JSON lives as an app asset, not a server-hosted style URL — offline rendering needs the style before any network call.
 
 ### Pending Todos
 
-- None for Phase 11 — complete. Proceed with `/gsd-plan-phase 12` or `/gsd-execute-phase 12` if plans already exist.
+- None. Phase 13 and Phase 14 are both ready to plan (`/gsd-plan-phase 13` or `/gsd-plan-phase 14`).
 
 ### Blockers/Concerns
 
-- None for v1.3 — work mirrors a shipped web PR (#1059); API endpoints exist server-side and the Flutter settings/filter infrastructure from v1.0–v1.2 is in place.
+- **[Phase 15 — open unknown, blocks the milestone]** It is unverified whether maplibre-native resolves `file://` glyph URLs for offline label rendering. OFFL-04 (a downloaded trail renders labels with no network) is the hard offline parity gate and nothing downstream is safe until it passes on a physical device in airplane mode. Phase 15's first plan should be a throwaway `file://` spike. If maplibre-native rejects `file://`, the milestone needs a different offline-label strategy and the roadmap needs revision.
+- **[Phase 15/16/17]** `maplibre` 0.3.5 is pre-1.0 with breaking changes across 0.x minors (three published upgrade guides). Pin the exact version on first add; CLEAN-03 locks it at the end.
+- **[Phase 13]** The style references 3 fontstacks (`Noto Sans Regular`/`Medium`/`Italic`) but carries no `glyphs` key today, because `vector_tile_renderer` draws text from the bundled `assets/fonts/NotoSans`. Sprite icons (`arrow`, route shields) do not render at all today — wiring the sprite endpoint is a fix, not a regression.
 
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 260702-e3g | Fix non-optimistic reorder animation in SettingsCategoriesScreen and SettingsSubcategoriesScreen | 2026-07-02 | 6b3e6f6b | [260702-e3g-fix-non-optimistic-reorder-animation-in-](./quick/260702-e3g-fix-non-optimistic-reorder-animation-in-/) |
-| 260702-ek7 | Fix white flash on (sub)category toggle/reorder (AsyncLoader mockData fallback) | 2026-07-02 | 8a917b4c | [260702-ek7-fix-white-flash-on-sub-category-toggle-r](./quick/260702-ek7-fix-white-flash-on-sub-category-toggle-r/) |
-| 260702-ere | Cascade category visibility to SettingsSubcategoriesScreen (disabled category dims/disables its subcategory toggles) | 2026-07-02 | 108348b2 | [260702-ere-cascade-category-visibility-to-settingss](./quick/260702-ere-cascade-category-visibility-to-settingss/) |
-| 260702-m4u | Make auth_provider.dart build() optimistic: return savedUserEntity immediately without awaiting _updateUserEntity, run it in background, logout on failure | 2026-07-02 | d2d126a8 | [260702-m4u-make-auth-provider-dart-build-optimistic](./quick/260702-m4u-make-auth-provider-dart-build-optimistic/) |
-| 260702-gib | Add read-only subcategory chips under each category row in SettingsCategoriesScreen | 2026-07-02 | dbc1db3d | [260702-gib-add-subcategory-chips-under-each-categor](./quick/260702-gib-add-subcategory-chips-under-each-categor/) |
+| 260702-e3g | Fix non-optimistic reorder animation in Settings(Sub)CategoriesScreen | 2026-07-02 | 6b3e6f6b | [260702-e3g-…](./quick/260702-e3g-fix-non-optimistic-reorder-animation-in-/) |
+| 260702-ek7 | Fix white flash on (sub)category toggle/reorder | 2026-07-02 | 8a917b4c | [260702-ek7-…](./quick/260702-ek7-fix-white-flash-on-sub-category-toggle-r/) |
+| 260702-ere | Cascade category visibility to SettingsSubcategoriesScreen | 2026-07-02 | 108348b2 | [260702-ere-…](./quick/260702-ere-cascade-category-visibility-to-settingss/) |
+| 260702-m4u | Make auth_provider.dart build() optimistic | 2026-07-02 | d2d126a8 | [260702-m4u-…](./quick/260702-m4u-make-auth-provider-dart-build-optimistic/) |
+| 260702-gib | Add read-only subcategory chips under each category row | 2026-07-02 | dbc1db3d | [260702-gib-…](./quick/260702-gib-add-subcategory-chips-under-each-categor/) |
 
 ## Deferred Items
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| Trail form | Category/subcategory picker in create/edit form (TRAILFORM-01/02) | v1.4 | v1.3 requirements |
+| Map screen | Render `is_large` trails as full polylines (FUT-01) | Future milestone | v1.4 requirements |
+| Basemap | Basemap picker + Waymarked Trails overlays (FUT-02/03) | Future milestone | v1.4 requirements |
+| Native GL | 3D terrain, hillshade, pitch/tilt (FUT-04/05) | Future milestone | v1.4 requirements |
+| Trail form | Category/subcategory picker in create/edit form (TRAILFORM-01/02) | Future milestone (form rework needed) | v1.3 requirements |
 | Bulk edit | Bulk-edit modal for category/subcategory/difficulty | Out of scope (web-only) | v1.3 requirements |
 | Filters | Subcategory reordering within a category | Future milestone | v1.3 requirements |
 | Audio | TTS maneuver announcements (AUDIO-01, AUDIO-02) | v2 | Init |
@@ -133,11 +112,12 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-01T20:40:29.725Z
-Stopped at: Completed 12-03-PLAN.md
+Last session: 2026-07-08T16:10:00.000Z
+Stopped at: v1.4 roadmap created — Phases 13–18 written, 41 requirements mapped, traceability updated
 Resume file: None
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 12` or `/gsd-execute-phase 12` to begin Phase 12 (Settings Categories Screen)
-- Phase 12 requires human visual verification of 4 Phase 11 behaviors: AnimatedSize animation, badge icon rendering, locale labels on device, visibility filtering with live backend data
+- Run `/gsd-plan-phase 13` (glyph/sprite endpoint, Go) or `/gsd-plan-phase 14` (coordinate types) — they are independent and both gate Phase 15.
+- Review the two roadmap corrections before planning: the requirement count was 33 in the source document but 40 by actual count, and **CORE-08 was added** to cover the two list screens that no requirement reached.
+- Phase 15 is the milestone's risk gate. Its first plan must spike `file://` glyph resolution on a physical device in airplane mode before any further investment.
