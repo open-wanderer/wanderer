@@ -125,6 +125,7 @@
 
     let mapLoaded: boolean = $state(false);
     let terrainEnabled: boolean | null = null;
+    let elevationProfileVisibilityPreference: boolean | null = null;
 
     const trailColors = [
         "#3549bb", // blue
@@ -287,15 +288,7 @@
         }
 
         refreshElevationProfile();
-        if (
-            showElevation &&
-            Object.keys(gpxDataMap).length &&
-            activeTrail !== null
-        ) {
-            epc?.showProfile();
-        } else {
-            epc?.hideProfile();
-        }
+        syncElevationProfileVisibility();
 
         trails.forEach((t) => {
             const layerId = t.id!;
@@ -367,6 +360,19 @@
         }
     }
 
+    function syncElevationProfileVisibility() {
+        if (
+            showElevation &&
+            Object.keys(gpxDataMap).length &&
+            activeTrail !== null &&
+            elevationProfileVisibilityPreference !== false
+        ) {
+            epc?.showProfile();
+        } else {
+            epc?.hideProfile();
+        }
+    }
+
     function getBounds() {
         let minX = Infinity,
             minY = Infinity,
@@ -394,18 +400,19 @@
         }
     }
 
-    function flyToBounds() {
+    export function fitToBounds(bounds?: M.LngLatBoundsLike) {
         const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
-        const bounds =
-            activeId && gpxDataMap[activeId]
+        const boundsToFit =
+            bounds ??
+            (activeId && gpxDataMap[activeId]
                 ? (gpxDataMap[activeId].bbox as M.LngLatBoundsLike)
-                : getBounds();
+                : getBounds());
 
-        if (!bounds || !map) {
+        if (!boundsToFit || !map) {
             return;
         }
 
-        map!.fitBounds(bounds, {
+        map!.fitBounds(boundsToFit, {
             animate: fitBounds == "animate",
             padding: {
                 top: 16,
@@ -418,6 +425,10 @@
                         : 0),
             },
         });
+    }
+
+    function flyToBounds() {
+        fitToBounds();
     }
 
     function removeTrailLayer(id: string) {
@@ -670,9 +681,7 @@
 
         try {
             refreshElevationProfile();
-            if (showElevation) {
-                epc?.showProfile();
-            }
+            syncElevationProfileVisibility();
             syncWaypointMarkers();
             if (trail.id && gpxDataMap[trail.id]) {
                 addCaretLayer(gpxDataMap[trail.id]);
@@ -965,6 +974,9 @@
                 },
                 onLeave: () => {
                     elevationMarker.setOpacity("0");
+                },
+                onToggle: (visible) => {
+                    elevationProfileVisibilityPreference = visible;
                 },
                 onMove: (data) => {
                     if (!hoveringTrail) {

@@ -385,14 +385,14 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
 
     trail.author = user.actor
 
-    const formData = objectToFormData(trail, ["expand"])
+    const formData = objectToFormData(trail, ["expand", "photos", "_duplicatePhotoSource"])
 
     if (gpx) {
         formData.set("gpx", gpx);
     }
 
     for (const photo of photos) {
-        formData.set("photos", photo)
+        formData.append("photos", photo)
     }
 
     let r = await f(`/api/v1/trail/form?` + new URLSearchParams({
