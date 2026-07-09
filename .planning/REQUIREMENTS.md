@@ -48,11 +48,11 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 
 ### Clustering & Map Screen
 
-- [ ] **CLUS-01**: The map screen's bbox search calls `POST /search/trails/cluster` and renders the returned FeatureCollection
-- [ ] **CLUS-02**: Clusters render as native circle layers sized by `point_count`, labelled from `point_count_abbreviated`, matching web's `ClusterLayer` step ramp
+- [x] **CLUS-01**: The map screen's bbox search calls `POST /search/trails/cluster` and renders the returned FeatureCollection
+- [x] **CLUS-02**: Clusters render as native circle layers sized by `point_count`, labelled from `point_count_abbreviated`, matching web's `ClusterLayer` step ramp
 - [ ] **CLUS-03**: Tapping a cluster zooms the camera toward it; tapping an unclustered point selects that trail and fits its polyline
-- [ ] **CLUS-04**: Panning or zooming re-queries the cluster endpoint at the new bounds and zoom, debounced as today
-- [ ] **CLUS-05**: Active category and subcategory filters continue to constrain map results (the endpoint applies preference filters server-side)
+- [x] **CLUS-04**: Panning or zooming re-queries the cluster endpoint at the new bounds and zoom, debounced as today
+- [x] **CLUS-05**: Active category and subcategory filters continue to constrain map results (the endpoint applies preference filters server-side)
 
 ### Navigation Screen
 
@@ -132,11 +132,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OFFL-05 | Phase 15 | Complete |
 | OFFL-06 | Phase 15 | Deferred to Phase 17/18 |
 | CORE-08 | Phase 16 | Complete |
-| CLUS-01 | Phase 16 | Pending |
-| CLUS-02 | Phase 16 | Pending |
+| CLUS-01 | Phase 16 | Complete |
+| CLUS-02 | Phase 16 | Complete |
 | CLUS-03 | Phase 16 | Pending |
-| CLUS-04 | Phase 16 | Pending |
-| CLUS-05 | Phase 16 | Pending |
+| CLUS-04 | Phase 16 | Complete |
+| CLUS-05 | Phase 16 | Complete |
 | NAV-01 | Phase 17 | Pending |
 | NAV-02 | Phase 17 | Pending |
 | NAV-03 | Phase 17 | Pending |

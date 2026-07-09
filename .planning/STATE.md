@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
 status: executing
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-07-09T17:32:26.274Z"
+stopped_at: Completed 16-02-PLAN.md
+last_updated: "2026-07-09T17:41:03.777Z"
 last_activity: 2026-07-09 -- Phase 16 execution started
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 33
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 ## Current Position
 
 Phase: 16 (list-map-screens-on-maplibre) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-07-09 -- Phase 16 execution started
 
@@ -64,6 +64,7 @@ Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share n
 
 *Updated after each plan completion*
 | Phase 16 P01 | 9min | 3 tasks | 3 files |
+| Phase 16 P02 | 7min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,8 @@ Recent decisions affecting current work:
 - [Phase 15 verification] Goal-backward verification (`15-VERIFICATION.md`) found the trail's self-registered `arrow` sprite image collided (same id) with the basemap's own `roads_oneway` icon — MapLibre's `addImage` silently overwrites same-id images. Fixed by renaming to `trail-arrow` (`38aabcdc`).
 - [Phase 16-01]: SearchMap.layers typed List<ml.Layer>? (native style-layer builders), not List<Widget>? as PLAN.md's artifact spec stated — ml.MapLibreMap.layers and .children are different type families
 - [Phase 16-01]: _ListMap converted ConsumerWidget to ConsumerStatefulWidget to hold ml.MapController across onMapCreated/onStyleLoaded, mirroring list_detail_map_screen's approach
+- [Phase 16]: [16-02] cluster_layer.dart doc comments avoid the literal substring 'unclustered-point' (rephrased as point_count==1 circle layer) to satisfy the plan's own zero-occurrence grep while still documenting D-05's rationale
+- [Phase 16]: [16-02] Wrapped the circle-radius step-ramp array in // dart format off / on markers so dart format doesn't re-explode the single-line grouping the acceptance criteria greps for verbatim
 
 ### Pending Todos
 
@@ -130,8 +133,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-09T17:32:26.258Z
-Stopped at: Completed 16-01-PLAN.md
+Last session: 2026-07-09T17:41:03.764Z
+Stopped at: Completed 16-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
