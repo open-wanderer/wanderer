@@ -42,20 +42,21 @@ key-decisions:
   - "OFFL-05 multi-cell: N pmtiles://file:// sources + N duplicated layer sets (NOT merge-at-download). pmtiles 1.2.0 Dart is read-only (PmTilesArchive exposes only from/fromFile/fromReadAt — no write/merge) and db/services/tiles/generator.go runs `pmtiles extract` per 0.5° grid cell (grid.go GridSize=0.5, ~1-4 cells per realistic trail); a server merge endpoint is out of this Flutter phase's scope, so client/download-time merge is infeasible."
   - "OFFL-06 DEFERRED (not completed): pm_tile_provider.dart NOT deleted because navigation_screen.dart (Phase-17 flutter_map holdout) still consumes MultiPmTilesVectorTileProvider. Deleting it would break a screen the plan itself requires to keep building."
   - "Sprite variant (light/dark) selected from effectiveBrightness(themeMode) at rewrite time; arrow icon is sprite-independent (15-05 self-registers it), so offline arrow rendering does NOT depend on the unverified file:// sprite path."
+  - "Offline pmtiles source maxzoom clamped to 14 (matching generator.go's pmtiles extract --maxzoom=14), overriding the online style's inherited maxzoom:15 — found via on-device testing (blank basemap at very high zoom, fine when zoomed out) and fixed in _pointSourceAtCell, test-guarded."
 
 patterns-established:
   - "offline_style_rewriter.dart is the single sanctioned online->offline style transform; WandererMap is its only caller"
 
-requirements-completed: []  # NONE closed yet — OFFL-02/03/04/05 implemented and app builds clean, pending the physical-device gate (Task 3); OFFL-06 deferred to Phase 17.
+requirements-completed: [OFFL-02, OFFL-03, OFFL-04, OFFL-05]  # OFFL-06 deferred to Phase 17/18 — see key-decisions
 
 # Metrics
-duration: ~10min (resume; Task 1 restarted after a prior session cut-off) + orchestrator build-blocker fix
+duration: ~10min (resume; Task 1 restarted after a prior session cut-off) + orchestrator build-blocker fixes + on-device iteration
 completed: 2026-07-09
 ---
 
 # Phase 15 Plan 06: Offline Style Rewriter & WandererMap Offline Branch Summary
 
-**INCOMPLETE — PENDING PHYSICAL-DEVICE VERIFICATION. Tasks 1-2 shipped; the pre-existing 15-05 build blocker (`navigation_screen.dart` referencing a deleted `TrailLayer`) has been FIXED (commit `192b3a89`) — the app now builds clean, whole-app `flutter analyze` reports 0 errors. Task 3 (offline parity gate) is unblocked and ready for Christian to run.**
+**COMPLETE — PHYSICAL-DEVICE OFFLINE PARITY GATE PASSED.** Tasks 1-2 shipped, three real bugs found and fixed during on-device verification (see below), Task 3 (OFFL-04) confirmed PASS by Christian.
 
 Added `rewriteStyleForOffline` — a pure, test-guarded transform that rewrites a downloaded trail's MapLibre style so `glyphs`/`sprite` resolve from the 15-03 `file://` cache and the `protomaps` tiles resolve from the trail's local `.pmtiles` via native `pmtiles://file://` — then wired the offline branch into `WandererMap` and deleted the 15-01 spike.
 
@@ -64,7 +65,9 @@ Added `rewriteStyleForOffline` — a pure, test-guarded transform that rewrites 
 - **Task 1 (offline style rewriter, OFFL-02/03/05):** DONE — RED `b1539bf7`, GREEN `2c44b5ab`. All 11 tests pass; `flutter analyze` clean.
 - **Task 2 (WandererMap offline wiring + spike removal + OFFL-06):** PARTIAL — wiring `a4e593c4` + spike removal `5d7ae3df` done; **OFFL-06 (delete `pm_tile_provider.dart`) DEFERRED** (see Deviations).
 - **Build blocker fix (orchestrator, commit `192b3a89`):** restored the flutter_map `TrailLayer` widget (deleted by 15-05) into `trail_layer.dart` for `navigation_screen.dart`'s continued use, explicitly scoped as legacy/delete-at-Phase-17. Whole-app `flutter analyze`: 0 errors.
-- **Task 3 (physical-device airplane-mode offline gate, OFFL-04):** NOT RUN — human-only. App builds clean; checkpoint returned to Christian.
+- **Runtime crash fix (orchestrator, commit `b7d30947`):** `MapCompass` (flutter_map-only, calls `MapCamera.of(context)`) was still in `trail_detail_map_screen.dart`'s `WandererMap.controls` list — crashed on first real render since `WandererMap` became `MapLibreMap` in 15-04. Removed; a MapLibre-native compass is CORE-05 (Phase 17).
+- **Offline maxzoom fix (orchestrator, commit `85d73fd3`):** found via on-device testing — basemap rendered blank at very high zoom offline, fine when zoomed out. Root cause: the offline pmtiles source kept the online style's `maxzoom: 15`, but local archives are extracted server-side at `--maxzoom=14` (`generator.go`), so MapLibre requested nonexistent z15+ tiles instead of overzooming z14. Fixed by clamping `maxzoom` to 14 in `_pointSourceAtCell`, test-guarded.
+- **Task 3 (physical-device airplane-mode offline gate, OFFL-04):** **PASS**, confirmed by Christian after the three fixes above.
 
 ## Performance
 
@@ -91,9 +94,9 @@ Added `rewriteStyleForOffline` — a pure, test-guarded transform that rewrites 
 
 ## A2 Sprite `file://` Reality (carried forward from 15-01, honest exposure)
 
-- The 15-01 spike found `file://` **sprite** resolution FAILED on a physical Android device (A2 FAIL) despite valid cached files, while `file://` **glyph** resolution PASSED (A1). This plan's rewrite implements the sprite `file://` rewrite because the test suite requires it — **but it has NOT been verified to actually render any icon offline.** That is exactly what Task 3 confirms.
-- **Practical exposure is low:** the directional `arrow` icon does **not** depend on sprite `file://` resolution — 15-05 self-registers it via `addImageFromIconData` (sprite-independent). So the only thing still exposed to the A2 gap is any *other* sprite-atlas icon rendered offline (e.g. route-network shields, if the theme renders any via the sprite). Per STATE.md, sprite icons do not render at all today via the current renderer, so this is a not-yet-working feature, not a regression.
-- **No native-sprite re-investigation was performed this run.** If Task 3 shows the basemap+labels pass but sprite icons are blank offline, the honest landing (per the plan) is to ship OFFL-02/03/04 without offline sprite icons and track the sprite `file://` gap separately — do not treat it as a full gate failure.
+- The 15-01 spike found `file://` **sprite** resolution FAILED on a physical Android device (A2 FAIL) despite valid cached files, while `file://` **glyph** resolution PASSED (A1). This plan's rewrite implements the sprite `file://` rewrite because the test suite requires it.
+- **Practical exposure is low and did not block the gate:** the directional `arrow` icon does **not** depend on sprite `file://` resolution — 15-05 self-registers it via `addImageFromIconData` (sprite-independent), and Task 3's PASS confirms the track/arrows/waypoints/pins all render offline. The only thing still exposed to the A2 gap is any *other* sprite-atlas icon (e.g. route-network shields, if the theme renders any via the sprite) — those do not render at all today via the current renderer regardless of online/offline, so this is a pre-existing not-yet-working feature, not a regression introduced by this plan.
+- **No native-sprite re-investigation was performed.** Tracked as a known, separately-scoped gap — not a blocker for OFFL-02/03/04/05.
 
 ## Task Commits
 
@@ -101,15 +104,20 @@ Added `rewriteStyleForOffline` — a pure, test-guarded transform that rewrites 
 2. **Task 1 GREEN — implement `rewriteStyleForOffline`** — `2c44b5ab` (feat)
 3. **Task 2 — wire WandererMap offline branch** — `a4e593c4` (feat)
 4. **Task 2 — remove 15-01 throwaway spike** — `5d7ae3df` (chore)
+5. **Fix — restore flutter_map `TrailLayer` for `navigation_screen`** — `192b3a89` (fix, orchestrator, build blocker)
+6. **Fix — remove flutter_map-only `MapCompass` from `WandererMap.controls`** — `b7d30947` (fix, orchestrator, runtime crash)
+7. **Fix — clamp offline pmtiles source `maxzoom` to 14** — `85d73fd3` (fix, orchestrator, on-device finding)
 
 **Plan metadata:** `commit_docs: false` in config — the SDK skips committing `.planning/` docs (SUMMARY/STATE/ROADMAP updated on disk directly, not committed).
 
 ## Files Created/Modified/Deleted
 
 - `app/lib/util/offline_style_rewriter.dart` (created) — `rewriteStyleForOffline` pure transform.
-- `app/test/util/offline_style_rewriter_test.dart` (created, was pre-written) — 11 tests: single/multi-cell, deep-copy non-mutation, path-safety, scheme allowlist.
+- `app/test/util/offline_style_rewriter_test.dart` (created, was pre-written) — 12 tests: single/multi-cell, maxzoom clamp, deep-copy non-mutation, path-safety, scheme allowlist.
 - `app/lib/components/base/wanderer_map.dart` (modified) — offline branch (`_composeStyle`/`_swapStyle`), offline-aware live theme swap.
 - `app/lib/main.dart` (modified) — removed the debug spike FAB + `foundation`/spike imports.
+- `app/lib/components/map/trail_layer.dart` (modified) — restored legacy flutter_map `TrailLayer` for `navigation_screen`.
+- `app/lib/routes/trail_detail_map_screen.dart` (modified) — removed flutter_map-only `MapCompass` from `WandererMap.controls`.
 - `app/lib/routes/spike_glyph_file_screen.dart`, `app/lib/util/spike_glyph_seed.dart` (deleted) — 15-01 throwaway spike.
 
 ## Decisions Made
@@ -144,7 +152,7 @@ See frontmatter `key-decisions`. Load-bearing: OFFL-05 = N-source/N-layer (read-
 
 ## Known Stubs
 
-None introduced by this plan. The offline sprite rewrite is real (not a stub) but is **unverified on device** — tracked via the A2 note above and Task 3, not as a stub.
+None. The offline sprite rewrite is real (not a stub); its A2 gap is a known, documented limitation, not a stub.
 
 ## User Setup Required
 
@@ -152,9 +160,9 @@ None.
 
 ## Next Phase Readiness
 
-- **Task 3 (offline gate) is ready to run.** The app builds clean; Christian can download a trail, enable airplane mode, and confirm basemap + labels + track/markers render offline (see checkpoint for exact steps), including the A2 sprite-icon status.
-- **OFFL-06 remains open** — delete `pm_tile_provider.dart` once `navigation_screen` migrates (Phase 17 / Phase 18 CLEAN).
-- **ROADMAP 15-06 is deliberately NOT marked complete** — OFFL-02/03/04/05 are implemented, test-guarded, and app builds clean, but OFFL-04 is unverified on device until Task 3 returns a result; OFFL-06 is deferred.
+- **Phase 15's hard offline gate (OFFL-04, success criterion #4) is CLOSED.** A downloaded trail renders basemap (every cell), place-name labels, track, arrows, waypoints, and pins with the device offline — confirmed by Christian on a physical Android device.
+- **OFFL-06 remains open** — delete `pm_tile_provider.dart` once `navigation_screen` migrates (Phase 17 / Phase 18 CLEAN). This is the only Phase 15 requirement not closed, and it was never in scope to close early (the plan's own "4 flutter_map screens still build" criterion requires keeping it).
+- **Phase 16 (List & Map Screens on MapLibre) can now build on a working `WandererMap`.**
 
 ## Self-Check: PASSED
 
@@ -162,9 +170,10 @@ None.
 - FOUND: app/test/util/offline_style_rewriter_test.dart
 - FOUND: app/lib/components/base/wanderer_map.dart (contains rewriteStyleForOffline)
 - CONFIRMED DELETED: app/lib/routes/spike_glyph_file_screen.dart, app/lib/util/spike_glyph_seed.dart
-- FOUND: commit b1539bf7 (RED), 2c44b5ab (GREEN), a4e593c4 (wiring), 5d7ae3df (spike removal)
-- TESTS: 11/11 pass (`flutter test test/util/offline_style_rewriter_test.dart`)
+- FOUND: commits b1539bf7 (RED), 2c44b5ab (GREEN), a4e593c4 (wiring), 5d7ae3df (spike removal), 192b3a89, b7d30947, 85d73fd3 (three on-device fixes)
+- TESTS: 12/12 pass (`flutter test test/util/offline_style_rewriter_test.dart`)
+- PHYSICAL DEVICE: OFFL-04 PASS, confirmed by Christian
 
 ---
 *Phase: 15-maplibre-core-trail-rendering-offline-parity*
-*Status: INCOMPLETE — Tasks 1-2 done; Task 3 (physical-device offline gate) PENDING; OFFL-06 deferred; build blocker to clear first*
+*Status: COMPLETE — offline parity gate PASSED; OFFL-06 deferred to Phase 17/18 (by design)*

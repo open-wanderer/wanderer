@@ -21,10 +21,10 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 ### Offline
 
 - [x] **OFFL-01**: Downloading a trail also fetches the glyph ranges and sprite sheet once into the app documents directory; a second trail download reuses the cache without re-fetching
-- [ ] **OFFL-02**: When rendering a downloaded trail, the app rewrites the style's `glyphs` and `sprite` keys to `file://` paths before handing the style to the map
-- [ ] **OFFL-03**: A downloaded trail renders its basemap from `.pmtiles` archives via native `pmtiles://` source URLs, with no network
-- [ ] **OFFL-04**: A downloaded trail renders place-name labels with no network — the offline parity gate
-- [ ] **OFFL-05**: A trail whose offline tiles span multiple `.pmtiles` cells renders every cell, replacing `MultiPmTilesVectorTileProvider`'s request fan-out
+- [x] **OFFL-02**: When rendering a downloaded trail, the app rewrites the style's `glyphs` and `sprite` keys to `file://` paths before handing the style to the map
+- [x] **OFFL-03**: A downloaded trail renders its basemap from `.pmtiles` archives via native `pmtiles://` source URLs, with no network
+- [x] **OFFL-04**: A downloaded trail renders place-name labels with no network — the offline parity gate
+- [x] **OFFL-05**: A trail whose offline tiles span multiple `.pmtiles` cells renders every cell, replacing `MultiPmTilesVectorTileProvider`'s request fan-out
 - [ ] **OFFL-06**: `lib/vendor/vector_map_tiles/pm_tile_provider.dart` is deleted
 
 ### Map Core
@@ -126,11 +126,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRAIL-04 | Phase 15 | Complete |
 | TRAIL-05 | Phase 15 | Complete |
 | OFFL-01 | Phase 15 | Complete |
-| OFFL-02 | Phase 15 | Pending |
-| OFFL-03 | Phase 15 | Pending |
-| OFFL-04 | Phase 15 | Pending |
-| OFFL-05 | Phase 15 | Pending |
-| OFFL-06 | Phase 15 | Pending |
+| OFFL-02 | Phase 15 | Complete |
+| OFFL-03 | Phase 15 | Complete |
+| OFFL-04 | Phase 15 | Complete |
+| OFFL-05 | Phase 15 | Complete |
+| OFFL-06 | Phase 15 | Deferred to Phase 17/18 |
 | CORE-08 | Phase 16 | Pending |
 | CLUS-01 | Phase 16 | Pending |
 | CLUS-02 | Phase 16 | Pending |

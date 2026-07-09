@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
-status: in-progress
-stopped_at: "Phase 15 plan 15-06 Tasks 1-2 done (offline style rewriter + WandererMap offline branch + spike removal); Task 3 physical-device offline gate PENDING; OFFL-06 deferred; a pre-existing 15-05 build blocker (navigation_screen TrailLayer) must be cleared before the app builds"
-last_updated: "2026-07-09T14:12:00.000Z"
-last_activity: "2026-07-09 -- Phase 15 Plan 06 Tasks 1-2 (b1539bf7, 2c44b5ab, a4e593c4, 5d7ae3df): rewriteStyleForOffline + offline branch; awaiting physical-device gate"
+status: "15-06 offline style rewriter + WandererMap offline branch wired + 15-01 spike deleted. A downloaded trail composes file:// glyphs/sprite + pmtiles://file:// (N-source/N-layer multi-cell). BLOCKED for the gate: app does not build (pre-existing 15-05 leftover — navigation_screen references deleted TrailLayer)."
+stopped_at: Phase 15 complete — offline parity gate PASSED (OFFL-04), all 6 plans done
+last_updated: "2026-07-09T16:02:54.709Z"
+last_activity: 2026-07-09 -- Phase 15 Plan 06 Tasks 1-2 (b1539bf7, 2c44b5ab, a4e593c4, 5d7ae3df)
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 7
-  percent: 17
+  completed_plans: 8
+  percent: 33
 ---
 
 # Project State
@@ -128,9 +128,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-09T14:12:00.000Z
-Stopped at: Phase 15 plan 15-06 Tasks 1-2 done; Task 3 physical-device offline gate PENDING (blocked on the navigation_screen build fix). OFFL-06 deferred.
-Resume file: .planning/phases/15-maplibre-core-trail-rendering-offline-parity/15-06-PLAN.md
+Last session: 2026-07-09T16:02:54.697Z
+Stopped at: Phase 15 complete — offline parity gate PASSED (OFFL-04), all 6 plans done
+Resume file: .planning/ROADMAP.md
 
 ## Operator Next Steps
 

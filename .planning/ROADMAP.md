@@ -118,7 +118,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 - [x] **Phase 13: Glyph & Sprite Endpoint** - A unified `/map/style-sources` SvelteKit endpoint (replacing `/map/tileurl`) resolves tile, glyph, and sprite URLs in one object, under operator override (completed 2026-07-08)
 - [x] **Phase 14: Coordinate Type Migration** - `latlong2.LatLng` → `Geographic`, `LatLngBounds` → `LngLatBounds`, test-guarded, before any map code moves (completed 2026-07-08)
-- [ ] **Phase 15: MapLibre Core, Trail Rendering & Offline Parity** - `WandererMap` on `MapLibreMap`; a downloaded trail renders basemap *and labels* in airplane mode
+- [x] **Phase 15: MapLibre Core, Trail Rendering & Offline Parity** - `WandererMap` on `MapLibreMap`; a downloaded trail renders basemap *and labels* in airplane mode (completed 2026-07-09)
 - [ ] **Phase 16: List & Map Screens on MapLibre** - Multi-trail list maps plus server-clustered map-screen search on native circle/symbol layers
 - [ ] **Phase 17: Navigation on MapLibre** - Heading-up follow, compass reset, location puck; the last `flutter_map` plugin call sites disappear
 - [ ] **Phase 18: Retire flutter_map and the flomp Forks** - Both forks and all five packages leave `pubspec.yaml`; `maplibre` pinned
@@ -186,7 +186,7 @@ Plans:
   2. The GPX track draws as a 5px route-colored line over a 2px white casing, with directional arrows along it; waypoints are tappable and animate on selection; start and finish pins render, nudged apart when they fall within 36 screen pixels; the elevation-profile marker tracks the hiker's scrub position.
   3. Switching the app between light and dark theme swaps the map style live; the initial camera fits the trail's bounds with the caller's padding; and every map shows a scale bar plus the Protomaps/OpenStreetMap attribution the app owes under ODbL and does not display today.
   4. **The offline gate.** With the device in airplane mode, a downloaded trail renders its basemap from `.pmtiles` via native `pmtiles://` — every cell, when the trail spans several — *and renders its place-name labels* from `file://` glyphs cached at download time. Downloading a second trail reuses the cached glyphs and sprite instead of re-fetching them.
-  5. `lib/vendor/vector_map_tiles/pm_tile_provider.dart` is deleted, and the app still builds and runs with `flutter_map` serving `list_detail_map_screen`, `list_detail_screen`, `map_screen`, and `navigation_screen`.
+  5. ~~`lib/vendor/vector_map_tiles/pm_tile_provider.dart` is deleted~~ **CORRECTED during 15-06 execution:** this criterion contradicted itself — `navigation_screen`'s offline flutter_map path consumes `MultiPmTilesVectorTileProvider` from that exact file, so deleting it here would break the same screen this criterion requires to keep building. OFFL-06 (deletion) is deferred to Phase 17/18, when `navigation_screen` migrates off flutter_map and stops needing it. The actual criterion 5: the app still builds and runs with `flutter_map` serving `list_detail_map_screen`, `list_detail_screen`, `map_screen`, and `navigation_screen` — **met**.
 
 **Plans**: 6 plans
 
@@ -197,7 +197,7 @@ Plans:
 - [x] 15-03-PLAN.md — App-wide glyph/sprite cache + path-safety + download trigger (GLYPH-04, OFFL-01)
 - [x] 15-04-PLAN.md — `WandererMap` on `MapLibreMap`: camera, live theme swap, chrome, markers (CORE-01..04, TRAIL-05)
 - [x] 15-05-PLAN.md — Trail track/casing, static arrows, waypoint/pin markers (TRAIL-01..04)
-- [ ] 15-06-PLAN.md — Offline rewrite (`pmtiles://file://` + `file://`), multi-cell decision, delete vendor provider (OFFL-02..06)
+- [x] 15-06-PLAN.md — Offline rewrite (`pmtiles://file://` + `file://`), multi-cell decision, delete vendor provider (OFFL-02..06)
 
 **Risk gate**: This phase retires the milestone's highest-risk unknown — whether maplibre-native resolves `file://` glyph URLs for offline label rendering. Nothing downstream is safe until criterion 4 passes on a physical device in airplane mode. The first plan of this phase should be a throwaway spike proving `file://` glyph resolution against a hand-built style, *before* the phase invests in trail rendering or download-time caching. If maplibre-native rejects `file://`, the milestone needs a different offline-label strategy and this roadmap needs revision.
 **UI hint**: yes
@@ -274,7 +274,7 @@ Phases 13 and 14 are independent and may execute in either order or in parallel.
 | 12. Settings Categories Screen | v1.3 | 4/4 | Complete | 2026-07-02 |
 | 13. Glyph & Sprite Endpoint | v1.4 | 1/1 | Complete    | 2026-07-08 |
 | 14. Coordinate Type Migration | v1.4 | 1/0 | Complete    | 2026-07-08 |
-| 15. MapLibre Core, Trail Rendering & Offline Parity | v1.4 | 5/6 | In Progress|  |
+| 15. MapLibre Core, Trail Rendering & Offline Parity | v1.4 | 6/6 | Complete   | 2026-07-09 |
 | 16. List & Map Screens on MapLibre | v1.4 | 0/TBD | Not started | - |
 | 17. Navigation on MapLibre | v1.4 | 0/TBD | Not started | - |
 | 18. Retire flutter_map and the flomp Forks | v1.4 | 0/TBD | Not started | - |
