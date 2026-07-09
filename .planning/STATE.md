@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
-status: completed
-stopped_at: "Phase 15 plan 15-04 complete: WandererMap on MapLibreMap; both consumers migrated to ml.MapController hand-off"
-last_updated: "2026-07-09T09:30:10.048Z"
-last_activity: "2026-07-09 -- Phase 15 Plan 04 complete (1fd21cf9, 4cfc7dbc): WandererMap on MapLibreMap"
+status: in-progress
+stopped_at: "Phase 15 plan 15-06 Tasks 1-2 done (offline style rewriter + WandererMap offline branch + spike removal); Task 3 physical-device offline gate PENDING; OFFL-06 deferred; a pre-existing 15-05 build blocker (navigation_screen TrailLayer) must be cleared before the app builds"
+last_updated: "2026-07-09T14:12:00.000Z"
+last_activity: "2026-07-09 -- Phase 15 Plan 06 Tasks 1-2 (b1539bf7, 2c44b5ab, a4e593c4, 5d7ae3df): rewriteStyleForOffline + offline branch; awaiting physical-device gate"
 progress:
   total_phases: 6
   completed_phases: 1
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 ## Current Position
 
 Phase: 15 (maplibre-core-trail-rendering-offline-parity) — EXECUTING
-Plan: 5 of 6 complete — STYLE-01..04 + GLYPH-04 + OFFL-01 + CORE-01..04 + TRAIL-05 shipped. 15-01 A1 glyph gate PASSED; A2 sprite file:// resolution tracked for 15-06.
-Status: 15-04 complete (WandererMap on MapLibreMap: native GL host, live theme swap, camera fit, scalebar+ODbL attribution, elevation+interim-location markers; both consumers migrated)
-Last activity: 2026-07-09 -- Phase 15 Plan 04 complete (1fd21cf9, 4cfc7dbc): WandererMap on MapLibreMap
+Plan: 15-06 Tasks 1-2 done, Task 3 (physical-device offline gate) PENDING. rewriteStyleForOffline shipped (OFFL-02/03/05 implemented + test-guarded, unverified on device); OFFL-06 DEFERRED (navigation_screen still uses the vendor pmtiles provider).
+Status: 15-06 offline style rewriter + WandererMap offline branch wired + 15-01 spike deleted. A downloaded trail composes file:// glyphs/sprite + pmtiles://file:// (N-source/N-layer multi-cell). BLOCKED for the gate: app does not build (pre-existing 15-05 leftover — navigation_screen references deleted TrailLayer).
+Last activity: 2026-07-09 -- Phase 15 Plan 06 Tasks 1-2 (b1539bf7, 2c44b5ab, a4e593c4, 5d7ae3df)
 
 Progress: [████░░░░░░] 38%
 
@@ -64,6 +64,7 @@ Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share n
 
 *Updated after each plan completion*
 | Phase 15 P05 | ~15min | 2 tasks | 2 files |
+| Phase 15 P06 | ~10min | 2 of 3 tasks (gate pending) | 4 files + 2 deleted |
 
 ## Accumulated Context
 
@@ -84,6 +85,9 @@ Recent decisions affecting current work:
 - [15-04] `ml.MapController` cannot be free-standing (abstract interface created by the native map). `WandererMap` exposes `onMapCreated(controller)` which BOTH captures it internally (for `setStyle`/`fitBounds`) and forwards it to the caller; consumers hold `ml.MapController? _mapController` set from the hand-off and null-guard their calls. 15-05/15-06 reuse this, not an input controller field. Live theme swap = `ref.listen(mapStyleJsonProvider) -> setStyle` + a cached `_lastStyleJson` so a keepAlive refresh never flashes to loading (CORE-02). Trail track/markers seam is `layers: const []` in `wanderer_map.dart` (`// 15-05: ...`).
 - [Phase ?]: 15-05: arrow glyph self-registered via addImageFromIconData (sprite-independent) so TRAIL-02 avoids the unresolved file:// sprite risk
 - [Phase ?]: 15-05: directional arrows are static native symbol layer (D-05); AnimationController + bearing loop deleted
+- [15-06] OFFL-05 multi-cell = N native `pmtiles://file://` sources + N duplicated style-layer sets (`__cellN` id suffix; source-less layers not cloned), NOT merge-at-download. `pmtiles` 1.2.0 Dart is read-only (no merge API) and `generator.go`/`grid.go` emit one `.pmtiles` per 0.5° cell (~1-4 per trail); a server merge endpoint is out of the Flutter phase's scope. Implemented in `rewriteStyleForOffline`, test-guarded.
+- [15-06] `rewriteStyleForOffline` is the single sanctioned online->offline style transform (pure, deep-copies input): `glyphs`/`sprite` -> `file://<cacheRoot>`; tiled sources -> `pmtiles://file://<cell>`; rejects non-absolute / `..` / foreign-scheme paths before emitting (T-15-06-01/02). WandererMap is its only caller.
+- [15-06] OFFL-06 DEFERRED: `pm_tile_provider.dart` NOT deleted — `navigation_screen.dart` (Phase-17 flutter_map holdout) still uses `MultiPmTilesVectorTileProvider`. Delete once that screen migrates.
 
 ### Pending Todos
 
@@ -91,6 +95,8 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
+- **[Phase 15 — BUILD BLOCKER, pre-existing 15-05 leftover]** The app does NOT build: `flutter analyze` reports 1 error — `lib/routes/navigation_screen.dart:250` calls `TrailLayer(...)`, a widget 15-05 deleted from `trail_layer.dart` (replaced by maplibre-native `addTrailTrackLayers` + `TrailMarkerLayer`). `navigation_screen` (flutter_map, Phase-17 holdout) was never updated. **This must be cleared before the 15-06 physical-device offline gate can run** (the app won't `flutter run`). Fix is architectural (Rule 4): restore a flutter_map trail-render path for `navigation_screen`, or bring forward the Phase-17 navigation migration. Logged in `deferred-items.md`; out of 15-06's scope.
+- **[Phase 15/17 — OFFL-06 deferred]** `pm_tile_provider.dart` NOT deleted this plan — `navigation_screen.dart` still consumes `MultiPmTilesVectorTileProvider`. Delete in Phase 17/18 once that screen migrates off flutter_map.
 - **[Phase 15 — file:// glyph gate RESOLVED — A1 PASS, A2 sprite FAIL tracked for 15-06]** MapLibre-native DOES resolve `file://` glyph URL templates offline on a physical Android device (A1 PASS, verified 2026-07-09) — OFFL-04's label half is unblocked and waves 2-5 are clear. A narrower gap remains: `file://` **sprite** resolution FAILED (A2) despite valid cached files; production online rendering (`https://` sprites) is unaffected, so this only threatens the OFFL-02 offline-sprite half. **Plan 15-06 must investigate the A2 sprite `file://` failure before closing OFFL-02** (capture `adb logcat` mbgl/sprite errors, or descope offline icons with confirmation per D-03). 15-03's app-wide cache warms the sprite files to disk regardless, so 15-06 has the bytes to work with.
 - **[Phase 15/16/17]** `maplibre` 0.3.5 is pre-1.0 with breaking changes across 0.x minors (three published upgrade guides). Pin the exact version on first add; CLEAN-03 locks it at the end.
 - **[Phase 13]** The style references 3 fontstacks (`Noto Sans Regular`/`Medium`/`Italic`) but carries no `glyphs` key today, because `vector_tile_renderer` draws text from the bundled `assets/fonts/NotoSans`. Sprite icons (`arrow`, route shields) do not render at all today — wiring the sprite endpoint is a fix, not a regression.
@@ -122,9 +128,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-09T09:30:05.452Z
-Stopped at: Phase 15 plan 15-04 complete: WandererMap on MapLibreMap; both consumers migrated to ml.MapController hand-off
-Resume file: .planning/phases/15-maplibre-core-trail-rendering-offline-parity/15-05-PLAN.md
+Last session: 2026-07-09T14:12:00.000Z
+Stopped at: Phase 15 plan 15-06 Tasks 1-2 done; Task 3 physical-device offline gate PENDING (blocked on the navigation_screen build fix). OFFL-06 deferred.
+Resume file: .planning/phases/15-maplibre-core-trail-rendering-offline-parity/15-06-PLAN.md
 
 ## Operator Next Steps
 
