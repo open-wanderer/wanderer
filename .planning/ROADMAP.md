@@ -280,6 +280,6 @@ Phases 13 and 14 are independent and may execute in either order or in parallel.
 | 13. Glyph & Sprite Endpoint | v1.4 | 1/1 | Complete    | 2026-07-08 |
 | 14. Coordinate Type Migration | v1.4 | 1/0 | Complete    | 2026-07-08 |
 | 15. MapLibre Core, Trail Rendering & Offline Parity | v1.4 | 6/6 | Complete   | 2026-07-09 |
-| 16. List & Map Screens on MapLibre | v1.4 | 2/3 | In Progress|  |
+| 16. List & Map Screens on MapLibre | v1.4 | 3/3 | Complete   | 2026-07-09 |
 | 17. Navigation on MapLibre | v1.4 | 0/TBD | Not started | - |
 | 18. Retire flutter_map and the flomp Forks | v1.4 | 0/TBD | Not started | - |
