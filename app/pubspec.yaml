@@ -81,6 +81,7 @@ flutter:
   generate: true
   assets:
     - assets/svgs/
+    - assets/map/
   fonts:
     - family: IBMPlexSans
       fonts:
