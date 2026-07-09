@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cookie_jar/cookie_jar.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:wanderer/components/toast_overlay.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/routes/spike_glyph_file_screen.dart';
 
 import 'i18n/app_localizations.dart';
 import 'objectbox.g.dart';
@@ -72,7 +74,34 @@ class MainApp extends ConsumerWidget {
       routerConfig: goRouter,
 
       builder: (context, child) {
-        return ToastOverlay(child: child!);
+        Widget app = ToastOverlay(child: child!);
+        // SPIKE 15-01 — THROWAWAY debug entry point; delete after the file://
+        // glyph gate resolves. A debug-only FAB pushes the spike screen so
+        // Christian can reach it without a real trail (D-01/D-02).
+        if (kDebugMode) {
+          app = Stack(
+            children: [
+              app,
+              Positioned(
+                right: 12,
+                bottom: 96,
+                child: SafeArea(
+                  child: FloatingActionButton.small(
+                    heroTag: 'spike-15-01',
+                    tooltip: 'SPIKE 15-01 · file:// glyph gate',
+                    onPressed: () => navigatorKey.currentState?.push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SpikeGlyphFileScreen(),
+                      ),
+                    ),
+                    child: const Icon(Icons.science_outlined),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+        return app;
       },
     );
   }
