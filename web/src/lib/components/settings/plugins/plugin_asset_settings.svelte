@@ -55,6 +55,9 @@
         ></Select>
     {/if}
 </div>
+<p class="text-xs text-gray-500">
+    {$_("plugin-photo-mode-link-private-hint")}
+</p>
 
 <div class="space-y-2">
     <p class="text-sm font-medium">{$_("plugin-auto-attach-label")}</p>

@@ -295,6 +295,7 @@
   "immich-max-waypoints": "Max waypoints",
   "plugin-photo-mode-copy": "Store photos in wanderer",
   "plugin-photo-mode-link-private": "Link remote references (private trails only)",
+  "plugin-photo-mode-link-private-hint": "Remote links only save storage for trails that stay private. If you publish or federate a trail, wanderer copies the linked photos so public views can serve them safely.",
   "plugin-photo-mode-label": "Photo storage",
   "plugin-auto-attach-label": "Automatically attach photos",
   "plugin-auto-attach-trail-plugins": "Trail plugins",

@@ -296,6 +296,7 @@
   "immich-max-waypoints": "Max. Wegpunkte",
   "plugin-photo-mode-copy": "Fotos in wanderer speichern",
   "plugin-photo-mode-link-private": "Remote-Referenzen verlinken (nur private Trails)",
+  "plugin-photo-mode-link-private-hint": "Remote-Links sparen nur für Trails Speicher, die dauerhaft privat bleiben. Wenn du einen Trail veröffentlichst oder föderierst, kopiert wanderer die verlinkten Fotos, damit öffentliche Zugriffe sie sicher ausliefern können.",
   "plugin-photo-mode-label": "Fotospeicherung",
   "plugin-auto-attach-label": "Fotos automatisch anhängen",
   "plugin-auto-attach-trail-plugins": "Trail-Plugins",
