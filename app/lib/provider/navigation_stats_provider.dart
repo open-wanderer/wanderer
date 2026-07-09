@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart' as geo;
+import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/navigate_response.dart';
 
-part 'navigation_stats_provider.g.dart';
 part 'navigation_stats_provider.freezed.dart';
+part 'navigation_stats_provider.g.dart';
 
 // ---------------------------------------------------------------------------
 // State
@@ -69,10 +69,6 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
   /// inflate elevation totals (Pitfall 2, A1 — tunable in one place).
   static const _kAltitudeNoiseFloorMeters = 2.0;
 
-  /// latlong2 geodesic-distance primitive (same instance pattern as
-  /// `navigation_provider.dart`).
-  final _distance = const Distance();
-
   /// 1-second clock driving [NavigationStats.elapsed]. Independent of GPS
   /// cadence so the clock keeps ticking while the user stands still.
   Timer? _ticker;
@@ -91,7 +87,7 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
 
   /// Last position used for distance accumulation; null until first fix or
   /// after a resume re-anchor.
-  LatLng? _lastPoint;
+  Geographic? _lastPoint;
 
   @override
   NavigationStats build(NavigateResponse response) {
@@ -105,7 +101,7 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
   /// While paused, accumulation is frozen and current speed is forced to 0.
   /// The first fix only sets the distance/altitude references (no distance is
   /// added). Invalid speed values (NaN/negative) are clamped to 0 (Pitfall 3).
-  void onPosition(Position pos) {
+  void onPosition(geo.Position pos) {
     // While paused, do not accumulate distance/elevation; force speed to 0.
     if (state.isPaused) {
       if (state.currentSpeedKmh != 0) {
@@ -118,12 +114,13 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
     _start ??= DateTime.now();
     _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
 
-    final here = LatLng(pos.latitude, pos.longitude);
+    final here = Geographic(lat: pos.latitude, lon: pos.longitude);
 
     // Distance accumulation (Haversine). First fix only anchors the reference.
     var dist = state.distanceMeters;
     if (_lastPoint != null) {
-      dist += _distance.as(LengthUnit.Meter, _lastPoint!, here);
+      final calculator = SphericalGreatCircle(_lastPoint!);
+      dist += calculator.distanceTo(here);
     }
     _lastPoint = here;
 

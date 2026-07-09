@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart' as ml;
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
+import 'package:wanderer/util/map_coordinate_adapter.dart';
 import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
 
 class WandererMap extends ConsumerStatefulWidget {
@@ -18,7 +19,7 @@ class WandererMap extends ConsumerStatefulWidget {
   final bool disabled;
   final bool offline;
   final List<Widget>? controls;
-  final LatLng? elevationMarkerPosition;
+  final ml.Geographic? elevationMarkerPosition;
   final EdgeInsets initialCameraFitPadding;
 
   final bool showTrail;
@@ -53,7 +54,7 @@ class WandererMap extends ConsumerStatefulWidget {
 class _WandererMapState extends ConsumerState<WandererMap> {
   MultiPmTilesVectorTileProvider? _offlineTileProvider;
   Object? _error;
-  LatLngBounds? _bounds;
+  ml.LngLatBounds? _bounds;
 
   @override
   void initState() {
@@ -121,11 +122,16 @@ class _WandererMapState extends ConsumerState<WandererMap> {
                 : const InteractionOptions(enableMultiFingerGestureRace: true),
             initialCameraFit: _bounds != null
                 ? CameraFit.bounds(
-                    bounds: _bounds!,
+                    bounds: toLatLngBounds(_bounds!),
                     padding: widget.initialCameraFitPadding,
                   )
                 : null,
-            initialCenter: LatLng(widget.trail.lat ?? 0, widget.trail.lon ?? 0),
+            initialCenter: toLatLng(
+              ml.Geographic(
+                lat: widget.trail.lat ?? 0,
+                lon: widget.trail.lon ?? 0,
+              ),
+            ),
             initialZoom: 18,
           ),
           children: [
@@ -140,8 +146,7 @@ class _WandererMapState extends ConsumerState<WandererMap> {
 
             if (widget.showLocation)
               CurrentLocationLayer(
-                positionStream:
-                    ref.watch(foregroundPositionStreamProvider),
+                positionStream: ref.watch(foregroundPositionStreamProvider),
               ),
 
             if (widget.elevationMarkerPosition != null)
@@ -164,7 +169,7 @@ class _WandererMapState extends ConsumerState<WandererMap> {
                         border: Border.all(color: Colors.black, width: 2),
                       ),
                     ),
-                    point: widget.elevationMarkerPosition!,
+                    point: toLatLng(widget.elevationMarkerPosition!),
                   ),
                 ],
               ),

@@ -15,13 +15,13 @@ final trailPolylineProvider = TrailPolylineFamily._();
 final class TrailPolylineProvider
     extends
         $FunctionalProvider<
-          AsyncValue<Polyline<Object>?>,
-          Polyline<Object>?,
-          FutureOr<Polyline<Object>?>
+          AsyncValue<List<Geographic>?>,
+          List<Geographic>?,
+          FutureOr<List<Geographic>?>
         >
     with
-        $FutureModifier<Polyline<Object>?>,
-        $FutureProvider<Polyline<Object>?> {
+        $FutureModifier<List<Geographic>?>,
+        $FutureProvider<List<Geographic>?> {
   TrailPolylineProvider._({
     required TrailPolylineFamily super.from,
     required String super.argument,
@@ -45,12 +45,12 @@ final class TrailPolylineProvider
 
   @$internal
   @override
-  $FutureProviderElement<Polyline<Object>?> $createElement(
+  $FutureProviderElement<List<Geographic>?> $createElement(
     $ProviderPointer pointer,
   ) => $FutureProviderElement(pointer);
 
   @override
-  FutureOr<Polyline<Object>?> create(Ref ref) {
+  FutureOr<List<Geographic>?> create(Ref ref) {
     final argument = this.argument as String;
     return trailPolyline(ref, argument);
   }
@@ -66,10 +66,10 @@ final class TrailPolylineProvider
   }
 }
 
-String _$trailPolylineHash() => r'7c9acd31645638350890036d7803d0f4cc53fb5b';
+String _$trailPolylineHash() => r'443d6c43a552dcdd20541f247adaff09ed75219d';
 
 final class TrailPolylineFamily extends $Family
-    with $FunctionalFamilyOverride<FutureOr<Polyline<Object>?>, String> {
+    with $FunctionalFamilyOverride<FutureOr<List<Geographic>?>, String> {
   TrailPolylineFamily._()
     : super(
         retry: null,

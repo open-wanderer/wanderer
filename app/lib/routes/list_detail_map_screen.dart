@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -5,19 +6,18 @@ import 'package:flutter_map_animations/flutter_map_animations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart' as ml;
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
+import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
-import 'package:wanderer/provider/trail/list_provider.dart';
-import 'package:collection/collection.dart';
-import 'package:wanderer/models/category.dart';
-import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/list_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/category_icon_util.dart';
+import 'package:wanderer/util/map_coordinate_adapter.dart';
 import 'package:wanderer/util/polyline_util.dart';
 
 class ListDetailMapScreen extends ConsumerStatefulWidget {
@@ -33,7 +33,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
     with TickerProviderStateMixin {
   late final _animatedMapController = AnimatedMapController(vsync: this);
   Trail? _selectedTrail;
-  LatLngBounds? _combinedBoundsCache;
+  ml.LngLatBounds? _combinedBoundsCache;
 
   @override
   void dispose() {
@@ -47,7 +47,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
     if (bounds != null) {
       _animatedMapController.animatedFitCamera(
         cameraFit: CameraFit.bounds(
-          bounds: bounds,
+          bounds: toLatLngBounds(bounds),
           padding: const EdgeInsets.all(40),
         ),
         duration: const Duration(milliseconds: 750),
@@ -58,14 +58,16 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
   void _onMarkerTap(Trail trail) {
     setState(() => _selectedTrail = trail);
 
-    final bounds = LatLngBounds(
-      LatLng(trail.minLat, trail.minLon),
-      LatLng(trail.maxLat, trail.maxLon),
+    final bounds = ml.LngLatBounds(
+      longitudeEast: trail.maxLon,
+      longitudeWest: trail.minLon,
+      latitudeNorth: trail.maxLat,
+      latitudeSouth: trail.minLat,
     );
 
     _animatedMapController.animatedFitCamera(
       cameraFit: CameraFit.bounds(
-        bounds: bounds,
+        bounds: toLatLngBounds(bounds),
         padding: const EdgeInsets.fromLTRB(40, 56, 40, 120),
       ),
       duration: const Duration(milliseconds: 750),
@@ -90,55 +92,58 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
 
         final polylines = trails
             .where((t) => t.polyline != null && t.polyline!.isNotEmpty)
-            .map((t) => PolylineTools.decode(t.polyline!))
+            .map(
+              (t) => Polyline(points: toLatLngList(PolylineUtil.decode(t.polyline!))),
+            )
             .toList();
 
-        final markers = trails
-            .where((t) => t.lat != null && t.lon != null)
-            .map((t) {
-              final Category? category = t.categoryId != null
-                  ? allCategories.firstWhereOrNull((c) => c.id == t.categoryId)
-                  : null;
-              final subcategory = t.subcategoryId != null
-                  ? allSubcategories.firstWhereOrNull((s) => s.id == t.subcategoryId)
-                  : null;
-              final isSelected = _selectedTrail?.id == t.id;
-              return Marker(
-                key: ValueKey(t.id),
-                point: LatLng(t.lat!, t.lon!),
-                width: 36,
-                height: 36,
-                child: GestureDetector(
-                  onTap: () => _onMarkerTap(t),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.secondary
-                          : Theme.of(context).primaryColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: trailCategoryIcon(
-                        category,
-                        subcategory: subcategory,
-                        color: isSelected
-                            ? Theme.of(context).primaryColor
-                            : Colors.white,
+        final markers = trails.where((t) => t.lat != null && t.lon != null).map(
+          (t) {
+            final Category? category = t.categoryId != null
+                ? allCategories.firstWhereOrNull((c) => c.id == t.categoryId)
+                : null;
+            final subcategory = t.subcategoryId != null
+                ? allSubcategories.firstWhereOrNull(
+                    (s) => s.id == t.subcategoryId,
+                  )
+                : null;
+            final isSelected = _selectedTrail?.id == t.id;
+            return Marker(
+              key: ValueKey(t.id),
+              point: toLatLng(ml.Geographic(lat: t.lat!, lon: t.lon!)),
+              width: 36,
+              height: 36,
+              child: GestureDetector(
+                onTap: () => _onMarkerTap(t),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.secondary
+                        : Theme.of(context).primaryColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
+                    ],
+                  ),
+                  child: Center(
+                    child: trailCategoryIcon(
+                      category,
+                      subcategory: subcategory,
+                      color: isSelected
+                          ? Theme.of(context).primaryColor
+                          : Colors.white,
                     ),
                   ),
                 ),
-              );
-            })
-            .toList();
+              ),
+            );
+          },
+        ).toList();
 
         final combinedBounds = _combinedBounds(trails);
         _combinedBoundsCache = combinedBounds;
@@ -174,11 +179,11 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
                     ),
                     initialCameraFit: combinedBounds != null
                         ? CameraFit.bounds(
-                            bounds: combinedBounds,
+                            bounds: toLatLngBounds(combinedBounds),
                             padding: const EdgeInsets.all(40),
                           )
                         : null,
-                    initialCenter: const LatLng(0, 0),
+                    initialCenter: toLatLng(const ml.Geographic(lat: 0, lon: 0)),
                     initialZoom: 3,
                     onTap: (_, _) => _deselect(),
                   ),
@@ -221,7 +226,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
     );
   }
 
-  LatLngBounds? _combinedBounds(List<Trail> trails) {
+  ml.LngLatBounds? _combinedBounds(List<Trail> trails) {
     final withBounds = trails.where(
       (t) => t.minLat != 0 || t.maxLat != 0 || t.minLon != 0 || t.maxLon != 0,
     );
@@ -239,6 +244,11 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
       if (t.maxLon > maxLon) maxLon = t.maxLon;
     }
 
-    return LatLngBounds(LatLng(minLat, minLon), LatLng(maxLat, maxLon));
+    return ml.LngLatBounds(
+      longitudeEast: maxLon,
+      longitudeWest: minLon,
+      latitudeNorth: maxLat,
+      latitudeSouth: minLat,
+    );
   }
 }

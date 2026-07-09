@@ -37,6 +37,7 @@ dependencies:
   intl: any
   json_annotation: ^4.11.0
   latlong2: ^0.9.1
+  maplibre: ^0.3.3+2
   objectbox: ^5.3.1
   objectbox_flutter_libs: ^5.3.1
   path: ^1.9.1

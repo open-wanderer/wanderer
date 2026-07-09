@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
@@ -79,7 +80,7 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
         TrackPoint(
           distanceM: cumDist,
           elevationM: wpt.ele ?? 0,
-          latlng: LatLng(wpt.lat ?? 0, wpt.lon ?? 0),
+          lonlat: Geographic(lat: wpt.lat ?? 0, lon: wpt.lon ?? 0),
           duration: cumDuration,
           gradient: 0,
           color: Colors.white,
@@ -579,12 +580,12 @@ class TrackPoint {
   Duration duration;
   double gradient;
   Color color;
-  LatLng latlng;
+  Geographic lonlat;
 
   TrackPoint({
     required this.distanceM,
     required this.elevationM,
-    required this.latlng,
+    required this.lonlat,
 
     this.duration = Duration.zero,
     this.gradient = 0,

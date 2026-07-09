@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/base/wanderer_map.dart';
 import 'package:wanderer/components/map/map_compass.dart';
@@ -13,6 +13,7 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
+import 'package:wanderer/util/map_coordinate_adapter.dart';
 import 'package:wanderer/util/navigation_launch_util.dart';
 
 class TrailDetailMapScreen extends ConsumerStatefulWidget {
@@ -28,7 +29,7 @@ class TrailDetailMapScreen extends ConsumerStatefulWidget {
 class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
   bool showElevationProfile = true;
   bool showTrail = true;
-  LatLng? elevationMarkerPosition;
+  ml.Geographic? elevationMarkerPosition;
   Waypoint? selectedWaypoint;
   bool _isLaunching = false;
 
@@ -193,7 +194,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                             gpx: trail.expand!.gpx!,
                             onLineTouch: (p) {
                               setState(
-                                () => elevationMarkerPosition = p?.latlng,
+                                () => elevationMarkerPosition = p?.lonlat,
                               );
                             },
                           ),
@@ -258,7 +259,10 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                         top: 40,
                       );
                 _mapController.fitCamera(
-                  CameraFit.bounds(bounds: bounds, padding: padding),
+                  CameraFit.bounds(
+                    bounds: toLatLngBounds(bounds),
+                    padding: padding,
+                  ),
                 );
               },
             ),

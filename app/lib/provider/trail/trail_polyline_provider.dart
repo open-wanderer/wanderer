@@ -1,4 +1,4 @@
-import 'package:flutter_map/flutter_map.dart';
+import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
@@ -7,7 +7,7 @@ import 'package:wanderer/util/polyline_util.dart';
 part 'trail_polyline_provider.g.dart';
 
 @riverpod
-Future<Polyline?> trailPolyline(Ref ref, String trailId) async {
+Future<List<Geographic>?> trailPolyline(Ref ref, String trailId) async {
   final api = ref.read(apiProvider);
 
   final response = await api.get('/trail/$trailId');
@@ -17,5 +17,5 @@ Future<Polyline?> trailPolyline(Ref ref, String trailId) async {
   final polylineStr = trail.polyline;
   if (polylineStr == null || polylineStr.isEmpty) return null;
 
-  return PolylineTools.decode(polylineStr);
+  return PolylineUtil.decode(polylineStr);
 }

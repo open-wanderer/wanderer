@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:maplibre/maplibre.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -133,10 +133,10 @@ class TrailDownloadService {
     CancelToken? cancelToken,
     void Function(int done, int total)? onProgress,
   }) async {
-    final LatLngBounds bounds = trail.bounds;
+    final LngLatBounds bounds = trail.bounds;
 
     final bbox =
-        '${bounds.west},${bounds.south},${bounds.east},${bounds.north}';
+        '${bounds.longitudeWest},${bounds.latitudeSouth},${bounds.longitudeEast},${bounds.latitudeNorth}';
 
     final infoList = await _fetchCellList(bbox, cancelToken: cancelToken);
     if (infoList.cells.isEmpty) return [];

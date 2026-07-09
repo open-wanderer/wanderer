@@ -1,7 +1,6 @@
-import 'package:flutter_map/flutter_map.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:gpx/gpx.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/record.dart';
 import 'package:wanderer/models/trail_summary.dart';
@@ -104,8 +103,12 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
 
   const Trail._();
 
-  LatLngBounds get bounds =>
-      LatLngBounds(LatLng(minLat, minLon), LatLng(maxLat, maxLon));
+  LngLatBounds get bounds => LngLatBounds(
+    longitudeEast: maxLon,
+    longitudeWest: minLon,
+    latitudeNorth: maxLat,
+    latitudeSouth: minLat,
+  );
 
   @override
   String get summaryAuthorName => expand?.author?.username ?? "Unknown";

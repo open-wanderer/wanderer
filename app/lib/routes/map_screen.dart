@@ -7,7 +7,7 @@ import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart' as ml;
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/map/map_compass.dart';
@@ -28,9 +28,10 @@ import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/category_icon_util.dart';
+import 'package:wanderer/util/map_coordinate_adapter.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
-  final LatLng? initialCenter;
+  final ml.Geographic? initialCenter;
   final double? initialZoom;
 
   const MapScreen({super.key, this.initialCenter, this.initialZoom});
@@ -93,7 +94,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (newCenter != null && newCenter != oldWidget.initialCenter) {
       _animatedMapController
           .animateTo(
-            dest: newCenter,
+            dest: toLatLng(newCenter),
             zoom: widget.initialZoom ?? 13.0,
             duration: const Duration(milliseconds: 750),
             curve: Curves.easeInOut,
@@ -102,7 +103,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
             if (!mounted) return;
             final bounds =
                 _animatedMapController.mapController.camera.visibleBounds;
-            ref.read(mapTrailSearchProvider.notifier).searchInBounds(bounds);
+            ref
+                .read(mapTrailSearchProvider.notifier)
+                .searchInBounds(toLngLatBounds(bounds));
           });
     }
   }
@@ -145,7 +148,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
           if (mounted) {
             final bounds =
                 _animatedMapController.mapController.camera.visibleBounds;
-            ref.read(mapTrailSearchProvider.notifier).searchInBounds(bounds);
+            ref
+                .read(mapTrailSearchProvider.notifier)
+                .searchInBounds(toLngLatBounds(bounds));
           }
         });
       }
@@ -169,11 +174,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ? allCategories.firstWhereOrNull((c) => c.id == trail.categoryId)
           : null;
       final subcategory = trail.subcategoryId != null
-          ? allSubcategories.firstWhereOrNull((s) => s.id == trail.subcategoryId)
+          ? allSubcategories.firstWhereOrNull(
+              (s) => s.id == trail.subcategoryId,
+            )
           : null;
       return Marker(
         key: ValueKey(trail.id),
-        point: LatLng(trail.geo.lat, trail.geo.lng),
+        point: toLatLng(ml.Geographic(lat: trail.geo.lat, lon: trail.geo.lng)),
         width: 36,
         height: 36,
         child: Container(
@@ -206,10 +213,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
           mapController: _animatedMapController.mapController,
           options: MapOptions(
             backgroundColor: Theme.of(context).colorScheme.surface,
-            initialCenter:
-                widget.initialCenter ??
-                savedCamera?.center ??
-                const LatLng(0, 0),
+            initialCenter: toLatLng(
+              widget.initialCenter ??
+                  savedCamera?.center ??
+                  const ml.Geographic(lat: 0, lon: 0),
+            ),
             initialZoom: widget.initialZoom ?? savedCamera?.zoom ?? 3,
             interactionOptions: InteractionOptions(
               enableMultiFingerGestureRace: true,
@@ -219,7 +227,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               if (event is MapEventMoveEnd) {
                 ref
                     .read(mapCameraProvider.notifier)
-                    .save(event.camera.center, event.camera.zoom);
+                    .save(toGeographic(event.camera.center), event.camera.zoom);
                 const userGestures = {
                   MapEventSource.dragEnd,
                   MapEventSource.flingAnimationController,
@@ -299,13 +307,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     if (polyline != null) {
                       _animatedMapController.animatedFitCamera(
                         cameraFit: CameraFit.bounds(
-                          bounds: LatLngBounds.fromPoints(polyline.points),
+                          bounds: toLatLngBounds(
+                            ml.LngLatBounds.fromPoints(polyline),
+                          ),
                           padding: EdgeInsets.fromLTRB(40, 56, 40, 248),
                         ),
                         duration: Duration(milliseconds: 750),
                       );
                     }
-                    setState(() => _selectedPolyline = polyline);
+                    setState(
+                      () => _selectedPolyline = polyline == null
+                          ? null
+                          : Polyline(points: toLatLngList(polyline)),
+                    );
                   });
                 },
                 builder: (context, markers) {
@@ -355,7 +369,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         .visibleBounds;
                     ref
                         .read(mapTrailSearchProvider.notifier)
-                        .searchInBounds(bounds);
+                        .searchInBounds(toLngLatBounds(bounds));
                   },
                   icon: const FaIcon(FontAwesomeIcons.mapLocationDot, size: 14),
                   label: Text(AppLocalizations.of(context)!.search_this_area),

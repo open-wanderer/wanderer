@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/components/base/wanderer_layout.dart';
+import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/routes/global_search_screen.dart';
+import 'package:wanderer/routes/home_screen.dart';
 import 'package:wanderer/routes/library_detail_screen.dart';
 import 'package:wanderer/routes/library_screen.dart';
-import 'package:wanderer/routes/home_screen.dart';
 import 'package:wanderer/routes/list_detail_map_screen.dart';
 import 'package:wanderer/routes/list_detail_screen.dart';
 import 'package:wanderer/routes/list_screen.dart';
 import 'package:wanderer/routes/login_screen.dart';
 import 'package:wanderer/routes/map_screen.dart';
+import 'package:wanderer/routes/navigation_screen.dart';
 import 'package:wanderer/routes/profile_follow_screen.dart';
 import 'package:wanderer/routes/profile_list_screen.dart';
 import 'package:wanderer/routes/profile_screen.dart';
@@ -19,20 +23,16 @@ import 'package:wanderer/routes/profile_share_screen.dart';
 import 'package:wanderer/routes/profile_trail_screen.dart';
 import 'package:wanderer/routes/register_screen.dart';
 import 'package:wanderer/routes/server_selection_screen.dart';
-import 'package:wanderer/routes/global_search_screen.dart';
 import 'package:wanderer/routes/settings_account_screen.dart';
-import 'package:wanderer/routes/settings_privacy_screen.dart';
-import 'package:wanderer/routes/settings_language_screen.dart';
-import 'package:wanderer/routes/settings_notifications_screen.dart';
-import 'package:wanderer/routes/trail_detail_map_screen.dart';
-import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/settings_appearance_screen.dart';
 import 'package:wanderer/routes/settings_categories_screen.dart';
-import 'package:wanderer/routes/settings_subcategories_screen.dart';
+import 'package:wanderer/routes/settings_language_screen.dart';
+import 'package:wanderer/routes/settings_notifications_screen.dart';
+import 'package:wanderer/routes/settings_privacy_screen.dart';
 import 'package:wanderer/routes/settings_screen.dart';
-import 'package:wanderer/models/category.dart';
-import 'package:wanderer/models/navigate_response.dart';
-import 'package:wanderer/routes/navigation_screen.dart';
+import 'package:wanderer/routes/settings_subcategories_screen.dart';
+import 'package:wanderer/routes/trail_detail_map_screen.dart';
+import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
 import 'package:wanderer/routes/trail_sort_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
@@ -123,14 +123,14 @@ class Router extends _$Router {
             GoRoute(
               path: '/map',
               builder: (context, state) {
-                LatLng? initialCenter;
+                Geographic? initialCenter;
                 double? initialZoom;
                 if (state.extra is Map<String, dynamic>) {
                   final extra = state.extra as Map<String, dynamic>;
                   final lat = extra['lat'] as double?;
                   final lon = extra['lon'] as double?;
                   if (lat != null && lon != null) {
-                    initialCenter = LatLng(lat, lon);
+                    initialCenter = Geographic(lat: lat, lon: lon);
                   }
                   initialZoom = extra['zoom'] as double?;
                 }

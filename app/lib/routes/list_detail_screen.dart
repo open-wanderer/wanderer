@@ -6,7 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart' as ml;
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
@@ -19,6 +19,7 @@ import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/list_provider.dart';
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/map_coordinate_adapter.dart';
 import 'package:collection/collection.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/subcategory.dart';
@@ -329,46 +330,47 @@ class _ListMap extends ConsumerWidget {
 
     final polylines = trails
         .where((t) => t.polyline != null && t.polyline!.isNotEmpty)
-        .map((t) => PolylineTools.decode(t.polyline!))
+        .map(
+          (t) => Polyline(points: toLatLngList(PolylineUtil.decode(t.polyline!))),
+        )
         .toList();
 
-    final markers = trails
-        .where((t) => t.lat != null && t.lon != null)
-        .map((t) {
-          final Category? category = t.categoryId != null
-              ? allCategories.firstWhereOrNull((c) => c.id == t.categoryId)
-              : null;
-          final subcategory = t.subcategoryId != null
-              ? allSubcategories.firstWhereOrNull((s) => s.id == t.subcategoryId)
-              : null;
-          return Marker(
-            point: LatLng(t.lat!, t.lon!),
-            width: 36,
-            height: 36,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+    final markers = trails.where((t) => t.lat != null && t.lon != null).map((
+      t,
+    ) {
+      final Category? category = t.categoryId != null
+          ? allCategories.firstWhereOrNull((c) => c.id == t.categoryId)
+          : null;
+      final subcategory = t.subcategoryId != null
+          ? allSubcategories.firstWhereOrNull((s) => s.id == t.subcategoryId)
+          : null;
+      return Marker(
+        point: toLatLng(ml.Geographic(lat: t.lat!, lon: t.lon!)),
+        width: 36,
+        height: 36,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).primaryColor,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
-              child: Center(
-                child: trailCategoryIcon(
-                  category,
-                  subcategory: subcategory,
-                  color: Colors.white,
-                ),
-              ),
+            ],
+          ),
+          child: Center(
+            child: trailCategoryIcon(
+              category,
+              subcategory: subcategory,
+              color: Colors.white,
             ),
-          );
-        })
-        .toList();
+          ),
+        ),
+      );
+    }).toList();
 
     final combinedBounds = _combinedBounds(trails);
 
@@ -385,11 +387,11 @@ class _ListMap extends ConsumerWidget {
           ),
           initialCameraFit: combinedBounds != null
               ? CameraFit.bounds(
-                  bounds: combinedBounds,
+                  bounds: toLatLngBounds(combinedBounds),
                   padding: const EdgeInsets.all(32),
                 )
               : null,
-          initialCenter: const LatLng(0, 0),
+          initialCenter: toLatLng(const ml.Geographic(lat: 0, lon: 0)),
           initialZoom: 3,
         ),
         children: [
@@ -406,7 +408,7 @@ class _ListMap extends ConsumerWidget {
     );
   }
 
-  LatLngBounds? _combinedBounds(List<Trail> trails) {
+  ml.LngLatBounds? _combinedBounds(List<Trail> trails) {
     final withBounds = trails.where(
       (t) => t.minLat != 0 || t.maxLat != 0 || t.minLon != 0 || t.maxLon != 0,
     );
@@ -424,6 +426,11 @@ class _ListMap extends ConsumerWidget {
       if (t.maxLon > maxLon) maxLon = t.maxLon;
     }
 
-    return LatLngBounds(LatLng(minLat, minLon), LatLng(maxLat, maxLon));
+    return ml.LngLatBounds(
+      longitudeEast: maxLon,
+      longitudeWest: minLon,
+      latitudeNorth: maxLat,
+      latitudeSouth: minLat,
+    );
   }
 }

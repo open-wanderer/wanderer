@@ -41,7 +41,7 @@ final class MapCameraProvider
   }
 }
 
-String _$mapCameraHash() => r'75e05adfced371435ab62d2cd4118091b5e3f2e6';
+String _$mapCameraHash() => r'313f26026cafc59bc234e6d6627672d1c6cd08a0';
 
 abstract class _$MapCamera extends $Notifier<MapCameraState?> {
   MapCameraState? build();

@@ -7,9 +7,9 @@ import 'package:flutter_map_animations/flutter_map_animations.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:geolocator/geolocator.dart' as geo;
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart' as ml;
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:wanderer/components/map/map_compass.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
@@ -26,6 +26,7 @@ import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/map_coordinate_adapter.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
 
@@ -53,8 +54,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       StreamController<double?>.broadcast();
 
   late final TraceletPositionSource _positionSource;
-  late final Stream<Position> _positionStream;
-  StreamSubscription<Position>? _sub;
+  late final Stream<geo.Position> _positionStream;
+  StreamSubscription<geo.Position>? _sub;
 
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
@@ -89,7 +90,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       (pos) {
         ref
             .read(navigationProvider(widget.response).notifier)
-            .onPosition(LatLng(pos.latitude, pos.longitude));
+            .onPosition(ml.Geographic(lat: pos.latitude, lon: pos.longitude));
         ref
             .read(navigationStatsProvider(widget.response).notifier)
             .onPosition(pos);
@@ -214,9 +215,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                   mapController: _animatedMapController.mapController,
                   options: MapOptions(
                     backgroundColor: Theme.of(context).colorScheme.surface,
-                    initialCenter: widget.response.shapeAsLatLng.isNotEmpty
-                        ? widget.response.shapeAsLatLng.first
-                        : const LatLng(0, 0),
+                    initialCenter: toLatLng(
+                      widget.response.shapeAsGeographic.isNotEmpty
+                          ? widget.response.shapeAsGeographic.first
+                          : const ml.Geographic(lat: 0, lon: 0),
+                    ),
                     initialZoom: 15,
                     maxZoom: 22,
                     interactionOptions: const InteractionOptions(
@@ -261,7 +264,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                       PolylineLayer(
                         polylines: [
                           Polyline(
-                            points: navState.breadcrumb,
+                            points: toLatLngList(navState.breadcrumb),
                             color: const Color(0xFFDC2626),
                             strokeWidth: 3.5,
                           ),

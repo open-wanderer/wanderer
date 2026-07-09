@@ -2,10 +2,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/map_coordinate_adapter.dart';
 
 class TrailLayer extends StatefulWidget {
   final Trail trail;
@@ -36,7 +37,6 @@ class TrailLayer extends StatefulWidget {
 class _TrailLayerState extends State<TrailLayer>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  final Distance _distanceCalculator = const Distance();
 
   @override
   void initState() {
@@ -54,7 +54,7 @@ class _TrailLayerState extends State<TrailLayer>
   }
 
   void _addArrowsAlongPath({
-    required List<LatLng> points,
+    required List<ml.Geographic> points,
     required double targetSpacingMeters,
     required double animationFraction,
     required List<Marker> outputList,
@@ -66,14 +66,11 @@ class _TrailLayerState extends State<TrailLayer>
     double nextArrowTarget = targetSpacingMeters * animationFraction;
 
     for (int i = 0; i < points.length - 1; i++) {
-      final LatLng p1 = points[i];
-      final LatLng p2 = points[i + 1];
+      final ml.Geographic p1 = points[i];
+      final ml.Geographic p2 = points[i + 1];
 
-      final double segmentDistance = _distanceCalculator.as(
-        LengthUnit.Meter,
-        p1,
-        p2,
-      );
+      final calculator = ml.SphericalGreatCircle(p1);
+      final double segmentDistance = calculator.distanceTo(p2);
 
       if (segmentDistance < 0.1) continue;
 
@@ -83,18 +80,16 @@ class _TrailLayerState extends State<TrailLayer>
         final double fractionOfSegment =
             remainingDistanceToTarget / segmentDistance;
 
-        final double lat =
-            p1.latitude + (p2.latitude - p1.latitude) * fractionOfSegment;
-        final double lon =
-            p1.longitude + (p2.longitude - p1.longitude) * fractionOfSegment;
-        final LatLng arrowPosition = LatLng(lat, lon);
+        final double lat = p1.lat + (p2.lat - p1.lat) * fractionOfSegment;
+        final double lon = p1.lon + (p2.lon - p1.lon) * fractionOfSegment;
+        final ml.Geographic arrowPosition = ml.Geographic(lon: lon, lat: lat);
 
-        final double bearingInDegrees = _distanceCalculator.bearing(p1, p2);
+        final double bearingInDegrees = calculator.initialBearingTo(p2);
         final double bearingInRadians = bearingInDegrees * (math.pi / 180.0);
 
         outputList.add(
           Marker(
-            point: arrowPosition,
+            point: toLatLng(arrowPosition),
             width: 18,
             height: 18,
             child: Transform.rotate(
@@ -126,7 +121,7 @@ class _TrailLayerState extends State<TrailLayer>
         final isSelected = widget.selectedWaypoint?.id == wp.id;
         staticMarkers.add(
           Marker(
-            point: LatLng(wp.lat, wp.lon),
+            point: toLatLng(ml.Geographic(lon: wp.lon, lat: wp.lat)),
             width: 32,
             height: 32,
             child: GestureDetector(
@@ -151,8 +146,10 @@ class _TrailLayerState extends State<TrailLayer>
       Alignment endAlignment = Alignment.center;
 
       if (pathPoints.length > 1) {
-        final startPx = camera.latLngToScreenOffset(pathPoints.first);
-        final endPx = camera.latLngToScreenOffset(pathPoints.last);
+        final startPx = camera.latLngToScreenOffset(
+          toLatLng(pathPoints.first),
+        );
+        final endPx = camera.latLngToScreenOffset(toLatLng(pathPoints.last));
         final dx = startPx.dx - endPx.dx;
         final dy = startPx.dy - endPx.dy;
         if (math.sqrt(dx * dx + dy * dy) < 36) {
@@ -163,7 +160,7 @@ class _TrailLayerState extends State<TrailLayer>
 
       staticMarkers.add(
         Marker(
-          point: pathPoints.first,
+          point: toLatLng(pathPoints.first),
           width: 28,
           height: 28,
           alignment: startAlignment,
@@ -175,7 +172,7 @@ class _TrailLayerState extends State<TrailLayer>
       );
       staticMarkers.add(
         Marker(
-          point: pathPoints.last,
+          point: toLatLng(pathPoints.last),
           width: 28,
           height: 28,
           alignment: endAlignment,
@@ -208,7 +205,7 @@ class _TrailLayerState extends State<TrailLayer>
           PolylineLayer(
             polylines: [
               Polyline(
-                points: pathPoints,
+                points: toLatLngList(pathPoints),
                 color: widget.routeColor,
                 strokeWidth: widget.strokeWidth,
                 borderColor: Colors.white,

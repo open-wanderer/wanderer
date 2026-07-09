@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/navigate_response.dart';
 
@@ -19,12 +19,12 @@ class NavigationState {
   final int currentManeuverIndex;
 
   /// Session-only; discarded on screen exit (never persisted to disk or GPX).
-  final List<LatLng> breadcrumb;
+  final List<Geographic> breadcrumb;
 
   NavigationState copyWith({
     NavigateResponse? response,
     int? currentManeuverIndex,
-    List<LatLng>? breadcrumb,
+    List<Geographic>? breadcrumb,
   }) {
     return NavigationState(
       response: response ?? this.response,
@@ -43,8 +43,6 @@ class Navigation extends _$Navigation {
   // to know the exact shape segment; only currentManeuverIndex is UI-relevant.
   int _currentShapeIndex = 0;
 
-  final _distance = const Distance();
-
   /// Precomputed once in [build]; never recomputed per GPS fix.
   /// `_shapeCumulativeMeters[i]` = total Haversine path length from shape[0] to shape[i].
   late final List<double> _shapeCumulativeMeters;
@@ -55,7 +53,7 @@ class Navigation extends _$Navigation {
 
   @override
   NavigationState build(NavigateResponse response) {
-    final shape = response.shapeAsLatLng;
+    final shape = response.shapeAsGeographic;
 
     if (shape.isEmpty) {
       _shapeCumulativeMeters = const [];
@@ -63,15 +61,21 @@ class Navigation extends _$Navigation {
     } else {
       final shapeCumulative = List<double>.filled(shape.length, 0.0);
       for (var i = 1; i < shape.length; i++) {
-        shapeCumulative[i] = shapeCumulative[i - 1] +
-            _distance.as(LengthUnit.Meter, shape[i - 1], shape[i]);
+        final calculator = SphericalGreatCircle(shape[i - 1]);
+        double distanceInMeters = calculator.distanceTo(shape[i]);
+
+        shapeCumulative[i] = shapeCumulative[i - 1] + distanceInMeters;
       }
       _shapeCumulativeMeters = shapeCumulative;
 
-      _maneuverCumulativeMeters = response.maneuvers.map((m) {
-        final clamped = m.beginShapeIndex.clamp(0, shape.length - 1).toInt();
-        return shapeCumulative[clamped];
-      }).toList(growable: false);
+      _maneuverCumulativeMeters = response.maneuvers
+          .map((m) {
+            final clamped = m.beginShapeIndex
+                .clamp(0, shape.length - 1)
+                .toInt();
+            return shapeCumulative[clamped];
+          })
+          .toList(growable: false);
     }
 
     return NavigationState(
@@ -88,7 +92,10 @@ class Navigation extends _$Navigation {
   /// Returns the along-track distance from the route start to the nearest
   /// projected foot, and the index of the winning shape segment.
   (double, int) _projectAlongTrack(
-      LatLng pos, List<LatLng> shape, int fromShapeIndex) {
+    Geographic pos,
+    List<Geographic> shape,
+    int fromShapeIndex,
+  ) {
     if (shape.length < 2) {
       return (shape.isEmpty ? 0.0 : _shapeCumulativeMeters[0], 0);
     }
@@ -114,14 +121,14 @@ class Navigation extends _$Navigation {
       final a = shape[i];
       final b = shape[i + 1];
 
-      final midLatRad = ((a.latitude + b.latitude) / 2.0) * math.pi / 180.0;
+      final midLatRad = ((a.lat + b.lat) / 2.0) * math.pi / 180.0;
       final cosMidLat = math.cos(midLatRad);
 
-      final abX = (b.longitude - a.longitude) * metersPerDegree * cosMidLat;
-      final abY = (b.latitude - a.latitude) * metersPerDegree;
+      final abX = (b.lon - a.lon) * metersPerDegree * cosMidLat;
+      final abY = (b.lat - a.lat) * metersPerDegree;
 
-      final apX = (pos.longitude - a.longitude) * metersPerDegree * cosMidLat;
-      final apY = (pos.latitude - a.latitude) * metersPerDegree;
+      final apX = (pos.lon - a.lon) * metersPerDegree * cosMidLat;
+      final apY = (pos.lat - a.lat) * metersPerDegree;
 
       final segLenSq = abX * abX + abY * abY;
 
@@ -142,7 +149,8 @@ class Navigation extends _$Navigation {
         bestSegmentStart = i;
         bestT = t;
         // Geodesic length keeps this consistent with the cumulative table.
-        bestSegmentMeters = _distance.as(LengthUnit.Meter, a, b);
+        final calculator = SphericalGreatCircle(a);
+        bestSegmentMeters = calculator.distanceTo(b);
       }
     }
 
@@ -152,10 +160,10 @@ class Navigation extends _$Navigation {
     );
   }
 
-  void onPosition(LatLng pos) {
+  void onPosition(Geographic pos) {
     state = state.copyWith(breadcrumb: [...state.breadcrumb, pos]);
 
-    final shape = state.response.shapeAsLatLng;
+    final shape = state.response.shapeAsGeographic;
     if (shape.isEmpty || _maneuverCumulativeMeters.isEmpty) return;
 
     final maneuvers = state.response.maneuvers;

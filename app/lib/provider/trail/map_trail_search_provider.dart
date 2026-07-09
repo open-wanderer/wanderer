@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter_map/flutter_map.dart';
+import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/trail.dart';
@@ -12,7 +12,7 @@ part 'map_trail_search_provider.g.dart';
 
 @Riverpod(keepAlive: true)
 class MapTrailSearch extends _$MapTrailSearch {
-  LatLngBounds? _lastBounds;
+  LngLatBounds? _lastBounds;
   Timer? _debounce;
 
   @override
@@ -31,7 +31,7 @@ class MapTrailSearch extends _$MapTrailSearch {
     return [];
   }
 
-  void searchInBounds(LatLngBounds bounds, {TrailFilter? passedFilter}) {
+  void searchInBounds(LngLatBounds bounds, {TrailFilter? passedFilter}) {
     _lastBounds = bounds;
     _debounce?.cancel();
     _debounce = Timer(
@@ -41,7 +41,7 @@ class MapTrailSearch extends _$MapTrailSearch {
   }
 
   Future<void> _executeSearch(
-    LatLngBounds bounds, {
+    LngLatBounds bounds, {
     TrailFilter? passedFilter,
   }) async {
     final TrailFilter filter =
@@ -61,10 +61,10 @@ class MapTrailSearch extends _$MapTrailSearch {
         return ((((lng + 180) % 360) + 360) % 360) - 180;
       }
 
-      final neLat = bounds.northEast.latitude;
-      final neLng = wrapLng(bounds.northEast.longitude);
-      final swLat = bounds.southWest.latitude;
-      final swLng = wrapLng(bounds.southWest.longitude);
+      final neLat = bounds.latitudeNorth;
+      final neLng = wrapLng(bounds.longitudeEast);
+      final swLat = bounds.latitudeSouth;
+      final swLng = wrapLng(bounds.longitudeWest);
 
       final response = await api.post(
         '/search/trails',

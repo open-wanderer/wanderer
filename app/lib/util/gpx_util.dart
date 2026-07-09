@@ -1,6 +1,5 @@
-import 'package:flutter_map/flutter_map.dart';
 import 'package:gpx/gpx.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre/maplibre.dart';
 
 /// Derives the Valhalla costing string from a trail category name.
 ///
@@ -44,21 +43,21 @@ String costingForCategory(String? category) {
 ///     entry (dedup).
 ///
 /// When `points.length ≤ 500`: all points are mapped without change.
-List<Map<String, double>> buildNavShape(List<LatLng> points) {
+List<Map<String, double>> buildNavShape(List<Geographic> points) {
   if (points.length > 500) {
     final step = (points.length / 499).ceil();
     final sampled = <Map<String, double>>[];
     for (int i = 0; i < points.length; i++) {
       if (i % step == 0) {
-        sampled.add({'lat': points[i].latitude, 'lon': points[i].longitude});
+        sampled.add({'lat': points[i].lat, 'lon': points[i].lon});
       }
     }
     // Always include the last point; deduplicate if already present.
     // Note: Map<String, double> uses identity (not structural) equality with !=,
     // so compare coordinate values directly to detect whether the last sampled
     // entry already corresponds to the last input point.
-    final lastLat = points.last.latitude;
-    final lastLon = points.last.longitude;
+    final lastLat = points.last.lat;
+    final lastLon = points.last.lon;
     if (sampled.isEmpty ||
         sampled.last['lat'] != lastLat ||
         sampled.last['lon'] != lastLon) {
@@ -66,9 +65,7 @@ List<Map<String, double>> buildNavShape(List<LatLng> points) {
     }
     return sampled;
   } else {
-    return points
-        .map((p) => {'lat': p.latitude, 'lon': p.longitude})
-        .toList();
+    return points.map((p) => {'lat': p.lat, 'lon': p.lon}).toList();
   }
 }
 
@@ -95,14 +92,16 @@ extension GpxMappingUtils on Gpx {
         .toList();
   }
 
-  List<LatLng> get allPoints {
-    return allWaypoints.map((pt) => LatLng(pt.lat!, pt.lon!)).toList();
+  List<Geographic> get allPoints {
+    return allWaypoints
+        .map((pt) => Geographic(lat: pt.lat!, lon: pt.lon!))
+        .toList();
   }
 
-  LatLngBounds? getBounds() {
+  LngLatBounds? getBounds() {
     final points = allPoints;
     if (points.isEmpty) return null;
-    return LatLngBounds.fromPoints(points);
+    return LngLatBounds.fromPoints(points);
   }
 
   GpxStats getTotals() {
@@ -113,15 +112,15 @@ extension GpxMappingUtils on Gpx {
     double totalElevationLoss = 0;
     Duration totalDuration = Duration.zero;
 
-    const distanceCalc = Distance();
-
     for (int i = 1; i < points.length; i++) {
       final prev = points[i - 1];
       final curr = points[i];
 
-      totalDistance += distanceCalc(
-        LatLng(prev.lat!, prev.lon!),
-        LatLng(curr.lat!, curr.lon!),
+      final calculator = SphericalGreatCircle(
+        Geographic(lat: prev.lat!, lon: prev.lon!),
+      );
+      totalDistance += calculator.distanceTo(
+        Geographic(lat: curr.lat!, lon: curr.lon!),
       );
 
       if (prev.ele != null && curr.ele != null) {

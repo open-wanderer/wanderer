@@ -1,22 +1,22 @@
 import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart' hide Path;
+import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/global_search_models.dart';
+import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/search/global_search_provider.dart';
-import 'package:collection/collection.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
-import 'package:wanderer/models/category.dart';
-import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/polyline_util.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class GlobalSearchScreen extends ConsumerStatefulWidget {
   const GlobalSearchScreen({super.key});
@@ -401,10 +401,10 @@ class _PolylinePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<LatLng>? points;
+    List<Geographic>? points;
     if (polyline != null && polyline!.isNotEmpty) {
       try {
-        points = PolylineTools.decode(polyline!).points;
+        points = PolylineUtil.decode(polyline!);
       } catch (_) {}
     }
 
@@ -428,7 +428,7 @@ class _PolylinePreview extends StatelessWidget {
 }
 
 class _PolylinePainter extends CustomPainter {
-  final List<LatLng> points;
+  final List<Geographic> points;
   final Color color;
 
   const _PolylinePainter({required this.points, required this.color});
@@ -439,10 +439,10 @@ class _PolylinePainter extends CustomPainter {
     double minLng = double.infinity, maxLng = -double.infinity;
 
     for (final p in points) {
-      if (p.latitude < minLat) minLat = p.latitude;
-      if (p.latitude > maxLat) maxLat = p.latitude;
-      if (p.longitude < minLng) minLng = p.longitude;
-      if (p.longitude > maxLng) maxLng = p.longitude;
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lon < minLng) minLng = p.lon;
+      if (p.lon > maxLng) maxLng = p.lon;
     }
 
     final latRange = maxLat - minLat;
@@ -464,8 +464,8 @@ class _PolylinePainter extends CustomPainter {
 
     final path = Path();
     for (int i = 0; i < points.length; i++) {
-      final x = dx + (points[i].longitude - minLng) * scale;
-      final y = dy + (maxLat - points[i].latitude) * scale;
+      final x = dx + (points[i].lon - minLng) * scale;
+      final y = dy + (maxLat - points[i].lat) * scale;
       i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
     }
 
