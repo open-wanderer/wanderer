@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
 /// Default GPX route line color (`#3549bb`). Overridable per call.
@@ -117,4 +120,136 @@ String _colorToHex(Color color) {
   int channel(double v) => (v * 255).round().clamp(0, 255);
   String hex(int v) => v.toRadixString(16).padLeft(2, '0');
   return '#${hex(channel(color.r))}${hex(channel(color.g))}${hex(channel(color.b))}';
+}
+
+/// Interactive trail markers rendered as Flutter widgets over the native map
+/// via a single [ml.WidgetLayer] (TRAIL-03 / TRAIL-04): tappable waypoints with
+/// the [AnimatedScale] selection animation, and the start/finish pins with the
+/// 36-screen-pixel proximity nudge.
+///
+/// Place this in [ml.MapLibreMap.children]. It reads [ml.MapController]/
+/// [ml.MapCamera] from context so the nudge recomputes on every camera move.
+class TrailMarkerLayer extends StatelessWidget {
+  final Trail trail;
+  final bool showWaypoints;
+  final Waypoint? selectedWaypoint;
+  final void Function(Waypoint wp)? onWaypointTap;
+
+  const TrailMarkerLayer({
+    super.key,
+    required this.trail,
+    this.showWaypoints = true,
+    this.selectedWaypoint,
+    this.onWaypointTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = ml.MapController.maybeOf(context);
+    // Subscribe to camera changes so the start/finish nudge recomputes as the
+    // user pans/zooms (the pins may cross the 36px threshold).
+    ml.MapCamera.maybeOf(context);
+
+    final markers = <ml.Marker>[];
+
+    if (showWaypoints && trail.expand?.waypointsViaTrail != null) {
+      for (final wp in trail.expand!.waypointsViaTrail!) {
+        final isSelected = selectedWaypoint?.id == wp.id;
+        markers.add(
+          ml.Marker(
+            point: ml.Geographic(lon: wp.lon, lat: wp.lat),
+            size: const Size(32, 32),
+            child: GestureDetector(
+              onTap: () => onWaypointTap?.call(wp),
+              child: AnimatedScale(
+                scale: isSelected ? 1.0 : 0.875,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutBack,
+                child: _buildCircularMarker(
+                  wp.icon,
+                  color: Theme.of(context).primaryColor,
+                  selected: isSelected,
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    final points = trail.expand?.gpx?.allPoints ?? const [];
+    if (points.isNotEmpty) {
+      var startAlignment = Alignment.center;
+      var endAlignment = Alignment.center;
+
+      if (points.length > 1 && controller != null) {
+        final offsets = controller.toScreenLocations([
+          points.first,
+          points.last,
+        ]);
+        final dx = offsets[0].dx - offsets[1].dx;
+        final dy = offsets[0].dy - offsets[1].dy;
+        if (math.sqrt(dx * dx + dy * dy) < 36) {
+          startAlignment = const Alignment(1, 0);
+          endAlignment = const Alignment(-1, 0);
+        }
+      }
+
+      markers.add(
+        ml.Marker(
+          point: points.first,
+          size: const Size(28, 28),
+          alignment: startAlignment,
+          child: _buildCircularMarker(
+            FontAwesomeIcons.bullseye,
+            color: Colors.greenAccent,
+          ),
+        ),
+      );
+      markers.add(
+        ml.Marker(
+          point: points.last,
+          size: const Size(28, 28),
+          alignment: endAlignment,
+          child: _buildCircularMarker(
+            FontAwesomeIcons.flagCheckered,
+            color: Colors.redAccent,
+          ),
+        ),
+      );
+    }
+
+    return ml.WidgetLayer(allowInteraction: true, markers: markers);
+  }
+}
+
+/// Ported verbatim from the old flutter_map implementation: a circular pin with
+/// a Font Awesome glyph, 2px border, and a soft drop shadow. Selected state
+/// inverts to a white fill with a colored icon + border and a larger glyph.
+Widget _buildCircularMarker(
+  FaIconData faIcon, {
+  Color color = Colors.blueGrey,
+  bool selected = false,
+}) {
+  return Container(
+    decoration: BoxDecoration(
+      color: selected ? Colors.white : color,
+      shape: BoxShape.circle,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: .2),
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+      ],
+      border: Border.all(color: selected ? color : Colors.white, width: 2),
+    ),
+    child: Center(
+      child: FaIcon(
+        faIcon,
+        color: selected ? color : Colors.white,
+        size: selected ? 16 : 14,
+      ),
+    ),
+  );
 }

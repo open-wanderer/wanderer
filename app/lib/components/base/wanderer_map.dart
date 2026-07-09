@@ -147,6 +147,15 @@ class _WandererMapState extends ConsumerState<WandererMap> {
         // 15-05: trail track + arrows + waypoint/start-finish markers wired here
       ],
       children: [
+        // 15-05: interactive trail markers (tappable waypoints + start/finish
+        // pins with the 36px proximity nudge) as a WidgetLayer.
+        if (widget.showTrail && widget.trail.expand?.gpx != null)
+          TrailMarkerLayer(
+            trail: widget.trail,
+            selectedWaypoint: widget.selectedWaypoint,
+            onWaypointTap: widget.onWaypointTap,
+          ),
+
         if (widget.elevationMarkerPosition != null) _buildElevationMarker(),
 
         if (widget.showLocation) _buildLocationLayer(),
