@@ -215,7 +215,10 @@ Plans:
   4. Hiding a category or subcategory in Settings → Categories changes which trails the map screen returns, because the endpoint applies the preference filters server-side.
   5. The app builds and runs; `navigation_screen` still renders on `flutter_map`.
 
-**Plans**: TBD
+**Plans**: 3 plans (2 waves)
+- [ ] 16-01-PLAN.md — Lightweight SearchMap host + list maps on MapLibre (CORE-08)
+- [ ] 16-02-PLAN.md — Cluster search provider + verbatim native cluster layers (CLUS-01/02/04/05)
+- [ ] 16-03-PLAN.md — Map screen wiring: cluster rendering, category-icon markers, native tap handling (CLUS-01..05)
 **UI hint**: yes
 
 ### Phase 17: Navigation on MapLibre

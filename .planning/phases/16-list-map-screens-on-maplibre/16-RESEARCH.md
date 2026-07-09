@@ -405,14 +405,14 @@ Future<void> _applyClusterResult(
 | A2 | `MapEventClick.point` is an acceptable substitute for the tapped cluster feature's centroid, given `RenderedFeature` exposes no geometry | Pattern 2, Pitfall 1 | Low-medium — verified by reading the installed package source (`queried_layer.dart`), not by running the app; on-device testing during execution should confirm the visual "zoom toward the cluster" feel matches web's exact-centroid behavior closely enough. Flagged for verification, not blocking. |
 | A3 | `mapClusterSearchProvider` should be a new provider alongside `mapTrailSearchProvider`, not a replacement | Summary, Architecture Patterns, Pitfall 2 | Medium if wrong — this was the exact question 16-CONTEXT.md's additional_context flagged as undetermined; the evidence (cluster endpoint's minimal `attributesToRetrieve`) is strong but the planner should confirm this design during plan review, not treat it as unquestionable |
 
-## Open Questions
+## Open Questions (RESOLVED — see plan pointers below)
 
-1. **Exact debounce duration/trigger semantics for the new `mapClusterSearchProvider`**
+1. **Exact debounce duration/trigger semantics for the new `mapClusterSearchProvider`** *(RESOLVED: 16-02-PLAN.md Task 1 mirrors `mapTrailSearchProvider`'s 400ms debounce shape for consistency, per the recommendation below.)*
    - What we know: D-01 locks the trigger to the manual "Search this area" button only (no auto pan/zoom re-query); the existing `mapTrailSearchProvider` still has a 400ms `Timer`-based debounce even though its own triggers are similarly manual-ish (button + initial load + external nav).
    - What's unclear: whether the new cluster provider needs its own debounce at all, given every call site is already a single discrete user action (button tap), not a stream of rapid events.
    - Recommendation: Mirror `mapTrailSearchProvider`'s existing debounce shape for consistency/low risk, even though it may be effectively a no-op given D-01's trigger model — cheap insurance against a future auto-debounce feature (explicitly deferred, not rejected forever) needing the scaffolding already in place.
 
-2. **Whether `list_detail_screen`'s inline `_ListMap` needs the same tap-to-select behavior as `list_detail_map_screen`, or stays fully non-interactive**
+2. **Whether `list_detail_screen`'s inline `_ListMap` needs the same tap-to-select behavior as `list_detail_map_screen`, or stays fully non-interactive** *(RESOLVED: 16-01-PLAN.md Task 3 preserves today's exact split — non-interactive/tap-through for `_ListMap`, interactive for the full list map.)*
    - What we know: today's `_ListMap` uses `InteractiveFlag.none` (fully static thumbnail, tap anywhere navigates to the full map screen) while `list_detail_map_screen` supports per-marker tap-to-select-and-fit.
    - What's unclear: CORE-08's requirement text doesn't distinguish the two screens' interactivity; CONTEXT.md doesn't discuss it either.
    - Recommendation: Preserve today's split exactly (inline map non-interactive/tap-through-to-full-map; full map screen interactive) — this is a straightforward port, not a design decision, and matches the "no UX change" spirit of the rest of this phase's decisions (D-01, D-02).
