@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:maplibre/maplibre.dart' as ml;
@@ -13,7 +12,6 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
-import 'package:wanderer/util/map_coordinate_adapter.dart';
 import 'package:wanderer/util/navigation_launch_util.dart';
 
 class TrailDetailMapScreen extends ConsumerStatefulWidget {
@@ -36,7 +34,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
 
-  final MapController _mapController = MapController();
+  ml.MapController? _mapController;
 
   void _onWaypointSelected(Waypoint waypoint) {
     setState(() {
@@ -98,7 +96,8 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
 
                       const MapCompass(hideIfRotatedNorth: true),
                     ],
-                    mapController: _mapController,
+                    onMapCreated: (controller) =>
+                        _mapController = controller,
                   ),
                 ),
                 // Floating full-width Navigate button — floats above elevation
@@ -258,11 +257,9 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                         right: 40,
                         top: 40,
                       );
-                _mapController.fitCamera(
-                  CameraFit.bounds(
-                    bounds: toLatLngBounds(bounds),
-                    padding: padding,
-                  ),
+                _mapController?.fitBounds(
+                  bounds: bounds,
+                  padding: padding,
                 );
               },
             ),

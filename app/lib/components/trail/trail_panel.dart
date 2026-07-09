@@ -250,7 +250,7 @@ class TrailPanel extends ConsumerWidget {
                                     trail: trail,
                                     disabled: true,
                                     offline: trail.isOffline,
-                                    onTap: (_, _) =>
+                                    onTap: (_) =>
                                         context.push('/trail/${trail.id}/map'),
                                   ),
                                 ),
