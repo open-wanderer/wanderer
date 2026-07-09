@@ -3,6 +3,7 @@ import 'package:flutter_map_location_marker/flutter_map_location_marker.dart'
     show LocationMarkerPosition;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
@@ -128,7 +129,14 @@ class _WandererMapState extends ConsumerState<WandererMap> {
         _controller = controller;
         widget.onMapCreated?.call(controller);
       },
-      onStyleLoaded: (_) => _fitInitialCamera(),
+      onStyleLoaded: (style) {
+        _fitInitialCamera().ignore();
+        // 15-05: (re)add the trail track + static arrows after every style
+        // load, so they survive the CORE-02 theme swap (setStyle drops them).
+        if (widget.showTrail && widget.trail.expand?.gpx != null) {
+          addTrailTrackLayers(style, widget.trail).ignore();
+        }
+      },
       onEvent: (event) {
         widget.onMapEvent?.call(event);
         if (event is ml.MapEventClick) {
