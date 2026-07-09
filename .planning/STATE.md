@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
 status: executing
-stopped_at: Phase 15 planned and verified — 6 plans, risk-gate spike first
+stopped_at: "Phase 15 Plan 01 — Task 1 built & committed (d713456b); Task 2 file:// glyph gate awaiting Christian's physical-device airplane-mode PASS/FAIL"
 last_updated: "2026-07-09T07:10:52.557Z"
-last_activity: 2026-07-09 -- Phase 15 execution started
+last_activity: 2026-07-09 -- Phase 15 Plan 01 Task 1 committed; blocking human gate reached at Task 2
 progress:
   total_phases: 6
   completed_phases: 1
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 ## Current Position
 
 Phase: 15 (maplibre-core-trail-rendering-offline-parity) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 15
-Last activity: 2026-07-09 -- Phase 15 execution started
+Plan: 1 of 6 — Task 1 done, Task 2 (physical-device file:// glyph gate) PENDING human verification
+Status: Blocked on Christian's physical-device airplane-mode PASS/FAIL for the file:// glyph spike (OFFL-04 risk gate)
+Last activity: 2026-07-09 -- Phase 15 Plan 01 Task 1 committed (d713456b); halted at blocking human gate
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -84,7 +84,7 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- **[Phase 15 — open unknown, blocks the milestone]** It is unverified whether maplibre-native resolves `file://` glyph URLs for offline label rendering. OFFL-04 (a downloaded trail renders labels with no network) is the hard offline parity gate and nothing downstream is safe until it passes on a physical device in airplane mode. Phase 15's first plan should be a throwaway `file://` spike. If maplibre-native rejects `file://`, the milestone needs a different offline-label strategy and the roadmap needs revision.
+- **[Phase 15 — open unknown, blocks the milestone — SPIKE BUILT, AWAITING VERDICT]** It is unverified whether maplibre-native resolves `file://` glyph URLs for offline label rendering. OFFL-04 (a downloaded trail renders labels with no network) is the hard offline parity gate and nothing downstream is safe until it passes on a physical device in airplane mode. The throwaway `file://` spike (Plan 01 Task 1) is now BUILT and committed (`d713456b`): `SpikeGlyphFileScreen` + `seedSpikeGlyphCache()`, reachable via a debug-only FAB. **Awaiting Christian's physical-device airplane-mode PASS/FAIL** (resume signal: "PASS" or "FAIL: <native log>"). On FAIL, per D-03 the failure mode is returned for a fresh offline-label decision and the roadmap is revised — do NOT run plans 15-02..15-06 until PASS.
 - **[Phase 15/16/17]** `maplibre` 0.3.5 is pre-1.0 with breaking changes across 0.x minors (three published upgrade guides). Pin the exact version on first add; CLEAN-03 locks it at the end.
 - **[Phase 13]** The style references 3 fontstacks (`Noto Sans Regular`/`Medium`/`Italic`) but carries no `glyphs` key today, because `vector_tile_renderer` draws text from the bundled `assets/fonts/NotoSans`. Sprite icons (`arrow`, route shields) do not render at all today — wiring the sprite endpoint is a fix, not a regression.
 
