@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart'
     show LocationMarkerPosition;
@@ -10,16 +11,22 @@ import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/search_map.dart';
 import 'package:wanderer/components/map/cluster_layer.dart';
+import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/map_camera_provider.dart';
+import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/map_cluster_search_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
+import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
+import 'package:wanderer/util/category_icon_util.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   final ml.Geographic? initialCenter;
@@ -36,11 +43,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
   ml.MapController? _controller;
   bool _initialSearchDone = false;
 
-  // Set by the (Task 2) unclustered-marker tap handler / cluster-tap
-  // background-deselect handler — neither exists yet in this task, so these
-  // stay null for now. Retyped off flutter_map's `Polyline?` here (Task 1
-  // already drops the `flutter_map` import) to `List<ml.Geographic>?`; Task 2
-  // wires the fetch-then-fit tap handler that actually populates them.
   TrailSearchResult? _selectedTrail;
   List<ml.Geographic>? _selectedPolyline;
 
@@ -133,6 +135,30 @@ class _MapScreenState extends ConsumerState<MapScreen>
     super.dispose();
   }
 
+  /// Fetch-then-fit trail selection (D-02): selects [trailId] immediately
+  /// (metadata resolved from the parallel `mapTrailSearchProvider` results,
+  /// via `firstWhereOrNull` — T-16-01, the id is untrusted input), then fits
+  /// the camera to the trail's polyline once it resolves.
+  void _selectTrail(String trailId) {
+    final trails = ref.read(mapTrailSearchProvider).value ?? [];
+    setState(() {
+      _selectedTrail = trails.firstWhereOrNull((t) => t.id == trailId);
+      _selectedPolyline = null;
+    });
+
+    ref.read(trailPolylineProvider(trailId).future).then((polyline) {
+      if (!mounted || _selectedTrail?.id != trailId) return;
+      if (polyline != null) {
+        _controller?.fitBounds(
+          bounds: ml.LngLatBounds.fromPoints(polyline),
+          padding: const EdgeInsets.fromLTRB(40, 56, 40, 248),
+          nativeDuration: const Duration(milliseconds: 750),
+        );
+      }
+      setState(() => _selectedPolyline = polyline);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final savedCamera = ref.read(mapCameraProvider);
@@ -156,10 +182,86 @@ class _MapScreenState extends ConsumerState<MapScreen>
         : 0;
 
     // KEEP mapTrailSearchProvider watched exactly as today — it still powers
-    // the bottom-sheet TrailCard list and (Task 2) the tapped-trail metadata
-    // lookup (the cluster endpoint's attributesToRetrieve is only id/_geo/
+    // the bottom-sheet TrailCard list and the tapped-trail metadata lookup
+    // (the cluster endpoint's attributesToRetrieve is only id/_geo/
     // bounding_box_diagonal, Pitfall 2).
     final searchResultAsync = ref.watch(mapTrailSearchProvider);
+    final trails = searchResultAsync.value ?? [];
+    final allCategories = ref.watch(categoryProvider).value ?? [];
+    final allSubcategories = ref.watch(subcategoryProvider);
+
+    // mapClusterSearchProvider drives the native cluster circle/count layers
+    // (cluster_layer.dart) AND the unclustered category-icon WidgetLayer
+    // markers below (D-05).
+    final clusterAsync = ref.watch(mapClusterSearchProvider);
+    final featureCollection = clusterAsync.value;
+    final features =
+        (featureCollection?['features'] as List<dynamic>?) ?? const [];
+
+    final unclusteredMarkers = <ml.Marker>[];
+    for (final feature in features) {
+      if (feature is! Map) continue;
+      final properties = feature['properties'];
+      if (properties is! Map) continue;
+
+      final pointCount = properties['point_count'];
+      if (pointCount is! num || pointCount.toInt() != 1) continue;
+      if (properties['is_large'] == true) continue;
+
+      final trailId = properties['id'];
+      if (trailId is! String) continue;
+      // T-16-01: the feature's id is untrusted input — firstWhereOrNull, not
+      // firstWhere, so a missing match skips the marker instead of crashing.
+      final trail = trails.firstWhereOrNull((t) => t.id == trailId);
+      if (trail == null) continue;
+
+      final geometry = feature['geometry'];
+      if (geometry is! Map) continue;
+      final coordinates = geometry['coordinates'];
+      if (coordinates is! List || coordinates.length < 2) continue;
+      final lon = (coordinates[0] as num).toDouble();
+      final lat = (coordinates[1] as num).toDouble();
+
+      final Category? category = trail.categoryId != null
+          ? allCategories.firstWhereOrNull((c) => c.id == trail.categoryId)
+          : null;
+      final subcategory = trail.subcategoryId != null
+          ? allSubcategories.firstWhereOrNull(
+              (s) => s.id == trail.subcategoryId,
+            )
+          : null;
+
+      unclusteredMarkers.add(
+        ml.Marker(
+          point: ml.Geographic(lat: lat, lon: lon),
+          size: const Size(36, 36),
+          child: GestureDetector(
+            onTap: () => _selectTrail(trailId),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: trailCategoryIcon(
+                  category,
+                  subcategory: subcategory,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Stack(
       children: [
@@ -204,9 +306,41 @@ class _MapScreenState extends ConsumerState<MapScreen>
               return;
             }
 
-            // Task 2 adds native cluster/marker tap handling here
-            // (MapEventClick — featuresAtPoint cluster hit-test + zoom, and
-            // background-tap deselect).
+            if (event is ml.MapEventClick) {
+              final controller = _controller;
+              if (controller == null) return;
+
+              // CLUS-03: only the native `clusters` circle layer needs
+              // featuresAtPoint — unclustered points are WidgetLayer markers
+              // that handle their own onTap directly (D-05).
+              final clusterHits = controller.featuresAtPoint(
+                event.screenPoint,
+                layerIds: const ['clusters'],
+              );
+              if (clusterHits.isNotEmpty) {
+                final currentZoom = controller.getCamera().zoom;
+                controller.animateCamera(
+                  center: event.point,
+                  zoom: currentZoom + 2,
+                );
+                return;
+              }
+
+              // Background tap (not on a cluster or a marker widget) —
+              // deselect + collapse the sheet, matching today's onTap.
+              if (_sheetController.isAttached) {
+                _sheetController.animateTo(
+                  sheetMinSize,
+                  curve: Curves.easeOut,
+                  duration: const Duration(milliseconds: 300),
+                );
+              }
+              setState(() {
+                _selectedTrail = null;
+                _selectedPolyline = null;
+              });
+              return;
+            }
 
             if (event is ml.MapEventCameraIdle) {
               final camera = _controller?.getCamera();
@@ -217,9 +351,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
               }
             }
           },
-          // Retyped off flutter_map's `Polyline?` (Task 1 drops the
-          // `flutter_map` import); Task 2 wires the unclustered-marker tap
-          // handler that actually populates `_selectedPolyline`.
           layers: _selectedPolyline != null
               ? [
                   ml.PolylineLayer(
@@ -228,10 +359,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         geometry: ml.LineString.from(_selectedPolyline!),
                       ),
                     ],
+                    color: kTrailRouteColor,
+                    width: 5,
                   ),
                 ]
               : null,
           children: [
+            if (unclusteredMarkers.isNotEmpty)
+              ml.WidgetLayer(
+                allowInteraction: true,
+                markers: unclusteredMarkers,
+              ),
             _LocationLayer(),
             Positioned(
               top: 124,
