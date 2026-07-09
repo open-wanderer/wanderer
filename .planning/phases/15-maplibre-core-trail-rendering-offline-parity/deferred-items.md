@@ -41,6 +41,21 @@ Out-of-scope discoveries logged during execution (not fixed — see SCOPE BOUNDA
   temporarily restore/guard the flutter_map trail rendering in `navigation_screen`, or
   fold in the Phase-17 navigation migration.
 
+### RESOLVED — runtime crash: `MapCompass` requires a `FlutterMap` ancestor
+
+- **Status: FIXED** (orchestrator-applied, post-Task-3-attempt) — removed `MapCompass` from
+  `trail_detail_map_screen.dart`'s `WandererMap.controls` list. `MapCompass` (`map_compass.dart`)
+  calls `MapCamera.of(context)`, a `flutter_map` API requiring a `FlutterMap` ancestor.
+  `WandererMap` became `MapLibreMap` in 15-04, so this crashed at runtime with "Bad state:
+  `MapCamera.of()` should not be called outside a `FlutterMap`" the first time the screen
+  actually rendered on device (not caught by `flutter analyze`, since it's a runtime-only
+  failure, not a static type error).
+- **Impact of the fix:** `trail_detail_map_screen` temporarily has no rotation-reset compass
+  control. A MapLibre-native compass is CORE-05 (Phase 17) — restore with maplibre's built-in
+  compass widget then, rather than building an interim one now.
+- **Unused import cleanup:** `map_compass.dart` import removed from `trail_detail_map_screen.dart`.
+- Whole-app `flutter analyze`: still 0 errors after this fix.
+
 ### OFFL-06 deferred — `pm_tile_provider.dart` NOT deleted
 
 - **Discovered:** 15-06 Task 2.

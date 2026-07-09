@@ -4,7 +4,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/base/wanderer_map.dart';
-import 'package:wanderer/components/map/map_compass.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/waypoint_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -93,8 +92,13 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                     ),
                     controls: [
                       _buildMapControls(context, trail),
-
-                      const MapCompass(hideIfRotatedNorth: true),
+                      // MapCompass (map_compass.dart) is flutter_map-only —
+                      // it calls MapCamera.of(context), which requires a
+                      // FlutterMap ancestor. WandererMap is MapLibreMap since
+                      // Phase 15 (15-04), so it crashes here. A MapLibre-native
+                      // compass control is CORE-05 (Phase 17) — dropped for
+                      // now rather than crashing; restore with maplibre's
+                      // built-in compass when that phase lands.
                     ],
                     onMapCreated: (controller) =>
                         _mapController = controller,
