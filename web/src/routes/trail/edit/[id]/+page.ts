@@ -78,13 +78,13 @@ export const load: Load = async ({ params, fetch, url }) => {
             .filter(plugin => plugin.type === "assets")
             .map(plugin => plugin.id),
     );
-    const assetPlugins = pluginInstances
+    const assetPluginIds = pluginInstances
         .filter(instance => instance.enabled && assetProviderIds.has(instance.plugin_id))
         .map(instance => instance.plugin_id);
-    const assetPluginProviders = assetPlugins
+    const assetPluginProviders = assetPluginIds
         .map(id => plugins.find(plugin => plugin.id === id))
         .filter(plugin => plugin !== undefined);
-    const assetPluginActive = assetPlugins.length > 0;
+    const assetPluginActive = assetPluginIds.length > 0;
 
     return {
         trail,
@@ -94,7 +94,7 @@ export const load: Load = async ({ params, fetch, url }) => {
         categoryPreferences,
         subcategories,
         subcategoryPreferences,
-        assetPlugins,
+        assetPluginIds,
         assetPluginProviders,
         assetPluginActive,
     }

@@ -28,8 +28,7 @@
     interface Props {
         children?: Snippet<[any]>;
         onsave?: (summitLog: SummitLog) => void;
-        assetPluginActive?: boolean;
-        pluginId?: string;
+        assetPluginIds?: string[];
         assetPluginProviders?: PluginProvider[];
         trailId?: string;
         trailData?: string;
@@ -39,7 +38,7 @@
     let {
         children,
         onsave,
-        pluginId = "immich",
+        assetPluginIds = [],
         assetPluginProviders = [],
         trailId,
         trailData,
@@ -103,7 +102,7 @@
                 const pluginCandidates = pendingCandidates.filter((candidate) => candidate.source !== "wanderer");
                 const wandererCandidates = pendingCandidates.filter((candidate) => candidate.source === "wanderer");
                 form._assetLinks = wandererCandidates.map((candidate) => candidate.assetId);
-                form._assetPluginLinks = photoLibraryPluginLinks(pluginCandidates, pluginId);
+                form._assetPluginLinks = photoLibraryPluginLinks(pluginCandidates);
                 form.photos = [
                     ...(form.photos ?? []),
                     ...wandererCandidates
@@ -195,7 +194,7 @@
     }
 
     function candidateKey(candidate: PhotoLibraryCandidate): string {
-        return photoLibraryCandidateKey(candidate, pluginId);
+        return photoLibraryCandidateKey(candidate);
     }
 
     const canUsePhotoLibrary = $derived(Boolean(trailId));
@@ -282,7 +281,7 @@
         {trailId}
         trailData={$data.expand?.gpx_data ?? trailData}
         {trailPolyline}
-        {pluginId}
+        {assetPluginIds}
         {assetPluginProviders}
         summitLogId={$data.id}
         onselect={onAssetPluginSelect}

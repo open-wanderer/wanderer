@@ -186,7 +186,10 @@
         if (preview.thumbnailUrl) {
             return preview.thumbnailUrl;
         }
-        const plugin = encodeURIComponent(preview.pluginId ?? "immich");
+        if (!preview.pluginId) {
+            return "";
+        }
+        const plugin = encodeURIComponent(preview.pluginId);
         return `/api/v1/plugins/assets/${plugin}/thumbnail/${encodeURIComponent(preview.assetId)}`;
     }
 

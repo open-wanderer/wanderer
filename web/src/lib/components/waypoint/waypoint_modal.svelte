@@ -19,17 +19,17 @@
     import AssetPhotoPickerModal from "../trail/asset_photo_picker_modal.svelte";
     import type { Waypoint } from "$lib/models/waypoint";
     import type { PluginProvider } from "$lib/models/plugin_provider";
-    import { photoLibraryPluginLinks, type PhotoLibraryCandidate } from "$lib/models/photo_library";
+    import { photoLibraryCandidateKey, photoLibraryPluginLinks, type PhotoLibraryCandidate } from "$lib/models/photo_library";
 
     interface Props {
         children?: Snippet<[any]>;
         onsave?: (waypoint: Waypoint) => boolean | Promise<boolean> | void
         assetPluginActive?: boolean;
-        pluginId?: string;
+        assetPluginIds?: string[];
         assetPluginProviders?: PluginProvider[];
     }
 
-    let { children, onsave, pluginId = "immich", assetPluginProviders = [] }: Props = $props();
+    let { children, onsave, assetPluginIds = [], assetPluginProviders = [] }: Props = $props();
 
     let modal: Modal;
     let assetPhotoPickerModal: AssetPhotoPickerModal = $state()!;
@@ -68,14 +68,14 @@
                 const pluginCandidates = pendingCandidates.filter((c) => c.source !== "wanderer");
                 const wandererCandidates = pendingCandidates.filter((c) => c.source === "wanderer");
                 wp._assetCandidates = pluginCandidates.map((c) => ({
-                    pluginId: c.pluginId ?? pluginId,
+                    pluginId: c.pluginId ?? c.providerId ?? "",
                     assetId: c.assetId,
                     lat: c.lat,
                     lon: c.lon,
                     originalFileName: c.originalFileName,
                     takenAt: c.takenAt,
                 }));
-                wp._assetPluginLinks = photoLibraryPluginLinks(pluginCandidates, pluginId);
+                wp._assetPluginLinks = photoLibraryPluginLinks(pluginCandidates);
                 wp._assetLinks = wandererCandidates.map((c) => c.assetId);
                 wp.photos = [
                     ...(wp.photos ?? []),
@@ -146,7 +146,7 @@
     }
 
     function candidateKey(candidate: PhotoLibraryCandidate): string {
-        return `${candidate.source ?? "plugin"}:${candidate.providerId ?? candidate.pluginId ?? pluginId}:${candidate.assetId}`;
+        return photoLibraryCandidateKey(candidate);
     }
 
     const hasCoordinates = $derived(
@@ -244,7 +244,7 @@
     bind:this={assetPhotoPickerModal}
     lat={parseFloat(String($data.lat)) || 0}
     lon={parseFloat(String($data.lon)) || 0}
-    {pluginId}
+    {assetPluginIds}
     {assetPluginProviders}
     onselect={onAssetPluginSelect}
 />

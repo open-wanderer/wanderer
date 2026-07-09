@@ -283,7 +283,7 @@
 
     let savedAtLeastOnce = $state(false);
 
-    let assetPluginId = $derived(data.assetPlugins[0] ?? "immich");
+    let assetPluginIds = $derived(data.assetPluginIds);
     let canImportPhotosFromLibrary = $derived(!isNewTrail || savedAtLeastOnce);
     let photoImportDropdownItems: DropdownItem[] = $derived([
         {
@@ -748,8 +748,8 @@
                 (candidate) =>
                     !pendingTrailPhotoCandidates.some(
                         (pending) =>
-                            photoLibraryCandidateKey(pending, assetPluginId) ===
-                            photoLibraryCandidateKey(candidate, assetPluginId),
+                            photoLibraryCandidateKey(pending) ===
+                            photoLibraryCandidateKey(candidate),
                     ),
             ),
         ];
@@ -777,7 +777,7 @@
         ]));
         target._assetPluginLinks = mergePhotoLibraryPluginLinks(
             target._assetPluginLinks,
-            photoLibraryPluginLinks(pluginCandidates, assetPluginId),
+            photoLibraryPluginLinks(pluginCandidates),
         );
         target.photos = Array.from(
             new Set([
@@ -2498,7 +2498,7 @@
     bind:this={waypointModal}
     onsave={saveWaypoint}
     assetPluginActive={data.assetPluginActive}
-    pluginId={assetPluginId}
+    {assetPluginIds}
     assetPluginProviders={data.assetPluginProviders}
 ></WaypointModal>
 <WaypointMergeModal
@@ -2513,7 +2513,7 @@
     trailId={$formData.id ?? ""}
     category={$formData.category}
     trailData={valhallaStore.route.toString()}
-    pluginId={assetPluginId}
+    {assetPluginIds}
     assetPluginProviders={data.assetPluginProviders}
     existingWaypoints={$formData.expand?.waypoints_via_trail ?? []}
     onsave={onAssetPluginImport}
@@ -2523,15 +2523,14 @@
     id="trail-photo-library-modal"
     trailId={$formData.id ?? ""}
     trailData={valhallaStore.route.toString()}
-    pluginId={assetPluginId}
+    {assetPluginIds}
     assetPluginProviders={data.assetPluginProviders}
     onselect={onTrailPhotoLibrarySelect}
 />
 <SummitLogModal
     bind:this={summitLogModal}
     onsave={(log) => saveSummitLog(log)}
-    assetPluginActive={data.assetPluginActive}
-    pluginId={assetPluginId}
+    {assetPluginIds}
     assetPluginProviders={data.assetPluginProviders}
     trailId={$formData.id ?? ""}
     trailData={valhallaStore.route.toString()}

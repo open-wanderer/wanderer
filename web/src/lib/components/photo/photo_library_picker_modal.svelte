@@ -53,7 +53,7 @@
         lon?: number;
         trailData?: string;
         trailPolyline?: string;
-        pluginId?: string;
+        assetPluginIds?: string[];
         assetPluginProviders?: PluginProvider[];
         doubleRadius?: boolean;
         title?: string;
@@ -72,7 +72,7 @@
         lon,
         trailData,
         trailPolyline,
-        pluginId,
+        assetPluginIds,
         assetPluginProviders = [],
         doubleRadius = false,
         title,
@@ -91,6 +91,7 @@
     let loadingMore = $state(false);
     let saving = $state(false);
     let error = $state("");
+    let fatalError = $state(false);
     let candidates = $state<PhotoLibraryCandidate[]>([]);
     let selectedKeys = $state(new Set<string>());
     let providerFilter = $state("all");
@@ -108,8 +109,10 @@
         destroyMap();
     });
 
-    const hasAssetPlugin = $derived(assetPluginProviders.length > 0);
-    const pluginPath = $derived(pluginId ? `/api/v1/plugins/assets/${encodeURIComponent(pluginId)}` : undefined);
+    const activeAssetPluginIds = $derived(
+        assetPluginProviders.length > 0 ? Array.from(new Set((assetPluginIds ?? []).filter(Boolean))) : [],
+    );
+    const hasAssetPlugin = $derived(activeAssetPluginIds.length > 0);
     const providerCandidates = $derived(filterByProvider(candidates));
     const clusters = $derived(mapReady ? buildClusters(providerCandidates, mapZoom, mapBounds) : []);
     const mapCandidates = $derived(filterByMapBounds(providerCandidates));
@@ -199,6 +202,7 @@
     async function loadCandidates() {
         loading = true;
         error = "";
+        fatalError = false;
         candidates = [];
         selectedKeys = new Set();
         existingWandererExternalKeys = new Set();
@@ -212,21 +216,37 @@
         try {
             const loaders: Promise<PhotoLibraryCandidate[]>[] = [
                 loadWandererCandidates(1),
+                ...activeAssetPluginIds.map((id) => loadPluginCandidates(id)),
             ];
-            if (pluginPath && hasAssetPlugin) {
-                loaders.unshift(loadPluginCandidates());
+
+            const settled = await Promise.allSettled(loaders);
+            const fulfilled = settled.filter(
+                (item): item is PromiseFulfilledResult<PhotoLibraryCandidate[]> => item.status === "fulfilled",
+            );
+            const result = fulfilled.flatMap((item) => item.value);
+            const failures = settled.filter((item): item is PromiseRejectedResult => item.status === "rejected");
+
+            if (!fulfilled.length && failures.length) {
+                throw failures[0].reason;
             }
-            const result = (await Promise.all(loaders)).flat();
             candidates = uniqueCandidates(result);
+            if (failures.length) {
+                error = failures
+                    .map((failure) => failure.reason?.message ?? String(failure.reason))
+                    .filter(Boolean)
+                    .join("; ");
+            }
         } catch (e: any) {
             console.error(e);
+            fatalError = true;
             error = e?.message ?? "Unable to load photos";
         } finally {
             loading = false;
         }
     }
 
-    async function loadPluginCandidates(): Promise<PhotoLibraryCandidate[]> {
+    async function loadPluginCandidates(pluginId: string): Promise<PhotoLibraryCandidate[]> {
+        const pluginPath = `/api/v1/plugins/assets/${encodeURIComponent(pluginId)}`;
         const r = await fetch(`${pluginPath}/candidates`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -247,7 +267,11 @@
             providerId: candidate.providerId ?? pluginId,
             externalProvider: candidate.externalProvider ?? candidate.providerId ?? pluginId,
             externalId: candidate.externalId ?? candidate.assetId,
-            thumbnailUrl: candidate.thumbnailUrl ?? pluginThumbnailUrl(candidate),
+            thumbnailUrl: candidate.thumbnailUrl ?? pluginThumbnailUrl({
+                ...candidate,
+                pluginId,
+                providerId: candidate.providerId ?? pluginId,
+            }),
         }));
     }
 
@@ -544,7 +568,11 @@
     }
 
     function pluginThumbnailUrl(candidate: PhotoLibraryCandidate) {
-        const plugin = encodeURIComponent(candidate.pluginId ?? pluginId ?? "immich");
+        const pluginId = candidate.pluginId ?? candidate.providerId;
+        if (!pluginId) {
+            return "";
+        }
+        const plugin = encodeURIComponent(pluginId);
         return `/api/v1/plugins/assets/${plugin}/thumbnail/${encodeURIComponent(candidate.assetId)}`;
     }
 
@@ -1119,13 +1147,18 @@
                 <div class="flex min-h-80 items-center justify-center text-sm text-gray-500">
                     {$_("loading")}...
                 </div>
-            {:else if error}
+            {:else if fatalError}
                 <div class="flex min-h-80 items-center justify-center text-sm text-red-500">
                     {error}
                 </div>
             {:else}
                 <div class="grid h-full min-w-[42rem] grid-cols-[minmax(16rem,22rem)_minmax(22rem,1fr)] gap-4">
                     <section class="flex min-h-0 flex-col gap-3">
+                        {#if error}
+                            <div class="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+                                {error}
+                            </div>
+                        {/if}
                         {#if hasAssetPlugin && providerOptions.length > 1}
                             <div class="flex flex-wrap gap-2">
                                 <button

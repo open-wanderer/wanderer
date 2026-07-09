@@ -70,6 +70,7 @@
     } from "$lib/stores/trail_store";
     import Combobox, { type ComboboxItem } from "../base/combobox.svelte";
     import { tags_index } from "$lib/stores/tag_store";
+    import type { PluginProvider } from "$lib/models/plugin_provider";
 
     interface Props {
         initTrail: Trail;
@@ -77,6 +78,8 @@
         mode?: "overview" | "map" | "list";
         markers?: M.Marker[];
         activeTab?: number;
+        assetPluginIds?: string[];
+        assetPluginProviders?: PluginProvider[];
     }
 
     let {
@@ -85,6 +88,8 @@
         mode = "map",
         markers = [],
         activeTab = 0,
+        assetPluginIds = [],
+        assetPluginProviders = [],
     }: Props = $props();
 
     let summitLogModal: SummitLogModal;
@@ -1022,7 +1027,14 @@
     </section>
 </div>
 
-<SummitLogModal bind:this={summitLogModal} onsave={(log) => saveSummitLog(log)}
+<SummitLogModal
+    bind:this={summitLogModal}
+    onsave={(log) => saveSummitLog(log)}
+    {assetPluginIds}
+    {assetPluginProviders}
+    trailId={trail.id ?? ""}
+    trailData={trail.expand?.gpx_data}
+    trailPolyline={trail.polyline}
 ></SummitLogModal>
 
 <ConfirmModal

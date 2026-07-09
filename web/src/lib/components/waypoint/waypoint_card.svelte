@@ -25,8 +25,11 @@
         const persistedPhotos = (waypoint.photos ?? [])
             .map((p) => getFileURL(waypoint, p));
         const assetPluginPhotos = (waypoint._assetCandidates ?? [])
-            .map((candidate) => {
-                const plugin = encodeURIComponent(candidate.pluginId ?? "immich");
+            .flatMap((candidate) => {
+                if (!candidate.pluginId) {
+                    return [];
+                }
+                const plugin = encodeURIComponent(candidate.pluginId);
                 return `/api/v1/plugins/assets/${plugin}/thumbnail/${encodeURIComponent(candidate.assetId)}`;
             });
         const immediatePhotos = [...persistedPhotos, ...assetPluginPhotos];

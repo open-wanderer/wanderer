@@ -23,14 +23,14 @@ export interface PhotoLibraryPluginLink {
     assetIds: string[];
 }
 
-export function photoLibraryCandidateKey(candidate: PhotoLibraryCandidate, fallbackPluginId = ""): string {
-    return `${candidate.source ?? "plugin"}:${candidate.providerId ?? candidate.pluginId ?? fallbackPluginId}:${candidate.assetId}`;
+export function photoLibraryCandidateKey(candidate: PhotoLibraryCandidate): string {
+    return `${candidate.source ?? "plugin"}:${candidate.providerId ?? candidate.pluginId ?? ""}:${candidate.assetId}`;
 }
 
-export function photoLibraryPluginLinks(candidates: PhotoLibraryCandidate[], fallbackPluginId = ""): PhotoLibraryPluginLink[] {
+export function photoLibraryPluginLinks(candidates: PhotoLibraryCandidate[]): PhotoLibraryPluginLink[] {
     const grouped = new Map<string, string[]>();
     for (const candidate of candidates) {
-        const pluginId = candidate.pluginId ?? candidate.providerId ?? fallbackPluginId;
+        const pluginId = candidate.pluginId ?? candidate.providerId;
         if (!pluginId) {
             continue;
         }

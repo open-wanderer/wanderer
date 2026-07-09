@@ -10,7 +10,7 @@
         category?: string;
         trailData?: string;
         trailPolyline?: string;
-        pluginId?: string;
+        assetPluginIds?: string[];
         assetPluginProviders?: PluginProvider[];
         existingWaypoints?: Waypoint[];
         onsave?: (waypoints: Waypoint[]) => void;
@@ -21,7 +21,7 @@
         category,
         trailData,
         trailPolyline,
-        pluginId = "immich",
+        assetPluginIds = [],
         assetPluginProviders = [],
         existingWaypoints = [],
         onsave,
@@ -149,19 +149,19 @@
         );
         waypoint._assetLinks = wandererCandidates.map((candidate) => candidate.assetId);
         waypoint._assetCandidates = pluginCandidates.map((candidate) => ({
-            pluginId: candidate.pluginId ?? candidate.providerId ?? pluginId,
+            pluginId: candidate.pluginId ?? candidate.providerId ?? "",
             assetId: candidate.assetId,
             lat: candidate.lat,
             lon: candidate.lon,
             originalFileName: candidate.originalFileName,
             takenAt: candidate.takenAt,
         }));
-        waypoint._assetPluginLinks = photoLibraryPluginLinks(pluginCandidates, pluginId);
+        waypoint._assetPluginLinks = photoLibraryPluginLinks(pluginCandidates);
         return waypoint;
     }
 
     function candidateKey(candidate: PhotoLibraryCandidate) {
-        return `${candidate.source ?? "plugin"}:${candidate.pluginId ?? candidate.providerId ?? pluginId}:${candidate.assetId}`;
+        return `${candidate.source ?? "plugin"}:${candidate.pluginId ?? candidate.providerId ?? ""}:${candidate.assetId}`;
     }
 
     function waypointLat(candidate: PhotoLibraryCandidate) {
@@ -187,7 +187,7 @@
     {trailId}
     {trailData}
     {trailPolyline}
-    {pluginId}
+    {assetPluginIds}
     {assetPluginProviders}
     title={$_("waypoints-from-photos")}
     actionLabel={$_("create-waypoints")}
