@@ -1,14 +1,21 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart'
     show LocationMarkerPosition;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/map/trail_layer.dart';
+import 'package:wanderer/models/glyph_sprite_cache_paths.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
+import 'package:wanderer/provider/map_style_provider.dart'
+    show effectiveBrightness;
+import 'package:wanderer/util/offline_style_rewriter.dart';
 
 /// A native MapLibre GL map host (CORE-01). Renders the Protomaps basemap from
 /// [mapStyleJsonProvider] (15-02) via native GL, swaps light/dark styles live
@@ -84,29 +91,84 @@ class _WandererMapState extends ConsumerState<WandererMap> {
       ref.read(glyphSpriteCacheProvider.future).ignore();
     }
 
-    // Live theme swap (CORE-02): when the style JSON changes, swap it in place
-    // on the already-mounted map — no ObjectKey remount, no flash.
-    ref.listen(mapStyleJsonProvider, (prev, next) {
-      final controller = _controller;
-      final json = next.value;
-      if (controller != null && json != null && json != prev?.value) {
-        controller.setStyle(json);
-      }
-    });
+    // Live style swap (CORE-02): when the style JSON changes (theme toggle) —
+    // or, for a downloaded trail, when the offline glyph/sprite cache finishes
+    // warming — swap the composed style in place on the already-mounted map, no
+    // ObjectKey remount, no flash. The offline branch (OFFL-02/03/05) reruns the
+    // rewrite so the swap keeps resolving from file:// + pmtiles://file://.
+    ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
+    if (widget.offline) {
+      ref.listen(glyphSpriteCacheProvider, (_, _) => _swapStyle());
+    }
 
-    final styleAsync = ref.watch(mapStyleJsonProvider);
-    final resolved = styleAsync.value;
-    if (resolved != null) _lastStyleJson = resolved;
+    final baseAsync = ref.watch(mapStyleJsonProvider);
+    final baseJson = baseAsync.value;
+    Object? error = baseAsync.error;
+
+    // Offline (OFFL-02/03/05): the style is rewritten so glyphs/sprite resolve
+    // from the app-wide file:// cache (15-03) and the protomaps tiles resolve
+    // from the trail's local .pmtiles cells. Online trails use the base JSON
+    // unchanged.
+    GlyphSpriteCachePaths? cache;
+    if (widget.offline) {
+      final cacheAsync = ref.watch(glyphSpriteCacheProvider);
+      cache = cacheAsync.value;
+      error ??= cacheAsync.error;
+    }
+
+    final composed = _composeStyle(baseJson, cache);
+    if (composed != null) _lastStyleJson = composed;
     final styleJson = _lastStyleJson;
 
     if (styleJson == null) {
-      if (styleAsync.hasError) {
-        return Center(child: Text(styleAsync.error.toString()));
+      if (error != null) {
+        return Center(child: Text(error.toString()));
       }
       return ColoredBox(color: Theme.of(context).colorScheme.surface);
     }
 
     return _buildMap(context, styleJson);
+  }
+
+  /// Composes the style JSON to hand to the map from the two resolved inputs.
+  ///
+  /// Online: the [baseJson] as-is. Offline (OFFL-02/03/05): [baseJson] rewritten
+  /// via [rewriteStyleForOffline] so `glyphs`/`sprite` resolve from [cache] and
+  /// the protomaps tiles resolve from `trail.pmTiles` (`pmtiles://file://`).
+  /// Returns null while a required input is still resolving or if the rewrite
+  /// rejects an input — the caller then shows the loading passthrough.
+  String? _composeStyle(String? baseJson, GlyphSpriteCachePaths? cache) {
+    if (baseJson == null) return null;
+    if (!widget.offline) return baseJson;
+    if (cache == null) return null;
+    try {
+      final decoded = jsonDecode(baseJson) as Map<String, dynamic>;
+      final offlineStyle = rewriteStyleForOffline(
+        decoded,
+        cacheRoot: cache.root,
+        cellPaths: widget.trail.pmTiles,
+        dark:
+            effectiveBrightness(ref.read(themeModeProvider)) == Brightness.dark,
+      );
+      return jsonEncode(offlineStyle);
+    } catch (e) {
+      debugPrint('WandererMap: offline style rewrite failed — $e');
+      return null;
+    }
+  }
+
+  /// Recomposes the (possibly offline-rewritten) style from current provider
+  /// state and swaps it onto the mounted controller in place (CORE-02).
+  void _swapStyle() {
+    final controller = _controller;
+    if (controller == null) return;
+    final baseJson = ref.read(mapStyleJsonProvider).value;
+    final cache = ref.read(glyphSpriteCacheProvider).value;
+    final json = _composeStyle(baseJson, cache);
+    if (json != null && json != _lastStyleJson) {
+      _lastStyleJson = json;
+      controller.setStyle(json);
+    }
   }
 
   Widget _buildMap(BuildContext context, String styleJson) {
