@@ -21,9 +21,12 @@ const String kClusterSourceId = 'cluster-trails';
 Future<void> addClusterLayers(ml.StyleController style, String geojson) async {
   await style.addSource(ml.GeoJsonSource(id: kClusterSourceId, data: geojson));
 
-  // `is_large` trails are filtered out of both layers below (D-03) — matching
-  // web, no client-side extra filtering beyond what the layer filter already
-  // does.
+  // The `is_large` filter below is inert for practical purposes: is_large
+  // features always carry point_count:1 (server-set), so the `point_count >
+  // 1` clause already excludes them from these two layers regardless. Kept
+  // for parity with web's filter shape. Unclustered category-icon markers
+  // (map_screen.dart) intentionally do NOT filter on is_large post-checkpoint
+  // — see that file's comment for why (D-03 was corrected).
   await style.addLayer(
     const ml.CircleStyleLayer(
       id: 'clusters',

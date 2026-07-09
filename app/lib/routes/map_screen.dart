@@ -206,7 +206,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
       final pointCount = properties['point_count'];
       if (pointCount is! num || pointCount.toInt() != 1) continue;
-      if (properties['is_large'] == true) continue;
+      // is_large is intentionally NOT filtered here (user decision, post-
+      // checkpoint fix): the server marks the top MAP_MAX_POLYLINES trails by
+      // size as is_large once zoom passes clusteringMaxZoom (~11) — with
+      // fewer trails in view than that threshold, this can mean ALL visible
+      // trails, not just rare huge ones. Full-polyline rendering for is_large
+      // trails is still deferred (FUT-01); for now any unclustered point
+      // (point_count == 1) renders as a category-icon marker regardless.
 
       final trailId = properties['id'];
       if (trailId is! String) continue;
