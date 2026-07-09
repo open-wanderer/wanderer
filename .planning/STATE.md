@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
-status: "Phase 15 plan 15-02 complete (online style-JSON path); 15-01 Task 2 still blocked on Christian's physical-device airplane-mode PASS/FAIL for the file:// glyph spike (OFFL-04 risk gate)"
-stopped_at: "Phase 15 plan 15-02 complete: JSON style assets + mapStyleJsonProvider shipped"
-last_updated: "2026-07-09T11:00:00.000Z"
-last_activity: 2026-07-09 -- Phase 15 Plan 02 complete (16a6b9a1, fc343987): style assets + mapStyleJsonProvider
+status: "Phase 15 plan 15-03 complete (app-wide glyph/sprite cache + D-10 trail-download trigger); 15-01 file:// glyph gate PASSED (A1), sprite half (A2) tracked for 15-06"
+stopped_at: "Phase 15 plan 15-03 complete: glyphSpriteCacheProvider + path-safety helpers + D-10 trigger shipped"
+last_updated: "2026-07-09T11:20:00.000Z"
+last_activity: 2026-07-09 -- Phase 15 Plan 03 complete (f034db1f, 9492700b, 8e2d2666): app-wide glyph/sprite cache
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
-  percent: 57
+  completed_plans: 5
+  percent: 71
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 ## Current Position
 
 Phase: 15 (maplibre-core-trail-rendering-offline-parity) — EXECUTING
-Plan: 2 of 6 complete — STYLE-01..04 shipped. 15-01 Task 2 (physical-device file:// glyph gate) still PENDING human verification.
-Status: 15-02 complete (online style-JSON path); 15-01 offline glyph gate remains blocked on Christian's physical-device airplane-mode PASS/FAIL (OFFL-04 risk gate)
-Last activity: 2026-07-09 -- Phase 15 Plan 02 complete (16a6b9a1, fc343987): JSON style assets + mapStyleJsonProvider
+Plan: 3 of 6 complete — STYLE-01..04 + GLYPH-04 + OFFL-01 shipped. 15-01 A1 glyph gate PASSED; A2 sprite file:// resolution tracked for 15-06.
+Status: 15-03 complete (app-wide glyph/sprite cache: glyphSpriteCacheProvider + path-safety helpers + D-10 trail-download trigger)
+Last activity: 2026-07-09 -- Phase 15 Plan 03 complete (f034db1f, 9492700b, 8e2d2666): app-wide glyph/sprite cache
 
-Progress: [██░░░░░░░░] 17%
+Progress: [███░░░░░░░] 29%
 
 ## v1.4 Phases
 
@@ -60,6 +60,7 @@ Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share n
 | 12 | 4 | ~30 min | ~8 min |
 | 13 | 1 | - | - |
 | 14 | 1 | - | - |
+| 15 | 3 | ~35 min | ~12 min |
 
 *Updated after each plan completion*
 
@@ -77,6 +78,8 @@ Recent decisions affecting current work:
 - [v1.4] Migrate to `maplibre`, not `maplibre_gl` — FFI/JNI bindings, reads our style JSON directly.
 - [v1.4] Clustering reuses `POST /search/trails/cluster` rather than maplibre's `cluster: true` — the endpoint exists, web already renders its output, and maplibre's `GeoJsonSource` exposes no cluster fields.
 - [v1.4] Style JSON lives as an app asset, not a server-hosted style URL — offline rendering needs the style before any network call.
+- [15-03] `map_cache_path.dart` is the single sanctioned builder for any map-cache filesystem path — operator-controlled fontstack/range tokens are whitelisted (4 fontstacks + `^\d+-\d+$`) and rejected with `ArgumentError` before a path is built; never string-concatenate a token into a path (T-15-03-01).
+- [15-03] One shared app-wide glyph/sprite cache under `<app-docs>/map_cache` (D-08): `sprite/{light,dark}` + `glyphs/<fontstack>/<range>.pbf`; both the map-open (D-09, 15-04) and trail-download (D-10, 15-03) triggers converge on the same idempotent keepAlive warm.
 
 ### Pending Todos
 
@@ -84,7 +87,7 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- **[Phase 15 — open unknown, blocks the milestone — SPIKE BUILT, AWAITING VERDICT]** It is unverified whether maplibre-native resolves `file://` glyph URLs for offline label rendering. OFFL-04 (a downloaded trail renders labels with no network) is the hard offline parity gate and nothing downstream is safe until it passes on a physical device in airplane mode. The throwaway `file://` spike (Plan 01 Task 1) is now BUILT and committed (`d713456b`): `SpikeGlyphFileScreen` + `seedSpikeGlyphCache()`, reachable via a debug-only FAB. **Awaiting Christian's physical-device airplane-mode PASS/FAIL** (resume signal: "PASS" or "FAIL: <native log>"). On FAIL, per D-03 the failure mode is returned for a fresh offline-label decision and the roadmap is revised — do NOT run plans 15-02..15-06 until PASS.
+- **[Phase 15 — file:// glyph gate RESOLVED — A1 PASS, A2 sprite FAIL tracked for 15-06]** MapLibre-native DOES resolve `file://` glyph URL templates offline on a physical Android device (A1 PASS, verified 2026-07-09) — OFFL-04's label half is unblocked and waves 2-5 are clear. A narrower gap remains: `file://` **sprite** resolution FAILED (A2) despite valid cached files; production online rendering (`https://` sprites) is unaffected, so this only threatens the OFFL-02 offline-sprite half. **Plan 15-06 must investigate the A2 sprite `file://` failure before closing OFFL-02** (capture `adb logcat` mbgl/sprite errors, or descope offline icons with confirmation per D-03). 15-03's app-wide cache warms the sprite files to disk regardless, so 15-06 has the bytes to work with.
 - **[Phase 15/16/17]** `maplibre` 0.3.5 is pre-1.0 with breaking changes across 0.x minors (three published upgrade guides). Pin the exact version on first add; CLEAN-03 locks it at the end.
 - **[Phase 13]** The style references 3 fontstacks (`Noto Sans Regular`/`Medium`/`Italic`) but carries no `glyphs` key today, because `vector_tile_renderer` draws text from the bundled `assets/fonts/NotoSans`. Sprite icons (`arrow`, route shields) do not render at all today — wiring the sprite endpoint is a fix, not a regression.
 
@@ -115,9 +118,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-09T08:51:55.029Z
-Stopped at: Phase 15 plan 15-01 spike complete: A1 glyph PASS, A2 sprite FAIL (tracked for 15-06)
-Resume file: .planning/phases/15-maplibre-core-trail-rendering-offline-parity/15-02-PLAN.md
+Last session: 2026-07-09T11:20:00.000Z
+Stopped at: Phase 15 plan 15-03 complete: app-wide glyph/sprite cache + path-safety helpers + D-10 trigger
+Resume file: .planning/phases/15-maplibre-core-trail-rendering-offline-parity/15-04-PLAN.md
 
 ## Operator Next Steps
 

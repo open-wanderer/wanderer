@@ -16,11 +16,11 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 - [x] **GLYPH-01**: The unified `/map/style-sources` endpoint resolves the glyph URL template (`{fontstack}/{range}.pbf`) for the 4 fontstacks the style references, defaulting to Protomaps' public `basemaps-assets` host
 - [x] **GLYPH-02**: The unified `/map/style-sources` endpoint resolves the sprite base URL (`sprite.json`, `sprite.png`, `sprite@2x.png`, light and dark), defaulting to Protomaps' public `basemaps-assets` host
 - [x] **GLYPH-03**: An operator can override the glyph and sprite origin by environment variable, mirroring how `TILE_SERVER_URL` overrides tiles; unset, `/map/style-sources` falls back to Protomaps' public assets rather than a self-hosted copy
-- [ ] **GLYPH-04**: The app resolves glyph and sprite URLs from the server on first use and caches them app-wide, not per-trail
+- [x] **GLYPH-04**: The app resolves glyph and sprite URLs from the server on first use and caches them app-wide, not per-trail
 
 ### Offline
 
-- [ ] **OFFL-01**: Downloading a trail also fetches the glyph ranges and sprite sheet once into the app documents directory; a second trail download reuses the cache without re-fetching
+- [x] **OFFL-01**: Downloading a trail also fetches the glyph ranges and sprite sheet once into the app documents directory; a second trail download reuses the cache without re-fetching
 - [ ] **OFFL-02**: When rendering a downloaded trail, the app rewrites the style's `glyphs` and `sprite` keys to `file://` paths before handing the style to the map
 - [ ] **OFFL-03**: A downloaded trail renders its basemap from `.pmtiles` archives via native `pmtiles://` source URLs, with no network
 - [ ] **OFFL-04**: A downloaded trail renders place-name labels with no network — the offline parity gate
@@ -115,7 +115,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STYLE-02 | Phase 15 | Complete |
 | STYLE-03 | Phase 15 | Complete |
 | STYLE-04 | Phase 15 | Complete |
-| GLYPH-04 | Phase 15 | Pending |
+| GLYPH-04 | Phase 15 | Complete |
 | CORE-01 | Phase 15 | Pending |
 | CORE-02 | Phase 15 | Pending |
 | CORE-03 | Phase 15 | Pending |
@@ -125,7 +125,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRAIL-03 | Phase 15 | Pending |
 | TRAIL-04 | Phase 15 | Pending |
 | TRAIL-05 | Phase 15 | Pending |
-| OFFL-01 | Phase 15 | Pending |
+| OFFL-01 | Phase 15 | Complete |
 | OFFL-02 | Phase 15 | Pending |
 | OFFL-03 | Phase 15 | Pending |
 | OFFL-04 | Phase 15 | Pending |
