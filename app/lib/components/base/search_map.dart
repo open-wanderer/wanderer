@@ -50,6 +50,13 @@ class SearchMap extends ConsumerStatefulWidget {
 class _SearchMapState extends ConsumerState<SearchMap> {
   ml.MapController? _controller;
 
+  /// Buffers a style-loaded event that arrives before [_controller] is set.
+  /// The native platform channel does not always fire `onMapCreated` before
+  /// `onStyleLoaded` despite the package docs implying that order — callers
+  /// that call back into [ml.MapController] from `onStyleLoaded` (e.g.
+  /// `fitBounds`) would silently no-op on a still-null controller otherwise.
+  ml.StyleController? _pendingStyle;
+
   /// The last successfully-resolved style JSON. Cached so a provider refresh
   /// (e.g. a theme toggle) never drops us back to the loading state and
   /// remounts the map — the live swap goes through [ml.MapController.setStyle]
@@ -102,8 +109,19 @@ class _SearchMapState extends ConsumerState<SearchMap> {
       onMapCreated: (controller) {
         _controller = controller;
         widget.onMapCreated?.call(controller);
+        final pending = _pendingStyle;
+        if (pending != null) {
+          _pendingStyle = null;
+          widget.onStyleLoaded?.call(pending);
+        }
       },
-      onStyleLoaded: (style) => widget.onStyleLoaded?.call(style),
+      onStyleLoaded: (style) {
+        if (_controller == null) {
+          _pendingStyle = style;
+          return;
+        }
+        widget.onStyleLoaded?.call(style);
+      },
       onEvent: (event) => widget.onMapEvent?.call(event),
       layers: widget.layers ?? const [],
       children:

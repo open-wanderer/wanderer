@@ -83,4 +83,4 @@ final class MapStyleJsonProvider
   }
 }
 
-String _$mapStyleJsonHash() => r'50e33fadb61ce274d47e8c3726198a59103d4c6d';
+String _$mapStyleJsonHash() => r'153afd3e727c8270d857c1d1ec0d874cbb8a6bab';

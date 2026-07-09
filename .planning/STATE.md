@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
 status: executing
-stopped_at: Completed 16-02-PLAN.md
-last_updated: "2026-07-09T17:41:03.777Z"
-last_activity: 2026-07-09 -- Phase 16 execution started
+stopped_at: Completed Phase 16 (16-03 Task 3 on-device checkpoint passed after 5 fixes)
+last_updated: "2026-07-09T18:30:00.000Z"
+last_activity: 2026-07-09 -- Phase 16 complete: CORE-08, CLUS-01..05 device-verified; 5 checkpoint fixes (SearchMap controller/style race, Duration.zero Android crash, list-map polyline styling, sprite light/dark variant, faster+auto-search cluster tap)
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 10
-  completed_plans: 10
-  percent: 33
+  completed_phases: 3
+  total_plans: 11
+  completed_plans: 11
+  percent: 50
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-08)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 16 — list-map-screens-on-maplibre
+**Current focus:** Phase 17 — navigation-on-maplibre (not yet started)
 
 ## Current Position
 
-Phase: 16 (list-map-screens-on-maplibre) — EXECUTING
-Plan: 3 of 3
-Status: Ready to execute
-Last activity: 2026-07-09 -- Phase 16 execution started
+Phase: 16 (list-map-screens-on-maplibre) — COMPLETE
+Plan: 3 of 3 (all tasks committed, on-device checkpoint passed)
+Status: Ready to plan Phase 17
+Last activity: 2026-07-09 -- Phase 16 complete: CORE-08, CLUS-01..05 device-verified; 5 checkpoint fixes applied
 
-Progress: [█████░░░░░] 50%
+Progress: [██████░░░░] 50%
 
 ## v1.4 Phases
 
 - [x] **Phase 13: Glyph & Sprite Endpoint** — GLYPH-01/02/03 (SvelteKit, `/map/style-sources`)
 - [x] **Phase 14: Coordinate Type Migration** — TYPE-01/02 (`Geographic`, `LngLatBounds`)
 - [x] **Phase 15: MapLibre Core, Trail Rendering & Offline Parity** — STYLE-01..04, GLYPH-04, CORE-01..04, TRAIL-01..05, OFFL-01..05 (OFFL-06 deferred to 17/18)
-- [ ] **Phase 16: List & Map Screens on MapLibre** — CORE-08, CLUS-01..05
+- [x] **Phase 16: List & Map Screens on MapLibre** — CORE-08, CLUS-01..05
 - [ ] **Phase 17: Navigation on MapLibre** — NAV-01..04, CORE-05/06/07
 - [ ] **Phase 18: Retire flutter_map and the flomp Forks** — CLEAN-01/02/03
 
@@ -65,6 +65,7 @@ Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share n
 *Updated after each plan completion*
 | Phase 16 P01 | 9min | 3 tasks | 3 files |
 | Phase 16 P02 | 7min | 2 tasks | 3 files |
+| Phase 16 P03 | ~15min + on-device iteration | 3/3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -94,10 +95,18 @@ Recent decisions affecting current work:
 - [Phase 16-01]: _ListMap converted ConsumerWidget to ConsumerStatefulWidget to hold ml.MapController across onMapCreated/onStyleLoaded, mirroring list_detail_map_screen's approach
 - [Phase 16]: [16-02] cluster_layer.dart doc comments avoid the literal substring 'unclustered-point' (rephrased as point_count==1 circle layer) to satisfy the plan's own zero-occurrence grep while still documenting D-05's rationale
 - [Phase 16]: [16-02] Wrapped the circle-radius step-ramp array in // dart format off / on markers so dart format doesn't re-explode the single-line grouping the acceptance criteria greps for verbatim
+- [Phase 16-03]: map_screen.dart's flutter_map-only MapCompass/CurrentLocationLayer widgets replaced with native ml.MapCompass and a WandererMap-style native location WidgetLayer -- neither old widget can render inside a native MapLibreMap tree — Required by the SearchMap host swap; not explicitly called out in the plan's action text but necessary for the file to run without crashing at runtime
+- [Phase 16-03]: Camera-position persistence (mapCameraProvider) preserved via ml.MapEventCameraIdle, replacing the old MapEventMoveEnd-based save — Avoids a silent UX regression; matches the phase's no-UX-change philosophy (D-01/D-02) even though the plan flagged map_camera_provider as verify-unused-after-swap
+- [Phase 16-03]: Selected-trail polyline uses fitBounds (not animateCamera) with kTrailRouteColor styling — The plan's action text described controller.animateCamera(bounds:, duration:) but the installed maplibre 0.3.5 API has no bounds/duration params on animateCamera -- fitBounds(bounds:, nativeDuration:) is the correct call, matching list_detail_map_screen.dart's established pattern
+- [Phase 16-03 checkpoint]: `is_large` is NOT filtered out of unclustered map markers (D-03 corrected) — the server marks the top MAP_MAX_POLYLINES trails by size in view as is_large once zoom passes clusteringMaxZoom (~11); with fewer trails in view than that this can mean ALL visible trails, not just rare huge ones. User directive: any unclustered point (point_count == 1) renders as a category-icon marker regardless.
+- [Phase 16-03 checkpoint]: `SearchMap` buffers a style-loaded event that arrives before `onMapCreated` and replays it once the controller is set — the native platform channel does not reliably fire onMapCreated before onStyleLoaded despite the package docs implying that order; two of three SearchMap call sites (both list-map screens) silently no-opped their fitBounds call without this fix.
+- [Phase 16-03 checkpoint]: `fitBounds`/`animateCamera` "instant" calls use `Duration(milliseconds: 1)`, never `Duration.zero` — a zero duration crashes the Android native binding (`animateCamera` receives a null duration, throws `IllegalArgumentException`). Applies anywhere an instant/no-animation camera move is needed on this package.
+- [Phase 16-03 checkpoint]: `/api/v1/map/style-sources`'s `spriteUrl` is a theme-agnostic base — callers must append `/light` or `/dark` before MapLibre appends the file suffix. `map_style_json_provider.dart` was substituting the bare base for both themes, causing sprite 404s; fixed by appending the variant from `effectiveBrightness`.
+- [Phase 16-03 checkpoint]: Cluster-tap zoom (CLUS-03) uses a 400ms `nativeDuration` (not the SDK's 2s default) and auto-triggers `searchInBounds` once the camera settles — explicit user request, distinct from pan/drag which still requires the manual "Search this area" button per D-01.
 
 ### Pending Todos
 
-- None. Phase 16 (List & Map Screens on MapLibre) is ready to plan (`/gsd-plan-phase 16`).
+- None. Phase 16 (List & Map Screens on MapLibre) is complete. Phase 17 (Navigation on MapLibre) is ready to plan (`/gsd-plan-phase 17`).
 
 ### Blockers/Concerns
 
@@ -133,12 +142,11 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-09T17:41:03.764Z
-Stopped at: Completed 16-02-PLAN.md
-Resume file: None
+Last session: 2026-07-09T18:30:00.000Z
+Stopped at: Phase 16 complete (16-03 Task 3 on-device checkpoint passed after 5 fixes)
+Resume file: none — Phase 16 closed; Phase 17 not yet planned
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 13` (glyph/sprite endpoint, Go) or `/gsd-plan-phase 14` (coordinate types) — they are independent and both gate Phase 15.
-- Review the two roadmap corrections before planning: the requirement count was 33 in the source document but 40 by actual count, and **CORE-08 was added** to cover the two list screens that no requirement reached.
-- Phase 15 is the milestone's risk gate. Its first plan must spike `file://` glyph resolution on a physical device in airplane mode before any further investment.
+- Run `/gsd-plan-phase 17` (Navigation on MapLibre) — NAV-01..04, CORE-05/06/07. `navigation_screen.dart` is the last `flutter_map` holdout; it also carries `MultiPmTilesVectorTileProvider` (OFFL-06 deferral) and the three flutter_map plugins CLEAN-01 later removes.
+- Phase 18 (Retire flutter_map and the flomp forks) depends on Phase 17 finishing the migration — nothing to do there yet.

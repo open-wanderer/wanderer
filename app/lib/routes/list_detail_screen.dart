@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/base/search_map.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
+import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -389,7 +390,9 @@ class _ListMapState extends ConsumerState<_ListMap> {
           _controller?.fitBounds(
             bounds: combinedBounds,
             padding: const EdgeInsets.all(40),
-            nativeDuration: Duration.zero,
+            // Duration.zero crashes the Android native binding
+            // (animateCamera receives a null duration).
+            nativeDuration: const Duration(milliseconds: 1),
           );
         }
       },
@@ -399,7 +402,13 @@ class _ListMapState extends ConsumerState<_ListMap> {
         }
       },
       layers: polylines.isNotEmpty
-          ? [ml.PolylineLayer(polylines: polylines)]
+          ? [
+              ml.PolylineLayer(
+                polylines: polylines,
+                color: kTrailRouteColor,
+                width: 5,
+              ),
+            ]
           : null,
       children: [
         if (markers.isNotEmpty) ml.WidgetLayer(markers: markers),

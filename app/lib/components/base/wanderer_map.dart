@@ -246,11 +246,13 @@ class _WandererMapState extends ConsumerState<WandererMap> {
         bounds.longitudeEast != bounds.longitudeWest;
 
     if (hasExtent) {
-      // CORE-03: instant initial fit (no animation) to the trail bounds.
+      // CORE-03: near-instant initial fit to the trail bounds. Duration.zero
+      // is avoided — the Android native binding passes a zero duration to
+      // the underlying Java `animateCamera` as null, which throws.
       await controller.fitBounds(
         bounds: bounds,
         padding: widget.initialCameraFitPadding,
-        nativeDuration: Duration.zero,
+        nativeDuration: const Duration(milliseconds: 1),
       );
     } else {
       await controller.moveCamera(

@@ -325,10 +325,23 @@ class _MapScreenState extends ConsumerState<MapScreen>
               );
               if (clusterHits.isNotEmpty) {
                 final currentZoom = controller.getCamera().zoom;
-                controller.animateCamera(
-                  center: event.point,
-                  zoom: currentZoom + 2,
-                );
+                controller
+                    .animateCamera(
+                      center: event.point,
+                      zoom: currentZoom + 2,
+                      nativeDuration: const Duration(milliseconds: 400),
+                    )
+                    .then((_) {
+                      if (!mounted) return;
+                      final bounds = controller.getVisibleRegion();
+                      final zoom = controller.getCamera().zoom;
+                      ref
+                          .read(mapClusterSearchProvider.notifier)
+                          .searchInBounds(bounds, zoom);
+                      ref
+                          .read(mapTrailSearchProvider.notifier)
+                          .searchInBounds(bounds);
+                    });
                 return;
               }
 

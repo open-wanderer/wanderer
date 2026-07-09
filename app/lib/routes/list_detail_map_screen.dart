@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/base/search_map.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
+import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/trail.dart';
@@ -118,8 +119,8 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
                       category,
                       subcategory: subcategory,
                       color: isSelected
-                          ? Theme.of(context).primaryColor
-                          : Colors.white,
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Theme.of(context).colorScheme.onPrimary,
                     ),
                   ),
                 ),
@@ -155,7 +156,9 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
                     _controller?.fitBounds(
                       bounds: bounds,
                       padding: const EdgeInsets.all(40),
-                      nativeDuration: Duration.zero,
+                      // Duration.zero crashes the Android native binding
+                      // (animateCamera receives a null duration).
+                      nativeDuration: const Duration(milliseconds: 1),
                     );
                   }
                 },
@@ -163,7 +166,13 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
                   if (event is ml.MapEventClick) _deselect();
                 },
                 layers: polylines.isNotEmpty
-                    ? [ml.PolylineLayer(polylines: polylines)]
+                    ? [
+                        ml.PolylineLayer(
+                          polylines: polylines,
+                          color: kTrailRouteColor,
+                          width: 5,
+                        ),
+                      ]
                     : null,
                 children: [
                   if (markers.isNotEmpty)

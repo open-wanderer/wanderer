@@ -30,9 +30,14 @@ Future<String> mapStyleJson(Ref ref) async {
       ? 'assets/map/wanderer_dark.json'
       : 'assets/map/wanderer_light.json';
 
+  // spriteUrl is a theme-agnostic base (".../sprites/v4"); MapLibre resolves
+  // "<sprite>@2x.png"/"<sprite>.json" etc. directly against it, so the
+  // per-theme variant ("/light" or "/dark") must be appended here.
+  final spriteVariant = brightness == Brightness.dark ? 'dark' : 'light';
+
   final raw = await rootBundle.loadString(assetPath);
   return raw
       .replaceAll('__TILE_URL__', sources.tileUrl)
       .replaceAll('__GLYPH_URL__', sources.glyphUrl)
-      .replaceAll('__SPRITE_URL__', sources.spriteUrl);
+      .replaceAll('__SPRITE_URL__', '${sources.spriteUrl}/$spriteVariant');
 }
