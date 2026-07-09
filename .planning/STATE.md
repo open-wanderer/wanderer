@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
-status: executing
-stopped_at: "Phase 15 Plan 01 — Task 1 built & committed (d713456b); Task 2 file:// glyph gate awaiting Christian's physical-device airplane-mode PASS/FAIL"
-last_updated: "2026-07-09T07:10:52.557Z"
-last_activity: 2026-07-09 -- Phase 15 Plan 01 Task 1 committed; blocking human gate reached at Task 2
+status: "Blocked on Christian's physical-device airplane-mode PASS/FAIL for the file:// glyph spike (OFFL-04 risk gate)"
+stopped_at: "Phase 15 plan 15-01 spike complete: A1 glyph PASS, A2 sprite FAIL (tracked for 15-06)"
+last_updated: "2026-07-09T08:51:55.048Z"
+last_activity: 2026-07-09 -- Phase 15 Plan 01 Task 1 committed (d713456b); halted at blocking human gate
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 7
-  completed_plans: 2
+  completed_plans: 3
   percent: 17
 ---
 
@@ -115,9 +115,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-09T07:09:43.810Z
-Stopped at: Phase 15 planned and verified — 6 plans, risk-gate spike first
-Resume file: .planning/phases/15-maplibre-core-trail-rendering-offline-parity/15-01-PLAN.md
+Last session: 2026-07-09T08:51:55.029Z
+Stopped at: Phase 15 plan 15-01 spike complete: A1 glyph PASS, A2 sprite FAIL (tracked for 15-06)
+Resume file: .planning/phases/15-maplibre-core-trail-rendering-offline-parity/15-02-PLAN.md
 
 ## Operator Next Steps
 

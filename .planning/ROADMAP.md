@@ -192,12 +192,13 @@ Plans:
 
 Plans:
 
-- [ ] 15-01-PLAN.md — Throwaway `file://` glyph+sprite resolution spike (risk gate, physical-device verify)
+- [x] 15-01-PLAN.md — Throwaway `file://` glyph+sprite resolution spike (risk gate, physical-device verify)
 - [ ] 15-02-PLAN.md — Style extraction to `.json` assets + `mapStyleJsonProvider` (STYLE-01..04)
 - [ ] 15-03-PLAN.md — App-wide glyph/sprite cache + path-safety + download trigger (GLYPH-04, OFFL-01)
 - [ ] 15-04-PLAN.md — `WandererMap` on `MapLibreMap`: camera, live theme swap, chrome, markers (CORE-01..04, TRAIL-05)
 - [ ] 15-05-PLAN.md — Trail track/casing, static arrows, waypoint/pin markers (TRAIL-01..04)
 - [ ] 15-06-PLAN.md — Offline rewrite (`pmtiles://file://` + `file://`), multi-cell decision, delete vendor provider (OFFL-02..06)
+
 **Risk gate**: This phase retires the milestone's highest-risk unknown — whether maplibre-native resolves `file://` glyph URLs for offline label rendering. Nothing downstream is safe until criterion 4 passes on a physical device in airplane mode. The first plan of this phase should be a throwaway spike proving `file://` glyph resolution against a hand-built style, *before* the phase invests in trail rendering or download-time caching. If maplibre-native rejects `file://`, the milestone needs a different offline-label strategy and this roadmap needs revision.
 **UI hint**: yes
 
@@ -273,7 +274,7 @@ Phases 13 and 14 are independent and may execute in either order or in parallel.
 | 12. Settings Categories Screen | v1.3 | 4/4 | Complete | 2026-07-02 |
 | 13. Glyph & Sprite Endpoint | v1.4 | 1/1 | Complete    | 2026-07-08 |
 | 14. Coordinate Type Migration | v1.4 | 1/0 | Complete    | 2026-07-08 |
-| 15. MapLibre Core, Trail Rendering & Offline Parity | v1.4 | 0/TBD | Not started | - |
+| 15. MapLibre Core, Trail Rendering & Offline Parity | v1.4 | 1/6 | In Progress|  |
 | 16. List & Map Screens on MapLibre | v1.4 | 0/TBD | Not started | - |
 | 17. Navigation on MapLibre | v1.4 | 0/TBD | Not started | - |
 | 18. Retire flutter_map and the flomp Forks | v1.4 | 0/TBD | Not started | - |

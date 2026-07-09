@@ -36,27 +36,32 @@ key-decisions:
   - "Embed source + layers directly in the style JSON string (not Dart-side GeoJsonSource/SymbolStyleLayer) — the gate tests native resolution of a raw style doc"
   - "Use the real Protomaps v4 'arrow' sprite icon for the A2 icon-image test (verified present in sprites/v4/light.json) rather than guessing a name"
   - "Seed the light sprite variant (spriteUrl base + '/light') best-effort so an A2 sprite miss never aborts the primary A1 glyph gate"
+  - "VERDICT (Android, physical device, 2026-07-09): A1 PASS — file:// glyph template resolves both online and offline, label renders correctly. A2 FAIL — file:// sprite does NOT resolve despite valid, correctly-sized cached files (sprite.json 3549B, sprite.png 16174B, sprite@2x.png 28852B) at the exact path the style references; icon fails to render both online and offline (the style always points sprite at file://, so this isn't a network-vs-offline distinction — it's file:// sprite resolution itself). Native resolves file:// for glyphs but apparently not for the sprite atlas — a narrower, distinct code path."
 
 patterns-established:
   - "Throwaway spike files carry a `// SPIKE 15-01 — THROWAWAY` header and a debug-only kDebugMode entry point"
 
-requirements-completed: []  # OFFL-04 NOT complete — gated on Task 2 physical-device verdict
+requirements-completed: []  # OFFL-04 progressing — glyph half proven; sprite half needs 15-06 follow-up
 
 # Metrics
 duration: ~15min
-completed: PENDING (Task 2 awaiting physical-device verification)
+completed: 2026-07-09
 ---
 
 # Phase 15 Plan 01: file:// Glyph Risk-Gate Spike Summary
 
-**INCOMPLETE / PENDING VERIFICATION — Task 1 (build) done; Task 2 (physical-device airplane-mode PASS/FAIL) is a blocking human gate that has NOT run.**
+**COMPLETE — PARTIAL PASS.** Task 1 (build) done. Task 2 (physical-device airplane-mode verification) ran: **A1 (glyphs) PASSED**, **A2 (sprite) FAILED**.
 
-A throwaway MapLibreMap spike screen renders a place-name label (A1) and an `arrow` sprite icon (A2) from a hand-built minimal style whose `glyphs` template and `sprite` base are `file://` URLs under `<app-docs>/spike_glyphs`, pre-seeded online by `seedSpikeGlyphCache()`. Whether MapLibre GL Native actually resolves those `file://` URLs offline on a real device is the milestone's highest-risk unknown (OFFL-04) and is **not yet known**.
+A throwaway MapLibreMap spike screen renders a place-name label (A1) and an `arrow` sprite icon (A2) from a hand-built minimal style whose `glyphs` template and `sprite` base are `file://` URLs under `<app-docs>/spike_glyphs`, pre-seeded online by `seedSpikeGlyphCache()`.
+
+**The milestone's primary risk gate is resolved: MapLibre GL Native DOES resolve `file://` glyph URL templates**, both online and in airplane mode on a physical Android device — the "Wanderer Spike" label renders correctly in both states. This unblocks Phase 15 waves 2-5 (15-02..15-05), none of which touch offline sprite resolution.
+
+**A secondary, narrower gap was found: the `arrow` sprite icon never rendered, online or offline**, despite `seedSpikeGlyphCache()` successfully caching valid, correctly-sized files at exactly the `file://<cache>/sprite.{json,png}` path the style references (confirmed via `adb shell run-as ... ls -la`: `sprite.json` 3549B, `sprite.png` 16174B, `sprite@2x.png` 28852B — not corrupted, not empty). Because the style always points `sprite` at `file://` (there's no live-network variant in this spike), the online/offline distinction doesn't apply to A2 the way it does to A1 — this is a **file:// sprite resolution failure**, not a connectivity issue. Since production online rendering uses `https://` sprite URLs (not `file://`), STYLE-04/online icon rendering is unaffected — this only threatens the OFFL-02 offline rewrite's sprite half. **Plan 15-06 (OFFL-02/03/04/05) must investigate this before closing OFFL-02** — see "Next Phase Readiness" below.
 
 ## Status
 
 - ✅ **Task 1 — build the spike screen + seed helper + debug entry** — DONE, committed `d713456b`.
-- ⏸️ **Task 2 — physical-device airplane-mode verification (Christian runs)** — BLOCKING HUMAN GATE, not executed. Claude cannot access a physical device (D-01/D-02). The plan is **not complete** and no downstream Phase 15 plan (15-02..15-06) is cleared to run until this returns PASS.
+- ✅ **Task 2 — physical-device airplane-mode verification (Christian ran it, Android)** — A1 PASS, A2 FAIL. See verdict above.
 
 ## Performance
 
@@ -89,7 +94,7 @@ A throwaway MapLibreMap spike screen renders a place-name label (A1) and an `arr
 - Style JSON contains a top-level `glyphs` key with a `file://` value and a `symbol` layer with `text-font: ["Noto Sans Regular"]`. ✅
 - `seedSpikeGlyphCache()` fetches `Noto Sans Regular/0-255.pbf` (+ `256-511.pbf`) and the sprite files into `<app-docs>/spike_glyphs/`, idempotent. ✅
 - Debug-only path to open `SpikeGlyphFileScreen` exists. ✅
-- **Human gate (Task 2): NOT RUN** — requires a physical device in airplane mode (D-01/D-02). Verdict unknown.
+- **Human gate (Task 2): RUN on a physical Android device, airplane mode.** A1 (glyph label) PASS. A2 (sprite icon) FAIL — see verdict above. A build/wiring bug was found and fixed during verification (see Deviations).
 
 ## Decisions Made
 
@@ -99,22 +104,20 @@ A throwaway MapLibreMap spike screen renders a place-name label (A1) and an `arr
 
 ## Deviations from Plan
 
-None — Task 1 executed exactly as written. Task 2 is intentionally halted per its `gate="blocking-human"` disposition (D-01/D-02/D-03).
+- A real bug was found and fixed during verification, outside the original plan scope: the debug-only FAB in `main.dart` had a `tooltip:` property that crashed on first frame with "No Overlay widget found" — the FAB lives in `MaterialApp.router`'s `builder`, which sits above the router's internal `Navigator`/`Overlay`, and `RawTooltip`'s `build()` unconditionally asserts an `Overlay` ancestor. Fixed by removing the `tooltip:` property (commit `d0d3920f`). This was necessary for Christian to reach the spike screen at all; without it the app crashed before the spike could even be tested.
+- A2 (sprite `file://` resolution) did not pass, contrary to the "ideally sprite" aspiration in RESEARCH.md's Spike Design section. This is a real, documented finding, not a plan deviation — see verdict above and "Next Phase Readiness."
 
 ## Issues Encountered
 
-None during Task 1.
+- `main.dart`'s debug FAB tooltip crash (see Deviations) — fixed inline before the human gate could run.
+- A2 sprite `file://` resolution failure — files verified valid and present via `adb shell run-as ... ls -la` (not a download/corruption issue); root cause not yet diagnosed (native log not yet captured — no error was thrown, the icon layer just silently renders nothing). Deferred to 15-06.
 
 ## Next Phase Readiness
 
-**BLOCKED on the human gate.** Nothing downstream is cleared:
+**UNBLOCKED for waves 2-5.** The primary risk gate (A1, glyph labels via `file://`) passed — plans 15-02 through 15-05 (style extraction, glyph cache, `WandererMap` core rewrite, trail/marker rendering) do not depend on offline sprite resolution and are clear to execute.
 
-- **On PASS** (label + arrow render offline on a physical device in airplane mode): plans 15-02..15-06 are unblocked; OFFL-02 (`file://` rewrite) and OFFL-04 are safe to build. Mark OFFL-04 progressing and delete the three spike artifacts as later plans land the real cache.
-- **On FAIL** (label blank / tofu / style-load error / only worked because it silently reached the network): capture the native resource-load error (Android `adb logcat` — glyph/resource 404 or "unsupported scheme" — or the iOS device console) and record it here verbatim. Per **D-03**, do NOT pick a fallback direction; the phase STOPS and the offline-label strategy is re-decided (roadmap revision per ROADMAP.md "Risk gate") before any further Phase 15 execution.
-
-## Awaiting Resume Signal
-
-Christian to reply **"PASS"** (glyphs + sprite render offline) or **"FAIL: &lt;captured native log&gt;"** after running the debug build on a PHYSICAL device in airplane mode per the plan's `<how-to-verify>` steps.
+**Plan 15-06 (OFFL-02/03/04/05) has an added investigation item:** before closing OFFL-02 (the offline style rewriter that points `sprite` at `file://`), 15-06 must either (a) find and fix the root cause of the A2 sprite `file://` failure — candidates to investigate: MapLibre Native's sprite loader may require a different scheme/format than the glyph loader (e.g. an internal HTTP(S)-only fast path for the combined `sprite.json`+`sprite.png` fetch, a pixel-ratio-driven `@Nx` suffix mismatch, or a native-side sprite-cache validator that rejects `file://`), by capturing native logs (`adb logcat` filtered for `mbgl`/sprite/resource-load errors) during a repeat of this spike with verbose logging enabled — or (b) if unresolvable in-phase, land OFFL-02/OFFL-03/OFFL-04 (basemap + labels offline) without offline sprite icons, and explicitly scope out offline `arrow`/route-shield icon rendering as a known, documented gap (icons still render fine online, this only affects downloaded/airplane-mode trails) — bring that scope call back for confirmation rather than silently descoping, per the same D-03 spirit (no silently-assumed fallback on a failed sub-gate).
+- Delete the three throwaway spike artifacts (`spike_glyph_file_screen.dart`, `spike_glyph_seed.dart`, the `main.dart` FAB) as originally planned once 15-06 lands the real offline cache — this is unaffected by the A2 finding.
 
 ## Self-Check: PASSED
 
@@ -122,9 +125,8 @@ Christian to reply **"PASS"** (glyphs + sprite render offline) or **"FAIL: &lt;c
 - FOUND: app/lib/util/spike_glyph_seed.dart
 - FOUND: .planning/phases/15-maplibre-core-trail-rendering-offline-parity/15-01-SUMMARY.md
 - FOUND: commit d713456b (Task 1)
-
-_Note: this self-check confirms Task 1 artifacts only. Task 2 (physical-device airplane-mode PASS/FAIL) remains an open human gate — the plan is intentionally NOT marked complete._
+- FOUND: commit d0d3920f (tooltip/Overlay crash fix, found during Task 2 verification)
 
 ---
 *Phase: 15-maplibre-core-trail-rendering-offline-parity*
-*Status: Task 1 complete, Task 2 pending physical-device verification*
+*Status: COMPLETE — A1 PASS, A2 FAIL (documented follow-up for 15-06)*
