@@ -1,13 +1,11 @@
 import 'package:duration/duration.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart' as html;
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
-import 'package:vector_map_tiles/vector_map_tiles.dart';
+import 'package:wanderer/components/base/search_map.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
@@ -16,13 +14,10 @@ import 'package:wanderer/models/list.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
-import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/list_provider.dart';
 import 'package:wanderer/util/format_util.dart';
-import 'package:wanderer/util/map_coordinate_adapter.dart';
 import 'package:collection/collection.dart';
 import 'package:wanderer/models/category.dart';
-import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/category_icon_util.dart';
@@ -317,94 +312,98 @@ class _ListHeader extends ConsumerWidget {
   }
 }
 
-class _ListMap extends ConsumerWidget {
+class _ListMap extends ConsumerStatefulWidget {
   final WandererList list;
   final List<Trail> trails;
   const _ListMap({required this.list, required this.trails});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final styleAsync = ref.watch(mapStyleProvider);
+  ConsumerState<_ListMap> createState() => _ListMapState();
+}
+
+class _ListMapState extends ConsumerState<_ListMap> {
+  ml.MapController? _controller;
+
+  @override
+  Widget build(BuildContext context) {
     final allCategories = ref.watch(categoryProvider).value ?? [];
     final allSubcategories = ref.watch(subcategoryProvider);
 
-    final polylines = trails
+    final polylines = widget.trails
         .where((t) => t.polyline != null && t.polyline!.isNotEmpty)
         .map(
-          (t) => Polyline(points: toLatLngList(PolylineUtil.decode(t.polyline!))),
+          (t) => ml.Feature<ml.LineString>(
+            geometry: ml.LineString.from(PolylineUtil.decode(t.polyline!)),
+          ),
         )
         .toList();
 
-    final markers = trails.where((t) => t.lat != null && t.lon != null).map((
-      t,
-    ) {
-      final Category? category = t.categoryId != null
-          ? allCategories.firstWhereOrNull((c) => c.id == t.categoryId)
-          : null;
-      final subcategory = t.subcategoryId != null
-          ? allSubcategories.firstWhereOrNull((s) => s.id == t.subcategoryId)
-          : null;
-      return Marker(
-        point: toLatLng(ml.Geographic(lat: t.lat!, lon: t.lon!)),
-        width: 36,
-        height: 36,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: trailCategoryIcon(
-              category,
-              subcategory: subcategory,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      );
-    }).toList();
-
-    final combinedBounds = _combinedBounds(trails);
-
-    return styleAsync.when(
-      loading: () => ColoredBox(color: Theme.of(context).colorScheme.surface),
-      error: (e, _) => Center(child: Text(e.toString())),
-      data: (style) => FlutterMap(
-        key: ObjectKey(style),
-        options: MapOptions(
-          onTap: (_, _) => context.push('/list/${list.id}/map'),
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          interactionOptions: const InteractionOptions(
-            flags: InteractiveFlag.none,
-          ),
-          initialCameraFit: combinedBounds != null
-              ? CameraFit.bounds(
-                  bounds: toLatLngBounds(combinedBounds),
-                  padding: const EdgeInsets.all(32),
+    final markers = widget.trails
+        .where((t) => t.lat != null && t.lon != null)
+        .map((t) {
+          final Category? category = t.categoryId != null
+              ? allCategories.firstWhereOrNull((c) => c.id == t.categoryId)
+              : null;
+          final subcategory = t.subcategoryId != null
+              ? allSubcategories.firstWhereOrNull(
+                  (s) => s.id == t.subcategoryId,
                 )
-              : null,
-          initialCenter: toLatLng(const ml.Geographic(lat: 0, lon: 0)),
-          initialZoom: 3,
-        ),
-        children: [
-          VectorTileLayer(
-            tileProviders: style.providers,
-            theme: style.theme,
-            tileOffset: TileOffset.DEFAULT,
-            concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
-          ),
-          if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
-          if (markers.isNotEmpty) MarkerLayer(markers: markers),
-        ],
-      ),
+              : null;
+          return ml.Marker(
+            point: ml.Geographic(lat: t.lat!, lon: t.lon!),
+            size: const Size(36, 36),
+            // Non-interactive (RESEARCH Open Question 2): no GestureDetector
+            // wrapper — matches today's plain, non-tappable MarkerLayer.
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: trailCategoryIcon(
+                  category,
+                  subcategory: subcategory,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          );
+        })
+        .toList();
+
+    final combinedBounds = _combinedBounds(widget.trails);
+
+    return SearchMap(
+      disabled: true,
+      onMapCreated: (controller) => _controller = controller,
+      onStyleLoaded: (style) {
+        if (combinedBounds != null) {
+          _controller?.fitBounds(
+            bounds: combinedBounds,
+            padding: const EdgeInsets.all(40),
+            nativeDuration: Duration.zero,
+          );
+        }
+      },
+      onMapEvent: (event) {
+        if (event is ml.MapEventClick) {
+          context.push('/list/${widget.list.id}/map');
+        }
+      },
+      layers: polylines.isNotEmpty
+          ? [ml.PolylineLayer(polylines: polylines)]
+          : null,
+      children: [
+        if (markers.isNotEmpty) ml.WidgetLayer(markers: markers),
+      ],
     );
   }
 
