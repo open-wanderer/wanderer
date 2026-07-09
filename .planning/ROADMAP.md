@@ -193,7 +193,7 @@ Plans:
 Plans:
 
 - [x] 15-01-PLAN.md — Throwaway `file://` glyph+sprite resolution spike (risk gate, physical-device verify)
-- [ ] 15-02-PLAN.md — Style extraction to `.json` assets + `mapStyleJsonProvider` (STYLE-01..04)
+- [x] 15-02-PLAN.md — Style extraction to `.json` assets + `mapStyleJsonProvider` (STYLE-01..04)
 - [ ] 15-03-PLAN.md — App-wide glyph/sprite cache + path-safety + download trigger (GLYPH-04, OFFL-01)
 - [ ] 15-04-PLAN.md — `WandererMap` on `MapLibreMap`: camera, live theme swap, chrome, markers (CORE-01..04, TRAIL-05)
 - [ ] 15-05-PLAN.md — Trail track/casing, static arrows, waypoint/pin markers (TRAIL-01..04)

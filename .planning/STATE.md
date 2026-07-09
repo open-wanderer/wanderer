@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
-status: "Blocked on Christian's physical-device airplane-mode PASS/FAIL for the file:// glyph spike (OFFL-04 risk gate)"
-stopped_at: "Phase 15 plan 15-01 spike complete: A1 glyph PASS, A2 sprite FAIL (tracked for 15-06)"
-last_updated: "2026-07-09T08:51:55.048Z"
-last_activity: 2026-07-09 -- Phase 15 Plan 01 Task 1 committed (d713456b); halted at blocking human gate
+status: "Phase 15 plan 15-02 complete (online style-JSON path); 15-01 Task 2 still blocked on Christian's physical-device airplane-mode PASS/FAIL for the file:// glyph spike (OFFL-04 risk gate)"
+stopped_at: "Phase 15 plan 15-02 complete: JSON style assets + mapStyleJsonProvider shipped"
+last_updated: "2026-07-09T11:00:00.000Z"
+last_activity: 2026-07-09 -- Phase 15 Plan 02 complete (16a6b9a1, fc343987): style assets + mapStyleJsonProvider
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 7
-  completed_plans: 3
-  percent: 17
+  completed_plans: 4
+  percent: 57
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 ## Current Position
 
 Phase: 15 (maplibre-core-trail-rendering-offline-parity) — EXECUTING
-Plan: 1 of 6 — Task 1 done, Task 2 (physical-device file:// glyph gate) PENDING human verification
-Status: Blocked on Christian's physical-device airplane-mode PASS/FAIL for the file:// glyph spike (OFFL-04 risk gate)
-Last activity: 2026-07-09 -- Phase 15 Plan 01 Task 1 committed (d713456b); halted at blocking human gate
+Plan: 2 of 6 complete — STYLE-01..04 shipped. 15-01 Task 2 (physical-device file:// glyph gate) still PENDING human verification.
+Status: 15-02 complete (online style-JSON path); 15-01 offline glyph gate remains blocked on Christian's physical-device airplane-mode PASS/FAIL (OFFL-04 risk gate)
+Last activity: 2026-07-09 -- Phase 15 Plan 02 complete (16a6b9a1, fc343987): JSON style assets + mapStyleJsonProvider
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 17%
 
 ## v1.4 Phases
 

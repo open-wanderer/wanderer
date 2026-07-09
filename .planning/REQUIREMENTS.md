@@ -9,10 +9,10 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 
 ### Style & Glyph Serving
 
-- [ ] **STYLE-01**: The wanderer light and dark styles exist as plain `.json` assets in the app, equivalent in rendered output to today's `wandererLightTheme` / `wandererDarkTheme`
-- [ ] **STYLE-02**: The app injects the operator's `TILE_SERVER_URL` (via the unified `/map/style-sources` endpoint) into the style's `protomaps` source at runtime, preserving today's operator control
-- [ ] **STYLE-03**: The style carries a `glyphs` key, and its 14 symbol layers render place-name labels in the 4 referenced fontstacks (Noto Sans Regular, Medium, Italic, and Devanagari Regular for the data-driven Devanagari-script case)
-- [ ] **STYLE-04**: The style carries a `sprite` key, and the `arrow` and route-network shield icons render — icons silently dropped today
+- [x] **STYLE-01**: The wanderer light and dark styles exist as plain `.json` assets in the app, equivalent in rendered output to today's `wandererLightTheme` / `wandererDarkTheme`
+- [x] **STYLE-02**: The app injects the operator's `TILE_SERVER_URL` (via the unified `/map/style-sources` endpoint) into the style's `protomaps` source at runtime, preserving today's operator control
+- [x] **STYLE-03**: The style carries a `glyphs` key, and its 14 symbol layers render place-name labels in the 4 referenced fontstacks (Noto Sans Regular, Medium, Italic, and Devanagari Regular for the data-driven Devanagari-script case)
+- [x] **STYLE-04**: The style carries a `sprite` key, and the `arrow` and route-network shield icons render — icons silently dropped today
 - [x] **GLYPH-01**: The unified `/map/style-sources` endpoint resolves the glyph URL template (`{fontstack}/{range}.pbf`) for the 4 fontstacks the style references, defaulting to Protomaps' public `basemaps-assets` host
 - [x] **GLYPH-02**: The unified `/map/style-sources` endpoint resolves the sprite base URL (`sprite.json`, `sprite.png`, `sprite@2x.png`, light and dark), defaulting to Protomaps' public `basemaps-assets` host
 - [x] **GLYPH-03**: An operator can override the glyph and sprite origin by environment variable, mirroring how `TILE_SERVER_URL` overrides tiles; unset, `/map/style-sources` falls back to Protomaps' public assets rather than a self-hosted copy
@@ -111,10 +111,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GLYPH-03 | Phase 13 | Complete |
 | TYPE-01 | Phase 14 | Complete |
 | TYPE-02 | Phase 14 | Complete |
-| STYLE-01 | Phase 15 | Pending |
-| STYLE-02 | Phase 15 | Pending |
-| STYLE-03 | Phase 15 | Pending |
-| STYLE-04 | Phase 15 | Pending |
+| STYLE-01 | Phase 15 | Complete |
+| STYLE-02 | Phase 15 | Complete |
+| STYLE-03 | Phase 15 | Complete |
+| STYLE-04 | Phase 15 | Complete |
 | GLYPH-04 | Phase 15 | Pending |
 | CORE-01 | Phase 15 | Pending |
 | CORE-02 | Phase 15 | Pending |
