@@ -1,16 +1,15 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map_animations/flutter_map_animations.dart';
-import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
-import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart'
+    show LocationMarkerPosition;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
-import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:wanderer/components/async_loader.dart';
-import 'package:wanderer/components/map/map_compass.dart';
+import 'package:wanderer/components/base/search_map.dart';
+import 'package:wanderer/components/map/cluster_layer.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -18,17 +17,9 @@ import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/map_camera_provider.dart';
-import 'package:wanderer/provider/map_style_provider.dart';
+import 'package:wanderer/provider/trail/map_cluster_search_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
-import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
-import 'package:collection/collection.dart';
-import 'package:wanderer/models/category.dart';
-import 'package:wanderer/models/subcategory.dart';
-import 'package:wanderer/provider/trail/category_provider.dart';
-import 'package:wanderer/provider/trail/subcategory_provider.dart';
-import 'package:wanderer/util/category_icon_util.dart';
-import 'package:wanderer/util/map_coordinate_adapter.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   final ml.Geographic? initialCenter;
@@ -42,10 +33,16 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen>
     with TickerProviderStateMixin {
-  late final _animatedMapController = AnimatedMapController(vsync: this);
+  ml.MapController? _controller;
+  bool _initialSearchDone = false;
 
+  // Set by the (Task 2) unclustered-marker tap handler / cluster-tap
+  // background-deselect handler — neither exists yet in this task, so these
+  // stay null for now. Retyped off flutter_map's `Polyline?` here (Task 1
+  // already drops the `flutter_map` import) to `List<ml.Geographic>?`; Task 2
+  // wires the fetch-then-fit tap handler that actually populates them.
   TrailSearchResult? _selectedTrail;
-  Polyline? _selectedPolyline;
+  List<ml.Geographic>? _selectedPolyline;
 
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
@@ -92,20 +89,22 @@ class _MapScreenState extends ConsumerState<MapScreen>
     super.didUpdateWidget(oldWidget);
     final newCenter = widget.initialCenter;
     if (newCenter != null && newCenter != oldWidget.initialCenter) {
-      _animatedMapController
-          .animateTo(
-            dest: toLatLng(newCenter),
+      final controller = _controller;
+      if (controller == null) return;
+      controller
+          .animateCamera(
+            center: newCenter,
             zoom: widget.initialZoom ?? 13.0,
-            duration: const Duration(milliseconds: 750),
-            curve: Curves.easeInOut,
+            nativeDuration: const Duration(milliseconds: 750),
           )
           .then((_) {
             if (!mounted) return;
-            final bounds =
-                _animatedMapController.mapController.camera.visibleBounds;
+            final bounds = controller.getVisibleRegion();
+            final zoom = controller.getCamera().zoom;
             ref
-                .read(mapTrailSearchProvider.notifier)
-                .searchInBounds(toLngLatBounds(bounds));
+                .read(mapClusterSearchProvider.notifier)
+                .searchInBounds(bounds, zoom);
+            ref.read(mapTrailSearchProvider.notifier).searchInBounds(bounds);
           });
     }
   }
@@ -126,7 +125,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   @override
   void dispose() {
-    _animatedMapController.dispose();
     _sheetController.removeListener(_onSheetSizeChanged);
     _sheetController.dispose();
     _sheetSize.dispose();
@@ -138,22 +136,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
   @override
   Widget build(BuildContext context) {
     final savedCamera = ref.read(mapCameraProvider);
-    final styleAsync = ref.watch(mapStyleProvider);
-    final isRefreshing = styleAsync.isLoading && styleAsync.hasValue;
-    final style = isRefreshing ? null : styleAsync.value;
 
-    ref.listen(mapStyleProvider, (previous, next) {
-      if (previous?.value == null && next.value != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            final bounds =
-                _animatedMapController.mapController.camera.visibleBounds;
-            ref
-                .read(mapTrailSearchProvider.notifier)
-                .searchInBounds(toLngLatBounds(bounds));
-          }
-        });
-      }
+    // Re-query rendering (CLUS-04): swap the native cluster source's data in
+    // place on every new mapClusterSearchProvider result — never remove and
+    // re-add the source.
+    ref.listen(mapClusterSearchProvider, (previous, next) {
+      final style = _controller?.style;
+      final data = next.value;
+      if (style == null || data == null || next.isLoading) return;
+      updateClusterSource(style, jsonEncode(data)).ignore();
     });
 
     final filterAsync = ref.watch(trailFilterProvider('map'));
@@ -164,191 +155,94 @@ class _MapScreenState extends ConsumerState<MapScreen>
           )
         : 0;
 
+    // KEEP mapTrailSearchProvider watched exactly as today — it still powers
+    // the bottom-sheet TrailCard list and (Task 2) the tapped-trail metadata
+    // lookup (the cluster endpoint's attributesToRetrieve is only id/_geo/
+    // bounding_box_diagonal, Pitfall 2).
     final searchResultAsync = ref.watch(mapTrailSearchProvider);
-    final trails = searchResultAsync.value ?? [];
-    final allCategories = ref.watch(categoryProvider).value ?? [];
-    final allSubcategories = ref.watch(subcategoryProvider);
-
-    final markers = trails.map((trail) {
-      final Category? category = trail.categoryId != null
-          ? allCategories.firstWhereOrNull((c) => c.id == trail.categoryId)
-          : null;
-      final subcategory = trail.subcategoryId != null
-          ? allSubcategories.firstWhereOrNull(
-              (s) => s.id == trail.subcategoryId,
-            )
-          : null;
-      return Marker(
-        key: ValueKey(trail.id),
-        point: toLatLng(ml.Geographic(lat: trail.geo.lat, lon: trail.geo.lng)),
-        width: 36,
-        height: 36,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: trailCategoryIcon(
-              category,
-              subcategory: subcategory,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      );
-    }).toList();
 
     return Stack(
       children: [
-        FlutterMap(
-          mapController: _animatedMapController.mapController,
-          options: MapOptions(
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            initialCenter: toLatLng(
-              widget.initialCenter ??
-                  savedCamera?.center ??
-                  const ml.Geographic(lat: 0, lon: 0),
-            ),
-            initialZoom: widget.initialZoom ?? savedCamera?.zoom ?? 3,
-            interactionOptions: InteractionOptions(
-              enableMultiFingerGestureRace: true,
-            ),
-            maxZoom: 22,
-            onMapEvent: (event) {
-              if (event is MapEventMoveEnd) {
+        SearchMap(
+          initCenter: widget.initialCenter ?? savedCamera?.center,
+          initZoom: widget.initialZoom ?? savedCamera?.zoom,
+          onMapCreated: (controller) => _controller = controller,
+          onStyleLoaded: (style) async {
+            // T-16-02: fail soft on a malformed/oversized cluster response —
+            // never crash the map.
+            try {
+              final data =
+                  ref.read(mapClusterSearchProvider).value ??
+                  const {'type': 'FeatureCollection', 'features': <Object>[]};
+              await addClusterLayers(style, jsonEncode(data));
+            } catch (e) {
+              debugPrint('map_screen: failed to add cluster layers — $e');
+            }
+
+            // Initial-load search trigger (replaces the old mapStyleProvider
+            // post-frame-callback pattern) — fires once per widget lifetime,
+            // not on every theme-swap style reload.
+            if (!_initialSearchDone) {
+              _initialSearchDone = true;
+              final controller = _controller;
+              if (controller != null) {
+                final bounds = controller.getVisibleRegion();
+                final zoom = controller.getCamera().zoom;
+                ref
+                    .read(mapClusterSearchProvider.notifier)
+                    .searchInBounds(bounds, zoom);
+                ref
+                    .read(mapTrailSearchProvider.notifier)
+                    .searchInBounds(bounds);
+              }
+            }
+          },
+          onMapEvent: (event) {
+            if (event is ml.MapEventStartMoveCamera &&
+                event.reason == ml.CameraChangeReason.apiGesture) {
+              _searchAreaController.forward();
+              return;
+            }
+
+            // Task 2 adds native cluster/marker tap handling here
+            // (MapEventClick — featuresAtPoint cluster hit-test + zoom, and
+            // background-tap deselect).
+
+            if (event is ml.MapEventCameraIdle) {
+              final camera = _controller?.getCamera();
+              if (camera != null) {
                 ref
                     .read(mapCameraProvider.notifier)
-                    .save(toGeographic(event.camera.center), event.camera.zoom);
-                const userGestures = {
-                  MapEventSource.dragEnd,
-                  MapEventSource.flingAnimationController,
-                  MapEventSource.multiFingerEnd,
-                  MapEventSource.doubleTap,
-                  MapEventSource.doubleTapZoomAnimationController,
-                  MapEventSource.scrollWheel,
-                };
-                if (userGestures.contains(event.source)) {
-                  _searchAreaController.forward();
-                }
+                    .save(camera.center, camera.zoom);
               }
-            },
-            onTap: (tapPosition, point) {
-              if (_sheetController.isAttached) {
-                _sheetController.animateTo(
-                  sheetMinSize,
-                  curve: Curves.easeOut,
-                  duration: Duration(milliseconds: 300),
-                );
-              }
-
-              setState(() {
-                _selectedTrail = null;
-                _selectedPolyline = null;
-              });
-            },
-          ),
+            }
+          },
+          // Retyped off flutter_map's `Polyline?` (Task 1 drops the
+          // `flutter_map` import); Task 2 wires the unclustered-marker tap
+          // handler that actually populates `_selectedPolyline`.
+          layers: _selectedPolyline != null
+              ? [
+                  ml.PolylineLayer(
+                    polylines: [
+                      ml.Feature<ml.LineString>(
+                        geometry: ml.LineString.from(_selectedPolyline!),
+                      ),
+                    ],
+                  ),
+                ]
+              : null,
           children: [
-            if (style != null)
-              SizedBox.expand(
-                child: VectorTileLayer(
-                  tileProviders: style.providers,
-                  theme: style.theme,
-                  tileOffset: TileOffset.DEFAULT,
-                  concurrency: kDebugMode
-                      ? 0
-                      : VectorTileLayer.defaultConcurrency,
-                ),
-              ),
-            CurrentLocationLayer(
-              positionStream: ref.watch(foregroundPositionStreamProvider),
-            ),
-
-            if (_selectedPolyline != null)
-              PolylineLayer(polylines: [_selectedPolyline!]),
+            _LocationLayer(),
             Positioned(
               top: 124,
               right: 8,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                children: [const MapCompass(hideIfRotatedNorth: true)],
+                children: const [ml.MapCompass(hideIfRotatedNorth: true)],
               ),
             ),
-            MarkerClusterLayerWidget(
-              options: MarkerClusterLayerOptions(
-                maxClusterRadius: 45,
-                size: const Size(40, 40),
-                alignment: Alignment.center,
-                padding: const EdgeInsets.all(50),
-                maxZoom: 15,
-                markers: markers,
-                centerMarkerOnClick: false,
-                showPolygon: false,
-                onMarkerTap: (marker) {
-                  final trailId = (marker.key as ValueKey<String>).value;
-                  final trail = trails.firstWhere((t) => t.id == trailId);
-                  setState(() {
-                    _selectedTrail = trail;
-                    _selectedPolyline = null;
-                  });
-
-                  ref.read(trailPolylineProvider(trailId).future).then((
-                    polyline,
-                  ) {
-                    if (!mounted || _selectedTrail?.id != trailId) return;
-                    if (polyline != null) {
-                      _animatedMapController.animatedFitCamera(
-                        cameraFit: CameraFit.bounds(
-                          bounds: toLatLngBounds(
-                            ml.LngLatBounds.fromPoints(polyline),
-                          ),
-                          padding: EdgeInsets.fromLTRB(40, 56, 40, 248),
-                        ),
-                        duration: Duration(milliseconds: 750),
-                      );
-                    }
-                    setState(
-                      () => _selectedPolyline = polyline == null
-                          ? null
-                          : Polyline(points: toLatLngList(polyline)),
-                    );
-                  });
-                },
-                builder: (context, markers) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: Theme.of(context).primaryColor,
-                      border: Border.all(color: Colors.white, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        markers.length.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
+            const ml.MapScalebar(),
+            const ml.SourceAttribution(),
           ],
         ),
 
@@ -363,13 +257,16 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 child: FilledButton.icon(
                   onPressed: () {
                     _searchAreaController.reverse();
-                    final bounds = _animatedMapController
-                        .mapController
-                        .camera
-                        .visibleBounds;
+                    final controller = _controller;
+                    if (controller == null) return;
+                    final bounds = controller.getVisibleRegion();
+                    final zoom = controller.getCamera().zoom;
+                    ref
+                        .read(mapClusterSearchProvider.notifier)
+                        .searchInBounds(bounds, zoom);
                     ref
                         .read(mapTrailSearchProvider.notifier)
-                        .searchInBounds(toLngLatBounds(bounds));
+                        .searchInBounds(bounds);
                   },
                   icon: const FaIcon(FontAwesomeIcons.mapLocationDot, size: 14),
                   label: Text(AppLocalizations.of(context)!.search_this_area),
@@ -676,5 +573,48 @@ class _MapScreenState extends ConsumerState<MapScreen>
     if (current.startDate != null) count++;
     if (current.endDate != null) count++;
     return count;
+  }
+}
+
+/// Interim device-location marker (mirrors `WandererMap._buildLocationLayer`)
+/// — a simple native puck driven by [foregroundPositionStreamProvider].
+/// Replaces the old flutter_map-only `CurrentLocationLayer` widget, which
+/// cannot render outside a flutter_map `FlutterMap` widget tree.
+class _LocationLayer extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final positionStream = ref.watch(foregroundPositionStreamProvider);
+    return StreamBuilder<LocationMarkerPosition?>(
+      stream: positionStream,
+      builder: (context, snapshot) {
+        final position = snapshot.data;
+        if (position == null) return const SizedBox.shrink();
+        return ml.WidgetLayer(
+          markers: [
+            ml.Marker(
+              point: ml.Geographic(
+                lat: position.latitude,
+                lon: position.longitude,
+              ),
+              size: const Size(18, 18),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
