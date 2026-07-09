@@ -1,5 +1,5 @@
 {
-  "model_profile": "quality",
+  "model_profile": "balanced",
   "commit_docs": false,
   "parallelization": true,
   "search_gitignored": false,

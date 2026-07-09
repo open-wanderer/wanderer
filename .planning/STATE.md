@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
-status: "Phase 15 COMPLETE. WandererMap renders via MapLibreMap online and offline; OFFL-04 offline parity gate PASSED on a physical Android device after 4 on-device/verification fixes (build blocker, MapCompass crash, offline maxzoom, arrow/sprite icon-id collision). OFFL-06 deferred to Phase 17/18 (navigation_screen still needs the vendor pmtiles provider). Ready to plan Phase 16."
-stopped_at: Phase 15 complete — offline parity gate PASSED (OFFL-04), all 6 plans done, goal-backward verification PASSED
-last_updated: "2026-07-09T18:00:00.000Z"
-last_activity: 2026-07-09 -- Phase 15 verified (15-VERIFICATION.md, status passed); arrow/sprite icon-id collision found and fixed (38aabcdc)
+status: verifying
+stopped_at: Phase 16 context gathered
+last_updated: "2026-07-09T16:28:47.262Z"
+last_activity: 2026-07-09 -- Phase 15 verified, arrow/sprite icon-id collision fixed (38aabcdc)
 progress:
   total_phases: 6
-  completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
-  percent: 50
+  completed_phases: 2
+  total_plans: 7
+  completed_plans: 8
+  percent: 33
 ---
 
 # Project State
@@ -127,9 +127,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-09T16:02:54.697Z
-Stopped at: Phase 15 complete — offline parity gate PASSED (OFFL-04), all 6 plans done
-Resume file: .planning/ROADMAP.md
+Last session: 2026-07-09T16:28:47.249Z
+Stopped at: Phase 16 context gathered
+Resume file: .planning/phases/16-list-map-screens-on-maplibre/16-CONTEXT.md
 
 ## Operator Next Steps
 
