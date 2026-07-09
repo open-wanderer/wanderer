@@ -40,10 +40,10 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 
 ### Trail Rendering
 
-- [ ] **TRAIL-01**: A trail's GPX track renders as a native line layer with a casing — 5px route color over a 2px white border, visually equivalent to today's `Polyline`
-- [ ] **TRAIL-02**: Directional arrows render along the trail line via a native symbol layer, replacing the ~60 lines of bearing math currently dead behind `showArrows = false`
-- [ ] **TRAIL-03**: Waypoints render as tappable widget markers, preserving today's `AnimatedScale` selection animation and `onWaypointTap` callback
-- [ ] **TRAIL-04**: Start and finish pins render as widget markers, including the alignment nudge applied when the two points fall within 36 screen pixels
+- [x] **TRAIL-01**: A trail's GPX track renders as a native line layer with a casing — 5px route color over a 2px white border, visually equivalent to today's `Polyline`
+- [x] **TRAIL-02**: Directional arrows render along the trail line via a native symbol layer, replacing the ~60 lines of bearing math currently dead behind `showArrows = false`
+- [x] **TRAIL-03**: Waypoints render as tappable widget markers, preserving today's `AnimatedScale` selection animation and `onWaypointTap` callback
+- [x] **TRAIL-04**: Start and finish pins render as widget markers, including the alignment nudge applied when the two points fall within 36 screen pixels
 - [x] **TRAIL-05**: The elevation-profile position marker tracks the user's scrub position along the trail
 
 ### Clustering & Map Screen
@@ -120,10 +120,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CORE-02 | Phase 15 | Complete |
 | CORE-03 | Phase 15 | Complete |
 | CORE-04 | Phase 15 | Complete |
-| TRAIL-01 | Phase 15 | Pending |
-| TRAIL-02 | Phase 15 | Pending |
-| TRAIL-03 | Phase 15 | Pending |
-| TRAIL-04 | Phase 15 | Pending |
+| TRAIL-01 | Phase 15 | Complete |
+| TRAIL-02 | Phase 15 | Complete |
+| TRAIL-03 | Phase 15 | Complete |
+| TRAIL-04 | Phase 15 | Complete |
 | TRAIL-05 | Phase 15 | Complete |
 | OFFL-01 | Phase 15 | Complete |
 | OFFL-02 | Phase 15 | Pending |
