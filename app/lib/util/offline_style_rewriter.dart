@@ -139,11 +139,24 @@ void _rewriteSourcesAndLayers(
   }
 }
 
+/// The deepest zoom level actually present in a locally-extracted `.pmtiles`
+/// cell. Must match `maxZoom` in `db/services/tiles/generator.go` (currently
+/// 14) — the server runs `pmtiles extract --maxzoom=14`, which is shallower
+/// than the online style's `maxzoom: 15` (inherited from the live Protomaps
+/// CDN's own, deeper tile pyramid). If the offline source keeps the online
+/// `maxzoom`, MapLibre requests nonexistent z15+ tiles directly from the local
+/// archive instead of overzooming the z14 tile — rendering blank above z14.
+const int _offlinePmtilesMaxZoom = 14;
+
 /// Repoints a single source [source] at the pmtiles archive at [cellPath]:
-/// drops any remote `tiles` template and sets `url` to `pmtiles://file://…`.
+/// drops any remote `tiles` template, sets `url` to `pmtiles://file://…`, and
+/// clamps `maxzoom` to the archive's actual depth (see
+/// [_offlinePmtilesMaxZoom]) so MapLibre overzooms past it instead of
+/// requesting tiles that were never extracted.
 void _pointSourceAtCell(Map<String, dynamic> source, String cellPath) {
   source.remove('tiles');
   source['url'] = 'pmtiles://file://$cellPath';
+  source['maxzoom'] = _offlinePmtilesMaxZoom;
 }
 
 /// Rejects any [path] that is not an absolute, traversal-free local path.

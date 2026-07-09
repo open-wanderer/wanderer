@@ -73,6 +73,11 @@ void main() {
       expect(protomaps.containsKey('tiles'), isFalse);
       // Non-URL metadata is preserved.
       expect(protomaps['type'], 'vector');
+      // maxzoom is clamped to what the local archive actually contains (14,
+      // per db/services/tiles/generator.go), NOT the online style's 15 —
+      // otherwise MapLibre requests tiles that were never extracted and
+      // renders blank above z14 instead of overzooming.
+      expect(protomaps['maxzoom'], 14);
     });
 
     test('dark variant points the sprite at sprite/dark', () {
