@@ -10,12 +10,12 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 ### Style & Glyph Serving
 
 - [ ] **STYLE-01**: The wanderer light and dark styles exist as plain `.json` assets in the app, equivalent in rendered output to today's `wandererLightTheme` / `wandererDarkTheme`
-- [ ] **STYLE-02**: The app injects the operator's `TILE_SERVER_URL` (via the unified `/map/config` endpoint) into the style's `protomaps` source at runtime, preserving today's operator control
+- [ ] **STYLE-02**: The app injects the operator's `TILE_SERVER_URL` (via the unified `/map/style-sources` endpoint) into the style's `protomaps` source at runtime, preserving today's operator control
 - [ ] **STYLE-03**: The style carries a `glyphs` key, and its 14 symbol layers render place-name labels in the 4 referenced fontstacks (Noto Sans Regular, Medium, Italic, and Devanagari Regular for the data-driven Devanagari-script case)
 - [ ] **STYLE-04**: The style carries a `sprite` key, and the `arrow` and route-network shield icons render — icons silently dropped today
-- [ ] **GLYPH-01**: The unified `/map/config` endpoint resolves the glyph URL template (`{fontstack}/{range}.pbf`) for the 4 fontstacks the style references, defaulting to Protomaps' public `basemaps-assets` host
-- [ ] **GLYPH-02**: The unified `/map/config` endpoint resolves the sprite base URL (`sprite.json`, `sprite.png`, `sprite@2x.png`, light and dark), defaulting to Protomaps' public `basemaps-assets` host
-- [ ] **GLYPH-03**: An operator can override the glyph and sprite origin by environment variable, mirroring how `TILE_SERVER_URL` overrides tiles; unset, `/map/config` falls back to Protomaps' public assets rather than a self-hosted copy
+- [x] **GLYPH-01**: The unified `/map/style-sources` endpoint resolves the glyph URL template (`{fontstack}/{range}.pbf`) for the 4 fontstacks the style references, defaulting to Protomaps' public `basemaps-assets` host
+- [x] **GLYPH-02**: The unified `/map/style-sources` endpoint resolves the sprite base URL (`sprite.json`, `sprite.png`, `sprite@2x.png`, light and dark), defaulting to Protomaps' public `basemaps-assets` host
+- [x] **GLYPH-03**: An operator can override the glyph and sprite origin by environment variable, mirroring how `TILE_SERVER_URL` overrides tiles; unset, `/map/style-sources` falls back to Protomaps' public assets rather than a self-hosted copy
 - [ ] **GLYPH-04**: The app resolves glyph and sprite URLs from the server on first use and caches them app-wide, not per-trail
 
 ### Offline
@@ -63,8 +63,8 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 
 ### Type Migration & Cleanup
 
-- [ ] **TYPE-01**: `latlong2.LatLng` is replaced by `Geographic` across `trail.dart`, `gpx_util.dart`, `polyline_util.dart`, and `foreground_position_stream_provider.dart`, with GPX parsing and polyline decoding verified against existing tests
-- [ ] **TYPE-02**: `LatLngBounds` is replaced by `LngLatBounds` at every bounds call site
+- [x] **TYPE-01**: `latlong2.LatLng` is replaced by `Geographic` across `trail.dart`, `gpx_util.dart`, `polyline_util.dart`, and `foreground_position_stream_provider.dart`, with GPX parsing and polyline decoding verified against existing tests
+- [x] **TYPE-02**: `LatLngBounds` is replaced by `LngLatBounds` at every bounds call site
 - [ ] **CLEAN-01**: `flutter_map`, `flutter_map_animations`, `flutter_map_location_marker`, and `flutter_map_marker_cluster` are removed from `pubspec.yaml`
 - [ ] **CLEAN-02**: `vector_map_tiles` and `vector_tile_renderer` are removed from `pubspec.yaml`, and `dependency_overrides` no longer references either `flomp/*` fork
 - [ ] **CLEAN-03**: `maplibre` is pinned to an exact version rather than a caret range, given its pre-1.0 breaking-change cadence
@@ -106,11 +106,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GLYPH-01 | Phase 13 | Pending |
-| GLYPH-02 | Phase 13 | Pending |
-| GLYPH-03 | Phase 13 | Pending |
-| TYPE-01 | Phase 14 | Pending |
-| TYPE-02 | Phase 14 | Pending |
+| GLYPH-01 | Phase 13 | Complete |
+| GLYPH-02 | Phase 13 | Complete |
+| GLYPH-03 | Phase 13 | Complete |
+| TYPE-01 | Phase 14 | Complete |
+| TYPE-02 | Phase 14 | Complete |
 | STYLE-01 | Phase 15 | Pending |
 | STYLE-02 | Phase 15 | Pending |
 | STYLE-03 | Phase 15 | Pending |

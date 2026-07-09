@@ -116,8 +116,8 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 **Milestone Goal:** Replace the Flutter app's `flutter_map` + forked `vector_map_tiles`/`vector_tile_renderer` stack with the `maplibre` package, retiring both `flomp/*` forks and moving map rendering onto native GL — without ever leaving the app unbuildable and without regressing offline trail rendering.
 
-- [ ] **Phase 13: Glyph & Sprite Endpoint** - A unified `/map/config` SvelteKit endpoint (replacing `/map/tileurl`) resolves tile, glyph, and sprite URLs in one object, under operator override
-- [ ] **Phase 14: Coordinate Type Migration** - `latlong2.LatLng` → `Geographic`, `LatLngBounds` → `LngLatBounds`, test-guarded, before any map code moves
+- [x] **Phase 13: Glyph & Sprite Endpoint** - A unified `/map/style-sources` SvelteKit endpoint (replacing `/map/tileurl`) resolves tile, glyph, and sprite URLs in one object, under operator override (completed 2026-07-08)
+- [x] **Phase 14: Coordinate Type Migration** - `latlong2.LatLng` → `Geographic`, `LatLngBounds` → `LngLatBounds`, test-guarded, before any map code moves (completed 2026-07-08)
 - [ ] **Phase 15: MapLibre Core, Trail Rendering & Offline Parity** - `WandererMap` on `MapLibreMap`; a downloaded trail renders basemap *and labels* in airplane mode
 - [ ] **Phase 16: List & Map Screens on MapLibre** - Multi-trail list maps plus server-clustered map-screen search on native circle/symbol layers
 - [ ] **Phase 17: Navigation on MapLibre** - Heading-up follow, compass reset, location puck; the last `flutter_map` plugin call sites disappear
@@ -150,15 +150,16 @@ CORE-05 (`MapCompass`), CORE-06 (`animateCamera`/`fitBounds`), and CORE-07 (`ena
 **Requirements**: GLYPH-01, GLYPH-02, GLYPH-03
 **Success Criteria** (what must be TRUE):
 
-  1. A single `/api/v1/map/config` endpoint replaces `/api/v1/map/tileurl` and returns the tile URL, the glyph URL template (`{fontstack}/{range}.pbf`), and the sprite base URL in one JSON object, defaulting to Protomaps' public `basemaps-assets` host for glyphs/sprite (the same URLs the app's theme references today) when no override is set.
+  1. A single `/api/v1/map/style-sources` endpoint replaces `/api/v1/map/tileurl` and returns the tile URL, the glyph URL template (`{fontstack}/{range}.pbf`), and the sprite base URL in one JSON object, defaulting to Protomaps' public `basemaps-assets` host for glyphs/sprite (the same URLs the app's theme references today) when no override is set.
   2. The returned glyph template resolves valid SDF glyph PBFs for `Noto Sans Regular`, `Noto Sans Medium`, `Noto Sans Italic`, and `Noto Sans Devanagari Regular v1` (the 4th fontstack the style's data-driven `text-font` expression uses), for every `{range}` the style's 14 symbol layers request. The returned sprite base resolves `sprite.json`, `sprite.png`, and `sprite@2x.png` (light and dark variants), indexing the `arrow` icon plus the route-network shield icons the style names.
   3. An operator sets one environment variable and the config endpoint returns glyph/sprite URLs pointing at their own host instead; unset, it returns the Protomaps default. Tile URL override behavior is unchanged from today's `TILE_SERVER_URL` handling, just served from the merged endpoint.
-  4. The app (`tile_url_provider.dart` and its consumer `map_style_provider.dart`) is updated to fetch and parse the unified `/map/config` response instead of `/map/tileurl`; tile URL resolution behaves identically to today, and the app on today's `flutter_map` stack still builds and runs untouched. No new Go/PocketBase routes, asset vendoring, or Docker build changes — this phase is SvelteKit + a small Flutter provider change only.
+  4. The app (`tile_url_provider.dart` and its consumer `map_style_provider.dart`) is updated to fetch and parse the unified `/map/style-sources` response instead of `/map/tileurl`; tile URL resolution behaves identically to today, and the app on today's `flutter_map` stack still builds and runs untouched. No new Go/PocketBase routes, asset vendoring, or Docker build changes — this phase is SvelteKit + a small Flutter provider change only.
 
 **Plans**: 1 plan
 
 Plans:
-- [ ] 13-01-PLAN.md — Unified `/api/v1/map/config` endpoint (replaces `/map/tileurl`) + Flutter `MapConfig` provider fetch/parse
+
+- [x] 13-01-PLAN.md — Unified `/api/v1/map/style-sources` endpoint (replaces `/map/tileurl`) + Flutter `MapConfig` provider fetch/parse
 
 ### Phase 14: Coordinate Type Migration
 
@@ -181,13 +182,22 @@ Plans:
 **Requirements**: STYLE-01, STYLE-02, STYLE-03, STYLE-04, GLYPH-04, CORE-01, CORE-02, CORE-03, CORE-04, TRAIL-01, TRAIL-02, TRAIL-03, TRAIL-04, TRAIL-05, OFFL-01, OFFL-02, OFFL-03, OFFL-04, OFFL-05, OFFL-06
 **Success Criteria** (what must be TRUE):
 
-  1. A hiker opens a trail's map and the Protomaps basemap renders through native GL from the operator's `TILE_SERVER_URL`; place-name labels render in all three Noto Sans fontstacks, and the `arrow` and route-shield icons appear — icons the app silently drops today.
+  1. A hiker opens a trail's map and the Protomaps basemap renders through native GL from the operator's `TILE_SERVER_URL`; place-name labels render in all four Noto Sans fontstacks (incl. Devanagari), and the `arrow` and route-shield icons appear — icons the app silently drops today.
   2. The GPX track draws as a 5px route-colored line over a 2px white casing, with directional arrows along it; waypoints are tappable and animate on selection; start and finish pins render, nudged apart when they fall within 36 screen pixels; the elevation-profile marker tracks the hiker's scrub position.
   3. Switching the app between light and dark theme swaps the map style live; the initial camera fits the trail's bounds with the caller's padding; and every map shows a scale bar plus the Protomaps/OpenStreetMap attribution the app owes under ODbL and does not display today.
   4. **The offline gate.** With the device in airplane mode, a downloaded trail renders its basemap from `.pmtiles` via native `pmtiles://` — every cell, when the trail spans several — *and renders its place-name labels* from `file://` glyphs cached at download time. Downloading a second trail reuses the cached glyphs and sprite instead of re-fetching them.
   5. `lib/vendor/vector_map_tiles/pm_tile_provider.dart` is deleted, and the app still builds and runs with `flutter_map` serving `list_detail_map_screen`, `list_detail_screen`, `map_screen`, and `navigation_screen`.
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+
+- [ ] 15-01-PLAN.md — Throwaway `file://` glyph+sprite resolution spike (risk gate, physical-device verify)
+- [ ] 15-02-PLAN.md — Style extraction to `.json` assets + `mapStyleJsonProvider` (STYLE-01..04)
+- [ ] 15-03-PLAN.md — App-wide glyph/sprite cache + path-safety + download trigger (GLYPH-04, OFFL-01)
+- [ ] 15-04-PLAN.md — `WandererMap` on `MapLibreMap`: camera, live theme swap, chrome, markers (CORE-01..04, TRAIL-05)
+- [ ] 15-05-PLAN.md — Trail track/casing, static arrows, waypoint/pin markers (TRAIL-01..04)
+- [ ] 15-06-PLAN.md — Offline rewrite (`pmtiles://file://` + `file://`), multi-cell decision, delete vendor provider (OFFL-02..06)
 **Risk gate**: This phase retires the milestone's highest-risk unknown — whether maplibre-native resolves `file://` glyph URLs for offline label rendering. Nothing downstream is safe until criterion 4 passes on a physical device in airplane mode. The first plan of this phase should be a throwaway spike proving `file://` glyph resolution against a hand-built style, *before* the phase invests in trail rendering or download-time caching. If maplibre-native rejects `file://`, the milestone needs a different offline-label strategy and this roadmap needs revision.
 **UI hint**: yes
 
@@ -261,8 +271,8 @@ Phases 13 and 14 are independent and may execute in either order or in parallel.
 | 10. Category & Subcategory Data Layer | v1.3 | 4/4 | Complete | 2026-06-29 |
 | 11. Trail Filter Subcategory Support | v1.3 | 4/4 | Complete | 2026-07-02 |
 | 12. Settings Categories Screen | v1.3 | 4/4 | Complete | 2026-07-02 |
-| 13. Glyph & Sprite Endpoint | v1.4 | 0/TBD | Not started | - |
-| 14. Coordinate Type Migration | v1.4 | 0/TBD | Not started | - |
+| 13. Glyph & Sprite Endpoint | v1.4 | 1/1 | Complete    | 2026-07-08 |
+| 14. Coordinate Type Migration | v1.4 | 1/0 | Complete    | 2026-07-08 |
 | 15. MapLibre Core, Trail Rendering & Offline Parity | v1.4 | 0/TBD | Not started | - |
 | 16. List & Map Screens on MapLibre | v1.4 | 0/TBD | Not started | - |
 | 17. Navigation on MapLibre | v1.4 | 0/TBD | Not started | - |
