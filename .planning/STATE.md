@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
-status: verifying
-stopped_at: Phase 16 context gathered
-last_updated: "2026-07-09T16:28:47.262Z"
-last_activity: 2026-07-09 -- Phase 15 verified, arrow/sprite icon-id collision fixed (38aabcdc)
+status: executing
+stopped_at: Completed 16-01-PLAN.md
+last_updated: "2026-07-09T17:32:26.274Z"
+last_activity: 2026-07-09 -- Phase 16 execution started
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 8
+  total_plans: 10
+  completed_plans: 9
   percent: 33
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-08)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 15 — maplibre-core-trail-rendering-offline-parity
+**Current focus:** Phase 16 — list-map-screens-on-maplibre
 
 ## Current Position
 
-Phase: 15 (maplibre-core-trail-rendering-offline-parity) — COMPLETE
-Plan: All 6 plans done. rewriteStyleForOffline shipped (OFFL-02/03/04/05 implemented, test-guarded, and physical-device PASS); OFFL-06 DEFERRED (navigation_screen still uses the vendor pmtiles provider — by design, see deferred-items.md).
-Status: WandererMap renders via MapLibreMap end-to-end, online and offline. Goal-backward verification (15-VERIFICATION.md) passed; the one finding it surfaced (arrow icon-id collision with the basemap sprite) was fixed immediately.
-Last activity: 2026-07-09 -- Phase 15 verified, arrow/sprite icon-id collision fixed (38aabcdc)
+Phase: 16 (list-map-screens-on-maplibre) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-07-09 -- Phase 16 execution started
 
 Progress: [█████░░░░░] 50%
 
@@ -63,6 +63,7 @@ Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share n
 | 15 | 6 | ~90 min + on-device iteration | ~15 min |
 
 *Updated after each plan completion*
+| Phase 16 P01 | 9min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,8 @@ Recent decisions affecting current work:
 - [15-06] OFFL-06 DEFERRED: `pm_tile_provider.dart` NOT deleted — `navigation_screen.dart` (Phase-17 flutter_map holdout) still uses `MultiPmTilesVectorTileProvider`. Delete once that screen migrates.
 - [15-06] Three real bugs found and fixed during physical-device verification, outside the normal executor flow: restored legacy flutter_map `TrailLayer` for `navigation_screen` (`192b3a89`, 15-05 had deleted it without checking callers); removed flutter_map-only `MapCompass` from `WandererMap.controls` (`b7d30947`, crashed at runtime — `MapCamera.of()` needs a `FlutterMap` ancestor); clamped offline pmtiles source `maxzoom` to 14 to match `generator.go`'s extraction depth (`85d73fd3` — the online style's inherited `maxzoom:15` caused blank tiles above z14 offline).
 - [Phase 15 verification] Goal-backward verification (`15-VERIFICATION.md`) found the trail's self-registered `arrow` sprite image collided (same id) with the basemap's own `roads_oneway` icon — MapLibre's `addImage` silently overwrites same-id images. Fixed by renaming to `trail-arrow` (`38aabcdc`).
+- [Phase 16-01]: SearchMap.layers typed List<ml.Layer>? (native style-layer builders), not List<Widget>? as PLAN.md's artifact spec stated — ml.MapLibreMap.layers and .children are different type families
+- [Phase 16-01]: _ListMap converted ConsumerWidget to ConsumerStatefulWidget to hold ml.MapController across onMapCreated/onStyleLoaded, mirroring list_detail_map_screen's approach
 
 ### Pending Todos
 
@@ -127,9 +130,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-09T16:28:47.249Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-list-map-screens-on-maplibre/16-CONTEXT.md
+Last session: 2026-07-09T17:32:26.258Z
+Stopped at: Completed 16-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

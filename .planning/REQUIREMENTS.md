@@ -36,7 +36,7 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 - [ ] **CORE-05**: The compass uses maplibre's built-in `MapCompass`; `lib/components/map/map_compass.dart` is deleted
 - [ ] **CORE-06**: Camera animations use maplibre's native `animateCamera` / `fitBounds`; `flutter_map_animations` and every `AnimatedMapController` reference are gone
 - [ ] **CORE-07**: The user's location puck and heading-up follow use maplibre's `enableLocation` / `trackLocation`; `flutter_map_location_marker` is gone
-- [ ] **CORE-08**: `list_detail_map_screen` and `list_detail_screen` render their multi-trail polylines via `MapLibreMap`, with the camera animating to fit every trail in the list
+- [x] **CORE-08**: `list_detail_map_screen` and `list_detail_screen` render their multi-trail polylines via `MapLibreMap`, with the camera animating to fit every trail in the list
 
 ### Trail Rendering
 
@@ -131,7 +131,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OFFL-04 | Phase 15 | Complete |
 | OFFL-05 | Phase 15 | Complete |
 | OFFL-06 | Phase 15 | Deferred to Phase 17/18 |
-| CORE-08 | Phase 16 | Pending |
+| CORE-08 | Phase 16 | Complete |
 | CLUS-01 | Phase 16 | Pending |
 | CLUS-02 | Phase 16 | Pending |
 | CLUS-03 | Phase 16 | Pending |

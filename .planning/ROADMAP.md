@@ -216,9 +216,11 @@ Plans:
   5. The app builds and runs; `navigation_screen` still renders on `flutter_map`.
 
 **Plans**: 3 plans (2 waves)
-- [ ] 16-01-PLAN.md — Lightweight SearchMap host + list maps on MapLibre (CORE-08)
+
+- [x] 16-01-PLAN.md — Lightweight SearchMap host + list maps on MapLibre (CORE-08)
 - [ ] 16-02-PLAN.md — Cluster search provider + verbatim native cluster layers (CLUS-01/02/04/05)
 - [ ] 16-03-PLAN.md — Map screen wiring: cluster rendering, category-icon markers, native tap handling (CLUS-01..05)
+
 **UI hint**: yes
 
 ### Phase 17: Navigation on MapLibre
@@ -278,6 +280,6 @@ Phases 13 and 14 are independent and may execute in either order or in parallel.
 | 13. Glyph & Sprite Endpoint | v1.4 | 1/1 | Complete    | 2026-07-08 |
 | 14. Coordinate Type Migration | v1.4 | 1/0 | Complete    | 2026-07-08 |
 | 15. MapLibre Core, Trail Rendering & Offline Parity | v1.4 | 6/6 | Complete   | 2026-07-09 |
-| 16. List & Map Screens on MapLibre | v1.4 | 0/TBD | Not started | - |
+| 16. List & Map Screens on MapLibre | v1.4 | 1/3 | In Progress|  |
 | 17. Navigation on MapLibre | v1.4 | 0/TBD | Not started | - |
 | 18. Retire flutter_map and the flomp Forks | v1.4 | 0/TBD | Not started | - |
