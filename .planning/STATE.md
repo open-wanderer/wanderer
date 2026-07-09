@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
-status: "Phase 15 plan 15-03 complete (app-wide glyph/sprite cache + D-10 trail-download trigger); 15-01 file:// glyph gate PASSED (A1), sprite half (A2) tracked for 15-06"
-stopped_at: "Phase 15 plan 15-03 complete: glyphSpriteCacheProvider + path-safety helpers + D-10 trigger shipped"
-last_updated: "2026-07-09T11:20:00.000Z"
-last_activity: 2026-07-09 -- Phase 15 Plan 03 complete (f034db1f, 9492700b, 8e2d2666): app-wide glyph/sprite cache
+status: "Phase 15 plan 15-04 complete (WandererMap on MapLibreMap: CORE-01..04 + TRAIL-05); 15-01 file:// glyph gate PASSED (A1), sprite half (A2) tracked for 15-06"
+stopped_at: "Phase 15 plan 15-04 complete: WandererMap rewritten onto native MapLibreMap; both consumers migrated to the ml.MapController hand-off"
+last_updated: "2026-07-09T12:00:00.000Z"
+last_activity: 2026-07-09 -- Phase 15 Plan 04 complete (1fd21cf9, 4cfc7dbc): WandererMap on MapLibreMap
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
-  percent: 71
+  completed_plans: 6
+  percent: 86
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 ## Current Position
 
 Phase: 15 (maplibre-core-trail-rendering-offline-parity) — EXECUTING
-Plan: 3 of 6 complete — STYLE-01..04 + GLYPH-04 + OFFL-01 shipped. 15-01 A1 glyph gate PASSED; A2 sprite file:// resolution tracked for 15-06.
-Status: 15-03 complete (app-wide glyph/sprite cache: glyphSpriteCacheProvider + path-safety helpers + D-10 trail-download trigger)
-Last activity: 2026-07-09 -- Phase 15 Plan 03 complete (f034db1f, 9492700b, 8e2d2666): app-wide glyph/sprite cache
+Plan: 4 of 6 complete — STYLE-01..04 + GLYPH-04 + OFFL-01 + CORE-01..04 + TRAIL-05 shipped. 15-01 A1 glyph gate PASSED; A2 sprite file:// resolution tracked for 15-06.
+Status: 15-04 complete (WandererMap on MapLibreMap: native GL host, live theme swap, camera fit, scalebar+ODbL attribution, elevation+interim-location markers; both consumers migrated)
+Last activity: 2026-07-09 -- Phase 15 Plan 04 complete (1fd21cf9, 4cfc7dbc): WandererMap on MapLibreMap
 
-Progress: [███░░░░░░░] 29%
+Progress: [████░░░░░░] 38%
 
 ## v1.4 Phases
 
@@ -80,6 +80,7 @@ Recent decisions affecting current work:
 - [v1.4] Style JSON lives as an app asset, not a server-hosted style URL — offline rendering needs the style before any network call.
 - [15-03] `map_cache_path.dart` is the single sanctioned builder for any map-cache filesystem path — operator-controlled fontstack/range tokens are whitelisted (4 fontstacks + `^\d+-\d+$`) and rejected with `ArgumentError` before a path is built; never string-concatenate a token into a path (T-15-03-01).
 - [15-03] One shared app-wide glyph/sprite cache under `<app-docs>/map_cache` (D-08): `sprite/{light,dark}` + `glyphs/<fontstack>/<range>.pbf`; both the map-open (D-09, 15-04) and trail-download (D-10, 15-03) triggers converge on the same idempotent keepAlive warm.
+- [15-04] `ml.MapController` cannot be free-standing (abstract interface created by the native map). `WandererMap` exposes `onMapCreated(controller)` which BOTH captures it internally (for `setStyle`/`fitBounds`) and forwards it to the caller; consumers hold `ml.MapController? _mapController` set from the hand-off and null-guard their calls. 15-05/15-06 reuse this, not an input controller field. Live theme swap = `ref.listen(mapStyleJsonProvider) -> setStyle` + a cached `_lastStyleJson` so a keepAlive refresh never flashes to loading (CORE-02). Trail track/markers seam is `layers: const []` in `wanderer_map.dart` (`// 15-05: ...`).
 
 ### Pending Todos
 
@@ -119,8 +120,8 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-07-09T11:20:00.000Z
-Stopped at: Phase 15 plan 15-03 complete: app-wide glyph/sprite cache + path-safety helpers + D-10 trigger
-Resume file: .planning/phases/15-maplibre-core-trail-rendering-offline-parity/15-04-PLAN.md
+Stopped at: Phase 15 plan 15-04 complete: WandererMap on MapLibreMap; both consumers migrated to ml.MapController hand-off
+Resume file: .planning/phases/15-maplibre-core-trail-rendering-offline-parity/15-05-PLAN.md
 
 ## Operator Next Steps
 

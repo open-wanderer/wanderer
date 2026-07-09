@@ -29,10 +29,10 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 
 ### Map Core
 
-- [ ] **CORE-01**: `WandererMap` renders via `MapLibreMap`, accepting the same widget contract (trail, controls, disabled, offline, callbacks) its call sites use today
-- [ ] **CORE-02**: The map honors the app's light/dark theme, switching styles live when the user changes theme
-- [ ] **CORE-03**: The map's initial camera fits the trail bounds with the caller's padding, matching today's `CameraFit.bounds` behavior
-- [ ] **CORE-04**: A user sees a scale bar and the Protomaps/OpenStreetMap source attribution on every map — an ODbL obligation the app does not meet today
+- [x] **CORE-01**: `WandererMap` renders via `MapLibreMap`, accepting the same widget contract (trail, controls, disabled, offline, callbacks) its call sites use today
+- [x] **CORE-02**: The map honors the app's light/dark theme, switching styles live when the user changes theme
+- [x] **CORE-03**: The map's initial camera fits the trail bounds with the caller's padding, matching today's `CameraFit.bounds` behavior
+- [x] **CORE-04**: A user sees a scale bar and the Protomaps/OpenStreetMap source attribution on every map — an ODbL obligation the app does not meet today
 - [ ] **CORE-05**: The compass uses maplibre's built-in `MapCompass`; `lib/components/map/map_compass.dart` is deleted
 - [ ] **CORE-06**: Camera animations use maplibre's native `animateCamera` / `fitBounds`; `flutter_map_animations` and every `AnimatedMapController` reference are gone
 - [ ] **CORE-07**: The user's location puck and heading-up follow use maplibre's `enableLocation` / `trackLocation`; `flutter_map_location_marker` is gone
@@ -44,7 +44,7 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 - [ ] **TRAIL-02**: Directional arrows render along the trail line via a native symbol layer, replacing the ~60 lines of bearing math currently dead behind `showArrows = false`
 - [ ] **TRAIL-03**: Waypoints render as tappable widget markers, preserving today's `AnimatedScale` selection animation and `onWaypointTap` callback
 - [ ] **TRAIL-04**: Start and finish pins render as widget markers, including the alignment nudge applied when the two points fall within 36 screen pixels
-- [ ] **TRAIL-05**: The elevation-profile position marker tracks the user's scrub position along the trail
+- [x] **TRAIL-05**: The elevation-profile position marker tracks the user's scrub position along the trail
 
 ### Clustering & Map Screen
 
@@ -116,15 +116,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STYLE-03 | Phase 15 | Complete |
 | STYLE-04 | Phase 15 | Complete |
 | GLYPH-04 | Phase 15 | Complete |
-| CORE-01 | Phase 15 | Pending |
-| CORE-02 | Phase 15 | Pending |
-| CORE-03 | Phase 15 | Pending |
-| CORE-04 | Phase 15 | Pending |
+| CORE-01 | Phase 15 | Complete |
+| CORE-02 | Phase 15 | Complete |
+| CORE-03 | Phase 15 | Complete |
+| CORE-04 | Phase 15 | Complete |
 | TRAIL-01 | Phase 15 | Pending |
 | TRAIL-02 | Phase 15 | Pending |
 | TRAIL-03 | Phase 15 | Pending |
 | TRAIL-04 | Phase 15 | Pending |
-| TRAIL-05 | Phase 15 | Pending |
+| TRAIL-05 | Phase 15 | Complete |
 | OFFL-01 | Phase 15 | Complete |
 | OFFL-02 | Phase 15 | Pending |
 | OFFL-03 | Phase 15 | Pending |
