@@ -1,21 +1,31 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart'
+    show LocationMarkerPosition;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
-import 'package:vector_map_tiles/vector_map_tiles.dart';
-import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
-import 'package:wanderer/provider/map_style_provider.dart';
-import 'package:wanderer/util/map_coordinate_adapter.dart';
-import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
+import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
+import 'package:wanderer/provider/map_style_json_provider.dart';
 
+/// A native MapLibre GL map host (CORE-01). Renders the Protomaps basemap from
+/// [mapStyleJsonProvider] (15-02) via native GL, swaps light/dark styles live
+/// with [ml.MapController.setStyle] (CORE-02, no remount/flash), fits the trail
+/// bounds in `onStyleLoaded` (CORE-03), shows the built-in scale bar +
+/// attribution (CORE-04), and hosts the elevation-scrub and interim-location
+/// markers (TRAIL-05 / A5).
+///
+/// The trail track / arrows / waypoints / start-finish pins are NOT drawn here
+/// yet — that is 15-05, which extends this shell (see the `layers:` seam below).
 class WandererMap extends ConsumerStatefulWidget {
   final Trail trail;
-  final MapController? mapController;
+
+  /// Hands the native [ml.MapController] back to the caller once the map is
+  /// created. The controller is created by the native map (it cannot be
+  /// free-standing), so callers hold it as a nullable field set from here.
+  final void Function(ml.MapController controller)? onMapCreated;
+
   final bool disabled;
   final bool offline;
   final List<Widget>? controls;
@@ -26,14 +36,16 @@ class WandererMap extends ConsumerStatefulWidget {
   final bool showLocation;
   final Waypoint? selectedWaypoint;
 
-  final TapCallback? onTap;
-  final Function(MapEvent)? onMapEvent;
-  final Function(Waypoint wp)? onWaypointTap;
+  /// Called with the tapped geographic point on a map click (was flutter_map's
+  /// `TapCallback`; now driven by the native `onEvent` click event).
+  final void Function(ml.Geographic point)? onTap;
+  final void Function(ml.MapEvent event)? onMapEvent;
+  final void Function(Waypoint wp)? onWaypointTap;
 
   const WandererMap({
     super.key,
     required this.trail,
-    this.mapController,
+    this.onMapCreated,
     this.onTap,
     this.onWaypointTap,
     this.onMapEvent,
@@ -52,133 +64,185 @@ class WandererMap extends ConsumerStatefulWidget {
 }
 
 class _WandererMapState extends ConsumerState<WandererMap> {
-  MultiPmTilesVectorTileProvider? _offlineTileProvider;
-  Object? _error;
-  ml.LngLatBounds? _bounds;
+  ml.MapController? _controller;
 
-  @override
-  void initState() {
-    super.initState();
-    _bounds = widget.trail.bounds;
-    if (widget.offline) {
-      _initOffline();
-    }
-  }
+  /// The last successfully-resolved style JSON. Cached so a provider refresh
+  /// (e.g. a theme toggle) never drops us back to the loading state and
+  /// remounts the map — the live swap goes through [ml.MapController.setStyle]
+  /// instead (CORE-02).
+  String? _lastStyleJson;
 
-  Future<void> _initOffline() async {
-    try {
-      final provider = await MultiPmTilesVectorTileProvider.fromSources(
-        widget.trail.pmTiles,
-      );
-      if (mounted) setState(() => _offlineTileProvider = provider);
-    } catch (e) {
-      if (mounted) setState(() => _error = e);
-    }
-  }
-
-  VectorTileLayer _buildTileLayer(Style style) {
-    if (widget.offline) {
-      return VectorTileLayer(
-        fileCacheTtl: Duration.zero,
-        theme: style.theme,
-        tileProviders: TileProviders({'protomaps': _offlineTileProvider!}),
-        tileOffset: TileOffset.DEFAULT,
-        concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
-      );
-    }
-    return VectorTileLayer(
-      tileProviders: style.providers,
-      theme: style.theme,
-      tileOffset: TileOffset.DEFAULT,
-      concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
-    );
-  }
+  bool _cacheWarmed = false;
 
   @override
   Widget build(BuildContext context) {
-    final styleAsync = ref.watch(mapStyleProvider);
-
-    if (_error != null) {
-      return Center(child: Text(_error.toString()));
+    // D-09: warm the shared app-wide glyph/sprite cache on first map open.
+    // Idempotent against the 15-03 trail-download trigger (D-10).
+    if (!_cacheWarmed) {
+      _cacheWarmed = true;
+      ref.read(glyphSpriteCacheProvider.future).ignore();
     }
 
-    return styleAsync.when(
-      skipLoadingOnRefresh: false,
-      loading: () => ColoredBox(color: Theme.of(context).colorScheme.surface),
-      error: (e, _) => Center(child: Text(e.toString())),
-      data: (style) {
-        if (widget.offline && _offlineTileProvider == null) {
-          return const Center(child: CircularProgressIndicator());
+    // Live theme swap (CORE-02): when the style JSON changes, swap it in place
+    // on the already-mounted map — no ObjectKey remount, no flash.
+    ref.listen(mapStyleJsonProvider, (prev, next) {
+      final controller = _controller;
+      final json = next.value;
+      if (controller != null && json != null && json != prev?.value) {
+        controller.setStyle(json);
+      }
+    });
+
+    final styleAsync = ref.watch(mapStyleJsonProvider);
+    final resolved = styleAsync.value;
+    if (resolved != null) _lastStyleJson = resolved;
+    final styleJson = _lastStyleJson;
+
+    if (styleJson == null) {
+      if (styleAsync.hasError) {
+        return Center(child: Text(styleAsync.error.toString()));
+      }
+      return ColoredBox(color: Theme.of(context).colorScheme.surface);
+    }
+
+    return _buildMap(context, styleJson);
+  }
+
+  Widget _buildMap(BuildContext context, String styleJson) {
+    final center = ml.Geographic(
+      lat: widget.trail.lat ?? 0,
+      lon: widget.trail.lon ?? 0,
+    );
+
+    return ml.MapLibreMap(
+      options: ml.MapOptions(
+        initStyle: styleJson,
+        initCenter: center,
+        initZoom: 18,
+        gestures: widget.disabled
+            ? const ml.MapGestures.none()
+            : const ml.MapGestures.all(),
+        androidForegroundLoadColor: Theme.of(context).colorScheme.surface,
+      ),
+      onMapCreated: (controller) {
+        _controller = controller;
+        widget.onMapCreated?.call(controller);
+      },
+      onStyleLoaded: (_) => _fitInitialCamera(),
+      onEvent: (event) {
+        widget.onMapEvent?.call(event);
+        if (event is ml.MapEventClick) {
+          widget.onTap?.call(event.point);
         }
-        return FlutterMap(
-          key: ObjectKey(style),
-          mapController: widget.mapController,
-          options: MapOptions(
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            onTap: widget.onTap,
-            onMapEvent: (e) => widget.onMapEvent,
-            interactionOptions: widget.disabled
-                ? const InteractionOptions(flags: InteractiveFlag.none)
-                : const InteractionOptions(enableMultiFingerGestureRace: true),
-            initialCameraFit: _bounds != null
-                ? CameraFit.bounds(
-                    bounds: toLatLngBounds(_bounds!),
-                    padding: widget.initialCameraFitPadding,
-                  )
-                : null,
-            initialCenter: toLatLng(
-              ml.Geographic(
-                lat: widget.trail.lat ?? 0,
-                lon: widget.trail.lon ?? 0,
-              ),
-            ),
-            initialZoom: 18,
+      },
+      layers: const [
+        // 15-05: trail track + arrows + waypoint/start-finish markers wired here
+      ],
+      children: [
+        if (widget.elevationMarkerPosition != null) _buildElevationMarker(),
+
+        if (widget.showLocation) _buildLocationLayer(),
+
+        const ml.MapScalebar(), // CORE-04 — default bottom-left
+        const ml.SourceAttribution(), // CORE-04 — default bottom-right (ODbL)
+
+        Align(
+          alignment: Alignment.topRight,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: widget.controls ?? const [],
           ),
-          children: [
-            _buildTileLayer(style),
+        ),
+      ],
+    );
+  }
 
-            if (widget.trail.expand?.gpx != null && widget.showTrail)
-              TrailLayer(
-                trail: widget.trail,
-                onWaypointTap: widget.onWaypointTap,
-                selectedWaypoint: widget.selectedWaypoint,
+  Future<void> _fitInitialCamera() async {
+    final controller = _controller;
+    if (controller == null) return;
+
+    final bounds = widget.trail.bounds;
+    final hasExtent =
+        bounds.latitudeNorth != bounds.latitudeSouth ||
+        bounds.longitudeEast != bounds.longitudeWest;
+
+    if (hasExtent) {
+      // CORE-03: instant initial fit (no animation) to the trail bounds.
+      await controller.fitBounds(
+        bounds: bounds,
+        padding: widget.initialCameraFitPadding,
+        nativeDuration: Duration.zero,
+      );
+    } else {
+      await controller.moveCamera(
+        center: ml.Geographic(
+          lat: widget.trail.lat ?? 0,
+          lon: widget.trail.lon ?? 0,
+        ),
+        zoom: 18,
+      );
+    }
+  }
+
+  /// Elevation-profile scrub marker (TRAIL-05): a 12px white dot with a 2px
+  /// black border, driven by [WandererMap.elevationMarkerPosition].
+  Widget _buildElevationMarker() {
+    return ml.WidgetLayer(
+      markers: [
+        ml.Marker(
+          point: widget.elevationMarkerPosition!,
+          size: const Size(12, 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+              border: Border.all(color: Colors.black, width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Interim location marker (A5): a simple location puck driven by
+  /// [foregroundPositionStreamProvider]. This is intentionally NOT the Phase-17
+  /// native follow/heading puck (CORE-07) — just a static dot at the device
+  /// position so `trail_detail_map_screen` keeps its location indicator.
+  Widget _buildLocationLayer() {
+    final positionStream = ref.watch(foregroundPositionStreamProvider);
+    return StreamBuilder<LocationMarkerPosition?>(
+      stream: positionStream,
+      builder: (context, snapshot) {
+        final position = snapshot.data;
+        if (position == null) return const SizedBox.shrink();
+        return ml.WidgetLayer(
+          markers: [
+            ml.Marker(
+              point: ml.Geographic(
+                lat: position.latitude,
+                lon: position.longitude,
               ),
-
-            if (widget.showLocation)
-              CurrentLocationLayer(
-                positionStream: ref.watch(foregroundPositionStreamProvider),
-              ),
-
-            if (widget.elevationMarkerPosition != null)
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    width: 12,
-                    height: 12,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: .2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                        border: Border.all(color: Colors.black, width: 2),
-                      ),
+              size: const Size(18, 18),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
                     ),
-                    point: toLatLng(widget.elevationMarkerPosition!),
-                  ),
-                ],
-              ),
-
-            Align(
-              alignment: Alignment.topRight,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: widget.controls!,
+                  ],
+                ),
               ),
             ),
           ],
