@@ -21,9 +21,12 @@ const List<Object> _kArrowSpacing = <Object>[
   'interpolate',
   <Object>['linear'],
   <Object>['zoom'],
-  8, 250,
-  12, 160,
-  16, 90,
+  8,
+  250,
+  12,
+  160,
+  16,
+  90,
 ];
 
 /// Adds the GPX track (white casing under a colored route line) and the static
@@ -33,10 +36,20 @@ const List<Object> _kArrowSpacing = <Object>[
 /// Call this from `onStyleLoaded` so the layers are re-added after every style
 /// swap (CORE-02 theme toggle rebuilds the style and drops added layers/images).
 ///
-/// The `arrow` icon is registered here via [ml.StyleController.addImageFromIconData]
-/// rather than relying on the Protomaps style sprite: 15-03 found `file://`
-/// sprite resolution unreliable on device, so shipping our own image makes the
-/// arrows deterministic regardless of the sprite (D-04).
+/// A `trail-` prefixed id — the ported basemap style's `roads_oneway` layer
+/// also references a real Protomaps sprite icon literally named `arrow`.
+/// MapLibre's native `addImage` (both Android and iOS) replaces an existing
+/// same-id image rather than throwing, so registering under the bare `arrow`
+/// id silently overwrote the basemap's one-way-road icon whenever a trail
+/// was on screen — found during Phase 15 goal verification, not on-device.
+const String _kTrailArrowImageId = 'trail-arrow';
+
+/// The directional-arrow icon is registered here via
+/// [ml.StyleController.addImageFromIconData] rather than relying on the
+/// Protomaps style sprite: 15-03 found `file://` sprite resolution unreliable
+/// on device, so shipping our own image makes the arrows deterministic
+/// regardless of the sprite (D-04). Uses [_kTrailArrowImageId], NOT the bare
+/// `arrow` id the basemap's own sprite icon uses — see that constant's doc.
 Future<void> addTrailTrackLayers(
   ml.StyleController style,
   Trail trail, {
@@ -48,10 +61,11 @@ Future<void> addTrailTrackLayers(
   if (points.length < 2) return;
 
   // Register the directional-arrow image (a small white nav mark) so the
-  // symbol layer never depends on the style sprite providing `arrow`.
+  // symbol layer never depends on the style sprite providing an icon, under
+  // an id distinct from the basemap's own `arrow` sprite icon.
   await style.addImageFromIconData(
-    id: 'arrow',
-    iconData: Icons.navigation,
+    id: _kTrailArrowImageId,
+    iconData: Icons.arrow_drop_up,
     size: 32,
     color: Colors.white,
   );
@@ -86,10 +100,7 @@ Future<void> addTrailTrackLayers(
     ml.LineStyleLayer(
       id: 'trail-route',
       sourceId: 'trail',
-      layout: const <String, Object>{
-        'line-cap': 'round',
-        'line-join': 'round',
-      },
+      layout: const <String, Object>{'line-cap': 'round', 'line-join': 'round'},
       paint: <String, Object>{
         'line-color': _colorToHex(routeColor),
         'line-width': 5,
@@ -106,7 +117,7 @@ Future<void> addTrailTrackLayers(
       minZoom: 8,
       layout: <String, Object>{
         'symbol-placement': 'line',
-        'icon-image': 'arrow',
+        'icon-image': _kTrailArrowImageId,
         'icon-rotation-alignment': 'map',
         'icon-allow-overlap': true,
         'icon-ignore-placement': true,
@@ -327,9 +338,7 @@ class _TrailLayerState extends State<TrailLayer> {
       Alignment endAlignment = Alignment.center;
 
       if (pathPoints.length > 1) {
-        final startPx = camera.latLngToScreenOffset(
-          toLatLng(pathPoints.first),
-        );
+        final startPx = camera.latLngToScreenOffset(toLatLng(pathPoints.first));
         final endPx = camera.latLngToScreenOffset(toLatLng(pathPoints.last));
         final dx = startPx.dx - endPx.dx;
         final dy = startPx.dy - endPx.dy;
