@@ -1,23 +1,18 @@
 import 'package:collection/collection.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map_animations/flutter_map_animations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
-import 'package:vector_map_tiles/vector_map_tiles.dart';
+import 'package:wanderer/components/base/search_map.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/trail.dart';
-import 'package:wanderer/provider/map_style_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/list_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/category_icon_util.dart';
-import 'package:wanderer/util/map_coordinate_adapter.dart';
 import 'package:wanderer/util/polyline_util.dart';
 
 class ListDetailMapScreen extends ConsumerStatefulWidget {
@@ -29,28 +24,19 @@ class ListDetailMapScreen extends ConsumerStatefulWidget {
       _ListDetailMapScreenState();
 }
 
-class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
-    with TickerProviderStateMixin {
-  late final _animatedMapController = AnimatedMapController(vsync: this);
+class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
+  ml.MapController? _controller;
   Trail? _selectedTrail;
   ml.LngLatBounds? _combinedBoundsCache;
-
-  @override
-  void dispose() {
-    _animatedMapController.dispose();
-    super.dispose();
-  }
 
   void _deselect() {
     setState(() => _selectedTrail = null);
     final bounds = _combinedBoundsCache;
     if (bounds != null) {
-      _animatedMapController.animatedFitCamera(
-        cameraFit: CameraFit.bounds(
-          bounds: toLatLngBounds(bounds),
-          padding: const EdgeInsets.all(40),
-        ),
-        duration: const Duration(milliseconds: 750),
+      _controller?.fitBounds(
+        bounds: bounds,
+        padding: const EdgeInsets.all(40),
+        nativeDuration: const Duration(milliseconds: 750),
       );
     }
   }
@@ -65,19 +51,16 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
       latitudeSouth: trail.minLat,
     );
 
-    _animatedMapController.animatedFitCamera(
-      cameraFit: CameraFit.bounds(
-        bounds: toLatLngBounds(bounds),
-        padding: const EdgeInsets.fromLTRB(40, 56, 40, 120),
-      ),
-      duration: const Duration(milliseconds: 750),
+    _controller?.fitBounds(
+      bounds: bounds,
+      padding: const EdgeInsets.fromLTRB(40, 56, 40, 120),
+      nativeDuration: const Duration(milliseconds: 750),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final listAsync = ref.watch(listProvider(widget.id));
-    final styleAsync = ref.watch(mapStyleProvider);
 
     return listAsync.when(
       loading: () =>
@@ -93,7 +76,9 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
         final polylines = trails
             .where((t) => t.polyline != null && t.polyline!.isNotEmpty)
             .map(
-              (t) => Polyline(points: toLatLngList(PolylineUtil.decode(t.polyline!))),
+              (t) => ml.Feature<ml.LineString>(
+                geometry: ml.LineString.from(PolylineUtil.decode(t.polyline!)),
+              ),
             )
             .toList();
 
@@ -108,11 +93,9 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
                   )
                 : null;
             final isSelected = _selectedTrail?.id == t.id;
-            return Marker(
-              key: ValueKey(t.id),
-              point: toLatLng(ml.Geographic(lat: t.lat!, lon: t.lon!)),
-              width: 36,
-              height: 36,
+            return ml.Marker(
+              point: ml.Geographic(lat: t.lat!, lon: t.lon!),
+              size: const Size(36, 36),
               child: GestureDetector(
                 onTap: () => _onMarkerTap(t),
                 child: Container(
@@ -162,64 +145,51 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen>
               ),
             ),
           ),
-          body: styleAsync.when(
-            loading: () =>
-                ColoredBox(color: Theme.of(context).colorScheme.surface),
-            error: (e, _) => Center(child: Text(e.toString())),
-            data: (style) => Stack(
-              children: [
-                FlutterMap(
-                  key: ObjectKey(style),
-                  mapController: _animatedMapController.mapController,
-                  options: MapOptions(
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                    interactionOptions: const InteractionOptions(
-                      enableMultiFingerGestureRace: true,
-                      flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-                    ),
-                    initialCameraFit: combinedBounds != null
-                        ? CameraFit.bounds(
-                            bounds: toLatLngBounds(combinedBounds),
-                            padding: const EdgeInsets.all(40),
-                          )
-                        : null,
-                    initialCenter: toLatLng(const ml.Geographic(lat: 0, lon: 0)),
-                    initialZoom: 3,
-                    onTap: (_, _) => _deselect(),
-                  ),
-                  children: [
-                    VectorTileLayer(
-                      tileProviders: style.providers,
-                      theme: style.theme,
-                      tileOffset: TileOffset.DEFAULT,
-                      concurrency: kDebugMode
-                          ? 0
-                          : VectorTileLayer.defaultConcurrency,
-                    ),
-                    if (polylines.isNotEmpty)
-                      PolylineLayer(polylines: polylines),
-                    if (markers.isNotEmpty) MarkerLayer(markers: markers),
-                  ],
-                ),
+          body: Stack(
+            children: [
+              SearchMap(
+                onMapCreated: (controller) => _controller = controller,
+                onStyleLoaded: (style) {
+                  final bounds = combinedBounds;
+                  if (bounds != null) {
+                    _controller?.fitBounds(
+                      bounds: bounds,
+                      padding: const EdgeInsets.all(40),
+                      nativeDuration: Duration.zero,
+                    );
+                  }
+                },
+                onMapEvent: (event) {
+                  if (event is ml.MapEventClick) _deselect();
+                },
+                layers: polylines.isNotEmpty
+                    ? [ml.PolylineLayer(polylines: polylines)]
+                    : null,
+                children: [
+                  if (markers.isNotEmpty)
+                    ml.WidgetLayer(allowInteraction: true, markers: markers),
+                  const ml.MapScalebar(),
+                  const ml.SourceAttribution(),
+                ],
+              ),
 
-                if (_selectedTrail != null)
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    right: 16,
-                    child: Dismissible(
-                      key: ValueKey(_selectedTrail!.id),
-                      direction: DismissDirection.down,
-                      onDismissed: (_) => _deselect(),
-                      child: TrailListItem(
-                        trail: _selectedTrail!,
-                        onTrailSelect: () =>
-                            context.push('/trail/${_selectedTrail!.id}'),
-                      ),
+              if (_selectedTrail != null)
+                Positioned(
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                  child: Dismissible(
+                    key: ValueKey(_selectedTrail!.id),
+                    direction: DismissDirection.down,
+                    onDismissed: (_) => _deselect(),
+                    child: TrailListItem(
+                      trail: _selectedTrail!,
+                      onTrailSelect: () =>
+                          context.push('/trail/${_selectedTrail!.id}'),
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         );
       },
