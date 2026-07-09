@@ -9,6 +9,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/download_notification_provider.dart';
+import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
@@ -146,6 +147,13 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     final trailDownloadService = ref.read(trailDownloadServiceProvider);
     final notificationService = ref.read(downloadNotificationServiceProvider);
 
+    // D-10: trail download is a second, independent trigger for the shared
+    // app-wide glyph/sprite cache warm. Fire it concurrently with the trail
+    // download and await it separately (below) so a glyph-cache failure never
+    // fails or corrupts the trail entity write. Idempotent + keepAlive → a
+    // no-op if the map was already opened first (D-09).
+    final glyphCacheWarm = ref.read(glyphSpriteCacheProvider.future);
+
     ref
         .read(toastProvider.notifier)
         .add(
@@ -186,6 +194,16 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
           );
     } finally {
       if (mounted) setState(() => _isDownloading = false);
+    }
+
+    // Await the shared cache warm separately (D-10 independence): its failure
+    // is isolated from the trail download's success/failure above so a
+    // glyph/sprite miss never surfaces as a trail-download error.
+    try {
+      await glyphCacheWarm;
+    } catch (_) {
+      // Best-effort: glyph/sprite cache warm failure must not block or fail the
+      // offline trail download.
     }
   }
 }
