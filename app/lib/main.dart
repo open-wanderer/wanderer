@@ -88,7 +88,11 @@ class MainApp extends ConsumerWidget {
                 child: SafeArea(
                   child: FloatingActionButton.small(
                     heroTag: 'spike-15-01',
-                    tooltip: 'SPIKE 15-01 · file:// glyph gate',
+                    // No `tooltip:` — this FAB lives in MaterialApp.router's
+                    // `builder`, which sits ABOVE the router's internal
+                    // Navigator/Overlay. RawTooltip's build() unconditionally
+                    // asserts an Overlay ancestor, which doesn't exist at
+                    // this level, so any tooltip here throws on first frame.
                     onPressed: () => navigatorKey.currentState?.push(
                       MaterialPageRoute<void>(
                         builder: (_) => const SpikeGlyphFileScreen(),
