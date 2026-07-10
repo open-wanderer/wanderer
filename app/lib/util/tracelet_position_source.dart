@@ -5,7 +5,7 @@ import 'package:tracelet/tracelet.dart' as tl;
 
 /// Bridges tracelet's background-location engine into a [geo.Position] stream
 /// so the navigation screen's existing consumers (maneuver provider, stats
-/// provider, CurrentLocationLayer) remain type-compatible.
+/// provider, native location puck) remain type-compatible.
 ///
 /// Mirrors the prior Geolocator.getPositionStream contract:
 /// - High accuracy, 5 m distance filter

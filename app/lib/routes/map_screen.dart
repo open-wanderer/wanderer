@@ -735,7 +735,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
 /// Interim device-location marker (mirrors `WandererMap._buildLocationLayer`)
 /// — a simple native puck driven by [foregroundPositionStreamProvider].
-/// Replaces the old flutter_map-only `CurrentLocationLayer` widget, which
+/// Replaces the old flutter_map-only location-marker widget, which
 /// cannot render outside a flutter_map `FlutterMap` widget tree.
 class _LocationLayer extends ConsumerWidget {
   @override

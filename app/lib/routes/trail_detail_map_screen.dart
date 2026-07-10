@@ -92,13 +92,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                     ),
                     controls: [
                       _buildMapControls(context, trail),
-                      // MapCompass (map_compass.dart) is flutter_map-only —
-                      // it calls MapCamera.of(context), which requires a
-                      // FlutterMap ancestor. WandererMap is MapLibreMap since
-                      // Phase 15 (15-04), so it crashes here. A MapLibre-native
-                      // compass control is CORE-05 (Phase 17) — dropped for
-                      // now rather than crashing; restore with maplibre's
-                      // built-in compass when that phase lands.
+                      const ml.MapCompass(hideIfRotatedNorth: true),
                     ],
                     onMapCreated: (controller) =>
                         _mapController = controller,
