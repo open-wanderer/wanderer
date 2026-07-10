@@ -1,5 +1,22 @@
 # Milestones
 
+## v1.4 MapLibre Migration (Shipped: 2026-07-10)
+
+**Phases completed:** 6 phases, 17 plans, 40 requirements
+
+**Key accomplishments:**
+
+- Native GL map rendering — `WandererMap` and all 6 map screens now run on `maplibre` (`MapLibreMap`) instead of `flutter_map`, with live light/dark style swapping, scale bar, and ODbL attribution.
+- Self-hosted glyph & sprite serving — new unified `/api/v1/map/style-sources` endpoint resolves tile, glyph, and sprite URLs under operator override, fixing missing place-name labels and route-shield icons that silently failed to render before.
+- Offline parity preserved — downloaded trails render basemap via native `pmtiles://` and place labels via cached `file://` glyphs/sprites in airplane mode, including multi-cell trails.
+- Server-side clustering — the map screen now renders `POST /search/trails/cluster` results as native circle/symbol layers matching web's `ClusterLayer`, replacing client-side rendering.
+- Turn-by-turn navigation migrated — heading-up follow, compass reset, and live location puck all run on maplibre-native APIs; offline navigation from the ObjectBox cache is unregressed.
+- Both `flomp/*` forks retired — `flutter_map` + 4 plugins, `vector_map_tiles`, and `vector_tile_renderer` are gone from `pubspec.yaml`; `maplibre` is pinned to an exact version (0.3.5).
+
+**Known deferred items at close:** 15 (see STATE.md Deferred Items — 14 are completed quick tasks the audit tool couldn't classify; 1, dark mode for the Flutter app, was planned but never executed and remains open for a future milestone).
+
+---
+
 ## v1.2 Settings Screens (Shipped: 2026-06-29)
 
 **Phases completed:** 4 phases, 9 plans, 12 tasks

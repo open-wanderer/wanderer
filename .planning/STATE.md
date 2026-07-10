@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
-status: executing
-stopped_at: Completed 18-01-PLAN.md
-last_updated: "2026-07-10T12:23:30.000Z"
-last_activity: 2026-07-10 -- Completed 18-01-PLAN.md
+status: Awaiting next milestone
+stopped_at: Completed quick task 260710-kpd (fix 6 small UI gaps from Phase 18 checkpoint)
+last_updated: "2026-07-10T13:41:58.925Z"
+last_activity: 2026-07-10 — Milestone v1.4 completed and archived
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 17
-  completed_plans: 15
-  percent: 88
+  total_plans: 16
+  completed_plans: 17
+  percent: 83
 ---
 
 # Project State
@@ -25,12 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 
 ## Current Position
 
-Phase: 18 (retire-flutter-map-and-the-flomp-forks) — EXECUTING
-Plan: 2 of 3
-Status: Executing Phase 18
-Last activity: 2026-07-10 -- Completed 18-01-PLAN.md
-
-Progress: [█████████░] 88%
+Phase: Milestone v1.4 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-10 — Milestone v1.4 completed and archived
 
 ## v1.4 Phases
 
@@ -39,7 +37,7 @@ Progress: [█████████░] 88%
 - [x] **Phase 15: MapLibre Core, Trail Rendering & Offline Parity** — STYLE-01..04, GLYPH-04, CORE-01..04, TRAIL-01..05, OFFL-01..05 (OFFL-06 deferred to 17/18)
 - [x] **Phase 16: List & Map Screens on MapLibre** — CORE-08, CLUS-01..05
 - [x] **Phase 17: Navigation on MapLibre** — NAV-01..04, CORE-05/06/07 (completed 2026-07-10)
-- [ ] **Phase 18: Retire flutter_map and the flomp Forks** — CLEAN-01/02/03 (1/3 plans complete)
+- [x] **Phase 18: Retire flutter_map and the flomp Forks** — CLEAN-01/02/03 (completed 2026-07-10)
 
 Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share no code and may run in parallel; both gate Phase 15.
 
@@ -69,6 +67,8 @@ Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share n
 | Phase 17 P01 | 10min | 2 tasks | 1 files |
 | Phase 17 P02 | 8min | 2 tasks | 6 files |
 | Phase 18 P01 | 15min | 2 tasks | 5 files modified + 4 deleted |
+| Phase 18 P02 | 3min | 2 tasks | 2 files |
+| Phase quick-260710-kpd P01 | 15min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -111,11 +111,13 @@ Recent decisions affecting current work:
 - [Phase 17-02]: Reworded stray CurrentLocationLayer doc-comment references outside files_modified scope to satisfy the plan's own repo-wide grep gate (tracelet_position_source.dart, map_screen.dart)
 - [Phase 18-01]: Relocated `effectiveBrightness()` verbatim into `map_style_json_provider.dart` (no new import needed — Brightness/ThemeMode/WidgetsBinding all resolve via that file's existing `package:flutter/material.dart` import); replaced `LocationMarkerPosition`/`ServiceDisabledException` with shape-identical file-local classes in `foreground_position_stream_provider.dart` — both are code-before-manifest prep so Plan 02 can remove the six packages from `pubspec.yaml` without breaking a whole-package `flutter analyze`
 - [Phase 18-01]: 3 pre-existing `flutter test` failures (`feed_item_test.dart` x2, `settings_screen_test.dart` x1) confirmed unrelated via git-stash bisect against the parent commit; logged to `.planning/phases/18-retire-flutter-map-and-the-flomp-forks/deferred-items.md`, not fixed (out of scope for this plan's `files_modified`)
+- [Phase 18]: [18-02] Removed the six flutter_map/vector_map_tiles/vector_tile_renderer packages and both flomp/* git dependency_overrides from pubspec.yaml; pinned maplibre to exact 0.3.5; meta ^1.18.0 override retained
+- [quick-260710-kpd] Added html and pointer_interceptor as direct pubspec.yaml dependencies since WandererAttribution imports them directly (previously transitive via maplibre/flutter_html).
 
 ### Pending Todos
 
-- Fix 3 pre-existing `flutter test` failures (`feed_item_test.dart` x2, `settings_screen_test.dart` x1) — logged in Phase 18's `deferred-items.md`; not blocking Phase 18 Plans 02/03.
-- Run `/gsd-execute-phase 18` (or continue directly) for 18-02-PLAN.md — removes the six packages + two `flomp/*` dependency_overrides from `pubspec.yaml`, pins `maplibre` to `0.3.5` exact.
+- Fix 3 pre-existing `flutter test` failures (`feed_item_test.dart` x2, `settings_screen_test.dart` x1) — logged in Phase 18's `deferred-items.md`; not blocking Phase 18 Plan 03.
+- Run `/gsd-execute-phase 18` (or continue directly) for 18-03-PLAN.md — physical-device walk of all six map surfaces (online + airplane mode) to close out CLEAN-01/02/03 verification.
 
 ### Blockers/Concerns
 
@@ -133,6 +135,7 @@ Recent decisions affecting current work:
 | 260702-ere | Cascade category visibility to SettingsSubcategoriesScreen | 2026-07-02 | 108348b2 | [260702-ere-…](./quick/260702-ere-cascade-category-visibility-to-settingss/) |
 | 260702-m4u | Make auth_provider.dart build() optimistic | 2026-07-02 | d2d126a8 | [260702-m4u-…](./quick/260702-m4u-make-auth-provider-dart-build-optimistic/) |
 | 260702-gib | Add read-only subcategory chips under each category row | 2026-07-02 | dbc1db3d | [260702-gib-…](./quick/260702-gib-add-subcategory-chips-under-each-categor/) |
+| 260710-kpd | Fix the 6 small UI gaps found after Phase 18 checkpoint | 2026-07-10 | dcbabbd4 | [260710-kpd-…](./quick/260710-kpd-fix-the-6-small-ui-gaps-that-i-found-aft/) |
 
 ## Deferred Items
 
@@ -149,13 +152,32 @@ Recent decisions affecting current work:
 | Account | API token management (ACCT-F01) | Future | v1.2 requirements |
 | Settings | Favourite sport picker, Export, Integrations, Maintenance, Map settings | Out of scope | v1.2 requirements |
 
+Items acknowledged and deferred at milestone close on 2026-07-10:
+
+| Category | Item | Status |
+|----------|------|--------|
+| quick_task | 260610-kdc-fix-trail-pmtiles-download-add-missing-g | unknown (has SUMMARY.md; likely complete) |
+| quick_task | 260611-whq-support-multiple-pmtiles-sources-in-offl | unknown (has SUMMARY.md; likely complete) |
+| quick_task | 260612-gmg-add-proper-dark-mode-to-the-flutter-app- | missing (PLAN.md only, never executed) |
+| quick_task | 260615-k0w-implement-along-track-projection-for-way | unknown (has SUMMARY.md; likely complete) |
+| quick_task | 260615-ktn-research-flutter-background-geolocation- | unknown (has SUMMARY.md; likely complete) |
+| quick_task | 260615-mxk-implement-background-navigation-so-locat | unknown (has SUMMARY.md; likely complete) |
+| quick_task | 260616-h99-create-wandereractorsearch-component-for | unknown (has SUMMARY.md; likely complete) |
+| quick_task | 260616-j2n-implement-the-like-feature-from-the-web- | unknown (has SUMMARY.md; likely complete) |
+| quick_task | 260702-e3g-fix-non-optimistic-reorder-animation-in- | unknown (has SUMMARY.md; logged in Quick Tasks Completed) |
+| quick_task | 260702-ek7-fix-white-flash-on-sub-category-toggle-r | unknown (has SUMMARY.md; logged in Quick Tasks Completed) |
+| quick_task | 260702-ere-cascade-category-visibility-to-settingss | unknown (has SUMMARY.md; logged in Quick Tasks Completed) |
+| quick_task | 260702-gib-add-subcategory-chips-under-each-categor | unknown (has SUMMARY.md; logged in Quick Tasks Completed) |
+| quick_task | 260702-m4u-make-auth-provider-dart-build-optimistic | unknown (has SUMMARY.md; logged in Quick Tasks Completed) |
+| quick_task | 260710-kpd-fix-the-6-small-ui-gaps-that-i-found-aft | unknown (has SUMMARY.md; logged in Quick Tasks Completed) |
+| quick_task | 260710-lem-fix-2-issues-found-during-manual-verific | unknown (has SUMMARY.md; likely complete) |
+
 ## Session Continuity
 
-Last session: 2026-07-10T12:23:30Z
-Stopped at: Completed 18-01-PLAN.md
+Last session: 2026-07-10T13:16:22.647Z
+Stopped at: Completed quick task 260710-kpd (fix 6 small UI gaps from Phase 18 checkpoint)
 Resume file: None
 
 ## Operator Next Steps
 
-- Continue with 18-02-PLAN.md (Remove 6 packages + 2 flomp overrides from `pubspec.yaml`, pin `maplibre: 0.3.5` exact, whole-package analyze/deps/test gate) — CLEAN-01/02/03. Zero source imports of the six packages remain, so the removal is unblocked.
-- Phase 18 (Retire flutter_map and the flomp forks) depends on Phase 17 finishing the migration — nothing to do there yet.
+- Start the next milestone with /gsd-new-milestone
