@@ -120,7 +120,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 - [x] **Phase 14: Coordinate Type Migration** - `latlong2.LatLng` → `Geographic`, `LatLngBounds` → `LngLatBounds`, test-guarded, before any map code moves (completed 2026-07-08)
 - [x] **Phase 15: MapLibre Core, Trail Rendering & Offline Parity** - `WandererMap` on `MapLibreMap`; a downloaded trail renders basemap *and labels* in airplane mode (completed 2026-07-09)
 - [x] **Phase 16: List & Map Screens on MapLibre** - Multi-trail list maps plus server-clustered map-screen search on native circle/symbol layers
-- [ ] **Phase 17: Navigation on MapLibre** - Heading-up follow, compass reset, location puck; the last `flutter_map` plugin call sites disappear
+- [x] **Phase 17: Navigation on MapLibre** - Heading-up follow, compass reset, location puck; the last `flutter_map` plugin call sites disappear (completed 2026-07-10)
 - [ ] **Phase 18: Retire flutter_map and the flomp Forks** - Both forks and all five packages leave `pubspec.yaml`; `maplibre` pinned
 
 #### Sequencing Rationale
@@ -239,9 +239,9 @@ Plans:
 
 Plans:
 
-- [ ] 17-01-PLAN.md — Migrate navigation_screen to ml.MapLibreMap: native puck/follow, compass toggle, breadcrumb, offline pmtiles (NAV-01/02/03, CORE-06/07)
-- [ ] 17-02-PLAN.md — Delete map_compass.dart + pm_tile_provider.dart, strip legacy TrailLayer, restore trail-detail compass (CORE-05, OFFL-06)
-- [ ] 17-03-PLAN.md — On-device checkpoint: drag-break precision, follow, compass, offline navigation (NAV-01/02/03/04, CORE-07)
+- [x] 17-01-PLAN.md — Migrate navigation_screen to ml.MapLibreMap: native puck/follow, compass toggle, breadcrumb, offline pmtiles (NAV-01/02/03, CORE-06/07)
+- [x] 17-02-PLAN.md — Delete map_compass.dart + pm_tile_provider.dart, strip legacy TrailLayer, restore trail-detail compass (CORE-05, OFFL-06)
+- [x] 17-03-PLAN.md — On-device checkpoint: drag-break precision, follow, compass, offline navigation (NAV-01/02/03/04, CORE-07)
 
 **UI hint**: yes
 
@@ -257,7 +257,13 @@ Plans:
   3. `maplibre` is pinned to an exact version rather than a caret range, so `flutter pub upgrade` cannot pull a breaking 0.x minor.
   4. A hiker walks every map surface — trail detail, trail map, list, list map, map screen, navigation — online and in airplane mode, and each renders as it did before the migration began.
 
-**Plans**: TBD
+**Plans**: 3 plans (3 waves)
+
+Plans:
+
+- [ ] 18-01-PLAN.md — Sever source deps: relocate effectiveBrightness, local LocationMarkerPosition/ServiceDisabledException classes, delete 4 dead fork/adapter files (CLEAN-01/02 prep)
+- [ ] 18-02-PLAN.md — Remove 6 packages + 2 flomp overrides from pubspec.yaml, pin maplibre 0.3.5 exact, whole-package analyze/deps/test gate (CLEAN-01/02/03)
+- [ ] 18-03-PLAN.md — On-device regression walk of all six map surfaces, online and airplane mode (CLEAN-01/02/03 verify)
 
 ## Progress
 
@@ -288,5 +294,5 @@ Phases 13 and 14 are independent and may execute in either order or in parallel.
 | 14. Coordinate Type Migration | v1.4 | 1/0 | Complete    | 2026-07-08 |
 | 15. MapLibre Core, Trail Rendering & Offline Parity | v1.4 | 6/6 | Complete   | 2026-07-09 |
 | 16. List & Map Screens on MapLibre | v1.4 | 3/3 | Complete   | 2026-07-09 |
-| 17. Navigation on MapLibre | v1.4 | 0/TBD | Not started | - |
-| 18. Retire flutter_map and the flomp Forks | v1.4 | 0/TBD | Not started | - |
+| 17. Navigation on MapLibre | v1.4 | 3/3 | Complete   | 2026-07-10 |
+| 18. Retire flutter_map and the flomp Forks | v1.4 | 0/3 | Not started | - |
