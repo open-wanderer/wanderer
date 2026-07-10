@@ -185,7 +185,12 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
                 children: [
                   if (markers.isNotEmpty)
                     ml.WidgetLayer(allowInteraction: true, markers: markers),
-                  const ml.MapCompass(hideIfRotatedNorth: true),
+                  const SafeArea(
+                    child: ml.MapCompass(
+                      hideIfRotatedNorth: true,
+                      padding: EdgeInsets.only(top: 6, right: 8),
+                    ),
+                  ),
                   const ml.MapScalebar(),
                   const WandererAttribution(),
                 ],
