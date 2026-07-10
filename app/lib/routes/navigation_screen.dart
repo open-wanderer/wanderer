@@ -1,34 +1,31 @@
 import 'dart:async';
+import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map_animations/flutter_map_animations.dart';
-import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
-import 'package:vector_map_tiles/vector_map_tiles.dart';
-import 'package:wanderer/components/map/map_compass.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/waypoint_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/models/glyph_sprite_cache_paths.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
-import 'package:wanderer/provider/map_style_provider.dart';
+import 'package:wanderer/provider/map_style_json_provider.dart';
+import 'package:wanderer/provider/map_style_provider.dart' show effectiveBrightness;
 import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/format_util.dart';
-import 'package:wanderer/util/map_coordinate_adapter.dart';
+import 'package:wanderer/util/offline_style_rewriter.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
-import 'package:wanderer/vendor/vector_map_tiles/pm_tile_provider.dart';
 
 class NavigationScreen extends ConsumerStatefulWidget {
   final String id;
@@ -46,13 +43,7 @@ class NavigationScreen extends ConsumerStatefulWidget {
   ConsumerState<NavigationScreen> createState() => _NavigationScreenState();
 }
 
-class _NavigationScreenState extends ConsumerState<NavigationScreen>
-    with TickerProviderStateMixin {
-  late final _animatedMapController = AnimatedMapController(vsync: this);
-
-  final StreamController<double?> _recenterTrigger =
-      StreamController<double?>.broadcast();
-
+class _NavigationScreenState extends ConsumerState<NavigationScreen> {
   late final TraceletPositionSource _positionSource;
   late final Stream<geo.Position> _positionStream;
   StreamSubscription<geo.Position>? _sub;
@@ -68,8 +59,20 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   static const _kSheetStatsSize = 0.3;
   static const _kSheetElevationSize = 0.45;
 
-  MultiPmTilesVectorTileProvider? _offlineTileProvider;
-  bool _offlineInitialized = false;
+  ml.MapController? _controller;
+
+  /// Buffers a style-loaded event that arrives before [_controller] is set —
+  /// the native platform channel does not reliably fire `onMapCreated` before
+  /// `onStyleLoaded` (same race `SearchMap` guards against, Phase 16-03).
+  ml.StyleController? _pendingStyle;
+
+  /// The last successfully-resolved (and possibly offline-rewritten) style
+  /// JSON. Cached so a provider refresh (e.g. a theme toggle) never drops us
+  /// back to the loading state and remounts the map — the live swap goes
+  /// through [ml.MapController.setStyle] instead (CORE-02).
+  String? _lastStyleJson;
+
+  bool _cacheWarmed = false;
 
   bool _followEnabled = true;
   bool _headingUp = false;
@@ -94,9 +97,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         ref
             .read(navigationStatsProvider(widget.response).notifier)
             .onPosition(pos);
-        if (_followEnabled) {
-          _recenterTrigger.add(null);
-        }
       },
       onError: (Object error) {
         debugPrint('NavigationScreen: GPS stream error — $error');
@@ -104,27 +104,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  Future<void> _initOffline(List<String> pmTiles) async {
-    if (_offlineInitialized || pmTiles.isEmpty) return;
-    _offlineInitialized = true;
-    try {
-      final provider = await MultiPmTilesVectorTileProvider.fromSources(
-        pmTiles,
-      );
-      if (mounted) setState(() => _offlineTileProvider = provider);
-    } catch (e) {
-      debugPrint(e.toString());
-    }
-  }
-
   @override
   void dispose() {
     _sub?.cancel();
     unawaited(_positionSource.dispose());
-    _recenterTrigger.close();
     _sheetController.dispose();
     _waypointSheetController.dispose();
-    _animatedMapController.dispose();
     super.dispose();
   }
 
@@ -143,36 +128,155 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
   void _onPanStart() {
     if (_followEnabled) {
+      _controller?.trackLocation(trackLocation: false);
       setState(() => _followEnabled = false);
     }
   }
 
   void _onRecenter() {
     setState(() => _followEnabled = true);
-    _recenterTrigger.add(null);
+    _controller?.trackLocation(
+      trackLocation: true,
+      // D-03: restores prior heading-up state — recenter never forces north.
+      trackBearing: _headingUp ? ml.BearingTrackMode.gps : ml.BearingTrackMode.none,
+    );
   }
 
-  VectorTileLayer _buildTileLayer(Style style) {
-    if (widget.isOffline && _offlineTileProvider != null) {
-      return VectorTileLayer(
-        fileCacheTtl: Duration.zero,
-        theme: style.theme,
-        tileProviders: TileProviders({'protomaps': _offlineTileProvider!}),
-        tileOffset: TileOffset.DEFAULT,
-        concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
+  /// Composes the style JSON to hand to the map from the two resolved inputs.
+  ///
+  /// Online: [baseJson] as-is. Offline: [baseJson] rewritten via
+  /// [rewriteStyleForOffline] so `glyphs`/`sprite` resolve from [cache] and the
+  /// protomaps tiles resolve from the trail's `.pmtiles` cells
+  /// (`pmtiles://file://`). Returns null while a required input is still
+  /// resolving or if the rewrite rejects an input — the caller then shows the
+  /// loading passthrough.
+  String? _composeStyle(String? baseJson, GlyphSpriteCachePaths? cache) {
+    if (baseJson == null) return null;
+    if (!widget.isOffline) return baseJson;
+    if (cache == null) return null;
+    final pmTiles = ref.read(trailProvider(widget.id)).value?.pmTiles;
+    if (pmTiles == null || pmTiles.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(baseJson) as Map<String, dynamic>;
+      final offlineStyle = rewriteStyleForOffline(
+        decoded,
+        cacheRoot: cache.root,
+        cellPaths: pmTiles,
+        dark:
+            effectiveBrightness(ref.read(themeModeProvider)) == Brightness.dark,
       );
+      return jsonEncode(offlineStyle);
+    } catch (e) {
+      debugPrint('NavigationScreen: offline style rewrite failed — $e');
+      return null;
     }
-    return VectorTileLayer(
-      tileProviders: style.providers,
-      theme: style.theme,
-      tileOffset: TileOffset.DEFAULT,
-      concurrency: kDebugMode ? 0 : VectorTileLayer.defaultConcurrency,
-    );
+  }
+
+  /// Recomposes the (possibly offline-rewritten) style from current provider
+  /// state and swaps it onto the mounted controller in place (CORE-02).
+  void _swapStyle() {
+    final controller = _controller;
+    if (controller == null) return;
+    final baseJson = ref.read(mapStyleJsonProvider).value;
+    final cache = widget.isOffline
+        ? ref.read(glyphSpriteCacheProvider).value
+        : null;
+    final json = _composeStyle(baseJson, cache);
+    if (json != null && json != _lastStyleJson) {
+      _lastStyleJson = json;
+      controller.setStyle(json);
+    }
+  }
+
+  /// JSON-encodes the breadcrumb as a single LineString Feature. Never string
+  /// concatenation — keeps the geometry structurally isolated (T-17-01).
+  String _breadcrumbGeoJson(List<ml.Geographic> pts) {
+    return jsonEncode(<String, Object?>{
+      'type': 'Feature',
+      'properties': <String, Object?>{},
+      'geometry': <String, Object?>{
+        'type': 'LineString',
+        'coordinates': <List<double>>[
+          for (final p in pts) <double>[p.lon, p.lat],
+        ],
+      },
+    });
+  }
+
+  /// Re-arms everything that binds to the current native `Style` object
+  /// (Pattern 1, 17-RESEARCH.md): `setStyle` (CORE-02 theme swap) drops added
+  /// layers/sources AND the location component, so this must run after every
+  /// style load, not just once at `onMapCreated`.
+  Future<void> _onStyleLoaded(ml.StyleController style) async {
+    try {
+      final trail = ref.read(trailProvider(widget.id)).value;
+      if (trail?.expand?.gpx != null) {
+        await addTrailTrackLayers(style, trail!);
+      }
+
+      final breadcrumb = ref
+          .read(navigationProvider(widget.response))
+          .breadcrumb;
+      await style.addSource(
+        ml.GeoJsonSource(id: 'breadcrumb', data: _breadcrumbGeoJson(breadcrumb)),
+      );
+      await style.addLayer(
+        const ml.LineStyleLayer(
+          id: 'breadcrumb-route',
+          sourceId: 'breadcrumb',
+          paint: {'line-color': '#DC2626', 'line-width': 3.5},
+        ),
+      );
+
+      final controller = _controller;
+      if (controller != null) {
+        await controller.enableLocation(
+          bearingRenderMode: ml.BearingRenderMode.gps, // D-04: GPS heading
+        );
+        await controller.trackLocation(
+          trackLocation: _followEnabled,
+          trackBearing: _headingUp
+              ? ml.BearingTrackMode.gps
+              : ml.BearingTrackMode.none,
+        );
+      }
+    } catch (e) {
+      debugPrint('NavigationScreen: onStyleLoaded failed — $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final styleAsync = ref.watch(mapStyleProvider);
+    // D-09-style cache warm on first open (mirrors WandererMap's CORE-02
+    // pattern) — idempotent against the trail-download trigger.
+    if (!_cacheWarmed) {
+      _cacheWarmed = true;
+      ref.read(glyphSpriteCacheProvider.future).ignore();
+    }
+
+    // Live style swap (CORE-02): theme toggle or (offline) glyph/sprite cache
+    // warm swaps the composed style in place on the already-mounted map.
+    ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
+    if (widget.isOffline) {
+      ref.listen(glyphSpriteCacheProvider, (_, _) => _swapStyle());
+    }
+
+    // Breadcrumb in-place update (T-17-01 fail-soft): swap the native source's
+    // data on every new position fix, never remove/re-add the source.
+    ref.listen(navigationProvider(widget.response), (prev, next) {
+      if (prev?.breadcrumb == next.breadcrumb) return;
+      final style = _controller?.style;
+      if (style == null) return;
+      style
+          .updateGeoJsonSource(
+            id: 'breadcrumb',
+            data: _breadcrumbGeoJson(next.breadcrumb),
+          )
+          .catchError((Object e) {
+            debugPrint('NavigationScreen: failed to update breadcrumb — $e');
+          });
+    });
+
     final navState = ref.watch(navigationProvider(widget.response));
     final stats = ref.watch(navigationStatsProvider(widget.response));
     final trailAsync = ref.watch(trailProvider(widget.id));
@@ -180,15 +284,20 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final localizations = AppLocalizations.of(context)!;
     final unit = ref.watch(unitProvider);
 
-    if (widget.isOffline && !_offlineInitialized) {
-      trailAsync.whenData((trail) {
-        if (trail.pmTiles.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _initOffline(trail.pmTiles);
-          });
-        }
-      });
+    final baseAsync = ref.watch(mapStyleJsonProvider);
+    final baseJson = baseAsync.value;
+    Object? error = baseAsync.error;
+
+    GlyphSpriteCachePaths? cache;
+    if (widget.isOffline) {
+      final cacheAsync = ref.watch(glyphSpriteCacheProvider);
+      cache = cacheAsync.value;
+      error ??= cacheAsync.error;
     }
+
+    final composed = _composeStyle(baseJson, cache);
+    if (composed != null) _lastStyleJson = composed;
+    final styleJson = _lastStyleJson;
 
     final maneuvers = widget.response.maneuvers;
     final currentIndex = navState.currentManeuverIndex;
@@ -201,167 +310,152 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         if (!didPop) _confirmExit(context, localizations);
       },
       child: Scaffold(
-        body: styleAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text(e.toString())),
-          data: (style) {
-            return Stack(
-              children: [
-                // ----------------------------------------------------------------
-                // Full-screen map
-                // ----------------------------------------------------------------
-                FlutterMap(
-                  key: ObjectKey(style),
-                  mapController: _animatedMapController.mapController,
-                  options: MapOptions(
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                    initialCenter: toLatLng(
-                      widget.response.shapeAsGeographic.isNotEmpty
+        body: styleJson == null
+            ? (error != null
+                  ? Center(child: Text(error.toString()))
+                  : const Center(child: CircularProgressIndicator()))
+            : Stack(
+                children: [
+                  // ----------------------------------------------------------
+                  // Full-screen map
+                  // ----------------------------------------------------------
+                  ml.MapLibreMap(
+                    options: ml.MapOptions(
+                      initStyle: styleJson,
+                      initCenter: widget.response.shapeAsGeographic.isNotEmpty
                           ? widget.response.shapeAsGeographic.first
                           : const ml.Geographic(lat: 0, lon: 0),
+                      initZoom: 15,
+                      androidForegroundLoadColor: Theme.of(
+                        context,
+                      ).colorScheme.surface,
                     ),
-                    initialZoom: 15,
-                    maxZoom: 22,
-                    interactionOptions: const InteractionOptions(
-                      enableMultiFingerGestureRace: true,
-                    ),
-                    onTap: (_, _) {
-                      setState(() {
-                        _selectedWaypoint = null;
-                      });
+                    onMapCreated: (controller) {
+                      _controller = controller;
+                      final pending = _pendingStyle;
+                      if (pending != null) {
+                        _pendingStyle = null;
+                        _onStyleLoaded(pending);
+                      }
                     },
-                    onMapEvent: (event) {
-                      // Only drag events disable follow — pinch-zoom events must
-                      // NOT pause follow (D-09 free-pan; D-10 zoom must stay free)
-                      if (event is MapEventMoveStart &&
-                          event.source == MapEventSource.dragStart) {
+                    onStyleLoaded: (style) {
+                      if (_controller == null) {
+                        _pendingStyle = style;
+                        return;
+                      }
+                      _onStyleLoaded(style);
+                    },
+                    onEvent: (event) {
+                      if (event is ml.MapEventClick) {
+                        setState(() => _selectedWaypoint = null);
+                      } else if (event is ml.MapEventStartMoveCamera &&
+                          event.reason == ml.CameraChangeReason.apiGesture &&
+                          _followEnabled) {
+                        // 17-02: pointer-count guard added here
                         _onPanStart();
                       }
                     },
-                  ),
-                  children: [
-                    // (1) Vector tile layer (map background)
-                    SizedBox.expand(child: _buildTileLayer(style)),
+                    children: [
+                      if (trailAsync.value?.expand?.gpx != null)
+                        TrailMarkerLayer(
+                          trail: trailAsync.value!,
+                          selectedWaypoint: _selectedWaypoint,
+                          onWaypointTap: _onWaypointSelected,
+                        ),
 
-                    // (2) Trail polyline + waypoints
-                    trailAsync.when(
-                      data: (trail) {
-                        if (trail.expand?.gpx != null) {
-                          return TrailLayer(
-                            trail: trail,
-                            showWaypoints: true,
-                            selectedWaypoint: _selectedWaypoint,
-                            onWaypointTap: _onWaypointSelected,
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                      loading: () => const SizedBox.shrink(),
-                      error: (err, st) => const SizedBox.shrink(),
-                    ),
-
-                    if (navState.breadcrumb.isNotEmpty)
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: toLatLngList(navState.breadcrumb),
-                            color: const Color(0xFFDC2626),
-                            strokeWidth: 3.5,
-                          ),
-                        ],
-                      ),
-
-                    CurrentLocationLayer(
-                      positionStream: const LocationMarkerDataStreamFactory()
-                          .fromGeolocatorPositionStream(
-                            stream: _positionStream,
-                          ),
-                      alignPositionStream: _recenterTrigger.stream,
-                      alignPositionOnUpdate: AlignOnUpdate.never,
-                      alignDirectionOnUpdate: _headingUp
-                          ? AlignOnUpdate.always
-                          : AlignOnUpdate.never,
-                    ),
-
-                    Positioned(
-                      top: 128,
-                      right: 8,
-                      child: SafeArea(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            MapCompass(
-                              hideIfRotatedNorth: false,
-                              onPressed: () {
-                                setState(() => _headingUp = !_headingUp);
-                                if (!_headingUp) {
-                                  _animatedMapController.animateTo(rotation: 0);
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 4),
-                            IconButton(
-                              onPressed: _followEnabled ? null : _onRecenter,
-                              icon: const FaIcon(
-                                FontAwesomeIcons.locationCrosshairs,
+                      const ml.MapScalebar(), // CORE-04
+                      const ml.SourceAttribution(), // CORE-04
+                      Positioned(
+                        top: 128,
+                        right: 8,
+                        child: SafeArea(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ml.MapCompass(
+                                hideIfRotatedNorth: false, // D-02
+                                rotateNorthOnPressed: false,
+                                onPressed: () {
+                                  setState(() => _headingUp = !_headingUp);
+                                  final controller = _controller;
+                                  if (controller == null) return;
+                                  controller.trackLocation(
+                                    trackLocation: _followEnabled,
+                                    trackBearing: _headingUp
+                                        ? ml.BearingTrackMode.gps
+                                        : ml.BearingTrackMode.none,
+                                  );
+                                  if (!_headingUp) {
+                                    controller.animateCamera(
+                                      bearing: 0,
+                                      nativeDuration: const Duration(
+                                        milliseconds: 400,
+                                      ),
+                                    );
+                                  }
+                                },
                               ),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.surface,
-                                disabledBackgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.surface,
-                                disabledForegroundColor: Colors.grey,
+                              const SizedBox(height: 8),
+                              IconButton(
+                                onPressed: _followEnabled ? null : _onRecenter,
+                                icon: const FaIcon(
+                                  FontAwesomeIcons.locationCrosshairs,
+                                ),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surface,
+                                  disabledBackgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surface,
+                                  disabledForegroundColor: Colors.grey,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
 
-                SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                    child: _buildBanner(
-                      context,
-                      localizations,
-                      maneuvers,
-                      currentIndex,
-                      isArrived,
-                      unit,
+                  SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                      child: _buildBanner(
+                        context,
+                        localizations,
+                        maneuvers,
+                        currentIndex,
+                        isArrived,
+                        unit,
+                      ),
                     ),
                   ),
-                ),
 
-                _buildStatsSheet(
-                  context,
-                  localizations,
-                  stats,
-                  trailAsync,
-                  unit,
-                ),
-
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: MediaQuery.of(context).padding.bottom,
-                  child: _buildButtonRow(context, localizations, stats),
-                ),
-
-                if (_selectedWaypoint != null)
-                  WaypointSheet(
-                    waypoint: _selectedWaypoint!,
-                    user: user,
-                    controller: _waypointSheetController,
-                    onClose: () => setState(() => _selectedWaypoint = null),
+                  _buildStatsSheet(
+                    context,
+                    localizations,
+                    stats,
+                    trailAsync,
+                    unit,
                   ),
-              ],
-            );
-          },
-        ),
+
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: MediaQuery.of(context).padding.bottom,
+                    child: _buildButtonRow(context, localizations, stats),
+                  ),
+
+                  if (_selectedWaypoint != null)
+                    WaypointSheet(
+                      waypoint: _selectedWaypoint!,
+                      user: user,
+                      controller: _waypointSheetController,
+                      onClose: () => setState(() => _selectedWaypoint = null),
+                    ),
+                ],
+              ),
       ),
     );
   }
