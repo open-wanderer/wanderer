@@ -12,7 +12,6 @@ import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
-import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 
 /// A native MapLibre GL map host (CORE-01). Renders the Protomaps basemap from
@@ -71,6 +70,13 @@ class WandererMap extends ConsumerStatefulWidget {
 
 class _WandererMapState extends ConsumerState<WandererMap> {
   ml.MapController? _controller;
+
+  /// Buffers a style-loaded event that arrives before [_controller] is set.
+  /// The native platform channel does not always fire `onMapCreated` before
+  /// `onStyleLoaded` despite the package docs implying that order — callers
+  /// that call back into [ml.MapController] from `onStyleLoaded` (e.g.
+  /// `fitBounds`) would silently no-op on a still-null controller otherwise.
+  ml.StyleController? _pendingStyle;
 
   /// The last successfully-resolved style JSON. Cached so a provider refresh
   /// (e.g. a theme toggle) never drops us back to the loading state and
@@ -188,14 +194,18 @@ class _WandererMapState extends ConsumerState<WandererMap> {
       onMapCreated: (controller) {
         _controller = controller;
         widget.onMapCreated?.call(controller);
+        final pending = _pendingStyle;
+        if (pending != null) {
+          _pendingStyle = null;
+          _onStyleLoaded(pending);
+        }
       },
       onStyleLoaded: (style) {
-        _fitInitialCamera().ignore();
-        // 15-05: (re)add the trail track + static arrows after every style
-        // load, so they survive the CORE-02 theme swap (setStyle drops them).
-        if (widget.showTrail && widget.trail.expand?.gpx != null) {
-          addTrailTrackLayers(style, widget.trail).ignore();
+        if (_controller == null) {
+          _pendingStyle = style;
+          return;
         }
+        _onStyleLoaded(style);
       },
       onEvent: (event) {
         widget.onMapEvent?.call(event);
@@ -234,17 +244,28 @@ class _WandererMapState extends ConsumerState<WandererMap> {
     );
   }
 
+  /// (re)runs the style-loaded work: the initial camera fit plus (re)adding
+  /// the trail track + static arrows. Buffered/replayed via [_pendingStyle]
+  /// when the native platform channel fires `onStyleLoaded` before
+  /// `onMapCreated` — otherwise `_fitInitialCamera`'s null-`_controller`
+  /// early-return would silently no-op the initial fit (Gap 5).
+  void _onStyleLoaded(ml.StyleController style) {
+    _fitInitialCamera().ignore();
+    // 15-05: (re)add the trail track + static arrows after every style
+    // load, so they survive the CORE-02 theme swap (setStyle drops them).
+    if (widget.showTrail && widget.trail.expand?.gpx != null) {
+      addTrailTrackLayers(style, widget.trail).ignore();
+    }
+  }
+
   Future<void> _fitInitialCamera() async {
     final controller = _controller;
     if (controller == null) return;
 
-    // Prefer bounds derived from the actual GPX track over the record's
-    // min/max-based trail.bounds: on the single-trail `GET /trail/:id`
-    // record, `min/max_lat/lon` are `@Default(0)` and unpopulated, so
-    // `hasExtent` below was false and the camera fell back to the degenerate
-    // start-point moveCamera branch (Gap 5).
-    final gpxBounds = widget.trail.expand?.gpx?.getBounds();
-    final bounds = gpxBounds ?? widget.trail.bounds;
+    // `min/max_lat/lon` ARE populated on every trail record (including the
+    // single-trail `GET /trail/:id`), so read the record's bounds directly
+    // rather than deriving bounds from the GPX track.
+    final bounds = widget.trail.bounds;
     final hasExtent =
         bounds.latitudeNorth != bounds.latitudeSouth ||
         bounds.longitudeEast != bounds.longitudeWest;
