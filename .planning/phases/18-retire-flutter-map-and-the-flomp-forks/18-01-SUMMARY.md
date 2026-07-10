@@ -122,3 +122,12 @@ None - no external service configuration required.
 ---
 *Phase: 18-retire-flutter-map-and-the-flomp-forks*
 *Completed: 2026-07-10*
+
+## Self-Check: PASSED
+
+- FOUND: app/lib/provider/map_style_json_provider.dart
+- CONFIRMED DELETED: app/lib/provider/map_style_provider.dart (and .g.dart, tool/extract_map_styles.dart, lib/util/map_coordinate_adapter.dart)
+- FOUND commit c06d9546 (Task 1)
+- FOUND commit 1ffaa725 (Task 2)
+- FOUND commit f7f0ea98 (docs: summary)
+- FOUND commit 5f21de33 (docs: STATE/ROADMAP/REQUIREMENTS)
