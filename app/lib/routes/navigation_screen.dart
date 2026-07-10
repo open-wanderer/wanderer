@@ -19,7 +19,8 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
-import 'package:wanderer/provider/map_style_provider.dart' show effectiveBrightness;
+import 'package:wanderer/provider/map_style_provider.dart'
+    show effectiveBrightness;
 import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
@@ -73,6 +74,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
   String? _lastStyleJson;
 
   bool _cacheWarmed = false;
+
+  /// Active pointer count on the map surface. `CameraChangeReason.apiGesture`
+  /// fires identically for pan/pinch/rotate (no native sub-classification —
+  /// RESEARCH Pitfall 1), so this heuristic is what narrows follow-break to a
+  /// single-finger drag (NAV-02). Read synchronously inside `onEvent` only —
+  /// never mutated via `setState`.
+  int _activePointers = 0;
 
   bool _followEnabled = true;
   bool _headingUp = false;
@@ -138,7 +146,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
     _controller?.trackLocation(
       trackLocation: true,
       // D-03: restores prior heading-up state — recenter never forces north.
-      trackBearing: _headingUp ? ml.BearingTrackMode.gps : ml.BearingTrackMode.none,
+      trackBearing: _headingUp
+          ? ml.BearingTrackMode.gps
+          : ml.BearingTrackMode.none,
     );
   }
 
@@ -218,7 +228,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
           .read(navigationProvider(widget.response))
           .breadcrumb;
       await style.addSource(
-        ml.GeoJsonSource(id: 'breadcrumb', data: _breadcrumbGeoJson(breadcrumb)),
+        ml.GeoJsonSource(
+          id: 'breadcrumb',
+          data: _breadcrumbGeoJson(breadcrumb),
+        ),
       );
       await style.addLayer(
         const ml.LineStyleLayer(
@@ -319,103 +332,119 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                   // ----------------------------------------------------------
                   // Full-screen map
                   // ----------------------------------------------------------
-                  ml.MapLibreMap(
-                    options: ml.MapOptions(
-                      initStyle: styleJson,
-                      initCenter: widget.response.shapeAsGeographic.isNotEmpty
-                          ? widget.response.shapeAsGeographic.first
-                          : const ml.Geographic(lat: 0, lon: 0),
-                      initZoom: 15,
-                      androidForegroundLoadColor: Theme.of(
-                        context,
-                      ).colorScheme.surface,
-                    ),
-                    onMapCreated: (controller) {
-                      _controller = controller;
-                      final pending = _pendingStyle;
-                      if (pending != null) {
-                        _pendingStyle = null;
-                        _onStyleLoaded(pending);
-                      }
-                    },
-                    onStyleLoaded: (style) {
-                      if (_controller == null) {
-                        _pendingStyle = style;
-                        return;
-                      }
-                      _onStyleLoaded(style);
-                    },
-                    onEvent: (event) {
-                      if (event is ml.MapEventClick) {
-                        setState(() => _selectedWaypoint = null);
-                      } else if (event is ml.MapEventStartMoveCamera &&
-                          event.reason == ml.CameraChangeReason.apiGesture &&
-                          _followEnabled) {
-                        // 17-02: pointer-count guard added here
-                        _onPanStart();
-                      }
-                    },
-                    children: [
-                      if (trailAsync.value?.expand?.gpx != null)
-                        TrailMarkerLayer(
-                          trail: trailAsync.value!,
-                          selectedWaypoint: _selectedWaypoint,
-                          onWaypointTap: _onWaypointSelected,
-                        ),
+                  Listener(
+                    onPointerDown: (_) => _activePointers++,
+                    onPointerUp: (_) =>
+                        _activePointers = (_activePointers - 1).clamp(0, 10),
+                    onPointerCancel: (_) =>
+                        _activePointers = (_activePointers - 1).clamp(0, 10),
+                    child: ml.MapLibreMap(
+                      options: ml.MapOptions(
+                        initStyle: styleJson,
+                        initCenter: widget.response.shapeAsGeographic.isNotEmpty
+                            ? widget.response.shapeAsGeographic.first
+                            : const ml.Geographic(lat: 0, lon: 0),
+                        initZoom: 15,
+                        androidForegroundLoadColor: Theme.of(
+                          context,
+                        ).colorScheme.surface,
+                      ),
+                      onMapCreated: (controller) {
+                        _controller = controller;
+                        final pending = _pendingStyle;
+                        if (pending != null) {
+                          _pendingStyle = null;
+                          _onStyleLoaded(pending);
+                        }
+                      },
+                      onStyleLoaded: (style) {
+                        if (_controller == null) {
+                          _pendingStyle = style;
+                          return;
+                        }
+                        _onStyleLoaded(style);
+                      },
+                      onEvent: (event) {
+                        if (event is ml.MapEventClick) {
+                          setState(() => _selectedWaypoint = null);
+                        } else if (event is ml.MapEventStartMoveCamera &&
+                            event.reason == ml.CameraChangeReason.apiGesture &&
+                            _activePointers <= 1 &&
+                            _followEnabled) {
+                          // CameraChangeReason.apiGesture fires identically for
+                          // pan/pinch/rotate (RESEARCH Pitfall 1 — no native
+                          // sub-classification exists); _activePointers <= 1 is
+                          // the compensating heuristic so only a single-finger
+                          // drag breaks follow (NAV-02). Needs on-device
+                          // verification (RESEARCH Open Question 1 — 17-03
+                          // checkpoint).
+                          _onPanStart();
+                        }
+                      },
+                      children: [
+                        if (trailAsync.value?.expand?.gpx != null)
+                          TrailMarkerLayer(
+                            trail: trailAsync.value!,
+                            selectedWaypoint: _selectedWaypoint,
+                            onWaypointTap: _onWaypointSelected,
+                          ),
 
-                      const ml.MapScalebar(), // CORE-04
-                      const ml.SourceAttribution(), // CORE-04
-                      Positioned(
-                        top: 128,
-                        right: 8,
-                        child: SafeArea(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ml.MapCompass(
-                                hideIfRotatedNorth: false, // D-02
-                                rotateNorthOnPressed: false,
-                                onPressed: () {
-                                  setState(() => _headingUp = !_headingUp);
-                                  final controller = _controller;
-                                  if (controller == null) return;
-                                  controller.trackLocation(
-                                    trackLocation: _followEnabled,
-                                    trackBearing: _headingUp
-                                        ? ml.BearingTrackMode.gps
-                                        : ml.BearingTrackMode.none,
-                                  );
-                                  if (!_headingUp) {
-                                    controller.animateCamera(
-                                      bearing: 0,
-                                      nativeDuration: const Duration(
-                                        milliseconds: 400,
-                                      ),
+                        const ml.MapScalebar(), // CORE-04
+                        const ml.SourceAttribution(), // CORE-04
+                        Positioned(
+                          top: 128,
+                          right: 8,
+                          child: SafeArea(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ml.MapCompass(
+                                  hideIfRotatedNorth: false, // D-02
+                                  rotateNorthOnPressed: false,
+                                  onPressed: () {
+                                    setState(() => _headingUp = !_headingUp);
+                                    final controller = _controller;
+                                    if (controller == null) return;
+                                    controller.trackLocation(
+                                      trackLocation: _followEnabled,
+                                      trackBearing: _headingUp
+                                          ? ml.BearingTrackMode.gps
+                                          : ml.BearingTrackMode.none,
                                     );
-                                  }
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              IconButton(
-                                onPressed: _followEnabled ? null : _onRecenter,
-                                icon: const FaIcon(
-                                  FontAwesomeIcons.locationCrosshairs,
+                                    if (!_headingUp) {
+                                      controller.animateCamera(
+                                        bearing: 0,
+                                        nativeDuration: const Duration(
+                                          milliseconds: 400,
+                                        ),
+                                      );
+                                    }
+                                  },
                                 ),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.surface,
-                                  disabledBackgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.surface,
-                                  disabledForegroundColor: Colors.grey,
+                                const SizedBox(height: 8),
+                                IconButton(
+                                  onPressed: _followEnabled
+                                      ? null
+                                      : _onRecenter,
+                                  icon: const FaIcon(
+                                    FontAwesomeIcons.locationCrosshairs,
+                                  ),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surface,
+                                    disabledBackgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surface,
+                                    disabledForegroundColor: Colors.grey,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
 
                   SafeArea(
