@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
-import 'package:wanderer/provider/map_style_provider.dart' show effectiveBrightness;
 import 'package:wanderer/provider/map_style_sources_provider.dart';
 
 part 'map_style_json_provider.g.dart';
@@ -40,4 +39,15 @@ Future<String> mapStyleJson(Ref ref) async {
       .replaceAll('__TILE_URL__', sources.tileUrl)
       .replaceAll('__GLYPH_URL__', sources.glyphUrl)
       .replaceAll('__SPRITE_URL__', '${sources.spriteUrl}/$spriteVariant');
+}
+
+/// Resolves the effective [Brightness] for a given [ThemeMode], falling back
+/// to the platform's current brightness when the mode is [ThemeMode.system].
+///
+/// Relocated (verbatim) from the now-deleted `map_style_provider.dart` — this
+/// is the only surviving export of that file (CLEAN-01/02, Phase 18).
+Brightness effectiveBrightness(ThemeMode mode) {
+  if (mode == ThemeMode.dark) return Brightness.dark;
+  if (mode == ThemeMode.light) return Brightness.light;
+  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
 }

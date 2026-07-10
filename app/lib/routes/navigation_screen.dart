@@ -19,8 +19,6 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
-import 'package:wanderer/provider/map_style_provider.dart'
-    show effectiveBrightness;
 import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';

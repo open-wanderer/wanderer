@@ -13,8 +13,6 @@ import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
-import 'package:wanderer/provider/map_style_provider.dart'
-    show effectiveBrightness;
 import 'package:wanderer/util/offline_style_rewriter.dart';
 
 /// A native MapLibre GL map host (CORE-01). Renders the Protomaps basemap from
