@@ -638,7 +638,7 @@ packages:
     source: hosted
     version: "1.0.2"
   html:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: html
       sha256: "6d1264f2dffa1b1101c25a91dff0dc2daee4c18e87cd8538729773c073dbf602"
@@ -1118,7 +1118,7 @@ packages:
     source: hosted
     version: "1.2.0"
   pointer_interceptor:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: pointer_interceptor
       sha256: "57210410680379aea8b1b7ed6ae0c3ad349bfd56fe845b8ea934a53344b9d523"

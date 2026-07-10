@@ -29,6 +29,7 @@ dependencies:
   geolocator: ^14.0.0
   go_router: ^17.2.1
   gpx: ^2.3.0
+  html: ^0.15.6
   image_picker: ^1.2.2
   intl: any
   json_annotation: ^4.11.0
@@ -39,6 +40,7 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.5
   pmtiles: ^1.2.0
+  pointer_interceptor: ^0.10.1
   qr_flutter: ^4.1.0
   riverpod_annotation: ^4.0.2
   share_plus: ^13.1.0

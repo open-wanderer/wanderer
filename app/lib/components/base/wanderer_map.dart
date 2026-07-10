@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/glyph_sprite_cache_paths.dart';
 import 'package:wanderer/models/trail.dart';
@@ -11,6 +12,7 @@ import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
+import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 
 /// A native MapLibre GL map host (CORE-01). Renders the Protomaps basemap from
@@ -219,12 +221,12 @@ class _WandererMapState extends ConsumerState<WandererMap> {
         if (widget.showLocation) _buildLocationLayer(),
 
         const ml.MapScalebar(), // CORE-04 — default bottom-left
-        const ml.SourceAttribution(), // CORE-04 — default bottom-right (ODbL)
+        const WandererAttribution(), // CORE-04 — default bottom-right (ODbL)
 
         Align(
           alignment: Alignment.topRight,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: widget.controls ?? const [],
           ),
         ),
@@ -236,7 +238,13 @@ class _WandererMapState extends ConsumerState<WandererMap> {
     final controller = _controller;
     if (controller == null) return;
 
-    final bounds = widget.trail.bounds;
+    // Prefer bounds derived from the actual GPX track over the record's
+    // min/max-based trail.bounds: on the single-trail `GET /trail/:id`
+    // record, `min/max_lat/lon` are `@Default(0)` and unpopulated, so
+    // `hasExtent` below was false and the camera fell back to the degenerate
+    // start-point moveCamera branch (Gap 5).
+    final gpxBounds = widget.trail.expand?.gpx?.getBounds();
+    final bounds = gpxBounds ?? widget.trail.bounds;
     final hasExtent =
         bounds.latitudeNorth != bounds.latitudeSouth ||
         bounds.longitudeEast != bounds.longitudeWest;

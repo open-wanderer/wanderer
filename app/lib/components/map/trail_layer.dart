@@ -126,6 +126,73 @@ Future<void> addTrailTrackLayers(
   );
 }
 
+/// Adds a native directional-arrow symbol layer over a set of already-drawn
+/// polylines (Gap 1 mechanism, list surfaces). Unlike [addTrailTrackLayers]
+/// this does NOT draw the route/casing lines themselves — the list screens
+/// keep drawing those via the declarative `ml.PolylineLayer`; this helper
+/// only adds arrows on top, reusing the exact same arrow image id and
+/// zoom-interpolated spacing so the list arrows are visually identical to the
+/// single-trail detail arrows.
+///
+/// Call this from `onStyleLoaded` (after the existing `fitBounds` call) so the
+/// layer is re-added after every style swap, same as [addTrailTrackLayers].
+Future<void> addPolylineArrowLayer(
+  ml.StyleController style,
+  List<List<ml.Geographic>> lines, {
+  String sourceId = 'list-trail-arrows',
+  String layerId = 'list-trail-arrows-symbols',
+}) async {
+  final validLines = lines.where((line) => line.length >= 2).toList();
+  if (validLines.isEmpty) return;
+
+  // Same arrow image id as addTrailTrackLayers — see _kTrailArrowImageId's
+  // doc for why this must stay distinct from the basemap's own `arrow` icon.
+  await style.addImageFromIconData(
+    id: _kTrailArrowImageId,
+    iconData: Icons.arrow_left,
+    size: 32,
+    color: Colors.white,
+  );
+
+  // jsonEncode (not string concatenation) keeps the geometry structurally
+  // isolated from the style document (threat T-15-05-01).
+  final data = jsonEncode(<String, Object?>{
+    'type': 'FeatureCollection',
+    'features': <Map<String, Object?>>[
+      for (final line in validLines)
+        <String, Object?>{
+          'type': 'Feature',
+          'properties': <String, Object?>{},
+          'geometry': <String, Object?>{
+            'type': 'LineString',
+            'coordinates': <List<double>>[
+              for (final p in line) <double>[p.lon, p.lat],
+            ],
+          },
+        },
+    ],
+  });
+
+  await style.addSource(ml.GeoJsonSource(id: sourceId, data: data));
+
+  await style.addLayer(
+    ml.SymbolStyleLayer(
+      id: layerId,
+      sourceId: sourceId,
+      minZoom: 8,
+      layout: <String, Object>{
+        'symbol-placement': 'line',
+        'icon-image': _kTrailArrowImageId,
+        'icon-rotation-alignment': 'map',
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+        'icon-size': 0.5,
+        'symbol-spacing': _kArrowSpacing,
+      },
+    ),
+  );
+}
+
 /// Serializes a [Color] to a `#rrggbb` Style-Spec color string.
 String _colorToHex(Color color) {
   int channel(double v) => (v * 255).round().clamp(0, 255);

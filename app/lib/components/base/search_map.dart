@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 
 /// A lightweight, trail-agnostic native MapLibre GL map host (CORE-08).
@@ -125,8 +126,7 @@ class _SearchMapState extends ConsumerState<SearchMap> {
       onEvent: (event) => widget.onMapEvent?.call(event),
       layers: widget.layers ?? const [],
       children:
-          widget.children ??
-          const [ml.MapScalebar(), ml.SourceAttribution()],
+          widget.children ?? const [ml.MapScalebar(), WandererAttribution()],
     );
   }
 }
