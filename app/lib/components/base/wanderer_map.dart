@@ -1,8 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map_location_marker/flutter_map_location_marker.dart'
-    show LocationMarkerPosition;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/map/trail_layer.dart';

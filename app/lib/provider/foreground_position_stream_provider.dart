@@ -1,8 +1,32 @@
 import 'dart:async';
 
-import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+
+/// Plain data class carrying a foreground GPS fix for map location markers.
+///
+/// File-local replacement for the identically-shaped class formerly imported
+/// from `flutter_map_location_marker` (CLEAN-01, Phase 18) — the field shape
+/// matches the original exactly so no call-site logic changes.
+class LocationMarkerPosition {
+  final double latitude;
+  final double longitude;
+  final double accuracy;
+
+  const LocationMarkerPosition({
+    required this.latitude,
+    required this.longitude,
+    required this.accuracy,
+  });
+}
+
+/// Signals that the device's location service is disabled.
+///
+/// File-local replacement for the identically-shaped exception formerly
+/// imported from `flutter_map_location_marker` (CLEAN-01, Phase 18).
+class ServiceDisabledException implements Exception {
+  const ServiceDisabledException();
+}
 
 /// A singleton foreground position stream shared across all map screens.
 ///
