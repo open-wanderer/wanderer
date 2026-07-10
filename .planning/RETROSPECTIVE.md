@@ -43,6 +43,46 @@
 
 ---
 
+## Milestone: v1.4 — MapLibre Migration
+
+**Shipped:** 2026-07-10
+**Phases:** 6 (Phases 13-18) | **Plans:** 17 | **Timeline:** 2026-07-08 → 2026-07-10 (3 days active)
+**Requirements:** 40/40 v1.4 requirements complete
+
+### What Was Built
+- **Phase 13:** Unified `/api/v1/map/style-sources` SvelteKit endpoint replacing `/map/tileurl`, resolving tile + glyph + sprite URLs under one operator override
+- **Phase 14:** `latlong2.LatLng`/`LatLngBounds` → `Geographic`/`LngLatBounds` across the trail data layer, isolated and test-guarded before any map rendering code changed
+- **Phase 15:** `WandererMap` rewritten onto native `MapLibreMap` — style JSON assets, app-wide glyph/sprite cache, trail track/waypoint/pin rendering, and the offline parity gate (`.pmtiles` + `file://` glyphs rendering with no network)
+- **Phase 16:** List and map-screen browse surfaces ported to `SearchMap`, with server-side `/search/trails/cluster` rendered as native circle/symbol layers
+- **Phase 17:** Navigation screen migrated to native puck/follow/compass; last `flutter_map` plugin call sites removed from `lib/`
+- **Phase 18:** Both `flomp/*` forks and all 6 legacy map packages removed from `pubspec.yaml`; `maplibre` pinned to exact 0.3.5
+
+### What Worked
+- **Risk gate first**: Phase 15 opened with a throwaway spike (15-01) proving `file://` glyph resolution before investing in trail rendering — caught the sprite `file://` gap early enough to design around it (self-registered arrow icon) rather than discover it late
+- **Screen-by-screen migration with both stacks coexisting**: `flutter_map` and `maplibre` lived in `pubspec.yaml` from Phase 15 through 17; every phase boundary left the app buildable, so no phase was ever blocked waiting on another
+- **Isolating the coordinate-order footgun**: Landing `Geographic`/`LngLatBounds` as its own early phase (14), guarded by existing GPX/polyline tests, gave one unambiguous signal (identical coordinates) instead of conflating it with camera/rendering bugs later
+- **Deferring file deletion until the last consumer migrates**: `pm_tile_provider.dart` (OFFL-06) and `map_compass.dart` (CORE-05) stayed in place until `navigation_screen` — their last holdout — migrated in Phase 17, avoiding a broken intermediate state
+
+### What Was Inefficient
+- **Two real on-device bugs only surfaced during physical-device verification, not planning**: a flutter_map-only `MapCompass` widget crashed at runtime (`MapCamera.of()` needs a `FlutterMap` ancestor) and offline pmtiles `maxzoom` mismatched the server's extraction depth, causing blank tiles above z14 — both were physical-device-only failure modes invisible to `flutter analyze`/unit tests
+- **Six UI polish gaps surfaced at the Phase 18 on-device checkpoint** were pre-existing, not regressions, but required a follow-up quick task (260710-kpd) rather than being caught during earlier phases' own device passes
+- **Milestone close found 15 quick tasks the audit tool couldn't classify** (missing/unrecognized status field) — 14 were actually complete with SUMMARY.md on disk; only 1 (dark mode, 260612-gmg) was a genuine gap. Worth tightening the audit tool's status detection so real gaps aren't buried in noise
+
+### Patterns Established
+- **`rewriteStyleForOffline` as the single sanctioned online→offline style transform** — pure, deep-copies input, rejects non-absolute/`..`/foreign-scheme paths before emitting
+- **`map_cache_path.dart` as the single sanctioned builder for map-cache filesystem paths** — whitelists fontstack/range tokens, rejects unknown ones with `ArgumentError` before any path is built
+- **`onMapCreated`/`onStyleLoaded` race buffering** — the native platform channel doesn't reliably fire `onMapCreated` before `onStyleLoaded`; any screen using both must buffer a style-loaded event that arrives first and replay it once the controller is set
+- **`Duration(milliseconds: 1)`, never `Duration.zero`, for instant camera moves** — a zero duration crashes the Android native `animateCamera` binding
+- **Physical-device checkpoints as explicit plan tasks, not implicit assumptions** — Phases 15, 17, and 18 each ended with a dedicated on-device verification plan; this caught all real regressions this milestone
+
+### Key Lessons
+1. **A throwaway spike for the riskiest unknown pays for itself** — 15-01's `file://` glyph spike de-risked the entire offline parity gate before Phase 15's other 5 plans were written
+2. **Both-stacks-coexist migrations need an explicit "who deletes what, when" map** — CORE-05/06/07 and OFFL-06 all "retire a file the last screen still uses"; tracking this explicitly in ROADMAP.md's sequencing rationale avoided a phase silently breaking another
+3. **Native GL packages fail differently than pure-Dart ones** — crashes and blank-tile bugs here were FFI/platform-channel-level, invisible to `flutter analyze` and unit tests; on-device checkpoints are not optional for this class of dependency
+4. **Audit tooling needs richer status detection before milestone close** — a binary "has SUMMARY.md" check would have cut this milestone's audit noise from 15 items to 1
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -52,6 +92,8 @@
 | v1.0 MVP | 3 | 6 | Established navigation screen pattern (freezed models, Riverpod notifiers, flutter_map) |
 | v1.1 Offline | 2 | 6 | Added ObjectBox caching; established DioException-only offline gate pattern |
 | v1.2 Settings | 4 | 9 | Shared `settingsProvider` pattern; live locale/unit switching; wave parallelism |
+| v1.3 Category Redesign | 3 | 12 | Category/subcategory model + preference providers; subcategory-aware filters |
+| v1.4 MapLibre Migration | 6 | 17 | Full native-GL map migration; risk-gate spike pattern; both-stacks-coexist screen-by-screen cutover |
 
 ### Cumulative Quality
 
@@ -60,9 +102,11 @@
 | v1.0 | ~6 (navigation + stats) | TDD approach for navigation notifier |
 | v1.1 | ~4 (serialization roundtrip, offline fallback) | ObjectBox integration tests via unit tests |
 | v1.2 | ~5 (one per settings screen) | Tall-viewport pattern for lazy ListViews |
+| v1.4 | On-device checkpoints per phase (15, 17, 18) rather than widget tests | Native GL / platform-channel bugs are invisible to `flutter analyze` and unit tests |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. **Stub screens in foundational phases pay forward** — confirmed in v1.2 (Phase 6 stubs → fast Phases 7+9)
 2. **Wave parallelism requires explicit file-overlap analysis at plan time** — confirmed valuable in v1.2 Phase 6
-3. **Human/device testing needs a dedicated quick task before milestone close** — first surfaced v1.2; carry forward
+3. **Human/device testing needs a dedicated quick task before milestone close** — first surfaced v1.2; confirmed again in v1.4 (Phase 18's on-device walk found 6 real UI gaps only a physical device could surface)
+4. **Risk gates (throwaway spikes) for the riskiest unknown de-risk everything downstream** — v1.4's 15-01 glyph spike validated the offline parity approach before 5 more plans were built on top of it
