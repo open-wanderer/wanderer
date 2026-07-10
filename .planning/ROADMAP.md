@@ -261,7 +261,7 @@ Plans:
 
 Plans:
 
-- [ ] 18-01-PLAN.md — Sever source deps: relocate effectiveBrightness, local LocationMarkerPosition/ServiceDisabledException classes, delete 4 dead fork/adapter files (CLEAN-01/02 prep)
+- [x] 18-01-PLAN.md — Sever source deps: relocate effectiveBrightness, local LocationMarkerPosition/ServiceDisabledException classes, delete 4 dead fork/adapter files (CLEAN-01/02 prep)
 - [ ] 18-02-PLAN.md — Remove 6 packages + 2 flomp overrides from pubspec.yaml, pin maplibre 0.3.5 exact, whole-package analyze/deps/test gate (CLEAN-01/02/03)
 - [ ] 18-03-PLAN.md — On-device regression walk of all six map surfaces, online and airplane mode (CLEAN-01/02/03 verify)
 

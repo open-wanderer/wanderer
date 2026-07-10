@@ -25,7 +25,7 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 - [x] **OFFL-03**: A downloaded trail renders its basemap from `.pmtiles` archives via native `pmtiles://` source URLs, with no network
 - [x] **OFFL-04**: A downloaded trail renders place-name labels with no network — the offline parity gate
 - [x] **OFFL-05**: A trail whose offline tiles span multiple `.pmtiles` cells renders every cell, replacing `MultiPmTilesVectorTileProvider`'s request fan-out
-- [ ] **OFFL-06**: `lib/vendor/vector_map_tiles/pm_tile_provider.dart` is deleted
+- [x] **OFFL-06**: `lib/vendor/vector_map_tiles/pm_tile_provider.dart` is deleted
 
 ### Map Core
 
@@ -33,9 +33,9 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 - [x] **CORE-02**: The map honors the app's light/dark theme, switching styles live when the user changes theme
 - [x] **CORE-03**: The map's initial camera fits the trail bounds with the caller's padding, matching today's `CameraFit.bounds` behavior
 - [x] **CORE-04**: A user sees a scale bar and the Protomaps/OpenStreetMap source attribution on every map — an ODbL obligation the app does not meet today
-- [ ] **CORE-05**: The compass uses maplibre's built-in `MapCompass`; `lib/components/map/map_compass.dart` is deleted
-- [ ] **CORE-06**: Camera animations use maplibre's native `animateCamera` / `fitBounds`; `flutter_map_animations` and every `AnimatedMapController` reference are gone
-- [ ] **CORE-07**: The user's location puck and heading-up follow use maplibre's `enableLocation` / `trackLocation`; `flutter_map_location_marker` is gone
+- [x] **CORE-05**: The compass uses maplibre's built-in `MapCompass`; `lib/components/map/map_compass.dart` is deleted
+- [x] **CORE-06**: Camera animations use maplibre's native `animateCamera` / `fitBounds`; `flutter_map_animations` and every `AnimatedMapController` reference are gone
+- [x] **CORE-07**: The user's location puck and heading-up follow use maplibre's `enableLocation` / `trackLocation`; `flutter_map_location_marker` is gone
 - [x] **CORE-08**: `list_detail_map_screen` and `list_detail_screen` render their multi-trail polylines via `MapLibreMap`, with the camera animating to fit every trail in the list
 
 ### Trail Rendering
@@ -56,10 +56,10 @@ Requirements for milestone v1.4 — MapLibre Migration. Each maps to exactly one
 
 ### Navigation Screen
 
-- [ ] **NAV-01**: Navigation renders the route line, the user's position, and heading-up follow on maplibre
-- [ ] **NAV-02**: Dragging the map during navigation breaks follow mode, and the recenter control restores it — matching today's `MapEventMoveStart` / `dragStart` behavior
-- [ ] **NAV-03**: The compass control resets bearing to north with an animated camera transition
-- [ ] **NAV-04**: Offline navigation continues to serve maneuvers from the ObjectBox cache (v1.1 behavior, unregressed)
+- [x] **NAV-01**: Navigation renders the route line, the user's position, and heading-up follow on maplibre
+- [x] **NAV-02**: Dragging the map during navigation breaks follow mode, and the recenter control restores it — matching today's `MapEventMoveStart` / `dragStart` behavior
+- [x] **NAV-03**: The compass control resets bearing to north with an animated camera transition
+- [x] **NAV-04**: Offline navigation continues to serve maneuvers from the ObjectBox cache (v1.1 behavior, unregressed)
 
 ### Type Migration & Cleanup
 
@@ -137,13 +137,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLUS-03 | Phase 16 | Complete |
 | CLUS-04 | Phase 16 | Complete |
 | CLUS-05 | Phase 16 | Complete |
-| NAV-01 | Phase 17 | Pending |
-| NAV-02 | Phase 17 | Pending |
-| NAV-03 | Phase 17 | Pending |
-| NAV-04 | Phase 17 | Pending |
-| CORE-05 | Phase 17 | Pending |
-| CORE-06 | Phase 17 | Pending |
-| CORE-07 | Phase 17 | Pending |
+| NAV-01 | Phase 17 | Complete |
+| NAV-02 | Phase 17 | Complete |
+| NAV-03 | Phase 17 | Complete |
+| NAV-04 | Phase 17 | Complete |
+| CORE-05 | Phase 17 | Complete |
+| CORE-06 | Phase 17 | Complete |
+| CORE-07 | Phase 17 | Complete |
 | CLEAN-01 | Phase 18 | Pending |
 | CLEAN-02 | Phase 18 | Pending |
 | CLEAN-03 | Phase 18 | Pending |

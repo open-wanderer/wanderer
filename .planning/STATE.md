@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
 status: executing
-stopped_at: Completed Phase 16 (16-03 Task 3 on-device checkpoint passed after 5 fixes)
-last_updated: "2026-07-09T18:30:00.000Z"
-last_activity: 2026-07-09 -- Phase 16 complete: CORE-08, CLUS-01..05 device-verified; 5 checkpoint fixes (SearchMap controller/style race, Duration.zero Android crash, list-map polyline styling, sprite light/dark variant, faster+auto-search cluster tap)
+stopped_at: Completed 18-01-PLAN.md
+last_updated: "2026-07-10T12:23:30.000Z"
+last_activity: 2026-07-10 -- Completed 18-01-PLAN.md
 progress:
   total_phases: 6
-  completed_phases: 3
-  total_plans: 11
-  completed_plans: 11
-  percent: 50
+  completed_phases: 5
+  total_plans: 17
+  completed_plans: 15
+  percent: 88
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-08)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 17 — navigation-on-maplibre (not yet started)
+**Current focus:** Phase 18 — retire-flutter-map-and-the-flomp-forks
 
 ## Current Position
 
-Phase: 16 (list-map-screens-on-maplibre) — COMPLETE
-Plan: 3 of 3 (all tasks committed, on-device checkpoint passed)
-Status: Ready to plan Phase 17
-Last activity: 2026-07-09 -- Phase 16 complete: CORE-08, CLUS-01..05 device-verified; 5 checkpoint fixes applied
+Phase: 18 (retire-flutter-map-and-the-flomp-forks) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 18
+Last activity: 2026-07-10 -- Completed 18-01-PLAN.md
 
-Progress: [██████░░░░] 50%
+Progress: [█████████░] 88%
 
 ## v1.4 Phases
 
@@ -38,8 +38,8 @@ Progress: [██████░░░░] 50%
 - [x] **Phase 14: Coordinate Type Migration** — TYPE-01/02 (`Geographic`, `LngLatBounds`)
 - [x] **Phase 15: MapLibre Core, Trail Rendering & Offline Parity** — STYLE-01..04, GLYPH-04, CORE-01..04, TRAIL-01..05, OFFL-01..05 (OFFL-06 deferred to 17/18)
 - [x] **Phase 16: List & Map Screens on MapLibre** — CORE-08, CLUS-01..05
-- [ ] **Phase 17: Navigation on MapLibre** — NAV-01..04, CORE-05/06/07
-- [ ] **Phase 18: Retire flutter_map and the flomp Forks** — CLEAN-01/02/03
+- [x] **Phase 17: Navigation on MapLibre** — NAV-01..04, CORE-05/06/07 (completed 2026-07-10)
+- [ ] **Phase 18: Retire flutter_map and the flomp Forks** — CLEAN-01/02/03 (1/3 plans complete)
 
 Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share no code and may run in parallel; both gate Phase 15.
 
@@ -66,6 +66,9 @@ Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share n
 | Phase 16 P01 | 9min | 3 tasks | 3 files |
 | Phase 16 P02 | 7min | 2 tasks | 3 files |
 | Phase 16 P03 | ~15min + on-device iteration | 3/3 tasks | 6 files |
+| Phase 17 P01 | 10min | 2 tasks | 1 files |
+| Phase 17 P02 | 8min | 2 tasks | 6 files |
+| Phase 18 P01 | 15min | 2 tasks | 5 files modified + 4 deleted |
 
 ## Accumulated Context
 
@@ -103,10 +106,16 @@ Recent decisions affecting current work:
 - [Phase 16-03 checkpoint]: `fitBounds`/`animateCamera` "instant" calls use `Duration(milliseconds: 1)`, never `Duration.zero` — a zero duration crashes the Android native binding (`animateCamera` receives a null duration, throws `IllegalArgumentException`). Applies anywhere an instant/no-animation camera move is needed on this package.
 - [Phase 16-03 checkpoint]: `/api/v1/map/style-sources`'s `spriteUrl` is a theme-agnostic base — callers must append `/light` or `/dark` before MapLibre appends the file suffix. `map_style_json_provider.dart` was substituting the bare base for both themes, causing sprite 404s; fixed by appending the variant from `effectiveBrightness`.
 - [Phase 16-03 checkpoint]: Cluster-tap zoom (CLUS-03) uses a 400ms `nativeDuration` (not the SDK's 2s default) and auto-triggers `searchInBounds` once the camera settles — explicit user request, distinct from pan/drag which still requires the manual "Search this area" button per D-01.
+- [Phase 17-01]: Inlined SearchMap-style onMapCreated/onStyleLoaded race buffer (_pendingStyle) in navigation_screen.dart even though the plan text didn't spell it out — same race class already caused two Phase 16-03 bugs
+- [Phase 17-01]: Left TrailLayer (trail_layer.dart), map_compass.dart, and pm_tile_provider.dart physically in place — files_modified scoped this plan to navigation_screen.dart only; deletion deferred to Phase 18 (CLEAN-01/02/03). Post-change grep confirms map_compass.dart and pm_tile_provider.dart now have zero real importers app-wide
+- [Phase 17-02]: Reworded stray CurrentLocationLayer doc-comment references outside files_modified scope to satisfy the plan's own repo-wide grep gate (tracelet_position_source.dart, map_screen.dart)
+- [Phase 18-01]: Relocated `effectiveBrightness()` verbatim into `map_style_json_provider.dart` (no new import needed — Brightness/ThemeMode/WidgetsBinding all resolve via that file's existing `package:flutter/material.dart` import); replaced `LocationMarkerPosition`/`ServiceDisabledException` with shape-identical file-local classes in `foreground_position_stream_provider.dart` — both are code-before-manifest prep so Plan 02 can remove the six packages from `pubspec.yaml` without breaking a whole-package `flutter analyze`
+- [Phase 18-01]: 3 pre-existing `flutter test` failures (`feed_item_test.dart` x2, `settings_screen_test.dart` x1) confirmed unrelated via git-stash bisect against the parent commit; logged to `.planning/phases/18-retire-flutter-map-and-the-flomp-forks/deferred-items.md`, not fixed (out of scope for this plan's `files_modified`)
 
 ### Pending Todos
 
-- None. Phase 16 (List & Map Screens on MapLibre) is complete. Phase 17 (Navigation on MapLibre) is ready to plan (`/gsd-plan-phase 17`).
+- Fix 3 pre-existing `flutter test` failures (`feed_item_test.dart` x2, `settings_screen_test.dart` x1) — logged in Phase 18's `deferred-items.md`; not blocking Phase 18 Plans 02/03.
+- Run `/gsd-execute-phase 18` (or continue directly) for 18-02-PLAN.md — removes the six packages + two `flomp/*` dependency_overrides from `pubspec.yaml`, pins `maplibre` to `0.3.5` exact.
 
 ### Blockers/Concerns
 
@@ -142,11 +151,11 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-07-09T18:30:00.000Z
-Stopped at: Phase 16 complete (16-03 Task 3 on-device checkpoint passed after 5 fixes)
-Resume file: none — Phase 16 closed; Phase 17 not yet planned
+Last session: 2026-07-10T12:23:30Z
+Stopped at: Completed 18-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 17` (Navigation on MapLibre) — NAV-01..04, CORE-05/06/07. `navigation_screen.dart` is the last `flutter_map` holdout; it also carries `MultiPmTilesVectorTileProvider` (OFFL-06 deferral) and the three flutter_map plugins CLEAN-01 later removes.
+- Continue with 18-02-PLAN.md (Remove 6 packages + 2 flomp overrides from `pubspec.yaml`, pin `maplibre: 0.3.5` exact, whole-package analyze/deps/test gate) — CLEAN-01/02/03. Zero source imports of the six packages remain, so the removal is unblocked.
 - Phase 18 (Retire flutter_map and the flomp forks) depends on Phase 17 finishing the migration — nothing to do there yet.
