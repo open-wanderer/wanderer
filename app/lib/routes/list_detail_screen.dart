@@ -6,8 +6,10 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/base/search_map.dart';
+import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
-import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
+import 'package:wanderer/components/map/trail_layer.dart'
+    show addPolylineArrowLayer, kTrailRouteColor;
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -339,6 +341,11 @@ class _ListMapState extends ConsumerState<_ListMap> {
         )
         .toList();
 
+    final lines = widget.trails
+        .where((t) => t.polyline != null && t.polyline!.isNotEmpty)
+        .map((t) => PolylineUtil.decode(t.polyline!))
+        .toList();
+
     final markers = widget.trails
         .where((t) => t.lat != null && t.lon != null)
         .map((t) {
@@ -395,6 +402,7 @@ class _ListMapState extends ConsumerState<_ListMap> {
             nativeDuration: const Duration(milliseconds: 1),
           );
         }
+        addPolylineArrowLayer(style, lines).ignore();
       },
       onMapEvent: (event) {
         if (event is ml.MapEventClick) {
@@ -412,6 +420,8 @@ class _ListMapState extends ConsumerState<_ListMap> {
           : null,
       children: [
         if (markers.isNotEmpty) ml.WidgetLayer(markers: markers),
+        const ml.MapScalebar(),
+        const WandererAttribution(),
       ],
     );
   }

@@ -7,6 +7,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/waypoint_sheet.dart';
@@ -388,7 +389,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                           ),
 
                         const ml.MapScalebar(), // CORE-04
-                        const ml.SourceAttribution(), // CORE-04
+                        const WandererAttribution(), // CORE-04
                         Positioned(
                           top: 128,
                           right: 8,

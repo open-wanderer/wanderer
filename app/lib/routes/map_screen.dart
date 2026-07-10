@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/search_map.dart';
+import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/map/cluster_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
 import 'package:wanderer/components/trail/trail_card.dart';
@@ -397,7 +398,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
             const ml.MapScalebar(),
-            const ml.SourceAttribution(),
+            const WandererAttribution(),
           ],
         ),
 

@@ -129,6 +129,8 @@ class _AttributionHtmlState extends State<_AttributionHtml> {
         );
       }
     }
-    return RichText(text: TextSpan(style: textStyle, children: textSpans));
+    return RichText(
+      text: TextSpan(style: textStyle, children: textSpans),
+    );
   }
 }
