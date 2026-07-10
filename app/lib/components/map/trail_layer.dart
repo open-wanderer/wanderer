@@ -65,7 +65,7 @@ Future<void> addTrailTrackLayers(
   // an id distinct from the basemap's own `arrow` sprite icon.
   await style.addImageFromIconData(
     id: _kTrailArrowImageId,
-    iconData: Icons.arrow_drop_up,
+    iconData: Icons.arrow_left,
     size: 32,
     color: Colors.white,
   );

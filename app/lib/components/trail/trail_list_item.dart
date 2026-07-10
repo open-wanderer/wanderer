@@ -246,7 +246,7 @@ class _Thumbnail extends StatelessWidget {
 
   Widget _placeholder(BuildContext context) {
     return Container(
-      color: Colors.grey[200],
+      color: Theme.of(context).colorScheme.secondaryContainer,
       child: Center(
         child: SvgPicture.asset(
           "assets/svgs/empty_state_trail_${Theme.of(context).brightness.name}.svg",
@@ -299,7 +299,6 @@ class _BadgeIcon extends StatelessWidget {
     );
   }
 }
-
 
 class _InlineIcon extends StatelessWidget {
   final FaIconData icon;

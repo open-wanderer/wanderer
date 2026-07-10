@@ -49,7 +49,10 @@ NavigateResponse? _readCachedNav(Store store, String trailId) {
 /// all errors — a re-cache failure must never surface to the user (D-13).
 /// If the trail entity is not found (trail not downloaded), does nothing.
 Future<void> _recacheNav(
-    Store store, String trailId, NavigateResponse response) async {
+  Store store,
+  String trailId,
+  NavigateResponse response,
+) async {
   try {
     final box = store.box<TrailEntity>();
     final query = box.query(TrailEntity_.id.equals(trailId)).build();
@@ -66,7 +69,6 @@ Future<void> _recacheNav(
     // Swallow errors: cache write is best-effort (D-13)
   }
 }
-
 
 /// Launches turn-by-turn navigation for [trail] from either detail screen.
 ///
@@ -98,7 +100,9 @@ Future<void> launchNavigation({
   // (0) Guard: location services must be enabled and permission granted.
   final l10n = AppLocalizations.of(context)!;
 
-  void showError(String text) => ref.read(toastProvider.notifier).add(
+  void showError(String text) => ref
+      .read(toastProvider.notifier)
+      .add(
         ToastMessage(
           type: ToastType.error,
           icon: FontAwesomeIcons.triangleExclamation,
