@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/base/wanderer_error.dart';
-import 'package:wanderer/components/base/wanderer_map.dart';
+import 'package:wanderer/components/base/trail_map.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/waypoint_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -76,7 +76,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
             return Stack(
               children: [
                 Positioned.fill(
-                  child: WandererMap(
+                  child: TrailMap(
                     trail: trail,
                     showTrail: showTrail,
                     elevationMarkerPosition: elevationMarkerPosition,

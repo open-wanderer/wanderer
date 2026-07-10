@@ -14,16 +14,19 @@ import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 
-/// A native MapLibre GL map host (CORE-01). Renders the Protomaps basemap from
-/// [mapStyleJsonProvider] (15-02) via native GL, swaps light/dark styles live
-/// with [ml.MapController.setStyle] (CORE-02, no remount/flash), fits the trail
-/// bounds in `onStyleLoaded` (CORE-03), shows the built-in scale bar +
-/// attribution (CORE-04), and hosts the elevation-scrub and interim-location
-/// markers (TRAIL-05 / A5).
+/// A native MapLibre GL map host for a single [Trail] (CORE-01). Renders the
+/// Protomaps basemap from [mapStyleJsonProvider] (15-02) via native GL, swaps
+/// light/dark styles live with [ml.MapController.setStyle] (CORE-02, no
+/// remount/flash), fits the trail bounds in `onStyleLoaded` (CORE-03), shows
+/// the built-in scale bar + attribution (CORE-04), and hosts the
+/// elevation-scrub and interim-location markers (TRAIL-05 / A5).
+///
+/// Single-trail detail views only — for screens that render a collection of
+/// trails (search results, list previews), use `TrailCollectionMap` instead.
 ///
 /// The trail track / arrows / waypoints / start-finish pins are NOT drawn here
 /// yet — that is 15-05, which extends this shell (see the `layers:` seam below).
-class WandererMap extends ConsumerStatefulWidget {
+class TrailMap extends ConsumerStatefulWidget {
   final Trail trail;
 
   /// Hands the native [ml.MapController] back to the caller once the map is
@@ -47,7 +50,7 @@ class WandererMap extends ConsumerStatefulWidget {
   final void Function(ml.MapEvent event)? onMapEvent;
   final void Function(Waypoint wp)? onWaypointTap;
 
-  const WandererMap({
+  const TrailMap({
     super.key,
     required this.trail,
     this.onMapCreated,
@@ -65,10 +68,10 @@ class WandererMap extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<WandererMap> createState() => _WandererMapState();
+  ConsumerState<TrailMap> createState() => _TrailMapState();
 }
 
-class _WandererMapState extends ConsumerState<WandererMap> {
+class _TrailMapState extends ConsumerState<TrailMap> {
   ml.MapController? _controller;
 
   /// Buffers a style-loaded event that arrives before [_controller] is set.
@@ -156,7 +159,7 @@ class _WandererMapState extends ConsumerState<WandererMap> {
       );
       return jsonEncode(offlineStyle);
     } catch (e) {
-      debugPrint('WandererMap: offline style rewrite failed — $e');
+      debugPrint('TrailMap: offline style rewrite failed — $e');
       return null;
     }
   }
@@ -230,8 +233,13 @@ class _WandererMapState extends ConsumerState<WandererMap> {
 
         if (widget.showLocation) _buildLocationLayer(),
 
-        const ml.MapScalebar(), // CORE-04 — default bottom-left
-        const WandererAttribution(), // CORE-04 — default bottom-right (ODbL)
+        const ml.MapScalebar(
+          alignment: Alignment.topLeft,
+        ), // CORE-04 — default bottom-left
+        const WandererAttribution(
+          alignment: Alignment.topLeft,
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 44),
+        ), // CORE-04 — default bottom-right (ODbL)
 
         Align(
           alignment: Alignment.topRight,
@@ -291,7 +299,7 @@ class _WandererMapState extends ConsumerState<WandererMap> {
   }
 
   /// Elevation-profile scrub marker (TRAIL-05): a 12px white dot with a 2px
-  /// black border, driven by [WandererMap.elevationMarkerPosition].
+  /// black border, driven by [TrailMap.elevationMarkerPosition].
   Widget _buildElevationMarker() {
     return ml.WidgetLayer(
       markers: [

@@ -7,8 +7,8 @@ import 'package:wanderer/provider/map_style_json_provider.dart';
 /// A lightweight, trail-agnostic native MapLibre GL map host (CORE-08).
 ///
 /// Renders the basemap from [mapStyleJsonProvider] and swaps light/dark
-/// styles live via [ml.MapController.setStyle] (mirrors `WandererMap`'s
-/// CORE-02 pattern), but carries none of `WandererMap`'s single-trail or
+/// styles live via [ml.MapController.setStyle] (mirrors `TrailMap`'s
+/// CORE-02 pattern), but carries none of `TrailMap`'s single-trail or
 /// offline surface: no `Trail` param, no offline style rewrite, no
 /// bounds-fit-on-init. Bounds/camera work stays imperative in each caller's
 /// `onStyleLoaded` — this host only exposes the seams (`layers`, `children`,
@@ -17,7 +17,7 @@ import 'package:wanderer/provider/map_style_json_provider.dart';
 /// Used by `list_detail_map_screen.dart`, `list_detail_screen.dart`'s
 /// `_ListMap`, and `map_screen.dart` (16-03) — screens that render N trails
 /// (or none) rather than a single trail's track.
-class SearchMap extends ConsumerStatefulWidget {
+class TrailCollectionMap extends ConsumerStatefulWidget {
   final ml.Geographic? initCenter;
   final double? initZoom;
   final bool disabled;
@@ -32,7 +32,7 @@ class SearchMap extends ConsumerStatefulWidget {
   final List<ml.Layer>? layers;
   final List<Widget>? children;
 
-  const SearchMap({
+  const TrailCollectionMap({
     super.key,
     this.initCenter,
     this.initZoom,
@@ -45,10 +45,10 @@ class SearchMap extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<SearchMap> createState() => _SearchMapState();
+  ConsumerState<TrailCollectionMap> createState() => _TrailCollectionMapState();
 }
 
-class _SearchMapState extends ConsumerState<SearchMap> {
+class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap> {
   ml.MapController? _controller;
 
   /// Buffers a style-loaded event that arrives before [_controller] is set.
@@ -61,7 +61,7 @@ class _SearchMapState extends ConsumerState<SearchMap> {
   /// The last successfully-resolved style JSON. Cached so a provider refresh
   /// (e.g. a theme toggle) never drops us back to the loading state and
   /// remounts the map — the live swap goes through [ml.MapController.setStyle]
-  /// instead (mirrors `WandererMap`'s CORE-02).
+  /// instead (mirrors `TrailMap`'s CORE-02).
   String? _lastStyleJson;
 
   @override

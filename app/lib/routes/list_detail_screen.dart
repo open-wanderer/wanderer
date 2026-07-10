@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
-import 'package:wanderer/components/base/search_map.dart';
+import 'package:wanderer/components/base/trail_collection_map.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/map/trail_layer.dart'
@@ -389,7 +389,7 @@ class _ListMapState extends ConsumerState<_ListMap> {
 
     final combinedBounds = _combinedBounds(widget.trails);
 
-    return SearchMap(
+    return TrailCollectionMap(
       disabled: true,
       onMapCreated: (controller) => _controller = controller,
       onStyleLoaded: (style) {
@@ -420,8 +420,11 @@ class _ListMapState extends ConsumerState<_ListMap> {
           : null,
       children: [
         if (markers.isNotEmpty) ml.WidgetLayer(markers: markers),
-        const ml.MapScalebar(),
-        const WandererAttribution(),
+        const ml.MapScalebar(alignment: Alignment.topLeft),
+        const WandererAttribution(
+          alignment: Alignment.topLeft,
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 44),
+        ),
       ],
     );
   }

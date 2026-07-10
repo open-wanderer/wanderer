@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:wanderer/components/base/wanderer_map.dart';
+import 'package:wanderer/components/base/trail_map.dart';
 import 'package:wanderer/components/trail/comment_list.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/photo_collage.dart';
@@ -246,7 +246,7 @@ class TrailPanel extends ConsumerWidget {
                               child: SizedBox(
                                 height: 200,
                                 child: Material(
-                                  child: WandererMap(
+                                  child: TrailMap(
                                     trail: trail,
                                     disabled: true,
                                     offline: trail.isOffline,

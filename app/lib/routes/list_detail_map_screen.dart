@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
-import 'package:wanderer/components/base/search_map.dart';
+import 'package:wanderer/components/base/trail_collection_map.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/map/trail_layer.dart'
@@ -155,7 +155,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
           ),
           body: Stack(
             children: [
-              SearchMap(
+              TrailCollectionMap(
                 onMapCreated: (controller) => _controller = controller,
                 onStyleLoaded: (style) {
                   final bounds = combinedBounds;
@@ -188,7 +188,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
                   const SafeArea(
                     child: ml.MapCompass(
                       hideIfRotatedNorth: true,
-                      padding: EdgeInsets.only(top: 6, right: 8),
+                      padding: EdgeInsets.only(top: 0, right: 8),
                     ),
                   ),
                   const ml.MapScalebar(),

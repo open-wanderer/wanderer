@@ -63,7 +63,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
 
   /// Buffers a style-loaded event that arrives before [_controller] is set —
   /// the native platform channel does not reliably fire `onMapCreated` before
-  /// `onStyleLoaded` (same race `SearchMap` guards against, Phase 16-03).
+  /// `onStyleLoaded` (same race `TrailCollectionMap` guards against, Phase 16-03).
   ml.StyleController? _pendingStyle;
 
   /// The last successfully-resolved (and possibly offline-rewritten) style
@@ -199,7 +199,21 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
 
   /// JSON-encodes the breadcrumb as a single LineString Feature. Never string
   /// concatenation — keeps the geometry structurally isolated (T-17-01).
+  ///
+  /// A GeoJSON `LineString` requires at least 2 coordinates (RFC 7946
+  /// §3.1.4) — the native MapLibre parser rejects a 0/1-point one, which
+  /// would throw on the very first `addSource` call (before any GPS fix has
+  /// landed) and permanently skip creating the `breadcrumb`
+  /// source/`breadcrumb-route` layer for the rest of the session. So below
+  /// 2 points this returns an empty (but valid) FeatureCollection instead,
+  /// which renders nothing until real geometry is available.
   String _breadcrumbGeoJson(List<ml.Geographic> pts) {
+    if (pts.length < 2) {
+      return jsonEncode(<String, Object?>{
+        'type': 'FeatureCollection',
+        'features': <Object?>[],
+      });
+    }
     return jsonEncode(<String, Object?>{
       'type': 'Feature',
       'properties': <String, Object?>{},
@@ -259,7 +273,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // D-09-style cache warm on first open (mirrors WandererMap's CORE-02
+    // D-09-style cache warm on first open (mirrors TrailMap's CORE-02
     // pattern) — idempotent against the trail-download trigger.
     if (!_cacheWarmed) {
       _cacheWarmed = true;
@@ -388,8 +402,24 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                             onWaypointTap: _onWaypointSelected,
                           ),
 
-                        const ml.MapScalebar(), // CORE-04
-                        const WandererAttribution(), // CORE-04
+                        Positioned(
+                          top: 128,
+                          left: 8,
+                          child: SafeArea(
+                            child: const ml.MapScalebar(
+                              alignment: Alignment.topLeft,
+                            ),
+                          ),
+                        ),
+                        WandererAttribution(
+                          alignment: Alignment.bottomLeft,
+                          padding: EdgeInsets.only(
+                            left: 10,
+                            bottom:
+                                MediaQuery.of(context).size.height *
+                                _kSheetMinSize,
+                          ),
+                        ), //
                         Positioned(
                           top: 128,
                           right: 8,

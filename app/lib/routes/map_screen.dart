@@ -7,7 +7,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/async_loader.dart';
-import 'package:wanderer/components/base/search_map.dart';
+import 'package:wanderer/components/base/trail_collection_map.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/map/cluster_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
@@ -270,7 +270,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     return Stack(
       children: [
-        SearchMap(
+        TrailCollectionMap(
           initCenter: widget.initialCenter ?? savedCamera?.center,
           initZoom: widget.initialZoom ?? savedCamera?.zoom,
           onMapCreated: (controller) => _controller = controller,
@@ -397,8 +397,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 children: const [ml.MapCompass(hideIfRotatedNorth: true)],
               ),
             ),
-            const ml.MapScalebar(),
-            const WandererAttribution(),
+            const ml.MapScalebar(
+              alignment: Alignment.topLeft,
+              padding: EdgeInsets.only(left: 24, top: 112),
+            ),
+            WandererAttribution(
+              alignment: Alignment.bottomLeft,
+              padding: EdgeInsets.only(
+                left: 10,
+                bottom: MediaQuery.of(context).size.height * sheetMinSize + 16,
+              ),
+            ),
           ],
         ),
 
@@ -732,7 +741,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 }
 
-/// Interim device-location marker (mirrors `WandererMap._buildLocationLayer`)
+/// Interim device-location marker (mirrors `TrailMap._buildLocationLayer`)
 /// — a simple native puck driven by [foregroundPositionStreamProvider].
 /// Replaces the old flutter_map-only location-marker widget, which
 /// cannot render outside a flutter_map `FlutterMap` widget tree.

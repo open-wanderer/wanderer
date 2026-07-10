@@ -16,7 +16,13 @@ import 'package:url_launcher/url_launcher.dart';
 /// collapsed.
 @immutable
 class WandererAttribution extends StatefulWidget {
-  const WandererAttribution({super.key});
+  final Alignment alignment;
+  final EdgeInsets padding;
+  const WandererAttribution({
+    super.key,
+    this.alignment = Alignment.bottomRight,
+    this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  });
 
   @override
   State<WandererAttribution> createState() => _WandererAttributionState();
@@ -42,8 +48,8 @@ class _WandererAttributionState extends State<WandererAttribution> {
     // with rounded edges like iOS.
     return SafeArea(
       child: Container(
-        alignment: Alignment.bottomRight,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        alignment: widget.alignment,
+        padding: widget.padding,
         child: PointerInterceptor(
           child: Container(
             decoration: BoxDecoration(
