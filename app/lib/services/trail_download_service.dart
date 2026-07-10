@@ -83,21 +83,21 @@ class TrailDownloadService {
       if (paths != null) waypointEntity.localPhotos = paths;
     }
 
-    // Best-effort Valhalla cache write (OFFLINE-01 / D-06, D-07, D-08).
-    // Any failure (Valhalla outage, null GPX, parse error) is silently swallowed
-    // so the tile download and entity persistence are never blocked.
+    // Best-effort Valhalla cache write. Any failure (Valhalla outage, null GPX,
+    // parse error) is silently swallowed so the tile download and entity
+    // persistence are never blocked.
     try {
       final gpx = trail.expand?.gpx;
       if (gpx != null) {
         final points = gpx.allPoints;
         if (points.length >= 2) {
-          // Same shape helper as the online path (D-08): ensures cache and live
+          // Same shape helper as the online path: ensures cache and live
           // requests send byte-identical shape payloads to Valhalla.
           final shape = buildNavShape(points);
 
-          // Derive costing from category via shared helper (Pattern 4,
-          // RESEARCH.md). Shared with launchNavigation so cache and live
-          // requests use the same costing string (D-08).
+          // Derive costing from category via shared helper. Shared with
+          // launchNavigation so cache and live requests use the same
+          // costing string.
           final costing = costingForCategory(trail.expand?.category?.name);
 
           final res = await _api.post(
@@ -119,7 +119,7 @@ class TrailDownloadService {
     } catch (e) {
       // Re-throw if the download was cancelled — must not write a partial entity.
       if (e is DioException && CancelToken.isCancel(e)) rethrow;
-      // Best-effort: Valhalla outage must not block download (D-06).
+      // Best-effort: Valhalla outage must not block download.
     }
 
     _store.runInTransaction(TxMode.write, () {
@@ -150,7 +150,7 @@ class TrailDownloadService {
 
     // Tile downloads run concurrently via Future.wait. Progress is reported
     // monotonically after all tasks finish to avoid non-monotonic counter
-    // updates caused by interleaving at await points (WR-02).
+    // updates caused by interleaving at await points.
     final downloadTasks = infoList.cells.map((cell) async {
       final key = cell.key;
       final localPath = '${tilesDir.path}/$key.pmtiles';
@@ -253,9 +253,7 @@ class TrailDownloadService {
           savePath,
           cancelToken: cancelToken,
           onReceiveProgress: (received, total) {
-            if (total != -1) {
-              // print("Download $fileName: ${(received / total * 100).toStringAsFixed(0)}%");
-            }
+            if (total != -1) {}
           },
         );
         return savePath;

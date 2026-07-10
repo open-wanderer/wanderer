@@ -63,22 +63,22 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
 
   /// Buffers a style-loaded event that arrives before [_controller] is set —
   /// the native platform channel does not reliably fire `onMapCreated` before
-  /// `onStyleLoaded` (same race `TrailCollectionMap` guards against, Phase 16-03).
+  /// `onStyleLoaded` (the same race `TrailCollectionMap` guards against).
   ml.StyleController? _pendingStyle;
 
   /// The last successfully-resolved (and possibly offline-rewritten) style
   /// JSON. Cached so a provider refresh (e.g. a theme toggle) never drops us
   /// back to the loading state and remounts the map — the live swap goes
-  /// through [ml.MapController.setStyle] instead (CORE-02).
+  /// through [ml.MapController.setStyle] instead.
   String? _lastStyleJson;
 
   bool _cacheWarmed = false;
 
   /// Active pointer count on the map surface. `CameraChangeReason.apiGesture`
-  /// fires identically for pan/pinch/rotate (no native sub-classification —
-  /// RESEARCH Pitfall 1), so this heuristic is what narrows follow-break to a
-  /// single-finger drag (NAV-02). Read synchronously inside `onEvent` only —
-  /// never mutated via `setState`.
+  /// fires identically for pan/pinch/rotate (no native sub-classification
+  /// exists), so this heuristic narrows follow-break to a single-finger
+  /// drag. Read synchronously inside `onEvent` only — never mutated via
+  /// `setState`.
   int _activePointers = 0;
 
   bool _followEnabled = true;
@@ -144,7 +144,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
     setState(() => _followEnabled = true);
     _controller?.trackLocation(
       trackLocation: true,
-      // D-03: restores prior heading-up state — recenter never forces north.
+      // Restores prior heading-up state — recenter never forces north.
       trackBearing: _headingUp
           ? ml.BearingTrackMode.gps
           : ml.BearingTrackMode.none,
@@ -182,7 +182,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
   }
 
   /// Recomposes the (possibly offline-rewritten) style from current provider
-  /// state and swaps it onto the mounted controller in place (CORE-02).
+  /// state and swaps it onto the mounted controller in place.
   void _swapStyle() {
     final controller = _controller;
     if (controller == null) return;
@@ -198,7 +198,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
   }
 
   /// JSON-encodes the breadcrumb as a single LineString Feature. Never string
-  /// concatenation — keeps the geometry structurally isolated (T-17-01).
+  /// concatenation — keeps the geometry structurally isolated.
   ///
   /// A GeoJSON `LineString` requires at least 2 coordinates (RFC 7946
   /// §3.1.4) — the native MapLibre parser rejects a 0/1-point one, which
@@ -226,10 +226,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
     });
   }
 
-  /// Re-arms everything that binds to the current native `Style` object
-  /// (Pattern 1, 17-RESEARCH.md): `setStyle` (CORE-02 theme swap) drops added
-  /// layers/sources AND the location component, so this must run after every
-  /// style load, not just once at `onMapCreated`.
+  /// Re-arms everything that binds to the current native `Style` object:
+  /// `setStyle` (used for theme swaps) drops added layers/sources AND the
+  /// location component, so this must run after every style load, not just
+  /// once at `onMapCreated`.
   Future<void> _onStyleLoaded(ml.StyleController style) async {
     try {
       final trail = ref.read(trailProvider(widget.id)).value;
@@ -257,7 +257,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
       final controller = _controller;
       if (controller != null) {
         await controller.enableLocation(
-          bearingRenderMode: ml.BearingRenderMode.gps, // D-04: GPS heading
+          bearingRenderMode: ml.BearingRenderMode.gps, // GPS heading
         );
         await controller.trackLocation(
           trackLocation: _followEnabled,
@@ -273,22 +273,22 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // D-09-style cache warm on first open (mirrors TrailMap's CORE-02
-    // pattern) — idempotent against the trail-download trigger.
+    // Cache warm on first open (mirrors TrailMap's caching pattern) —
+    // idempotent against the trail-download trigger.
     if (!_cacheWarmed) {
       _cacheWarmed = true;
       ref.read(glyphSpriteCacheProvider.future).ignore();
     }
 
-    // Live style swap (CORE-02): theme toggle or (offline) glyph/sprite cache
-    // warm swaps the composed style in place on the already-mounted map.
+    // Live style swap: theme toggle or (offline) glyph/sprite cache warm
+    // swaps the composed style in place on the already-mounted map.
     ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
     if (widget.isOffline) {
       ref.listen(glyphSpriteCacheProvider, (_, _) => _swapStyle());
     }
 
-    // Breadcrumb in-place update (T-17-01 fail-soft): swap the native source's
-    // data on every new position fix, never remove/re-add the source.
+    // Breadcrumb in-place update: swap the native source's data on every new
+    // position fix, never remove/re-add the source.
     ref.listen(navigationProvider(widget.response), (prev, next) {
       if (prev?.breadcrumb == next.breadcrumb) return;
       final style = _controller?.style;
@@ -384,13 +384,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                             event.reason == ml.CameraChangeReason.apiGesture &&
                             _activePointers <= 1 &&
                             _followEnabled) {
-                          // CameraChangeReason.apiGesture fires identically for
-                          // pan/pinch/rotate (RESEARCH Pitfall 1 — no native
-                          // sub-classification exists); _activePointers <= 1 is
-                          // the compensating heuristic so only a single-finger
-                          // drag breaks follow (NAV-02). Needs on-device
-                          // verification (RESEARCH Open Question 1 — 17-03
-                          // checkpoint).
+                          // CameraChangeReason.apiGesture fires identically
+                          // for pan/pinch/rotate (no native
+                          // sub-classification exists); _activePointers <= 1
+                          // is the compensating heuristic so only a
+                          // single-finger drag breaks follow.
                           _onPanStart();
                         }
                       },
@@ -428,7 +426,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 ml.MapCompass(
-                                  hideIfRotatedNorth: false, // D-02
+                                  hideIfRotatedNorth: false,
                                   rotateNorthOnPressed: false,
                                   onPressed: () {
                                     setState(() => _headingUp = !_headingUp);

@@ -3,11 +3,10 @@ import 'package:path/path.dart' as p;
 import 'package:wanderer/util/map_cache_path.dart';
 
 // ---------------------------------------------------------------------------
-// Tests for the app-wide glyph/sprite cache path-safety helpers
-// (Phase 15, plan 15-03). This is the load-bearing security control
-// (RESEARCH § Security V5/V12, threat T-15-03-01): cache filenames must derive
-// ONLY from the 4 whitelisted fontstacks + numeric ranges, rejecting any `..`
-// traversal, with every path rooted at the supplied cache root.
+// Tests for the app-wide glyph/sprite cache path-safety helpers. This is the
+// load-bearing security control: cache filenames must derive ONLY from the 4
+// whitelisted fontstacks + numeric ranges, rejecting any `..` traversal, with
+// every path rooted at the supplied cache root.
 // ---------------------------------------------------------------------------
 
 void main() {

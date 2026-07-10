@@ -85,8 +85,8 @@ void main() {
       ],
     };
 
-    /// Encode through real JSON (jsonEncode/jsonDecode) so the Task-1
-    /// serialization fix is exercised end to end, not just a map comparison.
+    /// Encode through real JSON (jsonEncode/jsonDecode) so serialization is
+    /// exercised end to end, not just a map comparison.
     NavigateResponse roundtrip(NavigateResponse response) {
       final encoded = jsonEncode(response.toJson());
       final decoded = jsonDecode(encoded) as Map<String, dynamic>;

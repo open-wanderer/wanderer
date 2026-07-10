@@ -147,11 +147,11 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     final trailDownloadService = ref.read(trailDownloadServiceProvider);
     final notificationService = ref.read(downloadNotificationServiceProvider);
 
-    // D-10: trail download is a second, independent trigger for the shared
+    // Trail download is a second, independent trigger for the shared
     // app-wide glyph/sprite cache warm. Fire it concurrently with the trail
     // download and await it separately (below) so a glyph-cache failure never
     // fails or corrupts the trail entity write. Idempotent + keepAlive → a
-    // no-op if the map was already opened first (D-09).
+    // no-op if the map was already opened first.
     final glyphCacheWarm = ref.read(glyphSpriteCacheProvider.future);
 
     ref
@@ -196,7 +196,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
       if (mounted) setState(() => _isDownloading = false);
     }
 
-    // Await the shared cache warm separately (D-10 independence): its failure
+    // Await the shared cache warm separately: its failure
     // is isolated from the trail download's success/failure above so a
     // glyph/sprite miss never surfaces as a trail-download error.
     try {

@@ -12,9 +12,9 @@ import 'package:wanderer/util/gpx_util.dart';
 const Color kTrailRouteColor = Color(0xff3549bb);
 
 /// Zoom-interpolated `symbol-spacing` (screen pixels) for the directional
-/// arrows — denser (smaller spacing) at higher zoom (TRAIL-02, D-05). Static:
-/// the density-by-zoom logic of the old meter table is preserved, the motion
-/// is not. Tune on device (RESEARCH Pitfall 5 — meter→pixel is approximate).
+/// arrows — denser (smaller spacing) at higher zoom. Static: there is no
+/// motion, just density-by-zoom. Meter→pixel is approximate, so tune on
+/// device.
 const List<Object> _kArrowSpacing = <Object>[
   'interpolate',
   <Object>['linear'],
@@ -28,25 +28,24 @@ const List<Object> _kArrowSpacing = <Object>[
 ];
 
 /// Adds the GPX track (white casing under a colored route line) and the static
-/// directional arrows as native GL style layers via [ml.StyleController]
-/// (TRAIL-01 / TRAIL-02).
+/// directional arrows as native GL style layers via [ml.StyleController].
 ///
 /// Call this from `onStyleLoaded` so the layers are re-added after every style
-/// swap (CORE-02 theme toggle rebuilds the style and drops added layers/images).
+/// swap (a theme toggle rebuilds the style and drops added layers/images).
 ///
-/// A `trail-` prefixed id — the ported basemap style's `roads_oneway` layer
+/// A `trail-` prefixed id — the basemap style's `roads_oneway` layer
 /// also references a real Protomaps sprite icon literally named `arrow`.
 /// MapLibre's native `addImage` (both Android and iOS) replaces an existing
 /// same-id image rather than throwing, so registering under the bare `arrow`
-/// id silently overwrote the basemap's one-way-road icon whenever a trail
-/// was on screen — found during Phase 15 goal verification, not on-device.
+/// id silently overwrites the basemap's one-way-road icon whenever a trail
+/// is on screen.
 const String _kTrailArrowImageId = 'trail-arrow';
 
 /// The directional-arrow icon is registered here via
 /// [ml.StyleController.addImageFromIconData] rather than relying on the
-/// Protomaps style sprite: 15-03 found `file://` sprite resolution unreliable
+/// Protomaps style sprite: `file://` sprite resolution is unreliable
 /// on device, so shipping our own image makes the arrows deterministic
-/// regardless of the sprite (D-04). Uses [_kTrailArrowImageId], NOT the bare
+/// regardless of the sprite. Uses [_kTrailArrowImageId], NOT the bare
 /// `arrow` id the basemap's own sprite icon uses — see that constant's doc.
 Future<void> addTrailTrackLayers(
   ml.StyleController style,
@@ -70,7 +69,7 @@ Future<void> addTrailTrackLayers(
 
   // Serialize the track as a single GeoJSON LineString Feature. jsonEncode
   // (not string concatenation) keeps the geometry structurally isolated from
-  // the style document (threat T-15-05-01).
+  // the style document.
   final data = jsonEncode(<String, Object?>{
     'type': 'Feature',
     'properties': <String, Object?>{},
@@ -85,7 +84,7 @@ Future<void> addTrailTrackLayers(
   await style.addSource(ml.GeoJsonSource(id: 'trail', data: data));
 
   // Draw order = add order: casing (9px white) first, colored route (5px) on
-  // top, so 2px of white shows as an outline around the route (TRAIL-01).
+  // top, so 2px of white shows as an outline around the route.
   await style.addLayer(
     const ml.LineStyleLayer(
       id: 'trail-casing',
@@ -107,7 +106,7 @@ Future<void> addTrailTrackLayers(
   );
 
   // Static directional arrows: native line placement + rotation, no animation
-  // loop (D-05). minZoom 8 mirrors the old `zoom > 8` visibility gate.
+  // loop. minZoom 8 gates visibility below `zoom > 8`.
   await style.addLayer(
     const ml.SymbolStyleLayer(
       id: 'trail-arrows',
@@ -127,7 +126,7 @@ Future<void> addTrailTrackLayers(
 }
 
 /// Adds a native directional-arrow symbol layer over a set of already-drawn
-/// polylines (Gap 1 mechanism, list surfaces). Unlike [addTrailTrackLayers]
+/// polylines (list surfaces). Unlike [addTrailTrackLayers]
 /// this does NOT draw the route/casing lines themselves — the list screens
 /// keep drawing those via the declarative `ml.PolylineLayer`; this helper
 /// only adds arrows on top, reusing the exact same arrow image id and
@@ -155,7 +154,7 @@ Future<void> addPolylineArrowLayer(
   );
 
   // jsonEncode (not string concatenation) keeps the geometry structurally
-  // isolated from the style document (threat T-15-05-01).
+  // isolated from the style document.
   final data = jsonEncode(<String, Object?>{
     'type': 'FeatureCollection',
     'features': <Map<String, Object?>>[
@@ -201,7 +200,7 @@ String _colorToHex(Color color) {
 }
 
 /// Interactive trail markers rendered as Flutter widgets over the native map
-/// via a single [ml.WidgetLayer] (TRAIL-03 / TRAIL-04): tappable waypoints with
+/// via a single [ml.WidgetLayer]: tappable waypoints with
 /// the [AnimatedScale] selection animation, and the start/finish pins with the
 /// 36-screen-pixel proximity nudge.
 ///

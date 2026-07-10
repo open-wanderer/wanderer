@@ -4,18 +4,18 @@ import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 
-/// A lightweight, trail-agnostic native MapLibre GL map host (CORE-08).
+/// A lightweight, trail-agnostic native MapLibre GL map host.
 ///
 /// Renders the basemap from [mapStyleJsonProvider] and swaps light/dark
 /// styles live via [ml.MapController.setStyle] (mirrors `TrailMap`'s
-/// CORE-02 pattern), but carries none of `TrailMap`'s single-trail or
+/// style-swap pattern), but carries none of `TrailMap`'s single-trail or
 /// offline surface: no `Trail` param, no offline style rewrite, no
 /// bounds-fit-on-init. Bounds/camera work stays imperative in each caller's
 /// `onStyleLoaded` — this host only exposes the seams (`layers`, `children`,
 /// `onStyleLoaded`, `onMapEvent`, `onMapCreated`) callers build on.
 ///
 /// Used by `list_detail_map_screen.dart`, `list_detail_screen.dart`'s
-/// `_ListMap`, and `map_screen.dart` (16-03) — screens that render N trails
+/// `_ListMap`, and `map_screen.dart` — screens that render N trails
 /// (or none) rather than a single trail's track.
 class TrailCollectionMap extends ConsumerStatefulWidget {
   final ml.Geographic? initCenter;
@@ -61,7 +61,7 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap> {
   /// The last successfully-resolved style JSON. Cached so a provider refresh
   /// (e.g. a theme toggle) never drops us back to the loading state and
   /// remounts the map — the live swap goes through [ml.MapController.setStyle]
-  /// instead (mirrors `TrailMap`'s CORE-02).
+  /// instead (mirrors `TrailMap`'s approach).
   String? _lastStyleJson;
 
   @override

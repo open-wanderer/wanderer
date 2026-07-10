@@ -6,7 +6,7 @@ import 'package:maplibre/maplibre.dart' as ml;
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// A collapsed-by-default attribution control (Gap 4) — a drop-in
+/// A collapsed-by-default attribution control — a drop-in
 /// replacement for `ml.SourceAttribution` for use in [ml.MapLibreMap.children].
 ///
 /// Modeled closely on maplibre 0.3.5's `SourceAttribution` (the pill layout +
@@ -115,10 +115,8 @@ class _AttributionHtmlState extends State<_AttributionHtml> {
 
     for (final node in document.body!.nodes) {
       if (node is dom.Text) {
-        // pure text
         textSpans.add(TextSpan(text: node.text));
       } else if (node is dom.Element && node.localName == 'a') {
-        // link
         textSpans.add(
           TextSpan(
             onEnter: (event) => setState(() => _hovering = true),

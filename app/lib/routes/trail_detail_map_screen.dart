@@ -99,8 +99,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                   ),
                 ),
                 // Floating full-width Navigate button — floats above elevation
-                // profile when it is visible, or at the very bottom otherwise
-                // (D-02, D-03, NAV-02)
+                // profile when it is visible, or at the very bottom otherwise.
                 Positioned(
                   left: 16,
                   right: 16,

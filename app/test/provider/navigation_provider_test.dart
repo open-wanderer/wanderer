@@ -55,10 +55,7 @@ const _nearManeuver1 = Geographic(lat: 47.00301, lon: 9.000);
 ///
 /// The route runs north along lon 9.000; this point sits ~760 m east at the
 /// start latitude (47.000, 9.010). Under along-track projection it projects
-/// onto shape[0], so [currentManeuverIndex] must remain at 0. (Previously this
-/// fixture used (47.010, 9.000), which is collinear with and 445 m *beyond* the
-/// route end — that legitimately advances under projection, so it no longer
-/// represents a "not yet progressed" position.)
+/// onto shape[0], so [currentManeuverIndex] must remain at 0.
 const _farFromManeuver1 = Geographic(lat: 47.000, lon: 9.010);
 
 /// A position very close to shape[6] (maneuver 2 begin) — within 30 m.

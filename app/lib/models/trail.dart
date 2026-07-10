@@ -281,8 +281,7 @@ abstract class TrailFilter with _$TrailFilter {
     }
 
     // Categories and Subcategories (combined OR group, ID-based).
-    // Mirrors the web OR-group builder (trail_store.ts) and filters against the
-    // Mirror the web's trail_store.ts filter logic:
+    // Mirrors the web's trail_store.ts filter logic:
     // - Categories whose subcategories are NOT all selected → category_id IN [...]
     // - All selected subcategories → subcategory_id IN [...]
     // The two clauses are OR-ed so a match on either counts.

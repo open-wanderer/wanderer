@@ -4,20 +4,20 @@ import 'package:path/path.dart' as p;
 import 'package:wanderer/util/map_cache_path.dart';
 
 /// Rewrites a downloaded trail's MapLibre style so it resolves entirely from
-/// on-device resources — no network (OFFL-02/03/05).
+/// on-device resources — no network.
 ///
 /// Given the online base style, the app-wide glyph/sprite cache [cacheRoot]
-/// (`<app-docs>/map_cache`, warmed in 15-03) and the trail's downloaded
+/// (`<app-docs>/map_cache`) and the trail's downloaded
 /// `.pmtiles` [cellPaths], this pure transform:
 ///
 ///  * points `glyphs` at `file://<cacheRoot>/glyphs/{fontstack}/{range}.pbf`
 ///    (the literal `{fontstack}`/`{range}` tokens are preserved for native
-///    runtime substitution) — OFFL-02;
-///  * points `sprite` at `file://<cacheRoot>/sprite/<light|dark>` — OFFL-02;
+///    runtime substitution);
+///  * points `sprite` at `file://<cacheRoot>/sprite/<light|dark>`;
 ///  * repoints every remote (tiled) source at a native `pmtiles://file://`
-///    archive — OFFL-03.
+///    archive.
 ///
-/// ## Multi-cell strategy (OFFL-05)
+/// ## Multi-cell strategy
 ///
 /// A single trail's offline tiles are split across one `.pmtiles` archive per
 /// 0.5° grid cell (`db/services/tiles/generator.go` runs `pmtiles extract` per
@@ -30,11 +30,10 @@ import 'package:wanderer/util/map_cache_path.dart';
 /// sets**: the first cell keeps the original source key, each extra cell `i`
 /// gets a `<source>-cell-<i>` source and a `<layerId>__cell<i>` clone of every
 /// layer that referenced that source. Source-less layers (e.g. `background`)
-/// are never cloned. This is bounded by `cellPaths.length` (T-15-06-03 DoS:
-/// accepted — realistic cell counts are small; `is_large` full-polyline trails
-/// are deferred, FUT-01).
+/// are never cloned. This is bounded by `cellPaths.length` (realistic cell
+/// counts are small; `is_large` full-polyline trails are deferred).
 ///
-/// ## Path safety (T-15-06-01/02, RESEARCH Security V5/V12)
+/// ## Path safety
 ///
 /// Every emitted URL is rooted at the supplied [cacheRoot] / [cellPaths] and
 /// carries only the `file://` or `pmtiles://file://` scheme. Any `cellPath` or
@@ -62,13 +61,13 @@ Map<String, dynamic> rewriteStyleForOffline(
   // Deep copy so the shared online base style is never mutated in place.
   final out = jsonDecode(jsonEncode(style)) as Map<String, dynamic>;
 
-  // OFFL-02 — glyphs + sprite resolve from the app-wide file:// cache. The
+  // Glyphs + sprite resolve from the app-wide file:// cache. The
   // literal {fontstack}/{range} tokens are kept for native substitution.
   out['glyphs'] =
       'file://${p.join(cacheRoot, 'glyphs', '{fontstack}', '{range}.pbf')}';
   out['sprite'] = 'file://${spriteCacheBasePath(cacheRoot, dark: dark)}';
 
-  // OFFL-03/05 — repoint every remote (tiled) source at a pmtiles://file://
+  // Repoint every remote (tiled) source at a pmtiles://file://
   // archive, duplicating sources + layers per extra cell.
   final sources = out['sources'];
   if (sources is Map<String, dynamic>) {
@@ -161,9 +160,9 @@ void _pointSourceAtCell(Map<String, dynamic> source, String cellPath) {
 
 /// Rejects any [path] that is not an absolute, traversal-free local path.
 ///
-/// Guards T-15-06-01/02: a foreign URL scheme, a relative path, or a `..`
-/// segment would let a downloaded trail escape the app sandbox or inject an
-/// `https://` URL into the offline style. None is ever emitted.
+/// Guards against a foreign URL scheme, a relative path, or a `..`
+/// segment that would let a downloaded trail escape the app sandbox or inject
+/// an `https://` URL into the offline style. None is ever emitted.
 void _assertSafePath(String path, String label) {
   if (path.contains('://')) {
     throw ArgumentError.value(path, label, 'must not carry a URL scheme');

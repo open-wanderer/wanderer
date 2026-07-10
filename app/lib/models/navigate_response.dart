@@ -34,10 +34,8 @@ abstract class NavigateResponse with _$NavigateResponse {
 
 /// Extension exposing the shape as a list of [Geographic] values.
 ///
-/// Coordinate order: shape entries are [lat, lon] pairs — confirmed against
-/// the Phase-1 endpoint (`+server.ts` lines 120-122) which pushes
-/// `[lat, lng]` after decoding the Valhalla polyline.
-/// [0] = latitude, [1] = longitude.
+/// Coordinate order: shape entries are [lat, lon] pairs after decoding the
+/// Valhalla polyline. [0] = latitude, [1] = longitude.
 extension NavigateResponseX on NavigateResponse {
   List<Geographic> get shapeAsGeographic => shape
       .where((p) => p.length >= 2)

@@ -1,6 +1,6 @@
-/// On-disk layout of the shared app-wide glyph/sprite cache (GLYPH-04, D-08).
+/// On-disk layout of the shared app-wide glyph/sprite cache.
 ///
-/// All paths are rooted at `<app-docs>/map_cache`. The 15-06 offline style
+/// All paths are rooted at `<app-docs>/map_cache`. The offline style
 /// rewriter targets these bases when pointing the MapLibre style's `glyphs` /
 /// `sprite` keys at `file://` URLs.
 ///

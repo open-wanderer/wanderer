@@ -14,18 +14,15 @@ import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 
-/// A native MapLibre GL map host for a single [Trail] (CORE-01). Renders the
-/// Protomaps basemap from [mapStyleJsonProvider] (15-02) via native GL, swaps
-/// light/dark styles live with [ml.MapController.setStyle] (CORE-02, no
-/// remount/flash), fits the trail bounds in `onStyleLoaded` (CORE-03), shows
-/// the built-in scale bar + attribution (CORE-04), and hosts the
-/// elevation-scrub and interim-location markers (TRAIL-05 / A5).
+/// A native MapLibre GL map host for a single [Trail]. Renders the
+/// Protomaps basemap from [mapStyleJsonProvider] via native GL, swaps
+/// light/dark styles live with [ml.MapController.setStyle] (no
+/// remount/flash), fits the trail bounds in `onStyleLoaded`, shows
+/// the built-in scale bar + attribution, and hosts the
+/// elevation-scrub and interim-location markers.
 ///
 /// Single-trail detail views only — for screens that render a collection of
 /// trails (search results, list previews), use `TrailCollectionMap` instead.
-///
-/// The trail track / arrows / waypoints / start-finish pins are NOT drawn here
-/// yet — that is 15-05, which extends this shell (see the `layers:` seam below).
 class TrailMap extends ConsumerStatefulWidget {
   final Trail trail;
 
@@ -84,24 +81,24 @@ class _TrailMapState extends ConsumerState<TrailMap> {
   /// The last successfully-resolved style JSON. Cached so a provider refresh
   /// (e.g. a theme toggle) never drops us back to the loading state and
   /// remounts the map — the live swap goes through [ml.MapController.setStyle]
-  /// instead (CORE-02).
+  /// instead.
   String? _lastStyleJson;
 
   bool _cacheWarmed = false;
 
   @override
   Widget build(BuildContext context) {
-    // D-09: warm the shared app-wide glyph/sprite cache on first map open.
-    // Idempotent against the 15-03 trail-download trigger (D-10).
+    // Warms the shared app-wide glyph/sprite cache on first map open.
+    // Idempotent against the trail-download trigger.
     if (!_cacheWarmed) {
       _cacheWarmed = true;
       ref.read(glyphSpriteCacheProvider.future).ignore();
     }
 
-    // Live style swap (CORE-02): when the style JSON changes (theme toggle) —
+    // Live style swap: when the style JSON changes (theme toggle) —
     // or, for a downloaded trail, when the offline glyph/sprite cache finishes
     // warming — swap the composed style in place on the already-mounted map, no
-    // ObjectKey remount, no flash. The offline branch (OFFL-02/03/05) reruns the
+    // ObjectKey remount, no flash. The offline branch reruns the
     // rewrite so the swap keeps resolving from file:// + pmtiles://file://.
     ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
     if (widget.offline) {
@@ -112,8 +109,8 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     final baseJson = baseAsync.value;
     Object? error = baseAsync.error;
 
-    // Offline (OFFL-02/03/05): the style is rewritten so glyphs/sprite resolve
-    // from the app-wide file:// cache (15-03) and the protomaps tiles resolve
+    // Offline: the style is rewritten so glyphs/sprite resolve
+    // from the app-wide file:// cache and the protomaps tiles resolve
     // from the trail's local .pmtiles cells. Online trails use the base JSON
     // unchanged.
     GlyphSpriteCachePaths? cache;
@@ -139,7 +136,7 @@ class _TrailMapState extends ConsumerState<TrailMap> {
 
   /// Composes the style JSON to hand to the map from the two resolved inputs.
   ///
-  /// Online: the [baseJson] as-is. Offline (OFFL-02/03/05): [baseJson] rewritten
+  /// Online: the [baseJson] as-is. Offline: [baseJson] rewritten
   /// via [rewriteStyleForOffline] so `glyphs`/`sprite` resolve from [cache] and
   /// the protomaps tiles resolve from `trail.pmTiles` (`pmtiles://file://`).
   /// Returns null while a required input is still resolving or if the rewrite
@@ -165,7 +162,7 @@ class _TrailMapState extends ConsumerState<TrailMap> {
   }
 
   /// Recomposes the (possibly offline-rewritten) style from current provider
-  /// state and swaps it onto the mounted controller in place (CORE-02).
+  /// state and swaps it onto the mounted controller in place.
   void _swapStyle() {
     final controller = _controller;
     if (controller == null) return;
@@ -216,11 +213,9 @@ class _TrailMapState extends ConsumerState<TrailMap> {
           widget.onTap?.call(event.point);
         }
       },
-      layers: const [
-        // 15-05: trail track + arrows + waypoint/start-finish markers wired here
-      ],
+      layers: const [],
       children: [
-        // 15-05: interactive trail markers (tappable waypoints + start/finish
+        // Interactive trail markers (tappable waypoints + start/finish
         // pins with the 36px proximity nudge) as a WidgetLayer.
         if (widget.showTrail && widget.trail.expand?.gpx != null)
           TrailMarkerLayer(
@@ -235,11 +230,11 @@ class _TrailMapState extends ConsumerState<TrailMap> {
 
         const ml.MapScalebar(
           alignment: Alignment.topLeft,
-        ), // CORE-04 — default bottom-left
+        ), // default bottom-left
         const WandererAttribution(
           alignment: Alignment.topLeft,
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 44),
-        ), // CORE-04 — default bottom-right (ODbL)
+        ), // default bottom-right (ODbL)
 
         Align(
           alignment: Alignment.topRight,
@@ -256,11 +251,11 @@ class _TrailMapState extends ConsumerState<TrailMap> {
   /// the trail track + static arrows. Buffered/replayed via [_pendingStyle]
   /// when the native platform channel fires `onStyleLoaded` before
   /// `onMapCreated` — otherwise `_fitInitialCamera`'s null-`_controller`
-  /// early-return would silently no-op the initial fit (Gap 5).
+  /// early-return would silently no-op the initial fit.
   void _onStyleLoaded(ml.StyleController style) {
     _fitInitialCamera().ignore();
-    // 15-05: (re)add the trail track + static arrows after every style
-    // load, so they survive the CORE-02 theme swap (setStyle drops them).
+    // (Re)adds the trail track + static arrows after every style
+    // load, so they survive the theme swap (setStyle drops them).
     if (widget.showTrail && widget.trail.expand?.gpx != null) {
       addTrailTrackLayers(style, widget.trail).ignore();
     }
@@ -279,8 +274,8 @@ class _TrailMapState extends ConsumerState<TrailMap> {
         bounds.longitudeEast != bounds.longitudeWest;
 
     if (hasExtent) {
-      // CORE-03: near-instant initial fit to the trail bounds. Duration.zero
-      // is avoided — the Android native binding passes a zero duration to
+      // Near-instant initial fit to the trail bounds. Duration.zero is
+      // avoided — the Android native binding passes a zero duration to
       // the underlying Java `animateCamera` as null, which throws.
       await controller.fitBounds(
         bounds: bounds,
@@ -298,7 +293,7 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     }
   }
 
-  /// Elevation-profile scrub marker (TRAIL-05): a 12px white dot with a 2px
+  /// Elevation-profile scrub marker: a 12px white dot with a 2px
   /// black border, driven by [TrailMap.elevationMarkerPosition].
   Widget _buildElevationMarker() {
     return ml.WidgetLayer(
@@ -325,9 +320,9 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     );
   }
 
-  /// Interim location marker (A5): a simple location puck driven by
-  /// [foregroundPositionStreamProvider]. This is intentionally NOT the Phase-17
-  /// native follow/heading puck (CORE-07) — just a static dot at the device
+  /// Interim location marker: a simple location puck driven by
+  /// [foregroundPositionStreamProvider]. This is intentionally NOT a
+  /// native follow/heading puck — just a static dot at the device
   /// position so `trail_detail_map_screen` keeps its location indicator.
   Widget _buildLocationLayer() {
     final positionStream = ref.watch(foregroundPositionStreamProvider);

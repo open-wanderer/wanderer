@@ -360,8 +360,8 @@ class _ListMapState extends ConsumerState<_ListMap> {
           return ml.Marker(
             point: ml.Geographic(lat: t.lat!, lon: t.lon!),
             size: const Size(36, 36),
-            // Non-interactive (RESEARCH Open Question 2): no GestureDetector
-            // wrapper — matches today's plain, non-tappable MarkerLayer.
+            // Non-interactive: no GestureDetector wrapper — matches the
+            // plain, non-tappable MarkerLayer.
             child: Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).primaryColor,

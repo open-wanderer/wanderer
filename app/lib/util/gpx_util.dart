@@ -30,11 +30,10 @@ String costingForCategory(String? category) {
 }
 
 /// Builds a Valhalla shape list from [points], downsampling to ≤500 entries
-/// while always preserving the first and last point (OFFLINE-01 / D-08).
+/// while always preserving the first and last point.
 ///
-/// Shared by [launchNavigation] (online path, plan 05-03) and
-/// [downloadTrail] (cache-write path, plan 05-04) so the two paths can never
-/// diverge on shape sampling.
+/// Shared by [launchNavigation] (online path) and [downloadTrail]
+/// (cache-write path) so the two paths can never diverge on shape sampling.
 ///
 /// When `points.length > 500`:
 ///   - `step = (points.length / 499).ceil()` → at most 499 regularly-sampled

@@ -1,18 +1,17 @@
 import 'package:path/path.dart' as p;
 
-/// Path-safety helpers for the app-wide glyph/sprite cache (GLYPH-04, D-08).
+/// Path-safety helpers for the app-wide glyph/sprite cache.
 ///
 /// The glyph/sprite URLs are operator-controlled (`/map/style-sources`) and the
 /// `{fontstack}`/`{range}` tokens flow into on-disk path segments under
-/// `<app-docs>/map_cache`. To prevent path traversal (STRIDE Tampering
-/// T-15-03-01, RESEARCH § Security V5/V12) every cache filename derives ONLY
-/// from the 4 known fontstacks + a strictly numeric range, joined via
-/// `package:path` and rooted at the supplied cache root — an unexpected
-/// fontstack or a `..`-bearing / non-numeric range is rejected with an
-/// `ArgumentError` before any path is built.
+/// `<app-docs>/map_cache`. To prevent path traversal, every cache filename
+/// derives ONLY from the 4 known fontstacks + a strictly numeric range,
+/// joined via `package:path` and rooted at the supplied cache root — an
+/// unexpected fontstack or a `..`-bearing / non-numeric range is rejected
+/// with an `ArgumentError` before any path is built.
 
-/// The 4 whitelisted fontstacks (RESEARCH-confirmed against the theme
-/// `text-font` expressions). Any other fontstack is rejected.
+/// The 4 whitelisted fontstacks (confirmed against the theme `text-font`
+/// expressions). Any other fontstack is rejected.
 const List<String> allowedFontstacks = <String>[
   'Noto Sans Regular',
   'Noto Sans Medium',
@@ -56,7 +55,7 @@ String glyphCacheFilePath(String root, String fontstack, String range) {
 ///
 /// Returns `<root>/sprite/<light|dark>` — a base to which the MapLibre sprite
 /// loader appends `.json` / `.png` / `@2x.png`. Both variants live under the
-/// same `<root>/sprite/` directory (D-08 light+dark). The variant name is a
+/// same `<root>/sprite/` directory. The variant name is a
 /// hard-coded literal, so no external input reaches this path segment.
 String spriteCacheBasePath(String root, {required bool dark}) {
   return p.join(root, 'sprite', dark ? 'dark' : 'light');

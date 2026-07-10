@@ -108,7 +108,7 @@ void main() {
     });
   });
 
-  group('rewriteStyleForOffline — multi cell (OFFL-05)', () {
+  group('rewriteStyleForOffline — multi cell', () {
     test('emits one pmtiles source per cell and drops no cell', () {
       final result = rewriteStyleForOffline(
         _onlineStyle(),
@@ -123,7 +123,7 @@ void main() {
       );
 
       // Every supplied cell path is referenced by exactly one source url —
-      // no cell is silently dropped (OFFL-05).
+      // no cell is silently dropped.
       final urls = sources.values
           .map((dynamic s) => (s as Map<String, dynamic>)['url'] as String)
           .toSet();
@@ -156,7 +156,7 @@ void main() {
     });
   });
 
-  group('rewriteStyleForOffline — path safety (T-15-06-01/02)', () {
+  group('rewriteStyleForOffline — path safety', () {
     test('rejects a cell path with a .. traversal segment', () {
       expect(
         () => rewriteStyleForOffline(

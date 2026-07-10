@@ -8,18 +8,18 @@ part 'map_style_json_provider.g.dart';
 
 /// Loads the theme-appropriate MapLibre style asset and injects the operator's
 /// tile, glyph, and sprite endpoints (from [mapStyleSourcesProvider]) into the
-/// raw style-JSON String that MapLibre GL Native consumes (STYLE-02/03/04).
+/// raw style-JSON String that MapLibre GL Native consumes.
 ///
-/// Watches [themeModeProvider] so the provider re-runs on theme change — the
-/// enabling half of the live theme swap consumed in 15-04 (CORE-02).
+/// Watches [themeModeProvider] so the provider re-runs on theme change,
+/// enabling a live theme swap.
 ///
 /// The assets embed three unique sentinel tokens (`__TILE_URL__`,
 /// `__GLYPH_URL__`, `__SPRITE_URL__`); a plain [String.replaceAll] on each is
 /// lossless because the tokens never collide with legitimate style content.
 ///
-/// This ADDS a provider alongside the legacy `mapStyleProvider` (returning
-/// `vtr.Style`), which stays untouched so the four not-yet-migrated flutter_map
-/// screens keep rendering.
+/// This provider exists alongside the legacy `mapStyleProvider` (returning
+/// `vtr.Style`), which stays in place because some flutter_map screens still
+/// rely on it.
 @Riverpod(keepAlive: true)
 Future<String> mapStyleJson(Ref ref) async {
   final mode = ref.watch(themeModeProvider);
@@ -43,9 +43,6 @@ Future<String> mapStyleJson(Ref ref) async {
 
 /// Resolves the effective [Brightness] for a given [ThemeMode], falling back
 /// to the platform's current brightness when the mode is [ThemeMode.system].
-///
-/// Relocated (verbatim) from the now-deleted `map_style_provider.dart` — this
-/// is the only surviving export of that file (CLEAN-01/02, Phase 18).
 Brightness effectiveBrightness(ThemeMode mode) {
   if (mode == ThemeMode.dark) return Brightness.dark;
   if (mode == ThemeMode.light) return Brightness.light;

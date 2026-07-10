@@ -12,27 +12,26 @@ import 'package:wanderer/util/map_cache_path.dart';
 part 'glyph_sprite_cache_provider.g.dart';
 
 /// Number of 256-codepoint glyph ranges spanning the full 0-65535 codepoint
-/// space (D-08 "complete range set" — all 4 fontstacks are cached across this
-/// full set). Ranges the font does not cover simply 404 and are skipped.
+/// space, so all 4 fontstacks are cached across the complete range set.
+/// Ranges the font does not cover simply 404 and are skipped.
 const int _rangeCount = 256;
 
 /// Max concurrent downloads. Caps socket usage so warming the full
-/// 4-fontstack × 256-range set does not open hundreds of connections at once
-/// (DoS mitigation T-15-03-03).
+/// 4-fontstack × 256-range set does not open hundreds of connections at once.
 const int _maxConcurrentDownloads = 8;
 
 /// The three files that make up one sprite variant, keyed by the suffix the
 /// MapLibre sprite loader appends to the sprite base.
 const List<String> _spriteSuffixes = <String>['.json', '.png', '@2x.png'];
 
-/// The one shared app-wide glyph/sprite cache (GLYPH-04, D-08).
+/// The one shared app-wide glyph/sprite cache.
 ///
 /// On first read this `keepAlive` provider downloads every glyph range for the
 /// 4 whitelisted fontstacks plus both light and dark sprite sheets into
 /// `<app-docs>/map_cache`, idempotently (files already on disk are skipped, so a
-/// second trail download / map open is a no-op — OFFL-01, D-10). Every local
-/// path is built via the Task-1 path-safety helpers, so no operator-controlled
-/// token is ever concatenated into a path (T-15-03-01).
+/// second trail download / map open is a no-op). Every local path is built via
+/// the path-safety helpers in `map_cache_path.dart`, so no operator-controlled
+/// token is ever concatenated into a path.
 @Riverpod(keepAlive: true)
 class GlyphSpriteCache extends _$GlyphSpriteCache {
   @override
@@ -61,7 +60,7 @@ class GlyphSpriteCache extends _$GlyphSpriteCache {
         final localPath = glyphCacheFilePath(root, fontstack, range);
         // {fontstack} carries spaces — encode only for the REMOTE fetch URL; the
         // on-disk directory keeps the literal name so file:// substitution
-        // matches at render time (15-06).
+        // matches at render time.
         final url = sources.glyphUrl
             .replaceAll('{fontstack}', Uri.encodeComponent(fontstack))
             .replaceAll('{range}', range);
@@ -86,10 +85,10 @@ class GlyphSpriteCache extends _$GlyphSpriteCache {
     return paths;
   }
 
-  /// Download [job] unless its file already exists on disk (idempotent skip →
-  /// OFFL-01 / D-10 no-op). A missing range (404) or transient failure is
-  /// swallowed best-effort — not every fontstack covers every Unicode range,
-  /// and a glyph miss must not fail the whole warm.
+  /// Download [job] unless its file already exists on disk (idempotent skip).
+  /// A missing range (404) or transient failure is swallowed best-effort —
+  /// not every fontstack covers every Unicode range, and a glyph miss must
+  /// not fail the whole warm.
   Future<void> _download(Dio api, _DownloadJob job) async {
     if (await File(job.localPath).exists()) return;
     final dir = Directory(p.dirname(job.localPath));

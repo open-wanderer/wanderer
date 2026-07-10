@@ -3,7 +3,7 @@ import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
 // ---------------------------------------------------------------------------
-// Tests for buildNavShape downsampling guarantees (Phase 05, plan 05-01).
+// Tests for buildNavShape downsampling guarantees.
 //
 // Verifies: passthrough for ≤500 points, cap at ≤500 for >500 points,
 // first/last point preservation, and last-point deduplication.

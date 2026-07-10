@@ -85,7 +85,6 @@ class TrailListItem extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Title row + badges
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

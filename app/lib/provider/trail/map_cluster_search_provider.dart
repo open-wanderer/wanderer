@@ -9,9 +9,9 @@ import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 
 part 'map_cluster_search_provider.g.dart';
 
-/// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`
-/// (CLUS-01/04/05). Companion to [MapTrailSearch] — that provider still powers
-/// the bottom-sheet trail list (full attributes); this one only feeds the
+/// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`.
+/// Companion to [MapTrailSearch] — that provider still powers the
+/// bottom-sheet trail list (full attributes); this one only feeds the
 /// native cluster circle/count layers (`cluster_layer.dart`), so it returns
 /// the server's already-clustered GeoJSON `FeatureCollection` verbatim.
 @Riverpod(keepAlive: true)

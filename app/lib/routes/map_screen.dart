@@ -134,10 +134,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
     super.dispose();
   }
 
-  /// Fetch-then-fit trail selection (D-02): selects [trailId] immediately
-  /// (metadata resolved from the parallel `mapTrailSearchProvider` results,
-  /// via `firstWhereOrNull` — T-16-01, the id is untrusted input), then fits
-  /// the camera to the trail's polyline once it resolves.
+  /// Fetch-then-fit trail selection: selects [trailId] immediately (metadata
+  /// resolved from the parallel `mapTrailSearchProvider` results via
+  /// `firstWhereOrNull`, since the id is untrusted input), then fits the
+  /// camera to the trail's polyline once it resolves.
   void _selectTrail(String trailId) {
     final trails = ref.read(mapTrailSearchProvider).value ?? [];
     setState(() {
@@ -162,9 +162,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   Widget build(BuildContext context) {
     final savedCamera = ref.read(mapCameraProvider);
 
-    // Re-query rendering (CLUS-04): swap the native cluster source's data in
-    // place on every new mapClusterSearchProvider result — never remove and
-    // re-add the source.
+    // Swap the native cluster source's data in place on every new
+    // mapClusterSearchProvider result — never remove and re-add the source.
     ref.listen(mapClusterSearchProvider, (previous, next) {
       final style = _controller?.style;
       final data = next.value;
@@ -180,10 +179,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
           )
         : 0;
 
-    // KEEP mapTrailSearchProvider watched exactly as today — it still powers
-    // the bottom-sheet TrailCard list and the tapped-trail metadata lookup
-    // (the cluster endpoint's attributesToRetrieve is only id/_geo/
-    // bounding_box_diagonal, Pitfall 2).
+    // mapTrailSearchProvider still powers the bottom-sheet TrailCard list and
+    // the tapped-trail metadata lookup — the cluster endpoint's
+    // attributesToRetrieve only includes id/_geo/bounding_box_diagonal.
     final searchResultAsync = ref.watch(mapTrailSearchProvider);
     final trails = searchResultAsync.value ?? [];
     final allCategories = ref.watch(categoryProvider).value ?? [];
@@ -191,7 +189,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     // mapClusterSearchProvider drives the native cluster circle/count layers
     // (cluster_layer.dart) AND the unclustered category-icon WidgetLayer
-    // markers below (D-05).
+    // markers below.
     final clusterAsync = ref.watch(mapClusterSearchProvider);
     final featureCollection = clusterAsync.value;
     final features =
@@ -205,17 +203,17 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
       final pointCount = properties['point_count'];
       if (pointCount is! num || pointCount.toInt() != 1) continue;
-      // is_large is intentionally NOT filtered here (user decision, post-
-      // checkpoint fix): the server marks the top MAP_MAX_POLYLINES trails by
-      // size as is_large once zoom passes clusteringMaxZoom (~11) — with
-      // fewer trails in view than that threshold, this can mean ALL visible
-      // trails, not just rare huge ones. Full-polyline rendering for is_large
-      // trails is still deferred (FUT-01); for now any unclustered point
-      // (point_count == 1) renders as a category-icon marker regardless.
+      // is_large is intentionally not filtered here: the server marks the
+      // top MAP_MAX_POLYLINES trails by size as is_large once zoom passes
+      // clusteringMaxZoom (~11) — with fewer trails in view than that
+      // threshold, this can mean ALL visible trails, not just rare huge
+      // ones. Full-polyline rendering for is_large trails is not yet
+      // implemented; for now any unclustered point (point_count == 1)
+      // renders as a category-icon marker regardless.
 
       final trailId = properties['id'];
       if (trailId is! String) continue;
-      // T-16-01: the feature's id is untrusted input — firstWhereOrNull, not
+      // The feature's id is untrusted input, so use firstWhereOrNull, not
       // firstWhere, so a missing match skips the marker instead of crashing.
       final trail = trails.firstWhereOrNull((t) => t.id == trailId);
       if (trail == null) continue;
@@ -275,8 +273,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           initZoom: widget.initialZoom ?? savedCamera?.zoom,
           onMapCreated: (controller) => _controller = controller,
           onStyleLoaded: (style) async {
-            // T-16-02: fail soft on a malformed/oversized cluster response —
-            // never crash the map.
+            // Fail soft on a malformed/oversized cluster response — never
+            // crash the map.
             try {
               final data =
                   ref.read(mapClusterSearchProvider).value ??
@@ -286,8 +284,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               debugPrint('map_screen: failed to add cluster layers — $e');
             }
 
-            // Initial-load search trigger (replaces the old mapStyleProvider
-            // post-frame-callback pattern) — fires once per widget lifetime,
+            // Initial-load search trigger — fires once per widget lifetime,
             // not on every theme-swap style reload.
             if (!_initialSearchDone) {
               _initialSearchDone = true;
@@ -315,9 +312,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
               final controller = _controller;
               if (controller == null) return;
 
-              // CLUS-03: only the native `clusters` circle layer needs
+              // Only the native `clusters` circle layer needs
               // featuresAtPoint — unclustered points are WidgetLayer markers
-              // that handle their own onTap directly (D-05).
+              // that handle their own onTap directly.
               final clusterHits = controller.featuresAtPoint(
                 event.screenPoint,
                 layerIds: const ['clusters'],
@@ -345,7 +342,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               }
 
               // Background tap (not on a cluster or a marker widget) —
-              // deselect + collapse the sheet, matching today's onTap.
+              // deselect and collapse the sheet.
               if (_sheetController.isAttached) {
                 _sheetController.animateTo(
                   sheetMinSize,
@@ -741,10 +738,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 }
 
-/// Interim device-location marker (mirrors `TrailMap._buildLocationLayer`)
-/// — a simple native puck driven by [foregroundPositionStreamProvider].
-/// Replaces the old flutter_map-only location-marker widget, which
-/// cannot render outside a flutter_map `FlutterMap` widget tree.
+/// Device-location marker mirroring `TrailMap._buildLocationLayer` — a
+/// simple native puck driven by [foregroundPositionStreamProvider], since
+/// flutter_map-only location-marker widgets cannot render outside a
+/// flutter_map `FlutterMap` widget tree.
 class _LocationLayer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
