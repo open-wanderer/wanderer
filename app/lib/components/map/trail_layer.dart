@@ -2,13 +2,11 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/util/gpx_util.dart';
-import 'package:wanderer/util/map_coordinate_adapter.dart';
 
 /// Default GPX route line color (`#3549bb`). Overridable per call.
 const Color kTrailRouteColor = Color(0xff3549bb);
@@ -265,134 +263,4 @@ Widget _buildCircularMarker(
       ),
     ),
   );
-}
-
-/// Legacy `flutter_map`-based trail overlay, kept ONLY for `navigation_screen.dart`
-/// (a Phase-17 flutter_map holdout — CORE-05/06/07 don't close until navigation
-/// migrates). `WandererMap` (CORE-01) no longer uses this; it uses
-/// [addTrailTrackLayers] + [TrailMarkerLayer] above. Do not add new call sites —
-/// delete this class when navigation_screen migrates to MapLibre (Phase 17).
-class TrailLayer extends StatefulWidget {
-  final Trail trail;
-  final Color routeColor;
-  final double strokeWidth;
-  final bool showWaypoints;
-  final Waypoint? selectedWaypoint;
-
-  final Function(Waypoint wp)? onWaypointTap;
-
-  TrailLayer({
-    super.key,
-    required this.trail,
-    this.routeColor = const Color(0xff3549bb),
-    this.strokeWidth = 5.0,
-    this.showWaypoints = true,
-    this.selectedWaypoint,
-    this.onWaypointTap,
-  }) : assert(
-         trail.expand?.gpx != null,
-         'TrailLayer requires expanded GPX data.',
-       );
-
-  @override
-  State<TrailLayer> createState() => _TrailLayerState();
-}
-
-class _TrailLayerState extends State<TrailLayer> {
-  @override
-  Widget build(BuildContext context) {
-    final camera = MapCamera.of(context);
-
-    final gpx = widget.trail.expand!.gpx!;
-    final pathPoints = gpx.allPoints;
-    final List<Marker> staticMarkers = [];
-
-    if (widget.showWaypoints &&
-        widget.trail.expand?.waypointsViaTrail != null) {
-      for (var wp in widget.trail.expand!.waypointsViaTrail!) {
-        final isSelected = widget.selectedWaypoint?.id == wp.id;
-        staticMarkers.add(
-          Marker(
-            point: toLatLng(ml.Geographic(lon: wp.lon, lat: wp.lat)),
-            width: 32,
-            height: 32,
-            child: GestureDetector(
-              onTap: () => widget.onWaypointTap?.call(wp),
-              child: AnimatedScale(
-                scale: isSelected ? 1.0 : 0.875,
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutBack,
-                child: _buildCircularMarker(
-                  wp.icon,
-                  color: Theme.of(context).primaryColor,
-                  selected: isSelected,
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-    }
-    if (pathPoints.isNotEmpty) {
-      Alignment startAlignment = Alignment.center;
-      Alignment endAlignment = Alignment.center;
-
-      if (pathPoints.length > 1) {
-        final startPx = camera.latLngToScreenOffset(toLatLng(pathPoints.first));
-        final endPx = camera.latLngToScreenOffset(toLatLng(pathPoints.last));
-        final dx = startPx.dx - endPx.dx;
-        final dy = startPx.dy - endPx.dy;
-        if (math.sqrt(dx * dx + dy * dy) < 36) {
-          startAlignment = Alignment(1, 0);
-          endAlignment = Alignment(-1, 0);
-        }
-      }
-
-      staticMarkers.add(
-        Marker(
-          point: toLatLng(pathPoints.first),
-          width: 28,
-          height: 28,
-          alignment: startAlignment,
-          child: _buildCircularMarker(
-            FontAwesomeIcons.bullseye,
-            color: Colors.greenAccent,
-          ),
-        ),
-      );
-      staticMarkers.add(
-        Marker(
-          point: toLatLng(pathPoints.last),
-          width: 28,
-          height: 28,
-          alignment: endAlignment,
-          child: _buildCircularMarker(
-            FontAwesomeIcons.flagCheckered,
-            color: Colors.redAccent,
-          ),
-        ),
-      );
-    }
-
-    return Stack(
-      children: [
-        if (pathPoints.length > 1)
-          PolylineLayer(
-            polylines: [
-              Polyline(
-                points: toLatLngList(pathPoints),
-                color: widget.routeColor,
-                strokeWidth: widget.strokeWidth,
-                borderColor: Colors.white,
-                borderStrokeWidth: 2,
-              ),
-            ],
-          ),
-
-        // Static Overlay Layer
-        if (widget.showWaypoints || pathPoints.isNotEmpty)
-          MarkerLayer(markers: staticMarkers),
-      ],
-    );
-  }
 }
