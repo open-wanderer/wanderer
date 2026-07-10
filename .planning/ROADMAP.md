@@ -235,7 +235,14 @@ Plans:
   3. With the device offline, navigation still serves maneuvers from the ObjectBox cache and shows the offline indicator — v1.1 behavior, unregressed.
   4. The location puck and follow mode come from maplibre's `enableLocation` / `trackLocation`, camera moves from native `animateCamera` / `fitBounds`, and the compass from maplibre's built-in `MapCompass`. `lib/components/map/map_compass.dart` is deleted, and no `AnimatedMapController` or `CurrentLocationLayer` reference remains anywhere in `lib/`.
 
-**Plans**: TBD
+**Plans**: 3 plans (3 waves)
+
+Plans:
+
+- [ ] 17-01-PLAN.md — Migrate navigation_screen to ml.MapLibreMap: native puck/follow, compass toggle, breadcrumb, offline pmtiles (NAV-01/02/03, CORE-06/07)
+- [ ] 17-02-PLAN.md — Delete map_compass.dart + pm_tile_provider.dart, strip legacy TrailLayer, restore trail-detail compass (CORE-05, OFFL-06)
+- [ ] 17-03-PLAN.md — On-device checkpoint: drag-break precision, follow, compass, offline navigation (NAV-01/02/03/04, CORE-07)
+
 **UI hint**: yes
 
 ### Phase 18: Retire flutter_map and the flomp Forks
