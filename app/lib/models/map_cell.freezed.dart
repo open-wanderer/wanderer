@@ -556,7 +556,7 @@ as int?,
 /// @nodoc
 mixin _$MapCellStatusResponse {
 
- MapCellStatus get status;@JsonKey(name: 'download_url') String? get downloadUrl;@JsonKey(name: 'status_url') String? get statusUrl;@JsonKey(name: 'size_bytes') int? get sizeBytes; String? get error;
+ MapCellStatus get status;@JsonKey(name: 'download_url') String? get downloadUrl;@JsonKey(name: 'status_url') String? get statusUrl;@JsonKey(name: 'size_bytes') int? get sizeBytes;@JsonKey(name: 'dem_download_url') String? get demDownloadUrl; String? get error;
 /// Create a copy of MapCellStatusResponse
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -569,16 +569,16 @@ $MapCellStatusResponseCopyWith<MapCellStatusResponse> get copyWith => _$MapCellS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MapCellStatusResponse&&(identical(other.status, status) || other.status == status)&&(identical(other.downloadUrl, downloadUrl) || other.downloadUrl == downloadUrl)&&(identical(other.statusUrl, statusUrl) || other.statusUrl == statusUrl)&&(identical(other.sizeBytes, sizeBytes) || other.sizeBytes == sizeBytes)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MapCellStatusResponse&&(identical(other.status, status) || other.status == status)&&(identical(other.downloadUrl, downloadUrl) || other.downloadUrl == downloadUrl)&&(identical(other.statusUrl, statusUrl) || other.statusUrl == statusUrl)&&(identical(other.sizeBytes, sizeBytes) || other.sizeBytes == sizeBytes)&&(identical(other.demDownloadUrl, demDownloadUrl) || other.demDownloadUrl == demDownloadUrl)&&(identical(other.error, error) || other.error == error));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,status,downloadUrl,statusUrl,sizeBytes,error);
+int get hashCode => Object.hash(runtimeType,status,downloadUrl,statusUrl,sizeBytes,demDownloadUrl,error);
 
 @override
 String toString() {
-  return 'MapCellStatusResponse(status: $status, downloadUrl: $downloadUrl, statusUrl: $statusUrl, sizeBytes: $sizeBytes, error: $error)';
+  return 'MapCellStatusResponse(status: $status, downloadUrl: $downloadUrl, statusUrl: $statusUrl, sizeBytes: $sizeBytes, demDownloadUrl: $demDownloadUrl, error: $error)';
 }
 
 
@@ -589,7 +589,7 @@ abstract mixin class $MapCellStatusResponseCopyWith<$Res>  {
   factory $MapCellStatusResponseCopyWith(MapCellStatusResponse value, $Res Function(MapCellStatusResponse) _then) = _$MapCellStatusResponseCopyWithImpl;
 @useResult
 $Res call({
- MapCellStatus status,@JsonKey(name: 'download_url') String? downloadUrl,@JsonKey(name: 'status_url') String? statusUrl,@JsonKey(name: 'size_bytes') int? sizeBytes, String? error
+ MapCellStatus status,@JsonKey(name: 'download_url') String? downloadUrl,@JsonKey(name: 'status_url') String? statusUrl,@JsonKey(name: 'size_bytes') int? sizeBytes,@JsonKey(name: 'dem_download_url') String? demDownloadUrl, String? error
 });
 
 
@@ -606,13 +606,14 @@ class _$MapCellStatusResponseCopyWithImpl<$Res>
 
 /// Create a copy of MapCellStatusResponse
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? downloadUrl = freezed,Object? statusUrl = freezed,Object? sizeBytes = freezed,Object? error = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? downloadUrl = freezed,Object? statusUrl = freezed,Object? sizeBytes = freezed,Object? demDownloadUrl = freezed,Object? error = freezed,}) {
   return _then(_self.copyWith(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as MapCellStatus,downloadUrl: freezed == downloadUrl ? _self.downloadUrl : downloadUrl // ignore: cast_nullable_to_non_nullable
 as String?,statusUrl: freezed == statusUrl ? _self.statusUrl : statusUrl // ignore: cast_nullable_to_non_nullable
 as String?,sizeBytes: freezed == sizeBytes ? _self.sizeBytes : sizeBytes // ignore: cast_nullable_to_non_nullable
-as int?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as int?,demDownloadUrl: freezed == demDownloadUrl ? _self.demDownloadUrl : demDownloadUrl // ignore: cast_nullable_to_non_nullable
+as String?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -698,10 +699,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( MapCellStatus status, @JsonKey(name: 'download_url')  String? downloadUrl, @JsonKey(name: 'status_url')  String? statusUrl, @JsonKey(name: 'size_bytes')  int? sizeBytes,  String? error)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( MapCellStatus status, @JsonKey(name: 'download_url')  String? downloadUrl, @JsonKey(name: 'status_url')  String? statusUrl, @JsonKey(name: 'size_bytes')  int? sizeBytes, @JsonKey(name: 'dem_download_url')  String? demDownloadUrl,  String? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _MapCellStatusResponse() when $default != null:
-return $default(_that.status,_that.downloadUrl,_that.statusUrl,_that.sizeBytes,_that.error);case _:
+return $default(_that.status,_that.downloadUrl,_that.statusUrl,_that.sizeBytes,_that.demDownloadUrl,_that.error);case _:
   return orElse();
 
 }
@@ -719,10 +720,10 @@ return $default(_that.status,_that.downloadUrl,_that.statusUrl,_that.sizeBytes,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( MapCellStatus status, @JsonKey(name: 'download_url')  String? downloadUrl, @JsonKey(name: 'status_url')  String? statusUrl, @JsonKey(name: 'size_bytes')  int? sizeBytes,  String? error)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( MapCellStatus status, @JsonKey(name: 'download_url')  String? downloadUrl, @JsonKey(name: 'status_url')  String? statusUrl, @JsonKey(name: 'size_bytes')  int? sizeBytes, @JsonKey(name: 'dem_download_url')  String? demDownloadUrl,  String? error)  $default,) {final _that = this;
 switch (_that) {
 case _MapCellStatusResponse():
-return $default(_that.status,_that.downloadUrl,_that.statusUrl,_that.sizeBytes,_that.error);case _:
+return $default(_that.status,_that.downloadUrl,_that.statusUrl,_that.sizeBytes,_that.demDownloadUrl,_that.error);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -739,10 +740,10 @@ return $default(_that.status,_that.downloadUrl,_that.statusUrl,_that.sizeBytes,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( MapCellStatus status, @JsonKey(name: 'download_url')  String? downloadUrl, @JsonKey(name: 'status_url')  String? statusUrl, @JsonKey(name: 'size_bytes')  int? sizeBytes,  String? error)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( MapCellStatus status, @JsonKey(name: 'download_url')  String? downloadUrl, @JsonKey(name: 'status_url')  String? statusUrl, @JsonKey(name: 'size_bytes')  int? sizeBytes, @JsonKey(name: 'dem_download_url')  String? demDownloadUrl,  String? error)?  $default,) {final _that = this;
 switch (_that) {
 case _MapCellStatusResponse() when $default != null:
-return $default(_that.status,_that.downloadUrl,_that.statusUrl,_that.sizeBytes,_that.error);case _:
+return $default(_that.status,_that.downloadUrl,_that.statusUrl,_that.sizeBytes,_that.demDownloadUrl,_that.error);case _:
   return null;
 
 }
@@ -754,13 +755,14 @@ return $default(_that.status,_that.downloadUrl,_that.statusUrl,_that.sizeBytes,_
 @JsonSerializable()
 
 class _MapCellStatusResponse implements MapCellStatusResponse {
-  const _MapCellStatusResponse({required this.status, @JsonKey(name: 'download_url') this.downloadUrl, @JsonKey(name: 'status_url') this.statusUrl, @JsonKey(name: 'size_bytes') this.sizeBytes, this.error});
+  const _MapCellStatusResponse({required this.status, @JsonKey(name: 'download_url') this.downloadUrl, @JsonKey(name: 'status_url') this.statusUrl, @JsonKey(name: 'size_bytes') this.sizeBytes, @JsonKey(name: 'dem_download_url') this.demDownloadUrl, this.error});
   factory _MapCellStatusResponse.fromJson(Map<String, dynamic> json) => _$MapCellStatusResponseFromJson(json);
 
 @override final  MapCellStatus status;
 @override@JsonKey(name: 'download_url') final  String? downloadUrl;
 @override@JsonKey(name: 'status_url') final  String? statusUrl;
 @override@JsonKey(name: 'size_bytes') final  int? sizeBytes;
+@override@JsonKey(name: 'dem_download_url') final  String? demDownloadUrl;
 @override final  String? error;
 
 /// Create a copy of MapCellStatusResponse
@@ -776,16 +778,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MapCellStatusResponse&&(identical(other.status, status) || other.status == status)&&(identical(other.downloadUrl, downloadUrl) || other.downloadUrl == downloadUrl)&&(identical(other.statusUrl, statusUrl) || other.statusUrl == statusUrl)&&(identical(other.sizeBytes, sizeBytes) || other.sizeBytes == sizeBytes)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MapCellStatusResponse&&(identical(other.status, status) || other.status == status)&&(identical(other.downloadUrl, downloadUrl) || other.downloadUrl == downloadUrl)&&(identical(other.statusUrl, statusUrl) || other.statusUrl == statusUrl)&&(identical(other.sizeBytes, sizeBytes) || other.sizeBytes == sizeBytes)&&(identical(other.demDownloadUrl, demDownloadUrl) || other.demDownloadUrl == demDownloadUrl)&&(identical(other.error, error) || other.error == error));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,status,downloadUrl,statusUrl,sizeBytes,error);
+int get hashCode => Object.hash(runtimeType,status,downloadUrl,statusUrl,sizeBytes,demDownloadUrl,error);
 
 @override
 String toString() {
-  return 'MapCellStatusResponse(status: $status, downloadUrl: $downloadUrl, statusUrl: $statusUrl, sizeBytes: $sizeBytes, error: $error)';
+  return 'MapCellStatusResponse(status: $status, downloadUrl: $downloadUrl, statusUrl: $statusUrl, sizeBytes: $sizeBytes, demDownloadUrl: $demDownloadUrl, error: $error)';
 }
 
 
@@ -796,7 +798,7 @@ abstract mixin class _$MapCellStatusResponseCopyWith<$Res> implements $MapCellSt
   factory _$MapCellStatusResponseCopyWith(_MapCellStatusResponse value, $Res Function(_MapCellStatusResponse) _then) = __$MapCellStatusResponseCopyWithImpl;
 @override @useResult
 $Res call({
- MapCellStatus status,@JsonKey(name: 'download_url') String? downloadUrl,@JsonKey(name: 'status_url') String? statusUrl,@JsonKey(name: 'size_bytes') int? sizeBytes, String? error
+ MapCellStatus status,@JsonKey(name: 'download_url') String? downloadUrl,@JsonKey(name: 'status_url') String? statusUrl,@JsonKey(name: 'size_bytes') int? sizeBytes,@JsonKey(name: 'dem_download_url') String? demDownloadUrl, String? error
 });
 
 
@@ -813,13 +815,14 @@ class __$MapCellStatusResponseCopyWithImpl<$Res>
 
 /// Create a copy of MapCellStatusResponse
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? downloadUrl = freezed,Object? statusUrl = freezed,Object? sizeBytes = freezed,Object? error = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? downloadUrl = freezed,Object? statusUrl = freezed,Object? sizeBytes = freezed,Object? demDownloadUrl = freezed,Object? error = freezed,}) {
   return _then(_MapCellStatusResponse(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as MapCellStatus,downloadUrl: freezed == downloadUrl ? _self.downloadUrl : downloadUrl // ignore: cast_nullable_to_non_nullable
 as String?,statusUrl: freezed == statusUrl ? _self.statusUrl : statusUrl // ignore: cast_nullable_to_non_nullable
 as String?,sizeBytes: freezed == sizeBytes ? _self.sizeBytes : sizeBytes // ignore: cast_nullable_to_non_nullable
-as int?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as int?,demDownloadUrl: freezed == demDownloadUrl ? _self.demDownloadUrl : demDownloadUrl // ignore: cast_nullable_to_non_nullable
+as String?,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

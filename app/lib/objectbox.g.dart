@@ -421,7 +421,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(6, 5034082009762803572),
     name: 'TrailEntity',
-    lastPropertyId: const obx_int.IdUid(26, 4841945116984417903),
+    lastPropertyId: const obx_int.IdUid(27, 1385314773466755533),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -585,6 +585,12 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(26, 4841945116984417903),
         name: 'navCacheJson',
         type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(27, 1385314773466755533),
+        name: 'demPmTiles',
+        type: 30,
         flags: 0,
       ),
     ],
@@ -1331,7 +1337,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final navCacheJsonOffset = object.navCacheJson == null
             ? null
             : fbb.writeString(object.navCacheJson!);
-        fbb.startTable(27);
+        final demPmTilesOffset = fbb.writeList(
+          object.demPmTiles.map(fbb.writeString).toList(growable: false),
+        );
+        fbb.startTable(28);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1358,6 +1367,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addFloat64(23, object.minLat);
         fbb.addFloat64(24, object.minLon);
         fbb.addOffset(25, navCacheJsonOffset);
+        fbb.addOffset(26, demPmTilesOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1500,7 +1510,11 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 rootOffset,
                 36,
                 0,
-              );
+              )
+              ..demPmTiles = const fb.ListReader<String>(
+                fb.StringReader(asciiOptimization: true),
+                lazy: false,
+              ).vTableGet(buffer, rootOffset, 56, []);
         object.author.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -2145,6 +2159,11 @@ class TrailEntity_ {
   /// See [TrailEntity.navCacheJson].
   static final navCacheJson = obx.QueryStringProperty<TrailEntity>(
     _entities[4].properties[25],
+  );
+
+  /// See [TrailEntity.demPmTiles].
+  static final demPmTiles = obx.QueryStringVectorProperty<TrailEntity>(
+    _entities[4].properties[26],
   );
 
   /// see [TrailEntity.waypoints]

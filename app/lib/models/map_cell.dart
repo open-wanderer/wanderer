@@ -43,6 +43,7 @@ abstract class MapCellStatusResponse with _$MapCellStatusResponse {
     @JsonKey(name: 'download_url') String? downloadUrl,
     @JsonKey(name: 'status_url') String? statusUrl,
     @JsonKey(name: 'size_bytes') int? sizeBytes,
+    @JsonKey(name: 'dem_download_url') String? demDownloadUrl,
     String? error,
   }) = _MapCellStatusResponse;
 

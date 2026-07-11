@@ -340,7 +340,7 @@
     },
     {
       "id": "6:5034082009762803572",
-      "lastPropertyId": "26:4841945116984417903",
+      "lastPropertyId": "27:1385314773466755533",
       "name": "TrailEntity",
       "properties": [
         {
@@ -481,6 +481,11 @@
           "id": "26:4841945116984417903",
           "name": "navCacheJson",
           "type": 9
+        },
+        {
+          "id": "27:1385314773466755533",
+          "name": "demPmTiles",
+          "type": 30
         }
       ],
       "relations": []

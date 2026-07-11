@@ -63,13 +63,16 @@ class TrailDownloadService {
     }
 
     final List<String> cellPaths;
+    final List<String> demCellPaths;
     try {
-      cellPaths = await _downloadMapTiles(
+      final tileResult = await _downloadMapTiles(
         trail,
         trailDir,
         cancelToken: cancelToken,
         onProgress: onProgress,
       );
+      cellPaths = tileResult.$1;
+      demCellPaths = tileResult.$2;
     } catch (e) {
       await trailDir.delete(recursive: true);
       rethrow;
@@ -78,6 +81,7 @@ class TrailDownloadService {
     final entity = TrailEntity.fromModel(trail);
     entity.photos = localPaths;
     entity.pmTiles = cellPaths;
+    entity.demPmTiles = demCellPaths;
     for (final waypointEntity in entity.waypoints) {
       final paths = waypointLocalPhotos[waypointEntity.id];
       if (paths != null) waypointEntity.localPhotos = paths;
@@ -127,7 +131,12 @@ class TrailDownloadService {
     });
   }
 
-  Future<List<String>> _downloadMapTiles(
+  /// Downloads the vector `.pmtiles` cell (fatal on failure) and, best-effort,
+  /// its companion DEM `_dem.pmtiles` cell (hillshade is cosmetic — a DEM
+  /// failure or a missing `demDownloadUrl` must never fail the trail
+  /// download). Returns `(vector paths, dem paths)`; `dem paths` may be
+  /// shorter than `vector paths` when some cells have no DEM archive.
+  Future<(List<String>, List<String>)> _downloadMapTiles(
     Trail trail,
     Directory trailDir, {
     CancelToken? cancelToken,
@@ -139,7 +148,7 @@ class TrailDownloadService {
         '${bounds.longitudeWest},${bounds.latitudeSouth},${bounds.longitudeEast},${bounds.latitudeNorth}';
 
     final infoList = await _fetchCellList(bbox, cancelToken: cancelToken);
-    if (infoList.cells.isEmpty) return [];
+    if (infoList.cells.isEmpty) return (<String>[], <String>[]);
 
     final tilesDir = Directory('${trailDir.path}/tiles');
     if (!await tilesDir.exists()) {
@@ -154,29 +163,64 @@ class TrailDownloadService {
     final downloadTasks = infoList.cells.map((cell) async {
       final key = cell.key;
       final localPath = '${tilesDir.path}/$key.pmtiles';
+      final demLocalPath = '${tilesDir.path}/${key}_dem.pmtiles';
 
-      if (await File(localPath).exists()) {
-        return localPath;
+      final vectorCached = await File(localPath).exists();
+      final demCached = await File(demLocalPath).exists();
+
+      if (vectorCached && demCached) {
+        return (localPath, demLocalPath);
       }
 
       try {
-        final requestRes = await _api.get(cell.url, cancelToken: cancelToken);
-        var readyCell = MapCellStatusResponse.fromJson(requestRes.data!);
+        MapCellStatusResponse? readyCell;
 
-        if (readyCell.status != MapCellStatus.ready) {
-          readyCell = await _pollUntilReady(
-            readyCell.statusUrl!,
-            key,
-            cancelToken,
+        // Fetch cell status when the vector archive is missing (needed to
+        // download it) or when the DEM archive is missing (needed for its
+        // demDownloadUrl) — a cache-hit on both skips the network entirely.
+        if (!vectorCached || !demCached) {
+          final requestRes = await _api.get(
+            cell.url,
+            cancelToken: cancelToken,
+          );
+          readyCell = MapCellStatusResponse.fromJson(requestRes.data!);
+
+          if (readyCell.status != MapCellStatus.ready) {
+            readyCell = await _pollUntilReady(
+              readyCell.statusUrl!,
+              key,
+              cancelToken,
+            );
+          }
+        }
+
+        if (!vectorCached) {
+          await _api.download(
+            readyCell!.downloadUrl!,
+            localPath,
+            cancelToken: cancelToken,
           );
         }
 
-        await _api.download(
-          readyCell.downloadUrl!,
-          localPath,
-          cancelToken: cancelToken,
-        );
-        return localPath;
+        String? demPath = demCached ? demLocalPath : null;
+        if (!demCached && readyCell?.demDownloadUrl != null) {
+          try {
+            await _api.download(
+              readyCell!.demDownloadUrl!,
+              demLocalPath,
+              cancelToken: cancelToken,
+            );
+            demPath = demLocalPath;
+          } on DioException catch (e) {
+            if (CancelToken.isCancel(e)) rethrow;
+            if (await File(demLocalPath).exists()) {
+              await File(demLocalPath).delete();
+            }
+            demPath = null;
+          }
+        }
+
+        return (localPath, demPath);
       } on DioException {
         if (await File(localPath).exists()) {
           await File(localPath).delete();
@@ -188,10 +232,12 @@ class TrailDownloadService {
     final results = await Future.wait(downloadTasks);
     // Report final progress after all concurrent tasks complete.
     if (onProgress != null) {
-      final done = results.whereType<String>().length;
-      onProgress(done, total);
+      onProgress(results.length, total);
     }
-    return results.whereType<String>().toList();
+    return (
+      results.map((r) => r.$1).toList(),
+      results.map((r) => r.$2).whereType<String>().toList(),
+    );
   }
 
   Future<MapCellInfoList> _fetchCellList(

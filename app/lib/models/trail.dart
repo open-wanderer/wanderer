@@ -99,6 +99,7 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     @Default(false) bool isOffline,
     @Default([]) List<String> localPhotos,
     @Default([]) List<String> pmTiles,
+    @Default([]) List<String> demPmTiles,
   }) = _Trail;
 
   const Trail._();

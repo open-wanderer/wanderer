@@ -45,6 +45,7 @@ _MapCellStatusResponse _$MapCellStatusResponseFromJson(
   downloadUrl: json['download_url'] as String?,
   statusUrl: json['status_url'] as String?,
   sizeBytes: (json['size_bytes'] as num?)?.toInt(),
+  demDownloadUrl: json['dem_download_url'] as String?,
   error: json['error'] as String?,
 );
 
@@ -55,5 +56,6 @@ Map<String, dynamic> _$MapCellStatusResponseToJson(
   'download_url': instance.downloadUrl,
   'status_url': instance.statusUrl,
   'size_bytes': instance.sizeBytes,
+  'dem_download_url': instance.demDownloadUrl,
   'error': instance.error,
 };
