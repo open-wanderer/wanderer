@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' show pi;
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_rotation_sensor/flutter_rotation_sensor.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:go_router/go_router.dart';
@@ -21,6 +24,7 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
+import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
@@ -44,15 +48,86 @@ class NavigationScreen extends ConsumerStatefulWidget {
   ConsumerState<NavigationScreen> createState() => _NavigationScreenState();
 }
 
-class _NavigationScreenState extends ConsumerState<NavigationScreen> {
+class _NavigationScreenState extends ConsumerState<NavigationScreen>
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   late final TraceletPositionSource _positionSource;
   late final Stream<geo.Position> _positionStream;
   StreamSubscription<geo.Position>? _sub;
 
-  /// Latest GPS fix, driving both the custom [_LocationMarkerLayer] marker
-  /// and manual camera-follow. A [ValueNotifier] so the marker rebuilds in a
-  /// scoped `ValueListenableBuilder` without a full-screen `setState`.
-  final ValueNotifier<geo.Position?> _currentPosition = ValueNotifier(null);
+  /// Latest *animated* GPS fix, driving both the custom [_LocationMarkerLayer]
+  /// marker and camera-follow. A [ValueNotifier] so the marker rebuilds in a
+  /// scoped `ValueListenableBuilder` without a full-screen `setState`. Sourced
+  /// from [_positionSource] (tracelet), which runs a continuous, unfiltered
+  /// foreground config while the screen is active (see
+  /// [TraceletPositionSource.setForeground]) — no separate GPS stream needed.
+  /// Values are interpolated between raw fixes by [_positionAnimController]
+  /// — see [_onFix].
+  final ValueNotifier<LocationMarkerPosition?> _currentPosition = ValueNotifier(
+    null,
+  );
+
+  /// Short per-fix position tween smoothing the marker/camera between raw GPS
+  /// fixes — mirrors the 200ms `fastOutSlowIn` `flutter_map_location_marker`'s
+  /// `CurrentLocationLayer` used pre-MapLibre-migration, which this screen lost
+  /// when native `trackLocation` was replaced by one-shot `animateCamera` calls
+  /// per fix (that native animation cancels/restarts on every call, causing
+  /// stutter once fixes arrive faster than its duration).
+  late final AnimationController _positionAnimController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 200),
+  )..addListener(_applyAnimatedFrame);
+  late final CurvedAnimation _positionCurve = CurvedAnimation(
+    parent: _positionAnimController,
+    curve: Curves.fastOutSlowIn,
+  );
+
+  double? _animStartLat;
+  double? _animStartLon;
+  double? _animTargetLat;
+  double? _animTargetLon;
+  double _animAccuracy = 0;
+
+  /// Latest interpolated position, updated every position-tween frame and
+  /// reused when a heading-sensor event needs to re-publish the marker/camera.
+  double? _lastLat;
+  double? _lastLon;
+
+  /// Camera bearing we last told MapLibre to use — the single source of
+  /// truth for every `moveCamera` bearing argument. This MapLibre version's
+  /// camera-update builder does not reliably treat an omitted (`null`) field
+  /// as "leave unchanged", so passing `bearing: null` while a heading-up/
+  /// north-return transition is mid-flight can reset or fight the in-flight
+  /// rotation, occasionally leaving it stuck partway. Every camera push below
+  /// writes this explicit value instead of `null`.
+  double _mapBearing = 0;
+
+  /// One-shot tween for the two discrete, user-triggered bearing transitions
+  /// (compass tap to enter/exit heading-up). Continuous updates (GPS position
+  /// ticks, heading sensor ticks) write [_mapBearing] and push directly
+  /// instead — they're already smoothed by [_positionAnimController]/the
+  /// sensor's own cadence — so this exists only to animate the discrete jump,
+  /// and to be the *only* writer of [_mapBearing] while it's running (see the
+  /// `!_bearingTransitionController.isAnimating` guard in [_onHeading]).
+  late final AnimationController _bearingTransitionController =
+      AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 400),
+      )..addListener(_applyBearingTransition);
+  late final CurvedAnimation _bearingTransitionCurve = CurvedAnimation(
+    parent: _bearingTransitionController,
+    curve: Curves.easeInOut,
+  );
+  double _bearingTransitionStart = 0;
+  double _bearingTransitionTarget = 0;
+
+  /// Device heading in degrees (0 = north, clockwise), sourced from the
+  /// orientation sensor ([_headingSub]) independently of GPS — GPS `heading`
+  /// is only produced while moving and is useless when turning in place.
+  /// Null until the first sensor event. Low-pass smoothed via [_lerpBearing]
+  /// since the raw magnetometer signal is jittery.
+  double? _smoothedHeading;
+  StreamSubscription<OrientationEvent>? _headingSub;
+  static const _kHeadingSmoothingAlpha = 0.35;
 
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
@@ -99,6 +174,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
   void initState() {
     super.initState();
 
+    WidgetsBinding.instance.addObserver(this);
+
     _positionSource = TraceletPositionSource();
     _positionStream = _positionSource.stream;
     // AppLocalizations.of(context) isn't safe to call synchronously here —
@@ -115,32 +192,182 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
         ),
       );
     });
+    // Single stream drives both recording/stats and the live marker/camera —
+    // TraceletPositionSource swaps between a continuous foreground config and
+    // a battery-conscious background config (see [_positionSource.setForeground],
+    // called from [didChangeAppLifecycleState]) rather than running a second,
+    // separate GPS session just for the UI.
     _sub = _positionStream.listen(
       (pos) {
-        _currentPosition.value = pos;
         ref
             .read(navigationProvider(widget.response).notifier)
             .onPosition(ml.Geographic(lat: pos.latitude, lon: pos.longitude));
         ref
             .read(navigationStatsProvider(widget.response).notifier)
             .onPosition(pos);
-        if (_followEnabled) {
-          _controller?.animateCamera(
-            center: ml.Geographic(lat: pos.latitude, lon: pos.longitude),
-            bearing: (_headingUp && pos.heading >= 0) ? pos.heading : null,
-            nativeDuration: const Duration(milliseconds: 300),
-          );
-        }
+        _onFix(pos);
       },
       onError: (Object error) {
         debugPrint('NavigationScreen: GPS stream error — $error');
       },
     );
+
+    _startHeadingSub();
+  }
+
+  /// Subscribes to the device orientation sensor for heading — decoupled from
+  /// GPS so the marker/map keep rotating when the user turns in place (GPS
+  /// `heading` only updates while moving). Same source `flutter_map_location_
+  /// marker` uses. Foreground-only: paused/resumed alongside [_foregroundSub].
+  void _startHeadingSub() {
+    _headingSub?.cancel();
+    if (!RotationSensor.isPlatformSupported) return;
+    RotationSensor.samplingPeriod = SensorInterval.uiInterval;
+    _headingSub = RotationSensor.orientationStream.listen(
+      (event) {
+        // azimuth: radians, 0 = north, clockwise — same convention as the
+        // MapLibre camera bearing. Package already normalises it to 0–2π.
+        _onHeading(event.eulerAngles.azimuth * 180 / pi);
+      },
+      onError: (Object error) {
+        debugPrint('NavigationScreen: heading sensor error — $error');
+      },
+    );
+  }
+
+  /// Records a new raw GPS fix as the position-tween target and (re)starts the
+  /// short tween toward it — mirrors `flutter_map_location_marker`'s
+  /// `CurrentLocationLayer`, which disposed/restarted its own per-fix tween
+  /// the same way, so overlapping fixes never fight each other.
+  void _onFix(geo.Position pos) {
+    _animStartLat = _lastLat ?? pos.latitude;
+    _animStartLon = _lastLon ?? pos.longitude;
+    _animTargetLat = pos.latitude;
+    _animTargetLon = pos.longitude;
+    _animAccuracy = pos.accuracy;
+    _positionAnimController.forward(from: 0);
+  }
+
+  /// Low-pass smooths the raw sensor heading (jittery magnetometer) and pushes
+  /// it to the marker and — in heading-up follow — the camera bearing, on the
+  /// sensor's own ~15Hz cadence, independent of GPS.
+  void _onHeading(double rawDegrees) {
+    final normalized = rawDegrees % 360 + (rawDegrees < 0 ? 360 : 0);
+    _smoothedHeading = _smoothedHeading == null
+        ? normalized
+        : _lerpBearing(_smoothedHeading!, normalized, _kHeadingSmoothingAlpha);
+    _publishMarker();
+    // Don't fight an in-flight compass-triggered transition — it owns
+    // _mapBearing until it finishes, then live sensor updates resume here.
+    if (_followEnabled &&
+        _headingUp &&
+        !_bearingTransitionController.isAnimating) {
+      _mapBearing = _smoothedHeading!;
+      _pushCamera();
+    }
+  }
+
+  /// Shortest-path angular interpolation so the marker/camera never spin the
+  /// long way around a 359°→1° wraparound. Reused for both per-frame bearing
+  /// lerp and per-event heading smoothing.
+  double _lerpBearing(double from, double to, double t) {
+    var diff = (to - from) % 360;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    return (from + diff * t) % 360;
+  }
+
+  /// Composes the latest interpolated position with the latest smoothed
+  /// heading into the marker's [ValueNotifier]. Called from both the position
+  /// tween ([_applyAnimatedFrame]) and heading sensor ([_onHeading]) so marker
+  /// position and rotation stay independently live.
+  void _publishMarker() {
+    final lat = _lastLat;
+    final lon = _lastLon;
+    if (lat == null || lon == null) return;
+    _currentPosition.value = LocationMarkerPosition(
+      latitude: lat,
+      longitude: lon,
+      accuracy: _animAccuracy,
+      heading: _smoothedHeading,
+      // LocationPuck.hasValidHeading requires a non-negative accuracy; the
+      // sensor reports -1 on iOS, so pass a synthetic 0 whenever a heading is
+      // available — the wedge is a direction indicator, not an accuracy gauge.
+      headingAccuracy: _smoothedHeading == null ? null : 0,
+    );
+  }
+
+  /// Ticks every frame of the position tween, advancing the interpolated
+  /// position and (when following) the camera center — `moveCamera` is an
+  /// instant, non-animated set so nothing fights this Flutter-side tween the
+  /// way native `animateCamera` did.
+  void _applyAnimatedFrame() {
+    final targetLat = _animTargetLat;
+    final targetLon = _animTargetLon;
+    if (targetLat == null || targetLon == null) return;
+
+    _lastLat = lerpDouble(_animStartLat, targetLat, _positionCurve.value)!;
+    _lastLon = lerpDouble(_animStartLon, targetLon, _positionCurve.value)!;
+    _publishMarker();
+    _pushCamera();
+  }
+
+  /// Advances the bearing-transition tween, driving the same explicit
+  /// [_mapBearing]/[_pushCamera] path everything else uses.
+  void _applyBearingTransition() {
+    _mapBearing = _lerpBearing(
+      _bearingTransitionStart,
+      _bearingTransitionTarget,
+      _bearingTransitionCurve.value,
+    );
+    _pushCamera();
+  }
+
+  /// Smoothly animates [_mapBearing] to [target] — used for the two discrete
+  /// compass-triggered transitions (enter/exit heading-up).
+  void _animateBearingTo(double target) {
+    _bearingTransitionStart = _mapBearing;
+    _bearingTransitionTarget = target;
+    _bearingTransitionController.forward(from: 0);
+  }
+
+  /// Pushes an explicit center+bearing to the map when following — never a
+  /// partial update, since this MapLibre version doesn't reliably treat an
+  /// omitted field as "unchanged" (see [_mapBearing]'s doc comment).
+  void _pushCamera() {
+    if (!_followEnabled) return;
+    final lat = _lastLat;
+    final lon = _lastLon;
+    if (lat == null || lon == null) return;
+    _controller?.moveCamera(
+      center: ml.Geographic(lat: lat, lon: lon),
+      bearing: _mapBearing,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        unawaited(_positionSource.setForeground(true));
+        _startHeadingSub();
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        unawaited(_positionSource.setForeground(false));
+        _headingSub?.cancel();
+        _headingSub = null;
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sub?.cancel();
+    _headingSub?.cancel();
+    _positionAnimController.dispose();
+    _bearingTransitionController.dispose();
     unawaited(_positionSource.dispose());
     _currentPosition.dispose();
     _sheetController.dispose();
@@ -171,10 +398,14 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
     setState(() => _followEnabled = true);
     final pos = _currentPosition.value;
     if (pos == null) return;
+    // Restores prior heading-up state — recenter never forces north. Synced
+    // into _mapBearing immediately so a position tick landing mid-animation
+    // pushes the same value instead of a stale/ambiguous one (see
+    // _mapBearing's doc comment).
+    _mapBearing = _headingUp ? (_smoothedHeading ?? _mapBearing) : 0;
     _controller?.animateCamera(
       center: ml.Geographic(lat: pos.latitude, lon: pos.longitude),
-      // Restores prior heading-up state — recenter never forces north.
-      bearing: (_headingUp && pos.heading >= 0) ? pos.heading : null,
+      bearing: _mapBearing,
       nativeDuration: const Duration(milliseconds: 300),
     );
   }
@@ -280,6 +511,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
           id: 'breadcrumb-route',
           sourceId: 'breadcrumb',
           paint: {'line-color': '#DC2626', 'line-width': 3.5},
+          // Style-spec defaults to butt cap / miter join, which reads as
+          // angular at turns — round both so the trail renders as a
+          // continuously smooth line, matching the pre-migration
+          // flutter_map `Polyline`'s auto-rounded rendering.
+          layout: {'line-cap': 'round', 'line-join': 'round'},
         ),
       );
     } catch (e) {
@@ -446,30 +682,25 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                                   hideIfRotatedNorth: false,
                                   rotateNorthOnPressed: false,
                                   onPressed: () {
-                                    setState(() => _headingUp = !_headingUp);
-                                    final controller = _controller;
-                                    if (controller == null) return;
-                                    if (_headingUp) {
-                                      // Reorient immediately from the last
-                                      // fix rather than waiting for the next
-                                      // GPS update.
-                                      final pos = _currentPosition.value;
-                                      if (pos != null && pos.heading >= 0) {
-                                        controller.animateCamera(
-                                          bearing: pos.heading,
-                                          nativeDuration: const Duration(
-                                            milliseconds: 400,
-                                          ),
-                                        );
-                                      }
-                                    } else {
-                                      controller.animateCamera(
-                                        bearing: 0,
-                                        nativeDuration: const Duration(
-                                          milliseconds: 400,
-                                        ),
-                                      );
-                                    }
+                                    // Continuous rotation in [_onHeading] is
+                                    // gated on `_followEnabled && _headingUp`
+                                    // — without re-enabling follow here, the
+                                    // transition below would be the only
+                                    // rotation that ever happens if follow
+                                    // was already (or becomes) broken.
+                                    setState(() {
+                                      _headingUp = !_headingUp;
+                                      if (_headingUp) _followEnabled = true;
+                                    });
+                                    // Animates via [_mapBearing]/[_pushCamera]
+                                    // rather than a native `animateCamera` —
+                                    // that native animation could get
+                                    // interrupted/reset mid-flight by a
+                                    // concurrent position-tick camera push,
+                                    // occasionally leaving it stuck partway.
+                                    _animateBearingTo(
+                                      _headingUp ? (_smoothedHeading ?? 0) : 0,
+                                    );
                                   },
                                 ),
                                 const SizedBox(height: 8),
@@ -1019,11 +1250,11 @@ class _LocationMarkerLayer extends StatelessWidget {
 
   /// Latest GPS fix; null until the first fix lands, in which case nothing
   /// renders.
-  final ValueNotifier<geo.Position?> position;
+  final ValueNotifier<LocationMarkerPosition?> position;
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<geo.Position?>(
+    return ValueListenableBuilder<LocationMarkerPosition?>(
       valueListenable: position,
       builder: (context, pos, _) {
         if (pos == null) return const SizedBox.shrink();
@@ -1031,9 +1262,9 @@ class _LocationMarkerLayer extends StatelessWidget {
           markers: [
             ml.Marker(
               point: ml.Geographic(lat: pos.latitude, lon: pos.longitude),
-              size: const Size(22, 22),
+              size: const Size(44, 44),
               child: LocationPuck(
-                size: 22,
+                size: 44,
                 dotSize: 20,
                 heading: pos.heading,
                 headingAccuracy: pos.headingAccuracy,

@@ -8,11 +8,15 @@ class LocationMarkerPosition {
   final double latitude;
   final double longitude;
   final double accuracy;
+  final double? heading;
+  final double? headingAccuracy;
 
   const LocationMarkerPosition({
     required this.latitude,
     required this.longitude,
     required this.accuracy,
+    this.heading,
+    this.headingAccuracy,
   });
 }
 
@@ -54,6 +58,8 @@ class ForegroundPositionStream
             latitude: pos.latitude,
             longitude: pos.longitude,
             accuracy: pos.accuracy,
+            heading: pos.heading,
+            headingAccuracy: pos.headingAccuracy,
           ));
         }
       },

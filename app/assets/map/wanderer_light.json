@@ -8,6 +8,10 @@
         "__TILE_URL__"
       ],
       "maxzoom": 15
+    },
+    "hillshadeSource": {
+      "type": "raster-dem",
+      "url": "https://tiles.mapterhorn.com/tilejson.json"
     }
   },
   "layers": [
@@ -468,6 +472,11 @@
       "paint": {
         "fill-color": "#e0e0e0"
       }
+    },
+    {
+      "id": "hillshade",
+      "type": "hillshade",
+      "source": "hillshadeSource"
     },
     {
       "id": "roads_tunnels_other_casing",

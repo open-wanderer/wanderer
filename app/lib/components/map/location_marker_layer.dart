@@ -49,7 +49,10 @@ class LocationPuck extends StatelessWidget {
             angle: heading! * math.pi / 180,
             child: CustomPaint(
               size: Size(size, size),
-              painter: const _HeadingWedgePainter(),
+              // Wedge base sits just outside the dot's painted edge (radius
+              // + border) so it stays visible regardless of how dotSize/size
+              // are tuned relative to each other.
+              painter: _HeadingWedgePainter(dotSize / 2 + 3),
             ),
           ),
         Container(
@@ -74,22 +77,39 @@ class LocationPuck extends StatelessWidget {
 }
 
 class _HeadingWedgePainter extends CustomPainter {
-  const _HeadingWedgePainter();
+  const _HeadingWedgePainter(this.innerRadius);
+
+  /// Radius of the dot (including its border) that the wedge must clear —
+  /// the wedge is drawn behind the dot, so any part inside this radius would
+  /// be fully occluded regardless of canvas size.
+  final double innerRadius;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.blue.withValues(alpha: .35);
+    final center = Offset(size.width / 2, size.height / 2);
+    final outerRadius = size.width / 2;
+    // Guard against a canvas no larger than the dot — nothing to draw.
+    if (outerRadius <= innerRadius) return;
+    final backRadius = innerRadius;
+    final wingRadius = backRadius + (outerRadius - backRadius) * 0.3;
+    const wingAngle = 20 * math.pi / 180;
+
+    Offset polar(double radius, double angleFromUp) => center +
+        Offset(radius * math.sin(angleFromUp), -radius * math.cos(angleFromUp));
+
     final path = Path()
-      ..moveTo(size.width / 2, 0)
-      ..lineTo(size.width * 0.78, size.height * 0.42)
-      ..lineTo(size.width / 2, size.height * 0.28)
-      ..lineTo(size.width * 0.22, size.height * 0.42)
+      ..moveTo(polar(outerRadius, 0).dx, polar(outerRadius, 0).dy)
+      ..lineTo(polar(wingRadius, wingAngle).dx, polar(wingRadius, wingAngle).dy)
+      ..lineTo(polar(backRadius, 0).dx, polar(backRadius, 0).dy)
+      ..lineTo(polar(wingRadius, -wingAngle).dx, polar(wingRadius, -wingAngle).dy)
       ..close();
     canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _HeadingWedgePainter oldDelegate) => false;
+  bool shouldRepaint(covariant _HeadingWedgePainter oldDelegate) =>
+      oldDelegate.innerRadius != innerRadius;
 }
 
 /// Location layer for screens driven by [foregroundPositionStreamProvider]
