@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +8,7 @@ import 'package:geolocator/geolocator.dart' as geo;
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/base/wanderer_attribution.dart';
+import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/waypoint_sheet.dart';
@@ -998,8 +998,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
 /// Custom, appropriately-sized (~22px) location marker replacing the native
 /// MapLibre location puck — which has no supported size control on either
 /// Android or iOS (`maplibre` 0.3.5). Mirrors the `ml.WidgetLayer`/`ml.Marker`
-/// structure used by `map_screen.dart`'s `_LocationLayer`, but much smaller
-/// and heading-aware via [_HeadingPuck].
+/// structure shared with `trail_map.dart`/`map_screen.dart` via
+/// [LocationMarkerLayer], but much smaller and heading-aware via
+/// [LocationPuck].
 class _LocationMarkerLayer extends StatelessWidget {
   const _LocationMarkerLayer({required this.position});
 
@@ -1018,9 +1019,12 @@ class _LocationMarkerLayer extends StatelessWidget {
             ml.Marker(
               point: ml.Geographic(lat: pos.latitude, lon: pos.longitude),
               size: const Size(22, 22),
-              child: _HeadingPuck(
+              child: LocationPuck(
+                size: 22,
+                dotSize: 14,
                 heading: pos.heading,
                 headingAccuracy: pos.headingAccuracy,
+                showHeading: true,
               ),
             ),
           ],
@@ -1028,74 +1032,4 @@ class _LocationMarkerLayer extends StatelessWidget {
       },
     );
   }
-}
-
-/// A ~14px blue dot (styling mirrors `trail_map.dart`'s
-/// `_buildLocationLayer`: `Colors.blue` fill, 3px white border, subtle black
-/// shadow) centered inside the 22px marker footprint, with an optional
-/// heading wedge rendered behind it when the device reports a trustworthy
-/// heading. `geolocator` reports negative heading/accuracy when stationary
-/// or low-confidence, so the wedge is only drawn when both are
-/// non-negative.
-class _HeadingPuck extends StatelessWidget {
-  const _HeadingPuck({required this.heading, required this.headingAccuracy});
-
-  final double heading;
-  final double headingAccuracy;
-
-  @override
-  Widget build(BuildContext context) {
-    final showHeading = headingAccuracy >= 0 && heading >= 0;
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        if (showHeading)
-          Transform.rotate(
-            angle: heading * math.pi / 180,
-            child: CustomPaint(
-              size: const Size(22, 22),
-              painter: _HeadingWedgePainter(),
-            ),
-          ),
-        Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(
-            color: Colors.blue,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: .3),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Paints a subordinate (partly-transparent) triangular wedge pointing
-/// "north" (up) within [size] before rotation is applied by the caller's
-/// `Transform.rotate`.
-class _HeadingWedgePainter extends CustomPainter {
-  const _HeadingWedgePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.blue.withValues(alpha: .35);
-    final path = Path()
-      ..moveTo(size.width / 2, 0)
-      ..lineTo(size.width * 0.78, size.height * 0.42)
-      ..lineTo(size.width / 2, size.height * 0.28)
-      ..lineTo(size.width * 0.22, size.height * 0.42)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _HeadingWedgePainter oldDelegate) => false;
 }

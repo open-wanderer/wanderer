@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/base/wanderer_attribution.dart';
+import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/models/glyph_sprite_cache_paths.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
-import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
@@ -226,7 +226,7 @@ class _TrailMapState extends ConsumerState<TrailMap> {
 
         if (widget.elevationMarkerPosition != null) _buildElevationMarker(),
 
-        if (widget.showLocation) _buildLocationLayer(),
+        if (widget.showLocation) const LocationMarkerLayer(),
 
         const ml.MapScalebar(
           alignment: Alignment.topLeft,
@@ -320,43 +320,4 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     );
   }
 
-  /// Interim location marker: a simple location puck driven by
-  /// [foregroundPositionStreamProvider]. This is intentionally NOT a
-  /// native follow/heading puck — just a static dot at the device
-  /// position so `trail_detail_map_screen` keeps its location indicator.
-  Widget _buildLocationLayer() {
-    final positionStream = ref.watch(foregroundPositionStreamProvider);
-    return StreamBuilder<LocationMarkerPosition?>(
-      stream: positionStream,
-      builder: (context, snapshot) {
-        final position = snapshot.data;
-        if (position == null) return const SizedBox.shrink();
-        return ml.WidgetLayer(
-          markers: [
-            ml.Marker(
-              point: ml.Geographic(
-                lat: position.latitude,
-                lon: position.longitude,
-              ),
-              size: const Size(18, 18),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .3),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }

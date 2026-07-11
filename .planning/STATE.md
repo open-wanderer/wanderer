@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 Phase: Milestone v1.4 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-07-10 — Milestone v1.4 completed and archived
+Last activity: 2026-07-11 - Completed quick task 260711-d37: Shrink the navigation-screen location puck
 
 ## v1.4 Phases
 
@@ -136,6 +136,7 @@ Recent decisions affecting current work:
 | 260702-m4u | Make auth_provider.dart build() optimistic | 2026-07-02 | d2d126a8 | [260702-m4u-…](./quick/260702-m4u-make-auth-provider-dart-build-optimistic/) |
 | 260702-gib | Add read-only subcategory chips under each category row | 2026-07-02 | dbc1db3d | [260702-gib-…](./quick/260702-gib-add-subcategory-chips-under-each-categor/) |
 | 260710-kpd | Fix the 6 small UI gaps found after Phase 18 checkpoint | 2026-07-10 | dcbabbd4 | [260710-kpd-…](./quick/260710-kpd-fix-the-6-small-ui-gaps-that-i-found-aft/) |
+| 260711-d37 | Shrink the navigation-screen location puck (custom marker + manual animateCamera follow) | 2026-07-11 | e339b148 | [260711-d37-…](./quick/260711-d37-shrink-the-navigation-screen-location-pu/) |
 
 ## Deferred Items
 

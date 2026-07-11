@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
@@ -10,6 +11,7 @@ import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/trail_collection_map.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/map/cluster_layer.dart';
+import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
@@ -19,6 +21,7 @@ import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/map_camera_provider.dart';
+import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/map_cluster_search_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
@@ -26,6 +29,15 @@ import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
 import 'package:wanderer/util/category_icon_util.dart';
+
+/// Zoom used when centering on a specific point (GPS fix or saved home
+/// location) — matches the convention used elsewhere for point-centering
+/// (`global_search_screen.dart`'s location-result tap).
+const double _kPointZoom = 13.0;
+
+/// World-view zoom for the (0,0) fallback when no other location is known —
+/// matches `TrailCollectionMap`'s own ultimate default.
+const double _kWorldZoom = 3.0;
 
 class MapScreen extends ConsumerStatefulWidget {
   final ml.Geographic? initialCenter;
@@ -44,6 +56,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   TrailSearchResult? _selectedTrail;
   List<ml.Geographic>? _selectedPolyline;
+
+  /// A GPS fix resolved after first build, used to re-center the camera once
+  /// available. Only takes effect when there is neither an explicit
+  /// [MapScreen.initialCenter] nor a [mapCameraProvider] save to defer to.
+  ml.Geographic? _resolvedGpsCenter;
+  StreamSubscription<LocationMarkerPosition?>? _gpsSub;
 
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
@@ -83,6 +101,26 @@ class _MapScreenState extends ConsumerState<MapScreen>
       curve: Curves.elasticOut,
       reverseCurve: Curves.easeOut,
     );
+
+    // Only chase a GPS fix for the initial focus when nothing else (explicit
+    // route target or a previously saved camera) already decides it.
+    if (widget.initialCenter == null &&
+        ref.read(mapCameraProvider) == null) {
+      _gpsSub = ref.read(foregroundPositionStreamProvider).listen((position) {
+        if (position == null || _resolvedGpsCenter != null) return;
+        _gpsSub?.cancel();
+        final center = ml.Geographic(
+          lat: position.latitude,
+          lon: position.longitude,
+        );
+        setState(() => _resolvedGpsCenter = center);
+        _controller?.animateCamera(
+          center: center,
+          zoom: _kPointZoom,
+          nativeDuration: const Duration(milliseconds: 750),
+        );
+      }, onError: (_) {});
+    }
   }
 
   @override
@@ -126,6 +164,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   @override
   void dispose() {
+    _gpsSub?.cancel();
     _sheetController.removeListener(_onSheetSizeChanged);
     _sheetController.dispose();
     _sheetSize.dispose();
@@ -161,6 +200,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
   @override
   Widget build(BuildContext context) {
     final savedCamera = ref.read(mapCameraProvider);
+
+    // Initial-focus fallback chain, lowest priority first: (0,0) world view,
+    // then the user's saved home location, then a resolved GPS fix. Each of
+    // these only matters when there's neither an explicit route-provided
+    // center nor a previously saved camera position (both handled below).
+    ml.Geographic fallbackCenter = const ml.Geographic(lat: 0, lon: 0);
+    double fallbackZoom = _kWorldZoom;
+    final settingsLocation = ref.watch(settingsProvider)?.location;
+    if (settingsLocation != null) {
+      fallbackCenter = ml.Geographic(
+        lat: settingsLocation.lat,
+        lon: settingsLocation.lon,
+      );
+      fallbackZoom = _kPointZoom;
+    }
+    if (_resolvedGpsCenter != null) {
+      fallbackCenter = _resolvedGpsCenter!;
+      fallbackZoom = _kPointZoom;
+    }
 
     // Swap the native cluster source's data in place on every new
     // mapClusterSearchProvider result — never remove and re-add the source.
@@ -269,8 +327,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     return Stack(
       children: [
         TrailCollectionMap(
-          initCenter: widget.initialCenter ?? savedCamera?.center,
-          initZoom: widget.initialZoom ?? savedCamera?.zoom,
+          initCenter: widget.initialCenter ?? savedCamera?.center ?? fallbackCenter,
+          initZoom: widget.initialZoom ?? savedCamera?.zoom ?? fallbackZoom,
           onMapCreated: (controller) => _controller = controller,
           onStyleLoaded: (style) async {
             // Fail soft on a malformed/oversized cluster response — never
@@ -385,7 +443,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 allowInteraction: true,
                 markers: unclusteredMarkers,
               ),
-            _LocationLayer(),
+            const LocationMarkerLayer(),
             Positioned(
               top: 124,
               right: 8,
@@ -738,45 +796,3 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 }
 
-/// Device-location marker mirroring `TrailMap._buildLocationLayer` — a
-/// simple native puck driven by [foregroundPositionStreamProvider], since
-/// flutter_map-only location-marker widgets cannot render outside a
-/// flutter_map `FlutterMap` widget tree.
-class _LocationLayer extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final positionStream = ref.watch(foregroundPositionStreamProvider);
-    return StreamBuilder<LocationMarkerPosition?>(
-      stream: positionStream,
-      builder: (context, snapshot) {
-        final position = snapshot.data;
-        if (position == null) return const SizedBox.shrink();
-        return ml.WidgetLayer(
-          markers: [
-            ml.Marker(
-              point: ml.Geographic(
-                lat: position.latitude,
-                lon: position.longitude,
-              ),
-              size: const Size(18, 18),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .3),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
