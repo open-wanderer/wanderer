@@ -14,8 +14,18 @@ import 'package:wanderer/util/map_cache_path.dart';
 ///    (the literal `{fontstack}`/`{range}` tokens are preserved for native
 ///    runtime substitution);
 ///  * points `sprite` at `file://<cacheRoot>/sprite/<light|dark>`;
-///  * repoints every remote (tiled) source at a native `pmtiles://file://`
-///    archive.
+///  * repoints every remote (tiled) vector/raster source at a native
+///    `pmtiles://file://` archive using [cellPaths];
+///  * special-cases any `type: raster-dem` source (e.g. `hillshadeSource`) —
+///    it is routed to its own [demCellPaths] archive instead, and gains
+///    `encoding: terrarium` + `tileSize: 512` + a dedicated
+///    [_offlineDemMaxZoom], all three of which the online style relies on
+///    Mapterhorn's tilejson to supply and therefore does not carry itself.
+///    When [demCellPaths] is empty, the raster-dem source and every layer
+///    that references it are dropped entirely (hillshade is cosmetic, so a
+///    trail with no downloaded DEM archive just renders without relief —
+///    it must never leak the source's `https://` url into the offline
+///    style).
 ///
 /// ## Multi-cell strategy
 ///
@@ -48,6 +58,7 @@ Map<String, dynamic> rewriteStyleForOffline(
   Map<String, dynamic> style, {
   required String cacheRoot,
   required List<String> cellPaths,
+  List<String> demCellPaths = const [],
   bool dark = false,
 }) {
   if (cellPaths.isEmpty) {
@@ -56,6 +67,9 @@ Map<String, dynamic> rewriteStyleForOffline(
   _assertSafePath(cacheRoot, 'cacheRoot');
   for (final cell in cellPaths) {
     _assertSafePath(cell, 'cellPath');
+  }
+  for (final cell in demCellPaths) {
+    _assertSafePath(cell, 'demCellPath');
   }
 
   // Deep copy so the shared online base style is never mutated in place.
@@ -68,64 +82,129 @@ Map<String, dynamic> rewriteStyleForOffline(
   out['sprite'] = 'file://${spriteCacheBasePath(cacheRoot, dark: dark)}';
 
   // Repoint every remote (tiled) source at a pmtiles://file://
-  // archive, duplicating sources + layers per extra cell.
+  // archive, duplicating sources + layers per extra cell. raster-dem
+  // sources are special-cased onto demCellPaths (see doc comment above).
   final sources = out['sources'];
   if (sources is Map<String, dynamic>) {
-    _rewriteSourcesAndLayers(out, sources, cellPaths);
+    _rewriteSourcesAndLayers(out, sources, cellPaths, demCellPaths);
   }
 
   return out;
 }
 
 /// Repoints [sources] (and clones the [style]'s layers) onto the offline
-/// `pmtiles://file://` cells. The first cell reuses each source's original key;
-/// each extra cell gets a `<key>-cell-<i>` source plus `__cell<i>` layer clones.
+/// `pmtiles://file://` cells. Vector/raster (tiled) sources are routed to
+/// [cellPaths] via [_pointSourceAtCell]; any `type: raster-dem` source (e.g.
+/// `hillshadeSource`) is routed separately to [demCellPaths] via
+/// [_pointDemSourceAtCell] — when [demCellPaths] is empty, raster-dem
+/// sources and every layer referencing them are dropped instead (see the
+/// function doc comment on [rewriteStyleForOffline]).
 void _rewriteSourcesAndLayers(
   Map<String, dynamic> style,
   Map<String, dynamic> sources,
   List<String> cellPaths,
+  List<String> demCellPaths,
 ) {
   // A "tiled" source is a remote data source carrying a `tiles` template or a
   // `url` — exactly the sources that must become local pmtiles archives.
-  final tiledKeys = sources.keys.where((key) {
+  final allTiledKeys = sources.keys.where((key) {
     final source = sources[key];
     return source is Map &&
         (source.containsKey('tiles') || source.containsKey('url'));
   }).toList();
 
-  if (tiledKeys.isEmpty) return;
+  // raster-dem sources (hillshade) have an independent DEM archive lifecycle
+  // and must never be repointed at a vector cell (the bug this fixes).
+  final demKeys = allTiledKeys.where((key) {
+    final source = sources[key] as Map;
+    return source['type'] == 'raster-dem';
+  }).toList();
+  final tiledKeys = allTiledKeys.where((key) => !demKeys.contains(key)).toList();
 
+  final layers = style['layers'];
+  final layerList = layers is List ? layers : const <dynamic>[];
+
+  if (tiledKeys.isNotEmpty) {
+    _rewriteSourceGroup(
+      sources,
+      layerList,
+      layers,
+      tiledKeys,
+      cellPaths,
+      _pointSourceAtCell,
+    );
+  }
+
+  if (demKeys.isNotEmpty) {
+    if (demCellPaths.isEmpty) {
+      // Hillshade is cosmetic: with no downloaded DEM archive, drop the
+      // raster-dem source(s) and every layer that referenced them, so no
+      // https:// hillshade url survives into the offline style (path-safety
+      // invariant) and the call never throws for a missing DEM.
+      for (final key in demKeys) {
+        sources.remove(key);
+      }
+      if (layers is List) {
+        layers.removeWhere((layer) {
+          if (layer is! Map) return false;
+          final source = layer['source'];
+          return source is String && demKeys.contains(source);
+        });
+      }
+    } else {
+      _rewriteSourceGroup(
+        sources,
+        layerList,
+        layers,
+        demKeys,
+        demCellPaths,
+        _pointDemSourceAtCell,
+      );
+    }
+  }
+}
+
+/// Shared cell-duplication machinery for a group of source [keys] (either the
+/// vector/raster [tiledKeys] or the raster-dem [demKeys]) against a parallel
+/// list of local archive [paths]. The first path reuses each source's
+/// original key; each extra path gets a `<key>-cell-<i>` source plus
+/// `__cell<i>` layer clones. [pointFn] performs the source-specific field
+/// rewrite ([_pointSourceAtCell] or [_pointDemSourceAtCell]).
+void _rewriteSourceGroup(
+  Map<String, dynamic> sources,
+  List<dynamic> layerList,
+  dynamic layers,
+  List<String> keys,
+  List<String> paths,
+  void Function(Map<String, dynamic> source, String path) pointFn,
+) {
   // Snapshot each original source definition before repointing cell 0, so the
   // per-cell clones inherit the original metadata (type, maxzoom, ...).
   final originals = <String, Map<String, dynamic>>{
-    for (final key in tiledKeys)
-      key: Map<String, dynamic>.from(sources[key] as Map),
+    for (final key in keys) key: Map<String, dynamic>.from(sources[key] as Map),
   };
 
   // Cell 0 — repoint each original source in place.
-  for (final key in tiledKeys) {
-    _pointSourceAtCell(sources[key] as Map<String, dynamic>, cellPaths.first);
+  for (final key in keys) {
+    pointFn(sources[key] as Map<String, dynamic>, paths.first);
   }
 
   // Extra cells — one duplicated source + one duplicated layer set each.
   final extraLayers = <Map<String, dynamic>>[];
-  final layers = style['layers'];
-  final layerList = layers is List ? layers : const <dynamic>[];
 
-  for (var i = 1; i < cellPaths.length; i++) {
-    for (final key in tiledKeys) {
-      final clonedSource = jsonDecode(jsonEncode(originals[key]))
-          as Map<String, dynamic>;
-      _pointSourceAtCell(clonedSource, cellPaths[i]);
+  for (var i = 1; i < paths.length; i++) {
+    for (final key in keys) {
+      final clonedSource =
+          jsonDecode(jsonEncode(originals[key])) as Map<String, dynamic>;
+      pointFn(clonedSource, paths[i]);
       sources['$key-cell-$i'] = clonedSource;
     }
 
     for (final layer in layerList) {
       if (layer is! Map) continue;
       final source = layer['source'];
-      if (source is String && tiledKeys.contains(source)) {
-        final clone =
-            jsonDecode(jsonEncode(layer)) as Map<String, dynamic>;
+      if (source is String && keys.contains(source)) {
+        final clone = jsonDecode(jsonEncode(layer)) as Map<String, dynamic>;
         clone['id'] = '${layer['id']}__cell$i';
         clone['source'] = '$source-cell-$i';
         extraLayers.add(clone);
@@ -147,6 +226,15 @@ void _rewriteSourcesAndLayers(
 /// archive instead of overzooming the z14 tile — rendering blank above z14.
 const int _offlinePmtilesMaxZoom = 14;
 
+/// The deepest zoom level actually present in a locally-extracted DEM
+/// `.pmtiles` cell. MUST equal the Go `demMaxZoom` const in
+/// `db/services/tiles/generator.go` (currently 12) — kept in lockstep for the
+/// same reason as [_offlinePmtilesMaxZoom]: a mismatch means MapLibre
+/// requests DEM tiles that were never extracted, leaving relief blank above
+/// the cap instead of overzooming. Deliberately a separate, lower constant
+/// than the vector basemap's z14 — hillshading doesn't need that much detail.
+const int _offlineDemMaxZoom = 12;
+
 /// Repoints a single source [source] at the pmtiles archive at [cellPath]:
 /// drops any remote `tiles` template, sets `url` to `pmtiles://file://…`, and
 /// clamps `maxzoom` to the archive's actual depth (see
@@ -156,6 +244,23 @@ void _pointSourceAtCell(Map<String, dynamic> source, String cellPath) {
   source.remove('tiles');
   source['url'] = 'pmtiles://file://$cellPath';
   source['maxzoom'] = _offlinePmtilesMaxZoom;
+}
+
+/// Repoints a `raster-dem` source [source] at the DEM pmtiles archive at
+/// [demPath]: drops any remote `tiles` template, sets `url` to
+/// `pmtiles://file://…`, and injects `encoding: terrarium` + `tileSize: 512`
+/// + `maxzoom: `[_offlineDemMaxZoom]. These three fields are supplied online
+/// by Mapterhorn's tilejson and are therefore absent from the style JSON's
+/// `hillshadeSource` definition (which carries only `type` + `url`) — a
+/// `pmtiles://` source has no tilejson, so they must be written explicitly or
+/// MapLibre falls back to its `mapbox` encoding / 256px tile size default,
+/// producing garbage or misaligned relief.
+void _pointDemSourceAtCell(Map<String, dynamic> source, String demPath) {
+  source.remove('tiles');
+  source['url'] = 'pmtiles://file://$demPath';
+  source['encoding'] = 'terrarium';
+  source['tileSize'] = 512;
+  source['maxzoom'] = _offlineDemMaxZoom;
 }
 
 /// Rejects any [path] that is not an absolute, traversal-free local path.
