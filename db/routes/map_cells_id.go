@@ -26,10 +26,22 @@ func MapCellsGet(e *core.RequestEvent) error {
 				"status":       "ready",
 				"download_url": "/map/cells/" + cell.CacheKey() + "/download",
 			}
-			if records[0].GetString("dem_status") == "ready" {
+			demReady := records[0].GetString("dem_status") == "ready"
+			if demReady {
 				if _, err := os.Stat(tiles.DemCellPath(cell)); err == nil {
 					resp["dem_download_url"] = "/map/cells/" + cell.CacheKey() + "/download-dem"
+				} else {
+					demReady = false
 				}
+			}
+			if !demReady {
+				// Kick off (idempotent, inFlight-deduped) DEM backfill/retry —
+				// never blocks this response; vector remains servable regardless.
+				go func() {
+					if err := tiles.EnsureCell(e.App, cell); err != nil {
+						// Error is persisted to the DB record by EnsureCell itself.
+					}
+				}()
 			}
 			return e.JSON(http.StatusOK, resp)
 		}
@@ -75,10 +87,20 @@ func MapCellsStatus(e *core.RequestEvent) error {
 	if status == "ready" {
 		resp["size_bytes"] = int64(r.GetFloat("size_bytes"))
 		resp["download_url"] = "/map/cells/" + cell.CacheKey() + "/download"
-		if r.GetString("dem_status") == "ready" {
+		demReady := r.GetString("dem_status") == "ready"
+		if demReady {
 			if _, err := os.Stat(tiles.DemCellPath(cell)); err == nil {
 				resp["dem_download_url"] = "/map/cells/" + cell.CacheKey() + "/download-dem"
+			} else {
+				demReady = false
 			}
+		}
+		if !demReady {
+			go func() {
+				if err := tiles.EnsureCell(e.App, cell); err != nil {
+					// Error is persisted to the DB record by EnsureCell itself.
+				}
+			}()
 		}
 	}
 	if status == "error" {

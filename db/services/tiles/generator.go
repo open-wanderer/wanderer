@@ -1,6 +1,7 @@
 package tiles
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,6 +30,12 @@ const (
 	mapterhornSource = "https://download.mapterhorn.com/planet.pmtiles"
 
 	cacheDir = "./pb_data/pmtiles_cache"
+
+	// extractTimeout bounds each pmtiles extract subprocess so a hung or
+	// unresponsive remote source (build.protomaps.com / download.mapterhorn.com)
+	// can't wedge a cell's inFlight entry — and therefore every other request
+	// for the same cell — indefinitely.
+	extractTimeout = 5 * time.Minute
 )
 
 var (
@@ -161,7 +168,10 @@ func generateCell(app core.App, record *core.Record, cell GridCell) error {
 
 		pmtilesSource := getValidProtomapsURL()
 
-		cmd := exec.Command("pmtiles", "extract",
+		ctx, cancel := context.WithTimeout(context.Background(), extractTimeout)
+		defer cancel()
+
+		cmd := exec.CommandContext(ctx, "pmtiles", "extract",
 			pmtilesSource,
 			outputPath,
 			"--bbox="+bbox,
@@ -207,7 +217,10 @@ func generateDemCell(app core.App, record *core.Record, cell GridCell, bbox stri
 
 	log.Printf("[tiles] generating DEM cell %s (bbox: %s)", cell.CacheKey(), bbox)
 
-	demCmd := exec.Command("pmtiles", "extract",
+	ctx, cancel := context.WithTimeout(context.Background(), extractTimeout)
+	defer cancel()
+
+	demCmd := exec.CommandContext(ctx, "pmtiles", "extract",
 		mapterhornSource,
 		demOutputPath,
 		"--bbox="+bbox,
@@ -221,7 +234,9 @@ func generateDemCell(app core.App, record *core.Record, cell GridCell, bbox stri
 		log.Printf("[tiles] DEM extract failed for cell %s: %v", cell.CacheKey(), err)
 		record.Set("dem_status", "error")
 		record.Set("dem_error_message", err.Error())
-		_ = app.Save(record)
+		if err := app.Save(record); err != nil {
+			log.Printf("[tiles] failed to save DEM-error record for cell %s: %v", cell.CacheKey(), err)
+		}
 		return
 	}
 

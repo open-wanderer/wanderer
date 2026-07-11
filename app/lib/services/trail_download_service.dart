@@ -211,8 +211,8 @@ class TrailDownloadService {
               cancelToken: cancelToken,
             );
             demPath = demLocalPath;
-          } on DioException catch (e) {
-            if (CancelToken.isCancel(e)) rethrow;
+          } catch (e) {
+            if (e is DioException && CancelToken.isCancel(e)) rethrow;
             if (await File(demLocalPath).exists()) {
               await File(demLocalPath).delete();
             }
