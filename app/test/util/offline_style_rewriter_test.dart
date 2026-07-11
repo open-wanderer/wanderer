@@ -1,12 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 
 /// A minimal but representative online style: a `protomaps` vector source with an
-/// `https://` tile template, an `https://` glyphs template + sprite base, one
-/// source-less background layer, and two `protomaps`-sourced layers. The
-/// `attribution` deliberately carries `https://` links (as the real Protomaps
-/// theme does) so the scheme-allowlist assertions only inspect URL-bearing
-/// fields, never the attribution HTML.
+/// `https://` tile template, a `hillshadeSource` `raster-dem` source (only
+/// `type` + `url`, mirroring the real style — `encoding`/`tileSize` are
+/// supplied online by Mapterhorn's tilejson and therefore absent here), an
+/// `https://` glyphs template + sprite base, one source-less background
+/// layer, two `protomaps`-sourced layers, and one `hillshade`-sourced layer.
+/// The `attribution` deliberately carries `https://` links (as the real
+/// Protomaps theme does) so the scheme-allowlist assertions only inspect
+/// URL-bearing fields, never the attribution HTML.
 Map<String, dynamic> _onlineStyle() => <String, dynamic>{
   'version': 8,
   'glyphs': 'https://tiles.example.org/glyphs/{fontstack}/{range}.pbf',
@@ -19,6 +24,10 @@ Map<String, dynamic> _onlineStyle() => <String, dynamic>{
       'attribution':
           '<a href="https://github.com/protomaps/basemaps">Protomaps</a> '
           '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    },
+    'hillshadeSource': <String, dynamic>{
+      'type': 'raster-dem',
+      'url': 'https://tiles.mapterhorn.com/tilejson.json',
     },
   },
   'layers': <dynamic>[
@@ -39,6 +48,11 @@ Map<String, dynamic> _onlineStyle() => <String, dynamic>{
         'text-field': <String>['get', 'name'],
       },
     },
+    <String, dynamic>{
+      'id': 'hillshade',
+      'type': 'hillshade',
+      'source': 'hillshadeSource',
+    },
   ],
 };
 
@@ -49,6 +63,10 @@ const String _cellB =
     '/data/user/0/app.wanderer/app_flutter/library/t1/tiles/1601_1200.pmtiles';
 const String _cellC =
     '/data/user/0/app.wanderer/app_flutter/library/t1/tiles/1600_1201.pmtiles';
+const String _demCellA =
+    '/data/user/0/app.wanderer/app_flutter/library/t1/tiles/1600_1200_dem.pmtiles';
+const String _demCellB =
+    '/data/user/0/app.wanderer/app_flutter/library/t1/tiles/1601_1200_dem.pmtiles';
 
 void main() {
   group('rewriteStyleForOffline — single cell', () {
@@ -235,6 +253,128 @@ void main() {
         expect(url.startsWith('pmtiles://file://'), isTrue);
         expect(url.contains('http'), isFalse);
       }
+    });
+  });
+
+  group('rewriteStyleForOffline — raster-dem (hillshade)', () {
+    test(
+      'single cell: hillshadeSource points at the DEM archive with '
+      'terrarium/512/12, protomaps is untouched',
+      () {
+        final result = rewriteStyleForOffline(
+          _onlineStyle(),
+          cacheRoot: _cacheRoot,
+          cellPaths: <String>[_cellA],
+          demCellPaths: <String>[_demCellA],
+        );
+
+        final sources = result['sources'] as Map<String, dynamic>;
+        final hillshade = sources['hillshadeSource'] as Map<String, dynamic>;
+        expect(hillshade['url'], 'pmtiles://file://$_demCellA');
+        expect(hillshade['encoding'], 'terrarium');
+        expect(hillshade['tileSize'], 512);
+        expect(hillshade['maxzoom'], 12);
+        expect(hillshade.containsKey('tiles'), isFalse);
+
+        // The vector source is untouched by the DEM special case.
+        final protomaps = sources['protomaps'] as Map<String, dynamic>;
+        expect(protomaps['url'], 'pmtiles://file://$_cellA');
+        expect(protomaps['maxzoom'], 14);
+      },
+    );
+
+    test(
+      'multi cell: hillshadeSource-cell-1 points at demB, and '
+      'hillshade__cell1 clone references it',
+      () {
+        final result = rewriteStyleForOffline(
+          _onlineStyle(),
+          cacheRoot: _cacheRoot,
+          cellPaths: <String>[_cellA, _cellB],
+          demCellPaths: <String>[_demCellA, _demCellB],
+        );
+
+        final sources = result['sources'] as Map<String, dynamic>;
+        expect(sources.containsKey('hillshadeSource-cell-1'), isTrue);
+        final demCell1 =
+            sources['hillshadeSource-cell-1'] as Map<String, dynamic>;
+        expect(demCell1['url'], 'pmtiles://file://$_demCellB');
+        expect(demCell1['encoding'], 'terrarium');
+        expect(demCell1['tileSize'], 512);
+        expect(demCell1['maxzoom'], 12);
+
+        final layers = (result['layers'] as List)
+            .cast<Map<String, dynamic>>();
+        final clone = layers.firstWhere((l) => l['id'] == 'hillshade__cell1');
+        expect(clone['source'], 'hillshadeSource-cell-1');
+      },
+    );
+
+    test(
+      'empty demCellPaths drops the raster-dem source and hillshade layer, '
+      'and leaks no http(s):// url; does not throw',
+      () {
+        final result = rewriteStyleForOffline(
+          _onlineStyle(),
+          cacheRoot: _cacheRoot,
+          cellPaths: <String>[_cellA],
+        );
+
+        final sources = result['sources'] as Map<String, dynamic>;
+        expect(sources.containsKey('hillshadeSource'), isFalse);
+
+        final layers = (result['layers'] as List)
+            .cast<Map<String, dynamic>>();
+        expect(layers.any((l) => l['id'] == 'hillshade'), isFalse);
+
+        // No https:// leaks anywhere in the emitted style (attribution is
+        // exempt in other tests, but here we assert on the whole style
+        // string since there is no DEM url to spare).
+        final urls = sources.values
+            .map((dynamic s) => (s as Map<String, dynamic>)['url'])
+            .whereType<String>();
+        for (final url in urls) {
+          expect(url.contains('http'), isFalse);
+        }
+      },
+    );
+  });
+
+  group('rewriteStyleForOffline — DEM path safety', () {
+    test('rejects a demCellPaths entry with a .. traversal segment', () {
+      expect(
+        () => rewriteStyleForOffline(
+          _onlineStyle(),
+          cacheRoot: _cacheRoot,
+          cellPaths: <String>[_cellA],
+          demCellPaths: <String>['$_cacheRoot/../../etc/passwd_dem.pmtiles'],
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects a non-absolute demCellPaths entry', () {
+      expect(
+        () => rewriteStyleForOffline(
+          _onlineStyle(),
+          cacheRoot: _cacheRoot,
+          cellPaths: <String>[_cellA],
+          demCellPaths: <String>['library/t1/tiles/a_dem.pmtiles'],
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects a foreign-scheme demCellPaths entry', () {
+      expect(
+        () => rewriteStyleForOffline(
+          _onlineStyle(),
+          cacheRoot: _cacheRoot,
+          cellPaths: <String>[_cellA],
+          demCellPaths: <String>['https://evil.example.org/x_dem.pmtiles'],
+        ),
+        throwsArgumentError,
+      );
     });
   });
 }
