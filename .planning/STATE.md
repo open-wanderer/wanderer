@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 Phase: Milestone v1.4 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-07-11 - Completed quick task 260711-d37: Shrink the navigation-screen location puck
+Last activity: 2026-07-11 - Completed quick task 260711-lzb: Make hillshading work offline in the Flutter app
 
 ## v1.4 Phases
 
@@ -113,6 +113,8 @@ Recent decisions affecting current work:
 - [Phase 18-01]: 3 pre-existing `flutter test` failures (`feed_item_test.dart` x2, `settings_screen_test.dart` x1) confirmed unrelated via git-stash bisect against the parent commit; logged to `.planning/phases/18-retire-flutter-map-and-the-flomp-forks/deferred-items.md`, not fixed (out of scope for this plan's `files_modified`)
 - [Phase 18]: [18-02] Removed the six flutter_map/vector_map_tiles/vector_tile_renderer packages and both flomp/* git dependency_overrides from pubspec.yaml; pinned maplibre to exact 0.3.5; meta ^1.18.0 override retained
 - [quick-260710-kpd] Added html and pointer_interceptor as direct pubspec.yaml dependencies since WandererAttribution imports them directly (previously transitive via maplibre/flutter_html).
+- [quick-260711-lzb] DEM (hillshade) tile lifecycle kept fully independent from the vector tile lifecycle on `tile_cells` (separate `dem_status`/`dem_size_bytes`/`dem_error_message`, separate download route, best-effort download on the Flutter side) — hillshade is cosmetic and a DEM failure must never regress or block the vector basemap.
+- [quick-260711-lzb] Fixed a real offline-hillshade bug: `offline_style_rewriter.dart` was sweeping `hillshadeSource` (a `raster-dem` source) into the vector-cell repoint path purely because it carries a `url` key, pointing it at the wrong (vector) `.pmtiles` archive. Now split by `source['type']`; `raster-dem` sources get their own `demCellPaths` param, injected `encoding:terrarium`/`tileSize:512`/`maxzoom:12` (must stay in lockstep with Go's `demMaxZoom` const in `db/services/tiles/generator.go`), and drop cleanly (no `https://` leak) when no DEM archive was downloaded for that trail.
 
 ### Pending Todos
 
@@ -128,15 +130,16 @@ Recent decisions affecting current work:
 
 ### Quick Tasks Completed
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260702-e3g | Fix non-optimistic reorder animation in Settings(Sub)CategoriesScreen | 2026-07-02 | 6b3e6f6b | [260702-e3g-…](./quick/260702-e3g-fix-non-optimistic-reorder-animation-in-/) |
-| 260702-ek7 | Fix white flash on (sub)category toggle/reorder | 2026-07-02 | 8a917b4c | [260702-ek7-…](./quick/260702-ek7-fix-white-flash-on-sub-category-toggle-r/) |
-| 260702-ere | Cascade category visibility to SettingsSubcategoriesScreen | 2026-07-02 | 108348b2 | [260702-ere-…](./quick/260702-ere-cascade-category-visibility-to-settingss/) |
-| 260702-m4u | Make auth_provider.dart build() optimistic | 2026-07-02 | d2d126a8 | [260702-m4u-…](./quick/260702-m4u-make-auth-provider-dart-build-optimistic/) |
-| 260702-gib | Add read-only subcategory chips under each category row | 2026-07-02 | dbc1db3d | [260702-gib-…](./quick/260702-gib-add-subcategory-chips-under-each-categor/) |
-| 260710-kpd | Fix the 6 small UI gaps found after Phase 18 checkpoint | 2026-07-10 | dcbabbd4 | [260710-kpd-…](./quick/260710-kpd-fix-the-6-small-ui-gaps-that-i-found-aft/) |
-| 260711-d37 | Shrink the navigation-screen location puck (custom marker + manual animateCamera follow) | 2026-07-11 | e339b148 | [260711-d37-…](./quick/260711-d37-shrink-the-navigation-screen-location-pu/) |
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 260702-e3g | Fix non-optimistic reorder animation in Settings(Sub)CategoriesScreen | 2026-07-02 | 6b3e6f6b | | [260702-e3g-…](./quick/260702-e3g-fix-non-optimistic-reorder-animation-in-/) |
+| 260702-ek7 | Fix white flash on (sub)category toggle/reorder | 2026-07-02 | 8a917b4c | | [260702-ek7-…](./quick/260702-ek7-fix-white-flash-on-sub-category-toggle-r/) |
+| 260702-ere | Cascade category visibility to SettingsSubcategoriesScreen | 2026-07-02 | 108348b2 | | [260702-ere-…](./quick/260702-ere-cascade-category-visibility-to-settingss/) |
+| 260702-m4u | Make auth_provider.dart build() optimistic | 2026-07-02 | d2d126a8 | | [260702-m4u-…](./quick/260702-m4u-make-auth-provider-dart-build-optimistic/) |
+| 260702-gib | Add read-only subcategory chips under each category row | 2026-07-02 | dbc1db3d | | [260702-gib-…](./quick/260702-gib-add-subcategory-chips-under-each-categor/) |
+| 260710-kpd | Fix the 6 small UI gaps found after Phase 18 checkpoint | 2026-07-10 | dcbabbd4 | | [260710-kpd-…](./quick/260710-kpd-fix-the-6-small-ui-gaps-that-i-found-aft/) |
+| 260711-d37 | Shrink the navigation-screen location puck (custom marker + manual animateCamera follow) | 2026-07-11 | e339b148 | | [260711-d37-…](./quick/260711-d37-shrink-the-navigation-screen-location-pu/) |
+| 260711-lzb | Make hillshading work offline in the Flutter app (per-cell DEM pmtiles pipeline + raster-dem rewriter fix) | 2026-07-11 | 3f67cf37,68501626,ab2be809,3d6ff5e1,d95b2c97,21a516a4,33c1c114 | Needs Review | [260711-lzb-…](./quick/260711-lzb-make-hillshading-work-offline-in-the-flu/) |
 
 ## Deferred Items
 
@@ -175,8 +178,8 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-10T13:16:22.647Z
-Stopped at: Completed quick task 260710-kpd (fix 6 small UI gaps from Phase 18 checkpoint)
+Last session: 2026-07-11T14:28:11Z
+Stopped at: Completed quick task 260711-lzb (make hillshading work offline in the Flutter app); pending manual device smoke test (airplane mode) noted in the task SUMMARY
 Resume file: None
 
 ## Operator Next Steps
