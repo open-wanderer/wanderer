@@ -72,8 +72,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   late final Animation<double> _searchAreaScale;
   ScrollController? _sheetScrollController;
 
-  final sheetMinSize = 0.2;
-  final sheetMediumsize = 0.7;
+  double sheetMinSize = 0.2;
+  final sheetMediumsize = 0.5;
   final sheetMaxSize = 1.0;
 
   @override
@@ -104,8 +104,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     // Only chase a GPS fix for the initial focus when nothing else (explicit
     // route target or a previously saved camera) already decides it.
-    if (widget.initialCenter == null &&
-        ref.read(mapCameraProvider) == null) {
+    if (widget.initialCenter == null && ref.read(mapCameraProvider) == null) {
       _gpsSub = ref.read(foregroundPositionStreamProvider).listen((position) {
         if (position == null || _resolvedGpsCenter != null) return;
         _gpsSub?.cancel();
@@ -200,6 +199,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   @override
   Widget build(BuildContext context) {
     final savedCamera = ref.read(mapCameraProvider);
+
+    sheetMinSize = 56 / MediaQuery.of(context).size.height;
 
     // Initial-focus fallback chain, lowest priority first: (0,0) world view,
     // then the user's saved home location, then a resolved GPS fix. Each of
@@ -327,7 +328,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     return Stack(
       children: [
         TrailCollectionMap(
-          initCenter: widget.initialCenter ?? savedCamera?.center ?? fallbackCenter,
+          initCenter:
+              widget.initialCenter ?? savedCamera?.center ?? fallbackCenter,
           initZoom: widget.initialZoom ?? savedCamera?.zoom ?? fallbackZoom,
           onMapCreated: (controller) => _controller = controller,
           onStyleLoaded: (style) async {
@@ -498,7 +500,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         if (_selectedTrail == null)
           DraggableScrollableSheet(
             controller: _sheetController,
-            initialChildSize: sheetMinSize,
+            initialChildSize: sheetMediumsize,
             minChildSize: sheetMinSize,
             maxChildSize: sheetMaxSize,
             snap: true,
@@ -795,4 +797,3 @@ class _MapScreenState extends ConsumerState<MapScreen>
     return count;
   }
 }
-
