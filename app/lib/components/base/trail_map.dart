@@ -151,6 +151,7 @@ class _TrailMapState extends ConsumerState<TrailMap> {
         decoded,
         cacheRoot: cache.root,
         cellPaths: widget.trail.pmTiles,
+        demCellPaths: widget.trail.demPmTiles,
         dark:
             effectiveBrightness(ref.read(themeModeProvider)) == Brightness.dark,
       );

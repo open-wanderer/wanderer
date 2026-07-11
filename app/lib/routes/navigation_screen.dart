@@ -430,6 +430,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         decoded,
         cacheRoot: cache.root,
         cellPaths: pmTiles,
+        demCellPaths:
+            ref.read(trailProvider(widget.id)).value?.demPmTiles ??
+            const [],
         dark:
             effectiveBrightness(ref.read(themeModeProvider)) == Brightness.dark,
       );
