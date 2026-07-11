@@ -857,6 +857,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get locations => 'Locations';
 
   @override
+  String get location_tracking_notification_title => 'Wanderer';
+
+  @override
+  String get location_tracking_notification_text => 'Recording your trail';
+
+  @override
   String get login => 'Войти';
 
   @override

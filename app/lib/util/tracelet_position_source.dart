@@ -18,7 +18,10 @@ class TraceletPositionSource {
 
   Stream<geo.Position> get stream => _controller.stream;
 
-  Future<void> start() async {
+  Future<void> start({
+    required String notificationTitle,
+    required String notificationText,
+  }) async {
     _locationSub = tl.Tracelet.onLocation(_onLocation);
 
     await tl.Tracelet.ready(
@@ -28,6 +31,15 @@ class TraceletPositionSource {
           distanceFilter: 5.0,
         ),
         app: const tl.AppConfig(stopOnTerminate: false),
+        android: tl.AndroidConfig(
+          foregroundService: tl.ForegroundServiceConfig(
+            channelId: 'wanderer_tracking',
+            channelName: 'Wanderer Tracking',
+            notificationTitle: notificationTitle,
+            notificationText: notificationText,
+            notificationSmallIcon: 'ic_notification_icon',
+          ),
+        ),
       ),
     );
 

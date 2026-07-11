@@ -101,7 +101,20 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
 
     _positionSource = TraceletPositionSource();
     _positionStream = _positionSource.stream;
-    unawaited(_positionSource.start());
+    // AppLocalizations.of(context) isn't safe to call synchronously here —
+    // inherited-widget dependencies aren't established until after the first
+    // frame — so the notification-text lookup (and thus `start()`) is
+    // deferred by one frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final localizations = AppLocalizations.of(context)!;
+      unawaited(
+        _positionSource.start(
+          notificationTitle: localizations.location_tracking_notification_title,
+          notificationText: localizations.location_tracking_notification_text,
+        ),
+      );
+    });
     _sub = _positionStream.listen(
       (pos) {
         _currentPosition.value = pos;
@@ -1021,7 +1034,7 @@ class _LocationMarkerLayer extends StatelessWidget {
               size: const Size(22, 22),
               child: LocationPuck(
                 size: 22,
-                dotSize: 14,
+                dotSize: 20,
                 heading: pos.heading,
                 headingAccuracy: pos.headingAccuracy,
                 showHeading: true,
