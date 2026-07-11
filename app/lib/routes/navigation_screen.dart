@@ -111,6 +111,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
         ref
             .read(navigationStatsProvider(widget.response).notifier)
             .onPosition(pos);
+        if (_followEnabled) {
+          _controller?.animateCamera(
+            center: ml.Geographic(lat: pos.latitude, lon: pos.longitude),
+            bearing: (_headingUp && pos.heading >= 0) ? pos.heading : null,
+            nativeDuration: const Duration(milliseconds: 300),
+          );
+        }
       },
       onError: (Object error) {
         debugPrint('NavigationScreen: GPS stream error — $error');
@@ -143,19 +150,19 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
 
   void _onPanStart() {
     if (_followEnabled) {
-      _controller?.trackLocation(trackLocation: false);
       setState(() => _followEnabled = false);
     }
   }
 
   void _onRecenter() {
     setState(() => _followEnabled = true);
-    _controller?.trackLocation(
-      trackLocation: true,
+    final pos = _currentPosition.value;
+    if (pos == null) return;
+    _controller?.animateCamera(
+      center: ml.Geographic(lat: pos.latitude, lon: pos.longitude),
       // Restores prior heading-up state — recenter never forces north.
-      trackBearing: _headingUp
-          ? ml.BearingTrackMode.gps
-          : ml.BearingTrackMode.none,
+      bearing: (_headingUp && pos.heading >= 0) ? pos.heading : null,
+      nativeDuration: const Duration(milliseconds: 300),
     );
   }
 
@@ -235,9 +242,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
   }
 
   /// Re-arms everything that binds to the current native `Style` object:
-  /// `setStyle` (used for theme swaps) drops added layers/sources AND the
-  /// location component, so this must run after every style load, not just
-  /// once at `onMapCreated`.
+  /// `setStyle` (used for theme swaps) drops added layers/sources, so this
+  /// must run after every style load, not just once at `onMapCreated`. The
+  /// location marker itself is a Flutter `_LocationMarkerLayer` (not a
+  /// native style layer), so it survives style swaps untouched.
   Future<void> _onStyleLoaded(ml.StyleController style) async {
     try {
       final trail = ref.read(trailProvider(widget.id)).value;
@@ -261,19 +269,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
           paint: {'line-color': '#DC2626', 'line-width': 3.5},
         ),
       );
-
-      final controller = _controller;
-      if (controller != null) {
-        await controller.enableLocation(
-          bearingRenderMode: ml.BearingRenderMode.gps, // GPS heading
-        );
-        await controller.trackLocation(
-          trackLocation: _followEnabled,
-          trackBearing: _headingUp
-              ? ml.BearingTrackMode.gps
-              : ml.BearingTrackMode.none,
-        );
-      }
     } catch (e) {
       debugPrint('NavigationScreen: onStyleLoaded failed — $e');
     }
@@ -441,13 +436,20 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                                     setState(() => _headingUp = !_headingUp);
                                     final controller = _controller;
                                     if (controller == null) return;
-                                    controller.trackLocation(
-                                      trackLocation: _followEnabled,
-                                      trackBearing: _headingUp
-                                          ? ml.BearingTrackMode.gps
-                                          : ml.BearingTrackMode.none,
-                                    );
-                                    if (!_headingUp) {
+                                    if (_headingUp) {
+                                      // Reorient immediately from the last
+                                      // fix rather than waiting for the next
+                                      // GPS update.
+                                      final pos = _currentPosition.value;
+                                      if (pos != null && pos.heading >= 0) {
+                                        controller.animateCamera(
+                                          bearing: pos.heading,
+                                          nativeDuration: const Duration(
+                                            milliseconds: 400,
+                                          ),
+                                        );
+                                      }
+                                    } else {
                                       controller.animateCamera(
                                         bearing: 0,
                                         nativeDuration: const Duration(
