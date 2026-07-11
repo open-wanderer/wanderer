@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,6 +48,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
   late final TraceletPositionSource _positionSource;
   late final Stream<geo.Position> _positionStream;
   StreamSubscription<geo.Position>? _sub;
+
+  /// Latest GPS fix, driving both the custom [_LocationMarkerLayer] marker
+  /// and manual camera-follow. A [ValueNotifier] so the marker rebuilds in a
+  /// scoped `ValueListenableBuilder` without a full-screen `setState`.
+  final ValueNotifier<geo.Position?> _currentPosition = ValueNotifier(null);
 
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
@@ -98,6 +104,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
     unawaited(_positionSource.start());
     _sub = _positionStream.listen(
       (pos) {
+        _currentPosition.value = pos;
         ref
             .read(navigationProvider(widget.response).notifier)
             .onPosition(ml.Geographic(lat: pos.latitude, lon: pos.longitude));
@@ -115,6 +122,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
   void dispose() {
     _sub?.cancel();
     unawaited(_positionSource.dispose());
+    _currentPosition.dispose();
     _sheetController.dispose();
     _waypointSheetController.dispose();
     super.dispose();
@@ -399,6 +407,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                             selectedWaypoint: _selectedWaypoint,
                             onWaypointTap: _onWaypointSelected,
                           ),
+                        _LocationMarkerLayer(position: _currentPosition),
 
                         Positioned(
                           top: 128,
@@ -982,4 +991,109 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
       ),
     );
   }
+}
+
+/// Custom, appropriately-sized (~22px) location marker replacing the native
+/// MapLibre location puck — which has no supported size control on either
+/// Android or iOS (`maplibre` 0.3.5). Mirrors the `ml.WidgetLayer`/`ml.Marker`
+/// structure used by `map_screen.dart`'s `_LocationLayer`, but much smaller
+/// and heading-aware via [_HeadingPuck].
+class _LocationMarkerLayer extends StatelessWidget {
+  const _LocationMarkerLayer({required this.position});
+
+  /// Latest GPS fix; null until the first fix lands, in which case nothing
+  /// renders.
+  final ValueNotifier<geo.Position?> position;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<geo.Position?>(
+      valueListenable: position,
+      builder: (context, pos, _) {
+        if (pos == null) return const SizedBox.shrink();
+        return ml.WidgetLayer(
+          markers: [
+            ml.Marker(
+              point: ml.Geographic(lat: pos.latitude, lon: pos.longitude),
+              size: const Size(22, 22),
+              child: _HeadingPuck(
+                heading: pos.heading,
+                headingAccuracy: pos.headingAccuracy,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// A ~14px blue dot (styling mirrors `trail_map.dart`'s
+/// `_buildLocationLayer`: `Colors.blue` fill, 3px white border, subtle black
+/// shadow) centered inside the 22px marker footprint, with an optional
+/// heading wedge rendered behind it when the device reports a trustworthy
+/// heading. `geolocator` reports negative heading/accuracy when stationary
+/// or low-confidence, so the wedge is only drawn when both are
+/// non-negative.
+class _HeadingPuck extends StatelessWidget {
+  const _HeadingPuck({required this.heading, required this.headingAccuracy});
+
+  final double heading;
+  final double headingAccuracy;
+
+  @override
+  Widget build(BuildContext context) {
+    final showHeading = headingAccuracy >= 0 && heading >= 0;
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        if (showHeading)
+          Transform.rotate(
+            angle: heading * math.pi / 180,
+            child: CustomPaint(
+              size: const Size(22, 22),
+              painter: _HeadingWedgePainter(),
+            ),
+          ),
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: Colors.blue,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: .3),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Paints a subordinate (partly-transparent) triangular wedge pointing
+/// "north" (up) within [size] before rotation is applied by the caller's
+/// `Transform.rotate`.
+class _HeadingWedgePainter extends CustomPainter {
+  const _HeadingWedgePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.blue.withValues(alpha: .35);
+    final path = Path()
+      ..moveTo(size.width / 2, 0)
+      ..lineTo(size.width * 0.78, size.height * 0.42)
+      ..lineTo(size.width / 2, size.height * 0.28)
+      ..lineTo(size.width * 0.22, size.height * 0.42)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HeadingWedgePainter oldDelegate) => false;
 }
