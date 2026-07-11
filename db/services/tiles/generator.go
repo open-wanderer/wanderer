@@ -17,6 +17,17 @@ import (
 const (
 	maxZoom = 14
 
+	// demMaxZoom caps the offline DEM (hillshade) extraction lower than the
+	// vector basemap's maxZoom — hillshading doesn't need z14 detail, and
+	// MapLibre overzooms past it. MUST match the Dart
+	// `_offlineDemMaxZoom` constant in offline_style_rewriter.dart (lockstep).
+	demMaxZoom = 12
+
+	// mapterhornSource is Mapterhorn's downloadable global DEM pmtiles
+	// archive, used as the bbox-extraction source for offline hillshade
+	// tiles. Static (unlike getValidProtomapsURL, no date-rotation).
+	mapterhornSource = "https://download.mapterhorn.com/planet.pmtiles"
+
 	cacheDir = "./pb_data/pmtiles_cache"
 )
 
@@ -27,6 +38,12 @@ var (
 
 func CellPath(cell GridCell) string {
 	return filepath.Join(cacheDir, cell.CacheKey()+".pmtiles")
+}
+
+// DemCellPath returns the path to the companion per-cell DEM (hillshade)
+// pmtiles archive, extracted from mapterhornSource alongside the vector cell.
+func DemCellPath(cell GridCell) string {
+	return filepath.Join(cacheDir, cell.CacheKey()+"_dem.pmtiles")
 }
 
 func EnsureCell(app core.App, cell GridCell) error {
@@ -53,11 +70,13 @@ func EnsureCell(app core.App, cell GridCell) error {
 		return fmt.Errorf("failed to find/create tile_cells record: %w", err)
 	}
 
-	if record.GetString("status") == "ready" {
+	if record.GetString("status") == "ready" && record.GetString("dem_status") == "ready" {
 		if _, err := os.Stat(CellPath(cell)); err == nil {
-			return nil
+			if _, err := os.Stat(DemCellPath(cell)); err == nil {
+				return nil
+			}
 		}
-		log.Printf("[tiles] cell %s marked ready but file missing, regenerating", cell.CacheKey())
+		log.Printf("[tiles] cell %s marked ready but file(s) missing, regenerating", cell.CacheKey())
 	}
 
 	return generateCell(app, record, cell)
@@ -83,6 +102,7 @@ func findOrCreateRecord(app core.App, cell GridCell) (*core.Record, error) {
 	record := core.NewRecord(collection)
 	record.Set("cell_key", cell.CacheKey())
 	record.Set("status", "pending")
+	record.Set("dem_status", "pending")
 	record.Set("min_lon", cell.MinLon)
 	record.Set("min_lat", cell.MinLat)
 	record.Set("max_lon", cell.MaxLon)
@@ -124,46 +144,105 @@ func generateCell(app core.App, record *core.Record, cell GridCell) error {
 		return setError(app, record, fmt.Errorf("failed to create cache dir: %w", err))
 	}
 
-	record.Set("status", "pending")
-	record.Set("error_message", "")
-	_ = app.Save(record)
-
 	bbox := fmt.Sprintf("%f,%f,%f,%f",
 		cell.MinLon, cell.MinLat, cell.MaxLon, cell.MaxLat,
 	)
 
-	log.Printf("[tiles] generating cell %s (bbox: %s)", cell.CacheKey(), bbox)
+	// Vector cell extraction — preserve an already-cached vector cell (only
+	// re-extract when the file is actually missing), so a DEM-only refresh
+	// (e.g. pre-existing vector-ready cells backfilling a DEM archive) does
+	// not needlessly re-download the vector archive.
+	if _, err := os.Stat(outputPath); err != nil {
+		record.Set("status", "pending")
+		record.Set("error_message", "")
+		_ = app.Save(record)
 
-	pmtilesSource := getValidProtomapsURL()
+		log.Printf("[tiles] generating cell %s (bbox: %s)", cell.CacheKey(), bbox)
 
-	cmd := exec.Command("pmtiles", "extract",
-		pmtilesSource,
-		outputPath,
-		"--bbox="+bbox,
-		fmt.Sprintf("--maxzoom=%d", maxZoom),
-	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+		pmtilesSource := getValidProtomapsURL()
 
-	if err := cmd.Run(); err != nil {
-		os.Remove(outputPath)
-		return setError(app, record, fmt.Errorf("pmtiles extract failed: %w", err))
+		cmd := exec.Command("pmtiles", "extract",
+			pmtilesSource,
+			outputPath,
+			"--bbox="+bbox,
+			fmt.Sprintf("--maxzoom=%d", maxZoom),
+		)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		if err := cmd.Run(); err != nil {
+			os.Remove(outputPath)
+			return setError(app, record, fmt.Errorf("pmtiles extract failed: %w", err))
+		}
+
+		fi, err := os.Stat(outputPath)
+		if err != nil {
+			return setError(app, record, fmt.Errorf("could not stat output file: %w", err))
+		}
+
+		record.Set("status", "ready")
+		record.Set("size_bytes", fi.Size())
+		record.Set("error_message", "")
+		if err := app.Save(record); err != nil {
+			return err
+		}
+
+		log.Printf("[tiles] cell %s ready (%d bytes)", cell.CacheKey(), fi.Size())
 	}
 
-	fi, err := os.Stat(outputPath)
-	if err != nil {
-		return setError(app, record, fmt.Errorf("could not stat output file: %w", err))
-	}
+	// DEM cell extraction — independent lifecycle. Hillshade is cosmetic, so
+	// a DEM failure is logged but MUST NOT return an error or block the
+	// vector basemap from serving.
+	generateDemCell(app, record, cell, bbox)
 
-	record.Set("status", "ready")
-	record.Set("size_bytes", fi.Size())
-	record.Set("error_message", "")
-	if err := app.Save(record); err != nil {
-		return err
-	}
-
-	log.Printf("[tiles] cell %s ready (%d bytes)", cell.CacheKey(), fi.Size())
 	return nil
+}
+
+func generateDemCell(app core.App, record *core.Record, cell GridCell, bbox string) {
+	demOutputPath := DemCellPath(cell)
+
+	record.Set("dem_status", "pending")
+	record.Set("dem_error_message", "")
+	_ = app.Save(record)
+
+	log.Printf("[tiles] generating DEM cell %s (bbox: %s)", cell.CacheKey(), bbox)
+
+	demCmd := exec.Command("pmtiles", "extract",
+		mapterhornSource,
+		demOutputPath,
+		"--bbox="+bbox,
+		fmt.Sprintf("--maxzoom=%d", demMaxZoom),
+	)
+	demCmd.Stdout = os.Stdout
+	demCmd.Stderr = os.Stderr
+
+	if err := demCmd.Run(); err != nil {
+		os.Remove(demOutputPath)
+		log.Printf("[tiles] DEM extract failed for cell %s: %v", cell.CacheKey(), err)
+		record.Set("dem_status", "error")
+		record.Set("dem_error_message", err.Error())
+		_ = app.Save(record)
+		return
+	}
+
+	fi, err := os.Stat(demOutputPath)
+	if err != nil {
+		log.Printf("[tiles] could not stat DEM output for cell %s: %v", cell.CacheKey(), err)
+		record.Set("dem_status", "error")
+		record.Set("dem_error_message", err.Error())
+		_ = app.Save(record)
+		return
+	}
+
+	record.Set("dem_status", "ready")
+	record.Set("dem_size_bytes", fi.Size())
+	record.Set("dem_error_message", "")
+	if err := app.Save(record); err != nil {
+		log.Printf("[tiles] failed to save DEM-ready record for cell %s: %v", cell.CacheKey(), err)
+		return
+	}
+
+	log.Printf("[tiles] DEM cell %s ready (%d bytes)", cell.CacheKey(), fi.Size())
 }
 
 func setError(app core.App, record *core.Record, err error) error {

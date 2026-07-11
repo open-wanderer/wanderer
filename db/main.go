@@ -217,6 +217,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	g.GET("/{cellKey}", routes.MapCellsGet)
 	g.GET("/{cellKey}/status", routes.MapCellsStatus)
 	g.GET("/{cellKey}/download", routes.MapCellsDownload)
+	g.GET("/{cellKey}/download-dem", routes.MapCellsDownloadDem)
 
 }
 

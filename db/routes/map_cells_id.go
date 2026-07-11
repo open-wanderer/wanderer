@@ -22,10 +22,16 @@ func MapCellsGet(e *core.RequestEvent) error {
 
 	if len(records) > 0 && records[0].GetString("status") == "ready" {
 		if _, err := os.Stat(tiles.CellPath(cell)); err == nil {
-			return e.JSON(http.StatusOK, map[string]any{
+			resp := map[string]any{
 				"status":       "ready",
 				"download_url": "/map/cells/" + cell.CacheKey() + "/download",
-			})
+			}
+			if records[0].GetString("dem_status") == "ready" {
+				if _, err := os.Stat(tiles.DemCellPath(cell)); err == nil {
+					resp["dem_download_url"] = "/map/cells/" + cell.CacheKey() + "/download-dem"
+				}
+			}
+			return e.JSON(http.StatusOK, resp)
 		}
 	}
 
@@ -69,6 +75,11 @@ func MapCellsStatus(e *core.RequestEvent) error {
 	if status == "ready" {
 		resp["size_bytes"] = int64(r.GetFloat("size_bytes"))
 		resp["download_url"] = "/map/cells/" + cell.CacheKey() + "/download"
+		if r.GetString("dem_status") == "ready" {
+			if _, err := os.Stat(tiles.DemCellPath(cell)); err == nil {
+				resp["dem_download_url"] = "/map/cells/" + cell.CacheKey() + "/download-dem"
+			}
+		}
 	}
 	if status == "error" {
 		resp["error"] = r.GetString("error_message")
@@ -89,4 +100,17 @@ func MapCellsDownload(e *core.RequestEvent) error {
 
 	go tiles.IncrementDownloadCount(e.App, cell)
 	return e.FileFS(os.DirFS("./pb_data/pmtiles_cache"), cell.CacheKey()+".pmtiles")
+}
+
+func MapCellsDownloadDem(e *core.RequestEvent) error {
+	cell, err := parseCellKey(e.Request.PathValue("cellKey"))
+	if err != nil {
+		return e.BadRequestError("Invalid cell key", err)
+	}
+
+	if _, err := os.Stat(tiles.DemCellPath(cell)); err != nil {
+		return e.NotFoundError("DEM cell not ready yet", nil)
+	}
+
+	return e.FileFS(os.DirFS("./pb_data/pmtiles_cache"), cell.CacheKey()+"_dem.pmtiles")
 }
