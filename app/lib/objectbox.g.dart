@@ -14,6 +14,7 @@ import 'package:objectbox/internal.dart'
 import 'package:objectbox/objectbox.dart' as obx;
 import 'package:objectbox_flutter_libs/objectbox_flutter_libs.dart';
 
+import 'entities/active_navigation_entity.dart';
 import 'entities/actor_entity.dart';
 import 'entities/category_entity.dart';
 import 'entities/local_settings_entity.dart';
@@ -750,6 +751,95 @@ final _entities = <obx_int.ModelEntity>[
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
   ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(10, 8580051984298238879),
+    name: 'ActiveNavigationEntity',
+    lastPropertyId: const obx_int.IdUid(13, 1107707565331003473),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 2456543006312398477),
+        name: 'obxId',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 1319751191818698749),
+        name: 'dbSessionType',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 4426284220675333170),
+        name: 'trailId',
+        type: 9,
+        flags: 2048,
+        indexId: const obx_int.IdUid(18, 2115373350521693955),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 5220757162905877938),
+        name: 'isOffline',
+        type: 1,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 2526828348485933512),
+        name: 'currentManeuverIndex',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 3442859084048240220),
+        name: 'breadcrumbPolyline',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 5950189903538839312),
+        name: 'distanceMeters',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(8, 3257927514119542250),
+        name: 'elevationGainMeters',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(9, 6993434478254272144),
+        name: 'elevationLossMeters',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 7120512051580696228),
+        name: 'currentElapsedSeconds',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 7300894265119865440),
+        name: 'pausedAccumSeconds',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 6195951392290872947),
+        name: 'isPaused',
+        type: 1,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 1107707565331003473),
+        name: 'updatedAtUtc',
+        type: 10,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
 ];
 
 /// Shortcut for [obx.Store.new] that passes [getObjectBoxModel] and for Flutter
@@ -795,8 +885,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
     // Typically, this is done with `dart run build_runner build`.
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
-    lastEntityId: const obx_int.IdUid(9, 1133408451611476214),
-    lastIndexId: const obx_int.IdUid(17, 8954079352209712639),
+    lastEntityId: const obx_int.IdUid(10, 8580051984298238879),
+    lastIndexId: const obx_int.IdUid(18, 2115373350521693955),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [1110440324073703466],
@@ -1727,6 +1817,125 @@ obx_int.ModelDefinition getObjectBoxModel() {
         return object;
       },
     ),
+    ActiveNavigationEntity: obx_int.EntityDefinition<ActiveNavigationEntity>(
+      model: _entities[8],
+      toOneRelations: (ActiveNavigationEntity object) => [],
+      toManyRelations: (ActiveNavigationEntity object) => {},
+      getId: (ActiveNavigationEntity object) => object.obxId,
+      setId: (ActiveNavigationEntity object, int id) {
+        object.obxId = id;
+      },
+      objectToFB: (ActiveNavigationEntity object, fb.Builder fbb) {
+        final trailIdOffset = object.trailId == null
+            ? null
+            : fbb.writeString(object.trailId!);
+        final breadcrumbPolylineOffset = object.breadcrumbPolyline == null
+            ? null
+            : fbb.writeString(object.breadcrumbPolyline!);
+        fbb.startTable(14);
+        fbb.addInt64(0, object.obxId);
+        fbb.addInt64(1, object.dbSessionType);
+        fbb.addOffset(2, trailIdOffset);
+        fbb.addBool(3, object.isOffline);
+        fbb.addInt64(4, object.currentManeuverIndex);
+        fbb.addOffset(5, breadcrumbPolylineOffset);
+        fbb.addFloat64(6, object.distanceMeters);
+        fbb.addFloat64(7, object.elevationGainMeters);
+        fbb.addFloat64(8, object.elevationLossMeters);
+        fbb.addInt64(9, object.currentElapsedSeconds);
+        fbb.addInt64(10, object.pausedAccumSeconds);
+        fbb.addBool(11, object.isPaused);
+        fbb.addInt64(12, object.updatedAtUtc.millisecondsSinceEpoch);
+        fbb.finish(fbb.endTable());
+        return object.obxId;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final obxIdParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          4,
+          0,
+        );
+        final trailIdParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 8);
+        final isOfflineParam = const fb.BoolReader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          10,
+        );
+        final currentManeuverIndexParam = const fb.Int64Reader()
+            .vTableGetNullable(buffer, rootOffset, 12);
+        final breadcrumbPolylineParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 14);
+        final distanceMetersParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          16,
+          0,
+        );
+        final elevationGainMetersParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          18,
+          0,
+        );
+        final elevationLossMetersParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          20,
+          0,
+        );
+        final currentElapsedSecondsParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          22,
+          0,
+        );
+        final pausedAccumSecondsParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          24,
+          0,
+        );
+        final isPausedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          26,
+          false,
+        );
+        final updatedAtUtcParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 28, 0),
+          isUtc: true,
+        );
+        final object =
+            ActiveNavigationEntity(
+                obxId: obxIdParam,
+                trailId: trailIdParam,
+                isOffline: isOfflineParam,
+                currentManeuverIndex: currentManeuverIndexParam,
+                breadcrumbPolyline: breadcrumbPolylineParam,
+                distanceMeters: distanceMetersParam,
+                elevationGainMeters: elevationGainMetersParam,
+                elevationLossMeters: elevationLossMetersParam,
+                currentElapsedSeconds: currentElapsedSecondsParam,
+                pausedAccumSeconds: pausedAccumSecondsParam,
+                isPaused: isPausedParam,
+                updatedAtUtc: updatedAtUtcParam,
+              )
+              ..dbSessionType = const fb.Int64Reader().vTableGet(
+                buffer,
+                rootOffset,
+                6,
+                0,
+              );
+
+        return object;
+      },
+    ),
   };
 
   return obx_int.ModelDefinition(model, bindings);
@@ -2273,5 +2482,79 @@ class SubcategoryEntity_ {
   /// See [SubcategoryEntity.translationsJson].
   static final translationsJson = obx.QueryStringProperty<SubcategoryEntity>(
     _entities[7].properties[7],
+  );
+}
+
+/// [ActiveNavigationEntity] entity fields to define ObjectBox queries.
+class ActiveNavigationEntity_ {
+  /// See [ActiveNavigationEntity.obxId].
+  static final obxId = obx.QueryIntegerProperty<ActiveNavigationEntity>(
+    _entities[8].properties[0],
+  );
+
+  /// See [ActiveNavigationEntity.dbSessionType].
+  static final dbSessionType = obx.QueryIntegerProperty<ActiveNavigationEntity>(
+    _entities[8].properties[1],
+  );
+
+  /// See [ActiveNavigationEntity.trailId].
+  static final trailId = obx.QueryStringProperty<ActiveNavigationEntity>(
+    _entities[8].properties[2],
+  );
+
+  /// See [ActiveNavigationEntity.isOffline].
+  static final isOffline = obx.QueryBooleanProperty<ActiveNavigationEntity>(
+    _entities[8].properties[3],
+  );
+
+  /// See [ActiveNavigationEntity.currentManeuverIndex].
+  static final currentManeuverIndex =
+      obx.QueryIntegerProperty<ActiveNavigationEntity>(
+        _entities[8].properties[4],
+      );
+
+  /// See [ActiveNavigationEntity.breadcrumbPolyline].
+  static final breadcrumbPolyline =
+      obx.QueryStringProperty<ActiveNavigationEntity>(
+        _entities[8].properties[5],
+      );
+
+  /// See [ActiveNavigationEntity.distanceMeters].
+  static final distanceMeters = obx.QueryDoubleProperty<ActiveNavigationEntity>(
+    _entities[8].properties[6],
+  );
+
+  /// See [ActiveNavigationEntity.elevationGainMeters].
+  static final elevationGainMeters =
+      obx.QueryDoubleProperty<ActiveNavigationEntity>(
+        _entities[8].properties[7],
+      );
+
+  /// See [ActiveNavigationEntity.elevationLossMeters].
+  static final elevationLossMeters =
+      obx.QueryDoubleProperty<ActiveNavigationEntity>(
+        _entities[8].properties[8],
+      );
+
+  /// See [ActiveNavigationEntity.currentElapsedSeconds].
+  static final currentElapsedSeconds =
+      obx.QueryIntegerProperty<ActiveNavigationEntity>(
+        _entities[8].properties[9],
+      );
+
+  /// See [ActiveNavigationEntity.pausedAccumSeconds].
+  static final pausedAccumSeconds =
+      obx.QueryIntegerProperty<ActiveNavigationEntity>(
+        _entities[8].properties[10],
+      );
+
+  /// See [ActiveNavigationEntity.isPaused].
+  static final isPaused = obx.QueryBooleanProperty<ActiveNavigationEntity>(
+    _entities[8].properties[11],
+  );
+
+  /// See [ActiveNavigationEntity.updatedAtUtc].
+  static final updatedAtUtc = obx.QueryDateProperty<ActiveNavigationEntity>(
+    _entities[8].properties[12],
   );
 }

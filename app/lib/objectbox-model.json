@@ -617,10 +617,86 @@
         }
       ],
       "relations": []
+    },
+    {
+      "id": "10:8580051984298238879",
+      "lastPropertyId": "13:1107707565331003473",
+      "name": "ActiveNavigationEntity",
+      "properties": [
+        {
+          "id": "1:2456543006312398477",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:1319751191818698749",
+          "name": "dbSessionType",
+          "type": 6
+        },
+        {
+          "id": "3:4426284220675333170",
+          "name": "trailId",
+          "indexId": "18:2115373350521693955",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "4:5220757162905877938",
+          "name": "isOffline",
+          "type": 1
+        },
+        {
+          "id": "5:2526828348485933512",
+          "name": "currentManeuverIndex",
+          "type": 6
+        },
+        {
+          "id": "6:3442859084048240220",
+          "name": "breadcrumbPolyline",
+          "type": 9
+        },
+        {
+          "id": "7:5950189903538839312",
+          "name": "distanceMeters",
+          "type": 8
+        },
+        {
+          "id": "8:3257927514119542250",
+          "name": "elevationGainMeters",
+          "type": 8
+        },
+        {
+          "id": "9:6993434478254272144",
+          "name": "elevationLossMeters",
+          "type": 8
+        },
+        {
+          "id": "10:7120512051580696228",
+          "name": "currentElapsedSeconds",
+          "type": 6
+        },
+        {
+          "id": "11:7300894265119865440",
+          "name": "pausedAccumSeconds",
+          "type": 6
+        },
+        {
+          "id": "12:6195951392290872947",
+          "name": "isPaused",
+          "type": 1
+        },
+        {
+          "id": "13:1107707565331003473",
+          "name": "updatedAtUtc",
+          "type": 10
+        }
+      ],
+      "relations": []
     }
   ],
-  "lastEntityId": "9:1133408451611476214",
-  "lastIndexId": "17:8954079352209712639",
+  "lastEntityId": "10:8580051984298238879",
+  "lastIndexId": "18:2115373350521693955",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,
