@@ -1262,6 +1262,11 @@ class AppLocalizationsDe extends AppLocalizations {
   String get resume => 'Fortsetzen';
 
   @override
+  String resume_navigation_prompt(String trail) {
+    return 'Resume navigation on $trail?';
+  }
+
+  @override
   String get reverse_direction => 'Richtung umkehren';
 
   @override

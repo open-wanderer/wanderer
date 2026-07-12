@@ -380,6 +380,14 @@
   "reset": "Reset",
   "reset_password": "Reset Password",
   "resume": "Resume",
+  "resume_navigation_prompt": "Resume navigation on {trail}?",
+  "@resume_navigation_prompt": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
   "reverse_direction": "Reverse direction",
   "road": "Road",
   "route": "{n, plural, =1 {Route} other {Routes}}",

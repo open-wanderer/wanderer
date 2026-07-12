@@ -2360,6 +2360,12 @@ abstract class AppLocalizations {
   /// **'Resume'**
   String get resume;
 
+  /// No description provided for @resume_navigation_prompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume navigation on {trail}?'**
+  String resume_navigation_prompt(String trail);
+
   /// No description provided for @reverse_direction.
   ///
   /// In en, this message translates to:
