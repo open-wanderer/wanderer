@@ -12,10 +12,10 @@ part of 'navigation_stats_provider.dart';
 /// [NavigateResponse] session.
 ///
 /// Family-keyed on [response] so each navigation session is isolated and
-/// testable via a plain [ProviderContainer] (D-17), exactly like
+/// testable via a plain [ProviderContainer], exactly like
 /// `navigationProvider`.
 ///
-/// D-13: this notifier NEVER opens its own GPS stream. It is fed purely via
+/// This notifier never opens its own GPS stream. It is fed purely via
 /// [onPosition], called from the single broadcast stream owned by
 /// `_NavigationScreenState`.
 
@@ -26,10 +26,10 @@ final navigationStatsProvider = NavigationStatsNotifierFamily._();
 /// [NavigateResponse] session.
 ///
 /// Family-keyed on [response] so each navigation session is isolated and
-/// testable via a plain [ProviderContainer] (D-17), exactly like
+/// testable via a plain [ProviderContainer], exactly like
 /// `navigationProvider`.
 ///
-/// D-13: this notifier NEVER opens its own GPS stream. It is fed purely via
+/// This notifier never opens its own GPS stream. It is fed purely via
 /// [onPosition], called from the single broadcast stream owned by
 /// `_NavigationScreenState`.
 final class NavigationStatsNotifierProvider
@@ -38,15 +38,15 @@ final class NavigationStatsNotifierProvider
   /// [NavigateResponse] session.
   ///
   /// Family-keyed on [response] so each navigation session is isolated and
-  /// testable via a plain [ProviderContainer] (D-17), exactly like
+  /// testable via a plain [ProviderContainer], exactly like
   /// `navigationProvider`.
   ///
-  /// D-13: this notifier NEVER opens its own GPS stream. It is fed purely via
+  /// This notifier never opens its own GPS stream. It is fed purely via
   /// [onPosition], called from the single broadcast stream owned by
   /// `_NavigationScreenState`.
   NavigationStatsNotifierProvider._({
     required NavigationStatsNotifierFamily super.from,
-    required NavigateResponse super.argument,
+    required (NavigateResponse, {NavigationStatsSeed? resume}) super.argument,
   }) : super(
          retry: null,
          name: r'navigationStatsProvider',
@@ -62,7 +62,7 @@ final class NavigationStatsNotifierProvider
   String toString() {
     return r'navigationStatsProvider'
         ''
-        '($argument)';
+        '$argument';
   }
 
   @$internal
@@ -90,16 +90,16 @@ final class NavigationStatsNotifierProvider
 }
 
 String _$navigationStatsNotifierHash() =>
-    r'acd8e8a7ec22dd83e9e20e68bc18f5a4ee5e190a';
+    r'd47a5c121647af004cb9967c418cb7399d799113';
 
 /// Riverpod notifier that computes live navigation statistics for a single
 /// [NavigateResponse] session.
 ///
 /// Family-keyed on [response] so each navigation session is isolated and
-/// testable via a plain [ProviderContainer] (D-17), exactly like
+/// testable via a plain [ProviderContainer], exactly like
 /// `navigationProvider`.
 ///
-/// D-13: this notifier NEVER opens its own GPS stream. It is fed purely via
+/// This notifier never opens its own GPS stream. It is fed purely via
 /// [onPosition], called from the single broadcast stream owned by
 /// `_NavigationScreenState`.
 
@@ -110,7 +110,7 @@ final class NavigationStatsNotifierFamily extends $Family
           NavigationStats,
           NavigationStats,
           NavigationStats,
-          NavigateResponse
+          (NavigateResponse, {NavigationStatsSeed? resume})
         > {
   NavigationStatsNotifierFamily._()
     : super(
@@ -125,15 +125,20 @@ final class NavigationStatsNotifierFamily extends $Family
   /// [NavigateResponse] session.
   ///
   /// Family-keyed on [response] so each navigation session is isolated and
-  /// testable via a plain [ProviderContainer] (D-17), exactly like
+  /// testable via a plain [ProviderContainer], exactly like
   /// `navigationProvider`.
   ///
-  /// D-13: this notifier NEVER opens its own GPS stream. It is fed purely via
+  /// This notifier never opens its own GPS stream. It is fed purely via
   /// [onPosition], called from the single broadcast stream owned by
   /// `_NavigationScreenState`.
 
-  NavigationStatsNotifierProvider call(NavigateResponse response) =>
-      NavigationStatsNotifierProvider._(argument: response, from: this);
+  NavigationStatsNotifierProvider call(
+    NavigateResponse response, {
+    NavigationStatsSeed? resume,
+  }) => NavigationStatsNotifierProvider._(
+    argument: (response, resume: resume),
+    from: this,
+  );
 
   @override
   String toString() => r'navigationStatsProvider';
@@ -143,18 +148,23 @@ final class NavigationStatsNotifierFamily extends $Family
 /// [NavigateResponse] session.
 ///
 /// Family-keyed on [response] so each navigation session is isolated and
-/// testable via a plain [ProviderContainer] (D-17), exactly like
+/// testable via a plain [ProviderContainer], exactly like
 /// `navigationProvider`.
 ///
-/// D-13: this notifier NEVER opens its own GPS stream. It is fed purely via
+/// This notifier never opens its own GPS stream. It is fed purely via
 /// [onPosition], called from the single broadcast stream owned by
 /// `_NavigationScreenState`.
 
 abstract class _$NavigationStatsNotifier extends $Notifier<NavigationStats> {
-  late final _$args = ref.$arg as NavigateResponse;
-  NavigateResponse get response => _$args;
+  late final _$args =
+      ref.$arg as (NavigateResponse, {NavigationStatsSeed? resume});
+  NavigateResponse get response => _$args.$1;
+  NavigationStatsSeed? get resume => _$args.resume;
 
-  NavigationStats build(NavigateResponse response);
+  NavigationStats build(
+    NavigateResponse response, {
+    NavigationStatsSeed? resume,
+  });
   @$mustCallSuper
   @override
   void runBuild() {
@@ -167,6 +177,6 @@ abstract class _$NavigationStatsNotifier extends $Notifier<NavigationStats> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    element.handleCreate(ref, () => build(_$args.$1, resume: _$args.resume));
   }
 }

@@ -52,7 +52,11 @@ class Navigation extends _$Navigation {
   late final List<double> _maneuverCumulativeMeters;
 
   @override
-  NavigationState build(NavigateResponse response) {
+  NavigationState build(
+    NavigateResponse response, {
+    int? resumeManeuverIndex,
+    List<Geographic>? resumeBreadcrumb,
+  }) {
     final shape = response.shapeAsGeographic;
 
     if (shape.isEmpty) {
@@ -78,10 +82,25 @@ class Navigation extends _$Navigation {
           .toList(growable: false);
     }
 
+    var initialManeuverIndex = 0;
+    if (resumeManeuverIndex != null) {
+      initialManeuverIndex = resumeManeuverIndex;
+      final maneuvers = response.maneuvers;
+      if (maneuvers.isNotEmpty && shape.isNotEmpty) {
+        final clampedManeuver = resumeManeuverIndex.clamp(
+          0,
+          maneuvers.length - 1,
+        );
+        _currentShapeIndex = maneuvers[clampedManeuver].beginShapeIndex
+            .clamp(0, shape.length - 1)
+            .toInt();
+      }
+    }
+
     return NavigationState(
       response: response,
-      currentManeuverIndex: 0,
-      breadcrumb: const [],
+      currentManeuverIndex: initialManeuverIndex,
+      breadcrumb: resumeBreadcrumb ?? const [],
     );
   }
 

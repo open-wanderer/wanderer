@@ -49,6 +49,24 @@ abstract class NavigationStats with _$NavigationStats {
   }) = _NavigationStats;
 }
 
+/// Resume-seed snapshot used to rehydrate [NavigationStats] from a persisted
+/// [ActiveNavigationEntity] row after a manual app termination.
+///
+/// Session-scoped, value-equal via the existing freezed part — no `fromJson`
+/// needed since it's constructed directly from the persisted entity's fields,
+/// never (de)serialized itself.
+@freezed
+abstract class NavigationStatsSeed with _$NavigationStatsSeed {
+  const factory NavigationStatsSeed({
+    required double distanceMeters,
+    required double elevationGainMeters,
+    required double elevationLossMeters,
+    required Duration elapsed,
+    required Duration pausedAccum,
+    required bool isPaused,
+  }) = _NavigationStatsSeed;
+}
+
 // ---------------------------------------------------------------------------
 // Notifier
 // ---------------------------------------------------------------------------
@@ -91,11 +109,37 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
   Geographic? _lastPoint;
 
   @override
-  NavigationStats build(NavigateResponse response) {
+  NavigationStats build(NavigateResponse response, {NavigationStatsSeed? resume}) {
     // Cancel the timer when the family entry is disposed.
     ref.onDispose(() => _ticker?.cancel());
-    return const NavigationStats();
+
+    if (resume == null) {
+      return const NavigationStats();
+    }
+
+    _pausedAccum = resume.pausedAccum;
+    // _tick's `DateTime.now().difference(_start!) - _pausedAccum` must yield
+    // `resume.elapsed` at the first tick and advance by wall time thereafter.
+    // Subtracting only `elapsed` while separately restoring `_pausedAccum`
+    // would double-count paused time — this formula avoids that.
+    _start = DateTime.now().subtract(resume.elapsed + resume.pausedAccum);
+    _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    if (resume.isPaused) {
+      _pauseStart = DateTime.now();
+    }
+
+    return NavigationStats(
+      distanceMeters: resume.distanceMeters,
+      elevationGainMeters: resume.elevationGainMeters,
+      elevationLossMeters: resume.elevationLossMeters,
+      isPaused: resume.isPaused,
+      elapsed: resume.elapsed,
+    );
   }
+
+  /// The total time spent paused so far — not part of [NavigationStats] state
+  /// but needed by the screen to persist the accumulator.
+  Duration get pausedAccum => _pausedAccum;
 
   /// Feeds a GPS [Position] into the accumulator.
   ///

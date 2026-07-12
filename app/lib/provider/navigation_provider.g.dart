@@ -16,7 +16,12 @@ final class NavigationProvider
     extends $NotifierProvider<Navigation, NavigationState> {
   NavigationProvider._({
     required NavigationFamily super.from,
-    required NavigateResponse super.argument,
+    required (
+      NavigateResponse, {
+      int? resumeManeuverIndex,
+      List<Geographic>? resumeBreadcrumb,
+    })
+    super.argument,
   }) : super(
          retry: null,
          name: r'navigationProvider',
@@ -32,7 +37,7 @@ final class NavigationProvider
   String toString() {
     return r'navigationProvider'
         ''
-        '($argument)';
+        '$argument';
   }
 
   @$internal
@@ -58,7 +63,7 @@ final class NavigationProvider
   }
 }
 
-String _$navigationHash() => r'946a414bf496e79ff9483ad80931c0a8f50dffbd';
+String _$navigationHash() => r'd54003a7561c0336c0eb32cbf9576536154772fc';
 
 final class NavigationFamily extends $Family
     with
@@ -67,7 +72,11 @@ final class NavigationFamily extends $Family
           NavigationState,
           NavigationState,
           NavigationState,
-          NavigateResponse
+          (
+            NavigateResponse, {
+            int? resumeManeuverIndex,
+            List<Geographic>? resumeBreadcrumb,
+          })
         > {
   NavigationFamily._()
     : super(
@@ -78,18 +87,40 @@ final class NavigationFamily extends $Family
         isAutoDispose: true,
       );
 
-  NavigationProvider call(NavigateResponse response) =>
-      NavigationProvider._(argument: response, from: this);
+  NavigationProvider call(
+    NavigateResponse response, {
+    int? resumeManeuverIndex,
+    List<Geographic>? resumeBreadcrumb,
+  }) => NavigationProvider._(
+    argument: (
+      response,
+      resumeManeuverIndex: resumeManeuverIndex,
+      resumeBreadcrumb: resumeBreadcrumb,
+    ),
+    from: this,
+  );
 
   @override
   String toString() => r'navigationProvider';
 }
 
 abstract class _$Navigation extends $Notifier<NavigationState> {
-  late final _$args = ref.$arg as NavigateResponse;
-  NavigateResponse get response => _$args;
+  late final _$args =
+      ref.$arg
+          as (
+            NavigateResponse, {
+            int? resumeManeuverIndex,
+            List<Geographic>? resumeBreadcrumb,
+          });
+  NavigateResponse get response => _$args.$1;
+  int? get resumeManeuverIndex => _$args.resumeManeuverIndex;
+  List<Geographic>? get resumeBreadcrumb => _$args.resumeBreadcrumb;
 
-  NavigationState build(NavigateResponse response);
+  NavigationState build(
+    NavigateResponse response, {
+    int? resumeManeuverIndex,
+    List<Geographic>? resumeBreadcrumb,
+  });
   @$mustCallSuper
   @override
   void runBuild() {
@@ -102,6 +133,13 @@ abstract class _$Navigation extends $Notifier<NavigationState> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    element.handleCreate(
+      ref,
+      () => build(
+        _$args.$1,
+        resumeManeuverIndex: _$args.resumeManeuverIndex,
+        resumeBreadcrumb: _$args.resumeBreadcrumb,
+      ),
+    );
   }
 }
