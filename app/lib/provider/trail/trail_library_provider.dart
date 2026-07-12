@@ -14,7 +14,9 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
   List<Trail> build() {
     final store = ref.watch(objectBoxProvider);
     final box = store.box<TrailEntity>();
-    return box.getAll().map((t) => t.toModel()).toList();
+    final trails = box.getAll().map((t) => t.toModel()).toList();
+    trails.sort((a, b) => b.created.compareTo(a.created));
+    return trails;
   }
 
   Future<void> deleteTrail(String id) async {
