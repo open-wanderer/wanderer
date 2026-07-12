@@ -10,11 +10,13 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/waypoint_sheet.dart';
+import 'package:wanderer/entities/active_navigation_entity.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/glyph_sprite_cache_paths.dart';
 import 'package:wanderer/models/navigate_response.dart';
@@ -27,21 +29,26 @@ import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
+import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
+import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
+import 'package:wanderer/util/polyline_util.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
 
 class NavigationScreen extends ConsumerStatefulWidget {
   final String id;
   final NavigateResponse response;
   final bool isOffline;
+  final ActiveNavigationEntity? resumeSession;
 
   const NavigationScreen({
     super.key,
     required this.id,
     required this.response,
     this.isOffline = false,
+    this.resumeSession,
   });
 
   @override
@@ -53,6 +60,28 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   late final TraceletPositionSource _positionSource;
   late final Stream<geo.Position> _positionStream;
   StreamSubscription<geo.Position>? _sub;
+
+  /// ObjectBox store, read once in [initState] — used to persist/clear the
+  /// single active-session row via `active_navigation_store`.
+  late final Store _store;
+
+  /// Resume seeds computed once from [NavigationScreen.resumeSession]. Every
+  /// `navigationProvider`/`navigationStatsProvider` call site below must pass
+  /// the identical seed fields or the family resolves to a different
+  /// (split-brain) provider instance.
+  late final int? _resumeManeuverIndex;
+  late final List<ml.Geographic>? _resumeBreadcrumb;
+  late final NavigationStatsSeed? _resumeStats;
+
+  /// obxId of the single active-session row this screen owns. 0 means "not
+  /// yet inserted" — the first [_persistNow] call inserts and this is updated
+  /// with the id `active_nav.save` returns so every later save updates the
+  /// same row instead of inserting a duplicate.
+  int _activeRowObxId = 0;
+
+  /// Periodic best-effort persistence tick (in addition to maneuver-advance
+  /// and pause-toggle saves).
+  Timer? _persistTimer;
 
   /// Latest *animated* GPS fix, driving both the custom [_LocationMarkerLayer]
   /// marker and camera-follow. A [ValueNotifier] so the marker rebuilds in a
@@ -176,6 +205,35 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
     WidgetsBinding.instance.addObserver(this);
 
+    _store = ref.read(objectBoxProvider);
+    final resumeSession = widget.resumeSession;
+    _resumeManeuverIndex = resumeSession?.currentManeuverIndex;
+    _activeRowObxId = resumeSession?.obxId ?? 0;
+    _resumeBreadcrumb = resumeSession?.breadcrumbPolyline != null
+        ? PolylineUtil.decode(resumeSession!.breadcrumbPolyline!)
+        : null;
+    _resumeStats = resumeSession != null
+        ? NavigationStatsSeed(
+            distanceMeters: resumeSession.distanceMeters,
+            elevationGainMeters: resumeSession.elevationGainMeters,
+            elevationLossMeters: resumeSession.elevationLossMeters,
+            elapsed: Duration(seconds: resumeSession.currentElapsedSeconds),
+            pausedAccum: Duration(seconds: resumeSession.pausedAccumSeconds),
+            isPaused: resumeSession.isPaused,
+          )
+        : null;
+
+    if (resumeSession == null) {
+      // Fresh session: clear any stale prior-trail row, then write an
+      // initial zeroed row for this trail.
+      active_nav.clear(_store);
+      _persistNow();
+    }
+    _persistTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _persistNow(),
+    );
+
     _positionSource = TraceletPositionSource();
     _positionStream = _positionSource.stream;
     // AppLocalizations.of(context) isn't safe to call synchronously here —
@@ -199,13 +257,28 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     // separate GPS session just for the UI.
     _sub = _positionStream.listen(
       (pos) {
+        final navProviderInstance = navigationProvider(
+          widget.response,
+          resumeManeuverIndex: _resumeManeuverIndex,
+          resumeBreadcrumb: _resumeBreadcrumb,
+        );
+        final beforeIndex = ref.read(navProviderInstance).currentManeuverIndex;
         ref
-            .read(navigationProvider(widget.response).notifier)
+            .read(navProviderInstance.notifier)
             .onPosition(ml.Geographic(lat: pos.latitude, lon: pos.longitude));
+        final afterIndex = ref.read(navProviderInstance).currentManeuverIndex;
         ref
-            .read(navigationStatsProvider(widget.response).notifier)
+            .read(
+              navigationStatsProvider(
+                widget.response,
+                resume: _resumeStats,
+              ).notifier,
+            )
             .onPosition(pos);
         _onFix(pos);
+        if (afterIndex > beforeIndex) {
+          _persistNow();
+        }
       },
       onError: (Object error) {
         debugPrint('NavigationScreen: GPS stream error — $error');
@@ -366,6 +439,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     WidgetsBinding.instance.removeObserver(this);
     _sub?.cancel();
     _headingSub?.cancel();
+    _persistTimer?.cancel();
     _positionAnimController.dispose();
     _bearingTransitionController.dispose();
     unawaited(_positionSource.dispose());
@@ -373,6 +447,43 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _sheetController.dispose();
     _waypointSheetController.dispose();
     super.dispose();
+  }
+
+  /// Persists a snapshot of the current navigation progress + stats +
+  /// breadcrumb to the single active-session row, updating (never
+  /// duplicating) the row via [_activeRowObxId]. Best-effort — see
+  /// `active_navigation_store`'s swallow-all semantics.
+  void _persistNow() {
+    final navState = ref.read(
+      navigationProvider(
+        widget.response,
+        resumeManeuverIndex: _resumeManeuverIndex,
+        resumeBreadcrumb: _resumeBreadcrumb,
+      ),
+    );
+    final statsNotifier = ref.read(
+      navigationStatsProvider(widget.response, resume: _resumeStats).notifier,
+    );
+    final stats = ref.read(
+      navigationStatsProvider(widget.response, resume: _resumeStats),
+    );
+
+    final entity = ActiveNavigationEntity(
+      obxId: _activeRowObxId,
+      sessionType: ActiveSessionType.nav,
+      trailId: widget.id,
+      isOffline: widget.isOffline,
+      currentManeuverIndex: navState.currentManeuverIndex,
+      breadcrumbPolyline: PolylineUtil.encode(navState.breadcrumb),
+      distanceMeters: stats.distanceMeters,
+      elevationGainMeters: stats.elevationGainMeters,
+      elevationLossMeters: stats.elevationLossMeters,
+      currentElapsedSeconds: stats.elapsed.inSeconds,
+      pausedAccumSeconds: statsNotifier.pausedAccum.inSeconds,
+      isPaused: stats.isPaused,
+      updatedAtUtc: DateTime.now().toUtc(),
+    );
+    _activeRowObxId = active_nav.save(_store, entity);
   }
 
   void _onWaypointSelected(Waypoint wp) {
@@ -431,8 +542,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         cacheRoot: cache.root,
         cellPaths: pmTiles,
         demCellPaths:
-            ref.read(trailProvider(widget.id)).value?.demPmTiles ??
-            const [],
+            ref.read(trailProvider(widget.id)).value?.demPmTiles ?? const [],
         dark:
             effectiveBrightness(ref.read(themeModeProvider)) == Brightness.dark,
       );
@@ -501,7 +611,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       }
 
       final breadcrumb = ref
-          .read(navigationProvider(widget.response))
+          .read(
+            navigationProvider(
+              widget.response,
+              resumeManeuverIndex: _resumeManeuverIndex,
+              resumeBreadcrumb: _resumeBreadcrumb,
+            ),
+          )
           .breadcrumb;
       await style.addSource(
         ml.GeoJsonSource(
@@ -544,22 +660,37 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
     // Breadcrumb in-place update: swap the native source's data on every new
     // position fix, never remove/re-add the source.
-    ref.listen(navigationProvider(widget.response), (prev, next) {
-      if (prev?.breadcrumb == next.breadcrumb) return;
-      final style = _controller?.style;
-      if (style == null) return;
-      style
-          .updateGeoJsonSource(
-            id: 'breadcrumb',
-            data: _breadcrumbGeoJson(next.breadcrumb),
-          )
-          .catchError((Object e) {
-            debugPrint('NavigationScreen: failed to update breadcrumb — $e');
-          });
-    });
+    ref.listen(
+      navigationProvider(
+        widget.response,
+        resumeManeuverIndex: _resumeManeuverIndex,
+        resumeBreadcrumb: _resumeBreadcrumb,
+      ),
+      (prev, next) {
+        if (prev?.breadcrumb == next.breadcrumb) return;
+        final style = _controller?.style;
+        if (style == null) return;
+        style
+            .updateGeoJsonSource(
+              id: 'breadcrumb',
+              data: _breadcrumbGeoJson(next.breadcrumb),
+            )
+            .catchError((Object e) {
+              debugPrint('NavigationScreen: failed to update breadcrumb — $e');
+            });
+      },
+    );
 
-    final navState = ref.watch(navigationProvider(widget.response));
-    final stats = ref.watch(navigationStatsProvider(widget.response));
+    final navState = ref.watch(
+      navigationProvider(
+        widget.response,
+        resumeManeuverIndex: _resumeManeuverIndex,
+        resumeBreadcrumb: _resumeBreadcrumb,
+      ),
+    );
+    final stats = ref.watch(
+      navigationStatsProvider(widget.response, resume: _resumeStats),
+    );
     final trailAsync = ref.watch(trailProvider(widget.id));
     final user = ref.watch(authProvider).requireValue;
     final localizations = AppLocalizations.of(context)!;
@@ -794,8 +925,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         ],
       ),
     ).then((confirmed) {
-      if (confirmed == true && context.mounted) {
-        context.pop();
+      if (confirmed == true) {
+        // Deliberate exit — best-effort clear so no stale resume prompt
+        // appears on next launch.
+        active_nav.clear(_store);
+        if (context.mounted) {
+          context.pop();
+        }
       }
     });
   }
@@ -1185,9 +1321,17 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                 : localizations.pause,
             elevation: 2,
             shape: StadiumBorder(),
-            onPressed: () => ref
-                .read(navigationStatsProvider(widget.response).notifier)
-                .togglePause(),
+            onPressed: () {
+              ref
+                  .read(
+                    navigationStatsProvider(
+                      widget.response,
+                      resume: _resumeStats,
+                    ).notifier,
+                  )
+                  .togglePause();
+              _persistNow();
+            },
             child: FaIcon(
               stats.isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
             ),

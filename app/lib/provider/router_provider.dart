@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/components/base/wanderer_layout.dart';
+import 'package:wanderer/entities/active_navigation_entity.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/provider/auth_provider.dart';
@@ -245,16 +246,18 @@ class Router extends _$Router {
               builder: (context, state) {
                 final trailId = state.pathParameters['id']!;
                 final extra = state.extra;
-                if (extra is! (NavigateResponse, bool)) {
+                if (extra
+                    is! (NavigateResponse, bool, ActiveNavigationEntity?)) {
                   // extra is lost across process restart / deep-link — fall back
                   // to trail detail so the user isn't left on a blank screen.
                   return TrailDetailScreen(id: trailId);
                 }
-                final (response, isOffline) = extra;
+                final (response, isOffline, resumeSession) = extra;
                 return NavigationScreen(
                   id: trailId,
                   response: response,
                   isOffline: isOffline,
+                  resumeSession: resumeSession,
                 );
               },
             ),

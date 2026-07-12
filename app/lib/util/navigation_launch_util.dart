@@ -24,7 +24,10 @@ import 'package:wanderer/util/gpx_util.dart';
 /// - No [TrailEntity] is found for [trailId]
 /// - The entity's [navCacheJson] field is null
 /// - The JSON cannot be decoded (treat as cache miss)
-NavigateResponse? _readCachedNav(Store store, String trailId) {
+///
+/// Public — also used by the launch-time resume-detection flow in
+/// `main.dart` to resolve a persisted `trailId` back to a [NavigateResponse].
+NavigateResponse? readCachedNav(Store store, String trailId) {
   final box = store.box<TrailEntity>();
   final query = box.query(TrailEntity_.id.equals(trailId)).build();
   final entity = query.findFirst();
@@ -211,7 +214,8 @@ Future<void> launchNavigation({
     if (!context.mounted) return;
 
     // (7) Navigate to the navigation screen; isOffline:false for online path.
-    context.push('/trail/${trail.id}/navigate', extra: (response, false));
+    // Third tuple element is the resume seed — null for a fresh launch.
+    context.push('/trail/${trail.id}/navigate', extra: (response, false, null));
 
     // (8) Silently re-cache the fresh response in the background.
     final store = ref.read(objectBoxProvider);
@@ -221,12 +225,13 @@ Future<void> launchNavigation({
     // Guard mounted before using context after async gap.
     if (!context.mounted) return;
     final store = ref.read(objectBoxProvider);
-    final cached = _readCachedNav(store, trail.id);
+    final cached = readCachedNav(store, trail.id);
     if (cached != null &&
         cached.maneuvers.isNotEmpty &&
         cached.shape.isNotEmpty) {
-      // Valid cache — push with isOffline:true.
-      context.push('/trail/${trail.id}/navigate', extra: (cached, true));
+      // Valid cache — push with isOffline:true. Third tuple element is the
+      // resume seed — null for a fresh launch.
+      context.push('/trail/${trail.id}/navigate', extra: (cached, true, null));
       return;
     }
     // No usable cache — fall through to show error toast.
