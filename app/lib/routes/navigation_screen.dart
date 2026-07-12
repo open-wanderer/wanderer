@@ -654,7 +654,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                             selectedWaypoint: _selectedWaypoint,
                             onWaypointTap: _onWaypointSelected,
                           ),
-                        _LocationMarkerLayer(position: _currentPosition),
+                        _LocationMarkerLayer(
+                          position: _currentPosition,
+                          headingUp: _headingUp,
+                        ),
 
                         Positioned(
                           top: 128,
@@ -1249,11 +1252,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 /// [LocationMarkerLayer], but much smaller and heading-aware via
 /// [LocationPuck].
 class _LocationMarkerLayer extends StatelessWidget {
-  const _LocationMarkerLayer({required this.position});
+  const _LocationMarkerLayer({required this.position, required this.headingUp});
 
   /// Latest GPS fix; null until the first fix lands, in which case nothing
   /// renders.
   final ValueNotifier<LocationMarkerPosition?> position;
+  final bool headingUp;
 
   @override
   Widget build(BuildContext context) {
@@ -1269,7 +1273,7 @@ class _LocationMarkerLayer extends StatelessWidget {
               child: LocationPuck(
                 size: 44,
                 dotSize: 20,
-                heading: pos.heading,
+                heading: headingUp ? 0 : pos.heading,
                 headingAccuracy: pos.headingAccuracy,
                 showHeading: true,
               ),

@@ -86,7 +86,7 @@ class _HeadingWedgePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.blue.withValues(alpha: .35);
+    final paint = Paint()..color = Colors.blue.withValues(alpha: .5);
     final center = Offset(size.width / 2, size.height / 2);
     final outerRadius = size.width / 2;
     // Guard against a canvas no larger than the dot — nothing to draw.
@@ -95,14 +95,18 @@ class _HeadingWedgePainter extends CustomPainter {
     final wingRadius = backRadius + (outerRadius - backRadius) * 0.3;
     const wingAngle = 20 * math.pi / 180;
 
-    Offset polar(double radius, double angleFromUp) => center +
+    Offset polar(double radius, double angleFromUp) =>
+        center +
         Offset(radius * math.sin(angleFromUp), -radius * math.cos(angleFromUp));
 
     final path = Path()
       ..moveTo(polar(outerRadius, 0).dx, polar(outerRadius, 0).dy)
       ..lineTo(polar(wingRadius, wingAngle).dx, polar(wingRadius, wingAngle).dy)
       ..lineTo(polar(backRadius, 0).dx, polar(backRadius, 0).dy)
-      ..lineTo(polar(wingRadius, -wingAngle).dx, polar(wingRadius, -wingAngle).dy)
+      ..lineTo(
+        polar(wingRadius, -wingAngle).dx,
+        polar(wingRadius, -wingAngle).dy,
+      )
       ..close();
     canvas.drawPath(path, paint);
   }
