@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:wanderer/components/toast_overlay.dart';
 import 'package:wanderer/entities/active_navigation_entity.dart';
 import 'package:wanderer/entities/trail_entity.dart';
+import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
@@ -71,7 +72,10 @@ class _MainAppState extends ConsumerState<MainApp> {
     // One-shot resume check that waits for auth to settle so the GoRouter
     // redirect (which bounces unauthenticated users to /welcome) does not
     // race the resume-dialog push.
-    _authSub = ref.listenManual(authProvider, (prev, next) {
+    _authSub = ref.listenManual<AsyncValue<UserEntity?>>(authProvider, (
+      AsyncValue<UserEntity?>? prev,
+      AsyncValue<UserEntity?> next,
+    ) {
       if (_resumeHandled || next.isLoading) return;
       _resumeHandled = true;
       final user = next.value;

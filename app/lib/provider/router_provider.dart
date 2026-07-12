@@ -4,6 +4,7 @@ import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/components/base/wanderer_layout.dart';
 import 'package:wanderer/entities/active_navigation_entity.dart';
+import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/provider/auth_provider.dart';
@@ -50,7 +51,10 @@ class RouterNotifier extends ChangeNotifier {
 Listenable routerListenable(Ref ref) {
   final notifier = RouterNotifier();
 
-  ref.listen(authProvider, (previous, next) {
+  ref.listen<AsyncValue<UserEntity?>>(authProvider, (
+    AsyncValue<UserEntity?>? previous,
+    AsyncValue<UserEntity?> next,
+  ) {
     if (!next.isLoading) {
       notifier.notify();
     }
