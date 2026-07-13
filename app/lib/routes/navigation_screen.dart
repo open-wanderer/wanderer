@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' show pi;
+import 'dart:math' show exp, pi;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_rotation_sensor/flutter_rotation_sensor.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -129,16 +130,17 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// as "leave unchanged", so passing `bearing: null` while a heading-up/
   /// north-return transition is mid-flight can reset or fight the in-flight
   /// rotation, occasionally leaving it stuck partway. Every camera push below
-  /// writes this explicit value instead of `null`.
+  /// writes this explicit value instead of `null`. Written by either
+  /// [_bearingTransitionController] (the two discrete transitions) or
+  /// [_bearingFollowTicker] (continuous heading-up follow) — never both at
+  /// once, see the latter's `isAnimating` guard in [_onBearingFollowTick].
   double _mapBearing = 0;
 
   /// One-shot tween for the two discrete, user-triggered bearing transitions
-  /// (compass tap to enter/exit heading-up). Continuous updates (GPS position
-  /// ticks, heading sensor ticks) write [_mapBearing] and push directly
-  /// instead — they're already smoothed by [_positionAnimController]/the
-  /// sensor's own cadence — so this exists only to animate the discrete jump,
-  /// and to be the *only* writer of [_mapBearing] while it's running (see the
-  /// `!_bearingTransitionController.isAnimating` guard in [_onHeading]).
+  /// (compass tap to enter/exit heading-up). Continuous heading-up follow is
+  /// driven separately by [_bearingFollowTicker], which defers to this
+  /// controller while it's animating — so this is the only writer of
+  /// [_mapBearing] during those 400ms transitions.
   late final AnimationController _bearingTransitionController =
       AnimationController(
         vsync: this,
@@ -151,11 +153,31 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   double _bearingTransitionStart = 0;
   double _bearingTransitionTarget = 0;
 
+  /// Per-frame ticker that continuously eases [_mapBearing] toward
+  /// [_smoothedHeading] while following in heading-up mode — decouples the
+  /// camera's update rate from the heading sensor's throttled ~15Hz cadence
+  /// so rotation reads as smooth as a native gesture instead of stepping.
+  /// Started/stopped by [_syncBearingFollowTicker].
+  late final Ticker _bearingFollowTicker = createTicker(_onBearingFollowTick);
+
+  /// Elapsed timestamp of the previous [_bearingFollowTicker] tick that
+  /// actually advanced [_mapBearing] — used to compute a frame-rate
+  /// independent smoothing factor. Reset to `null` whenever the ticker
+  /// (re)starts or is gated off, so resuming never applies one giant
+  /// catch-up jump from a stale baseline.
+  Duration? _lastBearingFollowElapsed;
+
+  /// Time constant (seconds) for [_bearingFollowTicker]'s exponential
+  /// smoothing — smaller converges faster but jitters more.
+  static const double _kBearingFollowTauSeconds = 0.15;
+
   /// Device heading in degrees (0 = north, clockwise), sourced from the
   /// orientation sensor ([_headingSub]) independently of GPS — GPS `heading`
   /// is only produced while moving and is useless when turning in place.
   /// Null until the first sensor event. Low-pass smoothed via [_lerpBearing]
-  /// since the raw magnetometer signal is jittery.
+  /// since the raw magnetometer signal is jittery. Also the convergence
+  /// target [_bearingFollowTicker] eases [_mapBearing] toward in heading-up
+  /// follow, rather than something snapped straight to the camera.
   double? _smoothedHeading;
   StreamSubscription<OrientationEvent>? _headingSub;
   static const _kHeadingSmoothingAlpha = 0.35;
@@ -323,22 +345,54 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _positionAnimController.forward(from: 0);
   }
 
-  /// Low-pass smooths the raw sensor heading (jittery magnetometer) and pushes
-  /// it to the marker and — in heading-up follow — the camera bearing, on the
-  /// sensor's own ~15Hz cadence, independent of GPS.
+  /// Low-pass smooths the raw sensor heading (jittery magnetometer) into
+  /// [_smoothedHeading] and pushes it to the marker, on the sensor's own
+  /// ~15Hz cadence, independent of GPS. In heading-up follow, the camera
+  /// bearing itself is eased toward this value every rendered frame by
+  /// [_bearingFollowTicker] rather than snapped here — see that ticker's
+  /// docs for why.
   void _onHeading(double rawDegrees) {
     final normalized = rawDegrees % 360 + (rawDegrees < 0 ? 360 : 0);
     _smoothedHeading = _smoothedHeading == null
         ? normalized
         : _lerpBearing(_smoothedHeading!, normalized, _kHeadingSmoothingAlpha);
     _publishMarker();
+  }
+
+  /// Per-frame tick for [_bearingFollowTicker] — eases [_mapBearing] toward
+  /// the live [_smoothedHeading] target using an elapsed-time-based alpha
+  /// (frame-rate independent), decoupling the camera's update rate from the
+  /// heading sensor's throttled ~15Hz cadence so rotation reads as smooth as
+  /// a native gesture instead of stepping once per sensor sample.
+  void _onBearingFollowTick(Duration elapsed) {
+    final target = _smoothedHeading;
     // Don't fight an in-flight compass-triggered transition — it owns
-    // _mapBearing until it finishes, then live sensor updates resume here.
-    if (_followEnabled &&
-        _headingUp &&
-        !_bearingTransitionController.isAnimating) {
-      _mapBearing = _smoothedHeading!;
-      _pushCamera();
+    // _mapBearing until it finishes, then this ticker resumes from there.
+    if (target == null || _bearingTransitionController.isAnimating) {
+      _lastBearingFollowElapsed = elapsed;
+      return;
+    }
+    final last = _lastBearingFollowElapsed;
+    _lastBearingFollowElapsed = elapsed;
+    if (last == null) return;
+    final dtSeconds =
+        (elapsed - last).inMicroseconds / Duration.microsecondsPerSecond;
+    if (dtSeconds <= 0) return;
+    final alpha = 1 - exp(-dtSeconds / _kBearingFollowTauSeconds);
+    _mapBearing = _lerpBearing(_mapBearing, target, alpha);
+    _pushCamera();
+  }
+
+  /// Starts/stops [_bearingFollowTicker] to match whether continuous
+  /// heading-up follow should currently be live — called after every change
+  /// to [_followEnabled], [_headingUp], or [_headingSub].
+  void _syncBearingFollowTicker() {
+    final shouldRun = _followEnabled && _headingUp && _headingSub != null;
+    if (shouldRun && !_bearingFollowTicker.isTicking) {
+      _lastBearingFollowElapsed = null;
+      _bearingFollowTicker.start();
+    } else if (!shouldRun && _bearingFollowTicker.isTicking) {
+      _bearingFollowTicker.stop();
     }
   }
 
@@ -426,6 +480,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       case AppLifecycleState.resumed:
         unawaited(_positionSource.setForeground(true));
         _startHeadingSub();
+        _syncBearingFollowTicker();
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
       case AppLifecycleState.detached:
@@ -433,6 +488,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         unawaited(_positionSource.setForeground(false));
         _headingSub?.cancel();
         _headingSub = null;
+        _syncBearingFollowTicker();
     }
   }
 
@@ -444,6 +500,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _persistTimer?.cancel();
     _positionAnimController.dispose();
     _bearingTransitionController.dispose();
+    _bearingFollowTicker.dispose();
     unawaited(_positionSource.dispose());
     _currentPosition.dispose();
     _sheetController.dispose();
@@ -504,11 +561,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   void _onPanStart() {
     if (_followEnabled) {
       setState(() => _followEnabled = false);
+      _syncBearingFollowTicker();
     }
   }
 
   void _onRecenter() {
     setState(() => _followEnabled = true);
+    _syncBearingFollowTicker();
     final pos = _currentPosition.value;
     if (pos == null) return;
     // Restores prior heading-up state — recenter never forces north. Synced
@@ -821,16 +880,18 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                                   hideIfRotatedNorth: false,
                                   rotateNorthOnPressed: false,
                                   onPressed: () {
-                                    // Continuous rotation in [_onHeading] is
-                                    // gated on `_followEnabled && _headingUp`
-                                    // — without re-enabling follow here, the
-                                    // transition below would be the only
-                                    // rotation that ever happens if follow
-                                    // was already (or becomes) broken.
+                                    // Continuous rotation via
+                                    // [_bearingFollowTicker] is gated on
+                                    // `_followEnabled && _headingUp` — without
+                                    // re-enabling follow here, the transition
+                                    // below would be the only rotation that
+                                    // ever happens if follow was already (or
+                                    // becomes) broken.
                                     setState(() {
                                       _headingUp = !_headingUp;
                                       if (_headingUp) _followEnabled = true;
                                     });
+                                    _syncBearingFollowTicker();
                                     // Animates via [_mapBearing]/[_pushCamera]
                                     // rather than a native `animateCamera` —
                                     // that native animation could get
