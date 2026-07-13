@@ -57,6 +57,8 @@ class NavigationScreen extends ConsumerStatefulWidget {
 
 class _NavigationScreenState extends ConsumerState<NavigationScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
+  static const _trailLayer = TrailLayer();
+
   late final TraceletPositionSource _positionSource;
   late final Stream<geo.Position> _positionStream;
   StreamSubscription<geo.Position>? _sub;
@@ -607,7 +609,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     try {
       final trail = ref.read(trailProvider(widget.id)).value;
       if (trail?.expand?.gpx != null) {
-        await addTrailTrackLayers(style, trail!);
+        await _trailLayer.add(style, trail!);
       }
 
       final breadcrumb = ref

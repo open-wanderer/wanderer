@@ -27,12 +27,6 @@ const List<Object> _kArrowSpacing = <Object>[
   90,
 ];
 
-/// Adds the GPX track (white casing under a colored route line) and the static
-/// directional arrows as native GL style layers via [ml.StyleController].
-///
-/// Call this from `onStyleLoaded` so the layers are re-added after every style
-/// swap (a theme toggle rebuilds the style and drops added layers/images).
-///
 /// A `trail-` prefixed id — the basemap style's `roads_oneway` layer
 /// also references a real Protomaps sprite icon literally named `arrow`.
 /// MapLibre's native `addImage` (both Android and iOS) replaces an existing
@@ -41,155 +35,214 @@ const List<Object> _kArrowSpacing = <Object>[
 /// is on screen.
 const String _kTrailArrowImageId = 'trail-arrow';
 
-/// The directional-arrow icon is registered here via
-/// [ml.StyleController.addImageFromIconData] rather than relying on the
-/// Protomaps style sprite: `file://` sprite resolution is unreliable
-/// on device, so shipping our own image makes the arrows deterministic
-/// regardless of the sprite. Uses [_kTrailArrowImageId], NOT the bare
-/// `arrow` id the basemap's own sprite icon uses — see that constant's doc.
-Future<void> addTrailTrackLayers(
-  ml.StyleController style,
-  Trail trail, {
-  Color routeColor = kTrailRouteColor,
-}) async {
-  final gpx = trail.expand?.gpx;
-  if (gpx == null) return;
-  final points = gpx.allPoints;
-  if (points.length < 2) return;
-
-  // Register the directional-arrow image (a small white nav mark) so the
-  // symbol layer never depends on the style sprite providing an icon, under
-  // an id distinct from the basemap's own `arrow` sprite icon.
-  await style.addImageFromIconData(
-    id: _kTrailArrowImageId,
-    iconData: Icons.arrow_left,
-    size: 32,
-    color: Colors.white,
-  );
-
-  // Serialize the track as a single GeoJSON LineString Feature. jsonEncode
-  // (not string concatenation) keeps the geometry structurally isolated from
-  // the style document.
-  final data = jsonEncode(<String, Object?>{
-    'type': 'Feature',
-    'properties': <String, Object?>{},
-    'geometry': <String, Object?>{
-      'type': 'LineString',
-      'coordinates': <List<double>>[
-        for (final p in points) <double>[p.lon, p.lat],
-      ],
-    },
-  });
-
-  await style.addSource(ml.GeoJsonSource(id: 'trail', data: data));
-
-  // Draw order = add order: casing (9px white) first, colored route (5px) on
-  // top, so 2px of white shows as an outline around the route.
-  await style.addLayer(
-    const ml.LineStyleLayer(
-      id: 'trail-casing',
-      sourceId: 'trail',
-      layout: <String, Object>{'line-cap': 'round', 'line-join': 'round'},
-      paint: <String, Object>{'line-color': '#ffffff', 'line-width': 9},
-    ),
-  );
-  await style.addLayer(
-    ml.LineStyleLayer(
-      id: 'trail-route',
-      sourceId: 'trail',
-      layout: const <String, Object>{'line-cap': 'round', 'line-join': 'round'},
-      paint: <String, Object>{
-        'line-color': _colorToHex(routeColor),
-        'line-width': 5,
-      },
-    ),
-  );
-
-  // Static directional arrows: native line placement + rotation, no animation
-  // loop. minZoom 8 gates visibility below `zoom > 8`.
-  await style.addLayer(
-    const ml.SymbolStyleLayer(
-      id: 'trail-arrows',
-      sourceId: 'trail',
-      minZoom: 8,
-      layout: <String, Object>{
-        'symbol-placement': 'line',
-        'icon-image': _kTrailArrowImageId,
-        'icon-rotation-alignment': 'map',
-        'icon-allow-overlap': true,
-        'icon-ignore-placement': true,
-        'icon-size': 0.5,
-        'symbol-spacing': _kArrowSpacing,
-      },
-    ),
-  );
-}
-
-/// Adds a native directional-arrow symbol layer over a set of already-drawn
-/// polylines (list surfaces). Unlike [addTrailTrackLayers]
-/// this does NOT draw the route/casing lines themselves — the list screens
-/// keep drawing those via the declarative `ml.PolylineLayer`; this helper
-/// only adds arrows on top, reusing the exact same arrow image id and
-/// zoom-interpolated spacing so the list arrows are visually identical to the
-/// single-trail detail arrows.
+/// Owns the native MapLibre GL style layers/source that draw a trail route
+/// line (via [add]/[remove]) and, separately, the directional-arrow overlay
+/// used both by [add] and by list/collection screens (via [addArrows]) that
+/// draw their own route lines declaratively.
 ///
-/// Call this from `onStyleLoaded` (after the existing `fitBounds` call) so the
-/// layer is re-added after every style swap, same as [addTrailTrackLayers].
-Future<void> addPolylineArrowLayer(
-  ml.StyleController style,
-  List<List<ml.Geographic>> lines, {
-  String sourceId = 'list-trail-arrows',
-  String layerId = 'list-trail-arrows-symbols',
-}) async {
-  final validLines = lines.where((line) => line.length >= 2).toList();
-  if (validLines.isEmpty) return;
-
-  // Same arrow image id as addTrailTrackLayers — see _kTrailArrowImageId's
-  // doc for why this must stay distinct from the basemap's own `arrow` icon.
-  await style.addImageFromIconData(
-    id: _kTrailArrowImageId,
-    iconData: Icons.arrow_left,
-    size: 32,
-    color: Colors.white,
-  );
-
-  // jsonEncode (not string concatenation) keeps the geometry structurally
-  // isolated from the style document.
-  final data = jsonEncode(<String, Object?>{
-    'type': 'FeatureCollection',
-    'features': <Map<String, Object?>>[
-      for (final line in validLines)
-        <String, Object?>{
-          'type': 'Feature',
-          'properties': <String, Object?>{},
-          'geometry': <String, Object?>{
-            'type': 'LineString',
-            'coordinates': <List<double>>[
-              for (final p in line) <double>[p.lon, p.lat],
-            ],
-          },
-        },
-    ],
+/// [showArrows] is fixed at construction — it is not reactive. A caller that
+/// needs to change whether arrows are shown must construct a new
+/// [TrailLayer] rather than mutating an existing instance.
+class TrailLayer {
+  const TrailLayer({
+    this.sourceId = 'trail',
+    this.casingLayerId = 'trail-casing',
+    this.routeLayerId = 'trail-route',
+    this.arrowsLayerId = 'trail-arrows',
+    this.showArrows = true,
   });
 
-  await style.addSource(ml.GeoJsonSource(id: sourceId, data: data));
+  final String sourceId;
+  final String casingLayerId;
+  final String routeLayerId;
+  final String arrowsLayerId;
+  final bool showArrows;
 
-  await style.addLayer(
-    ml.SymbolStyleLayer(
-      id: layerId,
-      sourceId: sourceId,
-      minZoom: 8,
-      layout: <String, Object>{
-        'symbol-placement': 'line',
-        'icon-image': _kTrailArrowImageId,
-        'icon-rotation-alignment': 'map',
-        'icon-allow-overlap': true,
-        'icon-ignore-placement': true,
-        'icon-size': 0.5,
-        'symbol-spacing': _kArrowSpacing,
+  /// Adds the GPX track (white casing under a colored route line) and,
+  /// if [showArrows], the static directional arrows as native GL style
+  /// layers via [ml.StyleController].
+  ///
+  /// Call this from `onStyleLoaded` so the layers are re-added after every
+  /// style swap (a theme toggle rebuilds the style and drops added
+  /// layers/images).
+  Future<void> add(
+    ml.StyleController style,
+    Trail trail, {
+    Color routeColor = kTrailRouteColor,
+  }) async {
+    final gpx = trail.expand?.gpx;
+    if (gpx == null) return;
+    final points = gpx.allPoints;
+    if (points.length < 2) return;
+
+    // Serialize the track as a single GeoJSON LineString Feature. jsonEncode
+    // (not string concatenation) keeps the geometry structurally isolated
+    // from the style document.
+    final data = jsonEncode(<String, Object?>{
+      'type': 'Feature',
+      'properties': <String, Object?>{},
+      'geometry': <String, Object?>{
+        'type': 'LineString',
+        'coordinates': <List<double>>[
+          for (final p in points) <double>[p.lon, p.lat],
+        ],
       },
-    ),
-  );
+    });
+
+    await style.addSource(ml.GeoJsonSource(id: sourceId, data: data));
+
+    // Draw order = add order: casing (9px white) first, colored route (5px)
+    // on top, so 2px of white shows as an outline around the route.
+    await style.addLayer(
+      ml.LineStyleLayer(
+        id: casingLayerId,
+        sourceId: sourceId,
+        layout: const <String, Object>{
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: const <String, Object>{'line-color': '#ffffff', 'line-width': 9},
+      ),
+    );
+    await style.addLayer(
+      ml.LineStyleLayer(
+        id: routeLayerId,
+        sourceId: sourceId,
+        layout: const <String, Object>{
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: <String, Object>{
+          'line-color': _colorToHex(routeColor),
+          'line-width': 5,
+        },
+      ),
+    );
+
+    if (!showArrows) return;
+
+    // The directional-arrow icon is registered here via
+    // [ml.StyleController.addImageFromIconData] rather than relying on the
+    // Protomaps style sprite: `file://` sprite resolution is unreliable
+    // on device, so shipping our own image makes the arrows deterministic
+    // regardless of the sprite. Uses [_kTrailArrowImageId], NOT the bare
+    // `arrow` id the basemap's own sprite icon uses — see that constant's
+    // doc.
+    await style.addImageFromIconData(
+      id: _kTrailArrowImageId,
+      iconData: Icons.arrow_left,
+      size: 32,
+      color: Colors.white,
+    );
+
+    // Static directional arrows: native line placement + rotation, no
+    // animation loop. minZoom 8 gates visibility below `zoom > 8`.
+    await style.addLayer(
+      ml.SymbolStyleLayer(
+        id: arrowsLayerId,
+        sourceId: sourceId,
+        minZoom: 8,
+        layout: <String, Object>{
+          'symbol-placement': 'line',
+          'icon-image': _kTrailArrowImageId,
+          'icon-rotation-alignment': 'map',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'icon-size': 0.5,
+          'symbol-spacing': _kArrowSpacing,
+        },
+      ),
+    );
+  }
+
+  /// Removes the layers/source added by [add], in reverse order (layers
+  /// before the source they depend on). Safe to call even if [add] was
+  /// never called or already removed — each removal is individually
+  /// guarded since [ml.StyleController.removeLayer]/`removeSource` throw on
+  /// an unknown id. Deliberately leaves the shared arrow image registered.
+  Future<void> remove(ml.StyleController style) async {
+    if (showArrows) {
+      try {
+        await style.removeLayer(arrowsLayerId);
+      } catch (_) {}
+    }
+    for (final id in [routeLayerId, casingLayerId]) {
+      try {
+        await style.removeLayer(id);
+      } catch (_) {}
+    }
+    try {
+      await style.removeSource(sourceId);
+    } catch (_) {}
+  }
+
+  /// Adds a native directional-arrow symbol layer over a set of already-drawn
+  /// polylines (list surfaces). Unlike [add] this does NOT draw the
+  /// route/casing lines themselves — the list screens keep drawing those via
+  /// the declarative `ml.PolylineLayer`; this only adds arrows on top,
+  /// reusing the exact same arrow image id and zoom-interpolated spacing so
+  /// the list arrows are visually identical to the single-trail detail
+  /// arrows. No-ops if [showArrows] is false.
+  ///
+  /// Call this from `onStyleLoaded` (after the existing `fitBounds` call) so
+  /// the layer is re-added after every style swap, same as [add].
+  Future<void> addArrows(
+    ml.StyleController style,
+    List<List<ml.Geographic>> lines, {
+    String sourceId = 'list-trail-arrows',
+    String layerId = 'list-trail-arrows-symbols',
+  }) async {
+    if (!showArrows) return;
+    final validLines = lines.where((line) => line.length >= 2).toList();
+    if (validLines.isEmpty) return;
+
+    // Same arrow image id as [add] — see _kTrailArrowImageId's doc for why
+    // this must stay distinct from the basemap's own `arrow` icon.
+    await style.addImageFromIconData(
+      id: _kTrailArrowImageId,
+      iconData: Icons.arrow_left,
+      size: 32,
+      color: Colors.white,
+    );
+
+    // jsonEncode (not string concatenation) keeps the geometry structurally
+    // isolated from the style document.
+    final data = jsonEncode(<String, Object?>{
+      'type': 'FeatureCollection',
+      'features': <Map<String, Object?>>[
+        for (final line in validLines)
+          <String, Object?>{
+            'type': 'Feature',
+            'properties': <String, Object?>{},
+            'geometry': <String, Object?>{
+              'type': 'LineString',
+              'coordinates': <List<double>>[
+                for (final p in line) <double>[p.lon, p.lat],
+              ],
+            },
+          },
+      ],
+    });
+
+    await style.addSource(ml.GeoJsonSource(id: sourceId, data: data));
+
+    await style.addLayer(
+      ml.SymbolStyleLayer(
+        id: layerId,
+        sourceId: sourceId,
+        minZoom: 8,
+        layout: <String, Object>{
+          'symbol-placement': 'line',
+          'icon-image': _kTrailArrowImageId,
+          'icon-rotation-alignment': 'map',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'icon-size': 0.5,
+          'symbol-spacing': _kArrowSpacing,
+        },
+      ),
+    );
+  }
 }
 
 /// Serializes a [Color] to a `#rrggbb` Style-Spec color string.

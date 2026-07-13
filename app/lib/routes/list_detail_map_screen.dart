@@ -8,7 +8,7 @@ import 'package:wanderer/components/base/trail_collection_map.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/map/trail_layer.dart'
-    show addPolylineArrowLayer, kTrailRouteColor;
+    show TrailLayer, kTrailRouteColor;
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/trail.dart';
@@ -28,6 +28,8 @@ class ListDetailMapScreen extends ConsumerStatefulWidget {
 }
 
 class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
+  static const _trailLayer = TrailLayer();
+
   ml.MapController? _controller;
   Trail? _selectedTrail;
   ml.LngLatBounds? _combinedBoundsCache;
@@ -168,7 +170,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
                       nativeDuration: const Duration(milliseconds: 1),
                     );
                   }
-                  addPolylineArrowLayer(style, lines).ignore();
+                  _trailLayer.addArrows(style, lines).ignore();
                 },
                 onMapEvent: (event) {
                   if (event is ml.MapEventClick) _deselect();

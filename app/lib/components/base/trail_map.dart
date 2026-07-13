@@ -69,6 +69,8 @@ class TrailMap extends ConsumerStatefulWidget {
 }
 
 class _TrailMapState extends ConsumerState<TrailMap> {
+  static const _trailLayer = TrailLayer();
+
   ml.MapController? _controller;
 
   /// Buffers a style-loaded event that arrives before [_controller] is set.
@@ -258,7 +260,24 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     // (Re)adds the trail track + static arrows after every style
     // load, so they survive the theme swap (setStyle drops them).
     if (widget.showTrail && widget.trail.expand?.gpx != null) {
-      addTrailTrackLayers(style, widget.trail).ignore();
+      _trailLayer.add(style, widget.trail).ignore();
+    }
+  }
+
+  /// Reacts to [TrailMap.showTrail] flipping after the initial style load —
+  /// `_onStyleLoaded` only re-runs on a style swap (e.g. theme toggle), not
+  /// on a plain widget rebuild, so the trail track layers would otherwise
+  /// never be added/removed in response to the toggle.
+  @override
+  void didUpdateWidget(covariant TrailMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.showTrail == widget.showTrail) return;
+    final style = _controller?.style;
+    if (style == null) return;
+    if (widget.showTrail && widget.trail.expand?.gpx != null) {
+      _trailLayer.add(style, widget.trail).ignore();
+    } else {
+      _trailLayer.remove(style).ignore();
     }
   }
 
