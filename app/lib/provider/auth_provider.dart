@@ -44,16 +44,7 @@ class Auth extends _$Auth {
     final pbAuthCookie = cookies.where((c) => c.name == 'pb_auth').firstOrNull;
 
     if (pbAuthCookie != null) {
-      // Gate navigation on a bounded validation round-trip so the router does
-      // not treat an unconfirmed cached session as "logged in" and mount the
-      // ~20 authenticated /map providers before the session is confirmed
-      // (the concurrent-burst trigger). Offline/slow network still falls back
-      // to the cached user within the timeout window.
       final validation = _updateUserEntity(savedUserEntity.id);
-      // The .timeout below does NOT cancel the underlying Dio request; attach
-      // a no-op sink to the source future so a rejection that arrives AFTER
-      // the timeout has already fired does not surface as an unhandled async
-      // error.
       unawaited(validation.catchError((_) => null));
 
       try {
@@ -65,9 +56,6 @@ class Auth extends _$Auth {
         return savedUserEntity;
       } catch (err) {
         if (_isAuthError(err)) {
-          // logout() calls ref.invalidateSelf(), which is illegal while
-          // build() is still running — defer it and return null now so the
-          // router treats the session as logged-out immediately.
           unawaited(Future.microtask(logout));
           return null;
         }
@@ -104,7 +92,8 @@ class Auth extends _$Auth {
   }
 
   int _bumpConsecutiveValidationFailures() {
-    final entity = _localSettingsBox.getAll().firstOrNull ?? LocalSettingsEntity();
+    final entity =
+        _localSettingsBox.getAll().firstOrNull ?? LocalSettingsEntity();
     entity.consecutiveAuthValidationFailures += 1;
     _localSettingsBox.put(entity);
     return entity.consecutiveAuthValidationFailures;
