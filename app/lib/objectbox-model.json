@@ -548,7 +548,7 @@
     },
     {
       "id": "8:5734302023385580278",
-      "lastPropertyId": "2:293543109978045611",
+      "lastPropertyId": "3:3987020287664329095",
       "name": "LocalSettingsEntity",
       "properties": [
         {
@@ -561,6 +561,11 @@
           "id": "2:293543109978045611",
           "name": "themeMode",
           "type": 9
+        },
+        {
+          "id": "3:3987020287664329095",
+          "name": "consecutiveAuthValidationFailures",
+          "type": 6
         }
       ],
       "relations": []

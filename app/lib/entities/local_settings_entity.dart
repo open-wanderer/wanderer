@@ -7,5 +7,10 @@ class LocalSettingsEntity {
 
   String themeMode;
 
-  LocalSettingsEntity({this.themeMode = 'system'});
+  int consecutiveAuthValidationFailures;
+
+  LocalSettingsEntity({
+    this.themeMode = 'system',
+    this.consecutiveAuthValidationFailures = 0,
+  });
 }
