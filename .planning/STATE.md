@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
 status: Awaiting next milestone
-stopped_at: Completed quick task 260710-kpd (fix 6 small UI gaps from Phase 18 checkpoint)
-last_updated: "2026-07-10T13:41:58.925Z"
-last_activity: 2026-07-10 — Milestone v1.4 completed and archived
+stopped_at: Completed quick task 260712-pac (fix NoSuchMethodError from untyped auth listener closures); manual on-device swipe-kill verification for 260712-m9v still pending
+last_updated: "2026-07-12T16:20:00.000Z"
+last_activity: "2026-07-12 - Completed quick task 260712-pac: Fix NoSuchMethodError in main.dart auth listener"
 progress:
   total_phases: 6
   completed_phases: 5
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 Phase: Milestone v1.4 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-07-11 - Completed quick task 260711-lzb: Make hillshading work offline in the Flutter app
+Last activity: 2026-07-12 - Completed quick task 260712-pac: Fix NoSuchMethodError in main.dart auth listener
 
 ## v1.4 Phases
 
@@ -115,11 +115,15 @@ Recent decisions affecting current work:
 - [quick-260710-kpd] Added html and pointer_interceptor as direct pubspec.yaml dependencies since WandererAttribution imports them directly (previously transitive via maplibre/flutter_html).
 - [quick-260711-lzb] DEM (hillshade) tile lifecycle kept fully independent from the vector tile lifecycle on `tile_cells` (separate `dem_status`/`dem_size_bytes`/`dem_error_message`, separate download route, best-effort download on the Flutter side) — hillshade is cosmetic and a DEM failure must never regress or block the vector basemap.
 - [quick-260711-lzb] Fixed a real offline-hillshade bug: `offline_style_rewriter.dart` was sweeping `hillshadeSource` (a `raster-dem` source) into the vector-cell repoint path purely because it carries a `url` key, pointing it at the wrong (vector) `.pmtiles` archive. Now split by `source['type']`; `raster-dem` sources get their own `demCellPaths` param, injected `encoding:terrarium`/`tileSize:512`/`maxzoom:12` (must stay in lockstep with Go's `demMaxZoom` const in `db/services/tiles/generator.go`), and drop cleanly (no `https://` leak) when no DEM archive was downloaded for that trail.
+- [Phase quick-260712-m9v]: ActiveNavigationEntity exposes obxId as a settable constructor param (unlike TrailEntity's constructor) so navigation_screen.dart can update the single tracked row via active_nav.save() instead of inserting duplicates
+- [Phase quick-260712-m9v]: AppLocalizations keys in this codebase stay literal snake_case getters/methods (e.g. exit_navigation), not camelCase -- confirmed before adding resume_navigation_prompt
+- [Phase quick-260712-pac]: In this Riverpod 3.x codebase, AsyncValue.isLoading/isRefreshing/isReloading/retrying/isFromCache are extension methods, not real instance members -- an untyped ref.listen/listenManual closure param can get inferred as dynamic, which skips extension resolution and throws NoSuchMethodError at runtime instead of a compile error. Always explicitly type listener closure params (and the listen/listenManual generic argument) as AsyncValue<T> when calling these getters.
 
 ### Pending Todos
 
 - Fix 3 pre-existing `flutter test` failures (`feed_item_test.dart` x2, `settings_screen_test.dart` x1) — logged in Phase 18's `deferred-items.md`; not blocking Phase 18 Plan 03.
 - Run `/gsd-execute-phase 18` (or continue directly) for 18-03-PLAN.md — physical-device walk of all six map surfaces (online + airplane mode) to close out CLEAN-01/02/03 verification.
+- Manual on-device verification for quick task 260712-m9v (resume navigation after manual app termination): start navigation, swipe-kill the app, relaunch, accept the resume dialog, confirm maneuver index/distance/elevation/elapsed/breadcrumb continue; also verify decline and deliberate-exit paths show no prompt.
 
 ### Blockers/Concerns
 
@@ -140,6 +144,8 @@ Recent decisions affecting current work:
 | 260710-kpd | Fix the 6 small UI gaps found after Phase 18 checkpoint | 2026-07-10 | dcbabbd4 | | [260710-kpd-…](./quick/260710-kpd-fix-the-6-small-ui-gaps-that-i-found-aft/) |
 | 260711-d37 | Shrink the navigation-screen location puck (custom marker + manual animateCamera follow) | 2026-07-11 | e339b148 | | [260711-d37-…](./quick/260711-d37-shrink-the-navigation-screen-location-pu/) |
 | 260711-lzb | Make hillshading work offline in the Flutter app (per-cell DEM pmtiles pipeline + raster-dem rewriter fix) | 2026-07-11 | 3f67cf37,68501626,ab2be809,3d6ff5e1,d95b2c97,21a516a4,33c1c114 | Needs Review | [260711-lzb-…](./quick/260711-lzb-make-hillshading-work-offline-in-the-flu/) |
+| 260712-m9v | Resume navigation after manual app termination (ObjectBox-persisted session, resume-seedable providers, launch-time resume dialog) | 2026-07-12 | 45b93ce4,3b5fd30f,3784fc95,7503e481 | Needs Review | [260712-m9v-…](./quick/260712-m9v-resume-navigation-after-manual-app-termi/) |
+| 260712-pac | Fix NoSuchMethodError from untyped listenManual/listen closures on authProvider (AsyncValue.isLoading extension resolved dynamically) | 2026-07-12 | 5697a064 | Complete | [260712-pac-…](./quick/260712-pac-fix-nosuchmethoderror-in-main-dart-type-/) |
 
 ## Deferred Items
 
@@ -178,8 +184,8 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-11T14:28:11Z
-Stopped at: Completed quick task 260711-lzb (make hillshading work offline in the Flutter app); pending manual device smoke test (airplane mode) noted in the task SUMMARY
+Last session: 2026-07-12T16:20:00.000Z
+Stopped at: Completed quick task 260712-pac (fix NoSuchMethodError in main.dart auth listener); manual on-device swipe-kill verification for 260712-m9v still pending
 Resume file: None
 
 ## Operator Next Steps

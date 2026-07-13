@@ -8,25 +8,25 @@ part of 'map_cluster_search_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`
-/// (CLUS-01/04/05). Companion to [MapTrailSearch] — that provider still powers
-/// the bottom-sheet trail list (full attributes); this one only feeds the
+/// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`.
+/// Companion to [MapTrailSearch] — that provider still powers the
+/// bottom-sheet trail list (full attributes); this one only feeds the
 /// native cluster circle/count layers (`cluster_layer.dart`), so it returns
 /// the server's already-clustered GeoJSON `FeatureCollection` verbatim.
 
 @ProviderFor(MapClusterSearch)
 final mapClusterSearchProvider = MapClusterSearchProvider._();
 
-/// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`
-/// (CLUS-01/04/05). Companion to [MapTrailSearch] — that provider still powers
-/// the bottom-sheet trail list (full attributes); this one only feeds the
+/// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`.
+/// Companion to [MapTrailSearch] — that provider still powers the
+/// bottom-sheet trail list (full attributes); this one only feeds the
 /// native cluster circle/count layers (`cluster_layer.dart`), so it returns
 /// the server's already-clustered GeoJSON `FeatureCollection` verbatim.
 final class MapClusterSearchProvider
     extends $AsyncNotifierProvider<MapClusterSearch, Map<String, dynamic>> {
-  /// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`
-  /// (CLUS-01/04/05). Companion to [MapTrailSearch] — that provider still powers
-  /// the bottom-sheet trail list (full attributes); this one only feeds the
+  /// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`.
+  /// Companion to [MapTrailSearch] — that provider still powers the
+  /// bottom-sheet trail list (full attributes); this one only feeds the
   /// native cluster circle/count layers (`cluster_layer.dart`), so it returns
   /// the server's already-clustered GeoJSON `FeatureCollection` verbatim.
   MapClusterSearchProvider._()
@@ -50,9 +50,9 @@ final class MapClusterSearchProvider
 
 String _$mapClusterSearchHash() => r'4985253958ced31fa3459836d36559f536e11990';
 
-/// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`
-/// (CLUS-01/04/05). Companion to [MapTrailSearch] — that provider still powers
-/// the bottom-sheet trail list (full attributes); this one only feeds the
+/// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`.
+/// Companion to [MapTrailSearch] — that provider still powers the
+/// bottom-sheet trail list (full attributes); this one only feeds the
 /// native cluster circle/count layers (`cluster_layer.dart`), so it returns
 /// the server's already-clustered GeoJSON `FeatureCollection` verbatim.
 
