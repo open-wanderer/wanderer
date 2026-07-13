@@ -33,6 +33,7 @@ services:
     environment:
       <<: *cenv
       POCKETBASE_ENCRYPTION_KEY: fde406459dc1f6ca6f348e1f44a9a2af
+      POCKETBASE_PROXY_SECRET: dev-proxy-secret-change-me
       ORIGIN: http://localhost:3000
     ports:
       - "8090:8090"
@@ -60,6 +61,7 @@ services:
       <<: *cenv
       ORIGIN: http://localhost:3000
       BODY_SIZE_LIMIT: Infinity
+      POCKETBASE_PROXY_SECRET: dev-proxy-secret-change-me
       PUBLIC_POCKETBASE_URL: http://db:8090
       PUBLIC_DISABLE_SIGNUP: "false"
       UPLOAD_FOLDER: /app/uploads

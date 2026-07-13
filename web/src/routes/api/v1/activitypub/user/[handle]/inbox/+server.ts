@@ -1,4 +1,5 @@
 import { env as publicEnv } from '$env/dynamic/public';
+import { env as privateEnv } from '$env/dynamic/private';
 
 import { handleError } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
@@ -48,8 +49,12 @@ export async function POST(event: RequestEvent) {
             originalHeaders[key] = value
         });
 
-        // Add forwarded path
+        // Add forwarded path. Set after the loop so a client cannot smuggle its own value.
         originalHeaders['X-Forwarded-Path'] = event.url.pathname;
+
+        // Authenticate this internal hop to the backend so the header above is only
+        // ever trusted when it originates from this frontend proxy.
+        originalHeaders['X-Internal-Secret'] = privateEnv.POCKETBASE_PROXY_SECRET ?? '';
 
         const success = await event.locals.pb.send("/activitypub/activity/process", {
             method: "POST",

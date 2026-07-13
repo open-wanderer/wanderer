@@ -28,6 +28,7 @@ fi
 # generate secrets
 meili_key=$(openssl rand -hex 32)
 pocket_key=$(openssl rand -hex 16)
+proxy_secret=$(openssl rand -hex 32)
 
 # Download docker-compose.yml using curl or wget
 if command -v wget >/dev/null 2>&1; then
@@ -42,6 +43,7 @@ fi
 # update docker-compose.yml with secrets and configuration
 SED_INPLACE "s/MEILI_MASTER_KEY:.*/MEILI_MASTER_KEY: ${meili_key}/" docker-compose.yml
 SED_INPLACE "s/POCKETBASE_ENCRYPTION_KEY:.*/POCKETBASE_ENCRYPTION_KEY: ${pocket_key}/" docker-compose.yml
+SED_INPLACE "s/POCKETBASE_PROXY_SECRET:.*/POCKETBASE_PROXY_SECRET: ${proxy_secret}/" docker-compose.yml
 SED_INPLACE "s|ORIGIN:.*|ORIGIN: ${origin}|" docker-compose.yml
 SED_INPLACE "s/PUBLIC_DISABLE_SIGNUP: .*/PUBLIC_DISABLE_SIGNUP: \"${public_disable_signup}\"/" docker-compose.yml
 
