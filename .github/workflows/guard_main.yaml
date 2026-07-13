@@ -1,0 +1,19 @@
+name: Guard Main Source Branch
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify head branch is a release branch
+        run: |
+          HEAD_REF="${{ github.head_ref }}"
+          if [[ "$HEAD_REF" == release/v* ]]; then
+            echo "OK: $HEAD_REF is allowed to merge into main"
+          else
+            echo "::error::PRs into main must come from a release/v* branch (got '$HEAD_REF'). Open your PR against 'dev' instead."
+            exit 1
+          fi

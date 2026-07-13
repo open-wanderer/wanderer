@@ -114,3 +114,49 @@ jobs:
             plugin_dist/SHA256SUMS
           draft: false
           prerelease: false
+
+  sync-dev:
+    needs: [publish, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge main into a sync branch off dev
+        id: merge
+        run: |
+          VERSION="${{ needs.publish.outputs.version }}"
+          BRANCH="sync/${VERSION}-into-dev"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin dev
+          git checkout -b "$BRANCH" origin/dev
+          git merge --no-edit origin/main
+          git push origin "$BRANCH"
+
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Create sync PR
+        id: cpr
+        run: |
+          VERSION="${{ needs.publish.outputs.version }}"
+          URL=$(gh pr create \
+            --base dev \
+            --head "${{ steps.merge.outputs.branch }}" \
+            --title "chore: sync ${VERSION} into dev" \
+            --body "Automated sync of the ${VERSION} release (version bump + tag) back into dev.")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge
+        run: gh pr merge --auto --merge "${{ steps.cpr.outputs.url }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
