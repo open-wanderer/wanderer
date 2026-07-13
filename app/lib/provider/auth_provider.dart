@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:wanderer/entities/local_settings_entity.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/auth_response.dart';
 import 'package:wanderer/models/user.dart';
@@ -15,7 +16,12 @@ part 'auth_provider.g.dart';
 
 @Riverpod(keepAlive: true)
 class Auth extends _$Auth {
+  static const _maxConsecutiveValidationFailures = 3;
+
   Box<UserEntity> get _box => ref.read(objectBoxProvider).box<UserEntity>();
+
+  Box<LocalSettingsEntity> get _localSettingsBox =>
+      ref.read(objectBoxProvider).box<LocalSettingsEntity>();
 
   @override
   FutureOr<UserEntity?> build() async {
@@ -38,20 +44,45 @@ class Auth extends _$Auth {
     final pbAuthCookie = cookies.where((c) => c.name == 'pb_auth').firstOrNull;
 
     if (pbAuthCookie != null) {
-      // Optimistically return the cached user immediately so startup does not
-      // block on a network round-trip. Refresh the user in the background; only
-      // log out if the server explicitly rejects the session (401/403/404).
-      // Connection errors (no network, timeouts, DNS failures) are treated as
-      // "offline" and the cached session is preserved.
-      unawaited(
-        _updateUserEntity(savedUserEntity.id).catchError((Object err) {
-          if (_isAuthError(err)) {
-            logout();
-          }
+      // Gate navigation on a bounded validation round-trip so the router does
+      // not treat an unconfirmed cached session as "logged in" and mount the
+      // ~20 authenticated /map providers before the session is confirmed
+      // (the concurrent-burst trigger). Offline/slow network still falls back
+      // to the cached user within the timeout window.
+      final validation = _updateUserEntity(savedUserEntity.id);
+      // The .timeout below does NOT cancel the underlying Dio request; attach
+      // a no-op sink to the source future so a rejection that arrives AFTER
+      // the timeout has already fired does not surface as an unhandled async
+      // error.
+      unawaited(validation.catchError((_) => null));
+
+      try {
+        final validated = await validation.timeout(const Duration(seconds: 3));
+        return validated ?? savedUserEntity;
+      } on TimeoutException {
+        // Offline/slow network: preserve the cached session, do not touch
+        // the failure counter.
+        return savedUserEntity;
+      } catch (err) {
+        if (_isAuthError(err)) {
+          // logout() calls ref.invalidateSelf(), which is illegal while
+          // build() is still running — defer it and return null now so the
+          // router treats the session as logged-out immediately.
+          unawaited(Future.microtask(logout));
           return null;
-        }),
-      );
-      return savedUserEntity;
+        }
+        if (_isServerError(err)) {
+          final failures = _bumpConsecutiveValidationFailures();
+          if (failures >= _maxConsecutiveValidationFailures) {
+            unawaited(Future.microtask(logout));
+            return null;
+          }
+          return savedUserEntity;
+        }
+        // Any other error (e.g. Dio connectionError/connectionTimeout) is
+        // treated as offline; preserve the cached session.
+        return savedUserEntity;
+      }
     }
     return null;
   }
@@ -62,6 +93,30 @@ class Auth extends _$Auth {
       return statusCode == 401 || statusCode == 403 || statusCode == 404;
     }
     return false;
+  }
+
+  bool _isServerError(Object err) {
+    if (err is DioException) {
+      final statusCode = err.response?.statusCode;
+      return statusCode != null && statusCode >= 500;
+    }
+    return false;
+  }
+
+  int _bumpConsecutiveValidationFailures() {
+    final entity = _localSettingsBox.getAll().firstOrNull ?? LocalSettingsEntity();
+    entity.consecutiveAuthValidationFailures += 1;
+    _localSettingsBox.put(entity);
+    return entity.consecutiveAuthValidationFailures;
+  }
+
+  void _resetConsecutiveValidationFailures() {
+    final entity = _localSettingsBox.getAll().firstOrNull;
+    if (entity == null || entity.consecutiveAuthValidationFailures == 0) {
+      return;
+    }
+    entity.consecutiveAuthValidationFailures = 0;
+    _localSettingsBox.put(entity);
   }
 
   Future<UserEntity?> register(
@@ -159,6 +214,7 @@ class Auth extends _$Auth {
           .updateFromServer(userData.expand!.settings!);
     }
     _box.put(userEntity);
+    _resetConsecutiveValidationFailures();
 
     return userEntity;
   }
