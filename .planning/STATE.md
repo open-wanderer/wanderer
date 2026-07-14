@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
 status: Awaiting next milestone
-stopped_at: Completed quick task 260712-pac (fix NoSuchMethodError from untyped auth listener closures); manual on-device swipe-kill verification for 260712-m9v still pending
-last_updated: "2026-07-12T16:20:00.000Z"
-last_activity: "2026-07-12 - Completed quick task 260712-pac: Fix NoSuchMethodError in main.dart auth listener"
+stopped_at: Completed quick task 260714-qma (revert speculative persisted-500-counter self-heal); Meilisearch token expiry fix (web/src/hooks.server.ts) queued next; manual on-device swipe-kill verification for 260712-m9v still pending
+last_updated: "2026-07-14T17:20:00.000Z"
+last_activity: "2026-07-14 - Completed quick task 260714-qma: Revert speculative persisted-500-counter self-heal, keep timeout-gated auth build()"
 progress:
   total_phases: 6
   completed_phases: 5
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 Phase: Milestone v1.4 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-07-12 - Completed quick task 260712-pac: Fix NoSuchMethodError in main.dart auth listener
+Last activity: 2026-07-14 - Completed quick task 260714-qma: Revert speculative persisted-500-counter self-heal, keep timeout-gated auth build()
 
 ## v1.4 Phases
 
@@ -146,6 +146,8 @@ Recent decisions affecting current work:
 | 260711-lzb | Make hillshading work offline in the Flutter app (per-cell DEM pmtiles pipeline + raster-dem rewriter fix) | 2026-07-11 | 3f67cf37,68501626,ab2be809,3d6ff5e1,d95b2c97,21a516a4,33c1c114 | Needs Review | [260711-lzb-…](./quick/260711-lzb-make-hillshading-work-offline-in-the-flu/) |
 | 260712-m9v | Resume navigation after manual app termination (ObjectBox-persisted session, resume-seedable providers, launch-time resume dialog) | 2026-07-12 | 45b93ce4,3b5fd30f,3784fc95,7503e481 | Needs Review | [260712-m9v-…](./quick/260712-m9v-resume-navigation-after-manual-app-termi/) |
 | 260712-pac | Fix NoSuchMethodError from untyped listenManual/listen closures on authProvider (AsyncValue.isLoading extension resolved dynamically) | 2026-07-12 | 5697a064 | Complete | [260712-pac-…](./quick/260712-pac-fix-nosuchmethoderror-in-main-dart-type-/) |
+| 260713-nes | Gate auth build() on timeout-bounded validation before navigation; original persisted-500-counter self-heal piece later reverted (260714-qma) once the real root cause was found | 2026-07-13 | d9531951,dd56c62d | Superseded by 260714-qma | [260713-nes-…](./quick/260713-nes-fix-500-errors-on-app-launch-by-gating-n/) |
+| 260714-qma | Revert speculative persisted-500-counter self-heal from auth_provider.dart, keep timeout-gated build() | 2026-07-14 | c3fbef98,a6647dcf,eee4f0c2 | Complete | [260714-qma-…](./quick/260714-qma-revert-speculative-persisted-500-counter/) |
 
 ## Deferred Items
 
@@ -184,8 +186,8 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-12T16:20:00.000Z
-Stopped at: Completed quick task 260712-pac (fix NoSuchMethodError in main.dart auth listener); manual on-device swipe-kill verification for 260712-m9v still pending
+Last session: 2026-07-14T17:20:00.000Z
+Stopped at: Completed quick task 260714-qma (revert speculative persisted-500-counter self-heal); Meilisearch token expiry fix (web/src/hooks.server.ts) queued next; manual on-device swipe-kill verification for 260712-m9v still pending
 Resume file: None
 
 ## Operator Next Steps
