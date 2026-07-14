@@ -1904,6 +1904,36 @@ abstract class AppLocalizations {
   /// **'New Trail'**
   String get new_trail;
 
+  /// No description provided for @trail_source_planner.
+  ///
+  /// In en, this message translates to:
+  /// **'Open trail planner'**
+  String get trail_source_planner;
+
+  /// No description provided for @trail_source_record.
+  ///
+  /// In en, this message translates to:
+  /// **'Record trail'**
+  String get trail_source_record;
+
+  /// No description provided for @trail_source_import.
+  ///
+  /// In en, this message translates to:
+  /// **'Import file'**
+  String get trail_source_import;
+
+  /// No description provided for @trail_source_import_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not import file'**
+  String get trail_source_import_error;
+
+  /// No description provided for @coming_soon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon'**
+  String get coming_soon;
+
   /// No description provided for @no_account.
   ///
   /// In en, this message translates to:

@@ -7,6 +7,7 @@ import 'package:wanderer/entities/active_navigation_entity.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/navigate_response.dart';
+import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/routes/global_search_screen.dart';
 import 'package:wanderer/routes/home_screen.dart';
@@ -33,9 +34,11 @@ import 'package:wanderer/routes/settings_notifications_screen.dart';
 import 'package:wanderer/routes/settings_privacy_screen.dart';
 import 'package:wanderer/routes/settings_screen.dart';
 import 'package:wanderer/routes/settings_subcategories_screen.dart';
+import 'package:wanderer/routes/trail_create_screen.dart';
 import 'package:wanderer/routes/trail_detail_map_screen.dart';
 import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
+import 'package:wanderer/routes/trail_source_select_screen.dart';
 import 'package:wanderer/routes/trail_sort_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
 
@@ -230,6 +233,22 @@ class Router extends _$Router {
         GoRoute(
           path: '/trail/sort',
           builder: (context, state) => const TrailSortScreen(),
+        ),
+        GoRoute(
+          path: '/trail/create',
+          builder: (context, state) => const TrailSourceSelectScreen(),
+          routes: [
+            GoRoute(
+              path: 'edit',
+              builder: (context, state) {
+                final extra = state.extra;
+                // extra is lost across process restart / deep-link — fall back
+                // to the source selector so the user isn't left on a blank screen.
+                if (extra is! Trail) return const TrailSourceSelectScreen();
+                return TrailCreateScreen(trail: extra);
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: '/trail/:id',

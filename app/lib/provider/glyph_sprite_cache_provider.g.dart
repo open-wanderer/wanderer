@@ -8,36 +8,36 @@ part of 'glyph_sprite_cache_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// The one shared app-wide glyph/sprite cache (GLYPH-04, D-08).
+/// The one shared app-wide glyph/sprite cache.
 ///
 /// On first read this `keepAlive` provider downloads every glyph range for the
 /// 4 whitelisted fontstacks plus both light and dark sprite sheets into
 /// `<app-docs>/map_cache`, idempotently (files already on disk are skipped, so a
-/// second trail download / map open is a no-op — OFFL-01, D-10). Every local
-/// path is built via the Task-1 path-safety helpers, so no operator-controlled
-/// token is ever concatenated into a path (T-15-03-01).
+/// second trail download / map open is a no-op). Every local path is built via
+/// the path-safety helpers in `map_cache_path.dart`, so no operator-controlled
+/// token is ever concatenated into a path.
 
 @ProviderFor(GlyphSpriteCache)
 final glyphSpriteCacheProvider = GlyphSpriteCacheProvider._();
 
-/// The one shared app-wide glyph/sprite cache (GLYPH-04, D-08).
+/// The one shared app-wide glyph/sprite cache.
 ///
 /// On first read this `keepAlive` provider downloads every glyph range for the
 /// 4 whitelisted fontstacks plus both light and dark sprite sheets into
 /// `<app-docs>/map_cache`, idempotently (files already on disk are skipped, so a
-/// second trail download / map open is a no-op — OFFL-01, D-10). Every local
-/// path is built via the Task-1 path-safety helpers, so no operator-controlled
-/// token is ever concatenated into a path (T-15-03-01).
+/// second trail download / map open is a no-op). Every local path is built via
+/// the path-safety helpers in `map_cache_path.dart`, so no operator-controlled
+/// token is ever concatenated into a path.
 final class GlyphSpriteCacheProvider
     extends $AsyncNotifierProvider<GlyphSpriteCache, GlyphSpriteCachePaths> {
-  /// The one shared app-wide glyph/sprite cache (GLYPH-04, D-08).
+  /// The one shared app-wide glyph/sprite cache.
   ///
   /// On first read this `keepAlive` provider downloads every glyph range for the
   /// 4 whitelisted fontstacks plus both light and dark sprite sheets into
   /// `<app-docs>/map_cache`, idempotently (files already on disk are skipped, so a
-  /// second trail download / map open is a no-op — OFFL-01, D-10). Every local
-  /// path is built via the Task-1 path-safety helpers, so no operator-controlled
-  /// token is ever concatenated into a path (T-15-03-01).
+  /// second trail download / map open is a no-op). Every local path is built via
+  /// the path-safety helpers in `map_cache_path.dart`, so no operator-controlled
+  /// token is ever concatenated into a path.
   GlyphSpriteCacheProvider._()
     : super(
         from: null,
@@ -59,14 +59,14 @@ final class GlyphSpriteCacheProvider
 
 String _$glyphSpriteCacheHash() => r'91ec39748eb03fddaea591ab3dc45f85150d928b';
 
-/// The one shared app-wide glyph/sprite cache (GLYPH-04, D-08).
+/// The one shared app-wide glyph/sprite cache.
 ///
 /// On first read this `keepAlive` provider downloads every glyph range for the
 /// 4 whitelisted fontstacks plus both light and dark sprite sheets into
 /// `<app-docs>/map_cache`, idempotently (files already on disk are skipped, so a
-/// second trail download / map open is a no-op — OFFL-01, D-10). Every local
-/// path is built via the Task-1 path-safety helpers, so no operator-controlled
-/// token is ever concatenated into a path (T-15-03-01).
+/// second trail download / map open is a no-op). Every local path is built via
+/// the path-safety helpers in `map_cache_path.dart`, so no operator-controlled
+/// token is ever concatenated into a path.
 
 abstract class _$GlyphSpriteCache
     extends $AsyncNotifier<GlyphSpriteCachePaths> {

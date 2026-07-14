@@ -45,6 +45,10 @@ class Trail {
     iri?: string;
     like_count: number;
     bounding_box_diagonal?: number;
+    min_lat?: number;
+    max_lat?: number;
+    min_lon?: number;
+    max_lon?: number;
     expand?: {
         tags?: Tag[]
         category?: Category;

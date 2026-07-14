@@ -992,6 +992,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get new_trail => '创建新路线';
 
   @override
+  String get trail_source_planner => 'Open trail planner';
+
+  @override
+  String get trail_source_record => 'Record trail';
+
+  @override
+  String get trail_source_import => 'Import file';
+
+  @override
+  String get trail_source_import_error => 'Could not import file';
+
+  @override
+  String get coming_soon => 'Coming soon';
+
+  @override
   String get no_account => '还未注册？';
 
   @override

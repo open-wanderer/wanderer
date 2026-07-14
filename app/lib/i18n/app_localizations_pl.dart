@@ -1008,6 +1008,21 @@ class AppLocalizationsPl extends AppLocalizations {
   String get new_trail => 'Nowy szlak';
 
   @override
+  String get trail_source_planner => 'Open trail planner';
+
+  @override
+  String get trail_source_record => 'Record trail';
+
+  @override
+  String get trail_source_import => 'Import file';
+
+  @override
+  String get trail_source_import_error => 'Could not import file';
+
+  @override
+  String get coming_soon => 'Coming soon';
+
+  @override
   String get no_account => 'Nie masz konta?';
 
   @override

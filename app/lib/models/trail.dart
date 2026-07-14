@@ -69,6 +69,7 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     String? location,
     @_NullableDateTimeConverter() DateTime? date,
     @Default(false) bool public,
+    @Default(false) bool completed,
     @Default(0) double distance,
     @JsonKey(name: 'elevation_gain') @Default(0) double elevationGain,
     @JsonKey(name: 'elevation_loss') @Default(0) double elevationLoss,
@@ -140,6 +141,9 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
       expand?.trailShareViaTrail?.map((s) => s.actor).toList();
 
   factory Trail.fromJson(Map<String, dynamic> json) => _$TrailFromJson(json);
+
+  factory Trail.empty() =>
+      Trail(id: '', name: '', created: DateTime.now(), updated: DateTime.now());
 }
 
 @freezed

@@ -18,6 +18,16 @@ class WandererLayout extends ConsumerWidget {
     final int currentIndex = _calculateSelectedIndex(router.state.uri.path);
 
     return Scaffold(
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'new_trail',
+        shape: const StadiumBorder(),
+        elevation: 2,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
+        onPressed: () => router.push('/trail/create'),
+        child: const FaIcon(FontAwesomeIcons.plus),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: currentIndex,

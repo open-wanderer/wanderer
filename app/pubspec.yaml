@@ -12,6 +12,7 @@ dependencies:
   dio: ^5.9.2
   dio_cookie_manager: ^3.4.0
   duration: ^4.0.3
+  file_picker: ^11.0.2
   fl_chart: ^1.2.0
   flutter:
     sdk: flutter
@@ -44,10 +45,12 @@ dependencies:
   pointer_interceptor: ^0.10.1
   qr_flutter: ^4.1.0
   riverpod_annotation: ^4.0.2
-  share_plus: ^13.1.0
+  share_plus: ^12.0.2
   skeletonizer: ^2.1.3
   textfield_tags: ^3.0.1
   timeago: ^3.7.1
+  tiptap_flutter:
+    path: vendor/tiptap_flutter
   tracelet: ^3.5.0
   url_launcher: ^6.3.2
 

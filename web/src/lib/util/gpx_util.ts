@@ -75,6 +75,17 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
     trail.elevation_loss = totals.elevationLoss;
     trail.distance = totals.distance
 
+    // Bounding box from the track. Normally computed server-side on save, but an
+    // unsaved trail (e.g. /trail/convert) has none — set it here so consumers can
+    // frame the whole trail rather than falling back to the start point.
+    const bbox = totals.boundingBox;
+    if (Number.isFinite(bbox.minLat) && Number.isFinite(bbox.maxLat)) {
+        trail.min_lat = bbox.minLat;
+        trail.max_lat = bbox.maxLat;
+        trail.min_lon = bbox.minLon;
+        trail.max_lon = bbox.maxLon;
+    }
+
     return { gpx: gpx, trail: trail }
 }
 
