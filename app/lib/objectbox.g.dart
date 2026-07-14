@@ -687,12 +687,6 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(3, 3987020287664329095),
-        name: 'consecutiveAuthValidationFailures',
-        type: 6,
-        flags: 0,
-      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -934,6 +928,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
       5096657038833034963,
       1392396091350786512,
       6208667096274902561,
+      3987020287664329095,
     ],
     retiredRelationUids: const [],
     modelVersion: 5,
@@ -1735,7 +1730,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.startTable(4);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, themeModeOffset);
-        fbb.addInt64(2, object.consecutiveAuthValidationFailures);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1745,13 +1739,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final themeModeParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 6, '');
-        final consecutiveAuthValidationFailuresParam = const fb.Int64Reader()
-            .vTableGet(buffer, rootOffset, 8, 0);
-        final object = LocalSettingsEntity(
-          themeMode: themeModeParam,
-          consecutiveAuthValidationFailures:
-              consecutiveAuthValidationFailuresParam,
-        )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+        final object = LocalSettingsEntity(themeMode: themeModeParam)
+          ..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
       },
@@ -2452,10 +2441,6 @@ class LocalSettingsEntity_ {
   static final themeMode = obx.QueryStringProperty<LocalSettingsEntity>(
     _entities[6].properties[1],
   );
-
-  /// See [LocalSettingsEntity.consecutiveAuthValidationFailures].
-  static final consecutiveAuthValidationFailures =
-      obx.QueryIntegerProperty<LocalSettingsEntity>(_entities[6].properties[2]);
 }
 
 /// [SubcategoryEntity] entity fields to define ObjectBox queries.
