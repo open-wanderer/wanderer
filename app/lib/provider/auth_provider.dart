@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:wanderer/entities/local_settings_entity.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/auth_response.dart';
 import 'package:wanderer/models/user.dart';
@@ -16,12 +15,7 @@ part 'auth_provider.g.dart';
 
 @Riverpod(keepAlive: true)
 class Auth extends _$Auth {
-  static const _maxConsecutiveValidationFailures = 3;
-
   Box<UserEntity> get _box => ref.read(objectBoxProvider).box<UserEntity>();
-
-  Box<LocalSettingsEntity> get _localSettingsBox =>
-      ref.read(objectBoxProvider).box<LocalSettingsEntity>();
 
   @override
   FutureOr<UserEntity?> build() async {
@@ -51,24 +45,16 @@ class Auth extends _$Auth {
         final validated = await validation.timeout(const Duration(seconds: 3));
         return validated ?? savedUserEntity;
       } on TimeoutException {
-        // Offline/slow network: preserve the cached session, do not touch
-        // the failure counter.
+        // Offline/slow network: preserve the cached session.
         return savedUserEntity;
       } catch (err) {
         if (_isAuthError(err)) {
           unawaited(Future.microtask(logout));
           return null;
         }
-        if (_isServerError(err)) {
-          final failures = _bumpConsecutiveValidationFailures();
-          if (failures >= _maxConsecutiveValidationFailures) {
-            unawaited(Future.microtask(logout));
-            return null;
-          }
-          return savedUserEntity;
-        }
-        // Any other error (e.g. Dio connectionError/connectionTimeout) is
-        // treated as offline; preserve the cached session.
+        // Any other error (e.g. a 5xx or Dio connectionError/
+        // connectionTimeout) is treated as offline; preserve the cached
+        // session.
         return savedUserEntity;
       }
     }
@@ -81,31 +67,6 @@ class Auth extends _$Auth {
       return statusCode == 401 || statusCode == 403 || statusCode == 404;
     }
     return false;
-  }
-
-  bool _isServerError(Object err) {
-    if (err is DioException) {
-      final statusCode = err.response?.statusCode;
-      return statusCode != null && statusCode >= 500;
-    }
-    return false;
-  }
-
-  int _bumpConsecutiveValidationFailures() {
-    final entity =
-        _localSettingsBox.getAll().firstOrNull ?? LocalSettingsEntity();
-    entity.consecutiveAuthValidationFailures += 1;
-    _localSettingsBox.put(entity);
-    return entity.consecutiveAuthValidationFailures;
-  }
-
-  void _resetConsecutiveValidationFailures() {
-    final entity = _localSettingsBox.getAll().firstOrNull;
-    if (entity == null || entity.consecutiveAuthValidationFailures == 0) {
-      return;
-    }
-    entity.consecutiveAuthValidationFailures = 0;
-    _localSettingsBox.put(entity);
   }
 
   Future<UserEntity?> register(
@@ -203,7 +164,6 @@ class Auth extends _$Auth {
           .updateFromServer(userData.expand!.settings!);
     }
     _box.put(userEntity);
-    _resetConsecutiveValidationFailures();
 
     return userEntity;
   }
