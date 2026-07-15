@@ -143,4 +143,43 @@ extension GpxMappingUtils on Gpx {
       totalElevationloss: totalElevationLoss,
     );
   }
+
+  /// Approximates how far along the track [point] falls, in meters, by
+  /// snapping to the nearest track vertex and returning its cumulative
+  /// distance from the start. This is a lightweight estimate (not a true
+  /// point-to-segment projection) meant to give locally-created waypoints a
+  /// `distanceFromStart` immediately, before the server recomputes the exact
+  /// value.
+  double? distanceFromStartTo(Geographic point) {
+    final points = allWaypoints;
+    if (points.length < 2) return null;
+
+    double cumDist = 0;
+    double bestDist = double.infinity;
+    double bestCumDist = 0;
+
+    for (int i = 0; i < points.length; i++) {
+      final wpt = points[i];
+      if (i > 0) {
+        final prev = points[i - 1];
+        final calculator = SphericalGreatCircle(
+          Geographic(lat: prev.lat!, lon: prev.lon!),
+        );
+        cumDist += calculator.distanceTo(
+          Geographic(lat: wpt.lat!, lon: wpt.lon!),
+        );
+      }
+
+      final pointCalculator = SphericalGreatCircle(
+        Geographic(lat: wpt.lat!, lon: wpt.lon!),
+      );
+      final dist = pointCalculator.distanceTo(point);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestCumDist = cumDist;
+      }
+    }
+
+    return bestCumDist;
+  }
 }

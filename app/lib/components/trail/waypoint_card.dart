@@ -8,7 +8,18 @@ import 'package:wanderer/provider/auth_provider.dart';
 class WaypointCard extends ConsumerWidget {
   final Waypoint waypoint;
 
-  const WaypointCard({super.key, required this.waypoint});
+  /// When set, an edit action is shown; tapping it invokes this callback.
+  final VoidCallback? onEdit;
+
+  /// When set, a delete action is shown; tapping it invokes this callback.
+  final VoidCallback? onDelete;
+
+  const WaypointCard({
+    super.key,
+    required this.waypoint,
+    this.onEdit,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -49,12 +60,38 @@ class WaypointCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (waypoint.name?.isNotEmpty == true)
-                    Text(
-                      waypoint.name!,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  if (waypoint.name?.isNotEmpty == true ||
+                      onEdit != null ||
+                      onDelete != null)
+                    Row(
+                      children: [
+                        if (waypoint.name?.isNotEmpty == true)
+                          Expanded(
+                            child: Text(
+                              waypoint.name!,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          )
+                        else
+                          const Spacer(),
+                        if (onEdit != null)
+                          IconButton(
+                            icon: const FaIcon(FontAwesomeIcons.pen, size: 14),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: onEdit,
+                          ),
+                        if (onDelete != null)
+                          IconButton(
+                            icon: const FaIcon(
+                              FontAwesomeIcons.trash,
+                              size: 14,
+                              color: Colors.red,
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: onDelete,
+                          ),
+                      ],
                     ),
 
                   const SizedBox(height: 6),

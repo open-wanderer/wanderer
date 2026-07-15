@@ -1036,7 +1036,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get no_description_for_now => 'Noch keine Beschreibung';
 
   @override
-  String get no_gps_data_in_image => 'Keine GPS_Daten im Bild';
+  String get no_gps_data_in_image => 'Keine GPS Daten im Bild';
 
   @override
   String get no_grid => 'Kein Gitter';
@@ -1183,6 +1183,17 @@ class AppLocalizationsDe extends AppLocalizations {
   String get photos => 'Fotos';
 
   @override
+  String photos_skipped_no_gps(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos skipped — no GPS data',
+      one: '1 photo skipped — no GPS data',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get pick_a_trail => 'Route auswählen';
 
   @override
@@ -1266,6 +1277,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get required => 'Pflichtfeld';
+
+  @override
+  String get reorder_photos_hint => 'Long-press and drag to reorder photos.';
 
   @override
   String get reset => 'Zurücksetzen';

@@ -4,31 +4,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:textfield_tags/textfield_tags.dart';
 import 'package:wanderer/components/base/trail_map.dart';
 import 'package:wanderer/components/base/wanderer_autocomplete.dart';
+import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/components/base/wanderer_date_picker.dart';
+import 'package:wanderer/components/base/wanderer_photo_picker.dart';
 import 'package:wanderer/components/base/wanderer_rich_text_editor.dart';
 import 'package:wanderer/components/base/wanderer_select.dart';
 import 'package:wanderer/components/base/wanderer_text_field.dart';
 import 'package:wanderer/components/trail/category_picker.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
+import 'package:wanderer/components/trail/waypoint_card.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/waypoint.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/tag_provider.dart';
+import 'package:wanderer/util/exif_util.dart';
+import 'package:wanderer/util/gpx_util.dart';
 
-class TrailCreateScreen extends StatefulWidget {
+class TrailCreateScreen extends ConsumerStatefulWidget {
   final Trail trail;
   const TrailCreateScreen({super.key, required this.trail});
 
   @override
-  State<TrailCreateScreen> createState() => _TrailCreateScreenState();
+  ConsumerState<TrailCreateScreen> createState() => _TrailCreateScreenState();
 }
 
-class _TrailCreateScreenState extends State<TrailCreateScreen> {
-  late final Trail trail = widget.trail;
+class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
+  late Trail trail = widget.trail;
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
 
@@ -62,6 +70,154 @@ class _TrailCreateScreenState extends State<TrailCreateScreen> {
 
   void _onSheetSizeChanged() {
     _sheetSize.value = _sheetController.size;
+  }
+
+  void _onWaypointMoved(Waypoint waypoint, ml.Geographic point) {
+    _replaceWaypoint(waypoint.copyWith(lat: point.lat, lon: point.lon));
+  }
+
+  Future<void> _onEditWaypoint(BuildContext context, Waypoint waypoint) async {
+    final updated = await context.push<Waypoint>(
+      '/waypoint/create',
+      extra: waypoint,
+    );
+    if (updated == null) return;
+    _replaceWaypoint(updated);
+  }
+
+  Future<void> _onCreateWaypoint(
+    BuildContext context, {
+    ml.Geographic? at,
+  }) async {
+    // Defaults to the center of the currently visible map section (e.g. from
+    // the "Create waypoint" button); a tap on the map passes the tapped point.
+    final point = at ?? _mapController?.camera?.center;
+    final stub = Waypoint(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      lat: point?.lat ?? trail.lat ?? 0,
+      lon: point?.lon ?? trail.lon ?? 0,
+      created: DateTime.now(),
+      updated: DateTime.now(),
+    );
+
+    final waypoint = await context.push<Waypoint>(
+      '/waypoint/create',
+      extra: stub,
+    );
+    if (waypoint == null) return;
+    _appendWaypoint(waypoint);
+  }
+
+  /// Picks multiple photos and creates one waypoint per photo that carries GPS
+  /// EXIF data (coordinates pre-filled, the photo attached). Photos without GPS
+  /// are skipped and reported.
+  Future<void> _onCreateWaypointsFromPhotos() async {
+    final picked = await ImagePicker().pickMultiImage();
+    if (picked.isEmpty || !mounted) return;
+
+    final now = DateTime.now();
+    final created = <Waypoint>[];
+    var skipped = 0;
+
+    for (final photo in picked) {
+      final coords = await readGpsFromImage(photo.path);
+      if (coords == null || coords.lat.isNaN || coords.lon.isNaN) {
+        skipped++;
+        continue;
+      }
+      created.add(
+        _withDistanceFromStart(
+          Waypoint(
+            id: '${now.microsecondsSinceEpoch}-${created.length}',
+            lat: coords.lat,
+            lon: coords.lon,
+            created: now,
+            updated: now,
+            localPhotos: [photo.path],
+          ),
+        ),
+      );
+    }
+
+    if (!mounted) return;
+
+    if (created.isNotEmpty) {
+      setState(() {
+        trail = trail.copyWith(
+          expand: (trail.expand ?? const TrailExpand()).copyWith(
+            waypointsViaTrail: [
+              ...?trail.expand?.waypointsViaTrail,
+              ...created,
+            ],
+          ),
+        );
+      });
+    }
+
+    if (skipped > 0) {
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: created.isEmpty ? ToastType.error : ToastType.warning,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: AppLocalizations.of(
+                context,
+              )!.photos_skipped_no_gps(skipped),
+            ),
+          );
+    }
+  }
+
+  void _onDeleteWaypoint(Waypoint waypoint) {
+    setState(() {
+      trail = trail.copyWith(
+        expand: (trail.expand ?? const TrailExpand()).copyWith(
+          waypointsViaTrail: [...?trail.expand?.waypointsViaTrail]
+            ..removeWhere((wp) => wp.id == waypoint.id),
+        ),
+      );
+    });
+  }
+
+  /// Estimates [waypoint]'s `distanceFromStart` from the trail's GPX track so
+  /// it shows up on the elevation profile immediately, ahead of the server
+  /// recomputing the exact value on save.
+  Waypoint _withDistanceFromStart(Waypoint waypoint) {
+    final gpx = trail.expand?.gpx;
+    if (gpx == null) return waypoint;
+    final distance = gpx.distanceFromStartTo(
+      ml.Geographic(lat: waypoint.lat, lon: waypoint.lon),
+    );
+    if (distance == null) return waypoint;
+    return waypoint.copyWith(distanceFromStart: distance);
+  }
+
+  void _appendWaypoint(Waypoint waypoint) {
+    setState(() {
+      trail = trail.copyWith(
+        expand: (trail.expand ?? const TrailExpand()).copyWith(
+          waypointsViaTrail: [
+            ...?trail.expand?.waypointsViaTrail,
+            _withDistanceFromStart(waypoint),
+          ],
+        ),
+      );
+    });
+  }
+
+  void _replaceWaypoint(Waypoint updated) {
+    final withDistance = _withDistanceFromStart(updated);
+    setState(() {
+      trail = trail.copyWith(
+        expand: (trail.expand ?? const TrailExpand()).copyWith(
+          waypointsViaTrail: [
+            for (final wp in trail.expand?.waypointsViaTrail ?? const [])
+              if (wp.id == withDistance.id) withDistance else wp,
+          ],
+        ),
+      );
+    });
   }
 
   double _getDynamicPadding(double currentSize) {
@@ -132,6 +288,9 @@ class _TrailCreateScreenState extends State<TrailCreateScreen> {
                   ),
                 ],
                 onMapCreated: (controller) => _mapController = controller,
+                onTap: (point) => _onCreateWaypoint(context, at: point),
+                onWaypointTap: (wp) => _onEditWaypoint(context, wp),
+                onWaypointDragEnd: _onWaypointMoved,
               ),
             ),
             DraggableScrollableSheet(
@@ -173,6 +332,12 @@ class _TrailCreateScreenState extends State<TrailCreateScreen> {
                           scrollController: scrollController,
                           formKey: _formKey,
                           trail: trail,
+                          onCreateWaypoint: (context) =>
+                              _onCreateWaypoint(context),
+                          onCreateWaypointsFromPhotos:
+                              _onCreateWaypointsFromPhotos,
+                          onEditWaypoint: _onEditWaypoint,
+                          onDeleteWaypoint: _onDeleteWaypoint,
                         ),
                       );
                     },
@@ -191,11 +356,20 @@ class TrailForm extends ConsumerWidget {
   final ScrollController scrollController;
   final GlobalKey<FormBuilderState> formKey;
   final Trail trail;
+  final Future<void> Function(BuildContext context) onCreateWaypoint;
+  final Future<void> Function() onCreateWaypointsFromPhotos;
+  final Future<void> Function(BuildContext context, Waypoint waypoint)
+  onEditWaypoint;
+  final void Function(Waypoint waypoint) onDeleteWaypoint;
   const TrailForm({
     super.key,
     required this.scrollController,
     required this.formKey,
     required this.trail,
+    required this.onCreateWaypoint,
+    required this.onCreateWaypointsFromPhotos,
+    required this.onEditWaypoint,
+    required this.onDeleteWaypoint,
   });
 
   @override
@@ -365,6 +539,57 @@ class TrailForm extends ConsumerWidget {
                 );
               },
             ),
+            SizedBox(height: 16),
+            Text(l10n.photos, style: theme.textTheme.titleMedium),
+            Divider(),
+            SizedBox(height: 12),
+            FormBuilderField<List<String>>(
+              name: 'photos',
+              initialValue: trail.localPhotos,
+              builder: (field) {
+                return WandererPhotoPicker(
+                  initialLocalPhotos: trail.localPhotos,
+                  onChanged: (photos) => field.didChange(photos),
+                );
+              },
+            ),
+            SizedBox(height: 16),
+            Text(l10n.waypoints(2), style: theme.textTheme.titleMedium),
+            Divider(),
+            SizedBox(height: 12),
+            for (final wp in trail.expand?.waypointsViaTrail ?? const [])
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: WaypointCard(
+                  waypoint: wp,
+                  onEdit: () => onEditWaypoint(context, wp),
+                  onDelete: () => onDeleteWaypoint(wp),
+                ),
+              ),
+            WandererButton(
+              secondary: true,
+              onPressed: () => onCreateWaypoint(context),
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.plus, size: 16),
+                  const SizedBox(width: 6),
+                  Text(l10n.create_waypoint),
+                ],
+              ),
+            ),
+            SizedBox(height: 16),
+            WandererButton(
+              secondary: true,
+              onPressed: onCreateWaypointsFromPhotos,
+              child: Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.image, size: 16),
+                  const SizedBox(width: 6),
+                  Text(l10n.from_photos),
+                ],
+              ),
+            ),
+            SizedBox(height: 24),
           ],
         ),
       ),

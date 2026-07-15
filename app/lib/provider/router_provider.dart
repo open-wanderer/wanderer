@@ -8,6 +8,7 @@ import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/routes/global_search_screen.dart';
 import 'package:wanderer/routes/home_screen.dart';
@@ -40,6 +41,7 @@ import 'package:wanderer/routes/trail_detail_screen.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
 import 'package:wanderer/routes/trail_source_select_screen.dart';
 import 'package:wanderer/routes/trail_sort_screen.dart';
+import 'package:wanderer/routes/waypoint_create_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
 
 part 'router_provider.g.dart';
@@ -285,6 +287,14 @@ class Router extends _$Router {
               },
             ),
           ],
+        ),
+        GoRoute(
+          path: '/waypoint/create',
+          builder: (context, state) {
+            final extra = state.extra;
+            if (extra is! Waypoint) return const MapScreen();
+            return WaypointCreateScreen(waypoint: extra);
+          },
         ),
         GoRoute(
           path: '/list/:id',

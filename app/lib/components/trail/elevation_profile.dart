@@ -345,7 +345,9 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
                     return yMax;
                   },
                   touchCallback: (event, response) {
-                    if (event is FlLongPressEnd || event is FlPanEndEvent) {
+                    if (event is FlLongPressEnd ||
+                        event is FlPanEndEvent ||
+                        event is FlTapUpEvent) {
                       setState(() {
                         _selectedIndex = null;
                       });

@@ -46,6 +46,7 @@ class TrailMap extends ConsumerStatefulWidget {
   final void Function(ml.Geographic point)? onTap;
   final void Function(ml.MapEvent event)? onMapEvent;
   final void Function(Waypoint wp)? onWaypointTap;
+  final void Function(Waypoint wp, ml.Geographic point)? onWaypointDragEnd;
 
   const TrailMap({
     super.key,
@@ -53,6 +54,7 @@ class TrailMap extends ConsumerStatefulWidget {
     this.onMapCreated,
     this.onTap,
     this.onWaypointTap,
+    this.onWaypointDragEnd,
     this.onMapEvent,
     this.disabled = false,
     this.offline = false,
@@ -225,6 +227,7 @@ class _TrailMapState extends ConsumerState<TrailMap> {
             trail: widget.trail,
             selectedWaypoint: widget.selectedWaypoint,
             onWaypointTap: widget.onWaypointTap,
+            onWaypointDragEnd: widget.onWaypointDragEnd,
           ),
 
         if (widget.elevationMarkerPosition != null) _buildElevationMarker(),

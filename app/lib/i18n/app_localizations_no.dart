@@ -1184,6 +1184,17 @@ class AppLocalizationsNo extends AppLocalizations {
   String get photos => 'Bilder og videoer';
 
   @override
+  String photos_skipped_no_gps(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos skipped — no GPS data',
+      one: '1 photo skipped — no GPS data',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get pick_a_trail => 'Velg en sti';
 
   @override
@@ -1265,6 +1276,9 @@ class AppLocalizationsNo extends AppLocalizations {
 
   @override
   String get required => 'Påkrevd';
+
+  @override
+  String get reorder_photos_hint => 'Long-press and drag to reorder photos.';
 
   @override
   String get reset => 'Tilbakestill';

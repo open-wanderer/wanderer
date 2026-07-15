@@ -1967,7 +1967,7 @@ abstract class AppLocalizations {
   /// No description provided for @no_gps_data_in_image.
   ///
   /// In en, this message translates to:
-  /// **'No GPS data in image'**
+  /// **'No GPS data found in this photo.'**
   String get no_gps_data_in_image;
 
   /// No description provided for @no_grid.
@@ -2210,6 +2210,12 @@ abstract class AppLocalizations {
   /// **'Photos & Videos'**
   String get photos;
 
+  /// No description provided for @photos_skipped_no_gps.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}'**
+  String photos_skipped_no_gps(num count);
+
   /// No description provided for @pick_a_trail.
   ///
   /// In en, this message translates to:
@@ -2371,6 +2377,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Required'**
   String get required;
+
+  /// No description provided for @reorder_photos_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press and drag to reorder photos.'**
+  String get reorder_photos_hint;
 
   /// No description provided for @reset.
   ///

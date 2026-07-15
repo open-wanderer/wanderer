@@ -122,32 +122,122 @@ class _TrailSourceSelectScreenState
     return Scaffold(
       appBar: AppBar(title: Text(l10n.new_trail)),
       body: ListView(
+        padding: EdgeInsets.symmetric(horizontal: 12),
         children: [
-          ListTile(
-            leading: const FaIcon(FontAwesomeIcons.route),
-            title: Text(l10n.trail_source_planner),
-            trailing: const FaIcon(FontAwesomeIcons.chevronRight, size: 16),
+          _SourceActionCard(
+            icon: FontAwesomeIcons.route,
+            title: l10n.trail_source_planner,
+            description:
+                "Design your perfect route from scratch using our map tools.",
             onTap: () => _comingSoon(l10n),
           ),
-          ListTile(
-            leading: const FaIcon(FontAwesomeIcons.solidCircleDot),
-            title: Text(l10n.trail_source_record),
-            trailing: const FaIcon(FontAwesomeIcons.chevronRight, size: 16),
+          const SizedBox(height: 12),
+          _SourceActionCard(
+            icon: FontAwesomeIcons.solidCircleDot,
+            title: l10n.trail_source_record,
+            description:
+                "Track your live coordinates and log your journey in real-time.",
             onTap: () => _comingSoon(l10n),
           ),
-          ListTile(
-            leading: const FaIcon(FontAwesomeIcons.fileArrowUp),
-            title: Text(l10n.trail_source_import),
-            trailing: _importing
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const FaIcon(FontAwesomeIcons.chevronRight, size: 16),
-            onTap: _importing ? null : () => _importGpx(l10n),
+          const SizedBox(height: 12),
+          _SourceActionCard(
+            icon: FontAwesomeIcons.fileArrowUp,
+            title: l10n.trail_source_import,
+            description:
+                "Upload external GPX files directly from your device storage.",
+            isLoading: _importing,
+            onTap: () => _importGpx(l10n),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SourceActionCard extends StatelessWidget {
+  final FaIconData icon;
+  final String title;
+  final String description;
+  final VoidCallback? onTap;
+  final bool isLoading;
+
+  const _SourceActionCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.description,
+    this.onTap,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final resolvedBgColor = theme.colorScheme.secondaryContainer.withValues(
+      alpha: 0.4,
+    );
+    final resolvedIconColor = theme.colorScheme.primary;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: isLoading ? null : onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              // Icon Badge container
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: resolvedBgColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: FaIcon(icon, color: resolvedIconColor),
+              ),
+              const SizedBox(width: 16),
+
+              // Text Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+
+              // Trailing action (Spinner or Chevron)
+              if (isLoading)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                const FaIcon(FontAwesomeIcons.chevronRight, size: 16),
+            ],
+          ),
+        ),
       ),
     );
   }

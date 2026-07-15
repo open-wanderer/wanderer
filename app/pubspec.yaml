@@ -12,6 +12,7 @@ dependencies:
   dio: ^5.9.2
   dio_cookie_manager: ^3.4.0
   duration: ^4.0.3
+  exif: ^3.3.0
   file_picker: ^11.0.2
   fl_chart: ^1.2.0
   flutter:

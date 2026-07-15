@@ -259,11 +259,12 @@ String _colorToHex(Color color) {
 ///
 /// Place this in [ml.MapLibreMap.children]. It reads [ml.MapController]/
 /// [ml.MapCamera] from context so the nudge recomputes on every camera move.
-class TrailMarkerLayer extends StatelessWidget {
+class TrailMarkerLayer extends StatefulWidget {
   final Trail trail;
   final bool showWaypoints;
   final Waypoint? selectedWaypoint;
   final void Function(Waypoint wp)? onWaypointTap;
+  final void Function(Waypoint wp, ml.Geographic point)? onWaypointDragEnd;
 
   const TrailMarkerLayer({
     super.key,
@@ -271,7 +272,23 @@ class TrailMarkerLayer extends StatelessWidget {
     this.showWaypoints = true,
     this.selectedWaypoint,
     this.onWaypointTap,
+    this.onWaypointDragEnd,
   });
+
+  @override
+  State<TrailMarkerLayer> createState() => _TrailMarkerLayerState();
+}
+
+class _TrailMarkerLayerState extends State<TrailMarkerLayer> {
+  String? _draggingWaypointId;
+  Offset? _dragOffset;
+
+  void _clearDrag() {
+    setState(() {
+      _draggingWaypointId = null;
+      _dragOffset = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -282,23 +299,56 @@ class TrailMarkerLayer extends StatelessWidget {
 
     final markers = <ml.Marker>[];
 
-    if (showWaypoints && trail.expand?.waypointsViaTrail != null) {
-      for (final wp in trail.expand!.waypointsViaTrail!) {
-        final isSelected = selectedWaypoint?.id == wp.id;
+    if (widget.showWaypoints && widget.trail.expand?.waypointsViaTrail != null) {
+      for (final wp in widget.trail.expand!.waypointsViaTrail!) {
+        final isSelected = widget.selectedWaypoint?.id == wp.id;
+        final isDragging = _draggingWaypointId == wp.id;
+        final point = (isDragging && controller != null && _dragOffset != null)
+            ? controller.toLngLat(_dragOffset!)
+            : ml.Geographic(lon: wp.lon, lat: wp.lat);
+
         markers.add(
           ml.Marker(
-            point: ml.Geographic(lon: wp.lon, lat: wp.lat),
+            point: point,
             size: const Size(32, 32),
             child: GestureDetector(
-              onTap: () => onWaypointTap?.call(wp),
+              onTap: () => widget.onWaypointTap?.call(wp),
+              onPanStart: (details) {
+                final c = ml.MapController.maybeOf(context);
+                if (c == null) return;
+                setState(() {
+                  _draggingWaypointId = wp.id;
+                  _dragOffset = c.toScreenLocation(
+                    ml.Geographic(lon: wp.lon, lat: wp.lat),
+                  );
+                });
+              },
+              onPanUpdate: (details) {
+                if (_draggingWaypointId != wp.id || _dragOffset == null) {
+                  return;
+                }
+                setState(() => _dragOffset = _dragOffset! + details.delta);
+              },
+              onPanEnd: (details) {
+                if (_draggingWaypointId != wp.id) return;
+                final c = ml.MapController.maybeOf(context);
+                final offset = _dragOffset;
+                _clearDrag();
+                if (c != null && offset != null) {
+                  widget.onWaypointDragEnd?.call(wp, c.toLngLat(offset));
+                }
+              },
+              onPanCancel: () {
+                if (_draggingWaypointId == wp.id) _clearDrag();
+              },
               child: AnimatedScale(
-                scale: isSelected ? 1.0 : 0.875,
+                scale: (isSelected || isDragging) ? 1.0 : 0.875,
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOutBack,
                 child: _buildCircularMarker(
                   wp.icon,
                   color: Theme.of(context).primaryColor,
-                  selected: isSelected,
+                  selected: isSelected || isDragging,
                 ),
               ),
             ),
@@ -307,7 +357,7 @@ class TrailMarkerLayer extends StatelessWidget {
       }
     }
 
-    final points = trail.expand?.gpx?.allPoints ?? const [];
+    final points = widget.trail.expand?.gpx?.allPoints ?? const [];
     if (points.isNotEmpty) {
       var startAlignment = Alignment.center;
       var endAlignment = Alignment.center;
