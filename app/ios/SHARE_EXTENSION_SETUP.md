@@ -42,9 +42,9 @@ Files already created (add them to the target you create below):
    - `cd ios && pod install` (the Podfile already declares the `Share Extension` target).
 
 7. **Bundle id note**
-   - The app bundle id is still the example default `com.openwanderer.wanderer`. If you
-     change it, update the App Group id (`group.<new-bundle-id>`) in **both**
-     entitlements files and both capability screens to keep them in sync.
+   - The app bundle id is `com.openwanderer.wanderer`. If you change it again,
+     update the App Group id (`group.<new-bundle-id>`) in **both** entitlements
+     files and both capability screens to keep them in sync.
 
 ## Verify
 
