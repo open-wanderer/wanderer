@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,8 +25,14 @@ import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/category_preference_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/tag_provider.dart';
+import 'package:wanderer/provider/trail/trail_save_provider.dart';
+import 'package:wanderer/util/category_preference_sort.dart';
 import 'package:wanderer/util/exif_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
@@ -53,11 +62,31 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
 
   late final ValueNotifier<double> _sheetSize;
 
+  bool _saving = false;
+  List<String> _removedServerPhotos = [];
+
   @override
   void initState() {
     super.initState();
     _sheetController.addListener(_onSheetSizeChanged);
     _sheetSize = ValueNotifier<double>(sheetMinSize);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A trail arriving here without a category (e.g. freshly imported from a
+    // GPX file) should already show the user's top-preferred category rather
+    // than an empty picker. Guarded by the empty check so it never overwrites
+    // a category the user (or the source screen) already set.
+    if (trail.category?.isEmpty ?? true) {
+      final defaultCategory = _firstPreferredCategoryId(
+        Localizations.localeOf(context),
+      );
+      if (defaultCategory != null) {
+        trail = trail.copyWith(category: defaultCategory, subcategory: '');
+      }
+    }
   }
 
   @override
@@ -220,6 +249,122 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     });
   }
 
+  void _onServerPhotosChanged(List<String> remainingFilenames) {
+    _removedServerPhotos = trail.photos
+        .where((p) => !remainingFilenames.contains(p))
+        .toList();
+  }
+
+  Future<void> _onSave(BuildContext context) async {
+    if (_saving) return;
+
+    final formState = _formKey.currentState;
+    if (formState == null || !formState.saveAndValidate()) return;
+
+    final authorId = ref.read(authProvider).value?.actorId;
+    if (authorId == null) return;
+
+    setState(() => _saving = true);
+
+    final l10n = AppLocalizations.of(context)!;
+    final values = formState.value;
+    final subcategories = ref.read(subcategoryProvider);
+    final categorySelection = CategoryPicker.resolve(
+      values['category'] as String?,
+      subcategories,
+    );
+
+    final localPhotoPaths = (values['photos'] as List<String>?) ?? const [];
+    final newPhotoFiles = localPhotoPaths.map((p) => File(p)).toList();
+
+    final updatedTrail = trail.copyWith(
+      name: values['name'] as String,
+      location: values['location'] as String?,
+      date: values['date'] as DateTime?,
+      description: values['description'] as String? ?? '',
+      public: values['public'] as bool? ?? false,
+      completed: values['completed'] as bool? ?? false,
+      difficulty: values['difficulty'] as TrailDifficulty,
+      category: categorySelection?.category ?? trail.category,
+      subcategory: categorySelection?.subcategory ?? trail.subcategory,
+      expand: (trail.expand ?? const TrailExpand()).copyWith(
+        tags: values['tags'] as List<Tag>? ?? const [],
+      ),
+    );
+
+    try {
+      final result = trail.id.isEmpty
+          ? await ref
+                .read(trailSaveProvider.notifier)
+                .createTrail(
+                  updatedTrail,
+                  authorId: authorId,
+                  newPhotos: newPhotoFiles,
+                )
+          : await ref
+                .read(trailSaveProvider.notifier)
+                .updateTrail(
+                  trail,
+                  updatedTrail,
+                  authorId: authorId,
+                  newPhotos: newPhotoFiles,
+                  removedPhotoFilenames: _removedServerPhotos,
+                );
+
+      if (!mounted) return;
+      setState(() {
+        trail = result.trail;
+        _removedServerPhotos = [];
+      });
+
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: result.hadWaypointFailures
+                  ? ToastType.warning
+                  : ToastType.success,
+              icon: result.hadWaypointFailures
+                  ? FontAwesomeIcons.circleExclamation
+                  : FontAwesomeIcons.circleCheck,
+              text: result.hadWaypointFailures
+                  ? l10n.some_waypoints_failed_to_save
+                  : l10n.trail_saved_successfully,
+            ),
+          );
+    } catch (e) {
+      if (!mounted) return;
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: l10n.error_saving_trail,
+            ),
+          );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Id of the first category the user would see in [CategoryPicker], i.e.
+  /// the top of their preference ordering (priority first, then locale name)
+  /// among categories they haven't hidden. Used to default a trail that has
+  /// no category yet, rather than leaving it uncategorized.
+  String? _firstPreferredCategoryId(Locale locale) {
+    final categories = ref.read(categoryProvider).value ?? const [];
+    final categoryPrefs = ref.read(categoryPreferenceProvider).value ?? const [];
+
+    final ordered = sortedCategoriesByPreference(
+      categories,
+      categoryPrefs,
+      locale,
+    ).where((c) => categoryVisible(c.id, categoryPrefs));
+
+    return ordered.firstOrNull?.id;
+  }
+
   double _getDynamicPadding(double currentSize) {
     const double minPadding = 0.0;
     const double maxPadding = 96.0;
@@ -251,8 +396,14 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         ),
         actions: [
           IconButton(
-            icon: const FaIcon(FontAwesomeIcons.floppyDisk, size: 18),
-            onPressed: () {},
+            icon: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const FaIcon(FontAwesomeIcons.floppyDisk, size: 18),
+            onPressed: _saving ? null : () => _onSave(context),
             style: IconButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.surface,
             ),
@@ -338,6 +489,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                               _onCreateWaypointsFromPhotos,
                           onEditWaypoint: _onEditWaypoint,
                           onDeleteWaypoint: _onDeleteWaypoint,
+                          onPhotosChanged: _onServerPhotosChanged,
                         ),
                       );
                     },
@@ -361,6 +513,7 @@ class TrailForm extends ConsumerWidget {
   final Future<void> Function(BuildContext context, Waypoint waypoint)
   onEditWaypoint;
   final void Function(Waypoint waypoint) onDeleteWaypoint;
+  final void Function(List<String> remainingFilenames) onPhotosChanged;
   const TrailForm({
     super.key,
     required this.scrollController,
@@ -370,6 +523,7 @@ class TrailForm extends ConsumerWidget {
     required this.onCreateWaypointsFromPhotos,
     required this.onEditWaypoint,
     required this.onDeleteWaypoint,
+    required this.onPhotosChanged,
   });
 
   @override
@@ -547,9 +701,15 @@ class TrailForm extends ConsumerWidget {
               name: 'photos',
               initialValue: trail.localPhotos,
               builder: (field) {
+                final serverUrl = ref.watch(authProvider).value?.serverUrl;
                 return WandererPhotoPicker(
                   initialLocalPhotos: trail.localPhotos,
+                  initialWebPhotos: trail.photos,
+                  resolveWebPhotoUrl: (filename) =>
+                      trail.getFileUrl(serverUrl ?? '', filename, thumb: '400x0') ??
+                      '',
                   onChanged: (photos) => field.didChange(photos),
+                  onWebPhotosChanged: onPhotosChanged,
                 );
               },
             ),

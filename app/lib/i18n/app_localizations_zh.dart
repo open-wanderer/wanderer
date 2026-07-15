@@ -1554,6 +1554,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get trail_saved_successfully => '路线保存成功';
 
   @override
+  String get some_waypoints_failed_to_save =>
+      'Trail saved, but some waypoints failed to save';
+
+  @override
   String get trails_for_you => '推荐路线';
 
   @override

@@ -7,14 +7,19 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_share.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/download_notification_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
+import 'package:wanderer/provider/profile/profile_trails_provider.dart';
+import 'package:wanderer/provider/trail/trail_provider.dart';
+import 'package:wanderer/provider/trail/trail_save_provider.dart';
+import 'package:wanderer/provider/trail/trail_search_provider.dart';
 
-enum TrailAction { open, directions, download, delete }
+enum TrailAction { open, directions, download, edit, delete }
 
 class TrailDropdown extends ConsumerStatefulWidget {
   final Trail trail;
@@ -76,10 +81,27 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             contentPadding: EdgeInsets.zero,
           ),
         ),
+        if (_canEditTrail(ref)) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem<TrailAction>(
+            value: TrailAction.edit,
+            onTap: () async {
+              await context.push('/trail/create/edit', extra: trail);
+              ref.invalidate(trailProvider(trail.id));
+            },
+            child: ListTile(
+              leading: FaIcon(FontAwesomeIcons.pen, size: 18),
+              title: Text(l18n.edit),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ],
         const PopupMenuDivider(),
         PopupMenuItem<TrailAction>(
           value: TrailAction.download,
-          onTap: downloadEnabled ? () => _downloadTrail(context, ref, trail) : null,
+          onTap: downloadEnabled
+              ? () => _downloadTrail(context, ref, trail)
+              : null,
           enabled: downloadEnabled,
           child: ListTile(
             leading: _isDownloading
@@ -106,6 +128,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
           const PopupMenuDivider(),
           PopupMenuItem<TrailAction>(
             value: TrailAction.delete,
+            onTap: () => _confirmDelete(context, trail),
             child: ListTile(
               leading: FaIcon(
                 FontAwesomeIcons.trash,
@@ -121,10 +144,75 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     );
   }
 
-  bool _allowDelete(WidgetRef ref) {
-    return false;
+  bool _canEditTrail(WidgetRef ref) {
     final user = ref.watch(authProvider).value;
-    return user != null && user.actorId == widget.trail.author;
+    if (user == null) return false;
+
+    final trail = widget.trail;
+    return trail.author == user.actorId ||
+        (trail.expand?.trailShareViaTrail?.any(
+              (s) =>
+                  s.permission == TrailPermission.edit &&
+                  s.actor == user.actorId,
+            ) ??
+            false);
+  }
+
+  bool _allowDelete(WidgetRef ref) {
+    final user = ref.watch(authProvider).value;
+    if (user == null) return false;
+
+    return widget.trail.author == user.actorId;
+  }
+
+  void _confirmDelete(BuildContext context, Trail trail) {
+    final l18n = AppLocalizations.of(context)!;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(l18n.delete_trail_confirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l18n.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _deleteTrail(context, trail);
+            },
+            child: Text(l18n.delete, style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteTrail(BuildContext context, Trail trail) async {
+    final router = GoRouter.of(context);
+
+    try {
+      await ref.read(trailSaveProvider.notifier).deleteTrail(trail);
+      ref.invalidate(trailLibraryProvider);
+      ref.invalidate(trailSearchProvider);
+      final handle = ref.read(authProvider).value?.preferredUsername;
+      if (handle != null) {
+        ref.invalidate(profileTrailsProvider('@$handle'));
+      }
+      if (router.canPop()) router.pop();
+    } catch (e) {
+      if (!mounted) return;
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.xmark,
+              text: 'Error deleting trail',
+            ),
+          );
+    }
   }
 
   Future<void> _openDirections(double lat, double lon) async {

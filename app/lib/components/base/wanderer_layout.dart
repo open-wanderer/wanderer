@@ -15,7 +15,10 @@ class WandererLayout extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final user = ref.watch(authProvider).value;
 
-    final int currentIndex = _calculateSelectedIndex(router.state.uri.path);
+    final int selectedIndex = _calculateSelectedIndex(router.state.uri.path);
+    final unselectedColor = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.5);
 
     return Scaffold(
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -23,19 +26,27 @@ class WandererLayout extends ConsumerWidget {
         heroTag: 'new_trail',
         shape: const StadiumBorder(),
         elevation: 2,
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.secondaryContainer
+            : Theme.of(context).colorScheme.surface,
         foregroundColor: Theme.of(context).colorScheme.onSurface,
         onPressed: () => router.push('/trail/create'),
         child: const FaIcon(FontAwesomeIcons.plus),
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        currentIndex: currentIndex,
+        // BottomNavigationBar has no built-in "nothing selected" state — when
+        // no nav destination matches the current route (e.g. /trail/create),
+        // clamp to a valid index but make selected/unselected colors equal so
+        // no item visually appears active.
+        currentIndex: selectedIndex < 0 ? 0 : selectedIndex,
         backgroundColor: Theme.of(context).colorScheme.surface,
-        selectedItemColor: Theme.of(context).brightness == Brightness.dark
+        selectedItemColor: selectedIndex < 0
+            ? unselectedColor
+            : Theme.of(context).brightness == Brightness.dark
             ? Theme.of(context).colorScheme.onSurface
             : Theme.of(context).primaryColor,
-        unselectedItemColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+        unselectedItemColor: unselectedColor,
         items: [
           BottomNavigationBarItem(
             icon: const FaIcon(FontAwesomeIcons.mapLocationDot),
@@ -52,7 +63,9 @@ class WandererLayout extends ConsumerWidget {
           BottomNavigationBarItem(
             icon: CircleAvatar(
               radius: 12,
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
               backgroundImage: NetworkImage(
                 user?.getFileUrl(user.serverUrl, user.avatar) ??
                     "https://api.dicebear.com/7.x/initials/png?seed=${user?.preferredUsername}&backgroundType=gradientLinear",
@@ -90,6 +103,6 @@ class WandererLayout extends ConsumerWidget {
     if (path.startsWith('/list')) return 1;
     if (path.startsWith('/library')) return 2;
     if (path.startsWith('/profile')) return 3;
-    return 0;
+    return -1;
   }
 }

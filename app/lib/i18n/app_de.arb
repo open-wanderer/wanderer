@@ -464,6 +464,7 @@
   "trail_not_in_list": "Trail gehört zu keiner Liste.",
   "trail_not_shared": "Mit niemandem geteilt",
   "trail_saved_successfully": "Route gespeichert",
+  "some_waypoints_failed_to_save": "Route gespeichert, aber einige Wegpunkte konnten nicht gespeichert werden",
   "trails_for_you": "Routen für dich",
   "tram_stop": "Tram Haltestelle",
   "unchanged": "unverändert",

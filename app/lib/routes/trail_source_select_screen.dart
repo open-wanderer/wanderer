@@ -120,7 +120,10 @@ class _TrailSourceSelectScreenState
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.new_trail)),
+      appBar: AppBar(
+        title: Text(l10n.new_trail),
+        automaticallyImplyLeading: false,
+      ),
       body: ListView(
         padding: EdgeInsets.symmetric(horizontal: 12),
         children: [

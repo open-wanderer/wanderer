@@ -1579,6 +1579,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get trail_saved_successfully => 'Ruta guardada con éxito';
 
   @override
+  String get some_waypoints_failed_to_save =>
+      'Trail saved, but some waypoints failed to save';
+
+  @override
   String get trails_for_you => 'Rutas para ti';
 
   @override

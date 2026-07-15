@@ -482,6 +482,7 @@
   "trail_not_in_list": "Trail is not in any list",
   "trail_not_shared": "Not shared with anyone",
   "trail_saved_successfully": "Trail saved successfully",
+  "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
   "trails_for_you": "Trails for you",
   "tram_stop": "Tram stop",
   "unchanged": "unchanged",

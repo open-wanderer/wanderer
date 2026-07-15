@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'tag_provider.dart';
+part of 'waypoint_provider.dart';
 
 // **************************************************************************
 // RiverpodGenerator
@@ -9,43 +9,43 @@ part of 'tag_provider.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
-@ProviderFor(TagNotifier)
-final tagProvider = TagNotifierProvider._();
+@ProviderFor(WaypointSave)
+final waypointSaveProvider = WaypointSaveProvider._();
 
-final class TagNotifierProvider
-    extends $AsyncNotifierProvider<TagNotifier, List<Tag>> {
-  TagNotifierProvider._()
+final class WaypointSaveProvider
+    extends $AsyncNotifierProvider<WaypointSave, void> {
+  WaypointSaveProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'tagProvider',
-        isAutoDispose: true,
+        name: r'waypointSaveProvider',
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$tagNotifierHash();
+  String debugGetCreateSourceHash() => _$waypointSaveHash();
 
   @$internal
   @override
-  TagNotifier create() => TagNotifier();
+  WaypointSave create() => WaypointSave();
 }
 
-String _$tagNotifierHash() => r'6e20680e3ace7f27ceb38f21669d2091caa609c9';
+String _$waypointSaveHash() => r'dab53694aaf621ff37dd3bfda09f67edb218d4f2';
 
-abstract class _$TagNotifier extends $AsyncNotifier<List<Tag>> {
-  FutureOr<List<Tag>> build();
+abstract class _$WaypointSave extends $AsyncNotifier<void> {
+  FutureOr<void> build();
   @$mustCallSuper
   @override
   void runBuild() {
-    final ref = this.ref as $Ref<AsyncValue<List<Tag>>, List<Tag>>;
+    final ref = this.ref as $Ref<AsyncValue<void>, void>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<AsyncValue<List<Tag>>, List<Tag>>,
-              AsyncValue<List<Tag>>,
+              AnyNotifier<AsyncValue<void>, void>,
+              AsyncValue<void>,
               Object?,
               Object?
             >;

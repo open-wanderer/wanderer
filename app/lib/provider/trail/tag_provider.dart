@@ -54,4 +54,10 @@ class TagNotifier extends _$TagNotifier {
 
     return result.value ?? [];
   }
+
+  Future<Tag> create(String name) async {
+    final api = ref.read(apiProvider);
+    final response = await api.put('/tag', data: {'name': name});
+    return Tag.fromJson(response.data);
+  }
 }

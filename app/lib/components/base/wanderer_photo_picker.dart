@@ -9,20 +9,30 @@ import 'package:wanderer/i18n/app_localizations.dart';
 ///
 /// Follows the "wrapped externally in a [FormBuilderField]" pattern (like
 /// [WandererRichTextEditor]) because it drives `ImagePicker` side effects and
-/// owns the local file list. In v1 it emits only newly-picked local file paths
-/// (destined for `Waypoint.localPhotos`); already-uploaded [initialWebPhotos]
-/// are shown read-only.
+/// owns the local file list. Emits newly-picked local file paths via
+/// [onChanged]; already-uploaded [initialWebPhotos] are removable too, when a
+/// caller supplies [onWebPhotosChanged].
 class WandererPhotoPicker extends StatefulWidget {
   final String? label;
 
   /// Local file paths of images picked in this session (editable).
   final List<String> initialLocalPhotos;
 
-  /// URLs of already-uploaded photos, shown for context (display-only in v1).
+  /// Filenames of already-uploaded photos, resolved to a displayable URL via
+  /// [resolveWebPhotoUrl]. Removable, unlike v1's read-only display.
   final List<String> initialWebPhotos;
+
+  /// Resolves a web photo filename (from [initialWebPhotos]) to a displayable
+  /// URL. Required whenever [initialWebPhotos] is non-empty.
+  final String Function(String filename)? resolveWebPhotoUrl;
 
   /// Emits the current list of local file paths whenever it changes.
   final ValueChanged<List<String>> onChanged;
+
+  /// Emits the remaining (non-removed) web photo filenames whenever the user
+  /// removes one. Left null by callers that don't support server-photo
+  /// removal (no remove action is shown on web photo thumbnails).
+  final ValueChanged<List<String>>? onWebPhotosChanged;
 
   /// When set, each local photo shows an action (e.g. extract EXIF GPS) that
   /// invokes this callback with the photo's local file path. Left null by
@@ -34,7 +44,9 @@ class WandererPhotoPicker extends StatefulWidget {
     this.label,
     this.initialLocalPhotos = const [],
     this.initialWebPhotos = const [],
+    this.resolveWebPhotoUrl,
     required this.onChanged,
+    this.onWebPhotosChanged,
     this.onExifRequested,
   });
 
@@ -44,6 +56,12 @@ class WandererPhotoPicker extends StatefulWidget {
 
 class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
   late List<String> _localPhotos = List.of(widget.initialLocalPhotos);
+  late List<String> _webPhotos = List.of(widget.initialWebPhotos);
+
+  void _removeWeb(int index) {
+    setState(() => _webPhotos = [..._webPhotos]..removeAt(index));
+    widget.onWebPhotosChanged?.call(_webPhotos);
+  }
 
   Future<void> _pick() async {
     final picked = await ImagePicker().pickMultiImage();
@@ -102,8 +120,16 @@ class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final url in widget.initialWebPhotos)
-              _Thumbnail(image: Image.network(url, fit: BoxFit.cover)),
+            for (var i = 0; i < _webPhotos.length; i++)
+              _Thumbnail(
+                image: Image.network(
+                  widget.resolveWebPhotoUrl?.call(_webPhotos[i]) ?? _webPhotos[i],
+                  fit: BoxFit.cover,
+                ),
+                onRemove: widget.onWebPhotosChanged == null
+                    ? null
+                    : () => _removeWeb(i),
+              ),
             for (var i = 0; i < _localPhotos.length; i++)
               _ReorderablePhoto(
                 key: ValueKey(_localPhotos[i]),

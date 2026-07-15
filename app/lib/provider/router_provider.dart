@@ -177,6 +177,10 @@ class Router extends _$Router {
                 ),
               ],
             ),
+            GoRoute(
+              path: '/trail/create',
+              builder: (context, state) => const TrailSourceSelectScreen(),
+            ),
           ],
         ),
         GoRoute(
@@ -237,20 +241,14 @@ class Router extends _$Router {
           builder: (context, state) => const TrailSortScreen(),
         ),
         GoRoute(
-          path: '/trail/create',
-          builder: (context, state) => const TrailSourceSelectScreen(),
-          routes: [
-            GoRoute(
-              path: 'edit',
-              builder: (context, state) {
-                final extra = state.extra;
-                // extra is lost across process restart / deep-link — fall back
-                // to the source selector so the user isn't left on a blank screen.
-                if (extra is! Trail) return const TrailSourceSelectScreen();
-                return TrailCreateScreen(trail: extra);
-              },
-            ),
-          ],
+          path: '/trail/create/edit',
+          builder: (context, state) {
+            final extra = state.extra;
+            // extra is lost across process restart / deep-link — fall back
+            // to the source selector so the user isn't left on a blank screen.
+            if (extra is! Trail) return const TrailSourceSelectScreen();
+            return TrailCreateScreen(trail: extra);
+          },
         ),
         GoRoute(
           path: '/trail/:id',

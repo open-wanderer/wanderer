@@ -20,6 +20,7 @@ class ToastOverlay extends ConsumerWidget {
   }
 
   void _displayToast(BuildContext context, ToastMessage toast) {
+    if (!context.mounted) return;
     final colorScheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

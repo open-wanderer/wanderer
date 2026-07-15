@@ -1575,6 +1575,10 @@ class AppLocalizationsHu extends AppLocalizations {
   String get trail_saved_successfully => 'Trail saved successfully';
 
   @override
+  String get some_waypoints_failed_to_save =>
+      'Trail saved, but some waypoints failed to save';
+
+  @override
   String get trails_for_you => 'Útvonalak önnek';
 
   @override

@@ -1317,6 +1317,11 @@ class TiptapBridge {
 
     _updateState(EngineState.destroyed);
 
+    // Must run before the controllers below close — _addLog writes to
+    // _logController, which throws "Cannot add new events after calling
+    // close" if called afterward.
+    _addLog(LogDirection.system, 'Bridge disposed successfully');
+
     _engineStateController.close();
     _schemaReadyController.close();
     _stateChangedController.close();
@@ -1325,7 +1330,5 @@ class TiptapBridge {
     _extensionEventController.close();
     _logController.close();
     _metricsController.close();
-
-    _addLog(LogDirection.system, 'Bridge disposed successfully');
   }
 }

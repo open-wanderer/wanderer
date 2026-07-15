@@ -1587,6 +1587,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get trail_saved_successfully => 'Itinéraire enregistrée';
 
   @override
+  String get some_waypoints_failed_to_save =>
+      'Trail saved, but some waypoints failed to save';
+
+  @override
   String get trails_for_you => 'Itinéraire pour vous';
 
   @override

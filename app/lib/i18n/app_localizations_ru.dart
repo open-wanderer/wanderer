@@ -1571,6 +1571,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get trail_saved_successfully => 'Трек сохранён';
 
   @override
+  String get some_waypoints_failed_to_save =>
+      'Trail saved, but some waypoints failed to save';
+
+  @override
   String get trails_for_you => 'Треки для вас';
 
   @override

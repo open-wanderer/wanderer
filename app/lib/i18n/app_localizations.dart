@@ -2912,6 +2912,12 @@ abstract class AppLocalizations {
   /// **'Trail saved successfully'**
   String get trail_saved_successfully;
 
+  /// No description provided for @some_waypoints_failed_to_save.
+  ///
+  /// In en, this message translates to:
+  /// **'Trail saved, but some waypoints failed to save'**
+  String get some_waypoints_failed_to_save;
+
   /// No description provided for @trails_for_you.
   ///
   /// In en, this message translates to:

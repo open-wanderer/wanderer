@@ -1576,6 +1576,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get trail_saved_successfully => 'Percurso gravado com sucesso';
 
   @override
+  String get some_waypoints_failed_to_save =>
+      'Trail saved, but some waypoints failed to save';
+
+  @override
   String get trails_for_you => 'Trilhos para si';
 
   @override

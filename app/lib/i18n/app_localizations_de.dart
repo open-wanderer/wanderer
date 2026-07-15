@@ -1580,6 +1580,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get trail_saved_successfully => 'Route gespeichert';
 
   @override
+  String get some_waypoints_failed_to_save =>
+      'Route gespeichert, aber einige Wegpunkte konnten nicht gespeichert werden';
+
+  @override
   String get trails_for_you => 'Routen für dich';
 
   @override
