@@ -65,28 +65,15 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   bool _saving = false;
   List<String> _removedServerPhotos = [];
 
+  // Guards the one-time default-category assignment below so it only fires
+  // once categoryProvider/categoryPreferenceProvider have actually loaded.
+  bool _categoryDefaulted = false;
+
   @override
   void initState() {
     super.initState();
     _sheetController.addListener(_onSheetSizeChanged);
     _sheetSize = ValueNotifier<double>(sheetMinSize);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // A trail arriving here without a category (e.g. freshly imported from a
-    // GPX file) should already show the user's top-preferred category rather
-    // than an empty picker. Guarded by the empty check so it never overwrites
-    // a category the user (or the source screen) already set.
-    if (trail.category?.isEmpty ?? true) {
-      final defaultCategory = _firstPreferredCategoryId(
-        Localizations.localeOf(context),
-      );
-      if (defaultCategory != null) {
-        trail = trail.copyWith(category: defaultCategory, subcategory: '');
-      }
-    }
   }
 
   @override
@@ -348,23 +335,6 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     }
   }
 
-  /// Id of the first category the user would see in [CategoryPicker], i.e.
-  /// the top of their preference ordering (priority first, then locale name)
-  /// among categories they haven't hidden. Used to default a trail that has
-  /// no category yet, rather than leaving it uncategorized.
-  String? _firstPreferredCategoryId(Locale locale) {
-    final categories = ref.read(categoryProvider).value ?? const [];
-    final categoryPrefs = ref.read(categoryPreferenceProvider).value ?? const [];
-
-    final ordered = sortedCategoriesByPreference(
-      categories,
-      categoryPrefs,
-      locale,
-    ).where((c) => categoryVisible(c.id, categoryPrefs));
-
-    return ordered.firstOrNull?.id;
-  }
-
   double _getDynamicPadding(double currentSize) {
     const double minPadding = 0.0;
     const double maxPadding = 96.0;
@@ -384,6 +354,27 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Default a categoryless trail (e.g. freshly imported from GPX) to the
+    // user's top-preferred category. Watched so this reruns once the
+    // providers resolve — reading them while loading gave an empty,
+    // unordered list. `_categoryDefaulted` makes this apply at most once.
+    final categoriesAsync = ref.watch(categoryProvider);
+    final categoryPrefsAsync = ref.watch(categoryPreferenceProvider);
+    if (!_categoryDefaulted &&
+        (trail.category?.isEmpty ?? true) &&
+        categoriesAsync.hasValue &&
+        categoryPrefsAsync.hasValue) {
+      _categoryDefaulted = true;
+      final defaultCategory = visibleSortedCategories(
+        categoriesAsync.value!,
+        categoryPrefsAsync.value!,
+        Localizations.localeOf(context),
+      ).firstOrNull?.id;
+      if (defaultCategory != null) {
+        trail = trail.copyWith(category: defaultCategory, subcategory: '');
+      }
+    }
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(

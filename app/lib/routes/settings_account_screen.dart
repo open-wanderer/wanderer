@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:wanderer/components/base/wanderer_rich_text_editor.dart';
 import 'package:wanderer/components/settings/email_change_sheet.dart';
 import 'package:wanderer/components/settings/password_change_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -237,8 +238,9 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
   }
 }
 
-/// Stateful bio editing widget that holds a [TextEditingController] and
-/// re-evaluates the Save button enable condition on every keystroke.
+/// Stateful bio editing widget wrapping [WandererRichTextEditor], tracking
+/// the current HTML so the Save button enables only once it diverges from
+/// the persisted value.
 class _BioSection extends ConsumerStatefulWidget {
   const _BioSection({required this.settings, required this.l10n});
 
@@ -250,14 +252,19 @@ class _BioSection extends ConsumerStatefulWidget {
 }
 
 class _BioSectionState extends ConsumerState<_BioSection> {
-  late TextEditingController _controller;
   String _persisted = '';
+  late String _current;
+
+  // Bumped whenever the persisted value changes from under an unedited
+  // editor, forcing WandererRichTextEditor to remount with the fresh
+  // initialValue (it only seeds once and never re-reads it otherwise).
+  int _editorGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     _persisted = widget.settings?.bio ?? '';
-    _controller = TextEditingController(text: _persisted);
+    _current = _persisted;
   }
 
   @override
@@ -265,22 +272,18 @@ class _BioSectionState extends ConsumerState<_BioSection> {
     super.didUpdateWidget(oldWidget);
     final newPersisted = widget.settings?.bio ?? '';
     if (newPersisted != _persisted) {
+      // Only remount (resetting in-progress edits) if the user has not
+      // started editing yet.
+      final unedited = _current == _persisted;
       _persisted = newPersisted;
-      // Only update the controller if the text is still equal to the old
-      // persisted value (i.e. the user has not started editing).
-      if (_controller.text == _persisted) {
-        _controller.text = newPersisted;
+      if (unedited) {
+        _current = newPersisted;
+        _editorGeneration++;
       }
     }
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  bool get _hasChanged => _controller.text != _persisted;
+  bool get _hasChanged => _current != _persisted;
 
   Future<void> _save() async {
     final settings = widget.settings;
@@ -288,7 +291,7 @@ class _BioSectionState extends ConsumerState<_BioSection> {
     try {
       await ref
           .read(settingsProvider.notifier)
-          .saveToServer(settings.copyWith(bio: _controller.text));
+          .saveToServer(settings.copyWith(bio: _current));
     } catch (_) {
       if (!mounted) return;
       ref
@@ -310,11 +313,11 @@ class _BioSectionState extends ConsumerState<_BioSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-            controller: _controller,
-            maxLines: 4,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(hintText: widget.l10n.add_bio),
+          WandererRichTextEditor(
+            key: ValueKey(_editorGeneration),
+            initialValue: _persisted,
+            label: widget.l10n.add_bio,
+            onChanged: (html) => setState(() => _current = html),
           ),
           const SizedBox(height: 8),
           ElevatedButton(

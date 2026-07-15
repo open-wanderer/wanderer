@@ -14,7 +14,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
@@ -31,6 +31,31 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Appear in the share sheet for trail files (GPX/KML/KMZ/TCX/FIT).
+                 Many file managers share these as octet-stream/xml, so the
+                 generic types are included alongside the specific ones. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/gpx+xml"/>
+                <data android:mimeType="application/vnd.google-earth.kml+xml"/>
+                <data android:mimeType="application/vnd.google-earth.kmz"/>
+                <data android:mimeType="application/xml"/>
+                <data android:mimeType="text/xml"/>
+                <data android:mimeType="application/octet-stream"/>
+            </intent-filter>
+            <!-- "Open with" from file managers. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:mimeType="application/gpx+xml"/>
+                <data android:mimeType="application/vnd.google-earth.kml+xml"/>
+                <data android:mimeType="application/vnd.google-earth.kmz"/>
+                <data android:mimeType="application/xml"/>
+                <data android:mimeType="text/xml"/>
+                <data android:mimeType="application/octet-stream"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

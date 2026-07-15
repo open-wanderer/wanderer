@@ -49,64 +49,62 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final filterAsync = ref.watch(trailFilterProvider('library'));
     final visible = _filtered(trailLibrary, filterAsync.value);
 
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (v) => setState(() => _query = v),
-                  cursorColor: Theme.of(context).colorScheme.onSurface,
-                  decoration: InputDecoration(
-                    hintText: 'Search library…',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _query.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _query = '');
-                            },
-                          )
-                        : null,
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                      borderRadius: BorderRadius.circular(56),
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (v) => setState(() => _query = v),
+                cursorColor: Theme.of(context).colorScheme.onSurface,
+                decoration: InputDecoration(
+                  hintText: 'Search library…',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _query.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _query = '');
+                          },
+                        )
+                      : null,
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline,
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(56),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.onSurface,
-                        width: 1,
-                      ),
-                    ),
-                    isDense: true,
+                    borderRadius: BorderRadius.circular(56),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(56),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      width: 1,
+                    ),
+                  ),
+                  isDense: true,
                 ),
               ),
-              const TrailQuickFilterBar(filterId: 'library'),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: visible.length,
-                  itemBuilder: (context, i) {
-                    final trail = visible[i];
-                    return TrailCard(
-                      trail: trail,
-                      onTrailSelect: () => router.push('/trail/${trail.id}'),
-                      onLongPress: () =>
-                          _showContextMenu(context, trail, router),
-                    );
-                  },
-                ),
+            ),
+            const TrailQuickFilterBar(filterId: 'library'),
+            Expanded(
+              child: ListView.builder(
+                itemCount: visible.length,
+                itemBuilder: (context, i) {
+                  final trail = visible[i];
+                  return TrailCard(
+                    trail: trail,
+                    onTrailSelect: () => router.push('/trail/${trail.id}'),
+                    onLongPress: () => _showContextMenu(context, trail, router),
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

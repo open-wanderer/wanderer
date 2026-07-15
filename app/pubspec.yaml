@@ -43,6 +43,7 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.5
   pmtiles: ^1.2.0
+  receive_sharing_intent: ^1.8.1
   pointer_interceptor: ^0.10.1
   qr_flutter: ^4.1.0
   riverpod_annotation: ^4.0.2

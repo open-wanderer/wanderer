@@ -234,6 +234,11 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
 
     final trailDownloadService = ref.read(trailDownloadServiceProvider);
     final notificationService = ref.read(downloadNotificationServiceProvider);
+    // Captured up front: this notifier is keepAlive, so it outlives the
+    // widget. Calling it later via the captured reference (instead of
+    // `ref.read` again) avoids touching WidgetRef after the widget is
+    // unmounted, which throws if the screen is closed mid-download.
+    final toastNotifier = ref.read(toastProvider.notifier);
 
     // Trail download is a second, independent trigger for the shared
     // app-wide glyph/sprite cache warm. Fire it concurrently with the trail
@@ -242,15 +247,13 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // no-op if the map was already opened first.
     final glyphCacheWarm = ref.read(glyphSpriteCacheProvider.future);
 
-    ref
-        .read(toastProvider.notifier)
-        .add(
-          ToastMessage(
-            type: ToastType.info,
-            icon: FontAwesomeIcons.download,
-            text: 'Downloading ${trail.name}...',
-          ),
-        );
+    toastNotifier.add(
+      ToastMessage(
+        type: ToastType.info,
+        icon: FontAwesomeIcons.download,
+        text: 'Downloading ${trail.name}...',
+      ),
+    );
     await notificationService.showProgress(trail.name, 0, 0);
 
     try {
@@ -260,26 +263,22 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             notificationService.showProgress(trail.name, done, total),
       );
       await notificationService.showSuccess(trail.name);
-      ref
-          .read(toastProvider.notifier)
-          .add(
-            ToastMessage(
-              type: ToastType.success,
-              icon: FontAwesomeIcons.circleCheck,
-              text: 'Trail saved for offline use',
-            ),
-          );
+      toastNotifier.add(
+        ToastMessage(
+          type: ToastType.success,
+          icon: FontAwesomeIcons.circleCheck,
+          text: 'Trail saved for offline use',
+        ),
+      );
     } catch (e) {
       await notificationService.showError(trail.name);
-      ref
-          .read(toastProvider.notifier)
-          .add(
-            ToastMessage(
-              type: ToastType.error,
-              icon: FontAwesomeIcons.xmark,
-              text: 'Error saving trail',
-            ),
-          );
+      toastNotifier.add(
+        ToastMessage(
+          type: ToastType.error,
+          icon: FontAwesomeIcons.xmark,
+          text: 'Error saving trail',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isDownloading = false);
     }

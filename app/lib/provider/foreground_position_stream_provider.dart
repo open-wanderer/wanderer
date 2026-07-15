@@ -25,6 +25,11 @@ class ServiceDisabledException implements Exception {
   const ServiceDisabledException();
 }
 
+/// Signals that location permission was denied (or permanently denied).
+class PermissionDeniedException implements Exception {
+  const PermissionDeniedException();
+}
+
 /// A singleton foreground position stream shared across all map screens.
 ///
 /// The ghost subscription keeps the broadcast controller alive between
@@ -49,8 +54,22 @@ class ForegroundPositionStream
     _positionSub = null;
   }
 
-  void _startPositionStream() {
+  Future<void> _startPositionStream() async {
     _cancelPosition();
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      if (!_controller.isClosed) {
+        _controller.addError(const PermissionDeniedException());
+      }
+      return;
+    }
+    if (_controller.isClosed) return;
+
     _positionSub = Geolocator.getPositionStream().listen(
       (pos) {
         if (!_controller.isClosed) {
@@ -79,7 +98,7 @@ class ForegroundPositionStream
           if (_controller.isClosed) return;
           if (status == ServiceStatus.enabled) {
             _controller.add(null); // reset layer to "locating"
-            _startPositionStream(); // restart after GPS was re-enabled
+            unawaited(_startPositionStream()); // restart after GPS was re-enabled
           } else {
             _cancelPosition();
             _controller.addError(const ServiceDisabledException());
@@ -99,7 +118,7 @@ class ForegroundPositionStream
         // system dialog when location services are disabled.
         // Because the ghost subscription below keeps this controller alive,
         // onListen fires only once per session — the dialog appears at most once.
-        _startPositionStream();
+        await _startPositionStream();
       },
     );
 

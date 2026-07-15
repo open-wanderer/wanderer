@@ -72,7 +72,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
   late final Animation<double> _searchAreaScale;
   ScrollController? _sheetScrollController;
 
-  double sheetMinSize = 0.2;
+  double sheetMinSize = 0.5;
   final sheetMediumsize = 0.5;
   final sheetMaxSize = 1.0;
 
@@ -200,7 +200,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
   Widget build(BuildContext context) {
     final savedCamera = ref.read(mapCameraProvider);
 
-    sheetMinSize = 56 / MediaQuery.of(context).size.height;
+    sheetMinSize =
+        (56 + kBottomNavigationBarHeight + 48) /
+        MediaQuery.of(context).size.height;
 
     // Initial-focus fallback chain, lowest priority first: (0,0) world view,
     // then the user's saved home location, then a resolved GPS fix. Each of
@@ -405,7 +407,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               // deselect and collapse the sheet.
               if (_sheetController.isAttached) {
                 _sheetController.animateTo(
-                  sheetMinSize,
+                  sheetMediumsize,
                   curve: Curves.easeOut,
                   duration: const Duration(milliseconds: 300),
                 );
@@ -462,7 +464,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               alignment: Alignment.bottomLeft,
               padding: EdgeInsets.only(
                 left: 10,
-                bottom: MediaQuery.of(context).size.height * sheetMinSize + 16,
+                bottom: kBottomNavigationBarHeight + 45,
               ),
             ),
           ],
@@ -497,8 +499,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
           ),
 
-        if (_selectedTrail == null)
-          DraggableScrollableSheet(
+        Opacity(
+          key: const ValueKey('trail_sheet'),
+          opacity: _selectedTrail == null ? 1 : 0,
+          child: DraggableScrollableSheet(
             controller: _sheetController,
             initialChildSize: sheetMediumsize,
             minChildSize: sheetMinSize,
@@ -523,75 +527,75 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       ),
                     ],
                   ),
-                  child: Padding(
-                    padding: size >= sheetMediumsize
-                        ? EdgeInsets.fromLTRB(0, _getDynamicPadding(size), 0, 0)
-                        : EdgeInsets.zero,
-                    child: child,
-                  ),
+                  child: child,
                 ),
                 child: AsyncLoader(
                   asyncValue: searchResultAsync,
                   mockData: List.generate(5, (_) => TrailSearchResult.mock()),
-                  builder: (trails) => ListView.builder(
-                    itemCount: trails.length + 2,
+                  builder: (trails) => ListView(
                     padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
                     controller: scrollController,
-                    itemBuilder: (context, index) {
-                      if (index == 0 || index == 1) {
-                        return ValueListenableBuilder<double>(
-                          valueListenable: _sheetSize,
-                          builder: (context, size, child) {
-                            double fadeStart = sheetMediumsize;
-                            double opacity = 1.0;
+                    children: [
+                      ValueListenableBuilder<double>(
+                        valueListenable: _sheetSize,
+                        builder: (context, size, child) {
+                          final opacity = _sheetHeaderOpacity(size);
 
-                            if (size > fadeStart) {
-                              opacity =
-                                  1.0 - ((size - fadeStart) / (1 - fadeStart));
-                              opacity = opacity.clamp(0.0, 1.0);
-                            }
-
-                            if (opacity == 0.0) return const SizedBox.shrink();
-
-                            Widget child = index == 0
-                                ? Center(
-                                    child: Container(
-                                      width: 30,
-                                      height: 5,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[300],
-                                        borderRadius: BorderRadius.circular(10),
+                          return Column(
+                            children: [
+                              if (opacity > 0.0)
+                                Opacity(
+                                  opacity: opacity,
+                                  child: Column(
+                                    children: [
+                                      Center(
+                                        child: Container(
+                                          width: 30,
+                                          height: 5,
+                                          margin: const EdgeInsets.only(top: 4),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.outlineVariant,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  )
-                                : Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Center(
-                                      child: Text(
-                                        "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.labelLarge,
+                                      Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Center(
+                                          child: Text(
+                                            "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.labelLarge,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  );
-
-                            return Opacity(opacity: opacity, child: child);
-                          },
-                        );
-                      }
-                      final trail = trails[index - 2];
-                      return TrailCard(
-                        trail: trail,
-                        onTrailSelect: () =>
-                            context.push("/trail/${trail.id}", extra: trail),
-                      );
-                    },
+                                    ],
+                                  ),
+                                ),
+                              SizedBox(height: _getDynamicPadding(size)),
+                            ],
+                          );
+                        },
+                      ),
+                      ...trails.map(
+                        (t) => TrailCard(
+                          trail: t,
+                          onTrailSelect: () =>
+                              context.push("/trail/${t.id}", extra: t),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
             },
           ),
+        ),
 
         SafeArea(
           child: Align(
@@ -706,7 +710,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ),
 
         Positioned(
-          bottom: 24,
+          bottom: kBottomNavigationBarHeight + 64,
           left: 0,
           right: 0,
           child: Center(
@@ -732,7 +736,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
         if (_selectedTrail != null)
           Positioned(
-            bottom: 16,
+            bottom: kBottomNavigationBarHeight + 16 + 45,
             left: 16,
             right: 16,
             child: Dismissible(
@@ -756,21 +760,40 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
+  /// Fades the sheet's drag handle and trail-count header out as the sheet
+  /// is dragged open past [sheetMediumsize], fully gone by max size.
+  double _sheetHeaderOpacity(double currentSize) {
+    if (currentSize <= sheetMediumsize) return 1.0;
+
+    final opacity =
+        1.0 - ((currentSize - sheetMediumsize) / (1 - sheetMediumsize));
+    return opacity.clamp(0.0, 1.0);
+  }
+
   double _getDynamicPadding(double currentSize) {
     const double minPadding = 0.0;
-    const double maxPadding = 156.0;
+    const double maxTopPadding = 156.0;
+    const double maxBottomPadding = 64.0;
 
     double startThreshold = sheetMediumsize;
-    double endThreshold = sheetMaxSize;
+    double endTopThreshold = sheetMaxSize;
+    double endBottomThreshold = sheetMinSize;
 
-    if (currentSize <= startThreshold) return minPadding;
+    if (currentSize >= endTopThreshold) return maxTopPadding;
+    if (currentSize <= endBottomThreshold) return maxBottomPadding;
 
-    if (currentSize >= endThreshold) return maxPadding;
+    if (currentSize <= startThreshold) {
+      double percentage =
+          (startThreshold - currentSize) /
+          (startThreshold - endBottomThreshold);
+      return minPadding + (percentage * (maxBottomPadding - minPadding));
+    } else {
+      double percentage =
+          (currentSize - startThreshold) / (endTopThreshold - startThreshold);
 
-    double percentage =
-        (currentSize - startThreshold) / (endThreshold - startThreshold);
-
-    return minPadding + (percentage * (maxPadding - minPadding));
+      return minPadding + (percentage * (maxTopPadding - minPadding));
+    }
+    ;
   }
 
   int _countActiveFilters(TrailFilter current, TrailFilter defaultFilter) {

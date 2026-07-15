@@ -70,6 +70,31 @@ List<Subcategory> sortedSubcategoriesByPreference(
   return list;
 }
 
+/// [categories] sorted by preference and filtered to visible ones — the
+/// "what should the picker show, in order" query. Optionally keeps
+/// [keepVisibleId] in the result even if hidden, so a picker doesn't drop the
+/// currently-selected category out from under the user.
+List<Category> visibleSortedCategories(
+  List<Category> categories,
+  List<CategoryPreference> prefs,
+  Locale? locale, {
+  String? keepVisibleId,
+}) => sortedCategoriesByPreference(categories, prefs, locale)
+    .where((c) => categoryVisible(c.id, prefs) || c.id == keepVisibleId)
+    .toList();
+
+/// [subs] sorted by preference and filtered to visible ones. Optionally keeps
+/// [keepVisibleId] in the result even if hidden, so a picker doesn't drop the
+/// currently-selected subcategory out from under the user.
+List<Subcategory> visibleSortedSubcategories(
+  List<Subcategory> subs,
+  List<SubcategoryPreference> prefs,
+  Locale? locale, {
+  String? keepVisibleId,
+}) => sortedSubcategoriesByPreference(subs, prefs, locale)
+    .where((s) => subcategoryVisible(s.id, prefs) || s.id == keepVisibleId)
+    .toList();
+
 /// A category is visible unless a preference row exists with `visible == false`.
 /// No-preference and a null `visible` both mean visible (Pitfall 4).
 bool categoryVisible(String categoryId, List<CategoryPreference> prefs) =>

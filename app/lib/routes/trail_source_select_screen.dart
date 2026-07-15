@@ -1,15 +1,10 @@
-import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:go_router/go_router.dart';
-import 'package:gpx/gpx.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
-import 'package:wanderer/models/trail.dart';
-import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/trail_import_util.dart';
 
 class TrailSourceSelectScreen extends ConsumerStatefulWidget {
   const TrailSourceSelectScreen({super.key});
@@ -35,81 +30,27 @@ class _TrailSourceSelectScreenState
         );
   }
 
-  static const _allowedExtensions = ['gpx', 'kml', 'kmz', 'tcx', 'fit'];
-
   Future<void> _importGpx(AppLocalizations l10n) async {
     if (_importing) return;
 
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
-      allowedExtensions: _allowedExtensions,
+      allowedExtensions: trailImportExtensions,
     );
     final picked = result?.files.single;
     final path = picked?.path;
     if (picked == null || path == null) return;
 
-    // `allowedExtensions` is only a hint — several platforms ignore it and let
-    // the user pick any file, so reject unsupported types before uploading.
-    final ext = picked.extension?.toLowerCase();
-    if (ext == null || !_allowedExtensions.contains(ext)) {
-      ref
-          .read(toastProvider.notifier)
-          .add(
-            ToastMessage(
-              type: ToastType.error,
-              icon: FontAwesomeIcons.circleExclamation,
-              text: l10n.trail_source_import_error,
-            ),
-          );
-      return;
-    }
-
     setState(() => _importing = true);
     try {
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(path, filename: picked.name),
-      });
-      final res = await ref
-          .read(apiProvider)
-          .post('/trail/convert', data: formData);
-      // The trail is not persisted yet, so the server omits id/created/updated.
-      // Supply the same placeholders Trail.empty() uses; the spread lets any
-      // server-provided value win. The record is timestamped on save.
-      final data = res.data as Map<String, dynamic>;
-      var trail = Trail.fromJson({
-        'id': '',
-        'created': DateTime.now().toIso8601String(),
-        'updated': DateTime.now().toIso8601String(),
-        ...data,
-      });
-
-      // The unsaved trail carries its raw GPX inline (no file to fetch yet).
-      // Parse it into expand.gpx so the route can be drawn on the map. The
-      // Gpx object isn't serializable, so this step stays client-side; the
-      // bounding box already arrives on the record from gpx2trail.
-      final gpxData = trail.expand?.gpxData;
-      if (gpxData != null && gpxData.isNotEmpty) {
-        final parsedGpx = GpxReader().fromString(sanitizeGpxEmail(gpxData));
-        trail = trail.copyWith(
-          expand: (trail.expand ?? const TrailExpand()).copyWith(
-            gpx: parsedGpx,
-          ),
-        );
-      }
-
       if (!mounted) return;
-      context.pushReplacement('/trail/create/edit', extra: trail);
-    } catch (e) {
-      if (!mounted) return;
-      ref
-          .read(toastProvider.notifier)
-          .add(
-            ToastMessage(
-              type: ToastType.error,
-              icon: FontAwesomeIcons.circleExclamation,
-              text: l10n.trail_source_import_error,
-            ),
-          );
+      await importTrailFile(
+        ref: ref,
+        path: path,
+        name: picked.name,
+        navContext: context,
+        l10n: l10n,
+      );
     } finally {
       if (mounted) setState(() => _importing = false);
     }
@@ -132,7 +73,7 @@ class _TrailSourceSelectScreenState
             title: l10n.trail_source_planner,
             description:
                 "Design your perfect route from scratch using our map tools.",
-            onTap: () => _comingSoon(l10n),
+            onTap: _importing ? null : () => _comingSoon(l10n),
           ),
           const SizedBox(height: 12),
           _SourceActionCard(
@@ -140,7 +81,7 @@ class _TrailSourceSelectScreenState
             title: l10n.trail_source_record,
             description:
                 "Track your live coordinates and log your journey in real-time.",
-            onTap: () => _comingSoon(l10n),
+            onTap: _importing ? null : () => _comingSoon(l10n),
           ),
           const SizedBox(height: 12),
           _SourceActionCard(
@@ -149,7 +90,7 @@ class _TrailSourceSelectScreenState
             description:
                 "Upload external GPX files directly from your device storage.",
             isLoading: _importing,
-            onTap: () => _importGpx(l10n),
+            onTap: _importing ? null : () => _importGpx(l10n),
           ),
         ],
       ),
@@ -165,7 +106,6 @@ class _SourceActionCard extends StatelessWidget {
   final bool isLoading;
 
   const _SourceActionCard({
-    super.key,
     required this.icon,
     required this.title,
     required this.description,
@@ -176,21 +116,33 @@ class _SourceActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final disabled = onTap == null && !isLoading;
 
-    final resolvedBgColor = theme.colorScheme.secondaryContainer.withValues(
-      alpha: 0.4,
-    );
-    final resolvedIconColor = theme.colorScheme.primary;
+    final resolvedBgColor = disabled
+        ? theme.colorScheme.onSurface.withValues(alpha: 0.05)
+        : theme.colorScheme.secondaryContainer.withValues(alpha: 0.4);
+    final resolvedIconColor = disabled
+        ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
+        : theme.colorScheme.primary;
+    final resolvedTitleColor = disabled
+        ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
+        : null;
+    final resolvedDescriptionColor = disabled
+        ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
+        : theme.colorScheme.onSurfaceVariant;
+    final resolvedBorderColor = disabled
+        ? theme.colorScheme.outline.withValues(alpha: 0.3)
+        : theme.colorScheme.outline;
 
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outline),
+        side: BorderSide(color: resolvedBorderColor),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: isLoading ? null : onTap,
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
@@ -215,13 +167,14 @@ class _SourceActionCard extends StatelessWidget {
                       title,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: resolvedTitleColor,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       description,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                        color: resolvedDescriptionColor,
                       ),
                     ),
                   ],
@@ -237,7 +190,13 @@ class _SourceActionCard extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               else
-                const FaIcon(FontAwesomeIcons.chevronRight, size: 16),
+                FaIcon(
+                  FontAwesomeIcons.chevronRight,
+                  size: 16,
+                  color: disabled
+                      ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
+                      : null,
+                ),
             ],
           ),
         ),

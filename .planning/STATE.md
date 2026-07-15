@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: MapLibre Migration
 status: Awaiting next milestone
-stopped_at: Completed quick task 260714-qtl (fix meilisearch_token expiry check in hooks.server.ts, the real root cause of the reported 500-on-launch bug); manual on-device swipe-kill verification for 260712-m9v still pending
-last_updated: "2026-07-14T17:30:00.000Z"
-last_activity: "2026-07-14 - Completed quick task 260714-qtl: Track and check real meilisearch_token expiry server-side instead of trusting cookie Max-Age"
+stopped_at: Completed quick task 260715-q01 (rename iOS/Android bundle id to com.openwanderer.wanderer); manual on-device swipe-kill verification for 260712-m9v still pending
+last_updated: "2026-07-15T16:43:15.000Z"
+last_activity: "2026-07-15 - Completed quick task 260715-q01: Rename iOS bundle id / App Group ids and Android applicationId from com.example.wanderer to com.openwanderer.wanderer"
 progress:
   total_phases: 6
   completed_phases: 5
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-08)
 Phase: Milestone v1.4 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-07-14 - Completed quick task 260714-qtl: Track and check real meilisearch_token expiry server-side instead of trusting cookie Max-Age
+Last activity: 2026-07-15 - Completed quick task 260715-q01: Rename iOS bundle id / App Group ids and Android applicationId from com.example.wanderer to com.openwanderer.wanderer
 
 ## v1.4 Phases
 
@@ -149,6 +149,7 @@ Recent decisions affecting current work:
 | 260713-nes | Gate auth build() on timeout-bounded validation before navigation; original persisted-500-counter self-heal piece later reverted (260714-qma) once the real root cause was found | 2026-07-13 | d9531951,dd56c62d | Superseded by 260714-qma | [260713-nes-…](./quick/260713-nes-fix-500-errors-on-app-launch-by-gating-n/) |
 | 260714-qma | Revert speculative persisted-500-counter self-heal from auth_provider.dart, keep timeout-gated build() | 2026-07-14 | c3fbef98,a6647dcf,eee4f0c2 | Complete | [260714-qma-…](./quick/260714-qma-revert-speculative-persisted-500-counter/) |
 | 260714-qtl | Fix meilisearch_token cookie never validated for real expiry in hooks.server.ts (real root cause of the reported search-call 500s) | 2026-07-14 | ed114163 | Complete | [260714-qtl-…](./quick/260714-qtl-fix-meilisearch-token-cookie-never-valid/) |
+| 260715-q01 | Rename iOS bundle id / App Group ids and Android applicationId from com.example.wanderer to com.openwanderer.wanderer | 2026-07-15 | 40cf3a69,8022ae97 | Complete | [260715-q01-…](./quick/260715-q01-update-the-ios-bundle-id-and-android-app/) |
 
 ## Deferred Items
 

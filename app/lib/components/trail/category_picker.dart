@@ -89,10 +89,12 @@ class CategoryPicker extends ConsumerWidget {
     // locale name), keeping the currently-selected items visible even if a
     // preference hides them. Mirrors the web `designSelectableCategories` +
     // `sortedSubcategoriesByPreference`.
-    final orderedCategories =
-        sortedCategoriesByPreference(categories, categoryPrefs, locale).where(
-          (c) => categoryVisible(c.id, categoryPrefs) || c.id == category,
-        );
+    final orderedCategories = visibleSortedCategories(
+      categories,
+      categoryPrefs,
+      locale,
+      keepVisibleId: category,
+    );
 
     final items = <SelectItem<String>>[];
     for (final cat in orderedCategories) {
@@ -104,16 +106,12 @@ class CategoryPicker extends ConsumerWidget {
         ),
       );
 
-      final orderedSubs =
-          sortedSubcategoriesByPreference(
-            subcategories.where((s) => s.category == cat.id).toList(),
-            subcategoryPrefs,
-            locale,
-          ).where(
-            (s) =>
-                subcategoryVisible(s.id, subcategoryPrefs) ||
-                s.id == subcategory,
-          );
+      final orderedSubs = visibleSortedSubcategories(
+        subcategories.where((s) => s.category == cat.id).toList(),
+        subcategoryPrefs,
+        locale,
+        keepVisibleId: subcategory,
+      );
 
       for (final sub in orderedSubs) {
         items.add(
