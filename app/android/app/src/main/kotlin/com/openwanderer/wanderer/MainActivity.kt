@@ -1,4 +1,4 @@
-package com.example.wanderer
+package com.openwanderer.wanderer
 
 import io.flutter.embedding.android.FlutterActivity
 
