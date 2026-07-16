@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Route Planner
 status: executing
-stopped_at: Completed 20-02-PLAN.md
-last_updated: "2026-07-16T21:50:16.354Z"
+stopped_at: Completed 20-03-PLAN.md
+last_updated: "2026-07-16T21:59:58.560Z"
 last_activity: 2026-07-16 -- Phase 20 execution started
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 7
   percent: 33
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 ## Current Position
 
 Phase: 20 (route-planner-views-waypoint-list-elevation-location-search) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-07-16 -- Phase 20 execution started
 
@@ -72,6 +72,7 @@ Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/sc
 | Phase 19 P04 | 15min | 2 tasks | 1 files |
 | Phase 20 P01 | 30min | 2 tasks | 7 files |
 | Phase 20 P02 | 8min | 2 tasks | 2 files |
+| Phase 20 P03 | 20min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -137,6 +138,8 @@ Recent decisions affecting current work:
 - [Phase 20]: [Phase 20] [20-01] deleteAnchor/reorderAnchors mutators found already implemented (uncommitted) matching plan exactly; verified against all acceptance criteria before committing as Task 1 — No rewrite needed -- existing code already satisfied the plan's must_haves truths and passed all new unit tests
 - [Phase 20]: [Phase 20] [20-01] gpx package 2.3.0's Gpx class has no trks: constructor param -- construct Gpx() then assign .trks field — Plan's action text assumed a constructor param that doesn't exist in the installed gpx version; fixed to match the real API
 - [Phase 20]: [Phase 20] [20-02] Captured GlobalSearchNotifier as a field in initState rather than calling ref.read in dispose(), avoiding the avoid_ref_inside_state_dispose lint — ref may already be torn down by the time State.dispose runs
+- [Phase 20]: [20-03] ElevationTab never writes ele back into plannedGpxProvider (D-10) -- holds local _eleMergedGpx state, rebuilt on each successful height fetch — keeps plannedGpxProvider pre-elevation for Phase 21 handoff while still rendering a live elevation-merged chart
+- [Phase 20]: [20-03] Height fetch failures swallowed silently (best-effort) -- keeps rendering last successfully-merged Gpx — no error/retry UI specified for this tab in D-11/D-13; avoids error-banner flash on transient network blips
 
 ### Pending Todos
 
@@ -214,11 +217,9 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-16T21:50:16.343Z
-Stopped at: Completed 20-02-PLAN.md
+Last session: 2026-07-16T21:59:58.548Z
+Stopped at: Completed 20-03-PLAN.md
 Resume file: 
-
-## Operator Next Steps
 
 - Review and approve the ROADMAP.md draft for v1.5 (Phases 19-21).
 - Once approved, run `/gsd-plan-phase 19` to begin detailed planning for Phase 19 (Route Planner Core — Waypoint Editing & Routing Engine).
