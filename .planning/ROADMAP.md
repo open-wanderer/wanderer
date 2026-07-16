@@ -307,7 +307,16 @@ See `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
 **SCOPE CHANGE (from original PRD wording, resolved in 20-CONTEXT.md):** the list and elevation profile were originally specified as two separate views "toggled via map control buttons." Discussion converged on a simpler mechanism — one persistent tabbed sheet, no separate toggle buttons for these two views — that still satisfies the same user-visible capability (inspect route as a list or as an elevation profile, mutually exclusive at a time).
 
-**Plans**: TBD
+**Plans**: 5 plans (3 waves)
+
+Plans:
+
+- [ ] 20-01-PLAN.md — Route anchor deleteAnchor/reorderAnchors mutators + buildGpxFromPoints + plannedGpxProvider (WAYP-04/05, PLANUI-02)
+- [ ] 20-02-PLAN.md — LocationSearchScreen (locations-only) + /location-search route (PLANUI-03)
+- [ ] 20-03-PLAN.md — ElevationProfile trail→Trail? + ElevationTab (tab-gated debounced height fetch) (PLANUI-02)
+- [ ] 20-04-PLAN.md — RouteAnchorListTab (numbered rows, immediate delete, drag reorder) (WAYP-04/05)
+- [ ] 20-05-PLAN.md — RouteAnchorSheet tabbed DraggableScrollableSheet + planner screen integration (search button, sheet host, camera hand-off) (PLANUI-01/03)
+
 **UI hint**: yes
 
 ### Phase 21: Route Planner Handoff & Entry Point
@@ -356,5 +365,5 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 17. Navigation on MapLibre | v1.4 | 3/3 | Complete   | 2026-07-10 |
 | 18. Retire flutter_map and the flomp Forks | v1.4 | 3/3 | Complete   | 2026-07-10 |
 | 19. Route Planner Core — Waypoint Editing & Routing Engine | v1.5 | 4/4 | Complete   | 2026-07-16 |
-| 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 0/TBD | Not started | - |
+| 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 0/5 | Planned | - |
 | 21. Route Planner Handoff & Entry Point | v1.5 | 0/TBD | Not started | - |
