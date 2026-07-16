@@ -17,6 +17,7 @@ import 'package:wanderer/routes/library_screen.dart';
 import 'package:wanderer/routes/list_detail_map_screen.dart';
 import 'package:wanderer/routes/list_detail_screen.dart';
 import 'package:wanderer/routes/list_screen.dart';
+import 'package:wanderer/routes/location_search_screen.dart';
 import 'package:wanderer/routes/login_screen.dart';
 import 'package:wanderer/routes/map_screen.dart';
 import 'package:wanderer/routes/navigation_screen.dart';
@@ -26,6 +27,7 @@ import 'package:wanderer/routes/profile_screen.dart';
 import 'package:wanderer/routes/profile_share_screen.dart';
 import 'package:wanderer/routes/profile_trail_screen.dart';
 import 'package:wanderer/routes/register_screen.dart';
+import 'package:wanderer/routes/route_planner_screen.dart';
 import 'package:wanderer/routes/server_selection_screen.dart';
 import 'package:wanderer/routes/settings_account_screen.dart';
 import 'package:wanderer/routes/settings_appearance_screen.dart';
@@ -43,6 +45,7 @@ import 'package:wanderer/routes/trail_source_select_screen.dart';
 import 'package:wanderer/routes/trail_sort_screen.dart';
 import 'package:wanderer/routes/waypoint_create_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
+import 'package:wanderer/util/trail_import_util.dart';
 
 part 'router_provider.g.dart';
 
@@ -233,6 +236,10 @@ class Router extends _$Router {
           builder: (context, state) => const GlobalSearchScreen(),
         ),
         GoRoute(
+          path: '/location-search',
+          builder: (context, state) => const LocationSearchScreen(),
+        ),
+        GoRoute(
           path: '/trail/filter',
           builder: (context, state) => const TrailFilterScreen(),
         ),
@@ -240,14 +247,33 @@ class Router extends _$Router {
           path: '/trail/sort',
           builder: (context, state) => const TrailSortScreen(),
         ),
+        // TEMPORARY test-only entry point for Phase 19 manual device
+        // verification — the real entry point (hike/bike dialog supplying
+        // travelProfile/initialCenter) is Phase 21's HANDOFF-02/03 scope.
+        // Remove this route once Phase 21 wires the real one.
+        GoRoute(
+          path: '/route-planner',
+          builder: (context, state) => RoutePlannerScreen(
+            travelProfile: 'pedestrian',
+            initialCenter: const Geographic(lat: 0, lon: 0),
+          ),
+        ),
         GoRoute(
           path: '/trail/create/edit',
           builder: (context, state) {
             final extra = state.extra;
-            // extra is lost across process restart / deep-link — fall back
-            // to the source selector so the user isn't left on a blank screen.
-            if (extra is! Trail) return const TrailSourceSelectScreen();
-            return TrailCreateScreen(trail: extra);
+            if (extra is Trail) {
+              pendingImportedTrail = null;
+              return TrailCreateScreen(trail: extra);
+            }
+            // extra is lost across process restart / deep-link, or a
+            // same-process router refresh mid-navigation (see
+            // pendingImportedTrail's doc comment) — recover a just-imported
+            // trail if one is pending, else fall back to the source
+            // selector so the user isn't left on a blank screen.
+            final pending = pendingImportedTrail;
+            if (pending != null) return TrailCreateScreen(trail: pending);
+            return const TrailSourceSelectScreen();
           },
         ),
         GoRoute(
