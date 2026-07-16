@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show UniqueKey;
 import 'package:maplibre/maplibre.dart';
@@ -342,6 +343,102 @@ class RouteAnchors extends _$RouteAnchors {
     ];
 
     state = state.copyWith(anchors: anchors, segments: segments);
+  }
+
+  /// WAYP-04: removes [anchorId] from the route. If the removed anchor sat
+  /// between two surviving anchors, its two touching segments collapse into
+  /// one new straight segment spanning the surviving predecessor/successor
+  /// (auto-resolved via Valhalla when auto-routing is on). Removing the
+  /// first, last, or the only anchor removes at most one segment and creates
+  /// none.
+  void deleteAnchor(String anchorId) {
+    _pushUndo();
+
+    final anchors = state.anchors.where((a) => a.id != anchorId).toList();
+
+    final before = state.segments.firstWhereOrNull(
+      (s) => s.afterAnchorId == anchorId,
+    );
+    final after = state.segments.firstWhereOrNull(
+      (s) => s.beforeAnchorId == anchorId,
+    );
+
+    RouteAnchor? predecessor;
+    RouteAnchor? successor;
+    if (before != null && after != null) {
+      predecessor = anchors.firstWhere((a) => a.id == before.beforeAnchorId);
+      successor = anchors.firstWhere((a) => a.id == after.afterAnchorId);
+    }
+
+    final segments = [
+      for (final s in state.segments)
+        if (s.beforeAnchorId != anchorId && s.afterAnchorId != anchorId) s,
+      if (predecessor != null && successor != null)
+        RouteSegment(
+          beforeAnchorId: predecessor.id,
+          afterAnchorId: successor.id,
+          polyline: [predecessor.point, successor.point],
+          state: SegmentState.straight,
+        ),
+    ];
+
+    state = state.copyWith(anchors: anchors, segments: segments);
+
+    if (predecessor != null && successor != null && state.autoRoutingEnabled) {
+      _resolveSegment(
+        predecessor.id,
+        successor.id,
+        predecessor,
+        successor,
+      ).ignore();
+    }
+  }
+
+  /// WAYP-05: reassigns the anchor order to [newOrder] (a permutation of the
+  /// existing anchor ids). Segments for anchor pairs that remain adjacent
+  /// after the reorder are reused verbatim (preserving any resolved
+  /// [SegmentState.routed] polyline and issuing zero Valhalla calls,
+  /// Pitfall 4); only newly-adjacent pairs get a fresh straight segment,
+  /// auto-resolved when auto-routing is on.
+  void reorderAnchors(List<String> newOrder) {
+    _pushUndo();
+
+    final anchorsById = {for (final a in state.anchors) a.id: a};
+    final reordered = newOrder.map((id) => anchorsById[id]!).toList();
+
+    final oldByKey = {
+      for (final s in state.segments)
+        segmentKey(s.beforeAnchorId, s.afterAnchorId): s,
+    };
+
+    final segments = <RouteSegment>[];
+    final toResolve = <(String, String, RouteAnchor, RouteAnchor)>[];
+
+    for (var i = 0; i < reordered.length - 1; i++) {
+      final a = reordered[i];
+      final b = reordered[i + 1];
+      final key = segmentKey(a.id, b.id);
+      final existing = oldByKey[key];
+      if (existing != null) {
+        segments.add(existing);
+      } else {
+        segments.add(
+          RouteSegment(
+            beforeAnchorId: a.id,
+            afterAnchorId: b.id,
+            polyline: [a.point, b.point],
+            state: SegmentState.straight,
+          ),
+        );
+        if (state.autoRoutingEnabled) toResolve.add((a.id, b.id, a, b));
+      }
+    }
+
+    state = state.copyWith(anchors: reordered, segments: segments);
+
+    for (final (beforeId, afterId, a, b) in toResolve) {
+      _resolveSegment(beforeId, afterId, a, b).ignore();
+    }
   }
 
   /// ROUTE-04: restores the immediately prior anchors/segments snapshot.

@@ -185,6 +185,48 @@ ProviderContainer _buildSeededContainer(
 
 const _anchorIdA = 'anchor-a';
 const _anchorIdB = 'anchor-b';
+const _anchorIdC = 'anchor-c';
+
+/// Builds a container seeded with 3 fixed-id anchors (A, B, C) where the
+/// A-B segment is straight and the B-C segment is already
+/// [SegmentState.routed] with a distinctive multi-point polyline —
+/// simulating a previously-resolved Valhalla segment for the reorder
+/// reuse-unchanged-segment tests.
+ProviderContainer _buildThreeAnchorSeededContainer(
+  _Responder responder, {
+  bool autoRoutingEnabled = true,
+}) {
+  final anchors = [
+    RouteAnchor(id: _anchorIdA, lat: _anchorA.lat, lon: _anchorA.lon),
+    RouteAnchor(id: _anchorIdB, lat: _anchorB.lat, lon: _anchorB.lon),
+    RouteAnchor(id: _anchorIdC, lat: _anchorC.lat, lon: _anchorC.lon),
+  ];
+  final segments = [
+    const RouteSegment(
+      beforeAnchorId: _anchorIdA,
+      afterAnchorId: _anchorIdB,
+      polyline: [_anchorA, _anchorB],
+      state: SegmentState.straight,
+    ),
+    const RouteSegment(
+      beforeAnchorId: _anchorIdB,
+      afterAnchorId: _anchorIdC,
+      polyline: [_anchorB, _anchorC, _anchorC],
+      state: SegmentState.routed,
+    ),
+  ];
+  final container = ProviderContainer(
+    overrides: [
+      apiProvider.overrideWith(() => _FakeApi(responder)),
+      routeAnchorsProvider(
+        _profile,
+      ).overrideWith(() => _SeededRouteAnchors(anchors, segments, autoRoutingEnabled)),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.listen(routeAnchorsProvider(_profile), (_, _) {});
+  return container;
+}
 
 void main() {
   group('RouteAnchors - segment resolution engine', () {
@@ -521,6 +563,233 @@ void main() {
         // undo() on an empty stack is a defensive no-op.
         expect(() => notifier.undo(), returnsNormally);
         expect(container.read(routeAnchorsProvider(_profile)).anchors, isEmpty);
+      },
+    );
+
+    test(
+      'deleteAnchor(first) removes anchor 0 and its single leaving segment, '
+      'creates no new segment, and pushes an undo snapshot',
+      () async {
+        final container = _buildContainer(
+          (options, index) async => const _CannedResponse.failure(),
+        );
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        await notifier.toggleAutoRouting();
+
+        notifier.appendAnchor(_anchorA);
+        notifier.appendAnchor(_anchorB);
+        notifier.appendAnchor(_anchorC);
+
+        final seed = container.read(routeAnchorsProvider(_profile));
+        final undoStackBefore = seed.undoStack.length;
+        final firstId = seed.anchors[0].id;
+
+        notifier.deleteAnchor(firstId);
+
+        final result = container.read(routeAnchorsProvider(_profile));
+        expect(result.anchors, hasLength(2));
+        expect(result.anchors[0].id, seed.anchors[1].id);
+        expect(result.anchors[1].id, seed.anchors[2].id);
+        expect(result.segments, hasLength(1));
+        expect(result.segments.single, seed.segments[1]); // B-C untouched
+        expect(result.undoStack.length, undoStackBefore + 1);
+
+        notifier.undo();
+        final undone = container.read(routeAnchorsProvider(_profile));
+        expect(undone.anchors, hasLength(3));
+        expect(undone.anchors[0].id, firstId);
+      },
+    );
+
+    test(
+      'deleteAnchor(middle, auto-routing off) collapses its two touching '
+      'segments into one new straight segment; unrelated distant segments '
+      'are untouched',
+      () async {
+        final container = _buildContainer(
+          (options, index) async => const _CannedResponse.failure(),
+        );
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        await notifier.toggleAutoRouting(); // OFF
+
+        const anchorD = Geographic(lat: 47.003, lon: 9.000);
+        notifier.appendAnchor(_anchorA);
+        notifier.appendAnchor(_anchorB);
+        notifier.appendAnchor(_anchorC);
+        notifier.appendAnchor(anchorD);
+
+        final seed = container.read(routeAnchorsProvider(_profile));
+        expect(seed.anchors, hasLength(4));
+        expect(seed.segments, hasLength(3));
+        final middleId = seed.anchors[1].id; // B
+        final untouchedSegment = seed.segments[2]; // C-D, distant
+
+        notifier.deleteAnchor(middleId);
+
+        final result = container.read(routeAnchorsProvider(_profile));
+        expect(result.anchors, hasLength(3));
+        expect(result.anchors.map((a) => a.id), isNot(contains(middleId)));
+        expect(result.segments, hasLength(2));
+
+        final newSegment = result.segments.firstWhere(
+          (s) => s.beforeAnchorId == seed.anchors[0].id,
+        );
+        expect(newSegment.afterAnchorId, seed.anchors[2].id);
+        expect(newSegment.state, SegmentState.straight);
+        expect(newSegment.polyline, [
+          seed.anchors[0].point,
+          seed.anchors[2].point,
+        ]);
+        expect(result.segments, contains(untouchedSegment));
+      },
+    );
+
+    test(
+      'deleteAnchor(last) removes the anchor and its single entering '
+      'segment; no new segment is created',
+      () async {
+        final container = _buildContainer(
+          (options, index) async => const _CannedResponse.failure(),
+        );
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        await notifier.toggleAutoRouting();
+
+        notifier.appendAnchor(_anchorA);
+        notifier.appendAnchor(_anchorB);
+        notifier.appendAnchor(_anchorC);
+
+        final seed = container.read(routeAnchorsProvider(_profile));
+        final lastId = seed.anchors[2].id;
+
+        notifier.deleteAnchor(lastId);
+
+        final result = container.read(routeAnchorsProvider(_profile));
+        expect(result.anchors, hasLength(2));
+        expect(result.segments, hasLength(1));
+        expect(result.segments.single, seed.segments[0]); // A-B untouched
+      },
+    );
+
+    test(
+      'deleteAnchor(only anchor) leaves anchors and segments empty',
+      () async {
+        final container = _buildContainer(
+          (options, index) async => const _CannedResponse.failure(),
+        );
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        await notifier.toggleAutoRouting();
+
+        notifier.appendAnchor(_anchorA);
+        final onlyId = container
+            .read(routeAnchorsProvider(_profile))
+            .anchors
+            .single
+            .id;
+
+        notifier.deleteAnchor(onlyId);
+
+        final result = container.read(routeAnchorsProvider(_profile));
+        expect(result.anchors, isEmpty);
+        expect(result.segments, isEmpty);
+      },
+    );
+
+    test(
+      'deleteAnchor(middle, auto-routing on) dispatches a Valhalla resolve '
+      'for the newly-collapsed segment',
+      () async {
+        var callCount = 0;
+        final shape = PolylineUtil.encode([_anchorA, _anchorC], precision: 6);
+        final container = _buildContainer((options, index) async {
+          callCount++;
+          return _CannedResponse.success(_tripData(shape));
+        });
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+
+        notifier.appendAnchor(_anchorA);
+        notifier.appendAnchor(_anchorB);
+        notifier.appendAnchor(_anchorC);
+        await _flushAsyncWork();
+        callCount = 0; // reset — only interested in calls from deleteAnchor
+
+        final seed = container.read(routeAnchorsProvider(_profile));
+        notifier.deleteAnchor(seed.anchors[1].id);
+        await _flushAsyncWork();
+
+        expect(callCount, 1);
+        final segment = container.read(routeAnchorsProvider(_profile)).segments.single;
+        expect(segment.state, SegmentState.routed);
+      },
+    );
+
+    test(
+      'reorderAnchors reuses the existing segment (with its routed '
+      'polyline) for a pair that remains adjacent, issuing zero Dio calls '
+      'for it, and creates a fresh straight segment for the newly-adjacent '
+      'pair',
+      () async {
+        var callCount = 0;
+        final container = _buildThreeAnchorSeededContainer(
+          (options, index) async {
+            callCount++;
+            return const _CannedResponse.failure();
+          },
+          autoRoutingEnabled: false,
+        );
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+
+        final seed = container.read(routeAnchorsProvider(_profile));
+        final routedSegmentBefore = seed.segments.firstWhere(
+          (s) => s.beforeAnchorId == _anchorIdB && s.afterAnchorId == _anchorIdC,
+        );
+
+        // New order [B, C, A]: B-C stays adjacent in the same direction
+        // (reused verbatim); C-A is newly adjacent (fresh straight segment).
+        notifier.reorderAnchors([_anchorIdB, _anchorIdC, _anchorIdA]);
+
+        final result = container.read(routeAnchorsProvider(_profile));
+        expect(result.anchors.map((a) => a.id), [
+          _anchorIdB,
+          _anchorIdC,
+          _anchorIdA,
+        ]);
+        expect(result.segments, hasLength(2));
+
+        final reusedSegment = result.segments.firstWhere(
+          (s) => s.beforeAnchorId == _anchorIdB && s.afterAnchorId == _anchorIdC,
+        );
+        expect(reusedSegment, same(routedSegmentBefore));
+        expect(reusedSegment.state, SegmentState.routed);
+        expect(reusedSegment.polyline, routedSegmentBefore.polyline);
+
+        final newSegment = result.segments.firstWhere(
+          (s) => s.beforeAnchorId == _anchorIdC && s.afterAnchorId == _anchorIdA,
+        );
+        expect(newSegment.state, SegmentState.straight);
+
+        expect(callCount, 0); // auto-routing is off in this fixture
+      },
+    );
+
+    test(
+      'reorderAnchors with auto-routing on dispatches Valhalla only for the '
+      'newly-adjacent pair, issuing zero calls for the still-adjacent pair',
+      () async {
+        var callCount = 0;
+        final container = _buildThreeAnchorSeededContainer((
+          options,
+          index,
+        ) async {
+          callCount++;
+          return const _CannedResponse.failure();
+        });
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+
+        notifier.reorderAnchors([_anchorIdB, _anchorIdC, _anchorIdA]);
+        await _flushAsyncWork();
+
+        // Only the newly-adjacent C-A pair should have triggered a resolve.
+        expect(callCount, 1);
       },
     );
   });
