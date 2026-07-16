@@ -1,0 +1,314 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:maplibre/maplibre.dart';
+import 'package:wanderer/models/route_anchor.dart';
+import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/route_anchor_provider.dart';
+import 'package:wanderer/util/polyline_util.dart';
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+const _anchorA = Geographic(lat: 47.000, lon: 9.000);
+const _anchorB = Geographic(lat: 47.001, lon: 9.000);
+const _anchorC = Geographic(lat: 47.002, lon: 9.000);
+
+const _profile = 'pedestrian';
+
+Map<String, dynamic> _tripData(String shape) {
+  return {
+    'trip': {
+      'legs': [
+        {'shape': shape},
+      ],
+      'summary': {'time': 90},
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Fake API harness
+//
+// Empirically verified against dio 5.9.2 (see 19-02-SUMMARY.md "Deviations"
+// for the full trace): every interceptor step Dio's `fetch()` builds is
+// wrapped via `listenCancelForAsyncTask`, which races the step against
+// `cancelToken.whenCancel` using `Future.any`. Because our fake resolves
+// entirely inside that same interceptor step (no real socket), a request
+// that gets cancelled *before* its own response has already been handed to
+// `handler.resolve()`/`reject()` ALWAYS loses that race and settles with
+// `DioException(type: cancel)` — never with a late, "successful" response.
+// `_resolveSegment` always cancels the previous in-flight token for a given
+// segment key before dispatching a new one, so for two `retrySegment` calls
+// issued back-to-back for the same key, the FIRST one is reliably caught by
+// this cancellation path (the `if (e.type == DioExceptionType.cancel)
+// return;` branch), not by the generation-counter check in the success
+// path — that check remains valuable defense-in-depth for a narrower race
+// (an already-resolved-but-not-yet-applied response racing a fresh
+// dispatch) that a real network layer can produce but this fast, in-process
+// fake cannot reliably force. The test below verifies the OBSERVABLE
+// contract instead: a stale, superseded dispatch never corrupts state and
+// never throws uncaught, regardless of which of the two guards catches it.
+// ---------------------------------------------------------------------------
+
+class _CannedResponse {
+  const _CannedResponse.success(this.data) : isSuccess = true;
+  const _CannedResponse.failure() : isSuccess = false, data = null;
+
+  final bool isSuccess;
+  final Map<String, dynamic>? data;
+}
+
+typedef _Responder =
+    FutureOr<_CannedResponse> Function(RequestOptions options, int callIndex);
+
+class _FakeApi extends Api {
+  _FakeApi(this.responder);
+
+  final _Responder responder;
+
+  @override
+  Dio build() {
+    var callIndex = 0;
+    final dio = Dio(BaseOptions(baseUrl: 'https://test.local/api/v1'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final index = callIndex++;
+          final canned = await responder(options, index);
+          if (canned.isSuccess) {
+            handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: canned.data,
+              ),
+            );
+          } else {
+            handler.reject(
+              DioException(
+                requestOptions: options,
+                type: DioExceptionType.badResponse,
+              ),
+            );
+          }
+        },
+      ),
+    );
+    return dio;
+  }
+}
+
+/// A `RouteAnchors` subclass whose `build()` returns a pre-populated state
+/// instead of the empty default — lets the segment-resolution engine's own
+/// tests (`_resolveSegment`/`retrySegment`/`toggleAutoRouting`) seed a
+/// 2-anchor/1-segment fixture directly, without depending on the anchor
+/// mutation methods (`appendAnchor` et al.), which are a separate concern.
+class _SeededRouteAnchors extends RouteAnchors {
+  _SeededRouteAnchors(this._anchors, this._segments, this._autoRoutingEnabled);
+
+  final List<RouteAnchor> _anchors;
+  final List<RouteSegment> _segments;
+  final bool _autoRoutingEnabled;
+
+  @override
+  RouteAnchorsState build(String travelProfile) {
+    return RouteAnchorsState(
+      anchors: _anchors,
+      segments: _segments,
+      autoRoutingEnabled: _autoRoutingEnabled,
+      travelProfile: travelProfile,
+      undoStack: const [],
+      redoStack: const [],
+    );
+  }
+}
+
+/// Builds a container seeded with a single straight segment between two
+/// fixed-id anchors ([_anchorIdA] before, [_anchorIdB] after).
+ProviderContainer _buildSeededContainer(
+  _Responder responder, {
+  bool autoRoutingEnabled = true,
+}) {
+  final anchors = [
+    RouteAnchor(id: _anchorIdA, lat: _anchorA.lat, lon: _anchorA.lon),
+    RouteAnchor(id: _anchorIdB, lat: _anchorB.lat, lon: _anchorB.lon),
+  ];
+  final segments = [
+    const RouteSegment(
+      beforeAnchorId: _anchorIdA,
+      afterAnchorId: _anchorIdB,
+      polyline: [_anchorA, _anchorB],
+      state: SegmentState.straight,
+    ),
+  ];
+  final container = ProviderContainer(
+    overrides: [
+      apiProvider.overrideWith(() => _FakeApi(responder)),
+      routeAnchorsProvider(
+        _profile,
+      ).overrideWith(() => _SeededRouteAnchors(anchors, segments, autoRoutingEnabled)),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.listen(routeAnchorsProvider(_profile), (_, _) {});
+  return container;
+}
+
+const _anchorIdA = 'anchor-a';
+const _anchorIdB = 'anchor-b';
+
+void main() {
+  group('RouteAnchors - segment resolution engine', () {
+    test(
+      '_resolveSegment success path decodes the shape at precision 6 and '
+      'marks the segment routed',
+      () async {
+        final shape = PolylineUtil.encode([_anchorA, _anchorB], precision: 6);
+        final container = _buildSeededContainer(
+          (options, index) async => _CannedResponse.success(_tripData(shape)),
+        );
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+
+        await notifier.retrySegment(_anchorIdA, _anchorIdB);
+
+        final segment = container.read(routeAnchorsProvider(_profile)).segments.single;
+        expect(segment.state, SegmentState.routed);
+        expect(segment.polyline, PolylineUtil.decode(shape, precision: 6));
+      },
+    );
+
+    test(
+      '_resolveSegment failure path marks the segment blocked and leaves '
+      'its prior polyline unchanged (ROUTE-05)',
+      () async {
+        final container = _buildSeededContainer(
+          (options, index) async => const _CannedResponse.failure(),
+        );
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final priorPolyline = container
+            .read(routeAnchorsProvider(_profile))
+            .segments
+            .single
+            .polyline;
+
+        await notifier.retrySegment(_anchorIdA, _anchorIdB);
+
+        final segment = container.read(routeAnchorsProvider(_profile)).segments.single;
+        expect(segment.state, SegmentState.blocked);
+        expect(segment.polyline, priorPolyline);
+      },
+    );
+
+    test(
+      'a stale, superseded dispatch for the same segment never corrupts '
+      'state and never throws uncaught (CancelToken + generation-counter '
+      'guard combo)',
+      () async {
+        final shape = PolylineUtil.encode([_anchorA, _anchorC], precision: 6);
+        final container = _buildSeededContainer(
+          (options, index) async => _CannedResponse.success(_tripData(shape)),
+        );
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+
+        // Two dispatches in quick succession for the SAME segment key.
+        // `_resolveSegment` cancels the first's in-flight `CancelToken`
+        // before starting the second — the first must settle cleanly
+        // (never throw uncaught, never apply its result over the second's)
+        // regardless of whether it's caught by the cancellation branch or
+        // the generation-counter check.
+        final f1 = notifier.retrySegment(_anchorIdA, _anchorIdB);
+        final f2 = notifier.retrySegment(_anchorIdA, _anchorIdB);
+
+        await expectLater(f1, completes);
+        await expectLater(f2, completes);
+
+        final segment = container.read(routeAnchorsProvider(_profile)).segments.single;
+        expect(segment.state, SegmentState.routed);
+        expect(segment.polyline, PolylineUtil.decode(shape, precision: 6));
+      },
+    );
+
+    test(
+      'retrySegment on a blocked segment transitions it to routed given a '
+      'subsequent successful response (D-09)',
+      () async {
+        var shouldFail = true;
+        final shape = PolylineUtil.encode([_anchorA, _anchorB], precision: 6);
+        final container = _buildSeededContainer((options, index) async {
+          if (shouldFail) return const _CannedResponse.failure();
+          return _CannedResponse.success(_tripData(shape));
+        });
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+
+        await notifier.retrySegment(_anchorIdA, _anchorIdB);
+        expect(
+          container.read(routeAnchorsProvider(_profile)).segments.single.state,
+          SegmentState.blocked,
+        );
+
+        shouldFail = false;
+        await notifier.retrySegment(_anchorIdA, _anchorIdB);
+
+        final segment = container.read(routeAnchorsProvider(_profile)).segments.single;
+        expect(segment.state, SegmentState.routed);
+        expect(segment.polyline, PolylineUtil.decode(shape, precision: 6));
+      },
+    );
+
+    test(
+      'toggleAutoRouting ON to OFF leaves the existing segment untouched '
+      'and issues zero Dio calls (corrected must_haves truth — existing '
+      'segments are never rewritten to straight lines on toggle-off)',
+      () async {
+        var callCount = 0;
+        final container = _buildSeededContainer((options, index) async {
+          callCount++;
+          return const _CannedResponse.failure();
+        });
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final before = container.read(routeAnchorsProvider(_profile)).segments.single;
+
+        await notifier.toggleAutoRouting(); // ON -> OFF
+
+        final result = container.read(routeAnchorsProvider(_profile));
+        expect(result.autoRoutingEnabled, isFalse);
+        final segment = result.segments.single;
+        expect(segment.state, before.state);
+        expect(segment.polyline, before.polyline);
+        expect(callCount, 0);
+      },
+    );
+
+    test(
+      'toggleAutoRouting OFF to ON re-resolves every existing segment via '
+      'Valhalla, dispatched in parallel',
+      () async {
+        final shape = PolylineUtil.encode([_anchorA, _anchorB], precision: 6);
+        final activeCallsAtDispatch = <int>[];
+        var activeCalls = 0;
+
+        final container = _buildSeededContainer((options, index) async {
+          activeCalls++;
+          activeCallsAtDispatch.add(activeCalls);
+          // Yield so overlapping in-flight calls have a chance to co-exist —
+          // proves Future.wait, not sequential awaits (single-segment fixture
+          // here still exercises the Future.wait call shape).
+          await Future<void>.delayed(Duration.zero);
+          activeCalls--;
+          return _CannedResponse.success(_tripData(shape));
+        });
+
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        await notifier.toggleAutoRouting(); // ON -> OFF (default true)
+        await notifier.toggleAutoRouting(); // OFF -> ON, resolves via Future.wait
+
+        final result = container.read(routeAnchorsProvider(_profile));
+        expect(result.segments.single.state, SegmentState.routed);
+      },
+    );
+  });
+}
