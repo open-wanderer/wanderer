@@ -56,11 +56,14 @@ void main() {
         // At precision 6, decoding as if precision 5 divides accumulated
         // integer deltas by the wrong factor (1e5 instead of 1e6), scaling
         // the coordinate value by roughly 10x versus the true input.
-        final firstScaledLat = decodedWrong.first.lat;
-        final ratio = firstScaledLat / points.first.lat;
+        // Longitude is used (not latitude) because Geographic clamps
+        // latitude to [-90, 90] and the 10x-scaled fixture latitude would
+        // be clamped, masking the divergence this test asserts.
+        final firstScaledLon = decodedWrong.first.lon;
+        final ratio = firstScaledLon / points.first.lon;
         expect(ratio, closeTo(10, 1));
         expect(
-          (firstScaledLat - points.first.lat).abs(),
+          (firstScaledLon - points.first.lon).abs(),
           greaterThan(1e-3),
         );
       },

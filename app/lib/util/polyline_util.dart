@@ -1,10 +1,17 @@
+import 'dart:math' as math;
+
 import 'package:maplibre/maplibre.dart';
 
 /// A utility to encode and decode Google Encoded Polyline strings
 /// natively using MapLibre's [Geographic] positions.
 class PolylineUtil {
   /// Encodes a list of [Geographic] points into a polyline string.
-  static String encode(List<Geographic> points) {
+  ///
+  /// [precision] controls the coordinate scaling factor (10^precision).
+  /// Defaults to 5, matching this app's existing trail GPX-derived
+  /// polylines. Valhalla's `/route` endpoint encodes at precision 6.
+  static String encode(List<Geographic> points, {int precision = 5}) {
+    final num factor = math.pow(10, precision);
     final StringBuffer encoded = StringBuffer();
 
     int lastLat = 0;
@@ -12,8 +19,8 @@ class PolylineUtil {
 
     for (final point in points) {
       // Geographic uses .lat and .lon
-      final int lat = (point.lat * 1E5).round();
-      final int lng = (point.lon * 1E5).round();
+      final int lat = (point.lat * factor).round();
+      final int lng = (point.lon * factor).round();
 
       final int dLat = lat - lastLat;
       final int dLng = lng - lastLng;
@@ -29,7 +36,13 @@ class PolylineUtil {
   }
 
   /// Decodes an encoded polyline string into a list of MapLibre [Geographic] points.
-  static List<Geographic> decode(String polyline) {
+  ///
+  /// [precision] controls the coordinate scaling factor (10^precision).
+  /// Defaults to 5, matching this app's existing trail GPX-derived
+  /// polylines. Valhalla's `/route` endpoint encodes at precision 6 —
+  /// callers decoding a Valhalla shape MUST pass `precision: 6`.
+  static List<Geographic> decode(String polyline, {int precision = 5}) {
+    final num factor = math.pow(10, precision);
     final List<Geographic> points = [];
     int index = 0;
     final int len = polyline.length;
@@ -63,7 +76,7 @@ class PolylineUtil {
       lng += dlng;
 
       // Natively populating MapLibre's Geographic positions
-      points.add(Geographic(lat: lat / 1E5, lon: lng / 1E5));
+      points.add(Geographic(lat: lat / factor, lon: lng / factor));
     }
 
     return points;
