@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/map/route_anchor_layer.dart';
 import 'package:wanderer/components/map/route_segment_layer.dart';
+import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
@@ -41,8 +43,7 @@ class RoutePlannerScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<RoutePlannerScreen> createState() =>
-      _RoutePlannerScreenState();
+  ConsumerState<RoutePlannerScreen> createState() => _RoutePlannerScreenState();
 }
 
 class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
@@ -65,10 +66,15 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   bool _hintDismissed = false;
 
   /// Segment keys a retry was just dispatched for, populated by the
-  /// blocked-segment tap branch below. Consumed by Task 2's blocked-segment
+  /// blocked-segment tap branch below. Consumed by the blocked-segment
   /// listener to distinguish a first-time failure from a second consecutive
   /// failed retry (UI-SPEC's Copywriting Contract).
   final Set<String> _retryAttempted = {};
+
+  /// Segment keys currently showing the first-time blocked-segment error
+  /// toast — bookkeeping so the toast fires exactly once per failure, not
+  /// once per state emission while the segment stays blocked.
+  final Set<String> _blockedNotified = {};
 
   @override
   Widget build(BuildContext context) {
@@ -82,11 +88,82 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         _segmentLayer.update(style, next.segments).ignore();
       }
       if (next.anchors.isNotEmpty) _hintDismissed = true;
+
+      for (final segment in next.segments) {
+        final key = segmentKey(segment.beforeAnchorId, segment.afterAnchorId);
+        if (segment.state == SegmentState.blocked) {
+          if (_blockedNotified.contains(key)) continue;
+          _blockedNotified.add(key);
+          // If a retry was in flight for this exact segment, this is a
+          // second consecutive failure — distinct copy (UI-SPEC).
+          final isRetryFailure = _retryAttempted.remove(key);
+          ref
+              .read(toastProvider.notifier)
+              .add(
+                ToastMessage(
+                  type: ToastType.error,
+                  icon: FontAwesomeIcons.triangleExclamation,
+                  text: isRetryFailure
+                      ? "Still couldn't find a route here. Check your connection and try again."
+                      : "Couldn't find a route for this segment. Tap the dashed line to retry.",
+                ),
+              );
+        } else {
+          // A future failure on this same segment pair shows the first-time
+          // copy again, not a stale "still couldn't find" from a prior,
+          // already-resolved failure.
+          _blockedNotified.remove(key);
+        }
+      }
     });
 
     final styleJson = ref.watch(mapStyleJsonProvider).value;
+    final notifier = ref.read(
+      routeAnchorsProvider(widget.travelProfile).notifier,
+    );
 
-    return _buildMap(context, state, styleJson);
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.pushReplacement('/map'),
+          style: IconButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.surface,
+          ),
+        ),
+        title: Text(
+          widget.title,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+        ),
+        actions: [
+          // D-10: undo before redo.
+          IconButton(
+            icon: const FaIcon(FontAwesomeIcons.arrowRotateLeft, size: 18),
+            tooltip: 'Undo',
+            onPressed: state.undoStack.isNotEmpty ? notifier.undo : null,
+            style: IconButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.surface,
+            ),
+          ),
+          IconButton(
+            icon: const FaIcon(FontAwesomeIcons.arrowRotateRight, size: 18),
+            tooltip: 'Redo',
+            onPressed: state.redoStack.isNotEmpty ? notifier.redo : null,
+            style: IconButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.surface,
+            ),
+          ),
+        ],
+        backgroundColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      body: _buildMap(context, state, styleJson),
+    );
   }
 
   Widget _buildMap(
@@ -219,9 +296,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                 ? (Theme.of(context).brightness == Brightness.dark
                       ? const Color(0xff3E435B)
                       : const Color(0xff242734))
-                : Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: .4),
+                : Theme.of(context).colorScheme.onSurface.withValues(alpha: .4),
           ),
           onPressed: () => ref
               .read(routeAnchorsProvider(widget.travelProfile).notifier)
