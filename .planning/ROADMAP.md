@@ -7,6 +7,7 @@
 - ✅ **v1.2 Settings Screens** — Phases 6-9 (shipped 2026-06-29)
 - ✅ **v1.3 Category Redesign** — Phases 10-12 (shipped 2026-07-02)
 - ✅ **v1.4 MapLibre Migration** — Phases 13-18 (shipped 2026-07-10)
+- 🚧 **v1.5 Route Planner** — Phases 19-21 (in progress)
 
 ## Phases
 
@@ -268,14 +269,69 @@ See `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
 </details>
 
+### v1.5 Route Planner (In Progress)
+
+**Milestone Goal:** A user can build a route from scratch on the map (tap/drag waypoints, optional auto-routing via Valhalla) and hand it off as a draft trail to the existing create/edit screen.
+
+- [x] **Phase 19: Route Planner Core — Waypoint Editing & Routing Engine** - Tap/drag/insert waypoints on the map with auto-routing toggle (fixed foot/bike profile) and undo/redo (completed 2026-07-16)
+- [ ] **Phase 20: Route Planner Views — Waypoint List, Elevation & Location Search** - Route anchor list (delete/reorder) and live elevation profile as tabs of one docked sheet, plus location-search-to-focus
+- [ ] **Phase 21: Route Planner Handoff & Entry Point** - New planner entry point with hike/bike dialog, handoff to trail create/edit as a draft Trail
+
+### Phase 19: Route Planner Core — Waypoint Editing & Routing Engine
+
+**Goal**: A user can build a route from scratch directly on the map — tapping to add waypoints, dragging to reposition them, inserting mid-segment — with an auto-routing toggle (Valhalla, fixed foot/bike profile set at entry) and undo/redo, all backed by a dedicated route-planner state provider.
+**Depends on**: Phase 18 (maplibre-native map stack; first phase of v1.5)
+**Requirements**: WAYP-01, WAYP-02, WAYP-03, ROUTE-01, ROUTE-02, ROUTE-04, ROUTE-05
+**Success Criteria** (what must be TRUE):
+
+  1. A user can tap anywhere on the Route Planner map to add a waypoint, which appears as a marker connected to the previous waypoint by a route segment.
+  2. A user can drag an existing waypoint to a new position; the segments connecting it to its neighbors re-resolve automatically to the current routing mode.
+  3. A user can tap an existing route segment to insert a new waypoint between its two endpoints.
+  4. A user can toggle auto-routing on (Valhalla-routed segments, using the fixed foot/bike profile set at entry) or off (straight-line segments); toggling on re-resolves every existing segment via Valhalla, toggling off leaves existing segments untouched and only affects segments created afterward.
+  5. A user can undo and redo their waypoint edits; when a segment fails to auto-route (unreachable backend, no route found), it is shown as blocked with a retry action rather than silently falling back to a straight line.
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 20: Route Planner Views — Waypoint List, Elevation & Location Search
+
+**Goal**: A user can inspect and manage the in-progress route through a persistent bottom sheet with two tabs — a route anchor list (delete, reorder) and a live elevation profile — and can pan the planner map to a searched location.
+**Depends on**: Phase 19
+**Requirements**: WAYP-04, WAYP-05, PLANUI-01, PLANUI-02, PLANUI-03
+**Success Criteria** (what must be TRUE):
+
+  1. Once the route has at least one anchor, a docked bottom sheet is visible at peek height (draggable to expand), showing a "Route Anchors" tab with every anchor listed in route order.
+  2. From the route anchor list tab, a user can delete an anchor (immediate, no confirmation — undo/redo is the safety net) or drag to reorder anchors, and the map and route update to match.
+  3. A second tab in the same sheet ("Elevation") shows a live elevation profile — built from a `Gpx` synthesized incrementally from the in-progress route and fetched from `/api/v1/valhalla/height` only while that tab is visible — that updates as the route changes; with fewer than 2 anchors it shows an empty-state message instead.
+  4. A user can tap a magnifying-glass map control button (top-right, above auto-routing toggle) to open a dedicated location-search screen that searches locations only (not trails, lists, or accounts); selecting a result pans/zooms the planner map to it (zoom 13).
+
+**SCOPE CHANGE (from original PRD wording, resolved in 20-CONTEXT.md):** the list and elevation profile were originally specified as two separate views "toggled via map control buttons." Discussion converged on a simpler mechanism — one persistent tabbed sheet, no separate toggle buttons for these two views — that still satisfies the same user-visible capability (inspect route as a list or as an elevation profile, mutually exclusive at a time).
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 21: Route Planner Handoff & Entry Point
+
+**Goal**: A user reaches the Route Planner from the trail-source-select flow, chooses an initial travel profile up front, and hands off a finished plan as a draft Trail to the existing create/edit screen.
+**Depends on**: Phase 20
+**Requirements**: HANDOFF-01, HANDOFF-02, HANDOFF-03
+**Success Criteria** (what must be TRUE):
+
+  1. From the trail-source-select flow, a user sees a new "Plan a route" entry point alongside the existing "Import trail file" option.
+  2. Tapping the new entry point shows a hike/bike selection dialog before the Route Planner screen opens; the choice sets the planner's initial travel profile, fixed for the rest of the planning session (no in-planner profile switch).
+  3. From the Route Planner, a user can finish planning and hand off the route as a draft Trail (synthesized GPX + named waypoints) that opens directly in the existing trail create/edit screen, pre-filled with the planned route, reusing the existing `pendingImportedTrail` safety net.
+
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
-Phases 13 and 14 are independent and may execute in either order or in parallel. Everything after is strictly sequential:
+Phases 13 and 14 are independent and may execute in either order or in parallel; 15-18 are strictly sequential. Phases 19-21 (v1.5) are strictly sequential after Phase 18:
 
 ```
 13 ─┐
-    ├─→ 15 → 16 → 17 → 18
+    ├─→ 15 → 16 → 17 → 18 → 19 → 20 → 21
 14 ─┘
 ```
 
@@ -299,3 +355,6 @@ Phases 13 and 14 are independent and may execute in either order or in parallel.
 | 16. List & Map Screens on MapLibre | v1.4 | 3/3 | Complete   | 2026-07-09 |
 | 17. Navigation on MapLibre | v1.4 | 3/3 | Complete   | 2026-07-10 |
 | 18. Retire flutter_map and the flomp Forks | v1.4 | 3/3 | Complete   | 2026-07-10 |
+| 19. Route Planner Core — Waypoint Editing & Routing Engine | v1.5 | 4/4 | Complete   | 2026-07-16 |
+| 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 0/TBD | Not started | - |
+| 21. Route Planner Handoff & Entry Point | v1.5 | 0/TBD | Not started | - |
