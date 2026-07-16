@@ -68,6 +68,28 @@ List<Map<String, double>> buildNavShape(List<Geographic> points) {
   }
 }
 
+/// Builds a minimal [Gpx] (single [Trk] > single [Trkseg] > one [Wpt] per
+/// point) from an ordered list of planner points, with no `ele`/`time` set.
+///
+/// Used by the route planner's [plannedGpxProvider] to synthesize a
+/// pre-elevation `Gpx` skeleton from the in-progress `RouteAnchors` state
+/// (D-09) — the elevation tab merges `ele` in later (D-11), this helper never
+/// sets it.
+///
+/// Returns a bare, empty [Gpx] (no tracks) when [points] is empty.
+Gpx buildGpxFromPoints(List<Geographic> points) {
+  final gpx = Gpx();
+  if (points.isEmpty) return gpx;
+  gpx.trks = [
+    Trk(
+      trksegs: [
+        Trkseg(trkpts: [for (final p in points) Wpt(lat: p.lat, lon: p.lon)]),
+      ],
+    ),
+  ];
+  return gpx;
+}
+
 class GpxStats {
   final double totalDistance;
   final double totalDuration;

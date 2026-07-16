@@ -82,4 +82,34 @@ void main() {
       },
     );
   });
+
+  group('buildGpxFromPoints', () {
+    test('empty input returns an empty Gpx (allPoints empty, no crash)', () {
+      final gpx = buildGpxFromPoints(const []);
+
+      expect(gpx.allPoints, isEmpty);
+    });
+
+    test(
+      'ordered points round-trip via a single Trk > single Trkseg > Wpt list, '
+      'with no ele set',
+      () {
+        final points = [
+          const Geographic(lat: 47.000, lon: 9.000),
+          const Geographic(lat: 47.001, lon: 9.001),
+          const Geographic(lat: 47.002, lon: 9.002),
+        ];
+
+        final gpx = buildGpxFromPoints(points);
+
+        expect(gpx.trks, hasLength(1));
+        expect(gpx.trks.single.trksegs, hasLength(1));
+        expect(gpx.allPoints, points);
+        expect(
+          gpx.allWaypoints.every((wpt) => wpt.ele == null),
+          isTrue,
+        );
+      },
+    );
+  });
 }
