@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show UniqueKey;
 import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/route_anchor.dart';
@@ -208,5 +209,177 @@ class RouteAnchors extends _$RouteAnchors {
           anchorsById[segment.afterAnchorId]!,
         ),
     ]);
+  }
+
+  /// Pushes the current (pre-mutation) anchors/segments onto the undo stack
+  /// and clears the redo stack (D-11: any new action clears redo). Called
+  /// FIRST, before mutating, by every mutation method below.
+  void _pushUndo() {
+    state = state.copyWith(
+      undoStack: [
+        ...state.undoStack,
+        RouteAnchorsSnapshot(anchors: state.anchors, segments: state.segments),
+      ],
+      redoStack: const [],
+    );
+  }
+
+  /// WAYP-01: appends a new anchor to the end of the route. If a previous
+  /// last anchor existed, also creates the connecting segment (straight by
+  /// default, auto-resolved via Valhalla if auto-routing is on).
+  void appendAnchor(Geographic point) {
+    _pushUndo();
+
+    final newAnchor = RouteAnchor(
+      id: UniqueKey().toString(),
+      lat: point.lat,
+      lon: point.lon,
+    );
+    final previousLast = state.anchors.isNotEmpty ? state.anchors.last : null;
+
+    state = state.copyWith(anchors: [...state.anchors, newAnchor]);
+
+    if (previousLast != null) {
+      final newSegment = RouteSegment(
+        beforeAnchorId: previousLast.id,
+        afterAnchorId: newAnchor.id,
+        polyline: [previousLast.point, newAnchor.point],
+        state: SegmentState.straight,
+      );
+      state = state.copyWith(segments: [...state.segments, newSegment]);
+
+      if (state.autoRoutingEnabled) {
+        _resolveSegment(
+          previousLast.id,
+          newAnchor.id,
+          previousLast,
+          newAnchor,
+        ).ignore();
+      }
+    }
+  }
+
+  /// WAYP-02: repositions [anchorId] and re-resolves only its ≤2 adjacent
+  /// segments. Invoked once per drag gesture at `onPanEnd` (D-05), never
+  /// during `onPanUpdate`.
+  void dragAnchor(String anchorId, Geographic newPoint) {
+    _pushUndo();
+
+    final anchors = [
+      for (final a in state.anchors)
+        if (a.id == anchorId)
+          a.copyWith(lat: newPoint.lat, lon: newPoint.lon)
+        else
+          a,
+    ];
+    state = state.copyWith(anchors: anchors);
+
+    final anchorsById = {for (final a in anchors) a.id: a};
+    final touched = state.segments.where(
+      (s) => s.beforeAnchorId == anchorId || s.afterAnchorId == anchorId,
+    );
+
+    for (final segment in touched) {
+      final a = anchorsById[segment.beforeAnchorId]!;
+      final b = anchorsById[segment.afterAnchorId]!;
+      if (state.autoRoutingEnabled) {
+        _resolveSegment(
+          segment.beforeAnchorId,
+          segment.afterAnchorId,
+          a,
+          b,
+        ).ignore();
+      } else {
+        _applySegment(
+          segmentKey(segment.beforeAnchorId, segment.afterAnchorId),
+          points: [a.point, b.point],
+          segmentState: SegmentState.straight,
+        );
+      }
+    }
+  }
+
+  /// WAYP-03: on a plain (non-blocked) segment tap, geometrically splits it
+  /// and inserts the new anchor between its two endpoint anchors — never
+  /// calls Valhalla (Open Question 1, resolved). The new anchor's list
+  /// position IS its D-02 display-number renumbering; numbers are always
+  /// derived from index, never stored.
+  void insertAnchorOnSegment(
+    String beforeAnchorId,
+    String afterAnchorId,
+    Geographic tapPoint,
+  ) {
+    _pushUndo();
+
+    final key = segmentKey(beforeAnchorId, afterAnchorId);
+    final targetSegment = state.segments.firstWhere(
+      (s) => segmentKey(s.beforeAnchorId, s.afterAnchorId) == key,
+    );
+
+    final newAnchor = RouteAnchor(
+      id: UniqueKey().toString(),
+      lat: tapPoint.lat,
+      lon: tapPoint.lon,
+    );
+
+    final (first, second) = splitSegmentAt(targetSegment, newAnchor.id, tapPoint);
+
+    final beforeIndex = state.anchors.indexWhere((a) => a.id == beforeAnchorId);
+    final insertAt = beforeIndex + 1;
+    final anchors = [
+      ...state.anchors.sublist(0, insertAt),
+      newAnchor,
+      ...state.anchors.sublist(insertAt),
+    ];
+
+    final segments = [
+      for (final s in state.segments)
+        if (segmentKey(s.beforeAnchorId, s.afterAnchorId) == key) ...[
+          first,
+          second,
+        ] else
+          s,
+    ];
+
+    state = state.copyWith(anchors: anchors, segments: segments);
+  }
+
+  /// ROUTE-04: restores the immediately prior anchors/segments snapshot.
+  /// No-ops if the undo stack is empty (defensive — the app-bar button is
+  /// also disabled per D-11).
+  void undo() {
+    final stack = state.undoStack;
+    if (stack.isEmpty) return;
+
+    final previous = stack.last;
+    final redoSnapshot = RouteAnchorsSnapshot(
+      anchors: state.anchors,
+      segments: state.segments,
+    );
+    state = state.copyWith(
+      anchors: previous.anchors,
+      segments: previous.segments,
+      undoStack: stack.sublist(0, stack.length - 1),
+      redoStack: [...state.redoStack, redoSnapshot],
+    );
+  }
+
+  /// ROUTE-04: re-applies the most recently undone mutation. No-ops if the
+  /// redo stack is empty.
+  void redo() {
+    final stack = state.redoStack;
+    if (stack.isEmpty) return;
+
+    final next = stack.last;
+    final undoSnapshot = RouteAnchorsSnapshot(
+      anchors: state.anchors,
+      segments: state.segments,
+    );
+    state = state.copyWith(
+      anchors: next.anchors,
+      segments: next.segments,
+      redoStack: stack.sublist(0, stack.length - 1),
+      undoStack: [...state.undoStack, undoSnapshot],
+    );
   }
 }

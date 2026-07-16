@@ -19,6 +19,18 @@ const _anchorC = Geographic(lat: 47.002, lon: 9.000);
 
 const _profile = 'pedestrian';
 
+/// Waits long enough for a fire-and-forget resolve dispatched by a `void`
+/// mutation method (e.g. `appendAnchor`) to fully settle.
+///
+/// Dio's own interceptor-wrapping pipeline (`dio_mixin.dart`'s
+/// `requestInterceptorWrapper`) schedules each step via the `Future(...)`
+/// constructor, which Dart implements with `Timer.run` — a macrotask, not a
+/// microtask — so a pure microtask flush (`await Future.value()` in a loop)
+/// is NOT sufficient here; a real, if brief, elapsed-time wait is required.
+Future<void> _flushAsyncWork() async {
+  await Future<void>.delayed(const Duration(milliseconds: 50));
+}
+
 Map<String, dynamic> _tripData(String shape) {
   return {
     'trip': {
@@ -100,6 +112,19 @@ class _FakeApi extends Api {
     );
     return dio;
   }
+}
+
+ProviderContainer _buildContainer(_Responder responder) {
+  final container = ProviderContainer(
+    overrides: [apiProvider.overrideWith(() => _FakeApi(responder))],
+  );
+  addTearDown(container.dispose);
+  // routeAnchorsProvider is autoDispose; keep it alive for the test's
+  // duration via a persistent listener (mirrors how a real screen would
+  // `ref.watch` it continuously), so in-flight fire-and-forget resolution
+  // work isn't torn down across an `await` gap.
+  container.listen(routeAnchorsProvider(_profile), (_, _) {});
+  return container;
 }
 
 /// A `RouteAnchors` subclass whose `build()` returns a pre-populated state
@@ -308,6 +333,194 @@ void main() {
 
         final result = container.read(routeAnchorsProvider(_profile));
         expect(result.segments.single.state, SegmentState.routed);
+      },
+    );
+  });
+
+  group('RouteAnchors - anchor mutations, geometric split, undo/redo', () {
+    test(
+      'appendAnchor on an empty route creates 1 anchor and 0 segments; a '
+      'second call creates a 2nd anchor and exactly 1 new segment',
+      () async {
+        final container = _buildContainer(
+          (options, index) async => const _CannedResponse.failure(),
+        );
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        await notifier.toggleAutoRouting();
+
+        notifier.appendAnchor(_anchorA);
+        var state = container.read(routeAnchorsProvider(_profile));
+        expect(state.anchors, hasLength(1));
+        expect(state.segments, isEmpty);
+
+        notifier.appendAnchor(_anchorB);
+        state = container.read(routeAnchorsProvider(_profile));
+        expect(state.anchors, hasLength(2));
+        expect(state.segments, hasLength(1));
+        expect(state.segments.single.beforeAnchorId, state.anchors[0].id);
+        expect(state.segments.single.afterAnchorId, state.anchors[1].id);
+      },
+    );
+
+    test(
+      'appendAnchor with autoRoutingEnabled true triggers a Valhalla '
+      'resolve for the new segment',
+      () async {
+        var callCount = 0;
+        final shape = PolylineUtil.encode([_anchorA, _anchorB], precision: 6);
+        final container = _buildContainer((options, index) async {
+          callCount++;
+          return _CannedResponse.success(_tripData(shape));
+        });
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+
+        notifier.appendAnchor(_anchorA);
+        notifier.appendAnchor(_anchorB); // autoRoutingEnabled true by default
+        await _flushAsyncWork();
+
+        expect(callCount, 1);
+        expect(
+          container.read(routeAnchorsProvider(_profile)).segments.single.state,
+          SegmentState.routed,
+        );
+      },
+    );
+
+    test(
+      'appendAnchor with autoRoutingEnabled false creates a straight '
+      'segment and issues zero Dio calls',
+      () async {
+        var callCount = 0;
+        final container = _buildContainer((options, index) async {
+          callCount++;
+          return const _CannedResponse.failure();
+        });
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        await notifier.toggleAutoRouting();
+
+        notifier.appendAnchor(_anchorA);
+        notifier.appendAnchor(_anchorB);
+        await _flushAsyncWork();
+
+        final state = container.read(routeAnchorsProvider(_profile));
+        expect(state.segments.single.state, SegmentState.straight);
+        expect(state.segments.single.polyline, [_anchorA, _anchorB]);
+        expect(callCount, 0);
+      },
+    );
+
+    test(
+      'dragAnchor moves the target anchor and only its adjacent segments '
+      'change; a distant, unrelated segment is untouched',
+      () async {
+        final container = _buildContainer(
+          (options, index) async => const _CannedResponse.failure(),
+        );
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        await notifier.toggleAutoRouting();
+
+        notifier.appendAnchor(_anchorA);
+        notifier.appendAnchor(_anchorB);
+        notifier.appendAnchor(_anchorC);
+
+        final seed = container.read(routeAnchorsProvider(_profile));
+        expect(seed.segments, hasLength(2));
+        final untouchedSegment = seed.segments[1]; // B-C, not adjacent to A
+
+        const moved = Geographic(lat: 47.010, lon: 9.010);
+        notifier.dragAnchor(seed.anchors[0].id, moved);
+
+        final result = container.read(routeAnchorsProvider(_profile));
+        expect(result.anchors[0].lat, moved.lat);
+        expect(result.anchors[0].lon, moved.lon);
+        expect(result.segments[0].polyline, [moved, result.anchors[1].point]);
+        expect(result.segments[1], untouchedSegment);
+      },
+    );
+
+    test(
+      'insertAnchorOnSegment splits the segment geometrically, inserts the '
+      'new anchor at the correct list index, and issues zero Dio calls '
+      '(WAYP-03)',
+      () async {
+        var callCount = 0;
+        final container = _buildContainer((options, index) async {
+          callCount++;
+          return const _CannedResponse.failure();
+        });
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        await notifier.toggleAutoRouting();
+
+        notifier.appendAnchor(_anchorA);
+        notifier.appendAnchor(_anchorC);
+
+        final seed = container.read(routeAnchorsProvider(_profile));
+        final segment = seed.segments.single;
+        const tapPoint = Geographic(lat: 47.001, lon: 9.000); // A-C midpoint
+
+        notifier.insertAnchorOnSegment(
+          segment.beforeAnchorId,
+          segment.afterAnchorId,
+          tapPoint,
+        );
+
+        final result = container.read(routeAnchorsProvider(_profile));
+        expect(result.anchors, hasLength(3));
+        expect(result.anchors[0].id, seed.anchors[0].id);
+        expect(result.anchors[2].id, seed.anchors[1].id);
+        final newAnchor = result.anchors[1];
+
+        expect(result.segments, hasLength(2));
+        expect(result.segments[0].afterAnchorId, newAnchor.id);
+        expect(result.segments[1].beforeAnchorId, newAnchor.id);
+        expect(result.segments[0].polyline.first, seed.anchors[0].point);
+        expect(
+          result.segments[0].polyline.last,
+          result.segments[1].polyline.first,
+        );
+        expect(result.segments[1].polyline.last, seed.anchors[1].point);
+        expect(callCount, 0);
+      },
+    );
+
+    test(
+      'undo restores the prior snapshot, redo re-applies it, and a fresh '
+      'mutation clears the redo stack (D-11)',
+      () async {
+        final container = _buildContainer(
+          (options, index) async => const _CannedResponse.failure(),
+        );
+        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        await notifier.toggleAutoRouting();
+
+        notifier.appendAnchor(_anchorA);
+        expect(
+          container.read(routeAnchorsProvider(_profile)).anchors,
+          hasLength(1),
+        );
+
+        notifier.undo();
+        expect(container.read(routeAnchorsProvider(_profile)).anchors, isEmpty);
+
+        notifier.redo();
+        expect(
+          container.read(routeAnchorsProvider(_profile)).anchors,
+          hasLength(1),
+        );
+
+        notifier.appendAnchor(_anchorB); // new mutation clears redo
+        expect(
+          container.read(routeAnchorsProvider(_profile)).redoStack,
+          isEmpty,
+        );
+
+        notifier.undo();
+        notifier.undo();
+        expect(container.read(routeAnchorsProvider(_profile)).anchors, isEmpty);
+
+        // undo() on an empty stack is a defensive no-op.
+        expect(() => notifier.undo(), returnsNormally);
+        expect(container.read(routeAnchorsProvider(_profile)).anchors, isEmpty);
       },
     );
   });
