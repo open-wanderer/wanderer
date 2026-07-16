@@ -79,7 +79,7 @@ final class RouteAnchorsProvider
   }
 }
 
-String _$routeAnchorsHash() => r'1974ca7aff66711e439e9a982c8e039b5a6fc099';
+String _$routeAnchorsHash() => r'24ae1a5bf904908a72edbbf995ba156787c3b3ba';
 
 /// Route-planner state provider: owns the ordered anchor list, the
 /// per-segment Valhalla routing engine (with a race-guard against
