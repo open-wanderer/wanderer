@@ -1,45 +1,42 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: MapLibre Migration
-status: Awaiting next milestone
-stopped_at: Completed quick task 260715-q01 (rename iOS/Android bundle id to com.openwanderer.wanderer); manual on-device swipe-kill verification for 260712-m9v still pending
-last_updated: "2026-07-15T16:43:15.000Z"
-last_activity: "2026-07-15 - Completed quick task 260715-q01: Rename iOS bundle id / App Group ids and Android applicationId from com.example.wanderer to com.openwanderer.wanderer"
+milestone: v1.5
+milestone_name: Route Planner
+status: completed
+stopped_at: Phase 20 context gathered
+last_updated: "2026-07-16T20:33:15.220Z"
+last_activity: 2026-07-16 -- Phase 19 marked complete
 progress:
-  total_phases: 6
-  completed_phases: 5
-  total_plans: 16
-  completed_plans: 17
-  percent: 83
+  total_phases: 3
+  completed_phases: 1
+  total_plans: 4
+  completed_plans: 4
+  percent: 33
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-08)
+See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 18 — retire-flutter-map-and-the-flomp-forks
+**Current focus:** Phase 19 — route-planner-core-waypoint-editing-routing-engine
 
 ## Current Position
 
-Phase: Milestone v1.4 complete
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-07-15 - Completed quick task 260715-q01: Rename iOS bundle id / App Group ids and Android applicationId from com.example.wanderer to com.openwanderer.wanderer
+Phase: 19 — COMPLETE
+Plan: 4 of 4
+Status: Phase 19 complete
+Last activity: 2026-07-16 -- Phase 19 marked complete
 
-## v1.4 Phases
+## v1.5 Phases
 
-- [x] **Phase 13: Glyph & Sprite Endpoint** — GLYPH-01/02/03 (SvelteKit, `/map/style-sources`)
-- [x] **Phase 14: Coordinate Type Migration** — TYPE-01/02 (`Geographic`, `LngLatBounds`)
-- [x] **Phase 15: MapLibre Core, Trail Rendering & Offline Parity** — STYLE-01..04, GLYPH-04, CORE-01..04, TRAIL-01..05, OFFL-01..05 (OFFL-06 deferred to 17/18)
-- [x] **Phase 16: List & Map Screens on MapLibre** — CORE-08, CLUS-01..05
-- [x] **Phase 17: Navigation on MapLibre** — NAV-01..04, CORE-05/06/07 (completed 2026-07-10)
-- [x] **Phase 18: Retire flutter_map and the flomp Forks** — CLEAN-01/02/03 (completed 2026-07-10)
+- [x] **Phase 19: Route Planner Core — Waypoint Editing & Routing Engine** — WAYP-01/02/03, ROUTE-01..05
+- [ ] **Phase 20: Route Planner Views — Waypoint List, Elevation & Location Search** — WAYP-04/05, PLANUI-01..03
+- [ ] **Phase 21: Route Planner Handoff & Entry Point** — HANDOFF-01/02/03
 
-Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share no code and may run in parallel; both gate Phase 15.
+Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/screen is a prerequisite for the next).
 
 ## Performance Metrics
 
@@ -69,6 +66,10 @@ Execution order: 13 ∥ 14 → 15 → 16 → 17 → 18. Phases 13 and 14 share n
 | Phase 18 P01 | 15min | 2 tasks | 5 files modified + 4 deleted |
 | Phase 18 P02 | 3min | 2 tasks | 2 files |
 | Phase quick-260710-kpd P01 | 15min | 2 tasks | 9 files |
+| Phase 19 P01 | 12min | 2 tasks | 4 files |
+| Phase 19 P02 | 40min | 2 tasks | 5 files |
+| Phase 19 P03 | 13min | - tasks | - files |
+| Phase 19 P04 | 15min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -118,11 +119,23 @@ Recent decisions affecting current work:
 - [Phase quick-260712-m9v]: ActiveNavigationEntity exposes obxId as a settable constructor param (unlike TrailEntity's constructor) so navigation_screen.dart can update the single tracked row via active_nav.save() instead of inserting duplicates
 - [Phase quick-260712-m9v]: AppLocalizations keys in this codebase stay literal snake_case getters/methods (e.g. exit_navigation), not camelCase -- confirmed before adding resume_navigation_prompt
 - [Phase quick-260712-pac]: In this Riverpod 3.x codebase, AsyncValue.isLoading/isRefreshing/isReloading/retrying/isFromCache are extension methods, not real instance members -- an untyped ref.listen/listenManual closure param can get inferred as dynamic, which skips extension resolution and throws NoSuchMethodError at runtime instead of a compile error. Always explicitly type listener closure params (and the listen/listenManual generic argument) as AsyncValue<T> when calling these getters.
+- [v1.5 roadmap] 3 phases (19-21), matching config.json's `coarse` granularity (2-4 target). Phase 19 merges research/SUMMARY.md's suggested Phase 1 (Provider Architecture) + Phase 2 (Map Interaction) into one vertical slice — tap/drag/insert waypoints, auto-routing toggle, profile switch, undo/redo — because neither half alone is user-observable without the other. Phase 20 merges the suggested Phase 3 (Screen Shell) + Phase 4 (Search-to-Focus): PLANUI-03 turned out to be a dedicated location-only search screen (not a `GlobalSearchScreen` modification as SUMMARY.md assumed), making it a natural map-control-button sibling of the waypoint-list/elevation toggle rather than a separate phase. Phase 21 (Handoff) matches the research's Phase 5, plus HANDOFF-03 (hike/bike entry dialog, since it's part of the entry-point flow into the planner).
+- [v1.5 roadmap] WAYP-04/05 (delete/reorder) assigned to Phase 20, not Phase 19, because both requirements are explicitly scoped to "the waypoint list sheet" — a Phase 20 artifact. WAYP-01/02/03 (tap/drag/insert) stay in Phase 19 because they're direct map-gesture interactions, not list-sheet actions.
+- [v1.5 roadmap] ROUTE-01..05 assigned to Phase 19 (not split across the toggle-button UI in Phase 20) because the routing engine — debounce, generation-guard, undo/redo snapshot stack — is the load-bearing state architecture every later phase depends on; research flagged this as the pitfall most expensive to retrofit if built after the UI.
+- [Phase 19]: [19-01] Divergence test asserts on longitude, not latitude — Geographic clamps latitude to [-90, 90], masking the intended 10x-scale assertion at the chosen fixture coordinates
+- [Phase 19]: [19-01] D-01's no-'waypoint'-string constraint on route_anchor.dart applies to comments too, not just identifiers — reworded a doc comment referencing the sibling persisted-route-point model by name
+- [Phase 19]: [19-02] toggleAutoRouting() OFF leaves existing segments untouched (corrected mid-execution from the plan's stale Task 1 prose to match its own must_haves truth); only new segments created afterward become straight
+- [Phase 19]: [19-02] splitSegmentAt projects the tap point onto every polyline sub-edge (not just the nearest existing vertex) so a straight 2-point segment splits at a genuine midpoint, not one of its endpoints
+- [Phase 19]: [19-03] RouteSegmentLayer constructor is non-const (not const as the plan's action text specified) because the plan's same paragraph also mandates a mutable _added field, which Dart forbids on a const constructor
+- [Phase 19]: [Phase 19] [19-04] static final _segmentLayer, not static const -- RouteSegmentLayer's constructor is non-const (19-03's own deviation, mutable _added field forbids const)
+- [Phase 19]: [Phase 19] [19-04] _retryAttempted field declared in Task 1 (not Task 2 as the plan's task split implied) since Task 1's own onEvent action text uses it before Task 2 formally introduces it
+- [Phase 19]: [Phase 19] [19-04] Undo/redo onPressed hoists a local notifier variable + method tear-off instead of an inline closure, so dart format keeps the ternary on one line and satisfies the plan's own literal acceptance-criteria grep
+- [Phase 19]: [19-03, UAT] On-device testing found segment taps (blocked-segment retry, WAYP-03 insert) always fell through to appendAnchor — `route_segment_layer.dart`'s invisible hit-test layer used `line-opacity: 0`, and both native maplibre bindings' `featuresAtPoint` (iOS `visibleFeaturesAtPoint`, Android `queryRenderedFeatures`) exclude fully transparent layers from rendered-feature queries, so the layer never registered a hit. Fixed by changing `line-opacity` to `0.01` (visually indistinguishable from 0, stays eligible for hit-testing). Relevant to any future native-GL invisible hit-test layer in this codebase (e.g. Phase 20/21).
+- [Phase 19]: [19-04, UAT] On-device testing found segment lines never render on a SECOND open of the Route Planner screen in the same app session (markers still work). Root cause: `route_planner_screen.dart`'s `_segmentLayer` was a `static final RouteSegmentLayer()` — `static` means one shared instance (and its internal `_added` flag) for the app's whole lifetime, not per screen mount. First open adds the native source/layers and sets `_added = true`; on exit the native map/style is destroyed but the static `_segmentLayer` survives with `_added` stuck `true`; on re-open, a brand-new style has no source/layers on it, but `update()` sees stale `_added == true` and skips straight to `updateGeoJsonSource` on a source that doesn't exist on this style — fails silently via the call site's `.ignore()`. Fixed by making `_segmentLayer` a plain (non-static) instance field, so it's fresh every mount. Any future `static` field wrapping a native-layer-adding helper with its own "already added" flag needs the same scrutiny.
 
 ### Pending Todos
 
-- Fix 3 pre-existing `flutter test` failures (`feed_item_test.dart` x2, `settings_screen_test.dart` x1) — logged in Phase 18's `deferred-items.md`; not blocking Phase 18 Plan 03.
-- Run `/gsd-execute-phase 18` (or continue directly) for 18-03-PLAN.md — physical-device walk of all six map surfaces (online + airplane mode) to close out CLEAN-01/02/03 verification.
+- Fix 3 pre-existing `flutter test` failures (`feed_item_test.dart` x2, `settings_screen_test.dart` x1) — logged in Phase 18's `deferred-items.md`; not blocking v1.5 work.
 - Manual on-device verification for quick task 260712-m9v (resume navigation after manual app termination): start navigation, swipe-kill the app, relaunch, accept the resume dialog, confirm maneuver index/distance/elevation/elapsed/breadcrumb continue; also verify decline and deliberate-exit paths show no prompt.
 
 ### Blockers/Concerns
@@ -131,6 +144,8 @@ Recent decisions affecting current work:
 - **[Phase 15 — A2 sprite `file://` gap, low exposure, not investigated further]** The 15-01 spike found `file://` **sprite** resolution FAILED on a physical Android device despite valid cached files (glyph `file://` resolution PASSED). 15-05 sidesteps the practical impact for the trail's own arrow icon by self-registering it (`addImageFromIconData`, sprite-independent) rather than relying on the sprite. The only remaining exposure is OTHER sprite-atlas icons (e.g. route-network shields) rendering offline — those don't render at all today regardless of online/offline, so this is a pre-existing not-yet-working feature, not a regression. Not re-investigated natively; revisit if/when sprite-sourced icons become a real feature.
 - **[Phase 15/16/17]** `maplibre` 0.3.5 is pre-1.0 with breaking changes across 0.x minors (three published upgrade guides). Pin the exact version on first add; CLEAN-03 locks it at the end.
 - **[Phase 15 — CORE-05 gap, expected]** `trail_detail_map_screen`'s `MapCompass` (flutter_map-only) was removed rather than crashing against the new `MapLibreMap` — that screen has no compass/rotation-reset control until Phase 17 (CORE-05) wires maplibre's native equivalent.
+- **[v1.5 research flag]** `package:maplibre` 0.3.5's exact `MapGestures`/`MapOptions` pan/rotate-disable API surface is MEDIUM confidence (changelog/GitHub discussion, not a direct source read) — validate with a small spike early in Phase 19 before committing to the full drag-vs-pan gesture-arena solution.
+- **[v1.5 research flag]** The generation-counter/CancelToken race-guard pattern for out-of-order Valhalla responses is MEDIUM confidence against this project's exact pinned `riverpod_annotation` 4.0.2 — confirm the idiom during Phase 19 planning/execution.
 
 ### Quick Tasks Completed
 
@@ -165,6 +180,12 @@ Recent decisions affecting current work:
 | Routing | Navigate from user position to trailhead; off-trail re-routing | Out of scope | Init |
 | Account | API token management (ACCT-F01) | Future | v1.2 requirements |
 | Settings | Favourite sport picker, Export, Integrations, Maintenance, Map settings | Out of scope | v1.2 requirements |
+| Route Planner | Car/driving costing profile (PLANNER-01) | v2 | v1.5 requirements |
+| Route Planner | Editing an existing trail's route (PLANNER-02) | v2 | v1.5 requirements |
+| Route Planner | Per-segment travel profiles (PLANNER-03) | v2 | v1.5 requirements |
+| Route Planner | Offline caching of in-progress route plans (PLANNER-04) | v2 | v1.5 requirements |
+| Route Planner | Confirm-placement drag affordance (PLANNER-05) | v2 (if mis-drops prove common) | v1.5 requirements |
+| Route Planner | Offline-aware graceful degradation banner for auto-routing (PLANNER-06) | v2 | v1.5 requirements |
 
 Items acknowledged and deferred at milestone close on 2026-07-10:
 
@@ -188,10 +209,11 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-14T17:30:00.000Z
-Stopped at: Completed quick task 260714-qtl (fix meilisearch_token expiry check in hooks.server.ts, the real root cause of the reported 500-on-launch bug); manual on-device swipe-kill verification for 260712-m9v still pending
-Resume file: None
+Last session: 2026-07-16T20:33:15.200Z
+Stopped at: Phase 20 context gathered
+Resume file: .planning/phases/20-route-planner-views-waypoint-list-elevation-location-search/20-CONTEXT.md
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Review and approve the ROADMAP.md draft for v1.5 (Phases 19-21).
+- Once approved, run `/gsd-plan-phase 19` to begin detailed planning for Phase 19 (Route Planner Core — Waypoint Editing & Routing Engine).
