@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Route Planner
 status: completed
-stopped_at: Phase 20 context gathered
-last_updated: "2026-07-16T20:33:15.220Z"
+stopped_at: Phase 20 UI-SPEC approved
+last_updated: "2026-07-16T20:39:38.545Z"
 last_activity: 2026-07-16 -- Phase 19 marked complete
 progress:
   total_phases: 3
@@ -209,9 +209,9 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-16T20:33:15.200Z
-Stopped at: Phase 20 context gathered
-Resume file: .planning/phases/20-route-planner-views-waypoint-list-elevation-location-search/20-CONTEXT.md
+Last session: 2026-07-16T20:39:38.532Z
+Stopped at: Phase 20 UI-SPEC approved
+Resume file: .planning/phases/20-route-planner-views-waypoint-list-elevation-location-search/20-UI-SPEC.md
 
 ## Operator Next Steps
 
