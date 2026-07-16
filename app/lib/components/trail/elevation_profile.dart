@@ -14,7 +14,7 @@ import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
 class ElevationProfile extends ConsumerStatefulWidget {
-  final Trail trail;
+  final Trail? trail;
   final Gpx gpx;
 
   final double chartHeight;
@@ -23,7 +23,7 @@ class ElevationProfile extends ConsumerStatefulWidget {
   final bool enableLineTouch;
   const ElevationProfile({
     super.key,
-    required this.trail,
+    this.trail,
     required this.gpx,
     this.chartHeight = 150,
     this.smoothingWindowSize = 30,
@@ -161,6 +161,17 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
         ],
       );
     } else {
+      final trail = widget.trail;
+      final double elevationGain;
+      final double elevationLoss;
+      if (trail != null) {
+        elevationGain = trail.elevationGain;
+        elevationLoss = trail.elevationLoss;
+      } else {
+        final totals = widget.gpx.getTotals();
+        elevationGain = totals.totalElevationGain;
+        elevationLoss = totals.totalElevationloss;
+      }
       statsHeader = Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
@@ -173,17 +184,11 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
             FontAwesomeIcons.ruler,
           ),
           _buildStatText(
-            formatElevation(
-              widget.trail.elevationGain,
-              unit: ref.read(unitProvider),
-            ),
+            formatElevation(elevationGain, unit: ref.read(unitProvider)),
             FontAwesomeIcons.arrowTrendUp,
           ),
           _buildStatText(
-            formatElevation(
-              widget.trail.elevationLoss,
-              unit: ref.read(unitProvider),
-            ),
+            formatElevation(elevationLoss, unit: ref.read(unitProvider)),
             FontAwesomeIcons.arrowTrendDown,
           ),
         ],
@@ -227,7 +232,7 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
     double xInterval,
     double yInterval,
   ) {
-    final waypoints = (widget.trail.expand?.waypointsViaTrail ?? [])
+    final waypoints = (widget.trail?.expand?.waypointsViaTrail ?? [])
         .where(
           (w) => w.distanceFromStart != null && w.distanceFromStart! <= maxDist,
         )
