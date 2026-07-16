@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:maplibre/maplibre.dart';
@@ -11,6 +12,47 @@ import 'package:wanderer/models/route_anchor.dart';
 /// off this value.
 String segmentKey(String beforeAnchorId, String afterAnchorId) =>
     '${beforeAnchorId}_$afterAnchorId';
+
+/// Serializes [segments] into a GeoJSON `FeatureCollection` string for
+/// [RouteSegmentLayer]'s `GeoJsonSource`, matching `TrailLayer.add`'s
+/// `jsonEncode` (not string concatenation) idiom, which keeps geometry
+/// structurally isolated from the style document (T-19-03-01).
+///
+/// Each feature's `properties` deliberately carries [RouteSegment.beforeAnchorId]/
+/// [RouteSegment.afterAnchorId] as separate GeoJSON properties (not an
+/// illustrative `segmentIndex`) — per Pitfall 3, segment identity for
+/// hit-testing must be anchor-id-pair based, not index-based, so a tap
+/// handler can read these two properties directly rather than reconstructing
+/// a [segmentKey] string. `state` is the segment's [SegmentState.name]
+/// (`'routed'`/`'straight'`/`'blocked'`), used as the `filter` discriminator
+/// by [RouteSegmentLayer]'s three paint variants.
+///
+/// Coordinates follow the same `[lon, lat]` ordering convention as
+/// `TrailLayer.add`'s GeoJSON construction. An empty [segments] list
+/// produces a valid `FeatureCollection` with an empty `features` array
+/// (never null, never throws) — defensive for a route with 0-1 anchors.
+String buildSegmentsGeoJson(List<RouteSegment> segments) {
+  return jsonEncode(<String, Object?>{
+    'type': 'FeatureCollection',
+    'features': <Map<String, Object?>>[
+      for (final s in segments)
+        <String, Object?>{
+          'type': 'Feature',
+          'properties': <String, Object?>{
+            'beforeAnchorId': s.beforeAnchorId,
+            'afterAnchorId': s.afterAnchorId,
+            'state': s.state.name,
+          },
+          'geometry': <String, Object?>{
+            'type': 'LineString',
+            'coordinates': <List<double>>[
+              for (final p in s.polyline) <double>[p.lon, p.lat],
+            ],
+          },
+        },
+    ],
+  });
+}
 
 /// Splits [segment] into two, inserting [newAnchorId] as the shared boundary
 /// anchor at the point on the existing polyline closest to [tapPoint].
