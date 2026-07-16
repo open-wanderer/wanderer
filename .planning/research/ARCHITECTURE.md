@@ -1,229 +1,326 @@
 # Architecture Research
 
-**Project:** Wanderer Offline Navigation (v1.1)
-**Researched:** 2026-06-14
-**Scope:** Integration of cached Valhalla navigation instructions into the existing ObjectBox + Riverpod architecture
+**Domain:** Route Planner screen integration — Flutter/Riverpod/maplibre/go_router mobile app (Wanderer v1.5)
+**Researched:** 2026-07-16
+**Confidence:** HIGH — every claim below is backed by a specific file read in this repo (app/lib, web/src), not by general Flutter/Riverpod conventions. No external web research was needed; the codebase already contains a near-complete precedent (the web app's own route-planner-equivalent) and the exact map-interaction pattern the new screen needs.
 
----
+## Standard Architecture
 
-## Integration Points
+### System Overview
 
-### 1. ObjectBox Entity Model — JSON blob on TrailEntity
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│  trail_source_select_screen.dart          (MODIFIED — entry point)        │
+│    "Planner" card.onTap → context.push('/trail/create/plan')              │
+└───────────────────────────────┬───────────────────────────────────────────┘
+                                 ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│  router_provider.dart                      (MODIFIED — +1 top-level route)│
+│    GoRoute('/trail/create/plan') → RoutePlannerScreen()                   │
+└───────────────────────────────┬───────────────────────────────────────────┘
+                                 ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│  route_planner_screen.dart                 (NEW — ConsumerStatefulWidget) │
+│  ┌─────────────────────────────┐  ┌──────────────────────────────────┐   │
+│  │ RoutePlannerMap (NEW)        │  │ DraggableScrollableSheet          │   │
+│  │  wraps RoutePlannerMarkerLayer│  │  (waypoint list XOR elevation)   │   │
+│  │  tap-to-add / drag / insert   │  │  toggled by _buildButtonRow-style │   │
+│  └──────────────┬───────────────┘  └──────────────┬────────────────────┘  │
+│                 │  ref.watch/read                  │ ref.watch            │
+│                 ▼                                  ▼                      │
+│         routePlannerProvider  (NEW — app/lib/provider/route_planner_      │
+│         provider.dart, @riverpod class RoutePlanner)                      │
+│           state: waypoints, autoRouting, profile, undo/redo stacks,       │
+│                  synthesized in-memory Gpx                                │
+└───────────────────────────────┬───────────────────────────────────────────┘
+                                 │ imperative methods call out to:
+                                 ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│  apiProvider (Dio, EXISTING) → SvelteKit (EXISTING, zero backend changes) │
+│    POST /api/v1/valhalla/route   — per-waypoint-pair routed shape         │
+│    POST /api/v1/valhalla/height  — elevation for the composed shape       │
+└───────────────────────────────┬───────────────────────────────────────────┘
+                                 ▼ on "Use this route"
+┌───────────────────────────────────────────────────────────────────────────┐
+│  trail_import_util.dart            (MODIFIED — +1 function, same         │
+│    pendingImportedTrail global + handoff to)                             │
+│  router_provider.dart '/trail/create/edit' (UNCHANGED — reused as-is)    │
+│  trail_create_screen.dart                  (UNCHANGED — reused as-is)   │
+└───────────────────────────────────────────────────────────────────────────┘
+```
 
-**Decision: Add `navigationJson String?` field directly to `TrailEntity`.** Do not create a separate `NavigateResponseEntity`.
+### Component Responsibilities
 
-**Rationale:**
+| Component | Responsibility | File status |
+|-----------|----------------|-------------|
+| `RoutePlanner` provider | Owns in-progress waypoints, undo/redo, auto-routing flag, profile, synthesized `Gpx`; imperative add/move/insert/delete/reorder/undo/redo/resolveRouting methods | NEW — `app/lib/provider/route_planner_provider.dart` |
+| `buildGpxFromPoints` (util) | Synthesizes a `package:gpx` `Gpx` from an in-memory point/elevation list — the reverse of `buildNavShape` | MODIFIED — added to `app/lib/util/gpx_util.dart` |
+| `RoutePlannerMap` | Native GL map host for the planner: tap-to-add, per-marker drag, tap-on-segment insert | NEW — `app/lib/components/base/route_planner_map.dart` |
+| `RoutePlannerMarkerLayer` | `ml.WidgetLayer` of draggable/deletable/reorderable waypoint markers + route polyline | NEW — `app/lib/components/map/route_planner_marker_layer.dart` |
+| `RoutePlannerScreen` | Screen shell: map + waypoint-list/elevation sheet + control buttons + handoff button | NEW — `app/lib/routes/route_planner_screen.dart` |
+| `handoffPlannedRoute()` | Builds a draft `Trail` from the planner's `Gpx`+waypoints, sets `pendingImportedTrail`, pushes `/trail/create/edit` | MODIFIED — added to `app/lib/util/trail_import_util.dart` |
+| `router_provider.dart` | Registers `/trail/create/plan` | MODIFIED — +1 `GoRoute`, +1 import |
+| `trail_source_select_screen.dart` | Wires the existing "Planner" card to the new route | MODIFIED — 1-line `onTap` change |
+| `global_search_screen.dart` | Location-tile currently hardcodes `context.go('/map', ...)` | MODIFIED (small) — see Pitfall below |
+| Valhalla `/route`, `/height` (SvelteKit) | Point-to-point routing and elevation lookup | UNCHANGED — already exist, unused by Flutter today |
 
-`NavigateResponse` is a dependent aggregate — it is meaningless without its `TrailEntity`. Its lifecycle is identical: cached when the trail is downloaded, deleted when the trail is deleted from the library. ObjectBox's relational model (via `ToOne`/`ToMany`) exists to express independent entities with their own lifecycle. `NavigateResponse` has no such independence.
+## Recommended Project Structure
 
-The existing codebase already uses this pattern: `gpxData String?` on `TrailEntity` stores the raw GPX string rather than a `GpxEntity`. Navigation JSON is structurally the same case — a serialised payload whose value belongs entirely to the trail it describes.
+```
+app/lib/
+├── provider/
+│   └── route_planner_provider.dart       # NEW — @riverpod class RoutePlanner, top-level
+│                                          #   (sibling to navigation_provider.dart, NOT under
+│                                          #   provider/trail/ — see rationale below)
+├── components/
+│   ├── base/
+│   │   └── route_planner_map.dart        # NEW — modeled on trail_map.dart's shell
+│   └── map/
+│       └── route_planner_marker_layer.dart # NEW — modeled on trail_layer.dart's
+│                                          #   TrailMarkerLayer, adds insert/delete/reorder
+├── routes/
+│   └── route_planner_screen.dart         # NEW — the screen itself
+└── util/
+    ├── gpx_util.dart                     # MODIFIED — + buildGpxFromPoints()
+    └── trail_import_util.dart            # MODIFIED — + handoffPlannedRoute()
+```
 
-**Field to add to `TrailEntity`:**
+### Structure Rationale
 
+- **`provider/route_planner_provider.dart` (top-level, not `provider/trail/`):** `provider/trail/*` providers are all backed by a persisted PocketBase `Trail` record (fetch/save/filter against `/trail`). The Route Planner's state has no backing record until handoff — it is ephemeral session state scoped to one screen's lifetime, the same shape as `navigation_provider.dart` (also top-level, also ephemeral, also holds an in-memory mutable path + progress). Following that precedent keeps `provider/trail/` reserved for record-backed providers.
+- **New map host instead of reusing `TrailMap` directly:** `trail_create_screen.dart` already proves the *pattern* (synthesize a stub `Trail`, feed it to `TrailMap`, wire `onTap`/`onWaypointDragEnd`) — but `TrailMarkerLayer` only supports tap + drag, not the Route Planner's insert-mid-route / delete / reorder requirements. Extending `TrailMarkerLayer` in place would touch a component shared by `trail_detail_map_screen.dart`, `list_detail_map_screen.dart`, `navigation_screen.dart`, and `trail_create_screen.dart` — high blast radius for a v1.5-only need. A new sibling file isolates all planner-only interaction logic and matches the milestone's "addition, not rework" framing.
+- **`gpx_util.dart` gets the new function, not a new file:** it is already the single home for every `package:gpx` ↔ app-type bridge (`buildNavShape`, `GpxMappingUtils`, `sanitizeGpxEmail`). `buildGpxFromPoints` is the structural inverse of `buildNavShape` and has zero Riverpod/UI dependencies — same profile as the existing functions in that file. A new file would fragment Gpx-construction logic across two places for no benefit.
+- **`trail_import_util.dart` gets the handoff function, not a new file:** `pendingImportedTrail` is a single module-level global with a subtle race-condition safety net (documented in its own comment — go_router's `RouteMatchListCodec` can drop non-JSON `extra` on a same-process refresh). A second global in a new file would either duplicate that fragile logic or risk two competing "pending trail" globals. The Route Planner is conceptually the same case as GPX import — an unsaved `Trail` built client-side that must survive to `/trail/create/edit` — so it belongs next to the existing precedent.
+
+## Architectural Patterns
+
+### Pattern 1: Synthesized-stub-Trail map host (established, reused as-is)
+
+**What:** A screen that doesn't yet have a persisted `Trail` builds a throwaway `Trail.empty().copyWith(expand: TrailExpand(gpx: ..., waypointsViaTrail: ...))` purely so it can be handed to a `Trail`-shaped map/form component.
+**When to use:** Any screen that edits trail geometry/waypoints before a save exists.
+**Trade-offs:** Avoids a parallel "unsaved trail" type, but requires placeholder `id: ''`/timestamps on nested `Waypoint`s (see `trail_import_util.dart` lines 76-89) so `Waypoint.fromJson`/`copyWith` don't choke on required non-nullable fields.
+
+**Example (already shipping, `trail_create_screen.dart:417-438`):**
 ```dart
-String? navigationJson;
+TrailMap(
+  trail: trail, // stub or real Trail, both work identically
+  onTap: (point) => _onCreateWaypoint(context, at: point),
+  onWaypointTap: (wp) => _onEditWaypoint(context, wp),
+  onWaypointDragEnd: _onWaypointMoved,
+)
 ```
+The Route Planner reuses this exact idea but via a new `RoutePlannerMap`/`RoutePlannerMarkerLayer` pair (see Pattern 2) rather than `TrailMap` itself, because it needs interactions `TrailMarkerLayer` doesn't have.
 
-Store the result of `jsonEncode(response.toJson())`. On read, decode with `NavigateResponse.fromJson(jsonDecode(navigationJson!))`. The `NavigateResponse` freezed class already derives `toJson` / `fromJson` from `json_serializable` (confirmed via `navigate_response.g.dart`), so no additional serialisation code is needed.
+### Pattern 2: Widget-space GestureDetector markers, NOT a map-wide GestureDetector
 
-**ObjectBox schema impact:** Adding a nullable `String?` property to an existing entity is a non-breaking ObjectBox migration. The generator produces a new schema version; existing stored entities gain the field as `null`. No migration hook is required.
+**What:** Tap-to-add uses the **native** map click callback (`ml.MapEventClick` via `onEvent`, forwarded as `TrailMap.onTap`). Drag uses a **per-marker** `GestureDetector` (`onPanStart`/`onPanUpdate`/`onPanEnd`) inside each `ml.Marker`'s child within a single `ml.WidgetLayer`, converting screen-space `Offset` deltas back to `Geographic` via `controller.toLngLat`/`toScreenLocation`. There is no map-wide `GestureDetector` wrapping the whole map, and `maplibre` 0.3.5 does **not** expose a native marker-drag callback — drag is 100% Flutter-side.
+**When to use:** Any interactive-marker map screen in this app (confirmed identical in `trail_map.dart`'s `TrailMarkerLayer`, reused verbatim by `trail_create_screen.dart` and `navigation_screen.dart`).
+**Trade-offs:** Precise, no native marker-drag API to fight; the marker layer must read `ml.MapController.maybeOf(context)`/`ml.MapCamera.maybeOf(context)` to convert screen↔geo, and must rebuild on camera move (already established).
 
-**Alternative rejected — `NavigateResponseEntity`:**
-A separate entity would require a `ToOne<NavigateResponseEntity>` on `TrailEntity`, a new entity class with flattened fields (lists of doubles and maneuver scalars cannot be stored directly in ObjectBox without custom converters), and coordinated lifecycle management across two boxes. All of this adds complexity with no architectural benefit.
-
----
-
-### 2. Download Flow — Where to Trigger the Valhalla Call
-
-**Decision: Fetch and persist navigation instructions at the end of `TrailDownloadService.downloadTrail()`, after the entity is written to the ObjectBox store.**
-
-**Current `downloadTrail` sequence (from `trail_download_service.dart`):**
-1. Create local directory.
-2. Download trail photos.
-3. Download waypoint photos.
-4. Download map tile cells (PMTiles) — the longest-running step.
-5. Write `TrailEntity` to ObjectBox via `_store.runInTransaction`.
-
-**New step 6** — call `/valhalla/navigate` and patch `entity.navigationJson` before (or as part of) the transaction:
-
+**Example (`app/lib/components/map/trail_layer.dart:314-341`):**
+```dart
+ml.Marker(
+  point: point,
+  child: GestureDetector(
+    onTap: () => widget.onWaypointTap?.call(wp),
+    onPanStart: (d) => setState(() { _draggingWaypointId = wp.id; ... }),
+    onPanUpdate: (d) => setState(() => _dragOffset = _dragOffset! + d.delta),
+    onPanEnd: (d) => widget.onWaypointDragEnd?.call(wp, c.toLngLat(offset)),
+    child: _buildCircularMarker(...),
+  ),
+)
 ```
-downloadTrail()
-  ...existing steps 1-5...
-  (6) build shape list from trail GPX — same downsampling logic already in navigation_launch_util.dart
-  (7) POST /valhalla/navigate
-  (8) entity.navigationJson = jsonEncode(response.toJson())
-  (9) _store.runInTransaction(TxMode.write, () { box.put(entity); })
+**New for the Route Planner:** insert-mid-route (tap on the route line, not a marker) has no existing precedent. Recommended approach: give the route polyline its own native GL layer id (as `TrailLayer` already does for `trail-route`), then on `ml.MapEventClick` call `controller.featuresAtPoint(event.screenPoint, layerIds: ['planner-route'])` (same API `map_screen.dart` already uses for cluster hit-testing) to detect a tap near the line and compute the nearest-segment insertion index.
+
+### Pattern 3: Class-with-imperative-methods Riverpod provider (established, reused as-is)
+
+**What:** `@riverpod class X extends _$X` holding mutable session state, exposing `Future<...>`/`void` methods rather than only computed getters — the same idiom as `TrailSave`, `Navigation`, `NavigationStats`.
+**When to use:** Any provider driving user-initiated mutations with async side effects (network calls) interleaved with local state updates.
+**Trade-offs:** State (`waypoints`, `autoRouting`, `profile`, `undoStack`, `redoStack`, synthesized `Gpx`) lives in one immutable state object rebuilt via `copyWith`, same as `NavigationState`.
+
+**Example (recommended shape for `route_planner_provider.dart`):**
+```dart
+class RoutePlannerState {
+  final List<Waypoint> waypoints;
+  final bool autoRouting;
+  final String profile; // 'pedestrian' | 'bicycle' — reuses gpx_util's values
+  final Gpx routeGpx;    // rebuilt after every mutation
+  // ...copyWith
+}
+
+@riverpod
+class RoutePlanner extends _$RoutePlanner {
+  final List<List<Waypoint>> _undoStack = [];
+  final List<List<Waypoint>> _redoStack = [];
+
+  @override
+  RoutePlannerState build() => RoutePlannerState(
+    waypoints: const [], autoRouting: false, profile: 'pedestrian',
+    routeGpx: Gpx(),
+  );
+
+  Future<void> addWaypoint(Geographic point) async { /* snapshot, mutate, resolve */ }
+  Future<void> moveWaypoint(int index, Geographic point) async { ... }
+  Future<void> insertWaypoint(int afterIndex, Geographic point) async { ... }
+  void deleteWaypoint(int index) { ... }
+  void reorder(int oldIndex, int newIndex) { ... }
+  void undo() { ... }
+  void redo() { ... }
+  void setAutoRouting(bool value) { /* re-resolve all segments */ }
+  void setProfile(String profile) { /* re-resolve all segments */ }
+}
 ```
-
-The Valhalla call uses the same `_api` (`Dio`) instance `TrailDownloadService` already holds. The shape-building logic should be extracted from `launchNavigation` into a shared `_buildShape(List<Wpt> points)` helper (see New vs Modified below) so both call sites use identical downsampling.
-
-**Failure handling:** If the Valhalla call throws (network error, API error, timeout), log the error and continue — `entity.navigationJson` remains `null`. The trail is still fully downloaded for offline map use. `launchNavigation` will detect `null` and attempt a live network call, which is the correct fallback behaviour. Do not rethrow; do not cancel the whole download.
-
----
-
-### 3. `launchNavigation` — Cache-First Strategy
-
-**Decision: Try cache first; only call the network if no cached instructions are available.**
-
-**Revised `launchNavigation` flow:**
-
-```
-launchNavigation(context, ref, trail)
-  (0) Location guards — unchanged
-  (1) GPX guard — unchanged
-  (2) Costing derivation — unchanged
-  (3) Try cache:
-        store = ref.read(objectBoxProvider)
-        entity = box.query(TrailEntity_.id.equals(trail.id)).findFirst()
-        if entity?.navigationJson != null:
-          response = NavigateResponse.fromJson(jsonDecode(entity!.navigationJson!))
-          if response.maneuvers.isNotEmpty && response.shape.isNotEmpty:
-            context.push('/trail/${trail.id}/navigate', extra: response)
-            return
-  (4) Network call (existing steps 3-7) — unchanged
-  (5) On success: context.push(...)
-  (6) On error: error toast
-```
-
-**Why cache-first, not network-first with cache fallback:**
-
-The PROJECT.md requirement is "Navigation falls back to cached instructions when offline." A network-first strategy attempts the POST call even when the device is offline, which means the hiker waits for a Dio timeout (default 5-15 seconds) before the cache is consulted. Cache-first is instant for the common offline case, and the network path is still reached whenever the cache is empty (e.g. trail downloaded by an older app version without navigation JSON).
-
-**Staleness:** The PROJECT.md requirement explicitly states "silently use cached version if trail updated since caching." No freshness check is required. The cache is used if present, regardless of the trail's `updated` timestamp.
-
-**No online-vs-offline detection needed:** The cache-first path handles both cases correctly. If cached instructions exist, they are used even when online (instant, no network cost). If no cache exists, the network is called. This is simpler than detecting connectivity and matches the stated goal.
-
----
-
-### 4. Riverpod Provider Pattern for Cache Read/Write
-
-**Decision: No new provider is needed. Use synchronous ObjectBox reads directly in `launchNavigation` and `TrailDownloadService`.**
-
-**Cache read (in `launchNavigation`):**
-
-Read `objectBoxProvider` synchronously via `ref.read(objectBoxProvider)` — already the established pattern in `trail_provider.dart`'s offline fallback block. `launchNavigation` already accepts a `WidgetRef`, so `ref.read(objectBoxProvider)` is available without any additional scaffolding.
-
-**Cache write (in `TrailDownloadService`):**
-
-`TrailDownloadService` already holds a `Store` reference injected via its constructor (`TrailDownloadService(this._store, this._api)`). Writing `entity.navigationJson` before `_store.runInTransaction` follows the exact same pattern as the existing `entity.photos = localPaths` and `entity.pmTiles = cellPaths` assignments.
-
-**Why not a new `navigationCacheProvider`:**
-
-A dedicated provider would be justified if the navigation cache needed to be observed reactively (e.g. a UI widget that updates when the cache populates). In this milestone the cache is write-once-at-download-time and read-once-at-navigation-launch. Both access sites are already in contexts that have `ref` or `Store` available. Adding a provider layer would introduce indirection without benefit.
-
-**If a provider is later needed** (e.g. to show "navigation cached" badge in the library): a simple `@riverpod Future<bool> hasNavigationCache(Ref ref, String trailId)` that reads from the store would be the right pattern at that point, following `trail_provider.dart`'s offline query.
-
----
-
-## New vs Modified
-
-### New
-
-| Artifact | Type | Purpose |
-|----------|------|---------|
-| `TrailEntity.navigationJson` | Field (`String?`) | Persists serialised `NavigateResponse` JSON alongside the trail entity |
-| `_buildShape()` helper | Free function in `navigation_launch_util.dart` (or extracted to `gpx_util.dart`) | Shared downsampling logic used by both `launchNavigation` and `TrailDownloadService` |
-
-### Modified
-
-| Artifact | Change | Why |
-|----------|--------|-----|
-| `app/lib/entities/trail_entity.dart` | Add `String? navigationJson` field; add `navigationJson: entity.navigationJson` in `TrailEntityMapping.toModel()` if surfaced on `Trail`, or keep as entity-only field accessed directly from the box | Stores the navigation cache |
-| `app/lib/models/trail.dart` | Optionally add `String? navigationJson` to the `Trail` freezed model if the detail screen needs to know whether navigation is cached; otherwise omit (entity-only is sufficient for `launchNavigation` querying the box directly) | Propagates cache status to UI if needed |
-| `app/lib/services/trail_download_service.dart` | Add step 6-8 after existing ObjectBox write: build shape, POST `/valhalla/navigate`, set `entity.navigationJson`, put entity | Caches navigation instructions at download time |
-| `app/lib/util/navigation_launch_util.dart` | Add step 3 (cache lookup before network call); extract shape-building into `_buildShape()` | Implements cache-first launch; eliminates duplicated downsampling logic |
-
-**No changes required to:**
-- `navigation_provider.dart` — consumes `NavigateResponse` in-memory, unaffected
-- `router_provider.dart` — `/trail/:id/navigate` route unchanged
-- `trail_library_provider.dart` — library list read unchanged
-- `TrailDownloadServiceNotifier` provider — injects same dependencies, no change needed
-- Any screen files — `launchNavigation` signature is unchanged; callers are unaffected
-
----
+**Undo/redo implementation choice:** the web app's equivalent (`valhalla_store.svelte.ts`) uses `json-diff-ts` changesets. There is no Dart port of that library in this project and waypoint counts for a planned route are small (tens, not thousands), so snapshotting the whole `List<Waypoint>` per edit onto `_undoStack`/`_redoStack` is simpler, dependency-free, and sufficiently cheap — recommended over porting a diff library.
 
 ## Data Flow
 
-### Download-Time (Cache Write)
+### Waypoint edit → route resolution
 
 ```
-TrailDropdown._downloadTrail()
-  → ref.read(trailDownloadServiceProvider).downloadTrail(trail)
-      → [existing] download photos, waypoints, PMTiles
-      → [new] _buildShape(gpx.allPoints)
-      → [new] _api.post('/valhalla/navigate', data: {shape, costing})
-      → [new] entity.navigationJson = jsonEncode(response.toJson())
-      → _store.runInTransaction { box.put(entity) }   // unchanged, now includes navigationJson
+User taps/drags/inserts on RoutePlannerMap
+    ↓
+RoutePlannerMarkerLayer callback (onTap / onWaypointDragEnd / onSegmentInsert)
+    ↓
+ref.read(routePlannerProvider.notifier).addWaypoint(point)  // or move/insert/delete
+    ↓
+1. Snapshot current waypoints onto _undoStack, clear _redoStack
+2. Mutate waypoints list, set state immediately (instant visual feedback, straight lines)
+3. If autoRouting: for each consecutive waypoint PAIR, POST /api/v1/valhalla/route
+   (locations: [start, end], costing: profile) → decode trip.legs[0].shape
+4. Concatenate all per-pair shapes into one point list
+5. POST /api/v1/valhalla/height (encoded_polyline: <that shape>) → height[] array
+6. buildGpxFromPoints(points, elevations: height) → Gpx, set into state.routeGpx
+    ↓
+ref.watch(routePlannerProvider) in RoutePlannerScreen rebuilds:
+  - RoutePlannerMap's route polyline + markers
+  - Waypoint list sheet (ReorderableListView)
+  - ElevationProfile(gpx: state.routeGpx) when elevation view is toggled on
 ```
 
-### Navigation Launch — Cached Path (Offline / Cache Hit)
+### Handoff → existing create/edit flow (unchanged downstream)
 
 ```
-TrailPanel / TrailDetailScreen → launchNavigation(context, ref, trail)
-  → [new] store = ref.read(objectBoxProvider)
-  → [new] entity = box.query(TrailEntity_.id.equals(trail.id)).findFirst()
-  → [new] response = NavigateResponse.fromJson(jsonDecode(entity.navigationJson!))
-  → context.push('/trail/${trail.id}/navigate', extra: response)
-      → NavigationScreen(id, response)
-          → ref.watch(navigationProvider(response))   // unchanged
+User taps "Use this route"
+    ↓
+handoffPlannedRoute(ref, navContext, gpx: state.routeGpx, waypoints: state.waypoints)
+    ↓
+Trail draft = Trail.empty().copyWith(expand: TrailExpand(gpx: gpx, waypointsViaTrail: waypoints))
+pendingImportedTrail = draft   // same global trail_import_util.dart already defines
+navContext.push('/trail/create/edit', extra: draft)
+    ↓
+router_provider.dart's existing '/trail/create/edit' route (UNCHANGED)
+    ↓
+TrailCreateScreen(trail: draft) — UNCHANGED, same TrailForm/TrailMap/TrailSave flow
 ```
 
-### Navigation Launch — Network Path (No Cache / Online)
+## Integration Points — Direct Answers
 
+### (1) Where does the new Riverpod provider fit?
+
+**New file:** `app/lib/provider/route_planner_provider.dart`, **top-level** (not `provider/trail/`), `@riverpod class RoutePlanner extends _$RoutePlanner` (codegen, `part 'route_planner_provider.g.dart'`). Rationale: it mirrors `navigation_provider.dart`'s placement — ephemeral, non-record-backed session state — not `trail_save_provider.dart`'s placement, which is record-backed CRUD. No `family` parameter is needed (unlike `navigationProvider(response, ...)`, which is keyed by the trail being navigated) since there is exactly one planner session per screen instance; default `autoDispose` is correct (no `@Riverpod(keepAlive: true)`) since the state should not outlive the screen.
+
+### (2) Reusing the `TrailMap`/`onMapCreated` handoff for tap-to-add + drag
+
+**Confirmed: no map-wide `GestureDetector` is needed, and native `onMapClick`/marker-drag callbacks are NOT how this app does it today.** The established, already-shipping pattern (`trail_map.dart` + `trail_layer.dart`'s `TrailMarkerLayer`, consumed by `trail_create_screen.dart`) is:
+- **Tap-to-add:** the native `ml.MapEventClick` event, forwarded through `TrailMap.onTap` (see `trail_map.dart:215-219`). Reuse this exact forwarding shape in the new `RoutePlannerMap`.
+- **Drag:** a per-`ml.Marker` `GestureDetector` (`onPanStart`/`onPanUpdate`/`onPanEnd`) living inside a single `ml.WidgetLayer`, not a native drag callback — `maplibre` 0.3.5 has no such API. Reuse `TrailMarkerLayer`'s exact drag-offset/`toLngLat` conversion logic in the new `RoutePlannerMarkerLayer`.
+- **New capability needed (no precedent exists):** insert-mid-route (tap on the route line itself). Recommended: give the route polyline a dedicated native layer id and use `controller.featuresAtPoint(screenPoint, layerIds: [...])` on `MapEventClick` — the same API `map_screen.dart` already uses for cluster-circle hit-testing (`map_screen.dart:394-398`) — then compute nearest-segment insertion index client-side.
+- **Recommendation:** build `route_planner_map.dart` + `route_planner_marker_layer.dart` as new files modeled on this pattern rather than extending `TrailMap`/`TrailMarkerLayer` in place, to avoid touching a component shared by 3 other screens.
+
+### (3) Is a new backend endpoint required for multi-waypoint routing?
+
+**No new backend endpoint is required. Definitive recommendation: call `POST /api/v1/valhalla/route` once per consecutive waypoint pair — NOT `/api/v1/valhalla/navigate`.**
+
+Investigation found the SvelteKit backend already exposes **three** Valhalla proxy endpoints, not one:
+- `POST /api/v1/valhalla/navigate` (`web/src/routes/api/v1/valhalla/navigate/+server.ts`) — wraps Valhalla's **map-matching** action (`shape_match: "map_snap"`, `directions_type: "instructions"`). It is designed to take an *already-known* dense trail track (2-500 points) and snap it to the road network for turn-by-turn narration — this is what `navigation_launch_util.dart` uses today for turn-by-turn nav along a saved trail's full GPX.
+- `POST /api/v1/valhalla/route` (`web/src/routes/api/v1/valhalla/route/+server.ts`) — a thin passthrough to Valhalla's actual **routing** action (`locations: [{lat,lon}, {lat,lon}]`, `costing`). This is Valhalla's real point-to-point path-finding engine.
+- `POST /api/v1/valhalla/height` (`web/src/routes/api/v1/valhalla/height/+server.ts`) — passthrough to Valhalla's elevation/height service (`encoded_polyline` in, `height: number[]` out).
+
+Critically, **the web app already ships this exact feature** (`web/src/lib/stores/valhalla_store.svelte.ts`, function `calculateRouteBetween`) — a route-planner-equivalent that:
+1. Calls `/api/v1/valhalla/route` once per pair of anchor points (`locations: [start, end]`, `costing` derived from the transport mode), not a single multi-waypoint call.
+2. Decodes `trip.legs[0].shape` (encoded polyline — same encoding `PolylineUtil.decode` in the Flutter app already handles).
+3. Calls `/api/v1/valhalla/height` with that segment's `encoded_polyline` to get per-point elevation.
+4. Zips `height[i]` onto each decoded point as `ele`.
+
+This is the exact per-pair pattern the milestone asked about, and it is proven, shipped code, not a hypothesis. `/navigate` is the wrong semantic fit here (it snaps an already-fixed shape rather than route between two arbitrary tapped points, and its `directions_type: "instructions"` response carries maneuver data the planner doesn't need). Recommendation: the Flutter Route Planner should call `/api/v1/valhalla/route` per waypoint pair (via the existing `apiProvider`, whose `baseUrl` already includes `/api/v1` — see `navigation_launch_util.dart:186-191` for the exact call-shape precedent to copy), then `/api/v1/valhalla/height` on the composed shape. **Zero Go or SvelteKit changes are needed** — both endpoints already exist and work; they are simply not yet called from the Flutter app.
+
+### (4) New utility to synthesize a `Gpx` from a live waypoint list
+
+**New function in the existing `app/lib/util/gpx_util.dart`** (not a new file — see Structure Rationale above), e.g.:
+```dart
+Gpx buildGpxFromPoints(List<Geographic> points, {List<double?>? elevations}) {
+  final trkpts = [
+    for (var i = 0; i < points.length; i++)
+      Wpt(lat: points[i].lat, lon: points[i].lon,
+          ele: elevations != null && i < elevations.length ? elevations[i] : null),
+  ];
+  return Gpx()..trks = [Trk(trksegs: [Trkseg(trkpts: trkpts)])];
+}
 ```
-launchNavigation(context, ref, trail)
-  → [cache miss — navigationJson is null]
-  → _api.post('/valhalla/navigate', ...)              // unchanged existing flow
-  → context.push('/trail/${trail.id}/navigate', extra: response)
+Confirmed via the `gpx` package (v2.3.0, already a pinned dependency) source: `Gpx`, `Trk`, `Trkseg` all have simple mutable-field/named constructors with no required arguments, so this is a straightforward, dependency-free addition. No app code currently constructs a `Gpx` object (only `GpxReader().fromString(...)` is used elsewhere) — this is genuinely new territory, but small and isolated. This is the direct structural inverse of the existing `buildNavShape(List<Geographic>) → shape` in the same file, keeping the file as the single Gpx-conversion home.
+
+### (5) Does the Go backend have a separate elevation-lookup service?
+
+**No — confirmed by search of the entire `db/` Go backend: there is no elevation/height service or endpoint there.** Every Go-side "elevation" hit is the `trails.elevation_gain`/`elevation_loss` schema fields (post-hoc computed stats on a saved trail), not a live lookup service. **However, elevation does NOT need to be omitted at planning time** — the elevation source already exists, just one layer up: SvelteKit's `POST /api/v1/valhalla/height` (`web/src/routes/api/v1/valhalla/height/+server.ts`), which proxies Valhalla's own height/elevation service directly (independent of `/navigate`, independent of Go/`db/`). It is unused by the Flutter app today (only `/navigate` is called, which carries no elevation), but is fully wired, environment-configured (`VALHALLA_HEIGHT_URL`), and already proven in production by the web app's `calculateRouteBetween` (see Q3). Recommendation: call it directly from Flutter with an `encoded_polyline` (reuse `PolylineUtil.encode`) exactly as the web store does, and feed the returned `height[]` array into `buildGpxFromPoints`'s `elevations` parameter. Zero new backend work.
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Wrapping the whole `RoutePlannerMap` in a Flutter `GestureDetector` for tap/drag
+
+**What people do:** Reach for a screen-level `GestureDetector` to capture taps/drags "above" the map widget.
+**Why it's wrong:** It would fight `ml.MapGestures.all()`'s own pan/pinch/rotate recognizers and break normal map panning; this app never does this. Every existing interactive-marker screen puts the `GestureDetector` *inside* each `ml.Marker`'s child within a `ml.WidgetLayer`, and uses the map's own `onEvent`/`MapEventClick` for background taps.
+**Do this instead:** Follow `TrailMarkerLayer`'s per-marker `GestureDetector` + `TrailMap.onTap`'s native-click-forwarding split exactly (see Pattern 2).
+
+### Anti-Pattern 2: Calling `/api/v1/valhalla/navigate` for point-to-point auto-routing
+
+**What people do:** Reuse the one Valhalla endpoint the mobile app already calls, assuming "it does routing."
+**Why it's wrong:** `/navigate` performs map-matching (`shape_match: map_snap`) of an *already-known* path, not point-to-point route-finding between two arbitrary taps — semantically wrong for what auto-routing needs, and it returns maneuver instructions the planner has no use for.
+**Instead:** Call `/api/v1/valhalla/route` (Valhalla's actual routing action) per waypoint pair — see Q3 above. This is proven by the web app's own equivalent feature.
+
+### Anti-Pattern 3: Introducing a second "pending trail" global for the planner handoff
+
+**What people do:** Add a new module-level `pendingPlannedTrail` variable in a new file to mirror `trail_import_util.dart`'s pattern.
+**Why it's wrong:** `pendingImportedTrail`'s existence is specifically to survive a documented go_router `extra`-loss race (`RouteMatchListCodec` dropping non-JSON `extra` on same-process refresh). A second, independent global creates two competing safety nets and doubles the surface area for that race to resurface.
+**Instead:** Reuse the existing `pendingImportedTrail` global via a new function added to `trail_import_util.dart` (see Q4/Structure Rationale).
+
+## Pitfall Found During Research: `GlobalSearchScreen`'s location tile is hardcoded to `/map`
+
+The milestone context assumes "Search-to-focus map panning via existing GlobalSearchScreen flow" is a drop-in reusable pattern. Investigation of `app/lib/routes/global_search_screen.dart` (`_LocationTile.onTap`, line 327-330) found it does:
+```dart
+onTap: () => context.go('/map', extra: {'lat': ..., 'lon': ..., 'zoom': 13.0}),
 ```
+This is hardcoded to navigate (`context.go`, replacing the stack) straight to `/map` — it has no concept of "return to whichever screen opened me." For the Route Planner to reuse this flow (pan its *own* map, not navigate away to `/map`), `global_search_screen.dart` needs a small, additive modification: either (a) an optional callback/route-target parameter on `GlobalSearchScreen` defaulting to today's `/map` behavior, or (b) switch the location tile to `context.pop(location)` when the search screen was pushed for a "pick a location" purpose (distinguishable via a constructor flag), with the Route Planner using `context.push<LocationSearchResult>('/search')` and awaiting the popped result to re-center its own map. This is a real, small, necessary modification — flag it explicitly in phase planning rather than assuming zero-touch reuse.
 
-### Key Invariant
+## Build Order Recommendation (dependency-ordered)
 
-`NavigationScreen` and `navigationProvider` receive a `NavigateResponse` object regardless of whether it came from cache or network. No changes are needed downstream of the push.
+1. **Provider + pure utilities first** (`route_planner_provider.dart`, `gpx_util.dart`'s `buildGpxFromPoints`, the `/valhalla/route` + `/valhalla/height` call sequence as an imperative method) — testable without any UI, and every other piece depends on this state shape existing.
+2. **Map interaction layer** (`route_planner_map.dart`, `route_planner_marker_layer.dart`) — wire tap-to-add/drag/insert against the provider from step 1; this is the highest-uncertainty new code (insert-mid-route hit-testing has no precedent) so de-risk it early, before sheet/elevation UI is built on top.
+3. **Screen shell + sheet/elevation UI** (`route_planner_screen.dart`): waypoint list `DraggableScrollableSheet` (reuse the established snapSizes/`ValueNotifier<double>` pattern from `map_screen.dart`/`trail_create_screen.dart`), `_buildButtonRow`-style control buttons for auto-routing toggle + profile switch + sheet↔elevation toggle, `ElevationProfile(gpx: state.routeGpx, trail: <stub>)` reused as-is.
+4. **Search-to-focus wiring**: requires the `global_search_screen.dart` modification identified above; do this after the screen shell exists so there's a concrete "re-center my map" target to wire the popped result into.
+5. **Handoff last**: `trail_import_util.dart`'s new `handoffPlannedRoute()`, the `router_provider.dart` route registration, and the `trail_source_select_screen.dart` one-line entry-point wire-up. Ordering this last means the entry point only goes live once the full screen behind it actually works, avoiding a dead/broken route being reachable mid-phase-plan.
+
+## Sources
+
+All findings are first-party, from direct reads of this repository (no external documentation needed):
+- `app/lib/provider/router_provider.dart` — existing route table, `/trail/create` vs `/trail/create/edit` nesting
+- `app/lib/routes/map_screen.dart` — DraggableScrollableSheet/snapSizes pattern, `featuresAtPoint` hit-testing precedent
+- `app/lib/routes/navigation_screen.dart`, `app/lib/provider/navigation_provider.dart` — ephemeral top-level provider placement precedent, `_buildButtonRow`/elevation-toggle sheet pattern
+- `app/lib/routes/trail_create_screen.dart` — synthesized-stub-`Trail` + `TrailMap` interaction precedent (exact tap/drag wiring)
+- `app/lib/components/base/trail_map.dart`, `app/lib/components/base/trail_collection_map.dart` — `onMapCreated`/`onStyleLoaded` handoff pattern
+- `app/lib/components/map/trail_layer.dart` (`TrailMarkerLayer`) — per-marker `GestureDetector` drag implementation
+- `app/lib/util/trail_import_util.dart` — `pendingImportedTrail` global + import-to-draft-`Trail` precedent
+- `app/lib/util/gpx_util.dart` — `buildNavShape`, `costingForCategory`, `GpxMappingUtils` (existing Gpx-bridging home)
+- `app/lib/util/navigation_launch_util.dart` — exact `/valhalla/navigate` call shape via `apiProvider`
+- `app/lib/util/polyline_util.dart` — polyline encode/decode already available for `/valhalla/height`'s `encoded_polyline`
+- `app/lib/models/navigate_response.dart`, `app/lib/models/waypoint.dart`, `app/lib/models/trail.dart` — model shapes for handoff
+- `app/lib/routes/trail_source_select_screen.dart` — existing "Planner" card entry point (`_comingSoon` placeholder)
+- `app/lib/routes/global_search_screen.dart` — location-tile hardcoded `/map` navigation (pitfall)
+- `web/src/routes/api/v1/valhalla/navigate/+server.ts`, `.../route/+server.ts`, `.../height/+server.ts` — the three distinct existing Valhalla proxy endpoints and their exact contracts
+- `web/src/lib/stores/valhalla_store.svelte.ts` — the web app's shipped route-planner-equivalent (`calculateRouteBetween`, undo/redo via `json-diff-ts`), proving the per-pair `/route` + `/height` pattern in production
+- `db/` (grep across all `.go` files) — confirmed no elevation/height service exists Go-side
+- `.pub-cache/hosted/pub.dev/gpx-2.3.0/lib/src/model/{gpx,trk,trkseg,wpt}.dart` — confirmed `Gpx`/`Trk`/`Trkseg`/`Wpt` constructor shapes for `buildGpxFromPoints`
+- `.planning/PROJECT.md` — v1.5 milestone scope, constraints, out-of-scope list (car costing, editing existing trails, per-segment profiles, offline route caching)
 
 ---
-
-## Build Order
-
-The following sequence minimises broken-build windows and respects code-generation dependencies.
-
-### Step 1 — Entity schema (no codegen, but triggers ObjectBox regeneration)
-
-Add `String? navigationJson` to `TrailEntity`. Run `dart run build_runner build` to regenerate `objectbox.g.dart` with the new schema version. Verify the generated `_TrailEntityBinding` includes the new property.
-
-**Dependency:** Must complete before any code reads or writes `navigationJson` at runtime.
-
-### Step 2 — Shared shape helper
-
-Extract `_buildShape(List<Wpt> points)` from `navigation_launch_util.dart` into a private or package-level function. This is a pure refactor — existing behaviour of `launchNavigation` is unchanged. Verify via existing unit tests if present.
-
-**Dependency:** Must complete before Step 3 (download service) consumes it.
-
-### Step 3 — Download service: cache write
-
-Add the Valhalla call + `entity.navigationJson` assignment to `TrailDownloadService.downloadTrail`. Error is swallowed (logged, not rethrown). Manually test: download a trail, inspect the entity in debug, confirm `navigationJson` is populated.
-
-**Dependency:** Requires Step 1 (field exists) and Step 2 (shared shape helper).
-
-### Step 4 — `launchNavigation`: cache-first read
-
-Add the cache lookup block before the existing `api.post` call. Guard for `null` / empty response as the existing code does. Manual test: with device in airplane mode, tap Navigate on a downloaded trail — should launch instantly from cache. With device online and no cache, should fall back to network normally.
-
-**Dependency:** Requires Step 1 (field readable from entity).
-
-### Step 5 — Integration smoke test
-
-End-to-end: download a trail on Wi-Fi, enable airplane mode, launch navigation. Confirm the navigation screen appears with correct maneuvers and shape. Confirm that navigating a non-downloaded trail online still works.
-
----
-
-## Confidence Assessment
-
-| Area | Confidence | Basis |
-|------|------------|-------|
-| Entity field placement (blob vs. entity) | HIGH | Direct code read of `TrailEntity`, `WaypointEntity`, `gpxData` precedent, ObjectBox nullable field semantics |
-| Download trigger point | HIGH | Full read of `TrailDownloadService.downloadTrail`; clear sequential structure with single ObjectBox write at end |
-| Cache-first strategy | HIGH | PROJECT.md requirement explicitly states offline-first intent; Dio timeout behaviour well understood |
-| No new provider needed | HIGH | `launchNavigation` already has `WidgetRef`; `TrailDownloadService` already has `Store`; no reactive UI need identified |
-| ObjectBox schema migration safety | MEDIUM | Nullable field additions are documented as non-breaking in ObjectBox Flutter docs; not verified against the exact 5.3.1 changelog |
-| `NavigateResponse` JSON round-trip | HIGH | `json_serializable` codegen confirmed present in `navigate_response.g.dart`; `toJson`/`fromJson` already exercised in the existing online flow |
+*Architecture research for: Wanderer Route Planner screen (v1.5 milestone)*
+*Researched: 2026-07-16*

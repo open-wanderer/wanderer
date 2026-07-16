@@ -1,170 +1,158 @@
-# Research Summary: Offline Navigation (v1.1)
+# Project Research Summary
 
-**Project:** Wanderer — v1.1 Offline Navigation
-**Domain:** Flutter offline navigation caching (Valhalla instructions + ObjectBox)
-**Researched:** 2026-06-14
+**Project:** Wanderer v1.5 Route Planner
+**Domain:** Interactive multi-waypoint route-planning UI on native-GL map (Flutter/Riverpod mobile app)
+**Researched:** 2026-07-16
 **Confidence:** HIGH
-
----
 
 ## Executive Summary
 
-Offline navigation in Wanderer v1.1 is a caching problem, not a routing problem. The goal is to persist Valhalla turn-by-turn instructions at trail-download time so that `launchNavigation` can serve them from ObjectBox when no network is available. This is structurally identical to how the existing download flow already caches GPX data and PMTile cells — add one more async step (`POST /valhalla/navigate`), serialize the response to a `String?` field on `TrailEntity`, and fall back to that field in `launchNavigation` when the network call fails. No new routing engine, no new persistence layer, no new provider is needed.
+This is a mobile route-planning feature (tap/drag/insert/delete/reorder waypoints, auto-routing toggle, undo/redo, live elevation/distance stats) added to Wanderer's existing Flutter app, in the same category as Komoot, Strava Route Builder, and gpx.studio. The research is unusually strong: the web app already ships an equivalent feature (`valhalla_store.svelte.ts`'s `calculateRouteBetween`), the exact SvelteKit/Valhalla backend endpoints already exist and require zero changes (`/api/v1/valhalla/route`, `/api/v1/valhalla/height`), and the Flutter side already has near-identical map-interaction precedent (`TrailMarkerLayer`'s per-marker `GestureDetector` + `MapController.toLngLat`). No new pubspec dependencies are required.
 
-The recommended approach is network-first with Dio-catch fallback in `launchNavigation` (try network, catch DioException → read ObjectBox) with a best-effort silent write during `downloadTrail` (swallow Valhalla errors so a Valhalla outage cannot block a map-tile download). Industry references (Komoot, AllTrails, Gaia GPS) all follow this same invisible-to-the-user pattern: "download = ready to navigate offline," no separate download step, no staleness UI.
+The recommended approach: build a new ephemeral, top-level `@riverpod class RoutePlanner` provider (mirroring `navigation_provider.dart`, not the record-backed `provider/trail/*` providers) that holds waypoints, undo/redo stacks, auto-routing flag/profile, and a synthesized `Gpx`. Map interaction is a new `RoutePlannerMap`/`RoutePlannerMarkerLayer` pair modeled on (not extending) `TrailMap`/`TrailMarkerLayer`, to avoid touching a component shared by 3+ other screens. Routing calls Valhalla's `/route` endpoint per consecutive waypoint pair (never `/navigate`, which is map-matching, not routing) plus `/height` for elevation — exactly mirroring the web implementation. Handoff to the existing `trail_create_screen` reuses the `pendingImportedTrail` global pattern from GPX import, requiring one new `Trail`/`Gpx` synthesis function.
 
-The single most critical risk is a serialization bug in the current codebase: `NavigateResponse.toJson()` silently produces corrupt JSON for the `maneuvers` list because `@JsonSerializable(explicitToJson: true)` is missing. This must be fixed and verified with a roundtrip unit test **before** any ObjectBox write logic is wired up. The second risk class is connectivity detection: `connectivity_plus` and `internet_connection_checker_plus` both have known false-positive/false-negative failure modes in outdoor environments (captive portals, VPN). The safer and simpler approach is to skip connectivity checking entirely and use Dio try-catch as the sole gate.
+The primary risks are all state/interaction-timing bugs, not technology gaps: gesture-arena conflicts between marker-drag and map-pan, un-debounced Valhalla calls causing request storms during drag, out-of-order async responses overwriting newer edits with stale ones, undo/redo capturing derived (not source-of-truth) state, and mixing fast local drag state with async network state in one Riverpod notifier. All five are well-understood with concrete prevention patterns (generation counters, debounce-in-provider, split sync/async providers, gesture-disable-during-drag) — none require new packages, but all require deliberate architecture decisions made early rather than retrofitted.
 
----
+## Key Findings
 
-## Stack Additions
+### Recommended Stack
 
-### New Package: None recommended
+No new pubspec dependencies are required. The existing pinned stack (`package:maplibre` 0.3.5, `flutter_riverpod`/`riverpod_annotation` 3.3.1/4.0.2, `freezed` 3.2.5, `package:gpx` 2.3.0) covers every requirement, confirmed by reading the actual installed package sources rather than relying on training data.
 
-STACK.md recommends `internet_connection_checker_plus ^3.0.1` as a pre-check before the network call. PITFALLS.md directly contradicts this: connectivity packages report network-interface state, not actual internet reachability. A hiker on a captive portal gets `hasInternetAccess: true` but the Dio POST times out. A hiker using a VPN gets `hasInternetAccess: false` even with full connectivity.
+**Core technologies:**
+- `package:maplibre` (`ml.WidgetLayer`/`ml.Marker`) — map rendering and waypoint pins; has no native drag support, so drag is a ~40-line custom `GestureDetector` + `MapController.toLngLat(Offset)` synchronous conversion, not a library gap.
+- `flutter_riverpod` (`@riverpod class RoutePlanner extends _$RoutePlanner`) — route-plan state container with imperative add/move/insert/delete/reorder/undo/redo methods, matching the existing `TrailSave`/`Navigation` idiom.
+- `freezed` — immutable `RoutePlanState`/`RoutePlanWaypoint` models; remember the project's known 3.x gotcha (`@JsonSerializable(explicitToJson: true)` must sit on the factory constructor, not the class).
+- `package:gpx` — synthesizing a `Gpx` object (`Gpx`/`Trk`/`Trkseg`/`Wpt`) from the in-memory route for `ElevationProfile` and GPX handoff; a new `buildGpxFromPoints` helper is the structural inverse of the existing `buildNavShape`.
+- Hand-rolled `List<RoutePlanState>` snapshot-stack undo/redo — simpler than the optional `undo` package (rodydavis, 1.6.0) given the route plan's small state size; prefer this unless action variety grows large.
 
-**Recommendation: Use Dio try-catch, not a connectivity package.**
+### Expected Features
 
-```dart
-NavigateResponse? response;
-try {
-  response = await _fetchFromNetwork(trail);
-} on DioException {
-  response = _readFromCache(trail.id);  // ObjectBox lookup
-}
-if (response == null) {
-  showError(l10n.couldnt_start_navigation);
-  return;
-}
-```
+Verified against Komoot, Strava Route Builder, gpx.studio, and OsmAnd documentation, cross-checked against Wanderer's own PROJECT.md scope.
 
-This handles no internet, captive portal, VPN false-negative, server down, and timeout — all in one block, with no new dependency.
+**Must have (table stakes):**
+- Tap-to-add, drag-to-reposition, insert-mid-segment, delete, and reorder waypoints — the entire editing surface; missing any one makes the tool feel half-built.
+- Undo/redo — mobile drag precision is worse than desktop; users will mis-place waypoints and need a cheap recovery path.
+- Auto-routing toggle (Valhalla, foot/bike) vs. straight-line, re-resolved on toggle/profile change.
+- Live distance/elevation stats + elevation profile view (reusing existing `GpxMappingUtils.getTotals()` and `ElevationProfile` widget).
+- Search-to-focus panning (reuse `GlobalSearchScreen`, though it needs a small modification — see Architecture).
+- Handoff to `trail_create_screen` as a draft `Trail`.
 
-### Existing Package: ObjectBox 5.3.1 (no version change)
+**Should have (competitive, already in scope):**
+- Foot/bike profile switch mid-plan with instant re-routing (already in Active scope).
+- Trail-category-aware waypoint icons reusing the existing icon system.
 
-Add `String? navCacheJson` to the existing `TrailEntity`. Store `jsonEncode(response.toJson())`. Retrieve with `NavigateResponse.fromJson(jsonDecode(entity.navCacheJson!) as Map<String, dynamic>)`. This follows the existing `gpxData String?` precedent on `TrailEntity`.
+**Defer (v2+):**
+- Offline-aware graceful degradation banner for auto-routing (add after real-world connectivity issues surface).
+- Confirm-placement drag affordance (tap-drop-adjust-confirm) if mis-drops prove common in testing.
+- Per-segment travel profiles, automatic loop generation, multi-day touring, editing an existing trail's route — all explicitly out of scope per PROJECT.md.
+- **Do not build:** route optimization/auto-reorder (conflicts with user-intended waypoint ordering).
 
----
+### Architecture Approach
 
-## Feature Table Stakes
+The new screen is additive: a new top-level ephemeral Riverpod provider (`route_planner_provider.dart`), a new map-interaction pair (`route_planner_map.dart` + `route_planner_marker_layer.dart`) modeled on but not extending `TrailMap`/`TrailMarkerLayer`, and small additive changes to three existing files (`gpx_util.dart` gets `buildGpxFromPoints`, `trail_import_util.dart` gets `handoffPlannedRoute()`, `router_provider.dart` gets one new route). Zero backend changes — `/api/v1/valhalla/route` and `/api/v1/valhalla/height` already exist and are already proven by the web app's own shipped equivalent feature.
 
-| Feature | Location | Complexity |
-|---------|----------|------------|
-| Cache Valhalla instructions in `downloadTrail` | `TrailDownloadService` | Low |
-| Silent offline fallback in `launchNavigation` | `navigation_launch_util.dart` | Low |
-| Persist `navCacheJson` on `TrailEntity` | `trail_entity.dart` + ObjectBox codegen | Low |
-| Graceful no-op if Valhalla unreachable at download time | `downloadTrail` try/catch | Trivial |
+**Major components:**
+1. `RoutePlanner` provider — owns waypoints, undo/redo stacks, auto-routing flag/profile, synthesized `Gpx`; imperative mutation methods with async routing resolution.
+2. `RoutePlannerMap` / `RoutePlannerMarkerLayer` — native-GL map host: tap-to-add via `MapEventClick`, per-marker drag via `GestureDetector` + `toLngLat`, insert-mid-segment via `featuresAtPoint` hit-testing on a dedicated route-line layer (genuinely new, no precedent).
+3. `RoutePlannerScreen` — screen shell: map + mutually-exclusive waypoint-list/elevation-profile bottom sheet + control buttons.
+4. `handoffPlannedRoute()` — builds a draft `Trail` from planner state, reuses the existing `pendingImportedTrail` global, pushes to `/trail/create/edit` (unchanged downstream).
 
-**Anti-features (do not build in v1.1):** stale-cache dialogs, "cached N days ago" UI, user-initiated cache refresh, blocking progress step for Valhalla fetch, offline re-routing.
+**Known gotcha:** `GlobalSearchScreen`'s location tile is hardcoded to `context.go('/map', ...)` — it cannot be reused as a drop-in "pan my own map" flow without a small additive modification (optional callback or pop-with-result pattern). Flag this explicitly during phase planning.
 
-**Differentiators (after table stakes):** offline icon in `NavigationScreen` AppBar when running from cache, re-cache on next online launch (fire-and-forget).
+### Critical Pitfalls
 
----
+1. **Marker-drag vs. map-pan gesture conflict** — both recognizers can claim the same pointer. Avoid by disabling map pan/rotate gestures for the drag's duration (restore on end/cancel/dispose) and using padded `HitTestBehavior.opaque` hit regions.
+2. **Un-debounced Valhalla re-routing on every drag frame** — update straight-line preview locally/instantly, but debounce the actual routing network call (provider-layer `Timer`, not per-`onPanUpdate`), triggering primarily on drag-end.
+3. **Out-of-order async responses overwrite newer edits** — this exact race exists latently today in `map_cluster_search_provider.dart` (debounce-only, no in-flight guard). Add a monotonically increasing request-generation counter (or `CancelToken`) in the routing notifier; discard stale responses. This is the single highest-value pitfall to test explicitly (mock Dio with reversed resolution order).
+4. **Undo/redo capturing derived route geometry instead of source-of-truth waypoints** — never snapshot the Valhalla-derived polyline; always re-derive it (debounced, generation-guarded) after undo/redo restores a waypoint list. Cap undo depth and coalesce per-gesture, not per-frame.
+5. **Combining fast local drag state with async network state in one Riverpod notifier** — split into a synchronous waypoint-list `Notifier` and a separate `AsyncNotifier`/`FutureProvider` for Valhalla-derived geometry; never route per-frame drag updates through `AsyncValue.guard`/`AsyncLoading`.
 
-## Architecture Decisions
+## Implications for Roadmap
 
-**Entity placement:** `String? navCacheJson` on `TrailEntity` directly. Follows `gpxData` precedent. Non-breaking ObjectBox migration.
+Based on research, suggested phase structure:
 
-**Write point:** After all existing download steps in `downloadTrail`, add a sequential try/catch POST, assign `entity.navCacheJson`, then the existing synchronous `_store.runInTransaction`. Keep it synchronous.
+### Phase 1: Provider Architecture & Pure Utilities
+**Rationale:** Every other piece (map interaction, screen UI, handoff) depends on this state shape existing; also the phase most exposed to Pitfall 5 (combined sync/async provider), which is expensive to retrofit later. Testable without any UI.
+**Delivers:** `RoutePlanner`/waypoint-list split providers, `buildGpxFromPoints()` in `gpx_util.dart`, the Valhalla `/route`+`/height` per-pair call sequence with debounce and generation-guard, hand-rolled undo/redo snapshot stack (source-of-truth waypoints only).
+**Addresses:** Auto-routing toggle, undo/redo, live distance/elevation stats (FEATURES.md table stakes).
+**Avoids:** Pitfall 2 (un-debounced routing), Pitfall 3 (out-of-order responses), Pitfall 4 (undo storing derived state), Pitfall 5 (combined sync/async provider).
 
-**Read strategy:** Network-first, catch DioException → cache. Query ObjectBox only when the network call fails. `NavigationScreen` and `navigationProvider` are unchanged — they receive a `NavigateResponse` regardless of source.
+### Phase 2: Map Interaction Layer
+**Rationale:** Highest-uncertainty new code (insert-mid-route hit-testing has zero precedent in the codebase) — de-risk it early, before UI is built on top. Depends on Phase 1's provider existing to wire callbacks into.
+**Delivers:** `route_planner_map.dart` + `route_planner_marker_layer.dart` — tap-to-add (native `MapEventClick`), per-marker drag (`GestureDetector`+`toLngLat`), insert-mid-segment (`featuresAtPoint` on a dedicated route layer).
+**Uses:** `package:maplibre` `WidgetLayer`/`Marker`/`MapController.toLngLat`, existing `TrailMarkerLayer` drag pattern as reference.
+**Avoids:** Pitfall 1 (gesture-arena conflict between drag and map-pan).
 
-**No new Riverpod provider needed.** `launchNavigation` has `WidgetRef`; `TrailDownloadService` has `Store`. A provider can be added later for the badge UI if needed.
+### Phase 3: Screen Shell & Elevation/List UI
+**Rationale:** Builds the visible screen once the state and map-interaction foundations are proven; reuses established `DraggableScrollableSheet`/`ElevationProfile` patterns almost unmodified.
+**Delivers:** `route_planner_screen.dart` — mutually-exclusive waypoint-list (`ReorderableListView`) / elevation-profile bottom sheet, control buttons (auto-routing toggle, profile switch, undo/redo).
+**Addresses:** Waypoint list view, live elevation profile chart, delete/reorder waypoint UI (FEATURES.md table stakes).
 
-**Data flow:**
-```
-Download: downloadTrail() → [existing steps] → _buildShape() → POST /valhalla/navigate (try/catch) → entity.navCacheJson = jsonEncode(...) → box.put(entity)
+### Phase 4: Search-to-Focus Wiring
+**Rationale:** Requires the screen shell to exist as a concrete "re-center my map" target; also requires the small `GlobalSearchScreen` modification identified in ARCHITECTURE.md (currently hardcoded to `context.go('/map', ...)`, not reusable as-is).
+**Delivers:** Modified `global_search_screen.dart` (optional callback or pop-with-result pattern) wired into `RoutePlannerScreen`.
+**Addresses:** Search-to-focus panning (FEATURES.md table stakes).
 
-Navigate (online): launchNavigation() → POST /valhalla/navigate → context.push(...)
-                   └─ fire-and-forget: update navCacheJson in ObjectBox
+### Phase 5: Handoff to trail_create_screen
+**Rationale:** Ordered last so the entry point (`/trail/create/plan`) only goes live once the full screen behind it actually works, avoiding a dead/broken route reachable mid-build.
+**Delivers:** `handoffPlannedRoute()` in `trail_import_util.dart`, `router_provider.dart` route registration, `trail_source_select_screen.dart` one-line entry-point wire-up.
+**Implements:** Synthesized-stub-Trail pattern (reusing `pendingImportedTrail` global), Trail/Gpx synthesis from planner state.
 
-Navigate (offline/error): launchNavigation() → POST throws DioException → box.query(TrailEntity) → NavigateResponse.fromJson(jsonDecode(navCacheJson!)) → context.push(...)
-```
+### Phase Ordering Rationale
 
----
+- Provider/state-shape decisions (Phase 1) come first because Pitfall 5 (combined sync/async provider) and Pitfall 3 (race conditions) are foundational and expensive to retrofit once UI/undo/routing all depend on a single provider shape.
+- Map interaction (Phase 2) is sequenced before screen UI because it's the highest-uncertainty new code (no precedent for insert-mid-route hit-testing) and should be de-risked early rather than discovered late.
+- Handoff is deliberately last, matching ARCHITECTURE.md's explicit build-order recommendation, so the entry point never exposes a half-working screen.
+- This ordering directly avoids Pitfalls 1-5 by construction: debounce/generation-guard exist before undo/redo is layered on (Pitfall 4's stated hard dependency), and gesture handling is proven before it's wrapped in screen chrome.
 
-## Critical Pitfalls (must fix)
+### Research Flags
 
-### 1. `NavigateResponse.toJson()` missing `explicitToJson: true` — BLOCKING BUG
+Phases likely needing deeper research during planning:
+- **Phase 1 (Provider Architecture):** the generation-counter/CancelToken race-guard pattern is MEDIUM confidence (standard Riverpod community pattern, not verified against this project's exact pinned Riverpod version) — worth a research-phase pass to confirm the exact idiom against `riverpod_annotation` 4.0.2.
+- **Phase 2 (Map Interaction Layer):** `package:maplibre` 0.3.5's exact `MapGestures`/`MapOptions` pan/rotate-disable API surface is MEDIUM confidence (cross-referenced from GitHub discussions and changelog, not confirmed against the exact pinned API by direct source read) — validate with a small implementation spike before committing to the full interaction layer.
 
-`_$NavigateResponseToJson` in `navigate_response.g.dart` writes `maneuvers` as raw Dart objects. `jsonEncode` throws `JsonUnsupportedObjectError` at runtime. The entire offline cache feature is broken without this fix.
-
-**Fix:** Add `@JsonSerializable(explicitToJson: true)` to the `NavigateResponse` freezed source and regenerate. Verify with roundtrip unit test before wiring ObjectBox.
-
-```dart
-test('NavigateResponse toJson/fromJson roundtrip', () {
-  final original = NavigateResponse(
-    maneuvers: [NavigateManeuver(instruction: 'Turn left', length: 0.5, beginShapeIndex: 0, bearing: 0.0, type: 1)],
-    shape: [[47.0, 8.0], [47.1, 8.1]],
-  );
-  final blob = jsonEncode(original.toJson());
-  final decoded = NavigateResponse.fromJson(jsonDecode(blob) as Map<String, dynamic>);
-  expect(decoded.maneuvers.first.instruction, equals('Turn left'));
-});
-```
-
-### 2. ObjectBox unsupported field types silently skipped
-
-`List<List<double>>` and `List<NavigateManeuver>` are both unsupported as ObjectBox native types. The generator silently applies `@Transient()`, field is never persisted, reads always return null.
-
-**Prevention:** Use `String? navCacheJson`. After codegen, verify the field appears in `objectbox-model.json`'s `properties` array for `TrailEntity`.
-
-### 3. `objectbox-model.json` UID conflicts on merge
-
-Two branches adding fields independently get different UIDs. Wrong merge resolution wipes field data silently.
-
-**Prevention:** Commit `objectbox-model.json` immediately after build_runner. Follow ObjectBox UID resolution docs on merge conflicts.
-
-### 4. Connectivity package false positives/negatives
-
-`connectivity_plus` and `internet_connection_checker_plus` both have documented failure modes (captive portals, VPN). Neither should gate the navigation decision.
-
-**Prevention:** Dio try-catch only.
-
-### 5. Unawaited nav cache POST in `downloadTrail`
-
-Adding the Valhalla POST to a `Future.wait` block without explicit error handling can silently swallow failures or propagate and cancel the entire download.
-
-**Prevention:** Sequential try/catch, best-effort, never in `Future.wait`.
-
----
-
-## Watch Out For
-
-| Risk | Mitigation |
-|------|------------|
-| `List<List<double>>` shape roundtrip type coercion | Always deserialize via `NavigateResponse.fromJson()`. Generated code handles `num` → `double`. |
-| Concurrent downloads for same trail racing to `box.put` | Confirm `TrailDownloadProvider` guards against concurrent downloads per trail ID. |
-| Async ObjectBox transaction | Keep `_store.runInTransaction(TxMode.write, ...)` synchronous; `runAsync` can race with `launchNavigation` reads. |
-| Stale `trail.isOffline` model in `launchNavigation` | Never gate cache lookup on `trail.isOffline`. Always query ObjectBox directly. |
-
----
-
-## Recommended Build Order
-
-1. **Fix `NavigateResponse.toJson()` serialization bug** — `@JsonSerializable(explicitToJson: true)`, regenerate, roundtrip unit test. BLOCKING; all other steps depend on this.
-2. **Add `String? navCacheJson` to `TrailEntity`** — run build_runner, verify field in `objectbox-model.json`, commit the JSON file.
-3. **Extract `_buildShape()` helper** — pure refactor shared between download service and `launchNavigation`.
-4. **Download service: cache write** — sequential try/catch POST after tiles, assign `entity.navCacheJson`, existing synchronous transaction.
-5. **`launchNavigation`: cache fallback** — Dio try-catch → ObjectBox read; pass `isOfflineCache` flag to `NavigationScreen`.
-6. **Offline indicator in `NavigationScreen`** — AppBar icon when `isOfflineCache` is true (differentiator).
-
----
+Phases with standard patterns (skip research-phase):
+- **Phase 3 (Screen Shell):** reuses already-shipping `DraggableScrollableSheet`/`ElevationProfile`/`ReorderableListView` patterns verbatim — HIGH confidence, no new research needed.
+- **Phase 5 (Handoff):** reuses the exact, already-shipping `pendingImportedTrail` + `trail_create_screen` pattern from GPX import — HIGH confidence.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack (ObjectBox field approach) | HIGH | `gpxData` precedent confirmed in codebase |
-| Stack (connectivity recommendation) | HIGH | Dio try-catch resolves CONN-1/CONN-2 failure modes |
-| Features | HIGH | Direct codebase analysis of download service and `launchNavigation` |
-| Architecture | HIGH | Integration points confirmed from source reads |
-| Serialization bug | HIGH | Identified from actual generated `navigate_response.g.dart` |
-| ObjectBox migration safety | MEDIUM | Non-breaking nullable additions; not verified against exact 5.3.1 changelog |
+| Stack | HIGH | Verified against actual installed package source (`maplibre_platform_interface`), actual existing SvelteKit endpoints, and actual existing Flutter code — not training data. No new dependencies needed. |
+| Features | MEDIUM-HIGH | Verified against official Komoot/Strava/gpx.studio/OsmAnd documentation plus Wanderer's own existing infrastructure; competitor docs are official support pages (MEDIUM), cross-checked against a working in-repo reference implementation (web app) for HIGH-confidence internal claims. |
+| Architecture | HIGH | Every claim backed by a specific file read in this repo; the web app already ships a near-identical feature, providing a working reference implementation rather than a hypothesis. |
+| Pitfalls | MEDIUM | Grounded in verified existing codebase patterns (HIGH) plus MEDIUM-confidence external verification of `package:maplibre` gesture/coordinate APIs (pub.dev changelog + GitHub discussions; official docs site is thin on gesture internals). |
 
 **Overall confidence:** HIGH
 
----
+### Gaps to Address
 
-*Research completed: 2026-06-14*
+- `package:maplibre` 0.3.5's exact `MapGestures`/`MapOptions` gesture-disable API (pan/rotate booleans) was verified via changelog/GitHub discussion, not direct source read of the exact toggle surface — validate with a quick spike at the start of Phase 2 before committing to the full drag-disable implementation.
+- The Valhalla `/route` and `/height` endpoints currently have no auth check (`event.locals.user`), unlike `/navigate`. Not blocking, but flagged in STACK.md for a one-line confirmation during implementation that this is accepted behavior rather than an oversight, since the Flutter app newly calling these endpoints slightly increases exposure.
+- `GlobalSearchScreen`'s hardcoded `/map` navigation needs a concrete design decision (optional callback vs. pop-with-result) before Phase 4 — flagged, not yet resolved to a single approach.
+
+## Sources
+
+### Primary (HIGH confidence)
+- Direct reads of this repository: `app/lib/util/gpx_util.dart`, `navigation_launch_util.dart`, `trail_import_util.dart`, `components/trail/elevation_profile.dart`, `provider/trail/trail_save_provider.dart`, `provider/router_provider.dart`, `routes/map_screen.dart`, `routes/trail_create_screen.dart`, `components/base/trail_map.dart`, `components/map/trail_layer.dart`, `provider/trail/map_cluster_search_provider.dart`, `routes/global_search_screen.dart`, `routes/trail_source_select_screen.dart`
+- `web/src/lib/stores/valhalla_store.svelte.ts` and `web/src/lib/util/valhalla_anchor_util.ts` — the already-shipped web version of this exact feature (route planner with drag anchors, undo/redo, auto-routing toggle, pairwise Valhalla calls, height lookups).
+- `web/src/routes/api/v1/valhalla/route/+server.ts`, `.../height/+server.ts`, `.../navigate/+server.ts` — confirmed exact existing endpoint contracts.
+- `.pub-cache/hosted/pub.dev/maplibre-0.3.5/lib/src/widget_layer.dart`, `maplibre_platform_interface-0.3.5/lib/src/map_controller.dart` — confirmed `Marker`/`WidgetLayer`/`MapController.toLngLat` API surface directly from installed package source.
+- `.pub-cache/hosted/pub.dev/gpx-2.3.0/lib/src/model/{gpx,trk,trkseg,wpt}.dart` — confirmed constructor shapes for `buildGpxFromPoints`.
+- `.planning/PROJECT.md` — v1.5 milestone scope, constraints, out-of-scope list.
+
+### Secondary (MEDIUM confidence)
+- Official support docs: Komoot (route planning, Android/iOS), Strava (Creating Routes on Mobile), gpx.studio (routing/edit toolbar), OsmAnd (Plan a Route, Map Markers).
+- [maplibre changelog (pub.dev)](https://pub.dev/packages/maplibre/changelog) and [GitHub Discussion #683](https://github.com/maplibre/flutter-maplibre-gl/discussions/683) — gesture-toggle API cross-referenced but not confirmed against exact pinned 0.3.5 surface.
+- Valhalla routing documentation (Stadia Maps guide, Valhalla API reference) — cross-checked against the working web implementation.
+- `undo` package (pub.dev, rodydavis 1.6.0) — presented as optional, not required.
+
+### Tertiary (LOW confidence)
+- General UX blog sources (Eleken, Upslide Design Studio) on touch-target sizing and one-handed mobile UX — used only for general guidance, not product-specific claims.
+- [Marker - MapLibre Flutter docs](https://flutter-maplibre.pages.dev/docs/annotations/markers/) — confirms marker/layer distinction but does not document drag gestures explicitly (verified gap).
+
+---
+*Research completed: 2026-07-16*
 *Ready for roadmap: yes*

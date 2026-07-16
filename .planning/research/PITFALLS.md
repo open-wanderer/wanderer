@@ -1,409 +1,198 @@
 # Pitfalls Research
 
-**Domain:** Offline navigation caching — Flutter + ObjectBox + freezed + Riverpod
-**Project:** Wanderer v1.1 Offline Navigation
-**Researched:** 2026-06-14
-**Scope:** Adding Valhalla navigation instruction caching to an existing download flow
+**Domain:** Interactive draw/edit-on-map feature (multi-waypoint route builder) on a native-GL map (`package:maplibre` 0.3.5, pre-1.0) with Riverpod async state and Valhalla auto-routing
+**Researched:** 2026-07-16
+**Confidence:** MEDIUM — grounded in this codebase's existing map/provider patterns (verified by reading source) plus MEDIUM-confidence external verification of `package:maplibre` gesture/coordinate APIs (pub.dev changelog + GitHub discussions; official docs site is thin on gesture details). No HIGH-confidence Context7 source was available for `package:maplibre` internals.
 
----
+## Critical Pitfalls
 
-## ObjectBox Pitfalls
-
-### Pitfall OBX-1: Dart types that ObjectBox CANNOT store natively
+### Pitfall 1: Marker-drag and map-pan gesture arenas fight for the same pointer
 
 **What goes wrong:**
-You add a field to `TrailEntity` using a type that ObjectBox's code generator does not understand. The generator either throws a build error or silently marks the field `@Transient()`, meaning the data is never persisted.
-
-**Unsupported types that will cause problems:**
-
-| Type | What happens | Fix |
-|------|-------------|-----|
-| `List<NavigateManeuver>` | Build error — ObjectBox supports `List<String>`, `List<int>`, `List<double>`, `List<DateTime>` (homogeneous primitive lists), but NOT `List<CustomObject>` | Serialize to `String` (JSON blob) and store that |
-| `List<List<double>>` | Build error — nested lists are not supported | Serialize to `String` (JSON blob) |
-| `Map<String, dynamic>` | Supported only via `@Property(type: PropertyType.flex)` — cannot use plain `Map` field | Add `@Property(type: PropertyType.flex)` annotation |
-| `NavigateResponse` | Not supported at all — ObjectBox stores scalar fields and primitive lists only | Serialize the entire object to JSON string |
-| `LatLng` / `DateTime` lists with complex types | No — only `List<DateTime>` in isolation is supported | Serialize |
-| `enum` directly | Not supported natively | Use the `dbDifficulty` int proxy pattern already in `TrailEntity` |
-
-**What IS supported natively:**
-- `int`, `double`, `bool`, `String`, `DateTime` (with `@Property(type: PropertyType.dateUtc)`)
-- `List<int>`, `List<double>`, `List<bool>`, `List<String>`, `List<DateTime>` (homogeneous, single-type)
-- `@Property(type: PropertyType.flex)` for `Map<String, dynamic>` or `dynamic` fields
-
-**For storing `NavigateResponse`:**
-The correct approach is a `String? navCacheJson` field on `TrailEntity`, populated with `jsonEncode(response.toJson())`. On read, `NavigateResponse.fromJson(jsonDecode(entity.navCacheJson!) as Map<String, dynamic>)`.
-
-**Source:** ObjectBox property types docs (https://docs.objectbox.io/property-types), confirmed via Context7 `/objectbox/objectbox-dart`
-
----
-
-### Pitfall OBX-2: Adding a new field to an existing entity — the objectbox-model.json trap
-
-**What goes wrong:**
-You add `String? navCacheJson` to `TrailEntity` and run `dart run build_runner build`. ObjectBox assigns a new UID and updates `objectbox-model.json`. This is normally safe. However, three scenarios cause silent or catastrophic data loss:
-
-**Scenario A — Deleted field re-added with a different UID.**
-If you add the field, run build, then delete it and add it back under the same name, ObjectBox will treat the second add as a new property (new UID) rather than the same one. Existing cached data in the old UID column is orphaned. The `retiredPropertyUids` in `objectbox-model.json` protects against reuse, but existing rows now have a column whose UID no longer matches the property — the value reads as null.
-
-**Scenario B — objectbox-model.json is NOT committed / is conflict-resolved wrong.**
-`objectbox-model.json` is the ground truth for UIDs. If two branches each add a field and both get different UIDs, then merging creates a conflict. Resolving it incorrectly (e.g., keeping one branch's entire file) causes the other branch's field UID to be "new" to ObjectBox, wiping that field's data on next open.
-
-**Scenario C — Changing the field type (e.g., `String?` to `Map<String, dynamic>`).**
-ObjectBox does NOT migrate property data when the type changes. The old bytes for the `String` column are not usable as `flex` bytes. Existing rows for that field become corrupt/null. You must treat it as a rename: add the new field under a new name, migrate data in code, then remove the old name in a follow-up.
-
-**Prevention:**
-- Always commit `objectbox-model.json` immediately after running build_runner
-- Never resolve merge conflicts in `objectbox-model.json` by just keeping one side — follow ObjectBox's UID resolution docs
-- Assign `navCacheJson` as a new nullable `String?` field. Don't rename or retype it later
-
-**Source:** https://docs.objectbox.io/advanced/data-model-updates, https://docs.objectbox.io/advanced/meta-model-ids-and-uids
-
----
-
-### Pitfall OBX-3: The `@Transient()` silent no-op
-
-**What goes wrong:**
-If a field type is not supported and ObjectBox cannot generate code for it, the generator marks the field `@Transient()` without a compile error — the build succeeds but the field is never written to disk. You won't notice until the app is restarted and the cache reads back as null.
-
-**Specific risk here:**
-If someone writes `NavigateResponse? navCache` on `TrailEntity` and forgets to serialize it to a String first, the generator adds `@Transient()` silently. Navigation looks like it cached, but reopening the app shows the field as null.
-
-**Detection:**
-After adding any new field, check the generated `objectbox.g.dart` and `objectbox-model.json`. The new field must appear in the entity's `properties` array in the JSON. If it's absent, it's being treated as `@Transient()`.
-
-**Prevention:**
-Only use ObjectBox-supported types. For `NavigateResponse`, use `String? navCacheJson` (serialize via `jsonEncode`) instead of the typed field.
-
----
-
-## Connectivity Detection
-
-### Pitfall CONN-1: connectivity_plus reports "connected" when there is no internet access
-
-**What goes wrong:**
-`connectivity_plus` checks whether a network *interface* is active (Wi-Fi adapter on, mobile radio enabled), not whether actual internet requests will succeed. A device connected to a hotel captive portal, a VPN with a split-tunnel, or an airplane-mode Wi-Fi (no upstream) all report `ConnectivityResult.wifi` or `ConnectivityResult.mobile`.
-
-The official package documentation states explicitly: "Note that on Android, this does not guarantee connection to Internet. For instance, the app might have wifi access but it might be a VPN or a hotel WiFi with no Internet access."
-
-**For this project:**
-If `launchNavigation` checks `connectivity_plus` to decide whether to hit the network or use the cache, it will attempt a Dio POST on a captive portal and hang or time out. The user gets a loading spinner, not a graceful fallback to cached instructions.
-
-**What to do instead:**
-Do NOT gate the network call on connectivity status. Instead:
-1. Always attempt the Dio POST first (with a short timeout, e.g., 6–10 seconds)
-2. If the POST throws `DioException` (timeout, socket error, connection refused), fall back to the ObjectBox cache
-3. Only use `connectivity_plus` as a soft hint (e.g., to suppress the "fetching fresh route" indicator on the UI)
-
-**Source:** Official connectivity_plus README (https://pub.dev/packages/connectivity_plus), confirmed via Context7 `/websites/pub_dev_packages_connectivity_plus`
-
----
-
-### Pitfall CONN-2: VPN causes false `ConnectivityResult.none`
-
-**What goes wrong:**
-The inverse problem. GitHub issue #3810 on the plus_plugins repo documents that `checkConnectivity()` returns `[ConnectivityResult.none]` on Android when only a VPN interface is active. A hiker using a VPN would be told they are offline even with full internet access, and the app would immediately use the stale cache instead of fetching fresh instructions.
-
-**Prevention:**
-Same as CONN-1: use network attempt + error fallback as the truth signal, not `connectivity_plus` status as the gate.
-
-**Source:** https://github.com/fluttercommunity/plus_plugins/issues/3810
-
----
-
-### Pitfall CONN-3: Race between `onConnectivityChanged` stream and actual network readiness
-
-**What goes wrong:**
-When a stream listener fires `ConnectivityResult.mobile` or `ConnectivityResult.wifi`, the underlying TCP stack may not yet have a routable path. Making a Dio request within 50–200 ms of the event fires often results in a `SocketException` even though `connectivity_plus` says connected.
-
-**For this project:**
-This matters if navigation auto-retries after a connectivity-restored event (e.g., "you are back online — refreshing route"). An immediate retry will fail because the interface isn't stable yet.
-
-**Prevention:**
-Add a short debounce (500ms–1s) before acting on a connectivity-restored event, AND wrap the retry in a try/catch that falls back to cache on any `DioException`.
-
----
-
-## Serialization
-
-### Pitfall SER-1: `NavigateResponse.toJson()` does NOT serialize nested `NavigateManeuver` objects without `explicitToJson`
-
-**What goes wrong:**
-`_$NavigateResponseToJson` in the generated `navigate_response.g.dart` currently outputs:
-
-```dart
-Map<String, dynamic> _$NavigateResponseToJson(_NavigateResponse instance) =>
-    <String, dynamic>{'maneuvers': instance.maneuvers, 'shape': instance.shape};
-```
-
-The `maneuvers` value is stored as a raw `List<NavigateManeuver>` (Dart objects), not as `List<Map<String, dynamic>>`. When this map is passed to `jsonEncode()`, Dart calls `.toString()` on each `NavigateManeuver` instance, which produces `NavigateManeuver(instruction: ..., ...)` — a plain Dart debug string. `jsonEncode` throws a `JsonUnsupportedObjectError` at runtime, or if some version of the generated code calls `toJson()` on the list elements, the output may be inconsistent depending on codegen configuration.
+The Route Planner needs tap-to-add, drag-to-move, and insert-mid-line — all pointer gestures — layered on top of a map that also wants to pan/zoom/rotate on the same pointer. `package:maplibre`'s `Marker`/`WidgetLayer` markers are plain Flutter widgets rendered in an overlay above the native GL surface (this is exactly how `cluster_layer`'s unclustered markers already work in this codebase — a `GestureDetector` inside `ml.Marker`). A `GestureDetector.onPanUpdate` on a marker widget does not automatically suppress the map's own pan recognizer underneath: both recognizers can enter the same gesture arena, and depending on `HitTestBehavior` and widget hit-test size, either the map pans while a marker is "being dragged" (waypoint doesn't move, map moves under the finger), or a tap-to-add fires on top of an existing marker because the marker's hit-test region is smaller than its visual icon.
 
 **Why it happens:**
-Freezed delegates JSON generation to `json_serializable`. By default, `json_serializable` does NOT call `.toJson()` on nested objects in lists — it only does so when `explicitToJson: true` is set. The `@JsonSerializable()` annotation on `_NavigateResponse` in the generated `navigate_response.freezed.dart` has no explicit options, so the default applies.
+Flutter's gesture arena resolves per-pointer between whichever recognizers claim it. A `Marker`'s `GestureDetector` wins tap disambiguation reasonably reliably, but pan/drag recognizers are more prone to both firing (or firing in the wrong order) unless the map's own gestures are explicitly disabled for the duration of the drag. This project has no existing precedent for marker-drag (existing markers are tap-only, in `cluster_layer.dart`/`map_screen.dart`), so there is no "copy this pattern" fallback in-repo.
 
-**The fix:**
-Add `@JsonSerializable(explicitToJson: true)` to the `NavigateResponse` factory in the source file OR set `explicit_to_json: true` globally in `build.yaml`. After regenerating, `_$NavigateResponseToJson` will call `.toJson()` on each maneuver:
+**How to avoid:**
+- Use `WidgetLayer`'s `allowInteraction` flag on the waypoint markers so they explicitly claim gesture priority over the underlying map surface (confirmed available in `package:maplibre`, added pre-0.3.5 per pub.dev changelog).
+- On `onPanStart` for a waypoint marker, disable the map's own pan/rotate gestures (the package exposes a `MapOptions`/`MapGestures`-style toggle with independent `pan`/`zoom`/`rotate`/`pitch` booleans — set `pan: false`, `rotate: false` for the drag's duration) and restore them on `onPanEnd`/`onPanCancel`. Do this in a `finally`-equivalent (drag-end AND drag-cancel AND widget dispose) so an interrupted drag (app backgrounded mid-drag) can't leave the map permanently un-pannable.
+- Give the marker hit-test region generous padding beyond the visual icon (`HitTestBehavior.opaque` on a padded `GestureDetector`, not the bare icon bounds) so tap-to-add on empty map vs. tap-to-select-marker vs. drag-to-move don't misfire near icon edges.
+- Route tap-to-add through the map's own `onMapEvent`/`MapEventClick` handler (as `map_screen.dart` already does for cluster taps) rather than a full-map `GestureDetector`, and only treat a click as "add waypoint" when `featuresAtPoint` at that screen point returns no waypoint-layer hits — this mirrors the existing cluster-vs-unclustered-marker disambiguation already proven in this codebase.
 
-```dart
-// After fix:
-Map<String, dynamic> _$NavigateResponseToJson(_NavigateResponse instance) =>
-    <String, dynamic>{
-      'maneuvers': instance.maneuvers.map((e) => e.toJson()).toList(),
-      'shape': instance.shape,
-    };
-```
+**Warning signs:**
+- During manual testing, dragging a waypoint marker also visibly pans the map underneath it.
+- Tapping near (but not exactly on) an existing waypoint adds a new waypoint instead of selecting/dragging the existing one.
+- Drag gesture "sticks" (map stays un-pannable) after backgrounding the app mid-drag or after a drag that ends off-screen.
 
-**Verification test:**
-```dart
-final response = NavigateResponse(
-  maneuvers: [NavigateManeuver(instruction: 'Turn left', length: 0.5, beginShapeIndex: 0)],
-  shape: [[47.0, 8.0], [47.1, 8.1]],
-);
-final encoded = jsonEncode(response.toJson());       // must not throw
-final decoded = NavigateResponse.fromJson(jsonDecode(encoded) as Map<String, dynamic>);
-assert(decoded.maneuvers.first.instruction == 'Turn left');
-```
-
-Run this in a unit test before wiring up ObjectBox storage.
-
-**Phase:** Address in whichever phase adds the cache storage logic. This is a blocking bug — the feature cannot work without fixing it first.
+**Phase to address:**
+Waypoint marker/interaction layer phase (the phase that builds tap-to-add/drag/insert-mid-line) — not the routing phase. This is a map-interaction concern, independent of whether auto-routing is on.
 
 ---
 
-### Pitfall SER-2: `List<List<double>>` shape roundtrip type coercion
+### Pitfall 2: Re-fetching the routed polyline on every waypoint move without debouncing or coalescing
 
 **What goes wrong:**
-`NavigateResponse.shape` is `List<List<double>>`. After a `jsonEncode` → `jsonDecode` roundtrip, `jsonDecode` produces `List<dynamic>` where inner lists are also `List<dynamic>` containing `num` values (not necessarily `double`). If the `fromJson` path casts elements as `(e as num).toDouble()`, the roundtrip is safe. The existing generated code in `navigate_response.g.dart` already handles this correctly:
+If auto-routing calls Valhalla on every `onPanUpdate` frame (or even every `onPanEnd` without debounce) while a user drags a waypoint, the routing provider fires dozens of HTTP requests per drag gesture. Best case this wastes bandwidth/battery and hammers the Valhalla proxy; worst case, responses arrive out of order (see Pitfall 3) and the UI flickers between stale and current route geometry, or redraws the entire `LineStringSource`/`LineStyleLayer` on every intermediate frame, causing visible jank on native GL (each `updateGeoJsonSource` call is a bridge round-trip to the native renderer).
 
-```dart
-shape: (json['shape'] as List<dynamic>)
-    .map((e) => (e as List<dynamic>).map((e) => (e as num).toDouble()).toList())
-    .toList(),
-```
+**Why it happens:**
+It's natural to wire "waypoint moved → re-route" directly to the drag callback because that's the simplest code path, and drag deltas fire at 60-120Hz. Nothing in the drag gesture API forces you to throttle.
 
-**Residual risk:**
-If someone manually writes a `fromJson` or uses `jsonDecode` without going through `NavigateResponse.fromJson`, the cast chain may be skipped and a `TypeError` thrown at runtime when `NavigationProvider` accesses `response.shape`.
+**How to avoid:**
+- Update the **straight-line** (unrouted) segment immediately on every drag frame for responsive visual feedback — this is cheap (local geometry only, no network).
+- Debounce the **Valhalla re-routing call** specifically (not the visual update) using the same `Timer`-based debounce pattern already established in `map_cluster_search_provider.dart` in this codebase (400ms window, cancel-and-restart on each new move) — but see Pitfall 3, because that exact provider has a latent ordering bug that must NOT be copied verbatim.
+- Only trigger re-routing on drag-end (`onPanEnd`) plus a debounce for the case of rapid successive small moves, rather than on every `onPanUpdate` — the fewer distinct trigger points, the less coalescing logic is needed.
+- Batch multi-waypoint edits (e.g., insert-mid-line followed immediately by a drag) into a single re-route request rather than one request per intermediate mutation.
 
-**Prevention:**
-Always deserialize via `NavigateResponse.fromJson(jsonDecode(blob) as Map<String, dynamic>)`. Never deserialize via direct field access on the decoded map.
+**Warning signs:**
+- Network tab / Dio logs show a Valhalla request fired for every pixel of drag movement.
+- Visible route-line flicker or "double lines" briefly rendering during a drag.
+- Battery/network usage spikes noticeably worse than the existing navigation screen's request cadence.
+
+**Phase to address:**
+The auto-routing provider phase, specifically. Debounce belongs in the provider layer (Riverpod notifier), not in the widget's gesture callback — this keeps the debounce testable independent of gesture wiring and matches the existing `map_cluster_search_provider.dart` architecture (debounce lives in the provider, the map screen just calls `searchInBounds`/equivalent).
 
 ---
 
-### Pitfall SER-3: JSON blob stored in ObjectBox becomes stale vs. server-side route changes
+### Pitfall 3: Out-of-order Valhalla responses overwrite a newer route with a stale one
 
 **What goes wrong:**
-The cache stores the Valhalla response at download time. If Valhalla's routing algorithm changes, or the trail GPX is updated, the cached maneuvers still refer to the old shape's `beginShapeIndex` values. The navigation provider will advance through maneuvers based on stale shape indices, potentially skipping maneuvers or never advancing at all.
+A user drags waypoint A, releases, then immediately drags waypoint B before A's routing response returns. Two Valhalla requests are now in flight. If A's response (for the now-outdated waypoint set) resolves *after* B's response (for the current waypoint set) — plausible, since request/response latency is not guaranteed to preserve send order — the route line snaps back to the stale A-based geometry and silently discards the correct B-based one. This is worse than a generic loading-race because the user has already moved on to editing waypoint B and has no visual cue that the map just regressed.
 
-**For this project:**
-The PROJECT.md already accepts this: "Silently use cached version if trail updated since caching." This is an explicit design decision, not a bug to fix. But it must be documented so the implementation does NOT add any logic that validates cache freshness at navigate time (e.g., comparing `trail.updated` to a cached timestamp), because that complexity is out of scope for v1.1.
+**Why it happens:**
+This project already has exactly this shape of bug latent in `map_cluster_search_provider.dart`: `searchInBounds()` debounces the *start* of a request via a single cancelable `Timer`, but once the timer fires and `_executeSearch` begins its `await api.post(...)`, there is no guard preventing a second `_executeSearch` from starting (from a subsequent `searchInBounds` call after the debounce window) while the first is still in flight — both write to `state` via `AsyncValue.guard`, and whichever HTTP call resolves last wins, regardless of which was issued last. For trail-cluster search this is a low-stakes UX blip (a cluster re-render); for the route planner, applying the same pattern to routing means a user's active edit can be visibly clobbered by a stale response.
 
-**Prevention:**
-Store only the JSON blob — no accompanying `cachedAt` or `trailUpdatedAt` field. If a future milestone adds cache invalidation, that can be added then as a new field without breaking the existing schema.
+**How to avoid:**
+- Add a monotonically increasing request generation counter (`int _generation = 0`) in the routing notifier. Increment it on every new routing request; capture the value locally before the `await`; after the `await` resolves, only apply the result to `state` if the captured generation still matches the current `_generation` — otherwise discard silently.
+- Alternatively/additionally, use `dio`'s `CancelToken` to actually cancel the in-flight request when a newer one supersedes it (cheaper than letting a doomed request complete) — the codebase does not yet have any `CancelToken` usage, so this would be a new pattern to introduce deliberately, not copy from elsewhere.
+- Do not reuse `map_cluster_search_provider.dart`'s debounce-only pattern for the routing provider without adding the generation/cancellation guard — flag this explicitly in code review since it's a direct existing-code precedent that looks correct but isn't race-safe.
+
+**Warning signs:**
+- Route line visibly "jumps backward" to an earlier waypoint configuration after a rapid sequence of edits.
+- Integration test that fires two overlapping routing requests with reversed resolution order (mock Dio to resolve the second call first) fails without the guard.
+
+**Phase to address:**
+The auto-routing provider phase. This is the single highest-value pitfall to prevent explicitly with a unit/widget test (mock Dio with controllable resolution order), since it's silent in normal manual testing (requires specific timing to reproduce) but real in production once users edit routes quickly.
 
 ---
 
-## Race Conditions
-
-### Pitfall RACE-1: Navigation launched before download write transaction commits
+### Pitfall 4: Undo/redo stack captures async-in-flight state, replaying a route that doesn't match server truth
 
 **What goes wrong:**
-The download service ends with:
-```dart
-_store.runInTransaction(TxMode.write, () {
-  box.put(entity);
-});
-```
+If undo/redo snapshots the waypoint list *and* the currently-displayed route geometry together, and a snapshot is taken while a routing request is still in flight (or was based on a since-superseded response), undo can restore a route line that was never actually validated against the current waypoint set — e.g., undo brings back waypoints from state N but re-displays the (now stale) route geometry from state N+1's in-flight response. Separately, an unbounded undo stack that stores full route geometry (not just waypoint deltas) per step grows memory usage roughly linearly with edit count on what should be a lightweight planning session.
 
-If navigation is launched immediately after the download "completes" (e.g., the user taps Navigate before the provider rebuilds), the `box.get()` call to read back the cached `navCacheJson` may execute while the write transaction is still pending on the ObjectBox worker isolate. The field reads as null, and the app falls back to a network fetch (correct behavior) or throws (bad behavior if the null check is missing).
+**Why it happens:**
+It's tempting to snapshot "whatever is currently on screen" (waypoints + rendered polyline) as one undo unit for simplicity, rather than treating routed geometry as a *derived* value that should never itself be part of undo history.
 
-**Why ObjectBox transactions are safe in this specific case:**
-`store.runInTransaction(TxMode.write, ...)` with a synchronous callback commits before the call returns. The risk is zero if the write uses the synchronous form. The risk is real if someone changes it to `store.runAsync(...)` — then the future returned by `downloadTrail` could complete before the async transaction commits.
+**How to avoid:**
+- Make the undo/redo stack store only the **source of truth**: the ordered waypoint list (and per-waypoint metadata like manual-vs-routed segment flag). Never snapshot the Valhalla-derived polyline itself — always re-derive it (async, debounced, generation-guarded per Pitfall 3) after an undo/redo restores a waypoint state.
+- Cap the undo stack depth (e.g., last 50 operations) and/or coalesce rapid-fire drag deltas into a single undo entry per completed gesture (one undo step per drag-end, not per `onPanUpdate` frame) — otherwise a single drag gesture could push dozens of undo entries.
+- On undo/redo, treat it exactly like any other waypoint mutation with respect to routing: bump the request generation counter and kick off a fresh (debounced) re-route rather than trying to "restore" a previously cached route response, since that cached response may itself have been superseded or never resolved.
 
-**Prevention:**
-Keep the transaction synchronous (`TxMode.write` with a synchronous callback). Do not switch to `store.runAsync()` for the cache write step just because the surrounding method is async.
+**Warning signs:**
+- Undo restores waypoint positions correctly but the displayed route line doesn't match (still shows the routed path for a different waypoint set until the next edit forces a re-route).
+- Undo stack size grows unbounded during a long editing session (memory profiling shows steady growth tied to drag-frame count, not edit count).
 
-**Detection warning sign:**
-`runInTransaction` is already used correctly in `trail_download_service.dart`. Any PR that replaces it with `runAsync` for the nav cache write step introduces this race.
+**Phase to address:**
+Undo/redo phase, but it has a hard dependency on the auto-routing provider's generation-guard (Pitfall 3) already existing — sequence undo/redo after (or alongside, sharing the same generation-counter primitive as) the routing provider, not before it.
 
 ---
 
-### Pitfall RACE-2: Concurrent downloads writing to the same `TrailEntity`
+### Pitfall 5: Fast-changing local drag state colliding with async server state in the same Riverpod notifier
 
 **What goes wrong:**
-`downloadTrail` creates a `TrailEntity.fromModel(trail)` early (before network calls) and then calls `box.put(entity)` at the end. If the user somehow triggers two concurrent downloads for the same trail (e.g., tapping download twice before the first completes), both calls create independent `TrailEntity` objects with `obxId = 0`. The `@Unique(onConflict: ConflictStrategy.replace)` on the `id` field ensures only one row exists — but whichever write completes last wins, and the first write's `navCacheJson` may be overwritten by a second write that hasn't fetched the nav cache yet (because it started first but the cache fetch hasn't completed).
+A single "route state" `AsyncNotifier`/`Notifier` that holds both (a) the waypoint list actively being dragged (needs to update on every `onPanUpdate` frame, purely local/synchronous) and (b) the Valhalla-derived route geometry (async, network-backed) tends to force every local drag-frame update through the same `state = AsyncData(...)` / `AsyncValue.guard` machinery meant for the async part. This causes two related problems: (1) UI listening to `.isLoading`/`.hasValue` on the combined state flickers into a loading state on every keystroke-equivalent drag frame if the notifier's `build()`/mutation path isn't carefully separated, and (2) per this project's own documented gotcha, any listener closure over `AsyncValue` extension getters (`isLoading`, `hasValue`, etc.) that isn't explicitly typed can silently resolve to `dynamic` and skip resolution entirely — a known project-specific footgun already called out in `PROJECT.md`/CLAUDE.md context, and one this screen is especially exposed to because it will have far more `ref.watch`/`ref.listen` call sites reacting to fine-grained interaction state than any other screen in the app.
 
-**For the nav cache specifically:**
-When adding the `navCacheJson` field, the nav cache Dio POST happens mid-download (after photos, before the `box.put`). If two concurrent downloads race and one completes the nav POST while the other hasn't yet, the final `box.put` from the faster download may be overwritten by the `box.put` from the slower one — which has `navCacheJson = null` because it hasn't completed the POST yet.
+**Why it happens:**
+Riverpod's `AsyncNotifier` is designed around "one async operation → one state," but a route planner naturally has two state cadences (60Hz local drag vs. sub-second network routing) that don't belong in the same async container. Modeling them as one provider is the path of least resistance when scaffolding the screen.
 
-**Prevention:**
-The `TrailDownloadProvider` already uses a Riverpod notifier pattern; enforce that only one download per trail ID can be in-flight by checking the provider state before starting a second. If the download service has no guard, add a `Set<String> _downloading` set to `TrailDownloadService` and skip/throw if the trail ID is already present.
+**How to avoid:**
+- Split into (at least) two providers: a synchronous `Notifier<List<Waypoint>>` (or similar plain, non-async state holder) for the live waypoint list that drag gestures mutate directly and synchronously, and a separate `AsyncNotifier`/`FutureProvider`-family provider for the Valhalla-derived route geometry that `ref.watch`es the waypoint provider (through a debounce boundary, not directly) and only enters loading/error/data states for the actual network call.
+- Never let a per-frame drag update pass through `AsyncValue.guard` or any `state = AsyncLoading()` transition — that machinery is for the routing call only.
+- Everywhere this screen reads `.isLoading`, `.hasValue`, `.value`, or similar `AsyncValue` extension getters inside a `ref.listen`/callback closure, explicitly type the closure parameter (per this project's existing documented convention) rather than relying on inference, since this screen will have significantly more such call sites (drag start/end, undo/redo, routing toggle, profile change) than existing map screens.
+- Reuse the project's existing convention: `.value` (not `.valueOrNull`) for nullable `AsyncValue` access, consistent with the already-documented project preference.
 
----
+**Warning signs:**
+- UI shows a loading spinner/skeleton flicker during marker drag even when auto-routing is toggled off (a sign local drag state is routed through async machinery unnecessarily).
+- A `ref.listen` callback that should react to routing completion silently never fires — check for un-typed closure parameters first.
+- Frame drops during drag correlate with Riverpod provider rebuild counts (verifiable via Riverpod's observer/logging) rather than actual widget rebuild need.
 
-### Pitfall RACE-3: `launchNavigation` reads entity before download marks it offline
-
-**What goes wrong:**
-The flow is:
-1. Download completes → `box.put(entity)` with `navCacheJson` set
-2. Riverpod provider watching the trail entity rebuilds (async — next frame or later)
-3. User taps Navigate
-
-If the tap happens in the same frame as the `box.put` (step 1), the provider may still be serving the pre-download version of `Trail` (where `trail.isOffline == false`). The `launchNavigation` function, if it checks `trail.isOffline` to decide whether to use the cache, will incorrectly branch to the network path.
-
-**Prevention:**
-`launchNavigation` should NOT gate on `trail.isOffline`. Instead:
-1. Always attempt a fresh network fetch first
-2. Catch `DioException` and fall back to the ObjectBox cache
-3. The `isOffline` flag on the model is only for UI display (e.g., showing an "offline available" badge), not for routing logic
+**Phase to address:**
+Provider architecture phase (whichever phase first defines the Route Planner's Riverpod provider set) — this is a foundational state-shape decision that's expensive to retrofit once the UI, undo/redo, and routing phases are all built against a single combined provider.
 
 ---
 
-### Pitfall RACE-4: Unawaited nav cache Dio POST inside `downloadTrail`
+## Technical Debt Patterns
 
-**What goes wrong:**
-If the Valhalla POST is added to `downloadTrail` but not properly awaited — for example, added as a parallel `Future.wait` task alongside photo downloads without proper error handling — a failure of the POST will not cancel or retry the download. The download completes successfully, `box.put` runs, but `navCacheJson` is null because the POST result was dropped on the floor (or the exception was swallowed).
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|-----------------|-----------------|
+| Fire Valhalla request directly on `onPanUpdate` instead of debouncing in the provider | Faster to prototype auto-routing | Request storm, jank, out-of-order overwrites (Pitfalls 2/3) | Never — even a spike/throwaway build should debounce at drag-end |
+| Snapshot rendered polyline into undo stack alongside waypoints | Simpler undo implementation initially | Undo/redo can restore mismatched waypoint/route pairs (Pitfall 4) | Never |
+| One combined `AsyncNotifier` for waypoints + route | Fewer providers to wire initially | Async machinery leaks into every local drag frame (Pitfall 5) | Only for a disposable prototype spike, never for the shipped screen |
+| Skip `CancelToken`/generation guard on first pass, "add it later if it's a problem" | Faster first routing call working end-to-end | Race condition is timing-dependent and easy to miss in manual testing, ships silently broken | Acceptable only if a generation-guard is added before the phase is marked done — do not defer past the routing provider phase |
 
-**Specific risk pattern:**
-```dart
-// WRONG — exception from navPost will be swallowed if not handled in Future.wait
-final results = await Future.wait([
-  _downloadPhotos(...),
-  _fetchNavCache(trail),  // if this throws, Future.wait re-throws but other tasks are not cancelled
-]);
-```
+## Integration Gotchas
 
-The existing `downloadTrail` uses sequential awaits for photos and then a `Future.wait` for map tiles. Inserting the nav fetch without understanding where in this sequence it belongs risks ordering bugs.
+| Integration | Common Mistake | Correct Approach |
+|-------------|-----------------|-------------------|
+| Valhalla (via existing SvelteKit proxy) | Re-fetching per drag frame; not distinguishing "manual segment" vs "routed segment" waypoints in the request payload | Debounce + generation-guard (Pitfall 3); build the request from the full ordered waypoint list each time, tagging profile (foot/bike) explicitly per the existing `costingForCategory` convention in `gpx_util.dart` |
+| `package:maplibre` `WidgetLayer`/`Marker` | Assuming drag "just works" like a native SDK draggable marker; the package has no built-in marker-drag primitive as of 0.3.5 | Implement drag manually: `allowInteraction: true` + manual `GestureDetector` + explicit map-gesture-disable during drag (Pitfall 1) |
+| `package:maplibre` coordinate conversion (`toLngLat`/`toScreenLocation`) | Calling the (async, per the package's 0.3.x API) screen-to-geographic conversion on every drag frame and awaiting it inline, adding latency/jank to drag tracking | Prefer local math from `onPanUpdate`'s `Offset` delta plus a single conversion at drag-start/drag-end where possible; if per-frame conversion is unavoidable, don't block the frame on the `Future` — apply the previous known conversion and reconcile async |
+| `GeoJsonSource` updates for the route line | Calling `removeSource`/`addSource` on every route update (this project's own `cluster_layer.dart` comments explicitly warn this causes "id-collision and flicker risk") | Use `updateGeoJsonSource` on an existing source, exactly as `cluster_layer.dart` already does for cluster data |
+| `onStyleLoaded` re-registration | Forgetting the route-line source/layer must be re-added inside `onStyleLoaded` (theme toggle rebuilds the style and drops added layers/sources — already documented as a project-wide `maplibre` quirk) | Register the route `GeoJsonSource`/`LineStyleLayer` inside the same `onStyleLoaded` callback pattern used by `addClusterLayers`, guarded against the `onStyleLoaded`-before-`onMapCreated` ordering quirk already known in this project |
 
-**Prevention:**
-Fetch the nav cache in a dedicated sequential step with explicit error handling:
-```dart
-String? navCacheJson;
-try {
-  final navResponse = await _fetchNavCache(trail, cancelToken: cancelToken);
-  navCacheJson = jsonEncode(navResponse.toJson());
-} catch (e) {
-  // Nav cache is best-effort — log and continue without it
-  // The download still succeeds; launchNavigation will hit the network instead
-}
-```
-This way a Valhalla outage does not block a trail download.
+## Performance Traps
 
----
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|-----------------|
+| Per-frame `updateGeoJsonSource` calls during drag | Visible stutter/jank on native GL surface, especially on lower-end Android devices | Update the straight-line preview via local geometry only during drag; reserve `updateGeoJsonSource` for debounced routing results | Noticeable even at low waypoint counts (5-10) because each call is a Dart↔native bridge round-trip, not a data-size problem |
+| Elevation profile recomputed synchronously on every waypoint change | UI thread jank when dragging near a large waypoint count | Debounce elevation recompute the same way as routing; consider computing it only when the elevation view is actually visible (mutually exclusive with waypoint list sheet per this milestone's spec) | Becomes visible past roughly a dozen waypoints or on routed (Valhalla-returned, much denser) polylines vs. straight-line segments |
+| Undo stack storing per-frame drag deltas | Memory growth and slow undo/redo traversal in long editing sessions | Coalesce to one undo entry per completed gesture (drag-end), not per frame (Pitfall 4) | Any session with more than a few drag gestures if uncoalesced |
 
-## Prevention Strategies
+## UX Pitfalls
 
-### Strategy P-1: Write and run a roundtrip test before wiring ObjectBox
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-------------------|
+| No visual distinction between a "routing in flight" segment and a settled one | User can't tell if the displayed route reflects their latest edit or a stale/loading one | Show a lightweight in-progress indicator (e.g., dashed/dimmed line) on segments awaiting a routing response, cleared only when the generation-guarded result lands |
+| Silent drop of routing failures (Valhalla unreachable) | Route line appears to just stop updating with no explanation, user assumes the app is broken | Fall back to straight-line segments on routing failure (mirrors this project's existing "online-only, drop and fall back" pattern for navigation) with a visible, dismissible notice, not a silent no-op |
+| Undo/redo with no visible affordance for how many steps are available | User over- or under-taps undo, landing on an unexpected waypoint state | Standard bounded undo stack with disabled-state buttons at the stack boundaries, consistent with the capped-depth approach in Pitfall 4 |
 
-Before adding the `navCacheJson` field to `TrailEntity`, write a standalone Dart unit test:
+## "Looks Done But Isn't" Checklist
 
-```dart
-test('NavigateResponse toJson/fromJson roundtrip', () {
-  final original = NavigateResponse(
-    maneuvers: [
-      NavigateManeuver(instruction: 'Head north', length: 0.3, beginShapeIndex: 0, bearing: 0.0, type: 1),
-    ],
-    shape: [[47.123, 8.456], [47.124, 8.457]],
-  );
-  final blob = jsonEncode(original.toJson());
-  final decoded = NavigateResponse.fromJson(jsonDecode(blob) as Map<String, dynamic>);
-  expect(decoded.maneuvers.first.instruction, equals('Head north'));
-  expect(decoded.shape.first.first, closeTo(47.123, 0.001));
-});
-```
+- [ ] **Marker drag:** Often missing the map-gesture-disable-during-drag step — verify by dragging a waypoint near the screen edge and confirming the map itself doesn't pan.
+- [ ] **Auto-routing debounce:** Often only debounces the request trigger, not response ordering — verify with a test that mocks two overlapping requests resolving out of order and asserts the UI shows the result matching the *last-issued* request, not the last-resolved one.
+- [ ] **Undo/redo:** Often stores derived route geometry instead of re-deriving it — verify by undoing a state, confirming the route line updates only after a fresh (debounced) routing call, not from a cached snapshot.
+- [ ] **Theme toggle mid-edit:** Often forgets to re-register the route-line source/layer inside `onStyleLoaded` — verify by toggling light/dark theme while a route is drawn and confirming the route line survives the style swap.
+- [ ] **Handoff to trail_create_screen:** Often forgets to cancel/clear the routing provider's in-flight generation and debounce timer on navigation away — verify no stray Valhalla response arrives and touches state after the Route Planner screen has been popped (use `ref.onDispose` to cancel, same as `map_cluster_search_provider.dart` already does for its debounce `Timer`).
 
-If this test fails with `JsonUnsupportedObjectError`, the `explicitToJson` fix (Pitfall SER-1) must be applied first.
+## Recovery Strategies
 
----
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|-----------------|------------------|
+| Gesture conflict shipped (map pans during marker drag) | LOW | Add `allowInteraction` + gesture-disable-during-drag; this is additive and doesn't require restructuring provider state |
+| Race condition shipped (stale response overwrites current route) | MEDIUM | Retrofit a generation counter into the existing routing notifier; requires touching every place `state = ...` is assigned after an `await`, but no data model change |
+| Undo/redo stores route geometry directly | MEDIUM-HIGH | Requires reworking undo entries to store only waypoint deltas and re-derive route on restore — touches undo/redo data structure, not just the notifier logic |
+| Combined async+sync provider shipped | HIGH | Splitting one provider into two after UI/undo-redo/routing all depend on the combined shape requires touching most of the screen's `ref.watch` call sites |
 
-### Strategy P-2: Verify ObjectBox code generation before committing
+## Pitfall-to-Phase Mapping
 
-After adding any field to an entity:
-1. Run `dart run build_runner build --delete-conflicting-outputs`
-2. Open `objectbox-model.json` — confirm the new property appears in the entity's `properties` array with a non-zero UID
-3. If it does NOT appear, the field type is unsupported and is being silently skipped
-4. Commit `objectbox-model.json` in the same commit as the entity change
-
----
-
-### Strategy P-3: Use try/catch + fallback as the network/cache decision boundary
-
-The decision logic in `launchNavigation` should be:
-
-```dart
-NavigateResponse? response;
-
-// 1. Always try the network first
-try {
-  response = await _fetchFromNetwork(trail);
-} on DioException {
-  // 2. Fall back to cache on any network failure
-  response = await _readFromCache(trail.id);
-}
-
-// 3. If both fail, show error toast
-if (response == null) {
-  showError(l10n.couldnt_start_navigation);
-  return;
-}
-```
-
-This pattern handles: no internet, captive portal, VPN false negative, server down, timeout. It does not require `connectivity_plus` at all for the navigation decision.
-
----
-
-### Strategy P-4: Keep the nav cache fetch best-effort in `downloadTrail`
-
-Add the nav cache POST as a sequential step that never fails the entire download:
-
-```dart
-// After all photos and map tiles are downloaded:
-String? navCacheJson;
-try {
-  final r = await _fetchNavCache(trail, cancelToken: cancelToken);
-  navCacheJson = jsonEncode(r.toJson());
-} catch (_) {
-  // Best-effort; null means no offline navigation for this trail
-}
-
-final entity = TrailEntity.fromModel(trail);
-entity.navCacheJson = navCacheJson;
-// ... set photos, pmTiles ...
-_store.runInTransaction(TxMode.write, () { box.put(entity); });
-```
-
----
-
-### Strategy P-5: Guard `connectivity_plus` usage
-
-If `connectivity_plus` is added to `pubspec.yaml`, confine its use to:
-- UI hints only (e.g., showing "offline mode" label in the navigation screen)
-- Never use it as a gate on whether to make a network request
-
-Always wrap Dio calls in try/catch regardless of what `connectivity_plus` reports.
-
----
-
-## Phase-Specific Warnings
-
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Add `navCacheJson` to `TrailEntity` | OBX-2 (model.json UID conflicts), OBX-3 (silent @Transient) | Verify field appears in model JSON after build; commit immediately |
-| Serialize `NavigateResponse` to/from String | SER-1 (missing explicitToJson on maneuvers) | Write roundtrip unit test first (Strategy P-1) |
-| Add nav POST call to `downloadTrail` | RACE-4 (unawaited/swallowed future), RACE-2 (concurrent downloads) | Make best-effort with try/catch; don't use Future.wait for this step |
-| Implement fallback in `launchNavigation` | CONN-1 (false positive), CONN-2 (VPN false negative), RACE-3 (stale trail model) | Use try/catch on Dio POST, not connectivity_plus as gate |
-| `List<List<double>>` shape field roundtrip | SER-2 (type coercion) | Always use `NavigateResponse.fromJson()`, never raw map access |
-| `objectbox-model.json` merge conflicts | OBX-2 Scenario B | Resolve conflicts following ObjectBox UID docs; never keep "one side wins" |
-
----
+| Pitfall | Prevention Phase | Verification |
+|---------|-------------------|----------------|
+| Gesture-arena conflict (Pitfall 1) | Waypoint marker/interaction phase | Manual test: drag a waypoint to the screen edge, confirm map doesn't pan; tap near (not on) an existing marker, confirm it doesn't add a duplicate waypoint |
+| Redraw thrashing without debounce (Pitfall 2) | Auto-routing provider phase | Log/count Valhalla requests during a single sustained drag gesture; assert at most one request per debounce window |
+| Out-of-order response race (Pitfall 3) | Auto-routing provider phase | Unit test with mocked Dio resolving two overlapping requests in reverse order; assert final state matches the later-issued request |
+| Undo/redo storing derived state (Pitfall 4) | Undo/redo phase (after routing provider's generation-guard exists) | Undo to a prior waypoint state; assert route geometry is re-fetched (debounced) rather than restored from a cached snapshot |
+| Combined sync/async provider (Pitfall 5) | Provider architecture phase (first phase that defines Route Planner providers) | Riverpod provider observer/log: confirm drag-frame updates never transition the routing provider through `AsyncLoading` |
 
 ## Sources
 
-- ObjectBox property types: https://docs.objectbox.io/property-types
-- ObjectBox data model updates / migration: https://docs.objectbox.io/advanced/data-model-updates
-- ObjectBox meta model / UIDs: https://docs.objectbox.io/advanced/meta-model-ids-and-uids
-- ObjectBox custom types (converters): https://docs.objectbox.io/advanced/custom-types
-- ObjectBox Context7 docs: `/objectbox/objectbox-dart` via Context7 CLI
-- connectivity_plus package: https://pub.dev/packages/connectivity_plus
-- connectivity_plus VPN bug: https://github.com/fluttercommunity/plus_plugins/issues/3810
-- freezed nested toJson issue: https://github.com/rrousselGit/freezed/issues/232
-- freezed nested toJson issue #86: https://github.com/rrousselGit/freezed/issues/86
-- Codebase: `app/lib/entities/trail_entity.dart`, `app/lib/models/navigate_response.dart`, `app/lib/models/navigate_response.g.dart`, `app/lib/services/trail_download_service.dart`
+- Direct source reading of this codebase: `app/lib/routes/map_screen.dart`, `app/lib/components/map/cluster_layer.dart`, `app/lib/provider/trail/map_cluster_search_provider.dart`, `app/lib/util/polyline_util.dart`, `app/lib/util/gpx_util.dart`, `app/pubspec.yaml` — HIGH confidence, these are the project's own existing patterns and latent issues.
+- `.planning/PROJECT.md` — project constraints, decisions, and documented `maplibre` 0.3.5 quirks (`onStyleLoaded`/`onMapCreated` ordering, `file://` sprite issue, `Duration(milliseconds: 1)` camera instant-move) — HIGH confidence, project-authoritative.
+- [maplibre changelog | Flutter package (pub.dev)](https://pub.dev/packages/maplibre/changelog) — MEDIUM confidence: confirms `WidgetLayer` `allowInteraction`, early "disable some or all input gestures" option, `onStyleLoaded` ordering fixes.
+- [Marker - MapLibre Flutter docs](https://flutter-maplibre.pages.dev/docs/annotations/markers/) — LOW-MEDIUM confidence: confirms `MarkerLayer`/`SymbolLayer` distinction but does not document drag gestures explicitly (verified gap, not asserted as fact).
+- [Cannot Make gestureRecognizers Work in Maplibre Flutter · Discussion #683](https://github.com/maplibre/flutter-maplibre-gl/discussions/683) and related GitHub/WebSearch results on `MapOptions`/`MapGestures` (`pan`/`zoom`/`rotate`/`pitch` toggles) and `toLngLat`/`toScreenLocation` async conversion methods — MEDIUM confidence, cross-referenced across multiple search results but not confirmed against exact pinned 0.3.5 API surface (flagged as needing validation during implementation spike).
+- General Riverpod `AsyncNotifier`/generation-counter/`CancelToken` race-guard pattern — MEDIUM confidence: standard, widely-documented Riverpod community pattern for "cancel stale async work," not verified against a specific official Riverpod doc page for this project's pinned version, but consistent with how `ref.onDispose`/`AsyncValue.guard` are already used elsewhere in this codebase.
+
+---
+*Pitfalls research for: Route Planner screen (Flutter mobile app, native-GL map + Riverpod + Valhalla auto-routing)*
+*Researched: 2026-07-16*
