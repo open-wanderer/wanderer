@@ -26,7 +26,7 @@ Requirements for the v1.5 Route Planner milestone. Each maps to a roadmap phase.
 
 - [ ] **PLANUI-01** *(SCOPE CHANGE — see 20-CONTEXT.md)*: A route anchor list and a live elevation profile are available as two tabs of a single persistent bottom sheet (docked at peek height once the route has ≥1 anchor, draggable to expand) — not separate views toggled via map control buttons
 - [x] **PLANUI-02**: The elevation profile is built from a `Gpx` synthesized incrementally from the in-progress route (via `/api/v1/valhalla/height` for elevation, fetched only while the elevation tab is visible) and updates live as the route changes
-- [ ] **PLANUI-03**: User can open a dedicated location-search screen (magnifying-glass map control button) that searches locations only (not trails/lists/accounts) and pans/zooms the planner map to the selected result
+- [x] **PLANUI-03**: User can open a dedicated location-search screen (magnifying-glass map control button) that searches locations only (not trails/lists/accounts) and pans/zooms the planner map to the selected result
 
 ### Handoff
 
@@ -81,7 +81,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROUTE-05 | Phase 19 | Complete |
 | PLANUI-01 | Phase 20 | Pending |
 | PLANUI-02 | Phase 20 | Complete |
-| PLANUI-03 | Phase 20 | Pending |
+| PLANUI-03 | Phase 20 | Complete |
 | HANDOFF-01 | Phase 21 | Pending |
 | HANDOFF-02 | Phase 21 | Pending |
 | HANDOFF-03 | Phase 21 | Pending |
