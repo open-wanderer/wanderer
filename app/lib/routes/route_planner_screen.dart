@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/map/route_anchor_layer.dart';
 import 'package:wanderer/components/map/route_segment_layer.dart';
+import 'package:wanderer/components/route_planner/route_anchor_sheet.dart';
+import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
@@ -47,7 +49,17 @@ class RoutePlannerScreen extends ConsumerStatefulWidget {
 }
 
 class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
-  static final _segmentLayer = RouteSegmentLayer();
+  // Instance field, NOT static: RouteSegmentLayer tracks whether its
+  // source/layers have been added to the CURRENT native style via its own
+  // `_added` flag. A `static` field would share that flag (and go stale)
+  // across every mount of this screen for the app's whole lifetime — the
+  // second time this screen opens, the native map/style is a fresh
+  // instance with no source/layers on it yet, but a stale `_added == true`
+  // would make `update()` skip straight to `updateGeoJsonSource` on a
+  // source that was never added to this style, silently failing (caught by
+  // the call site's `.ignore()`) and leaving segments permanently
+  // unrendered. A fresh instance per screen mount keeps `_added` accurate.
+  final _segmentLayer = RouteSegmentLayer();
 
   ml.MapController? _mapController;
 
@@ -59,11 +71,6 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   /// updates to the native layer without waiting for another
   /// `onStyleLoaded` call.
   ml.StyleController? _resolvedStyle;
-
-  /// Flips true the first time an anchor is placed and never re-shown again
-  /// for the rest of this session (even if the anchor list is later emptied
-  /// via undo).
-  bool _hintDismissed = false;
 
   /// Segment keys a retry was just dispatched for, populated by the
   /// blocked-segment tap branch below. Consumed by the blocked-segment
@@ -87,7 +94,6 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         // mutation via updateGeoJsonSource — no remove/re-add flicker.
         _segmentLayer.update(style, next.segments).ignore();
       }
-      if (next.anchors.isNotEmpty) _hintDismissed = true;
 
       for (final segment in next.segments) {
         final key = segmentKey(segment.beforeAnchorId, segment.afterAnchorId);
@@ -162,7 +168,16 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
-      body: _buildMap(context, state, styleJson),
+      body: Stack(
+        children: [
+          Positioned.fill(child: _buildMap(context, state, styleJson)),
+          // D-03: the tabbed sheet mounts only once the route has >=1
+          // anchor, and un-mounts entirely when it returns to empty — it
+          // never shows an empty state of its own.
+          if (state.anchors.isNotEmpty)
+            RouteAnchorSheet(travelProfile: widget.travelProfile),
+        ],
+      ),
     );
   }
 
@@ -179,7 +194,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       options: ml.MapOptions(
         initStyle: styleJson,
         initCenter: widget.initialCenter,
-        initZoom: 15,
+        initZoom: 2,
         gestures: const ml.MapGestures.all(),
         androidForegroundLoadColor: Theme.of(context).colorScheme.surface,
       ),
@@ -245,18 +260,21 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       },
       children: [
         RouteAnchorLayer(travelProfile: widget.travelProfile),
-        // D-06: shared top-right controls slot — Phase 20's future
-        // list/elevation toggle buttons will join this Column, so this does
-        // not assume it is the only child.
-        Align(
-          alignment: Alignment.topRight,
+        // D-06: shared top-right controls slot. D-02 replaced the planned
+        // list/elevation toggle buttons with the tabbed RouteAnchorSheet, so
+        // the search button (D-04) is the one control that joined this
+        // Column in Phase 20 — placed above the auto-routing toggle.
+        Positioned(
+          top: 128,
+          right: 0,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
-            children: [_buildAutoRoutingToggle(state.autoRoutingEnabled)],
+            children: [
+              _buildSearchButton(),
+              _buildAutoRoutingToggle(state.autoRoutingEnabled),
+            ],
           ),
         ),
-        if (state.anchors.isEmpty && !_hintDismissed)
-          const Center(child: Text('Tap the map to start your route.')),
       ],
     );
   }
@@ -273,6 +291,48 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
           ref.read(routeAnchorsProvider(widget.travelProfile)).segments,
         )
         .ignore();
+  }
+
+  /// D-04: top-right pill control opening the location search. Matches
+  /// `_buildAutoRoutingToggle`'s pill styling exactly, but tinted
+  /// accent-primary always (a stateless action, never dimmed) — unlike the
+  /// toggle, which dims when auto-routing is off.
+  Widget _buildSearchButton() {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).canvasColor,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: 'Search location',
+          icon: FaIcon(
+            FontAwesomeIcons.magnifyingGlass,
+            size: 18,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xff3E435B)
+                : const Color(0xff242734),
+          ),
+          onPressed: _openLocationSearch,
+        ),
+      ),
+    );
+  }
+
+  /// D-14/D-15: pushes the location-search screen, awaits the selected
+  /// [LocationSearchResult], then pans the map to it at a fixed zoom of 13
+  /// with an animated (not instant) camera move.
+  Future<void> _openLocationSearch() async {
+    final result = await context.push<LocationSearchResult>('/location-search');
+    if (!mounted || result == null || _mapController == null) return;
+
+    _mapController!.animateCamera(
+      center: ml.Geographic(lat: result.lat, lon: result.lon),
+      zoom: 13,
+      nativeDuration: const Duration(milliseconds: 750),
+    );
   }
 
   /// D-06: top-right pill control toggling ROUTE-01/02's auto-routing flag.
