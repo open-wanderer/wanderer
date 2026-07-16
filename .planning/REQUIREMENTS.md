@@ -12,8 +12,8 @@ Requirements for the v1.5 Route Planner milestone. Each maps to a roadmap phase.
 - [x] **WAYP-01**: User can tap the map to add a waypoint to the in-progress route
 - [x] **WAYP-02**: User can drag an existing waypoint to reposition it, with connected segments re-resolving
 - [x] **WAYP-03**: User can tap an existing route segment to insert a new waypoint between its endpoints
-- [ ] **WAYP-04**: User can delete a route anchor from the route anchor list tab
-- [ ] **WAYP-05**: User can reorder route anchors via the route anchor list tab
+- [x] **WAYP-04**: User can delete a route anchor from the route anchor list tab
+- [x] **WAYP-05**: User can reorder route anchors via the route anchor list tab
 
 ### Routing
 
@@ -25,7 +25,7 @@ Requirements for the v1.5 Route Planner milestone. Each maps to a roadmap phase.
 ### Planning UI
 
 - [ ] **PLANUI-01** *(SCOPE CHANGE — see 20-CONTEXT.md)*: A route anchor list and a live elevation profile are available as two tabs of a single persistent bottom sheet (docked at peek height once the route has ≥1 anchor, draggable to expand) — not separate views toggled via map control buttons
-- [ ] **PLANUI-02**: The elevation profile is built from a `Gpx` synthesized incrementally from the in-progress route (via `/api/v1/valhalla/height` for elevation, fetched only while the elevation tab is visible) and updates live as the route changes
+- [x] **PLANUI-02**: The elevation profile is built from a `Gpx` synthesized incrementally from the in-progress route (via `/api/v1/valhalla/height` for elevation, fetched only while the elevation tab is visible) and updates live as the route changes
 - [ ] **PLANUI-03**: User can open a dedicated location-search screen (magnifying-glass map control button) that searches locations only (not trails/lists/accounts) and pans/zooms the planner map to the selected result
 
 ### Handoff
@@ -73,14 +73,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WAYP-01 | Phase 19 | Complete |
 | WAYP-02 | Phase 19 | Complete |
 | WAYP-03 | Phase 19 | Complete |
-| WAYP-04 | Phase 20 | Pending |
-| WAYP-05 | Phase 20 | Pending |
+| WAYP-04 | Phase 20 | Complete |
+| WAYP-05 | Phase 20 | Complete |
 | ROUTE-01 | Phase 19 | Complete |
 | ROUTE-02 | Phase 19 | Complete |
 | ROUTE-04 | Phase 19 | Complete |
 | ROUTE-05 | Phase 19 | Complete |
 | PLANUI-01 | Phase 20 | Pending |
-| PLANUI-02 | Phase 20 | Pending |
+| PLANUI-02 | Phase 20 | Complete |
 | PLANUI-03 | Phase 20 | Pending |
 | HANDOFF-01 | Phase 21 | Pending |
 | HANDOFF-02 | Phase 21 | Pending |

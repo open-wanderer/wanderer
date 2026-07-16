@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Route Planner
-status: completed
-stopped_at: Phase 20 UI-SPEC approved
-last_updated: "2026-07-16T20:39:38.545Z"
-last_activity: 2026-07-16 -- Phase 19 marked complete
+status: executing
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-07-16T21:42:58.489Z"
+last_activity: 2026-07-16 -- Phase 20 execution started
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 9
+  completed_plans: 5
   percent: 33
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 19 — route-planner-core-waypoint-editing-routing-engine
+**Current focus:** Phase 20 — route-planner-views-waypoint-list-elevation-location-search
 
 ## Current Position
 
-Phase: 19 — COMPLETE
-Plan: 4 of 4
-Status: Phase 19 complete
-Last activity: 2026-07-16 -- Phase 19 marked complete
+Phase: 20 (route-planner-views-waypoint-list-elevation-location-search) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-07-16 -- Phase 20 execution started
 
 ## v1.5 Phases
 
@@ -70,6 +70,7 @@ Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/sc
 | Phase 19 P02 | 40min | 2 tasks | 5 files |
 | Phase 19 P03 | 13min | - tasks | - files |
 | Phase 19 P04 | 15min | 2 tasks | 1 files |
+| Phase 20 P01 | 30min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -132,6 +133,8 @@ Recent decisions affecting current work:
 - [Phase 19]: [Phase 19] [19-04] Undo/redo onPressed hoists a local notifier variable + method tear-off instead of an inline closure, so dart format keeps the ternary on one line and satisfies the plan's own literal acceptance-criteria grep
 - [Phase 19]: [19-03, UAT] On-device testing found segment taps (blocked-segment retry, WAYP-03 insert) always fell through to appendAnchor — `route_segment_layer.dart`'s invisible hit-test layer used `line-opacity: 0`, and both native maplibre bindings' `featuresAtPoint` (iOS `visibleFeaturesAtPoint`, Android `queryRenderedFeatures`) exclude fully transparent layers from rendered-feature queries, so the layer never registered a hit. Fixed by changing `line-opacity` to `0.01` (visually indistinguishable from 0, stays eligible for hit-testing). Relevant to any future native-GL invisible hit-test layer in this codebase (e.g. Phase 20/21).
 - [Phase 19]: [19-04, UAT] On-device testing found segment lines never render on a SECOND open of the Route Planner screen in the same app session (markers still work). Root cause: `route_planner_screen.dart`'s `_segmentLayer` was a `static final RouteSegmentLayer()` — `static` means one shared instance (and its internal `_added` flag) for the app's whole lifetime, not per screen mount. First open adds the native source/layers and sets `_added = true`; on exit the native map/style is destroyed but the static `_segmentLayer` survives with `_added` stuck `true`; on re-open, a brand-new style has no source/layers on it, but `update()` sees stale `_added == true` and skips straight to `updateGeoJsonSource` on a source that doesn't exist on this style — fails silently via the call site's `.ignore()`. Fixed by making `_segmentLayer` a plain (non-static) instance field, so it's fresh every mount. Any future `static` field wrapping a native-layer-adding helper with its own "already added" flag needs the same scrutiny.
+- [Phase 20]: [Phase 20] [20-01] deleteAnchor/reorderAnchors mutators found already implemented (uncommitted) matching plan exactly; verified against all acceptance criteria before committing as Task 1 — No rewrite needed -- existing code already satisfied the plan's must_haves truths and passed all new unit tests
+- [Phase 20]: [Phase 20] [20-01] gpx package 2.3.0's Gpx class has no trks: constructor param -- construct Gpx() then assign .trks field — Plan's action text assumed a constructor param that doesn't exist in the installed gpx version; fixed to match the real API
 
 ### Pending Todos
 
@@ -209,9 +212,9 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-16T20:39:38.532Z
-Stopped at: Phase 20 UI-SPEC approved
-Resume file: .planning/phases/20-route-planner-views-waypoint-list-elevation-location-search/20-UI-SPEC.md
+Last session: 2026-07-16T21:42:58.478Z
+Stopped at: Completed 20-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
