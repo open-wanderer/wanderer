@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Route Planner
-status: executing
-stopped_at: Completed 20-04-PLAN.md
-last_updated: "2026-07-16T22:04:34.930Z"
+status: verifying
+stopped_at: Completed 20-05-PLAN.md
+last_updated: "2026-07-16T22:11:05.145Z"
 last_activity: 2026-07-16 -- Phase 20 execution started
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 9
-  completed_plans: 8
-  percent: 33
+  completed_plans: 9
+  percent: 67
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 Phase: 20 (route-planner-views-waypoint-list-elevation-location-search) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-16 -- Phase 20 execution started
 
 ## v1.5 Phases
@@ -74,6 +74,7 @@ Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/sc
 | Phase 20 P02 | 8min | 2 tasks | 2 files |
 | Phase 20 P03 | 20min | 2 tasks | 2 files |
 | Phase 20 P04 | 8min | 1 tasks | 1 files |
+| Phase 20 P05 | 20min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,8 @@ Recent decisions affecting current work:
 - [Phase 20]: [20-03] Height fetch failures swallowed silently (best-effort) -- keeps rendering last successfully-merged Gpx — no error/retry UI specified for this tab in D-11/D-13; avoids error-banner flash on transient network blips
 - [Phase 20]: [20-04] No revert-on-error around reorderAnchors -- it's a synchronous in-memory mutation that cannot throw, unlike the settings_categories_screen.dart async-persist analog
 - [Phase 20]: [20-04] ReorderableListView.builder's scroll-controller param is named scrollController, not controller -- matched to the actual widget API
+- [Phase 20-05]: Used literal 0.14/0.6 size values inline (not named constants) in route_anchor_sheet.dart so grep-based acceptance criteria match the source verbatim
+- [Phase 20-05]: Kept context.push<LocationSearchResult>('/location-search') on one line to match the plan's literal acceptance-criteria grep
 
 ### Pending Todos
 
@@ -220,8 +223,8 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-16T22:04:34.918Z
-Stopped at: Completed 20-04-PLAN.md
+Last session: 2026-07-16T22:11:05.132Z
+Stopped at: Completed 20-05-PLAN.md
 Resume file: 
 
 None

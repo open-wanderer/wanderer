@@ -274,7 +274,7 @@ See `.planning/milestones/v1.4-ROADMAP.md` for full details.
 **Milestone Goal:** A user can build a route from scratch on the map (tap/drag waypoints, optional auto-routing via Valhalla) and hand it off as a draft trail to the existing create/edit screen.
 
 - [x] **Phase 19: Route Planner Core — Waypoint Editing & Routing Engine** - Tap/drag/insert waypoints on the map with auto-routing toggle (fixed foot/bike profile) and undo/redo (completed 2026-07-16)
-- [ ] **Phase 20: Route Planner Views — Waypoint List, Elevation & Location Search** - Route anchor list (delete/reorder) and live elevation profile as tabs of one docked sheet, plus location-search-to-focus
+- [x] **Phase 20: Route Planner Views — Waypoint List, Elevation & Location Search** - Route anchor list (delete/reorder) and live elevation profile as tabs of one docked sheet, plus location-search-to-focus (completed 2026-07-16)
 - [ ] **Phase 21: Route Planner Handoff & Entry Point** - New planner entry point with hike/bike dialog, handoff to trail create/edit as a draft Trail
 
 ### Phase 19: Route Planner Core — Waypoint Editing & Routing Engine
@@ -315,7 +315,7 @@ Plans:
 - [x] 20-02-PLAN.md — LocationSearchScreen (locations-only) + /location-search route (PLANUI-03)
 - [x] 20-03-PLAN.md — ElevationProfile trail→Trail? + ElevationTab (tab-gated debounced height fetch) (PLANUI-02)
 - [x] 20-04-PLAN.md — RouteAnchorListTab (numbered rows, immediate delete, drag reorder) (WAYP-04/05)
-- [ ] 20-05-PLAN.md — RouteAnchorSheet tabbed DraggableScrollableSheet + planner screen integration (search button, sheet host, camera hand-off) (PLANUI-01/03)
+- [x] 20-05-PLAN.md — RouteAnchorSheet tabbed DraggableScrollableSheet + planner screen integration (search button, sheet host, camera hand-off) (PLANUI-01/03)
 
 **UI hint**: yes
 
@@ -365,5 +365,5 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 17. Navigation on MapLibre | v1.4 | 3/3 | Complete   | 2026-07-10 |
 | 18. Retire flutter_map and the flomp Forks | v1.4 | 3/3 | Complete   | 2026-07-10 |
 | 19. Route Planner Core — Waypoint Editing & Routing Engine | v1.5 | 4/4 | Complete   | 2026-07-16 |
-| 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 4/5 | In Progress|  |
+| 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 5/5 | Complete   | 2026-07-16 |
 | 21. Route Planner Handoff & Entry Point | v1.5 | 0/TBD | Not started | - |
