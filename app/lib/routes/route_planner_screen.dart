@@ -99,20 +99,37 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   /// non-static-field discipline (Pitfall 3).
   bool _finishing = false;
 
+  /// True once [_resetSessionAndRebuild]'s post-frame reset has run. Riverpod
+  /// forbids modifying a provider synchronously inside `initState` (it fires
+  /// "Tried to modify a provider while the widget tree was building" —
+  /// confirmed on-device) since Rec B made `routeAnchorsProvider` a single
+  /// `keepAlive` instance with no family key, so a re-entry must reset it
+  /// via `addPostFrameCallback` instead. Gating `build()` on this flag until
+  /// the reset lands avoids ever rendering the PRIOR session's stale
+  /// anchors/segments for a frame (T-t7q-03), at the cost of one blank frame
+  /// on mount instead — imperceptible against the map's own async style load.
+  bool _sessionReady = false;
+
   @override
   void initState() {
     super.initState();
-    // Rec B: routeAnchorsProvider is a single keepAlive instance that
-    // survives across planner entries — reset it synchronously here (before
-    // the first build) so a re-entry never flashes the prior session's
-    // route (T-t7q-03).
-    ref
-        .read(routeAnchorsProvider.notifier)
-        .resetForSession(widget.travelProfile, widget.initialCostingOptions);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(routeAnchorsProvider.notifier)
+          .resetForSession(widget.travelProfile, widget.initialCostingOptions);
+      setState(() => _sessionReady = true);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_sessionReady) {
+      // Pre-reset frame — render nothing observing routeAnchorsProvider so
+      // the prior session's state (if any) is never painted (T-t7q-03).
+      return const Scaffold(body: SizedBox.shrink());
+    }
+
     final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(routeAnchorsProvider);
 

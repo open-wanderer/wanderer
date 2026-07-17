@@ -199,9 +199,17 @@ class RouteAnchors extends _$RouteAnchors {
 
   /// D-09: retry lives on the blocked segment itself. Re-dispatches
   /// [_resolveSegment] for the given anchor pair.
+  ///
+  /// The native map's segment/marker hit-test layer syncs asynchronously
+  /// (`_segmentLayer.update(...).ignore()` in the screen), so a tap can carry
+  /// anchor ids that no longer exist in `state` (undo/delete/reorder raced
+  /// ahead of the native layer). `firstWhereOrNull` degrades this stale
+  /// hit-test to a silent no-op instead of an uncaught `StateError` thrown
+  /// synchronously out of the map's `onEvent` callback.
   Future<void> retrySegment(String beforeAnchorId, String afterAnchorId) {
-    final a = state.anchors.firstWhere((x) => x.id == beforeAnchorId);
-    final b = state.anchors.firstWhere((x) => x.id == afterAnchorId);
+    final a = state.anchors.firstWhereOrNull((x) => x.id == beforeAnchorId);
+    final b = state.anchors.firstWhereOrNull((x) => x.id == afterAnchorId);
+    if (a == null || b == null) return Future.value();
     return _resolveSegment(beforeAnchorId, afterAnchorId, a, b);
   }
 
@@ -403,12 +411,17 @@ class RouteAnchors extends _$RouteAnchors {
     String afterAnchorId,
     Geographic tapPoint,
   ) {
-    _pushUndo();
-
     final key = segmentKey(beforeAnchorId, afterAnchorId);
-    final targetSegment = state.segments.firstWhere(
+    // Same stale-hit-test guard as retrySegment: the native layer's GeoJSON
+    // sync is async, so a tap can reference a segment already removed by an
+    // undo/delete/reorder. Bail out BEFORE _pushUndo() so a miss never
+    // pushes a spurious no-op undo snapshot.
+    final targetSegment = state.segments.firstWhereOrNull(
       (s) => segmentKey(s.beforeAnchorId, s.afterAnchorId) == key,
     );
+    if (targetSegment == null) return;
+
+    _pushUndo();
 
     final newAnchor = RouteAnchor(
       id: UniqueKey().toString(),

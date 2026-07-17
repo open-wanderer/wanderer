@@ -84,8 +84,16 @@ class SettingsTab extends ConsumerWidget {
               bucket: bucket,
               icon: bucketIcon(bucket, categories),
               selected: bucket == selectedBucket,
-              onTap: () =>
-                  notifier.switchProfile(bucket.costing, bucket.costingOptions),
+              // No-op on the already-active bucket — switchProfile always
+              // clears undo/redo and re-dispatches every segment (a fresh
+              // baseline, by design), so re-tapping the current selection
+              // must not pay that cost for nothing.
+              onTap: bucket == selectedBucket
+                  ? null
+                  : () => notifier.switchProfile(
+                      bucket.costing,
+                      bucket.costingOptions,
+                    ),
             ),
             const SizedBox(height: 8),
           ],
@@ -103,7 +111,7 @@ class _BucketCard extends StatelessWidget {
   final RouteTravelBucket bucket;
   final Widget icon;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _BucketCard({
     required this.bucket,

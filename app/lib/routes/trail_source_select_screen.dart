@@ -40,6 +40,7 @@ class _TrailSourceSelectScreenState
   }
 
   Future<void> _openPlanner(AppLocalizations l10n) async {
+    if (_plannerLoading) return;
     final bucket = await showTravelProfileSheet(context);
     if (!mounted || bucket == null) return;
 
@@ -133,7 +134,9 @@ class _TrailSourceSelectScreenState
             description:
                 "Design your perfect route from scratch using our map tools.",
             isLoading: _plannerLoading,
-            onTap: _importLoading ? null : () => _openPlanner(l10n),
+            onTap: (_importLoading || _plannerLoading)
+                ? null
+                : () => _openPlanner(l10n),
           ),
           const SizedBox(height: 12),
           _SourceActionCard(
