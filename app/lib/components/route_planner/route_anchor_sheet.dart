@@ -74,9 +74,13 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet> {
             ),
             child: Column(
               children: [
-                // Handle-bar — the ONLY expand/collapse driver (Pattern 1).
-                // No close button (D-03: peek is the floor, sheet never
-                // dismisses).
+                // Handle-bar + TabBar header — the ONLY expand/collapse
+                // driver (Pattern 1). A vertical drag anywhere in this header
+                // (not just the thin handle strip) resizes the sheet; a
+                // stationary tap still resolves to TabBar's own tap
+                // recognizer via the gesture arena, so tab switching is
+                // unaffected. No close button (D-03: peek is the floor, sheet
+                // never dismisses).
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onVerticalDragUpdate: (details) {
@@ -88,39 +92,44 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet> {
                             .clamp(0.14, 0.6);
                     _sheetController.jumpTo(target);
                   },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Center(
-                      child: Container(
-                        width: 30,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.all(
-                            Radius.circular(24),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Center(
+                          child: Container(
+                            width: 30,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              borderRadius: const BorderRadius.all(
+                                Radius.circular(24),
+                              ),
+                              color: theme.colorScheme.secondaryContainer,
+                            ),
                           ),
-                          color: theme.colorScheme.secondaryContainer,
                         ),
                       ),
-                    ),
+                      TabBar(
+                        dividerColor: Colors.transparent,
+                        labelColor: theme.brightness == Brightness.dark
+                            ? const Color(0xff3E435B)
+                            : const Color(0xff242734),
+                        indicatorColor: theme.brightness == Brightness.dark
+                            ? const Color(0xff3E435B)
+                            : const Color(0xff242734),
+                        tabs: const [
+                          Tab(
+                            icon: FaIcon(FontAwesomeIcons.listOl, size: 16),
+                            text: 'Route Anchors',
+                          ),
+                          Tab(
+                            icon: FaIcon(FontAwesomeIcons.mountain, size: 16),
+                            text: 'Elevation',
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ),
-                TabBar(
-                  labelColor: theme.brightness == Brightness.dark
-                      ? const Color(0xff3E435B)
-                      : const Color(0xff242734),
-                  indicatorColor: theme.brightness == Brightness.dark
-                      ? const Color(0xff3E435B)
-                      : const Color(0xff242734),
-                  tabs: const [
-                    Tab(
-                      icon: FaIcon(FontAwesomeIcons.listOl, size: 16),
-                      text: 'Route Anchors',
-                    ),
-                    Tab(
-                      icon: FaIcon(FontAwesomeIcons.mountain, size: 16),
-                      text: 'Elevation',
-                    ),
-                  ],
                 ),
                 Expanded(
                   child: TabBarView(
