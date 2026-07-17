@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:maplibre/maplibre.dart';
+import 'package:wanderer/models/category.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
 // ---------------------------------------------------------------------------
@@ -108,6 +109,60 @@ void main() {
         expect(
           gpx.allWaypoints.every((wpt) => wpt.ele == null),
           isTrue,
+        );
+      },
+    );
+  });
+
+  group('categoryForTravelProfile', () {
+    test('a bike-named category returns its id for bicycle', () {
+      const categories = [
+        Category(id: 'hike-id', name: 'Hiking Trails'),
+        Category(id: 'bike-id', name: 'Mountain Bike Trails'),
+      ];
+
+      expect(
+        categoryForTravelProfile('bicycle', categories),
+        'bike-id',
+      );
+    });
+
+    test('a hike-named category returns its id for pedestrian', () {
+      const categories = [
+        Category(id: 'hike-id', name: 'Hiking Trails'),
+        Category(id: 'bike-id', name: 'Mountain Bike Trails'),
+      ];
+
+      expect(
+        categoryForTravelProfile('pedestrian', categories),
+        'hike-id',
+      );
+    });
+
+    test('a list with no matching category returns null', () {
+      const categories = [Category(id: 'other-id', name: 'Wildlife')];
+
+      expect(categoryForTravelProfile('bicycle', categories), isNull);
+      expect(categoryForTravelProfile('pedestrian', categories), isNull);
+    });
+
+    test('an empty category list returns null', () {
+      expect(categoryForTravelProfile('bicycle', const []), isNull);
+      expect(categoryForTravelProfile('pedestrian', const []), isNull);
+    });
+
+    test(
+      'symmetry check: a category named to match costingForCategory\'s '
+      '"bike" branch is returned by categoryForTravelProfile for bicycle',
+      () {
+        const category = Category(id: 'cycle-id', name: 'Cycling Routes');
+
+        // Forward direction (existing heuristic).
+        expect(costingForCategory(category.name), 'bicycle');
+        // Reverse direction (this task's new heuristic) agrees.
+        expect(
+          categoryForTravelProfile('bicycle', const [category]),
+          'cycle-id',
         );
       },
     );
