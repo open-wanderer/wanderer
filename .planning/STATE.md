@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 Phase: 21 (route-planner-handoff-entry-point) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-07-17 -- Phase 21 execution started
+Last activity: 2026-07-17 - Completed quick task 260717-seb: Reverse-geocode route planner anchors on street name, matching web client behavior
 
 ## v1.5 Phases
 
@@ -190,6 +190,7 @@ Recent decisions affecting current work:
 | 260714-qma | Revert speculative persisted-500-counter self-heal from auth_provider.dart, keep timeout-gated build() | 2026-07-14 | c3fbef98,a6647dcf,eee4f0c2 | Complete | [260714-qma-…](./quick/260714-qma-revert-speculative-persisted-500-counter/) |
 | 260714-qtl | Fix meilisearch_token cookie never validated for real expiry in hooks.server.ts (real root cause of the reported search-call 500s) | 2026-07-14 | ed114163 | Complete | [260714-qtl-…](./quick/260714-qtl-fix-meilisearch-token-cookie-never-valid/) |
 | 260715-q01 | Rename iOS bundle id / App Group ids and Android applicationId from com.example.wanderer to com.openwanderer.wanderer | 2026-07-15 | 40cf3a69,8022ae97 | Complete | [260715-q01-…](./quick/260715-q01-update-the-ios-bundle-id-and-android-app/) |
+| 260717-seb | Reverse-geocode route planner anchors on street name, matching web client behavior | 2026-07-17 | aefa55fb,f56d31e7,90cbaa37 | Complete | [260717-seb-…](./quick/260717-seb-reverse-geocode-route-planner-anchors-on/) |
 
 ## Deferred Items
 
