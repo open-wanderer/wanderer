@@ -16,6 +16,7 @@ class RouteAnchorsState {
     required this.segments,
     required this.autoRoutingEnabled,
     required this.travelProfile,
+    required this.costingOptions,
     required this.undoStack,
     required this.redoStack,
   });
@@ -24,9 +25,16 @@ class RouteAnchorsState {
   final List<RouteSegment> segments;
   final bool autoRoutingEnabled;
 
-  /// Fixed for the notifier's lifetime (D-07) — `'pedestrian'` or `'bicycle'`,
-  /// set once via the family argument, never switched mid-session.
+  /// `'pedestrian'` or `'bicycle'` (Rec B) — no longer fixed for the
+  /// notifier's lifetime; switched via [RouteAnchors.switchProfile] /
+  /// [RouteAnchors.resetForSession], never via a family argument.
   final String travelProfile;
+
+  /// Fixed Valhalla `costing_options` payload for the current
+  /// [travelProfile] (e.g. `bicycle_type`, `cycling_speed`). `null` until a
+  /// bucket has been applied. Set atomically with [travelProfile] by
+  /// [RouteAnchors.switchProfile] / [RouteAnchors.resetForSession].
+  final Map<String, dynamic>? costingOptions;
   final List<RouteAnchorsSnapshot> undoStack;
   final List<RouteAnchorsSnapshot> redoStack;
 
@@ -35,6 +43,7 @@ class RouteAnchorsState {
     List<RouteSegment>? segments,
     bool? autoRoutingEnabled,
     String? travelProfile,
+    Map<String, dynamic>? costingOptions,
     List<RouteAnchorsSnapshot>? undoStack,
     List<RouteAnchorsSnapshot>? redoStack,
   }) {
@@ -43,6 +52,7 @@ class RouteAnchorsState {
       segments: segments ?? this.segments,
       autoRoutingEnabled: autoRoutingEnabled ?? this.autoRoutingEnabled,
       travelProfile: travelProfile ?? this.travelProfile,
+      costingOptions: costingOptions ?? this.costingOptions,
       undoStack: undoStack ?? this.undoStack,
       redoStack: redoStack ?? this.redoStack,
     );
@@ -54,9 +64,13 @@ class RouteAnchorsState {
 /// out-of-order responses), the geometric segment-split used by a plain
 /// insert tap, and an immutable-snapshot undo/redo stack.
 ///
-/// `travelProfile` (`'pedestrian'` | `'bicycle'`) is a required family
-/// argument fixed for the notifier's lifetime (D-07).
-@riverpod
+/// Rec B: a single `@Riverpod(keepAlive: true)` provider with NO family
+/// argument — `travelProfile` + `costingOptions` live fully inside state and
+/// are switched via [switchProfile] (mid-session bucket change) or
+/// [resetForSession] (called once per planner entry, since `keepAlive` means
+/// this single instance survives across sheet/screen mounts and must be
+/// reset so a re-entry never leaks the previous session's route).
+@Riverpod(keepAlive: true)
 class RouteAnchors extends _$RouteAnchors {
   // Non-reactive bookkeeping — never in `state`, mirrors `_currentShapeIndex`
   // in `navigation_provider.dart`. Keyed by the stable `segmentKey`
@@ -65,14 +79,15 @@ class RouteAnchors extends _$RouteAnchors {
   final Map<String, int> _generation = {};
 
   @override
-  RouteAnchorsState build(String travelProfile) {
-    return RouteAnchorsState(
-      anchors: const [],
-      segments: const [],
+  RouteAnchorsState build() {
+    return const RouteAnchorsState(
+      anchors: [],
+      segments: [],
       autoRoutingEnabled: true,
-      travelProfile: travelProfile,
-      undoStack: const [],
-      redoStack: const [],
+      travelProfile: 'pedestrian',
+      costingOptions: null,
+      undoStack: [],
+      redoStack: [],
     );
   }
 
@@ -124,6 +139,10 @@ class RouteAnchors extends _$RouteAnchors {
                 {'lat': b.lat, 'lon': b.lon},
               ],
               'costing': state.travelProfile,
+              if (state.costingOptions != null)
+                'costing_options': {
+                  state.travelProfile: state.costingOptions,
+                },
             },
             cancelToken: token,
           );
@@ -186,9 +205,104 @@ class RouteAnchors extends _$RouteAnchors {
     return _resolveSegment(beforeAnchorId, afterAnchorId, a, b);
   }
 
+  /// Flips [RouteAnchorsState.autoRoutingEnabled]. Turning OFF leaves every
+  /// existing segment untouched (only new segments created afterward become
+  /// straight). Turning ON re-resolves every existing segment via Valhalla,
+  /// awaited in parallel via `Future.wait` so callers observe the fully
+  /// re-resolved state once this method completes.
   Future<void> toggleAutoRouting() async {
     final enabled = !state.autoRoutingEnabled;
     state = state.copyWith(autoRoutingEnabled: enabled);
+    if (!enabled) return;
+
+    final anchorsById = {for (final a in state.anchors) a.id: a};
+    final futures = <Future<void>>[
+      for (final segment in state.segments)
+        if (anchorsById[segment.beforeAnchorId] != null &&
+            anchorsById[segment.afterAnchorId] != null)
+          _resolveSegment(
+            segment.beforeAnchorId,
+            segment.afterAnchorId,
+            anchorsById[segment.beforeAnchorId]!,
+            anchorsById[segment.afterAnchorId]!,
+          ),
+    ];
+    await Future.wait(futures);
+  }
+
+  /// Switches the travel bucket mid-session (Rec B): sets [profile] +
+  /// [opts] atomically and re-resolves every existing segment under the new
+  /// costing (this is the general rule — including a within-`bicycle`
+  /// sub-type switch like Hybrid -> Road, CONTEXT). Anchors are never
+  /// migrated (they never leave this single keepAlive instance).
+  ///
+  /// A profile switch is a FRESH undo baseline (CONTEXT: "the switch itself
+  /// is not undoable") — both stacks are cleared and no undo snapshot is
+  /// pushed, matching the prior "travelProfile fixed for lifetime"
+  /// invariant.
+  void switchProfile(String profile, Map<String, dynamic> opts) {
+    state = state.copyWith(
+      travelProfile: profile,
+      costingOptions: opts,
+      undoStack: const [],
+      redoStack: const [],
+    );
+    resolveAllSegments();
+  }
+
+  /// Bulk re-resolve: iterates every consecutive anchor pair that has an
+  /// existing segment and either re-dispatches a Valhalla resolve (when
+  /// auto-routing is on, fire-and-forget, mirroring [reorderAnchors]'s
+  /// `toResolve` loop) or applies a straight two-point polyline (when
+  /// auto-routing is off). Used by [switchProfile] so any bucket switch
+  /// re-resolves the WHOLE route, not just newly-adjacent pairs.
+  void resolveAllSegments() {
+    final anchorsById = {for (final a in state.anchors) a.id: a};
+    final segByKey = {
+      for (final s in state.segments)
+        segmentKey(s.beforeAnchorId, s.afterAnchorId): s,
+    };
+
+    for (var i = 0; i < state.anchors.length - 1; i++) {
+      final a = state.anchors[i];
+      final b = state.anchors[i + 1];
+      final key = segmentKey(a.id, b.id);
+      if (!segByKey.containsKey(key)) continue;
+
+      if (state.autoRoutingEnabled) {
+        _resolveSegment(a.id, b.id, a, b).ignore();
+      } else {
+        final aa = anchorsById[a.id]!;
+        final bb = anchorsById[b.id]!;
+        _applySegment(
+          key,
+          points: [aa.point, bb.point],
+          segmentState: SegmentState.straight,
+        );
+      }
+    }
+  }
+
+  /// Resets the single keepAlive instance to a brand-new empty session
+  /// (T-t7q-03): called once at planner-screen mount so a re-entry never
+  /// leaks the previous session's route. Cancels every in-flight request
+  /// first.
+  void resetForSession(String profile, Map<String, dynamic>? opts) {
+    for (final token in _inFlight.values) {
+      token.cancel();
+    }
+    _inFlight.clear();
+    _generation.clear();
+
+    state = RouteAnchorsState(
+      anchors: const [],
+      segments: const [],
+      autoRoutingEnabled: true,
+      travelProfile: profile,
+      costingOptions: opts,
+      undoStack: const [],
+      redoStack: const [],
+    );
   }
 
   /// Pushes the current (pre-mutation) anchors/segments onto the undo stack

@@ -123,7 +123,7 @@ ProviderContainer _buildContainer(_Responder responder) {
   // duration via a persistent listener (mirrors how a real screen would
   // `ref.watch` it continuously), so in-flight fire-and-forget resolution
   // work isn't torn down across an `await` gap.
-  container.listen(routeAnchorsProvider(_profile), (_, _) {});
+  container.listen(routeAnchorsProvider, (_, _) {});
   return container;
 }
 
@@ -133,19 +133,29 @@ ProviderContainer _buildContainer(_Responder responder) {
 /// 2-anchor/1-segment fixture directly, without depending on the anchor
 /// mutation methods (`appendAnchor` et al.), which are a separate concern.
 class _SeededRouteAnchors extends RouteAnchors {
-  _SeededRouteAnchors(this._anchors, this._segments, this._autoRoutingEnabled);
+  _SeededRouteAnchors(
+    this._anchors,
+    this._segments,
+    this._autoRoutingEnabled, {
+    String travelProfile = _profile,
+    Map<String, dynamic>? costingOptions,
+  }) : _travelProfile = travelProfile,
+       _costingOptions = costingOptions;
 
   final List<RouteAnchor> _anchors;
   final List<RouteSegment> _segments;
   final bool _autoRoutingEnabled;
+  final String _travelProfile;
+  final Map<String, dynamic>? _costingOptions;
 
   @override
-  RouteAnchorsState build(String travelProfile) {
+  RouteAnchorsState build() {
     return RouteAnchorsState(
       anchors: _anchors,
       segments: _segments,
       autoRoutingEnabled: _autoRoutingEnabled,
-      travelProfile: travelProfile,
+      travelProfile: _travelProfile,
+      costingOptions: _costingOptions,
       undoStack: const [],
       redoStack: const [],
     );
@@ -173,13 +183,13 @@ ProviderContainer _buildSeededContainer(
   final container = ProviderContainer(
     overrides: [
       apiProvider.overrideWith(() => _FakeApi(responder)),
-      routeAnchorsProvider(
-        _profile,
-      ).overrideWith(() => _SeededRouteAnchors(anchors, segments, autoRoutingEnabled)),
+      routeAnchorsProvider.overrideWith(
+        () => _SeededRouteAnchors(anchors, segments, autoRoutingEnabled),
+      ),
     ],
   );
   addTearDown(container.dispose);
-  container.listen(routeAnchorsProvider(_profile), (_, _) {});
+  container.listen(routeAnchorsProvider, (_, _) {});
   return container;
 }
 
@@ -218,13 +228,13 @@ ProviderContainer _buildThreeAnchorSeededContainer(
   final container = ProviderContainer(
     overrides: [
       apiProvider.overrideWith(() => _FakeApi(responder)),
-      routeAnchorsProvider(
-        _profile,
-      ).overrideWith(() => _SeededRouteAnchors(anchors, segments, autoRoutingEnabled)),
+      routeAnchorsProvider.overrideWith(
+        () => _SeededRouteAnchors(anchors, segments, autoRoutingEnabled),
+      ),
     ],
   );
   addTearDown(container.dispose);
-  container.listen(routeAnchorsProvider(_profile), (_, _) {});
+  container.listen(routeAnchorsProvider, (_, _) {});
   return container;
 }
 
@@ -238,11 +248,11 @@ void main() {
         final container = _buildSeededContainer(
           (options, index) async => _CannedResponse.success(_tripData(shape)),
         );
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
 
         await notifier.retrySegment(_anchorIdA, _anchorIdB);
 
-        final segment = container.read(routeAnchorsProvider(_profile)).segments.single;
+        final segment = container.read(routeAnchorsProvider).segments.single;
         expect(segment.state, SegmentState.routed);
         expect(segment.polyline, PolylineUtil.decode(shape, precision: 6));
       },
@@ -255,18 +265,83 @@ void main() {
         final container = _buildSeededContainer(
           (options, index) async => const _CannedResponse.failure(),
         );
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
         final priorPolyline = container
-            .read(routeAnchorsProvider(_profile))
+            .read(routeAnchorsProvider)
             .segments
             .single
             .polyline;
 
         await notifier.retrySegment(_anchorIdA, _anchorIdB);
 
-        final segment = container.read(routeAnchorsProvider(_profile)).segments.single;
+        final segment = container.read(routeAnchorsProvider).segments.single;
         expect(segment.state, SegmentState.blocked);
         expect(segment.polyline, priorPolyline);
+      },
+    );
+
+    test(
+      '_resolveSegment includes costing_options in the POST body keyed by '
+      'travelProfile when state.costingOptions is non-null',
+      () async {
+        Map<String, dynamic>? capturedBody;
+        final shape = PolylineUtil.encode([_anchorA, _anchorB], precision: 6);
+        final container = ProviderContainer(
+          overrides: [
+            apiProvider.overrideWith(
+              () => _FakeApi((options, index) async {
+                capturedBody = options.data as Map<String, dynamic>;
+                return _CannedResponse.success(_tripData(shape));
+              }),
+            ),
+            routeAnchorsProvider.overrideWith(
+              () => _SeededRouteAnchors(
+                [
+                  RouteAnchor(id: _anchorIdA, lat: _anchorA.lat, lon: _anchorA.lon),
+                  RouteAnchor(id: _anchorIdB, lat: _anchorB.lat, lon: _anchorB.lon),
+                ],
+                [
+                  const RouteSegment(
+                    beforeAnchorId: _anchorIdA,
+                    afterAnchorId: _anchorIdB,
+                    polyline: [_anchorA, _anchorB],
+                    state: SegmentState.straight,
+                  ),
+                ],
+                true,
+                travelProfile: 'bicycle',
+                costingOptions: const {'bicycle_type': 'Road'},
+              ),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.listen(routeAnchorsProvider, (_, _) {});
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        await notifier.retrySegment(_anchorIdA, _anchorIdB);
+
+        expect(capturedBody?['costing_options'], {
+          'bicycle': {'bicycle_type': 'Road'},
+        });
+      },
+    );
+
+    test(
+      '_resolveSegment omits costing_options from the POST body when '
+      'state.costingOptions is null (back-compat)',
+      () async {
+        Map<String, dynamic>? capturedBody;
+        final shape = PolylineUtil.encode([_anchorA, _anchorB], precision: 6);
+        final container = _buildSeededContainer((options, index) async {
+          capturedBody = options.data as Map<String, dynamic>;
+          return _CannedResponse.success(_tripData(shape));
+        });
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        await notifier.retrySegment(_anchorIdA, _anchorIdB);
+
+        expect(capturedBody?.containsKey('costing_options'), isFalse);
       },
     );
 
@@ -279,7 +354,7 @@ void main() {
         final container = _buildSeededContainer(
           (options, index) async => _CannedResponse.success(_tripData(shape)),
         );
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
 
         // Two dispatches in quick succession for the SAME segment key.
         // `_resolveSegment` cancels the first's in-flight `CancelToken`
@@ -293,7 +368,7 @@ void main() {
         await expectLater(f1, completes);
         await expectLater(f2, completes);
 
-        final segment = container.read(routeAnchorsProvider(_profile)).segments.single;
+        final segment = container.read(routeAnchorsProvider).segments.single;
         expect(segment.state, SegmentState.routed);
         expect(segment.polyline, PolylineUtil.decode(shape, precision: 6));
       },
@@ -309,18 +384,18 @@ void main() {
           if (shouldFail) return const _CannedResponse.failure();
           return _CannedResponse.success(_tripData(shape));
         });
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
 
         await notifier.retrySegment(_anchorIdA, _anchorIdB);
         expect(
-          container.read(routeAnchorsProvider(_profile)).segments.single.state,
+          container.read(routeAnchorsProvider).segments.single.state,
           SegmentState.blocked,
         );
 
         shouldFail = false;
         await notifier.retrySegment(_anchorIdA, _anchorIdB);
 
-        final segment = container.read(routeAnchorsProvider(_profile)).segments.single;
+        final segment = container.read(routeAnchorsProvider).segments.single;
         expect(segment.state, SegmentState.routed);
         expect(segment.polyline, PolylineUtil.decode(shape, precision: 6));
       },
@@ -336,12 +411,12 @@ void main() {
           callCount++;
           return const _CannedResponse.failure();
         });
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
-        final before = container.read(routeAnchorsProvider(_profile)).segments.single;
+        final notifier = container.read(routeAnchorsProvider.notifier);
+        final before = container.read(routeAnchorsProvider).segments.single;
 
         await notifier.toggleAutoRouting(); // ON -> OFF
 
-        final result = container.read(routeAnchorsProvider(_profile));
+        final result = container.read(routeAnchorsProvider);
         expect(result.autoRoutingEnabled, isFalse);
         final segment = result.segments.single;
         expect(segment.state, before.state);
@@ -369,12 +444,122 @@ void main() {
           return _CannedResponse.success(_tripData(shape));
         });
 
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
         await notifier.toggleAutoRouting(); // ON -> OFF (default true)
         await notifier.toggleAutoRouting(); // OFF -> ON, resolves via Future.wait
 
-        final result = container.read(routeAnchorsProvider(_profile));
+        final result = container.read(routeAnchorsProvider);
         expect(result.segments.single.state, SegmentState.routed);
+      },
+    );
+  });
+
+  group('RouteAnchors - Rec B: switchProfile / resolveAllSegments / '
+      'resetForSession', () {
+    test(
+      'switchProfile with auto-routing off: sets travelProfile + '
+      'costingOptions, leaves every segment straight, and issues zero Dio '
+      'calls',
+      () async {
+        var callCount = 0;
+        final container = _buildThreeAnchorSeededContainer((
+          options,
+          index,
+        ) async {
+          callCount++;
+          return const _CannedResponse.failure();
+        }, autoRoutingEnabled: false);
+        final notifier = container.read(routeAnchorsProvider.notifier);
+        const roadOpts = {'bicycle_type': 'Road', 'cycling_speed': 25};
+
+        notifier.switchProfile('bicycle', roadOpts);
+        await _flushAsyncWork();
+
+        final result = container.read(routeAnchorsProvider);
+        expect(result.travelProfile, 'bicycle');
+        expect(result.costingOptions, roadOpts);
+        expect(
+          result.segments.every((s) => s.state == SegmentState.straight),
+          isTrue,
+        );
+        expect(callCount, 0);
+      },
+    );
+
+    test(
+      'switchProfile clears both undoStack and redoStack (fresh baseline) '
+      'and does not push a new undo snapshot',
+      () async {
+        final container = _buildThreeAnchorSeededContainer(
+          (options, index) async => const _CannedResponse.failure(),
+          autoRoutingEnabled: false,
+        );
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        // Seed a non-empty undo/redo stack via a real mutation first.
+        notifier.dragAnchor(_anchorIdA, _anchorB);
+        expect(
+          container.read(routeAnchorsProvider).undoStack,
+          isNotEmpty,
+        );
+
+        notifier.switchProfile('bicycle', const {'bicycle_type': 'Road'});
+        await _flushAsyncWork();
+
+        final result = container.read(routeAnchorsProvider);
+        expect(result.undoStack, isEmpty);
+        expect(result.redoStack, isEmpty);
+      },
+    );
+
+    test(
+      'switchProfile with auto-routing on re-dispatches a Valhalla resolve '
+      'for every consecutive-anchor segment',
+      () async {
+        var callCount = 0;
+        final shape = PolylineUtil.encode([_anchorA, _anchorB], precision: 6);
+        final container = _buildThreeAnchorSeededContainer((
+          options,
+          index,
+        ) async {
+          callCount++;
+          return _CannedResponse.success(_tripData(shape));
+        });
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        notifier.switchProfile('bicycle', const {'bicycle_type': 'Road'});
+        await _flushAsyncWork();
+
+        // 2 segments in the 3-anchor fixture (A-B, B-C).
+        expect(callCount, 2);
+        final result = container.read(routeAnchorsProvider);
+        expect(
+          result.segments.every((s) => s.state == SegmentState.routed),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'resetForSession empties anchors, segments, undo/redo and sets the '
+      'given travelProfile + costingOptions',
+      () async {
+        final container = _buildThreeAnchorSeededContainer(
+          (options, index) async => const _CannedResponse.failure(),
+          autoRoutingEnabled: false,
+        );
+        final notifier = container.read(routeAnchorsProvider.notifier);
+        notifier.dragAnchor(_anchorIdA, _anchorB); // seed undo stack
+
+        notifier.resetForSession('pedestrian', null);
+
+        final result = container.read(routeAnchorsProvider);
+        expect(result.anchors, isEmpty);
+        expect(result.segments, isEmpty);
+        expect(result.undoStack, isEmpty);
+        expect(result.redoStack, isEmpty);
+        expect(result.travelProfile, 'pedestrian');
+        expect(result.costingOptions, isNull);
       },
     );
   });
@@ -387,16 +572,16 @@ void main() {
         final container = _buildContainer(
           (options, index) async => const _CannedResponse.failure(),
         );
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
         await notifier.toggleAutoRouting();
 
         notifier.appendAnchor(_anchorA);
-        var state = container.read(routeAnchorsProvider(_profile));
+        var state = container.read(routeAnchorsProvider);
         expect(state.anchors, hasLength(1));
         expect(state.segments, isEmpty);
 
         notifier.appendAnchor(_anchorB);
-        state = container.read(routeAnchorsProvider(_profile));
+        state = container.read(routeAnchorsProvider);
         expect(state.anchors, hasLength(2));
         expect(state.segments, hasLength(1));
         expect(state.segments.single.beforeAnchorId, state.anchors[0].id);
@@ -414,7 +599,7 @@ void main() {
           callCount++;
           return _CannedResponse.success(_tripData(shape));
         });
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
 
         notifier.appendAnchor(_anchorA);
         notifier.appendAnchor(_anchorB); // autoRoutingEnabled true by default
@@ -422,7 +607,7 @@ void main() {
 
         expect(callCount, 1);
         expect(
-          container.read(routeAnchorsProvider(_profile)).segments.single.state,
+          container.read(routeAnchorsProvider).segments.single.state,
           SegmentState.routed,
         );
       },
@@ -437,14 +622,14 @@ void main() {
           callCount++;
           return const _CannedResponse.failure();
         });
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
         await notifier.toggleAutoRouting();
 
         notifier.appendAnchor(_anchorA);
         notifier.appendAnchor(_anchorB);
         await _flushAsyncWork();
 
-        final state = container.read(routeAnchorsProvider(_profile));
+        final state = container.read(routeAnchorsProvider);
         expect(state.segments.single.state, SegmentState.straight);
         expect(state.segments.single.polyline, [_anchorA, _anchorB]);
         expect(callCount, 0);
@@ -458,21 +643,21 @@ void main() {
         final container = _buildContainer(
           (options, index) async => const _CannedResponse.failure(),
         );
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
         await notifier.toggleAutoRouting();
 
         notifier.appendAnchor(_anchorA);
         notifier.appendAnchor(_anchorB);
         notifier.appendAnchor(_anchorC);
 
-        final seed = container.read(routeAnchorsProvider(_profile));
+        final seed = container.read(routeAnchorsProvider);
         expect(seed.segments, hasLength(2));
         final untouchedSegment = seed.segments[1]; // B-C, not adjacent to A
 
         const moved = Geographic(lat: 47.010, lon: 9.010);
         notifier.dragAnchor(seed.anchors[0].id, moved);
 
-        final result = container.read(routeAnchorsProvider(_profile));
+        final result = container.read(routeAnchorsProvider);
         expect(result.anchors[0].lat, moved.lat);
         expect(result.anchors[0].lon, moved.lon);
         expect(result.segments[0].polyline, [moved, result.anchors[1].point]);
@@ -490,13 +675,13 @@ void main() {
           callCount++;
           return const _CannedResponse.failure();
         });
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
         await notifier.toggleAutoRouting();
 
         notifier.appendAnchor(_anchorA);
         notifier.appendAnchor(_anchorC);
 
-        final seed = container.read(routeAnchorsProvider(_profile));
+        final seed = container.read(routeAnchorsProvider);
         final segment = seed.segments.single;
         const tapPoint = Geographic(lat: 47.001, lon: 9.000); // A-C midpoint
 
@@ -506,7 +691,7 @@ void main() {
           tapPoint,
         );
 
-        final result = container.read(routeAnchorsProvider(_profile));
+        final result = container.read(routeAnchorsProvider);
         expect(result.anchors, hasLength(3));
         expect(result.anchors[0].id, seed.anchors[0].id);
         expect(result.anchors[2].id, seed.anchors[1].id);
@@ -532,37 +717,37 @@ void main() {
         final container = _buildContainer(
           (options, index) async => const _CannedResponse.failure(),
         );
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
         await notifier.toggleAutoRouting();
 
         notifier.appendAnchor(_anchorA);
         expect(
-          container.read(routeAnchorsProvider(_profile)).anchors,
+          container.read(routeAnchorsProvider).anchors,
           hasLength(1),
         );
 
         notifier.undo();
-        expect(container.read(routeAnchorsProvider(_profile)).anchors, isEmpty);
+        expect(container.read(routeAnchorsProvider).anchors, isEmpty);
 
         notifier.redo();
         expect(
-          container.read(routeAnchorsProvider(_profile)).anchors,
+          container.read(routeAnchorsProvider).anchors,
           hasLength(1),
         );
 
         notifier.appendAnchor(_anchorB); // new mutation clears redo
         expect(
-          container.read(routeAnchorsProvider(_profile)).redoStack,
+          container.read(routeAnchorsProvider).redoStack,
           isEmpty,
         );
 
         notifier.undo();
         notifier.undo();
-        expect(container.read(routeAnchorsProvider(_profile)).anchors, isEmpty);
+        expect(container.read(routeAnchorsProvider).anchors, isEmpty);
 
         // undo() on an empty stack is a defensive no-op.
         expect(() => notifier.undo(), returnsNormally);
-        expect(container.read(routeAnchorsProvider(_profile)).anchors, isEmpty);
+        expect(container.read(routeAnchorsProvider).anchors, isEmpty);
       },
     );
 
@@ -573,20 +758,20 @@ void main() {
         final container = _buildContainer(
           (options, index) async => const _CannedResponse.failure(),
         );
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
         await notifier.toggleAutoRouting();
 
         notifier.appendAnchor(_anchorA);
         notifier.appendAnchor(_anchorB);
         notifier.appendAnchor(_anchorC);
 
-        final seed = container.read(routeAnchorsProvider(_profile));
+        final seed = container.read(routeAnchorsProvider);
         final undoStackBefore = seed.undoStack.length;
         final firstId = seed.anchors[0].id;
 
         notifier.deleteAnchor(firstId);
 
-        final result = container.read(routeAnchorsProvider(_profile));
+        final result = container.read(routeAnchorsProvider);
         expect(result.anchors, hasLength(2));
         expect(result.anchors[0].id, seed.anchors[1].id);
         expect(result.anchors[1].id, seed.anchors[2].id);
@@ -595,7 +780,7 @@ void main() {
         expect(result.undoStack.length, undoStackBefore + 1);
 
         notifier.undo();
-        final undone = container.read(routeAnchorsProvider(_profile));
+        final undone = container.read(routeAnchorsProvider);
         expect(undone.anchors, hasLength(3));
         expect(undone.anchors[0].id, firstId);
       },
@@ -609,7 +794,7 @@ void main() {
         final container = _buildContainer(
           (options, index) async => const _CannedResponse.failure(),
         );
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
         await notifier.toggleAutoRouting(); // OFF
 
         const anchorD = Geographic(lat: 47.003, lon: 9.000);
@@ -618,7 +803,7 @@ void main() {
         notifier.appendAnchor(_anchorC);
         notifier.appendAnchor(anchorD);
 
-        final seed = container.read(routeAnchorsProvider(_profile));
+        final seed = container.read(routeAnchorsProvider);
         expect(seed.anchors, hasLength(4));
         expect(seed.segments, hasLength(3));
         final middleId = seed.anchors[1].id; // B
@@ -626,7 +811,7 @@ void main() {
 
         notifier.deleteAnchor(middleId);
 
-        final result = container.read(routeAnchorsProvider(_profile));
+        final result = container.read(routeAnchorsProvider);
         expect(result.anchors, hasLength(3));
         expect(result.anchors.map((a) => a.id), isNot(contains(middleId)));
         expect(result.segments, hasLength(2));
@@ -651,19 +836,19 @@ void main() {
         final container = _buildContainer(
           (options, index) async => const _CannedResponse.failure(),
         );
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
         await notifier.toggleAutoRouting();
 
         notifier.appendAnchor(_anchorA);
         notifier.appendAnchor(_anchorB);
         notifier.appendAnchor(_anchorC);
 
-        final seed = container.read(routeAnchorsProvider(_profile));
+        final seed = container.read(routeAnchorsProvider);
         final lastId = seed.anchors[2].id;
 
         notifier.deleteAnchor(lastId);
 
-        final result = container.read(routeAnchorsProvider(_profile));
+        final result = container.read(routeAnchorsProvider);
         expect(result.anchors, hasLength(2));
         expect(result.segments, hasLength(1));
         expect(result.segments.single, seed.segments[0]); // A-B untouched
@@ -676,19 +861,19 @@ void main() {
         final container = _buildContainer(
           (options, index) async => const _CannedResponse.failure(),
         );
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
         await notifier.toggleAutoRouting();
 
         notifier.appendAnchor(_anchorA);
         final onlyId = container
-            .read(routeAnchorsProvider(_profile))
+            .read(routeAnchorsProvider)
             .anchors
             .single
             .id;
 
         notifier.deleteAnchor(onlyId);
 
-        final result = container.read(routeAnchorsProvider(_profile));
+        final result = container.read(routeAnchorsProvider);
         expect(result.anchors, isEmpty);
         expect(result.segments, isEmpty);
       },
@@ -704,7 +889,7 @@ void main() {
           callCount++;
           return _CannedResponse.success(_tripData(shape));
         });
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
 
         notifier.appendAnchor(_anchorA);
         notifier.appendAnchor(_anchorB);
@@ -712,12 +897,12 @@ void main() {
         await _flushAsyncWork();
         callCount = 0; // reset — only interested in calls from deleteAnchor
 
-        final seed = container.read(routeAnchorsProvider(_profile));
+        final seed = container.read(routeAnchorsProvider);
         notifier.deleteAnchor(seed.anchors[1].id);
         await _flushAsyncWork();
 
         expect(callCount, 1);
-        final segment = container.read(routeAnchorsProvider(_profile)).segments.single;
+        final segment = container.read(routeAnchorsProvider).segments.single;
         expect(segment.state, SegmentState.routed);
       },
     );
@@ -736,9 +921,9 @@ void main() {
           },
           autoRoutingEnabled: false,
         );
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
 
-        final seed = container.read(routeAnchorsProvider(_profile));
+        final seed = container.read(routeAnchorsProvider);
         final routedSegmentBefore = seed.segments.firstWhere(
           (s) => s.beforeAnchorId == _anchorIdB && s.afterAnchorId == _anchorIdC,
         );
@@ -747,7 +932,7 @@ void main() {
         // (reused verbatim); C-A is newly adjacent (fresh straight segment).
         notifier.reorderAnchors([_anchorIdB, _anchorIdC, _anchorIdA]);
 
-        final result = container.read(routeAnchorsProvider(_profile));
+        final result = container.read(routeAnchorsProvider);
         expect(result.anchors.map((a) => a.id), [
           _anchorIdB,
           _anchorIdC,
@@ -783,7 +968,7 @@ void main() {
           callCount++;
           return const _CannedResponse.failure();
         });
-        final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+        final notifier = container.read(routeAnchorsProvider.notifier);
 
         notifier.reorderAnchors([_anchorIdB, _anchorIdC, _anchorIdA]);
         await _flushAsyncWork();
