@@ -162,10 +162,7 @@ class _ElevationEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 200,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
       alignment: Alignment.center,
       child: Column(
         mainAxisSize: MainAxisSize.min,

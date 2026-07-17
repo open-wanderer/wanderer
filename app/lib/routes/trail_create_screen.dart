@@ -414,6 +414,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
             onPressed: _saving ? null : () => _onSave(context),
             style: IconButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.surface,
+              disabledBackgroundColor: Theme.of(context).colorScheme.surface,
             ),
           ),
         ],

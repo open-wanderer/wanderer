@@ -23,7 +23,12 @@ Future<String?> showTravelProfileSheet(BuildContext context) {
       final theme = Theme.of(context);
 
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        padding: const EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          24 + kBottomNavigationBarHeight + 56,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

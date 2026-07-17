@@ -435,11 +435,14 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   /// no toast/snackbar (UI-SPEC).
   Widget _buildFinishAction(RouteAnchorsState state, AppLocalizations l10n) {
     return IconButton(
-      icon: const FaIcon(FontAwesomeIcons.check, size: 18),
-      tooltip: state.anchors.length >= 2 ? l10n.finish : l10n.finish_disabled_hint,
+      icon: const FaIcon(FontAwesomeIcons.floppyDisk, size: 18),
+      tooltip: state.anchors.length >= 2
+          ? l10n.finish
+          : l10n.finish_disabled_hint,
       onPressed: (state.anchors.length >= 2 && !_finishing) ? _onFinish : null,
       style: IconButton.styleFrom(
         backgroundColor: Theme.of(context).colorScheme.surface,
+        disabledBackgroundColor: Theme.of(context).colorScheme.surface,
       ),
     );
   }
@@ -452,7 +455,11 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     if (_finishing) return;
     setState(() => _finishing = true);
     try {
-      await finishPlanning(ref: ref, navContext: context, travelProfile: widget.travelProfile);
+      await finishPlanning(
+        ref: ref,
+        navContext: context,
+        travelProfile: widget.travelProfile,
+      );
     } finally {
       if (mounted) setState(() => _finishing = false);
     }

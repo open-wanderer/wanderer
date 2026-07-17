@@ -23,7 +23,8 @@ class TrailSourceSelectScreen extends ConsumerStatefulWidget {
 
 class _TrailSourceSelectScreenState
     extends ConsumerState<TrailSourceSelectScreen> {
-  bool _importing = false;
+  bool _importLoading = false;
+  bool _plannerLoading = false;
 
   void _comingSoon(AppLocalizations l10n) {
     ref
@@ -41,7 +42,7 @@ class _TrailSourceSelectScreenState
     final profile = await showTravelProfileSheet(context);
     if (!mounted || profile == null) return;
 
-    setState(() => _importing = true);
+    setState(() => _plannerLoading = true);
     try {
       final center = await _resolveInitialCenter();
       if (!mounted) return;
@@ -50,7 +51,7 @@ class _TrailSourceSelectScreenState
         extra: {'travelProfile': profile, 'lat': center.lat, 'lon': center.lon},
       );
     } finally {
-      if (mounted) setState(() => _importing = false);
+      if (mounted) setState(() => _plannerLoading = false);
     }
   }
 
@@ -83,7 +84,7 @@ class _TrailSourceSelectScreenState
   }
 
   Future<void> _importGpx(AppLocalizations l10n) async {
-    if (_importing) return;
+    if (_importLoading) return;
 
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
@@ -93,7 +94,7 @@ class _TrailSourceSelectScreenState
     final path = picked?.path;
     if (picked == null || path == null) return;
 
-    setState(() => _importing = true);
+    setState(() => _importLoading = true);
     try {
       if (!mounted) return;
       await importTrailFile(
@@ -104,7 +105,7 @@ class _TrailSourceSelectScreenState
         l10n: l10n,
       );
     } finally {
-      if (mounted) setState(() => _importing = false);
+      if (mounted) setState(() => _importLoading = false);
     }
   }
 
@@ -125,8 +126,8 @@ class _TrailSourceSelectScreenState
             title: l10n.trail_source_planner,
             description:
                 "Design your perfect route from scratch using our map tools.",
-            isLoading: _importing,
-            onTap: _importing ? null : () => _openPlanner(l10n),
+            isLoading: _plannerLoading,
+            onTap: _importLoading ? null : () => _openPlanner(l10n),
           ),
           const SizedBox(height: 12),
           _SourceActionCard(
@@ -134,7 +135,7 @@ class _TrailSourceSelectScreenState
             title: l10n.trail_source_record,
             description:
                 "Track your live coordinates and log your journey in real-time.",
-            onTap: _importing ? null : () => _comingSoon(l10n),
+            onTap: _importLoading ? null : () => _comingSoon(l10n),
           ),
           const SizedBox(height: 12),
           _SourceActionCard(
@@ -142,8 +143,8 @@ class _TrailSourceSelectScreenState
             title: l10n.trail_source_import,
             description:
                 "Upload external GPX files directly from your device storage.",
-            isLoading: _importing,
-            onTap: _importing ? null : () => _importGpx(l10n),
+            isLoading: _importLoading,
+            onTap: _importLoading ? null : () => _importGpx(l10n),
           ),
         ],
       ),
