@@ -1,38 +1,8 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:wanderer/models/category.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
-import 'package:wanderer/util/category_icon_util.dart';
-import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
-
-/// Resolves the leading icon for [bucket]'s picker card: prefers a matching
-/// operator [Category] icon (via [trailCategoryIcon]), falling back to
-/// [RouteTravelBucket.fallbackIcon] when no category matches. Mirrors
-/// `travel_profile_sheet.dart`'s identical resolution (Task 5) — icon
-/// resolution only, never the costing payload (RESEARCH.md Q2).
-Widget bucketIcon(
-  RouteTravelBucket bucket,
-  List<Category> categories, {
-  double size = 20,
-}) {
-  Category? matched;
-  if (bucket == RouteTravelBucket.hiking) {
-    final id = categoryForTravelProfile('pedestrian', categories);
-    matched = id == null
-        ? null
-        : categories.firstWhereOrNull((c) => c.id == id);
-  } else {
-    matched = categoryForBikeBucket(bucket.keywords, categories);
-  }
-
-  return matched != null
-      ? trailCategoryIcon(matched, size: size)
-      : FaIcon(bucket.fallbackIcon, size: size);
-}
 
 /// The route planner sheet's "Settings" tab (quick-260717-t7q): hosts the
 /// relocated auto-routing toggle plus the unified 5-option travel-profile

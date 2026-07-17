@@ -1,37 +1,7 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:wanderer/models/category.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
-import 'package:wanderer/util/category_icon_util.dart';
-import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
-
-/// Resolves the leading icon for [bucket]'s card: prefers a matching
-/// operator [Category] icon (via [trailCategoryIcon]), falling back to
-/// [RouteTravelBucket.fallbackIcon] when no category matches. Mirrors
-/// `settings_tab.dart`'s identical resolution (Task 4) — icon resolution
-/// only, never the costing payload (RESEARCH.md Q2).
-Widget _bucketIcon(
-  RouteTravelBucket bucket,
-  List<Category> categories, {
-  double size = 20,
-}) {
-  Category? matched;
-  if (bucket == RouteTravelBucket.hiking) {
-    final id = categoryForTravelProfile('pedestrian', categories);
-    matched = id == null
-        ? null
-        : categories.firstWhereOrNull((c) => c.id == id);
-  } else {
-    matched = categoryForBikeBucket(bucket.keywords, categories);
-  }
-
-  return matched != null
-      ? trailCategoryIcon(matched, size: size)
-      : FaIcon(bucket.fallbackIcon, size: size);
-}
 
 /// Presents the D-01/D-02 travel-profile entry-point bottom sheet, expanded
 /// (quick-260717-t7q) from a 2-card Hike/Bike chooser to the unified
@@ -87,7 +57,7 @@ Future<RouteTravelBucket?> showTravelProfileSheet(BuildContext context) {
                 ),
                 for (final bucket in RouteTravelBucket.values) ...[
                   _TravelProfileCard(
-                    icon: _bucketIcon(bucket, categories),
+                    icon: bucketIcon(bucket, categories),
                     title: bucket.label,
                     description: bucket.description,
                     onTap: () => Navigator.pop(context, bucket),

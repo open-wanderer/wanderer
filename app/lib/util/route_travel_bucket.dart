@@ -1,4 +1,9 @@
+import 'package:collection/collection.dart';
+import 'package:flutter/widgets.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:wanderer/models/category.dart';
+import 'package:wanderer/util/category_icon_util.dart';
+import 'package:wanderer/util/gpx_util.dart';
 
 /// The route planner's 5 fixed travel buckets (CONTEXT: "ONE picker, five
 /// options"), each carrying a hardcoded Valhalla costing profile + a fixed,
@@ -135,6 +140,74 @@ extension RouteTravelBucketData on RouteTravelBucket {
         ? FontAwesomeIcons.personHiking
         : FontAwesomeIcons.bicycle;
   }
+
+  /// Small badge icon overlaid on the bike buckets' primary icon so the 4
+  /// bicycle_type options stay visually discernible even when no operator
+  /// [Category] matches (all 4 share the identical [fallbackIcon] otherwise
+  /// — a plain bicycle glyph, indistinguishable from one another). `null`
+  /// for hiking, which has only one option and needs no badge.
+  FaIconData? get badgeIcon {
+    switch (this) {
+      case RouteTravelBucket.hiking:
+        return null;
+      case RouteTravelBucket.bikingHybrid:
+        return FontAwesomeIcons.city;
+      case RouteTravelBucket.bikingRoad:
+        return FontAwesomeIcons.gaugeHigh;
+      case RouteTravelBucket.bikingCross:
+        return FontAwesomeIcons.mound;
+      case RouteTravelBucket.bikingMountain:
+        return FontAwesomeIcons.mountain;
+    }
+  }
+}
+
+/// Resolves the leading icon for [bucket]'s picker card — the single shared
+/// implementation for both `settings_tab.dart` and `travel_profile_sheet.dart`
+/// (previously duplicated verbatim between the two, quick-260717-t7q code
+/// review IN-02).
+///
+/// Prefers a matching operator [Category] icon (via [trailCategoryIcon]),
+/// falling back to [RouteTravelBucket.fallbackIcon] when no category
+/// matches (RESEARCH.md Q2) — icon resolution only, never the costing
+/// payload. Always overlays [RouteTravelBucket.badgeIcon] (mirroring
+/// `trailCategoryIcon`'s own subcategory-badge Stack shape) so the 4 bike
+/// buckets stay discernible from each other regardless of whether a
+/// category match was found — the fallback icon alone is identical
+/// (a plain bicycle) across all 4.
+Widget bucketIcon(
+  RouteTravelBucket bucket,
+  List<Category> categories, {
+  double size = 20,
+}) {
+  Category? matched;
+  if (bucket == RouteTravelBucket.hiking) {
+    final id = categoryForTravelProfile('pedestrian', categories);
+    matched = id == null
+        ? null
+        : categories.firstWhereOrNull((c) => c.id == id);
+  } else {
+    matched = categoryForBikeBucket(bucket.keywords, categories);
+  }
+
+  final primary = matched != null
+      ? trailCategoryIcon(matched, size: size)
+      : FaIcon(bucket.fallbackIcon, size: size);
+
+  final badge = bucket.badgeIcon;
+  if (badge == null) return primary;
+
+  return Stack(
+    clipBehavior: Clip.none,
+    children: [
+      primary,
+      Positioned(
+        right: -3,
+        top: -3,
+        child: FaIcon(badge, size: size * 0.4),
+      ),
+    ],
+  );
 }
 
 /// Resolves the [RouteTravelBucket] matching the current routing state —
