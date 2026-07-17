@@ -604,6 +604,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get finish => 'Finish';
 
   @override
+  String get finish_disabled_hint =>
+      'Add at least 2 anchors to finish your route.';
+
+  @override
   String get fixed_speed => 'Fixed Speed';
 
   @override
@@ -1016,6 +1020,19 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get trail_source_import_error => 'Could not import file';
+
+  @override
+  String get travel_profile_hike => 'Hike';
+
+  @override
+  String get travel_profile_hike_description =>
+      'Plan a route for walking or hiking.';
+
+  @override
+  String get travel_profile_bike => 'Bike';
+
+  @override
+  String get travel_profile_bike_description => 'Plan a route for cycling.';
 
   @override
   String get coming_soon => 'Coming soon';

@@ -1208,6 +1208,12 @@ abstract class AppLocalizations {
   /// **'Finish'**
   String get finish;
 
+  /// No description provided for @finish_disabled_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least 2 anchors to finish your route.'**
+  String get finish_disabled_hint;
+
   /// No description provided for @fixed_speed.
   ///
   /// In en, this message translates to:
@@ -1927,6 +1933,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not import file'**
   String get trail_source_import_error;
+
+  /// No description provided for @travel_profile_hike.
+  ///
+  /// In en, this message translates to:
+  /// **'Hike'**
+  String get travel_profile_hike;
+
+  /// No description provided for @travel_profile_hike_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan a route for walking or hiking.'**
+  String get travel_profile_hike_description;
+
+  /// No description provided for @travel_profile_bike.
+  ///
+  /// In en, this message translates to:
+  /// **'Bike'**
+  String get travel_profile_bike;
+
+  /// No description provided for @travel_profile_bike_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan a route for cycling.'**
+  String get travel_profile_bike_description;
 
   /// No description provided for @coming_soon.
   ///
