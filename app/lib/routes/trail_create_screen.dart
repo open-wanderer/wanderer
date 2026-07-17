@@ -27,6 +27,7 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/category_preference_provider.dart';
+import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
@@ -55,6 +56,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   final _formKey = GlobalKey<FormBuilderState>();
 
   ml.MapController? _mapController;
+  ml.Geographic? _elevationMarkerPosition;
 
   double sheetMinSize = 0.1;
   final sheetMediumSize = 0.4;
@@ -68,6 +70,10 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   // Guards the one-time default-category assignment below so it only fires
   // once categoryProvider/categoryPreferenceProvider have actually loaded.
   bool _categoryDefaulted = false;
+
+  // Guards the one-time default-privacy assignment below so it only fires
+  // once settingsProvider has actually loaded.
+  bool _privacyDefaulted = false;
 
   @override
   void initState() {
@@ -375,12 +381,23 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       }
     }
 
+    // Default a brand-new trail's visibility to the user's "default trail
+    // privacy" setting. Only applies on create (never overrides an existing
+    // trail's saved visibility) and applies at most once per screen.
+    final settings = ref.watch(settingsProvider);
+    if (!_privacyDefaulted && trail.id.isEmpty && settings != null) {
+      _privacyDefaulted = true;
+      trail = trail.copyWith(public: settings.privacy?.trails == 'public');
+    }
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         leading: IconButton(
           icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.pushReplacement('/map'),
           style: IconButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.surface,
           ),
@@ -414,6 +431,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
             Positioned.fill(
               child: TrailMap(
                 trail: trail,
+                elevationMarkerPosition: _elevationMarkerPosition,
                 showLocation: true,
                 offline: trail.isOffline,
                 initialCameraFitPadding: EdgeInsets.only(
@@ -481,6 +499,9 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                           onEditWaypoint: _onEditWaypoint,
                           onDeleteWaypoint: _onDeleteWaypoint,
                           onPhotosChanged: _onServerPhotosChanged,
+                          onElevationLineTouch: (p) => setState(
+                            () => _elevationMarkerPosition = p?.lonlat,
+                          ),
                         ),
                       );
                     },
@@ -505,6 +526,7 @@ class TrailForm extends ConsumerWidget {
   onEditWaypoint;
   final void Function(Waypoint waypoint) onDeleteWaypoint;
   final void Function(List<String> remainingFilenames) onPhotosChanged;
+  final void Function(TrackPoint? point) onElevationLineTouch;
   const TrailForm({
     super.key,
     required this.scrollController,
@@ -515,6 +537,7 @@ class TrailForm extends ConsumerWidget {
     required this.onEditWaypoint,
     required this.onDeleteWaypoint,
     required this.onPhotosChanged,
+    required this.onElevationLineTouch,
   });
 
   @override
@@ -544,7 +567,11 @@ class TrailForm extends ConsumerWidget {
             Divider(),
             SizedBox(height: 12),
             if (trail.expand?.gpx != null)
-              ElevationProfile(trail: trail, gpx: trail.expand!.gpx!),
+              ElevationProfile(
+                trail: trail,
+                gpx: trail.expand!.gpx!,
+                onLineTouch: onElevationLineTouch,
+              ),
             SizedBox(height: 12),
             WandererTextField(
               name: 'name',
@@ -697,7 +724,11 @@ class TrailForm extends ConsumerWidget {
                   initialLocalPhotos: trail.localPhotos,
                   initialWebPhotos: trail.photos,
                   resolveWebPhotoUrl: (filename) =>
-                      trail.getFileUrl(serverUrl ?? '', filename, thumb: '400x0') ??
+                      trail.getFileUrl(
+                        serverUrl ?? '',
+                        filename,
+                        thumb: '400x0',
+                      ) ??
                       '',
                   onChanged: (photos) => field.didChange(photos),
                   onWebPhotosChanged: onPhotosChanged,
