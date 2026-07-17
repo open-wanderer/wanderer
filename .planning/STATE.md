@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 Phase: 21 (route-planner-handoff-entry-point) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-07-17 - Completed quick task 260717-seb: Reverse-geocode route planner anchors on street name, matching web client behavior
+Last activity: 2026-07-17 - Completed quick task 260717-t7q: Add a Settings tab to the Route Planner sheet (consolidated Valhalla travel-profile picker, relocated auto-routing toggle)
 
 ## v1.5 Phases
 
@@ -191,6 +191,7 @@ Recent decisions affecting current work:
 | 260714-qtl | Fix meilisearch_token cookie never validated for real expiry in hooks.server.ts (real root cause of the reported search-call 500s) | 2026-07-14 | ed114163 | Complete | [260714-qtl-…](./quick/260714-qtl-fix-meilisearch-token-cookie-never-valid/) |
 | 260715-q01 | Rename iOS bundle id / App Group ids and Android applicationId from com.example.wanderer to com.openwanderer.wanderer | 2026-07-15 | 40cf3a69,8022ae97 | Complete | [260715-q01-…](./quick/260715-q01-update-the-ios-bundle-id-and-android-app/) |
 | 260717-seb | Reverse-geocode route planner anchors on street name, matching web client behavior | 2026-07-17 | aefa55fb,f56d31e7,90cbaa37 | Complete | [260717-seb-…](./quick/260717-seb-reverse-geocode-route-planner-anchors-on/) |
+| 260717-t7q | Add a Settings tab to the Route Planner sheet: consolidated Valhalla travel-profile picker, relocated auto-routing toggle | 2026-07-17 | 53b6b712,c9ec6e45,13f220eb,497803f0,cae4e55c,345e3e53 | Needs Review | [260717-t7q-…](./quick/260717-t7q-add-a-settings-tab-to-the-route-planner-/) |
 
 ## Deferred Items
 
