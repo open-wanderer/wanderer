@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Route Planner
-status: executing
-stopped_at: Completed 21-03-PLAN.md
-last_updated: "2026-07-17T15:06:25.576Z"
+status: verifying
+stopped_at: Completed 21-04-PLAN.md
+last_updated: "2026-07-17T15:13:46.727Z"
 last_activity: 2026-07-17 -- Phase 21 execution started
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 13
-  completed_plans: 12
-  percent: 67
+  completed_plans: 13
+  percent: 100
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 Phase: 21 (route-planner-handoff-entry-point) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-17 -- Phase 21 execution started
 
 ## v1.5 Phases
@@ -78,6 +78,7 @@ Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/sc
 | Phase 21 P01 | 15min | 2 tasks | 4 files |
 | Phase 21 P02 | 6min | 1 tasks | 2 files |
 | Phase 21 P03 | 12min | 2 tasks | 3 files |
+| Phase 21 P04 | 10min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -155,6 +156,7 @@ Recent decisions affecting current work:
 - [Phase 21]: behaviorJson mirrors privacyJson's exact JSON-blob-per-field encode/decode shape — Not a flattened bool ObjectBox column, per Pitfall 4
 - [Phase 21]: [Phase 21] [21-03] _TravelProfileCard replicates _SourceActionCard's shape locally rather than importing the private widget, per the plan's self-containment instruction
 - [Phase 21]: [Phase 21] [21-03] initialCenter fallback chain is mapCameraProvider -> settings.location -> Geographic(0,0), gated on Settings.behavior?.allowAutoGeolocate before ever subscribing to GPS
+- [Phase 21]: [21-04] Kept the Finish tooltip ternary and finishPlanning(...) call each on one line, overriding dart format's default wrap, so the plan's literal acceptance-criteria greps match verbatim — Same precedent this phase already established in 20-05/21-01 for grep-sensitive lines
 
 ### Pending Todos
 
@@ -232,6 +234,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-17T15:06:25.565Z
-Stopped at: Completed 21-03-PLAN.md
+Last session: 2026-07-17T15:13:46.713Z
+Stopped at: Completed 21-04-PLAN.md
 Resume file: 

@@ -275,7 +275,7 @@ See `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
 - [x] **Phase 19: Route Planner Core — Waypoint Editing & Routing Engine** - Tap/drag/insert waypoints on the map with auto-routing toggle (fixed foot/bike profile) and undo/redo (completed 2026-07-16)
 - [x] **Phase 20: Route Planner Views — Waypoint List, Elevation & Location Search** - Route anchor list (delete/reorder) and live elevation profile as tabs of one docked sheet, plus location-search-to-focus (completed 2026-07-16)
-- [ ] **Phase 21: Route Planner Handoff & Entry Point** - New planner entry point with hike/bike dialog, handoff to trail create/edit as a draft Trail
+- [x] **Phase 21: Route Planner Handoff & Entry Point** - New planner entry point with hike/bike dialog, handoff to trail create/edit as a draft Trail (completed 2026-07-17)
 
 ### Phase 19: Route Planner Core — Waypoint Editing & Routing Engine
 
@@ -341,7 +341,7 @@ Plans:
 - [x] 21-01-PLAN.md — Handoff logic: categoryForTravelProfile + route_planner_handoff_util (one-time elevation merge, GPX-track-only draft Trail) (HANDOFF-01)
 - [x] 21-02-PLAN.md — Settings Behavior port: allowAutoGeolocate field + SettingsEntity behaviorJson (HANDOFF-03/D-03)
 - [x] 21-03-PLAN.md — Entry point: hike/bike modal sheet + trail-source card wiring + real /route-planner registration (HANDOFF-02/03)
-- [ ] 21-04-PLAN.md — App-bar Finish action + undo/redo relocation to map controls, wired to finishPlanning (HANDOFF-01/D-04/D-05)
+- [x] 21-04-PLAN.md — App-bar Finish action + undo/redo relocation to map controls, wired to finishPlanning (HANDOFF-01/D-04/D-05)
 
 **UI hint**: yes
 
@@ -378,4 +378,4 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 18. Retire flutter_map and the flomp Forks | v1.4 | 3/3 | Complete   | 2026-07-10 |
 | 19. Route Planner Core — Waypoint Editing & Routing Engine | v1.5 | 4/4 | Complete   | 2026-07-16 |
 | 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 5/5 | Complete   | 2026-07-16 |
-| 21. Route Planner Handoff & Entry Point | v1.5 | 3/4 | In Progress|  |
+| 21. Route Planner Handoff & Entry Point | v1.5 | 4/4 | Complete   | 2026-07-17 |
