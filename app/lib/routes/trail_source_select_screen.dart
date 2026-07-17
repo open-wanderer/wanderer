@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/trail_import_util.dart';
@@ -73,7 +74,11 @@ class _TrailSourceSelectScreenState
             title: l10n.trail_source_planner,
             description:
                 "Design your perfect route from scratch using our map tools.",
-            onTap: _importing ? null : () => _comingSoon(l10n),
+            // TEMPORARY: routes to the test-only /route-planner entry point
+            // (see router_provider.dart) for Phase 19 manual device
+            // verification. Phase 21 (HANDOFF-02/03) replaces this with the
+            // real hike/bike profile dialog.
+            onTap: _importing ? null : () => context.push('/route-planner'),
           ),
           const SizedBox(height: 12),
           _SourceActionCard(
