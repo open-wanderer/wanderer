@@ -1,7 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:wanderer/models/route_anchor.dart';
+import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
+import 'package:wanderer/util/reverse_geocode_util.dart';
 
 /// The sheet's "Route Anchors" tab (WAYP-04/05, D-05..D-08): a
 /// [ReorderableListView] listing every in-progress route anchor in order,
@@ -34,8 +38,7 @@ class RouteAnchorListTab extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<RouteAnchorListTab> createState() =>
-      _RouteAnchorListTabState();
+  ConsumerState<RouteAnchorListTab> createState() => _RouteAnchorListTabState();
 }
 
 class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
@@ -49,6 +52,109 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
   /// reseed [_orderedIds] from the provider.
   bool _reordering = false;
 
+  /// Resolved reverse-geocode results, keyed by rounded coordinate
+  /// ([_locationCacheKey]). Mirrors web's `trail_anchor_list.svelte`
+  /// module-level `locations` record — this is LOCAL widget state, not part
+  /// of the immutable [RouteAnchor] model or a new provider (D-05/D-06
+  /// analog, per this plan's action text).
+  final Map<String, ReverseLocationResult> _locations = {};
+
+  /// Keys with an in-flight reverse-geocode request, so a rapid re-trigger
+  /// of the batch never double-fetches the same coordinate.
+  final Set<String> _pending = {};
+
+  /// The single shared cancel token for the current batch. Aborted before a
+  /// new batch starts, mirroring web's single `locationAbortController`.
+  CancelToken? _batchToken;
+
+  /// Guards against re-kicking an identical batch on every build — only a
+  /// genuine change to the anchors' coordinates/order re-triggers the
+  /// sequential geocode batch.
+  String? _lastAnchorSignature;
+
+  String _locationCacheKey(RouteAnchor a) =>
+      '${a.lat.toStringAsFixed(5)},${a.lon.toStringAsFixed(5)}';
+
+  Future<void> _loadAnchorLocation(
+    RouteAnchor anchor,
+    CancelToken token,
+  ) async {
+    final key = _locationCacheKey(anchor);
+    if (_locations.containsKey(key) || _pending.contains(key)) {
+      return;
+    }
+
+    _pending.add(key);
+    try {
+      final result = await searchLocationReverseStructured(
+        ref.read(apiProvider),
+        anchor.lat,
+        anchor.lon,
+        includeRoad: true,
+        cancelToken: token,
+      );
+      if (result != null && mounted) {
+        setState(() => _locations[key] = result);
+      }
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) {
+        // Superseded by a newer batch — silent, expected.
+        return;
+      }
+      debugPrint('Failed to resolve anchor location: $e');
+    } catch (e) {
+      debugPrint('Failed to resolve anchor location: $e');
+    } finally {
+      _pending.remove(key);
+    }
+  }
+
+  Future<void> _loadAnchorLocations(List<RouteAnchor> anchors) async {
+    _batchToken?.cancel();
+    final token = CancelToken();
+    _batchToken = token;
+
+    for (final anchor in anchors) {
+      if (token.isCancelled) return;
+      await _loadAnchorLocation(anchor, token);
+    }
+  }
+
+  /// Optional cross-country nuance (mirror web's `commonAnchorCountry`): if
+  /// every resolved anchor shares one country, [_anchorTitle] omits it for a
+  /// cleaner, less redundant row title.
+  String? _commonAnchorCountry(List<RouteAnchor> anchors) {
+    final countries = anchors
+        .map((a) => _locations[_locationCacheKey(a)]?.country)
+        .whereType<String>()
+        .where((c) => c.isNotEmpty)
+        .toList();
+
+    if (countries.length < 2) {
+      return null;
+    }
+
+    final first = countries.first;
+    return countries.every((c) => c == first) ? first : null;
+  }
+
+  String _anchorTitle(RouteAnchor anchor, int index, String? commonCountry) {
+    final location = _locations[_locationCacheKey(anchor)];
+    if (location == null) {
+      return 'Anchor ${index + 1}';
+    }
+
+    return (commonCountry != null && location.country == commonCountry)
+        ? location.label
+        : location.fullLabel;
+  }
+
+  @override
+  void dispose() {
+    _batchToken?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final anchors = ref
@@ -58,6 +164,16 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
     if (!_reordering) {
       _orderedIds = anchors.map((a) => a.id).toList();
     }
+
+    final signature = anchors.map(_locationCacheKey).join('|');
+    if (signature != _lastAnchorSignature) {
+      _lastAnchorSignature = signature;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadAnchorLocations(anchors);
+      });
+    }
+
+    final commonCountry = _commonAnchorCountry(anchors);
 
     final byId = {for (final a in anchors) a.id: a};
     final theme = Theme.of(context);
@@ -92,7 +208,11 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
               ),
             ),
           ),
-          title: Text('Anchor ${index + 1}'),
+          title: Text(
+            _anchorTitle(anchor, index, commonCountry),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           subtitle: Text(
             '${anchor.lat.toStringAsFixed(5)}, ${anchor.lon.toStringAsFixed(5)}',
             style: TextStyle(color: Colors.grey[600]),

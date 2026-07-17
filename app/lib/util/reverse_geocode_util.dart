@@ -45,7 +45,8 @@ String getLocationDescription(
     parts.add(road);
   }
 
-  final city = address['city'] as String? ??
+  final city =
+      address['city'] as String? ??
       address['town'] as String? ??
       address['hamlet'] as String? ??
       address['village'] as String?;
