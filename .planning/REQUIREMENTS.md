@@ -30,7 +30,7 @@ Requirements for the v1.5 Route Planner milestone. Each maps to a roadmap phase.
 
 ### Handoff
 
-- [ ] **HANDOFF-01**: User can finish planning and hand off the route as a draft Trail (synthesized GPX + named waypoints, with elevation populated via a one-time `/api/v1/valhalla/height` fetch at handoff time — regardless of whether the Elevation tab was ever opened during planning) to the existing trail create/edit screen
+- [ ] **HANDOFF-01** *(SCOPE CHANGE — see 21-CONTEXT.md)*: User can finish planning and hand off the route as a draft Trail (synthesized GPX track only, no Waypoint records — route anchors stay planner-only and are never converted to named waypoints; elevation populated via a one-time `/api/v1/valhalla/height` fetch at handoff time — regardless of whether the Elevation tab was ever opened during planning) to the existing trail create/edit screen
 - [ ] **HANDOFF-02**: The Route Planner is reachable from a new entry point in the trail-source-select flow, alongside the existing "import trail file" option
 - [ ] **HANDOFF-03**: Tapping "Open trail planner" shows a hike/bike selection dialog before the planner screen opens; the selection sets the Route Planner's initial travel profile for the whole session (fixed — no in-planner profile switch)
 
