@@ -26,9 +26,7 @@ import 'package:wanderer/components/route_planner/route_anchor_list_tab.dart';
 /// peek height, and there is no `onClose`/drag-to-dismiss path (unlike
 /// `WaypointSheet`, which this chrome is otherwise modeled on).
 class RouteAnchorSheet extends ConsumerStatefulWidget {
-  final String travelProfile;
-
-  const RouteAnchorSheet({super.key, required this.travelProfile});
+  const RouteAnchorSheet({super.key});
 
   @override
   ConsumerState<RouteAnchorSheet> createState() => _RouteAnchorSheetState();
@@ -139,11 +137,8 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet> {
                       // no shared controller — passing it into both would
                       // throw at runtime since TabBarView keeps both children
                       // built simultaneously.
-                      RouteAnchorListTab(
-                        travelProfile: widget.travelProfile,
-                        scrollController: scrollController,
-                      ),
-                      ElevationTab(travelProfile: widget.travelProfile),
+                      RouteAnchorListTab(scrollController: scrollController),
+                      ElevationTab(),
                     ],
                   ),
                 ),

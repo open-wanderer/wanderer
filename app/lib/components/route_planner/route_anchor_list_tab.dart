@@ -28,14 +28,9 @@ import 'package:wanderer/util/reverse_geocode_util.dart';
 /// only genuinely scrollable tab, so the sheet's builder-supplied controller
 /// is wired to THIS tab's [ReorderableListView], not the Elevation tab.
 class RouteAnchorListTab extends ConsumerStatefulWidget {
-  final String travelProfile;
   final ScrollController scrollController;
 
-  const RouteAnchorListTab({
-    super.key,
-    required this.travelProfile,
-    required this.scrollController,
-  });
+  const RouteAnchorListTab({super.key, required this.scrollController});
 
   @override
   ConsumerState<RouteAnchorListTab> createState() => _RouteAnchorListTabState();
@@ -157,9 +152,7 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
 
   @override
   Widget build(BuildContext context) {
-    final anchors = ref
-        .watch(routeAnchorsProvider(widget.travelProfile))
-        .anchors;
+    final anchors = ref.watch(routeAnchorsProvider).anchors;
 
     if (!_reordering) {
       _orderedIds = anchors.map((a) => a.id).toList();
@@ -224,7 +217,7 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
               color: Colors.red.shade400,
             ),
             onPressed: () => ref
-                .read(routeAnchorsProvider(widget.travelProfile).notifier)
+                .read(routeAnchorsProvider.notifier)
                 .deleteAnchor(anchor.id),
             visualDensity: VisualDensity.compact,
           ),
@@ -248,9 +241,7 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
     reordered.insert(newIndex, moved);
     setState(() => _orderedIds = reordered);
 
-    ref
-        .read(routeAnchorsProvider(widget.travelProfile).notifier)
-        .reorderAnchors(_orderedIds);
+    ref.read(routeAnchorsProvider.notifier).reorderAnchors(_orderedIds);
 
     setState(() => _reordering = false);
   }

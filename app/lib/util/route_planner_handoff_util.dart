@@ -5,6 +5,7 @@ import 'package:gpx/gpx.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/planned_gpx_provider.dart';
+import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/trail_import_util.dart';
@@ -83,14 +84,17 @@ Trail buildDraftTrail(Gpx finalGpx, {String? category}) {
 
 /// Orchestrates the Route Planner's "Finish planning" handoff (HANDOFF-01).
 ///
-/// Reads the final [plannedGpxProvider] snapshot for [travelProfile],
-/// attempts a one-time `POST /valhalla/height` elevation merge (silent
-/// best-effort — D-06: any failure degrades to the pre-elevation `Gpx`, no
-/// error UI), resolves a category pre-fill via [categoryForTravelProfile]
-/// (D-08, may be `null`), builds the draft [Trail] via [buildDraftTrail],
-/// then reuses the existing GPX-import handoff mechanism verbatim
-/// ([pendingImportedTrail] + `navContext.push('/trail/create/edit')`) — no
-/// parallel state-passing mechanism.
+/// Reads the final [plannedGpxProvider] snapshot and the current
+/// `travelProfile` from [routeAnchorsProvider] (Rec B — no longer a family
+/// argument), attempts a one-time `POST /valhalla/height` elevation merge
+/// (silent best-effort — D-06: any failure degrades to the pre-elevation
+/// `Gpx`, no error UI), resolves a category pre-fill via
+/// [categoryForTravelProfile] (D-08, may be `null` — deliberately UNCHANGED
+/// by the Settings-tab picker, quick-260717-t7q CONTEXT: "explicitly OUT of
+/// scope"), builds the draft [Trail] via [buildDraftTrail], then reuses the
+/// existing GPX-import handoff mechanism verbatim ([pendingImportedTrail] +
+/// `navContext.push('/trail/create/edit')`) — no parallel state-passing
+/// mechanism.
 ///
 /// Returns early (no-op) when fewer than 2 points are available (D-05
 /// backstop; the Finish action is already disabled below 2 anchors at the
@@ -98,9 +102,9 @@ Trail buildDraftTrail(Gpx finalGpx, {String? category}) {
 Future<void> finishPlanning({
   required WidgetRef ref,
   required BuildContext navContext,
-  required String travelProfile,
 }) async {
-  final gpx = ref.read(plannedGpxProvider(travelProfile));
+  final gpx = ref.read(plannedGpxProvider);
+  final travelProfile = ref.read(routeAnchorsProvider).travelProfile;
   final points = gpx.allPoints;
   if (points.length < 2) return;
 

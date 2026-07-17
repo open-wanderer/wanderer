@@ -23,18 +23,21 @@ const _anchorIdB = 'anchor-b';
 const _anchorIdC = 'anchor-c';
 
 class _SeededRouteAnchors extends RouteAnchors {
-  _SeededRouteAnchors(this._anchors, this._segments);
+  _SeededRouteAnchors(this._anchors, this._segments, {String travelProfile = _profile})
+    : _travelProfile = travelProfile;
 
   final List<RouteAnchor> _anchors;
   final List<RouteSegment> _segments;
+  final String _travelProfile;
 
   @override
-  RouteAnchorsState build(String travelProfile) {
+  RouteAnchorsState build() {
     return RouteAnchorsState(
       anchors: _anchors,
       segments: _segments,
       autoRoutingEnabled: true,
-      travelProfile: travelProfile,
+      travelProfile: _travelProfile,
+      costingOptions: null,
       undoStack: const [],
       redoStack: const [],
     );
@@ -47,9 +50,9 @@ ProviderContainer _buildContainer({
 }) {
   final container = ProviderContainer(
     overrides: [
-      routeAnchorsProvider(
-        _profile,
-      ).overrideWith(() => _SeededRouteAnchors(anchors, segments)),
+      routeAnchorsProvider.overrideWith(
+        () => _SeededRouteAnchors(anchors, segments),
+      ),
     ],
   );
   addTearDown(container.dispose);
@@ -61,7 +64,7 @@ void main() {
     test('an empty route (0 anchors) yields an empty Gpx', () {
       final container = _buildContainer(anchors: const [], segments: const []);
 
-      final gpx = container.read(plannedGpxProvider(_profile));
+      final gpx = container.read(plannedGpxProvider);
 
       expect(gpx.allPoints, isEmpty);
     });
@@ -98,7 +101,7 @@ void main() {
         ];
         final container = _buildContainer(anchors: anchors, segments: segments);
 
-        final gpx = container.read(plannedGpxProvider(_profile));
+        final gpx = container.read(plannedGpxProvider);
 
         expect(gpx.allPoints, [_anchorA, _anchorB, midPoint, _anchorC]);
       },
@@ -108,15 +111,15 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final notifier = container.read(routeAnchorsProvider(_profile).notifier);
+      final notifier = container.read(routeAnchorsProvider.notifier);
       notifier.appendAnchor(_anchorA);
 
-      final before = container.read(plannedGpxProvider(_profile));
+      final before = container.read(plannedGpxProvider);
       expect(before.allPoints, [_anchorA]);
 
       notifier.appendAnchor(_anchorB);
 
-      final after = container.read(plannedGpxProvider(_profile));
+      final after = container.read(plannedGpxProvider);
       expect(after.allPoints, [_anchorA, _anchorB]);
     });
   });

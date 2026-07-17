@@ -29,9 +29,17 @@ import 'package:wanderer/util/route_segment_util.dart';
 /// [LocationSearchScreen] via `/location-search`), analogous to
 /// `map_screen.dart`'s search pill.
 class RoutePlannerScreen extends ConsumerStatefulWidget {
-  /// `'pedestrian'` or `'bicycle'` — fixed for the entire planning session
-  /// (D-07), set once by the Phase 21 entry-point dialog.
+  /// `'pedestrian'` or `'bicycle'` — the initial travel profile for this
+  /// planning session, set once by the Phase 21 entry-point dialog. Applied
+  /// via [RouteAnchors.resetForSession] at mount; may change mid-session via
+  /// the Settings tab's [RouteAnchors.switchProfile] (Rec B).
   final String travelProfile;
+
+  /// The initial Valhalla `costing_options` payload matching
+  /// [travelProfile]'s selected bucket, threaded through the router's
+  /// `extra['costingOptions']` (quick-260717-t7q). `null` when the caller
+  /// didn't supply one.
+  final Map<String, dynamic>? initialCostingOptions;
 
   /// The map's initial camera center. Required with no fallback default —
   /// inventing a hardcoded center here would silently mask a caller bug;
@@ -42,6 +50,7 @@ class RoutePlannerScreen extends ConsumerStatefulWidget {
   const RoutePlannerScreen({
     super.key,
     required this.travelProfile,
+    this.initialCostingOptions,
     required this.initialCenter,
   });
 
@@ -91,11 +100,23 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   bool _finishing = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Rec B: routeAnchorsProvider is a single keepAlive instance that
+    // survives across planner entries — reset it synchronously here (before
+    // the first build) so a re-entry never flashes the prior session's
+    // route (T-t7q-03).
+    ref
+        .read(routeAnchorsProvider.notifier)
+        .resetForSession(widget.travelProfile, widget.initialCostingOptions);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final state = ref.watch(routeAnchorsProvider(widget.travelProfile));
+    final state = ref.watch(routeAnchorsProvider);
 
-    ref.listen(routeAnchorsProvider(widget.travelProfile), (prev, next) {
+    ref.listen(routeAnchorsProvider, (prev, next) {
       final style = _resolvedStyle;
       if (style != null && !identical(prev?.segments, next.segments)) {
         // Keeps the native segment layer's GeoJSON in sync with every
@@ -160,7 +181,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
           // anchor, and un-mounts entirely when it returns to empty — it
           // never shows an empty state of its own.
           if (state.anchors.isNotEmpty)
-            RouteAnchorSheet(travelProfile: widget.travelProfile),
+            RouteAnchorSheet(),
         ],
       ),
     );
@@ -211,7 +232,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
             ) ??
             const [];
         final notifier = ref.read(
-          routeAnchorsProvider(widget.travelProfile).notifier,
+          routeAnchorsProvider.notifier,
         );
 
         if (hits.isNotEmpty) {
@@ -244,23 +265,20 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         notifier.appendAnchor(event.point);
       },
       children: [
-        RouteAnchorLayer(travelProfile: widget.travelProfile),
+        RouteAnchorLayer(),
         // D-06: shared top-right controls slot. D-02 replaced the planned
         // list/elevation toggle buttons with the tabbed RouteAnchorSheet; the
         // search control (D-04, 20-CONTEXT) has since moved into the app-bar
         // title as a fake search bar (see _buildSearchBar). Undo/redo now
-        // live here too (D-04, 21-CONTEXT) — Finish took their app-bar slot,
-        // so they stack below the auto-routing toggle instead.
+        // live here too (D-04, 21-CONTEXT). The auto-routing toggle has
+        // moved into the Settings tab (quick-260717-t7q) — this column now
+        // hosts only undo/redo.
         Positioned(
           top: 128,
           right: 0,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildAutoRoutingToggle(state.autoRoutingEnabled),
-              _buildUndoButton(state),
-              _buildRedoButton(state),
-            ],
+            children: [_buildUndoButton(state), _buildRedoButton(state)],
           ),
         ),
       ],
@@ -276,7 +294,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     _segmentLayer
         .update(
           style,
-          ref.read(routeAnchorsProvider(widget.travelProfile)).segments,
+          ref.read(routeAnchorsProvider).segments,
         )
         .ignore();
   }
@@ -330,40 +348,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     );
   }
 
-  /// D-06: top-right pill control toggling ROUTE-01/02's auto-routing flag.
-  /// Matches `_buildMapControls`' existing pill container styling exactly
-  /// (UI-SPEC's Map Control & App Bar Contract).
-  Widget _buildAutoRoutingToggle(bool enabled) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).canvasColor,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: IconButton(
-          visualDensity: VisualDensity.compact,
-          tooltip: enabled ? 'Auto-routing on' : 'Auto-routing off',
-          icon: FaIcon(
-            FontAwesomeIcons.route,
-            size: 18,
-            color: enabled
-                ? (Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xff3E435B)
-                      : const Color(0xff242734))
-                : Theme.of(context).colorScheme.onSurface.withValues(alpha: .4),
-          ),
-          onPressed: () => ref
-              .read(routeAnchorsProvider(widget.travelProfile).notifier)
-              .toggleAutoRouting(),
-        ),
-      ),
-    );
-  }
-
   /// D-04: undo pill, relocated from the app bar into the top-right controls
-  /// Column. Same pill container/icon treatment as
-  /// [_buildAutoRoutingToggle] — only position changed, not styling.
+  /// Column. Same pill container/icon treatment the (now-removed)
+  /// auto-routing toggle used — only position changed, not styling.
   Widget _buildUndoButton(RouteAnchorsState state) {
     return Padding(
       padding: const EdgeInsets.all(8.0),
@@ -386,7 +373,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
           ),
           onPressed: state.undoStack.isNotEmpty
               ? ref
-                    .read(routeAnchorsProvider(widget.travelProfile).notifier)
+                    .read(routeAnchorsProvider.notifier)
                     .undo
               : null,
         ),
@@ -395,8 +382,8 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   }
 
   /// D-04: redo pill, relocated from the app bar into the top-right controls
-  /// Column. Same pill container/icon treatment as
-  /// [_buildAutoRoutingToggle] — only position changed, not styling.
+  /// Column. Same pill container/icon treatment [_buildUndoButton] uses —
+  /// only position changed, not styling.
   Widget _buildRedoButton(RouteAnchorsState state) {
     return Padding(
       padding: const EdgeInsets.all(8.0),
@@ -419,7 +406,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
           ),
           onPressed: state.redoStack.isNotEmpty
               ? ref
-                    .read(routeAnchorsProvider(widget.travelProfile).notifier)
+                    .read(routeAnchorsProvider.notifier)
                     .redo
               : null,
         ),
@@ -455,11 +442,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     if (_finishing) return;
     setState(() => _finishing = true);
     try {
-      await finishPlanning(
-        ref: ref,
-        navContext: context,
-        travelProfile: widget.travelProfile,
-      );
+      await finishPlanning(ref: ref, navContext: context);
     } finally {
       if (mounted) setState(() => _finishing = false);
     }

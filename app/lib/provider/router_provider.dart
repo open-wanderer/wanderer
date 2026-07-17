@@ -252,6 +252,8 @@ class Router extends _$Router {
           builder: (context, state) {
             final extra = state.extra as Map<String, dynamic>?;
             final profile = extra?['travelProfile'] as String? ?? 'pedestrian';
+            final costingOptions =
+                extra?['costingOptions'] as Map<String, dynamic>?;
             final lat = extra?['lat'] as double?;
             final lon = extra?['lon'] as double?;
             final center = (lat != null && lon != null)
@@ -259,6 +261,7 @@ class Router extends _$Router {
                 : const Geographic(lat: 0, lon: 0);
             return RoutePlannerScreen(
               travelProfile: profile,
+              initialCostingOptions: costingOptions,
               initialCenter: center,
             );
           },

@@ -23,9 +23,7 @@ import 'package:wanderer/util/gpx_util.dart';
 /// Assumes this widget is the second page (index 1) of a 2-tab
 /// `DefaultTabController` (tab 0 = Route Anchors, tab 1 = Elevation).
 class ElevationTab extends ConsumerStatefulWidget {
-  final String travelProfile;
-
-  const ElevationTab({super.key, required this.travelProfile});
+  const ElevationTab({super.key});
 
   @override
   ConsumerState<ElevationTab> createState() => _ElevationTabState();
@@ -85,7 +83,7 @@ class _ElevationTabState extends ConsumerState<ElevationTab> {
   Future<void> _fetchHeights() async {
     if (!mounted || !_isVisible) return;
 
-    final gpx = ref.read(plannedGpxProvider(widget.travelProfile));
+    final gpx = ref.read(plannedGpxProvider);
     final points = gpx.allPoints;
     if (points.length < 2) return;
 
@@ -136,12 +134,12 @@ class _ElevationTabState extends ConsumerState<ElevationTab> {
 
   @override
   Widget build(BuildContext context) {
-    final gpx = ref.watch(plannedGpxProvider(widget.travelProfile));
+    final gpx = ref.watch(plannedGpxProvider);
 
     // Re-schedule the (debounced) height fetch whenever the planned route
     // changes while this tab is visible. plannedGpxProvider itself re-emits
     // regardless of tab visibility, so the gating happens here, not there.
-    ref.listen(plannedGpxProvider(widget.travelProfile), (previous, next) {
+    ref.listen(plannedGpxProvider, (previous, next) {
       if (_isVisible) _scheduleFetch();
     });
 

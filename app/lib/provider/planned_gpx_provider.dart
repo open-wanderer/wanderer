@@ -14,14 +14,12 @@ part 'planned_gpx_provider.g.dart';
 /// `skip(1)` so the shared boundary point between two consecutive segments
 /// is not duplicated.
 ///
-/// Keyed by [travelProfile] — the same family key as [routeAnchorsProvider]
-/// — so Phase 21's handoff (HANDOFF-01) can consume the same provider.
 /// Recomputes whenever `routeAnchorsProvider`'s anchors/segments identity
 /// changes. Never sets `ele` (D-10): the elevation tab owns the
 /// elevation-merged copy.
 @riverpod
-Gpx plannedGpx(Ref ref, String travelProfile) {
-  final state = ref.watch(routeAnchorsProvider(travelProfile));
+Gpx plannedGpx(Ref ref) {
+  final state = ref.watch(routeAnchorsProvider);
 
   if (state.anchors.isEmpty) return buildGpxFromPoints(const []);
 

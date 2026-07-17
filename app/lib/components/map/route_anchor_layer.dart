@@ -10,8 +10,8 @@ import 'package:wanderer/provider/route_anchor_provider.dart';
 ///
 /// Unlike `TrailMarkerLayer` (`trail_layer.dart`), which is bound to a
 /// passed-in `Trail`, this widget reads its data directly from
-/// `ref.watch(routeAnchorsProvider(travelProfile))` since it is not bound to
-/// any persisted object — it renders the in-progress, unsaved route plan.
+/// `ref.watch(routeAnchorsProvider)` since it is not bound to any persisted
+/// object — it renders the in-progress, unsaved route plan.
 ///
 /// Dragging a marker reuses `TrailMarkerLayer`'s proven
 /// `GestureDetector.onPanStart/Update/End` pattern (D-05): the marker shows
@@ -23,16 +23,10 @@ import 'package:wanderer/provider/route_anchor_provider.dart';
 /// [ml.MapCamera] from context so a drag-in-progress marker stays aligned
 /// with the map as the user pans/zooms mid-gesture.
 class RouteAnchorLayer extends ConsumerStatefulWidget {
-  final String travelProfile;
   final String? selectedAnchorId;
   final void Function(String anchorId)? onAnchorTap;
 
-  const RouteAnchorLayer({
-    super.key,
-    required this.travelProfile,
-    this.selectedAnchorId,
-    this.onAnchorTap,
-  });
+  const RouteAnchorLayer({super.key, this.selectedAnchorId, this.onAnchorTap});
 
   @override
   ConsumerState<RouteAnchorLayer> createState() => _RouteAnchorLayerState();
@@ -51,9 +45,7 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
 
   @override
   Widget build(BuildContext context) {
-    final anchors = ref
-        .watch(routeAnchorsProvider(widget.travelProfile))
-        .anchors;
+    final anchors = ref.watch(routeAnchorsProvider).anchors;
     final controller = ml.MapController.maybeOf(context);
     // Subscribe to camera changes so a drag-in-progress marker recomputes as
     // the user pans/zooms (mirrors TrailMarkerLayer's existing nudge
@@ -101,9 +93,7 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
                 // never from onPanUpdate. This re-resolves the anchor's ≤2
                 // adjacent segments to the current routing mode.
                 ref
-                    .read(
-                      routeAnchorsProvider(widget.travelProfile).notifier,
-                    )
+                    .read(routeAnchorsProvider.notifier)
                     .dragAnchor(anchor.id, c.toLngLat(offset));
               }
             },
