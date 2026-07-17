@@ -19,6 +19,7 @@ class SettingsEntity {
   String? user;
   String? privacyJson;
   String? notificationsJson;
+  String? behaviorJson;
 
   SettingsEntity({
     required this.id,
@@ -29,6 +30,7 @@ class SettingsEntity {
     this.user,
     this.privacyJson,
     this.notificationsJson,
+    this.behaviorJson,
   });
 
   factory SettingsEntity.fromModel(Settings settings) {
@@ -54,6 +56,9 @@ class SettingsEntity {
           ? jsonEncode(
               settings.notifications!.map((k, v) => MapEntry(k, v.toJson())),
             )
+          : null,
+      behaviorJson: settings.behavior != null
+          ? jsonEncode(settings.behavior!.toJson())
           : null,
     );
   }
@@ -94,6 +99,13 @@ extension SettingsEntityMapping on SettingsEntity {
       );
     }
 
+    Behavior? behav;
+    if (behaviorJson != null) {
+      behav = Behavior.fromJson(
+        jsonDecode(behaviorJson!) as Map<String, dynamic>,
+      );
+    }
+
     return Settings(
       id: id,
       unit: unit,
@@ -103,6 +115,7 @@ extension SettingsEntityMapping on SettingsEntity {
       user: user,
       privacy: priv,
       notifications: notifs,
+      behavior: behav,
     );
   }
 }

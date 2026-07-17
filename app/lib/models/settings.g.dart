@@ -45,6 +45,18 @@ Map<String, dynamic> _$NotificationPreferenceToJson(
   _NotificationPreference instance,
 ) => <String, dynamic>{'web': instance.web, 'email': instance.email};
 
+_Behavior _$BehaviorFromJson(Map<String, dynamic> json) => _Behavior(
+  allowAutoGeolocate: json['allowAutoGeolocate'] as bool?,
+  mapClusteringMaxZoom: (json['mapClusteringMaxZoom'] as num?)?.toInt(),
+  showTrailStartMarker: json['showTrailStartMarker'] as bool?,
+);
+
+Map<String, dynamic> _$BehaviorToJson(_Behavior instance) => <String, dynamic>{
+  'allowAutoGeolocate': instance.allowAutoGeolocate,
+  'mapClusteringMaxZoom': instance.mapClusteringMaxZoom,
+  'showTrailStartMarker': instance.showTrailStartMarker,
+};
+
 _Settings _$SettingsFromJson(Map<String, dynamic> json) => _Settings(
   id: json['id'] as String?,
   unit: json['unit'] as String?,
@@ -61,6 +73,9 @@ _Settings _$SettingsFromJson(Map<String, dynamic> json) => _Settings(
     (k, e) =>
         MapEntry(k, NotificationPreference.fromJson(e as Map<String, dynamic>)),
   ),
+  behavior: json['behavior'] == null
+      ? null
+      : Behavior.fromJson(json['behavior'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$SettingsToJson(_Settings instance) => <String, dynamic>{
@@ -72,6 +87,7 @@ Map<String, dynamic> _$SettingsToJson(_Settings instance) => <String, dynamic>{
   'user': instance.user,
   'privacy': instance.privacy,
   'notifications': instance.notifications,
+  'behavior': instance.behavior,
 };
 
 const _$LanguageEnumMap = {

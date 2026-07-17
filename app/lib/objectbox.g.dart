@@ -607,7 +607,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(7, 7624156081543730552),
     name: 'SettingsEntity',
-    lastPropertyId: const obx_int.IdUid(13, 5568817240500151872),
+    lastPropertyId: const obx_int.IdUid(14, 4465420488338205867),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -662,6 +662,12 @@ final _entities = <obx_int.ModelEntity>[
       obx_int.ModelProperty(
         id: const obx_int.IdUid(13, 5568817240500151872),
         name: 'user',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 4465420488338205867),
+        name: 'behaviorJson',
         type: 9,
         flags: 0,
       ),
@@ -1663,7 +1669,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final userOffset = object.user == null
             ? null
             : fbb.writeString(object.user!);
-        fbb.startTable(14);
+        final behaviorJsonOffset = object.behaviorJson == null
+            ? null
+            : fbb.writeString(object.behaviorJson!);
+        fbb.startTable(15);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(2, idOffset);
         fbb.addOffset(3, unitOffset);
@@ -1673,6 +1682,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(9, privacyJsonOffset);
         fbb.addOffset(10, notificationsJsonOffset);
         fbb.addOffset(12, userOffset);
+        fbb.addOffset(13, behaviorJsonOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1703,6 +1713,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final notificationsJsonParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 24);
+        final behaviorJsonParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 30);
         final object = SettingsEntity(
           id: idParam,
           unit: unitParam,
@@ -1712,6 +1725,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           user: userParam,
           privacyJson: privacyJsonParam,
           notificationsJson: notificationsJsonParam,
+          behaviorJson: behaviorJsonParam,
         )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
@@ -2427,6 +2441,11 @@ class SettingsEntity_ {
   /// See [SettingsEntity.user].
   static final user = obx.QueryStringProperty<SettingsEntity>(
     _entities[5].properties[8],
+  );
+
+  /// See [SettingsEntity.behaviorJson].
+  static final behaviorJson = obx.QueryStringProperty<SettingsEntity>(
+    _entities[5].properties[9],
   );
 }
 

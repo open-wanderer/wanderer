@@ -91,6 +91,18 @@ abstract class NotificationPreference with _$NotificationPreference {
 }
 
 @freezed
+abstract class Behavior with _$Behavior {
+  const factory Behavior({
+    bool? allowAutoGeolocate,
+    int? mapClusteringMaxZoom,
+    bool? showTrailStartMarker,
+  }) = _Behavior;
+
+  factory Behavior.fromJson(Map<String, dynamic> json) =>
+      _$BehaviorFromJson(json);
+}
+
+@freezed
 abstract class Settings with _$Settings {
   const factory Settings({
     String? id,
@@ -101,6 +113,7 @@ abstract class Settings with _$Settings {
     String? user,
     SettingsPrivacy? privacy,
     Map<String, NotificationPreference>? notifications,
+    Behavior? behavior,
   }) = _Settings;
 
   factory Settings.fromJson(Map<String, dynamic> json) =>

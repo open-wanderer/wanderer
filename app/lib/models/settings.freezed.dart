@@ -817,9 +817,278 @@ as bool,
 
 
 /// @nodoc
+mixin _$Behavior {
+
+ bool? get allowAutoGeolocate; int? get mapClusteringMaxZoom; bool? get showTrailStartMarker;
+/// Create a copy of Behavior
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BehaviorCopyWith<Behavior> get copyWith => _$BehaviorCopyWithImpl<Behavior>(this as Behavior, _$identity);
+
+  /// Serializes this Behavior to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Behavior&&(identical(other.allowAutoGeolocate, allowAutoGeolocate) || other.allowAutoGeolocate == allowAutoGeolocate)&&(identical(other.mapClusteringMaxZoom, mapClusteringMaxZoom) || other.mapClusteringMaxZoom == mapClusteringMaxZoom)&&(identical(other.showTrailStartMarker, showTrailStartMarker) || other.showTrailStartMarker == showTrailStartMarker));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,allowAutoGeolocate,mapClusteringMaxZoom,showTrailStartMarker);
+
+@override
+String toString() {
+  return 'Behavior(allowAutoGeolocate: $allowAutoGeolocate, mapClusteringMaxZoom: $mapClusteringMaxZoom, showTrailStartMarker: $showTrailStartMarker)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BehaviorCopyWith<$Res>  {
+  factory $BehaviorCopyWith(Behavior value, $Res Function(Behavior) _then) = _$BehaviorCopyWithImpl;
+@useResult
+$Res call({
+ bool? allowAutoGeolocate, int? mapClusteringMaxZoom, bool? showTrailStartMarker
+});
+
+
+
+
+}
+/// @nodoc
+class _$BehaviorCopyWithImpl<$Res>
+    implements $BehaviorCopyWith<$Res> {
+  _$BehaviorCopyWithImpl(this._self, this._then);
+
+  final Behavior _self;
+  final $Res Function(Behavior) _then;
+
+/// Create a copy of Behavior
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? allowAutoGeolocate = freezed,Object? mapClusteringMaxZoom = freezed,Object? showTrailStartMarker = freezed,}) {
+  return _then(_self.copyWith(
+allowAutoGeolocate: freezed == allowAutoGeolocate ? _self.allowAutoGeolocate : allowAutoGeolocate // ignore: cast_nullable_to_non_nullable
+as bool?,mapClusteringMaxZoom: freezed == mapClusteringMaxZoom ? _self.mapClusteringMaxZoom : mapClusteringMaxZoom // ignore: cast_nullable_to_non_nullable
+as int?,showTrailStartMarker: freezed == showTrailStartMarker ? _self.showTrailStartMarker : showTrailStartMarker // ignore: cast_nullable_to_non_nullable
+as bool?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [Behavior].
+extension BehaviorPatterns on Behavior {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _Behavior value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _Behavior() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _Behavior value)  $default,){
+final _that = this;
+switch (_that) {
+case _Behavior():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _Behavior value)?  $default,){
+final _that = this;
+switch (_that) {
+case _Behavior() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool? allowAutoGeolocate,  int? mapClusteringMaxZoom,  bool? showTrailStartMarker)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _Behavior() when $default != null:
+return $default(_that.allowAutoGeolocate,_that.mapClusteringMaxZoom,_that.showTrailStartMarker);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool? allowAutoGeolocate,  int? mapClusteringMaxZoom,  bool? showTrailStartMarker)  $default,) {final _that = this;
+switch (_that) {
+case _Behavior():
+return $default(_that.allowAutoGeolocate,_that.mapClusteringMaxZoom,_that.showTrailStartMarker);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool? allowAutoGeolocate,  int? mapClusteringMaxZoom,  bool? showTrailStartMarker)?  $default,) {final _that = this;
+switch (_that) {
+case _Behavior() when $default != null:
+return $default(_that.allowAutoGeolocate,_that.mapClusteringMaxZoom,_that.showTrailStartMarker);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _Behavior implements Behavior {
+  const _Behavior({this.allowAutoGeolocate, this.mapClusteringMaxZoom, this.showTrailStartMarker});
+  factory _Behavior.fromJson(Map<String, dynamic> json) => _$BehaviorFromJson(json);
+
+@override final  bool? allowAutoGeolocate;
+@override final  int? mapClusteringMaxZoom;
+@override final  bool? showTrailStartMarker;
+
+/// Create a copy of Behavior
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$BehaviorCopyWith<_Behavior> get copyWith => __$BehaviorCopyWithImpl<_Behavior>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$BehaviorToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Behavior&&(identical(other.allowAutoGeolocate, allowAutoGeolocate) || other.allowAutoGeolocate == allowAutoGeolocate)&&(identical(other.mapClusteringMaxZoom, mapClusteringMaxZoom) || other.mapClusteringMaxZoom == mapClusteringMaxZoom)&&(identical(other.showTrailStartMarker, showTrailStartMarker) || other.showTrailStartMarker == showTrailStartMarker));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,allowAutoGeolocate,mapClusteringMaxZoom,showTrailStartMarker);
+
+@override
+String toString() {
+  return 'Behavior(allowAutoGeolocate: $allowAutoGeolocate, mapClusteringMaxZoom: $mapClusteringMaxZoom, showTrailStartMarker: $showTrailStartMarker)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$BehaviorCopyWith<$Res> implements $BehaviorCopyWith<$Res> {
+  factory _$BehaviorCopyWith(_Behavior value, $Res Function(_Behavior) _then) = __$BehaviorCopyWithImpl;
+@override @useResult
+$Res call({
+ bool? allowAutoGeolocate, int? mapClusteringMaxZoom, bool? showTrailStartMarker
+});
+
+
+
+
+}
+/// @nodoc
+class __$BehaviorCopyWithImpl<$Res>
+    implements _$BehaviorCopyWith<$Res> {
+  __$BehaviorCopyWithImpl(this._self, this._then);
+
+  final _Behavior _self;
+  final $Res Function(_Behavior) _then;
+
+/// Create a copy of Behavior
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? allowAutoGeolocate = freezed,Object? mapClusteringMaxZoom = freezed,Object? showTrailStartMarker = freezed,}) {
+  return _then(_Behavior(
+allowAutoGeolocate: freezed == allowAutoGeolocate ? _self.allowAutoGeolocate : allowAutoGeolocate // ignore: cast_nullable_to_non_nullable
+as bool?,mapClusteringMaxZoom: freezed == mapClusteringMaxZoom ? _self.mapClusteringMaxZoom : mapClusteringMaxZoom // ignore: cast_nullable_to_non_nullable
+as int?,showTrailStartMarker: freezed == showTrailStartMarker ? _self.showTrailStartMarker : showTrailStartMarker // ignore: cast_nullable_to_non_nullable
+as bool?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$Settings {
 
- String? get id; String? get unit; Language? get language; String? get bio; SettingsLocation? get location; String? get user; SettingsPrivacy? get privacy; Map<String, NotificationPreference>? get notifications;
+ String? get id; String? get unit; Language? get language; String? get bio; SettingsLocation? get location; String? get user; SettingsPrivacy? get privacy; Map<String, NotificationPreference>? get notifications; Behavior? get behavior;
 /// Create a copy of Settings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -832,16 +1101,16 @@ $SettingsCopyWith<Settings> get copyWith => _$SettingsCopyWithImpl<Settings>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Settings&&(identical(other.id, id) || other.id == id)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.language, language) || other.language == language)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.location, location) || other.location == location)&&(identical(other.user, user) || other.user == user)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other.notifications, notifications));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Settings&&(identical(other.id, id) || other.id == id)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.language, language) || other.language == language)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.location, location) || other.location == location)&&(identical(other.user, user) || other.user == user)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other.notifications, notifications)&&(identical(other.behavior, behavior) || other.behavior == behavior));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,unit,language,bio,location,user,privacy,const DeepCollectionEquality().hash(notifications));
+int get hashCode => Object.hash(runtimeType,id,unit,language,bio,location,user,privacy,const DeepCollectionEquality().hash(notifications),behavior);
 
 @override
 String toString() {
-  return 'Settings(id: $id, unit: $unit, language: $language, bio: $bio, location: $location, user: $user, privacy: $privacy, notifications: $notifications)';
+  return 'Settings(id: $id, unit: $unit, language: $language, bio: $bio, location: $location, user: $user, privacy: $privacy, notifications: $notifications, behavior: $behavior)';
 }
 
 
@@ -852,11 +1121,11 @@ abstract mixin class $SettingsCopyWith<$Res>  {
   factory $SettingsCopyWith(Settings value, $Res Function(Settings) _then) = _$SettingsCopyWithImpl;
 @useResult
 $Res call({
- String? id, String? unit, Language? language, String? bio, SettingsLocation? location, String? user, SettingsPrivacy? privacy, Map<String, NotificationPreference>? notifications
+ String? id, String? unit, Language? language, String? bio, SettingsLocation? location, String? user, SettingsPrivacy? privacy, Map<String, NotificationPreference>? notifications, Behavior? behavior
 });
 
 
-$SettingsLocationCopyWith<$Res>? get location;$SettingsPrivacyCopyWith<$Res>? get privacy;
+$SettingsLocationCopyWith<$Res>? get location;$SettingsPrivacyCopyWith<$Res>? get privacy;$BehaviorCopyWith<$Res>? get behavior;
 
 }
 /// @nodoc
@@ -869,7 +1138,7 @@ class _$SettingsCopyWithImpl<$Res>
 
 /// Create a copy of Settings
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? unit = freezed,Object? language = freezed,Object? bio = freezed,Object? location = freezed,Object? user = freezed,Object? privacy = freezed,Object? notifications = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? unit = freezed,Object? language = freezed,Object? bio = freezed,Object? location = freezed,Object? user = freezed,Object? privacy = freezed,Object? notifications = freezed,Object? behavior = freezed,}) {
   return _then(_self.copyWith(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,unit: freezed == unit ? _self.unit : unit // ignore: cast_nullable_to_non_nullable
@@ -879,7 +1148,8 @@ as String?,location: freezed == location ? _self.location : location // ignore: 
 as SettingsLocation?,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
 as String?,privacy: freezed == privacy ? _self.privacy : privacy // ignore: cast_nullable_to_non_nullable
 as SettingsPrivacy?,notifications: freezed == notifications ? _self.notifications : notifications // ignore: cast_nullable_to_non_nullable
-as Map<String, NotificationPreference>?,
+as Map<String, NotificationPreference>?,behavior: freezed == behavior ? _self.behavior : behavior // ignore: cast_nullable_to_non_nullable
+as Behavior?,
   ));
 }
 /// Create a copy of Settings
@@ -905,6 +1175,18 @@ $SettingsPrivacyCopyWith<$Res>? get privacy {
 
   return $SettingsPrivacyCopyWith<$Res>(_self.privacy!, (value) {
     return _then(_self.copyWith(privacy: value));
+  });
+}/// Create a copy of Settings
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$BehaviorCopyWith<$Res>? get behavior {
+    if (_self.behavior == null) {
+    return null;
+  }
+
+  return $BehaviorCopyWith<$Res>(_self.behavior!, (value) {
+    return _then(_self.copyWith(behavior: value));
   });
 }
 }
@@ -988,10 +1270,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications,  Behavior? behavior)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Settings() when $default != null:
-return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.user,_that.privacy,_that.notifications);case _:
+return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.user,_that.privacy,_that.notifications,_that.behavior);case _:
   return orElse();
 
 }
@@ -1009,10 +1291,10 @@ return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications,  Behavior? behavior)  $default,) {final _that = this;
 switch (_that) {
 case _Settings():
-return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.user,_that.privacy,_that.notifications);case _:
+return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.user,_that.privacy,_that.notifications,_that.behavior);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1029,10 +1311,10 @@ return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? id,  String? unit,  Language? language,  String? bio,  SettingsLocation? location,  String? user,  SettingsPrivacy? privacy,  Map<String, NotificationPreference>? notifications,  Behavior? behavior)?  $default,) {final _that = this;
 switch (_that) {
 case _Settings() when $default != null:
-return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.user,_that.privacy,_that.notifications);case _:
+return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_that.user,_that.privacy,_that.notifications,_that.behavior);case _:
   return null;
 
 }
@@ -1044,7 +1326,7 @@ return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_tha
 @JsonSerializable()
 
 class _Settings implements Settings {
-  const _Settings({this.id, this.unit, this.language, this.bio, this.location, this.user, this.privacy, final  Map<String, NotificationPreference>? notifications}): _notifications = notifications;
+  const _Settings({this.id, this.unit, this.language, this.bio, this.location, this.user, this.privacy, final  Map<String, NotificationPreference>? notifications, this.behavior}): _notifications = notifications;
   factory _Settings.fromJson(Map<String, dynamic> json) => _$SettingsFromJson(json);
 
 @override final  String? id;
@@ -1063,6 +1345,7 @@ class _Settings implements Settings {
   return EqualUnmodifiableMapView(value);
 }
 
+@override final  Behavior? behavior;
 
 /// Create a copy of Settings
 /// with the given fields replaced by the non-null parameter values.
@@ -1077,16 +1360,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Settings&&(identical(other.id, id) || other.id == id)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.language, language) || other.language == language)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.location, location) || other.location == location)&&(identical(other.user, user) || other.user == user)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other._notifications, _notifications));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Settings&&(identical(other.id, id) || other.id == id)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.language, language) || other.language == language)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.location, location) || other.location == location)&&(identical(other.user, user) || other.user == user)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other._notifications, _notifications)&&(identical(other.behavior, behavior) || other.behavior == behavior));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,unit,language,bio,location,user,privacy,const DeepCollectionEquality().hash(_notifications));
+int get hashCode => Object.hash(runtimeType,id,unit,language,bio,location,user,privacy,const DeepCollectionEquality().hash(_notifications),behavior);
 
 @override
 String toString() {
-  return 'Settings(id: $id, unit: $unit, language: $language, bio: $bio, location: $location, user: $user, privacy: $privacy, notifications: $notifications)';
+  return 'Settings(id: $id, unit: $unit, language: $language, bio: $bio, location: $location, user: $user, privacy: $privacy, notifications: $notifications, behavior: $behavior)';
 }
 
 
@@ -1097,11 +1380,11 @@ abstract mixin class _$SettingsCopyWith<$Res> implements $SettingsCopyWith<$Res>
   factory _$SettingsCopyWith(_Settings value, $Res Function(_Settings) _then) = __$SettingsCopyWithImpl;
 @override @useResult
 $Res call({
- String? id, String? unit, Language? language, String? bio, SettingsLocation? location, String? user, SettingsPrivacy? privacy, Map<String, NotificationPreference>? notifications
+ String? id, String? unit, Language? language, String? bio, SettingsLocation? location, String? user, SettingsPrivacy? privacy, Map<String, NotificationPreference>? notifications, Behavior? behavior
 });
 
 
-@override $SettingsLocationCopyWith<$Res>? get location;@override $SettingsPrivacyCopyWith<$Res>? get privacy;
+@override $SettingsLocationCopyWith<$Res>? get location;@override $SettingsPrivacyCopyWith<$Res>? get privacy;@override $BehaviorCopyWith<$Res>? get behavior;
 
 }
 /// @nodoc
@@ -1114,7 +1397,7 @@ class __$SettingsCopyWithImpl<$Res>
 
 /// Create a copy of Settings
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? unit = freezed,Object? language = freezed,Object? bio = freezed,Object? location = freezed,Object? user = freezed,Object? privacy = freezed,Object? notifications = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = freezed,Object? unit = freezed,Object? language = freezed,Object? bio = freezed,Object? location = freezed,Object? user = freezed,Object? privacy = freezed,Object? notifications = freezed,Object? behavior = freezed,}) {
   return _then(_Settings(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,unit: freezed == unit ? _self.unit : unit // ignore: cast_nullable_to_non_nullable
@@ -1124,7 +1407,8 @@ as String?,location: freezed == location ? _self.location : location // ignore: 
 as SettingsLocation?,user: freezed == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
 as String?,privacy: freezed == privacy ? _self.privacy : privacy // ignore: cast_nullable_to_non_nullable
 as SettingsPrivacy?,notifications: freezed == notifications ? _self._notifications : notifications // ignore: cast_nullable_to_non_nullable
-as Map<String, NotificationPreference>?,
+as Map<String, NotificationPreference>?,behavior: freezed == behavior ? _self.behavior : behavior // ignore: cast_nullable_to_non_nullable
+as Behavior?,
   ));
 }
 
@@ -1151,6 +1435,18 @@ $SettingsPrivacyCopyWith<$Res>? get privacy {
 
   return $SettingsPrivacyCopyWith<$Res>(_self.privacy!, (value) {
     return _then(_self.copyWith(privacy: value));
+  });
+}/// Create a copy of Settings
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$BehaviorCopyWith<$Res>? get behavior {
+    if (_self.behavior == null) {
+    return null;
+  }
+
+  return $BehaviorCopyWith<$Res>(_self.behavior!, (value) {
+    return _then(_self.copyWith(behavior: value));
   });
 }
 }

@@ -81,7 +81,7 @@ final class RouterProvider extends $NotifierProvider<Router, GoRouter> {
   }
 }
 
-String _$routerHash() => r'dd561d6639183ee9ee5c39df3df89e9a45d1a44b';
+String _$routerHash() => r'98654ccbe5c52d5a6a6c19f9b6efd7fba153d43a';
 
 abstract class _$Router extends $Notifier<GoRouter> {
   GoRouter build();
