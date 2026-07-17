@@ -113,11 +113,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
           lon: position.longitude,
         );
         setState(() => _resolvedGpsCenter = center);
-        _controller?.animateCamera(
-          center: center,
-          zoom: _kPointZoom,
-          nativeDuration: const Duration(milliseconds: 750),
-        );
+        _controller
+            ?.animateCamera(
+              center: center,
+              zoom: _kPointZoom,
+              nativeDuration: const Duration(milliseconds: 750),
+            )
+            .then((_) {
+              if (!mounted) return;
+              final controller = _controller;
+              if (controller == null) return;
+              final bounds = controller.getVisibleRegion();
+              final zoom = controller.getCamera().zoom;
+              ref
+                  .read(mapClusterSearchProvider.notifier)
+                  .searchInBounds(bounds, zoom);
+              ref
+                  .read(mapTrailSearchProvider.notifier)
+                  .searchInBounds(bounds);
+            });
       }, onError: (_) {});
     }
   }
