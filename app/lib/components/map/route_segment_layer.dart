@@ -116,16 +116,24 @@ class RouteSegmentLayer {
 
       // Invisible wide tap-detection layer, deliberately unfiltered so it
       // matches segments in every state. A thin (3-5px) rendered line is a
-      // tiny, hard-to-tap native-GL target; this 24px-wide, zero-opacity
-      // layer sharing the same source is queried by a tap handler via
+      // tiny, hard-to-tap native-GL target; this 24px-wide layer sharing the
+      // same source is queried by a tap handler via
       // `featuresAtPoint(point, layerIds: [hitLayerId])` instead of the
       // visible layers (Pitfall 4), mirroring D-04's 36px invisible
       // marker tap-radius precedent.
+      //
+      // line-opacity is 0.01, not 0: both native bindings' featuresAtPoint
+      // (iOS `visibleFeaturesAtPoint`, Android `queryRenderedFeatures`) only
+      // return features from layers that are actually rendered — a fully
+      // transparent (opacity: 0) layer is skipped entirely by the native GL
+      // query, so every segment tap silently missed and fell through to the
+      // empty-map-tap handler. 0.01 is visually indistinguishable from 0 but
+      // keeps the layer eligible for the hit-test query.
       await style.addLayer(
         ml.LineStyleLayer(
           id: hitLayerId,
           sourceId: sourceId,
-          paint: const <String, Object>{'line-color': '#000000', 'line-width': 24, 'line-opacity': 0},
+          paint: const <String, Object>{'line-color': '#000000', 'line-width': 24, 'line-opacity': 0.01},
         ),
       );
 
