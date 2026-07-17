@@ -6,11 +6,13 @@ import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/map/route_anchor_layer.dart';
 import 'package:wanderer/components/map/route_segment_layer.dart';
 import 'package:wanderer/components/route_planner/route_anchor_sheet.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/util/route_planner_handoff_util.dart';
 import 'package:wanderer/util/route_segment_util.dart';
 
 /// Route Planner screen — hosts the native map and wires every Phase 19
@@ -82,8 +84,15 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   /// once per state emission while the segment stays blocked.
   final Set<String> _blockedNotified = {};
 
+  /// Re-entrancy guard for [_onFinish] (T-21-04-01): a `static` field would
+  /// share the in-flight flag across every mount of this screen; an
+  /// instance field resets correctly per Phase 19's own established
+  /// non-static-field discipline (Pitfall 3).
+  bool _finishing = false;
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(routeAnchorsProvider(widget.travelProfile));
 
     ref.listen(routeAnchorsProvider(widget.travelProfile), (prev, next) {
@@ -123,9 +132,6 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     });
 
     final styleJson = ref.watch(mapStyleJsonProvider).value;
-    final notifier = ref.read(
-      routeAnchorsProvider(widget.travelProfile).notifier,
-    );
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -141,25 +147,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         ),
         titleSpacing: 8,
         title: _buildSearchBar(context),
-        actions: [
-          // D-10: undo before redo.
-          IconButton(
-            icon: const FaIcon(FontAwesomeIcons.arrowRotateLeft, size: 18),
-            tooltip: 'Undo',
-            onPressed: state.undoStack.isNotEmpty ? notifier.undo : null,
-            style: IconButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.surface,
-            ),
-          ),
-          IconButton(
-            icon: const FaIcon(FontAwesomeIcons.arrowRotateRight, size: 18),
-            tooltip: 'Redo',
-            onPressed: state.redoStack.isNotEmpty ? notifier.redo : null,
-            style: IconButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.surface,
-            ),
-          ),
-        ],
+        actions: [_buildFinishAction(state, l10n)],
         backgroundColor: Colors.transparent,
         shadowColor: Colors.transparent,
         elevation: 0,
@@ -259,13 +247,21 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         RouteAnchorLayer(travelProfile: widget.travelProfile),
         // D-06: shared top-right controls slot. D-02 replaced the planned
         // list/elevation toggle buttons with the tabbed RouteAnchorSheet; the
-        // search control (D-04) has since moved into the app-bar title as a
-        // fake search bar (see _buildSearchBar), so only the auto-routing
-        // toggle remains here.
+        // search control (D-04, 20-CONTEXT) has since moved into the app-bar
+        // title as a fake search bar (see _buildSearchBar). Undo/redo now
+        // live here too (D-04, 21-CONTEXT) — Finish took their app-bar slot,
+        // so they stack below the auto-routing toggle instead.
         Positioned(
           top: 128,
           right: 0,
-          child: _buildAutoRoutingToggle(state.autoRoutingEnabled),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildAutoRoutingToggle(state.autoRoutingEnabled),
+              _buildUndoButton(state),
+              _buildRedoButton(state),
+            ],
+          ),
         ),
       ],
     );
@@ -363,5 +359,102 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         ),
       ),
     );
+  }
+
+  /// D-04: undo pill, relocated from the app bar into the top-right controls
+  /// Column. Same pill container/icon treatment as
+  /// [_buildAutoRoutingToggle] — only position changed, not styling.
+  Widget _buildUndoButton(RouteAnchorsState state) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).canvasColor,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: 'Undo',
+          icon: FaIcon(
+            FontAwesomeIcons.arrowRotateLeft,
+            size: 18,
+            color: state.undoStack.isNotEmpty
+                ? (Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xff3E435B)
+                      : const Color(0xff242734))
+                : Theme.of(context).colorScheme.onSurface.withValues(alpha: .4),
+          ),
+          onPressed: state.undoStack.isNotEmpty
+              ? ref
+                    .read(routeAnchorsProvider(widget.travelProfile).notifier)
+                    .undo
+              : null,
+        ),
+      ),
+    );
+  }
+
+  /// D-04: redo pill, relocated from the app bar into the top-right controls
+  /// Column. Same pill container/icon treatment as
+  /// [_buildAutoRoutingToggle] — only position changed, not styling.
+  Widget _buildRedoButton(RouteAnchorsState state) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).canvasColor,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: IconButton(
+          visualDensity: VisualDensity.compact,
+          tooltip: 'Redo',
+          icon: FaIcon(
+            FontAwesomeIcons.arrowRotateRight,
+            size: 18,
+            color: state.redoStack.isNotEmpty
+                ? (Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xff3E435B)
+                      : const Color(0xff242734))
+                : Theme.of(context).colorScheme.onSurface.withValues(alpha: .4),
+          ),
+          onPressed: state.redoStack.isNotEmpty
+              ? ref
+                    .read(routeAnchorsProvider(widget.travelProfile).notifier)
+                    .redo
+              : null,
+        ),
+      ),
+    );
+  }
+
+  /// D-04/D-05: app-bar "Finish planning" action — takes the app-bar slot
+  /// undo/redo previously occupied. Gated on >=2 route anchors (D-05); the
+  /// disabled state uses Flutter's standard ~38%-opacity treatment via
+  /// `onPressed: null`, with the explanatory copy available on long-press
+  /// through [AppLocalizations.finish_disabled_hint] even while disabled —
+  /// no toast/snackbar (UI-SPEC).
+  Widget _buildFinishAction(RouteAnchorsState state, AppLocalizations l10n) {
+    return IconButton(
+      icon: const FaIcon(FontAwesomeIcons.check, size: 18),
+      tooltip: state.anchors.length >= 2 ? l10n.finish : l10n.finish_disabled_hint,
+      onPressed: (state.anchors.length >= 2 && !_finishing) ? _onFinish : null,
+      style: IconButton.styleFrom(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+      ),
+    );
+  }
+
+  /// HANDOFF-01: invokes [finishPlanning] to hand the finished route off as
+  /// a draft Trail. Guarded by [_finishing] (T-21-04-01) so a double-tap
+  /// cannot fire two `/valhalla/height` fetches or two navigations while a
+  /// handoff is already in flight.
+  Future<void> _onFinish() async {
+    if (_finishing) return;
+    setState(() => _finishing = true);
+    try {
+      await finishPlanning(ref: ref, navContext: context, travelProfile: widget.travelProfile);
+    } finally {
+      if (mounted) setState(() => _finishing = false);
+    }
   }
 }
