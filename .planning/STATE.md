@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Route Planner
 status: executing
-stopped_at: Completed 21-02-PLAN.md
-last_updated: "2026-07-17T14:58:14.146Z"
+stopped_at: Completed 21-03-PLAN.md
+last_updated: "2026-07-17T15:06:25.576Z"
 last_activity: 2026-07-17 -- Phase 21 execution started
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 67
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 ## Current Position
 
 Phase: 21 (route-planner-handoff-entry-point) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-07-17 -- Phase 21 execution started
 
@@ -77,6 +77,7 @@ Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/sc
 | Phase 20 P05 | 20min | 2 tasks | 2 files |
 | Phase 21 P01 | 15min | 2 tasks | 4 files |
 | Phase 21 P02 | 6min | 1 tasks | 2 files |
+| Phase 21 P03 | 12min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -152,6 +153,8 @@ Recent decisions affecting current work:
 - [Phase 21]: [Phase 21] [21-01] finishPlanning's orchestration (network I/O + WidgetRef/BuildContext) has no pure/synchronous seam, so only its pure sub-helpers (buildDraftTrail, mergeHeightsIntoGpx) are unit-tested — Full end-to-end coverage deferred to Plan 04's app-bar Finish action wiring
 - [Phase 21]: Behavior fields all nullable (no freezed defaults) — So an absent allowAutoGeolocate reads as null, never silently true — privacy-safe default matching web's ?? false convention (A2)
 - [Phase 21]: behaviorJson mirrors privacyJson's exact JSON-blob-per-field encode/decode shape — Not a flattened bool ObjectBox column, per Pitfall 4
+- [Phase 21]: [Phase 21] [21-03] _TravelProfileCard replicates _SourceActionCard's shape locally rather than importing the private widget, per the plan's self-containment instruction
+- [Phase 21]: [Phase 21] [21-03] initialCenter fallback chain is mapCameraProvider -> settings.location -> Geographic(0,0), gated on Settings.behavior?.allowAutoGeolocate before ever subscribing to GPS
 
 ### Pending Todos
 
@@ -229,8 +232,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-17T14:58:14.134Z
-Stopped at: Completed 21-02-PLAN.md
+Last session: 2026-07-17T15:06:25.565Z
+Stopped at: Completed 21-03-PLAN.md
 Resume file: 
-
-- Once approved, run `/gsd-plan-phase 19` to begin detailed planning for Phase 19 (Route Planner Core — Waypoint Editing & Routing Engine).
