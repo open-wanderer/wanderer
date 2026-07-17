@@ -50,10 +50,29 @@ Gpx mergeHeightsIntoGpx(List<Map<String, double>> shape, List<num> heights) {
 /// object used for client-side map preview) — Pitfall 1: setting only one of
 /// the two produces a draft that renders correctly but saves with no track,
 /// or vice versa.
+///
+/// Also sets `lat`/`lon`/`minLat`/`maxLat`/`minLon`/`maxLon` from the track's
+/// bounds. For a plain GPX-file import these arrive pre-computed from the
+/// server's `/trail/convert` (gpx2trail) response, but a planner draft never
+/// makes that round-trip — without this, `Trail.empty()`'s zeroed bounds and
+/// null lat/lon leave `TrailMap` centered on null island instead of fitting
+/// the route (`trail_map.dart`'s `fitBounds` only fires when bounds have
+/// spread).
 Trail buildDraftTrail(Gpx finalGpx, {String? category}) {
   final xml = GpxWriter().asString(finalGpx);
+  final bounds = finalGpx.getBounds();
   return Trail.empty().copyWith(
     category: category,
+    lat: bounds != null
+        ? (bounds.latitudeNorth + bounds.latitudeSouth) / 2
+        : null,
+    lon: bounds != null
+        ? (bounds.longitudeEast + bounds.longitudeWest) / 2
+        : null,
+    maxLat: bounds?.latitudeNorth ?? 0,
+    minLat: bounds?.latitudeSouth ?? 0,
+    maxLon: bounds?.longitudeEast ?? 0,
+    minLon: bounds?.longitudeWest ?? 0,
     expand: TrailExpand(
       gpxData: xml,
       gpx: finalGpx,

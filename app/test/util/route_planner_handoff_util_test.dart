@@ -64,6 +64,30 @@ void main() {
 
       expect(result.category, isNull);
     });
+
+    test('sets lat/lon/bounds from the track so the map centers on the '
+        'route instead of null island', () {
+      final gpx = buildSampleGpx();
+      final result = buildDraftTrail(gpx);
+
+      expect(result.maxLat, 47.001);
+      expect(result.minLat, 47.000);
+      expect(result.maxLon, 9.001);
+      expect(result.minLon, 9.000);
+      expect(result.lat, closeTo(47.0005, 1e-9));
+      expect(result.lon, closeTo(9.0005, 1e-9));
+    });
+
+    test('leaves lat/lon null and bounds zeroed for an empty track', () {
+      final result = buildDraftTrail(Gpx());
+
+      expect(result.lat, isNull);
+      expect(result.lon, isNull);
+      expect(result.maxLat, 0);
+      expect(result.minLat, 0);
+      expect(result.maxLon, 0);
+      expect(result.minLon, 0);
+    });
   });
 
   group('mergeHeightsIntoGpx', () {
