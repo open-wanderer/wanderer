@@ -11,6 +11,7 @@ import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/map_camera_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/util/route_travel_bucket.dart';
 import 'package:wanderer/util/trail_import_util.dart';
 
 class TrailSourceSelectScreen extends ConsumerStatefulWidget {
@@ -39,8 +40,8 @@ class _TrailSourceSelectScreenState
   }
 
   Future<void> _openPlanner(AppLocalizations l10n) async {
-    final profile = await showTravelProfileSheet(context);
-    if (!mounted || profile == null) return;
+    final bucket = await showTravelProfileSheet(context);
+    if (!mounted || bucket == null) return;
 
     setState(() => _plannerLoading = true);
     try {
@@ -48,7 +49,12 @@ class _TrailSourceSelectScreenState
       if (!mounted) return;
       context.push(
         '/route-planner',
-        extra: {'travelProfile': profile, 'lat': center.lat, 'lon': center.lon},
+        extra: {
+          'travelProfile': bucket.costing,
+          'costingOptions': bucket.costingOptions,
+          'lat': center.lat,
+          'lon': center.lon,
+        },
       );
     } finally {
       if (mounted) setState(() => _plannerLoading = false);

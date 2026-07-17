@@ -1,18 +1,50 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/models/category.dart';
+import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/util/category_icon_util.dart';
+import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/route_travel_bucket.dart';
 
-/// Presents the D-01/D-02 hike/bike entry-point bottom sheet.
+/// Resolves the leading icon for [bucket]'s card: prefers a matching
+/// operator [Category] icon (via [trailCategoryIcon]), falling back to
+/// [RouteTravelBucket.fallbackIcon] when no category matches. Mirrors
+/// `settings_tab.dart`'s identical resolution (Task 4) — icon resolution
+/// only, never the costing payload (RESEARCH.md Q2).
+Widget _bucketIcon(
+  RouteTravelBucket bucket,
+  List<Category> categories, {
+  double size = 20,
+}) {
+  Category? matched;
+  if (bucket == RouteTravelBucket.hiking) {
+    final id = categoryForTravelProfile('pedestrian', categories);
+    matched = id == null
+        ? null
+        : categories.firstWhereOrNull((c) => c.id == id);
+  } else {
+    matched = categoryForBikeBucket(bucket.keywords, categories);
+  }
+
+  return matched != null
+      ? trailCategoryIcon(matched, size: size)
+      : FaIcon(bucket.fallbackIcon, size: size);
+}
+
+/// Presents the D-01/D-02 travel-profile entry-point bottom sheet, expanded
+/// (quick-260717-t7q) from a 2-card Hike/Bike chooser to the unified
+/// 5-option picker (Hiking, Biking/Hybrid, Biking/Mountain, Biking/Cross,
+/// Biking/Road) shared with the in-planner Settings tab.
 ///
-/// Returns `'pedestrian'` if the Hike card is tapped, `'bicycle'` if the Bike
-/// card is tapped, or `null` if the sheet is dismissed (back button / tap
-/// outside) without a selection. The sheet is always dismissible (D-02) —
-/// there is no forced choice and no "Continue"/"Cancel" button; each card
-/// both selects the profile and closes the sheet in one tap.
-Future<String?> showTravelProfileSheet(BuildContext context) {
-  final l10n = AppLocalizations.of(context)!;
-
-  return showModalBottomSheet<String>(
+/// Returns the tapped [RouteTravelBucket], or `null` if the sheet is
+/// dismissed (back button / tap outside) without a selection. The sheet is
+/// always dismissible (D-02) — there is no forced choice and no
+/// "Continue"/"Cancel" button; each card both selects the bucket and closes
+/// the sheet in one tap.
+Future<RouteTravelBucket?> showTravelProfileSheet(BuildContext context) {
+  return showModalBottomSheet<RouteTravelBucket>(
     context: context,
     isDismissible: true,
     enableDrag: true,
@@ -20,58 +52,66 @@ Future<String?> showTravelProfileSheet(BuildContext context) {
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
     builder: (context) {
-      final theme = Theme.of(context);
+      return Consumer(
+        builder: (context, ref, _) {
+          final theme = Theme.of(context);
+          final categories = ref.watch(categoryProvider).value ?? const [];
 
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          24 + kBottomNavigationBarHeight + 56,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Center(
-                child: Container(
-                  width: 30,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.all(Radius.circular(24)),
-                    color: theme.colorScheme.secondaryContainer,
+          // 5 cards (up from the original 2) can exceed the available sheet
+          // height on smaller screens — SingleChildScrollView keeps the
+          // content scrollable instead of overflowing (quick-260717-t7q).
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              24 + kBottomNavigationBarHeight + 56,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Center(
+                    child: Container(
+                      width: 30,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(24),
+                        ),
+                        color: theme.colorScheme.secondaryContainer,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                for (final bucket in RouteTravelBucket.values) ...[
+                  _TravelProfileCard(
+                    icon: _bucketIcon(bucket, categories),
+                    title: bucket.label,
+                    description: bucket.description,
+                    onTap: () => Navigator.pop(context, bucket),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ],
             ),
-            _TravelProfileCard(
-              icon: FontAwesomeIcons.personHiking,
-              title: l10n.travel_profile_hike,
-              description: l10n.travel_profile_hike_description,
-              onTap: () => Navigator.pop(context, 'pedestrian'),
-            ),
-            const SizedBox(height: 8),
-            _TravelProfileCard(
-              icon: FontAwesomeIcons.bicycle,
-              title: l10n.travel_profile_bike,
-              description: l10n.travel_profile_bike_description,
-              onTap: () => Navigator.pop(context, 'bicycle'),
-            ),
-          ],
-        ),
+          );
+        },
       );
     },
   );
 }
 
-/// A tappable hike/bike card, visually matching
+/// A tappable travel-bucket card, visually matching
 /// [TrailSourceSelectScreen]'s `_SourceActionCard` family (16px card radius,
 /// 12px icon-badge radius, `secondaryContainer` @ 40% alpha badge
 /// background, `theme.colorScheme.primary` icon tint). Kept self-contained
-/// here rather than importing the private widget from that screen.
+/// here rather than importing the private widget from that screen. Accepts a
+/// pre-resolved [icon] widget (rather than a raw `FaIconData`) so it can host
+/// either a resolved category icon or a hardcoded fallback [FaIcon].
 class _TravelProfileCard extends StatelessWidget {
-  final FaIconData icon;
+  final Widget icon;
   final String title;
   final String description;
   final VoidCallback onTap;
@@ -108,7 +148,7 @@ class _TravelProfileCard extends StatelessWidget {
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: FaIcon(icon, color: theme.colorScheme.primary),
+                child: icon,
               ),
               const SizedBox(width: 16),
               Expanded(
