@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Route Planner
-status: verifying
-stopped_at: Phase 21 context gathered
-last_updated: "2026-07-17T14:02:35.014Z"
-last_activity: 2026-07-16 -- Phase 20 execution started
+status: executing
+stopped_at: Completed 21-01-PLAN.md
+last_updated: "2026-07-17T14:50:51.429Z"
+last_activity: 2026-07-17 -- Phase 21 execution started
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 13
+  completed_plans: 10
   percent: 67
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 20 — route-planner-views-waypoint-list-elevation-location-search
+**Current focus:** Phase 21 — route-planner-handoff-entry-point
 
 ## Current Position
 
-Phase: 20 (route-planner-views-waypoint-list-elevation-location-search) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
-Last activity: 2026-07-16 -- Phase 20 execution started
+Phase: 21 (route-planner-handoff-entry-point) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-07-17 -- Phase 21 execution started
 
 ## v1.5 Phases
 
@@ -75,6 +75,7 @@ Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/sc
 | Phase 20 P03 | 20min | 2 tasks | 2 files |
 | Phase 20 P04 | 8min | 1 tasks | 1 files |
 | Phase 20 P05 | 20min | 2 tasks | 2 files |
+| Phase 21 P01 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,8 @@ Recent decisions affecting current work:
 - [Phase 20]: [20-04] ReorderableListView.builder's scroll-controller param is named scrollController, not controller -- matched to the actual widget API
 - [Phase 20-05]: Used literal 0.14/0.6 size values inline (not named constants) in route_anchor_sheet.dart so grep-based acceptance criteria match the source verbatim
 - [Phase 20-05]: Kept context.push<LocationSearchResult>('/location-search') on one line to match the plan's literal acceptance-criteria grep
+- [Phase 21]: [Phase 21] [21-01] Test-fixture correction: 'Mountain Biking' doesn't contain literal substring 'bike' ('biking' != 'bike') -- fixed fixture to 'Mountain Bike Trails' to correctly exercise categoryForTravelProfile's bike-branch match — Implementation was already correct; the initial test fixture string was the bug
+- [Phase 21]: [Phase 21] [21-01] finishPlanning's orchestration (network I/O + WidgetRef/BuildContext) has no pure/synchronous seam, so only its pure sub-helpers (buildDraftTrail, mergeHeightsIntoGpx) are unit-tested — Full end-to-end coverage deferred to Plan 04's app-bar Finish action wiring
 
 ### Pending Todos
 
@@ -223,10 +226,10 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-17T14:02:34.993Z
-Stopped at: Phase 21 context gathered
+Last session: 2026-07-17T14:50:51.411Z
+Stopped at: Completed 21-01-PLAN.md
 Resume file: 
 
-.planning/phases/21-route-planner-handoff-entry-point/21-CONTEXT.md
+None
 
 - Once approved, run `/gsd-plan-phase 19` to begin detailed planning for Phase 19 (Route Planner Core — Waypoint Editing & Routing Engine).
