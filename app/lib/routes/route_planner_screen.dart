@@ -22,8 +22,10 @@ import 'package:wanderer/util/route_segment_util.dart';
 /// reachable by a user.
 ///
 /// Router registration/entry-point wiring (the real [initialCenter]/
-/// [travelProfile] values, the app-bar title) is HANDOFF-02/03 — explicitly
-/// Phase 21's scope, not touched here.
+/// [travelProfile] values) is HANDOFF-02/03 — explicitly Phase 21's scope,
+/// not touched here. The app-bar title slot is a fake search bar (opens
+/// [LocationSearchScreen] via `/location-search`), analogous to
+/// `map_screen.dart`'s search pill.
 class RoutePlannerScreen extends ConsumerStatefulWidget {
   /// `'pedestrian'` or `'bicycle'` — fixed for the entire planning session
   /// (D-07), set once by the Phase 21 entry-point dialog.
@@ -35,13 +37,10 @@ class RoutePlannerScreen extends ConsumerStatefulWidget {
   /// location or the trail-source-select flow's last map camera).
   final ml.Geographic initialCenter;
 
-  final String title;
-
   const RoutePlannerScreen({
     super.key,
     required this.travelProfile,
     required this.initialCenter,
-    this.title = 'Plan a Route',
   });
 
   @override
@@ -140,10 +139,8 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
             backgroundColor: Theme.of(context).colorScheme.surface,
           ),
         ),
-        title: Text(
-          widget.title,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-        ),
+        titleSpacing: 8,
+        title: _buildSearchBar(context),
         actions: [
           // D-10: undo before redo.
           IconButton(
@@ -261,19 +258,14 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       children: [
         RouteAnchorLayer(travelProfile: widget.travelProfile),
         // D-06: shared top-right controls slot. D-02 replaced the planned
-        // list/elevation toggle buttons with the tabbed RouteAnchorSheet, so
-        // the search button (D-04) is the one control that joined this
-        // Column in Phase 20 — placed above the auto-routing toggle.
+        // list/elevation toggle buttons with the tabbed RouteAnchorSheet; the
+        // search control (D-04) has since moved into the app-bar title as a
+        // fake search bar (see _buildSearchBar), so only the auto-routing
+        // toggle remains here.
         Positioned(
           top: 128,
           right: 0,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _buildSearchButton(),
-              _buildAutoRoutingToggle(state.autoRoutingEnabled),
-            ],
-          ),
+          child: _buildAutoRoutingToggle(state.autoRoutingEnabled),
         ),
       ],
     );
@@ -293,29 +285,36 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         .ignore();
   }
 
-  /// D-04: top-right pill control opening the location search. Matches
-  /// `_buildAutoRoutingToggle`'s pill styling exactly, but tinted
-  /// accent-primary always (a stateless action, never dimmed) — unlike the
-  /// toggle, which dims when auto-routing is off.
-  Widget _buildSearchButton() {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).canvasColor,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: IconButton(
-          visualDensity: VisualDensity.compact,
-          tooltip: 'Search location',
-          icon: FaIcon(
-            FontAwesomeIcons.magnifyingGlass,
-            size: 18,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? const Color(0xff3E435B)
-                : const Color(0xff242734),
+  /// D-04: fake search bar hosted in the app-bar title slot — a button
+  /// styled like a search field (analogous to `map_screen.dart`'s search
+  /// pill) that opens the real [LocationSearchResult]-returning search
+  /// screen on tap. Not an inline `TextField`; typing happens on the
+  /// dedicated `/location-search` screen.
+  Widget _buildSearchBar(BuildContext context) {
+    return GestureDetector(
+      onTap: _openLocationSearch,
+      child: Material(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              FaIcon(
+                FontAwesomeIcons.magnifyingGlass,
+                size: 16,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Search location',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+              ),
+            ],
           ),
-          onPressed: _openLocationSearch,
         ),
       ),
     );
