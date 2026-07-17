@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/route_planner/elevation_tab.dart';
 import 'package:wanderer/components/route_planner/route_anchor_list_tab.dart';
+import 'package:wanderer/components/route_planner/settings_tab.dart';
 
 /// The route planner's docked, tabbed [DraggableScrollableSheet] (PLANUI-01,
-/// D-02/D-03) hosting the Route Anchors tab (Plan 04) and the Elevation tab
-/// (Plan 03).
+/// D-02/D-03) hosting the Route Anchors tab (Plan 04), the Elevation tab
+/// (Plan 03), and the Settings tab (quick-260717-t7q).
 ///
 /// This composition is the phase's hardest problem (RESEARCH.md Pattern 1):
 /// `TabBarView` keeps both tab pages built/mounted simultaneously (it
@@ -55,7 +56,7 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet> {
       snapSizes: const [0.14, 0.6],
       builder: (context, scrollController) {
         return DefaultTabController(
-          length: 2,
+          length: 3,
           child: Container(
             decoration: BoxDecoration(
               color: theme.canvasColor,
@@ -124,6 +125,10 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet> {
                             icon: FaIcon(FontAwesomeIcons.mountain, size: 16),
                             text: 'Elevation',
                           ),
+                          Tab(
+                            icon: FaIcon(FontAwesomeIcons.gear, size: 16),
+                            text: 'Settings',
+                          ),
                         ],
                       ),
                     ],
@@ -133,12 +138,13 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet> {
                   child: TabBarView(
                     children: [
                       // CRITICAL (Pitfall 1): the builder's scrollController
-                      // is attached to ONLY this tab. ElevationTab below gets
-                      // no shared controller — passing it into both would
-                      // throw at runtime since TabBarView keeps both children
-                      // built simultaneously.
+                      // is attached to ONLY this tab. ElevationTab and
+                      // SettingsTab below get no shared controller — passing
+                      // it into more than one would throw at runtime since
+                      // TabBarView keeps every child built simultaneously.
                       RouteAnchorListTab(scrollController: scrollController),
                       ElevationTab(),
+                      SettingsTab(),
                     ],
                   ),
                 ),
