@@ -247,16 +247,21 @@ class Router extends _$Router {
           path: '/trail/sort',
           builder: (context, state) => const TrailSortScreen(),
         ),
-        // TEMPORARY test-only entry point for Phase 19 manual device
-        // verification — the real entry point (hike/bike dialog supplying
-        // travelProfile/initialCenter) is Phase 21's HANDOFF-02/03 scope.
-        // Remove this route once Phase 21 wires the real one.
         GoRoute(
           path: '/route-planner',
-          builder: (context, state) => RoutePlannerScreen(
-            travelProfile: 'pedestrian',
-            initialCenter: const Geographic(lat: 0, lon: 0),
-          ),
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            final profile = extra?['travelProfile'] as String? ?? 'pedestrian';
+            final lat = extra?['lat'] as double?;
+            final lon = extra?['lon'] as double?;
+            final center = (lat != null && lon != null)
+                ? Geographic(lat: lat, lon: lon)
+                : const Geographic(lat: 0, lon: 0);
+            return RoutePlannerScreen(
+              travelProfile: profile,
+              initialCenter: center,
+            );
+          },
         ),
         GoRoute(
           path: '/trail/create/edit',

@@ -3,7 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:maplibre/maplibre.dart';
+import 'package:wanderer/components/route_planner/travel_profile_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/models/settings.dart';
+import 'package:wanderer/provider/foreground_position_stream_provider.dart';
+import 'package:wanderer/provider/map_camera_provider.dart';
+import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/trail_import_util.dart';
 
@@ -29,6 +35,51 @@ class _TrailSourceSelectScreenState
             text: l10n.coming_soon,
           ),
         );
+  }
+
+  Future<void> _openPlanner(AppLocalizations l10n) async {
+    final profile = await showTravelProfileSheet(context);
+    if (!mounted || profile == null) return;
+
+    setState(() => _importing = true);
+    try {
+      final center = await _resolveInitialCenter();
+      if (!mounted) return;
+      context.push(
+        '/route-planner',
+        extra: {'travelProfile': profile, 'lat': center.lat, 'lon': center.lon},
+      );
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
+  }
+
+  Future<Geographic> _resolveInitialCenter() async {
+    final settings = ref.read(settingsProvider);
+    final fallback = _fallbackCenter(settings);
+
+    if (settings?.behavior?.allowAutoGeolocate != true) return fallback;
+
+    try {
+      final pos = await ref
+          .read(foregroundPositionStreamProvider)
+          .firstWhere((p) => p != null)
+          .timeout(const Duration(seconds: 4));
+      if (pos == null) return fallback;
+      return Geographic(lat: pos.latitude, lon: pos.longitude);
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  Geographic _fallbackCenter(Settings? settings) {
+    final cam = ref.read(mapCameraProvider);
+    if (cam != null) return cam.center;
+
+    final loc = settings?.location;
+    if (loc != null) return Geographic(lat: loc.lat, lon: loc.lon);
+
+    return const Geographic(lat: 0, lon: 0);
   }
 
   Future<void> _importGpx(AppLocalizations l10n) async {
@@ -74,11 +125,8 @@ class _TrailSourceSelectScreenState
             title: l10n.trail_source_planner,
             description:
                 "Design your perfect route from scratch using our map tools.",
-            // TEMPORARY: routes to the test-only /route-planner entry point
-            // (see router_provider.dart) for Phase 19 manual device
-            // verification. Phase 21 (HANDOFF-02/03) replaces this with the
-            // real hike/bike profile dialog.
-            onTap: _importing ? null : () => context.push('/route-planner'),
+            isLoading: _importing,
+            onTap: _importing ? null : () => _openPlanner(l10n),
           ),
           const SizedBox(height: 12),
           _SourceActionCard(
