@@ -16,6 +16,17 @@ import 'package:wanderer/util/gpx_util.dart';
 /// this is also used to re-validate before uploading.
 const trailImportExtensions = ['gpx', 'kml', 'kmz', 'tcx', 'fit'];
 
+/// Fallback for the last imported [Trail] when GoRouter's `extra` doesn't
+/// survive a same-process router refresh. go_router encodes the current
+/// route's `extra` via `json.encoder.convert` whenever it reports state back
+/// to the platform (RouteMatchListCodec); a non-JSON-serializable `Trail`
+/// fails that encode and is silently replaced with `null` (go_router logs a
+/// warning, doesn't throw). A refresh can land seconds after navigating —
+/// e.g. authProvider settling while a share-triggered import is already
+/// showing the create/edit screen — so `/trail/create/edit`'s route builder
+/// reads this as a fallback instead of bouncing back to the source selector.
+Trail? pendingImportedTrail;
+
 /// Uploads a local trail file to the server for conversion, parses the returned
 /// GPX client-side, and navigates to the trail create/edit screen with the
 /// resulting (unsaved) [Trail]. Shared by the New Trail → Import picker and the
@@ -95,8 +106,9 @@ Future<void> importTrailFile({
       );
     }
 
+    pendingImportedTrail = trail;
     if (!navContext.mounted) return;
-    navContext.pushReplacement('/trail/create/edit', extra: trail);
+    navContext.push('/trail/create/edit', extra: trail);
   } catch (e) {
     showError();
   }
