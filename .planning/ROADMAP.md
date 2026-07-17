@@ -328,7 +328,9 @@ Plans:
 
   1. From the trail-source-select flow, a user sees a new "Plan a route" entry point alongside the existing "Import trail file" option.
   2. Tapping the new entry point shows a hike/bike selection dialog before the Route Planner screen opens; the choice sets the planner's initial travel profile, fixed for the rest of the planning session (no in-planner profile switch).
-  3. From the Route Planner, a user can finish planning and hand off the route as a draft Trail (synthesized GPX + named waypoints) that opens directly in the existing trail create/edit screen, pre-filled with the planned route, reusing the existing `pendingImportedTrail` safety net.
+  3. From the Route Planner, a user can finish planning and hand off the route as a draft Trail (synthesized GPX + named waypoints, **with elevation populated regardless of whether the Elevation tab was ever opened**) that opens directly in the existing trail create/edit screen, pre-filled with the planned route, reusing the existing `pendingImportedTrail` safety net.
+
+**Implementation note (carried over from Phase 20):** `plannedGpxProvider` (Phase 20) intentionally stays pre-elevation — the Elevation tab's `/api/v1/valhalla/height` fetch is gated on tab visibility (D-11) and its ele-merged result lives only in that tab's local widget state, never written back to the shared provider. This phase must add a **one-time elevation fetch at handoff time**: before constructing the draft Trail, fetch `/api/v1/valhalla/height` once against the final `plannedGpxProvider` route and merge `ele` into the handed-off GPX. Deliberately not a continuous background fetch in `plannedGpxProvider` — that would re-fire Valhalla on every anchor edit regardless of tab visibility, which is exactly what D-11 avoided. A single fetch at the moment of handoff is sufficient and cheaper.
 
 **Plans**: TBD
 **UI hint**: yes
