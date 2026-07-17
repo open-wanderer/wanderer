@@ -334,7 +334,15 @@ Plans:
 
 **Implementation note (carried over from Phase 20):** `plannedGpxProvider` (Phase 20) intentionally stays pre-elevation — the Elevation tab's `/api/v1/valhalla/height` fetch is gated on tab visibility (D-11) and its ele-merged result lives only in that tab's local widget state, never written back to the shared provider. This phase must add a **one-time elevation fetch at handoff time**: before constructing the draft Trail, fetch `/api/v1/valhalla/height` once against the final `plannedGpxProvider` route and merge `ele` into the handed-off GPX. Deliberately not a continuous background fetch in `plannedGpxProvider` — that would re-fire Valhalla on every anchor edit regardless of tab visibility, which is exactly what D-11 avoided. A single fetch at the moment of handoff is sufficient and cheaper.
 
-**Plans**: TBD
+**Plans**: 4 plans (3 waves)
+
+Plans:
+
+- [ ] 21-01-PLAN.md — Handoff logic: categoryForTravelProfile + route_planner_handoff_util (one-time elevation merge, GPX-track-only draft Trail) (HANDOFF-01)
+- [ ] 21-02-PLAN.md — Settings Behavior port: allowAutoGeolocate field + SettingsEntity behaviorJson (HANDOFF-03/D-03)
+- [ ] 21-03-PLAN.md — Entry point: hike/bike modal sheet + trail-source card wiring + real /route-planner registration (HANDOFF-02/03)
+- [ ] 21-04-PLAN.md — App-bar Finish action + undo/redo relocation to map controls, wired to finishPlanning (HANDOFF-01/D-04/D-05)
+
 **UI hint**: yes
 
 ## Progress
@@ -370,4 +378,4 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 18. Retire flutter_map and the flomp Forks | v1.4 | 3/3 | Complete   | 2026-07-10 |
 | 19. Route Planner Core — Waypoint Editing & Routing Engine | v1.5 | 4/4 | Complete   | 2026-07-16 |
 | 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 5/5 | Complete   | 2026-07-16 |
-| 21. Route Planner Handoff & Entry Point | v1.5 | 0/TBD | Not started | - |
+| 21. Route Planner Handoff & Entry Point | v1.5 | 0/4 | Planned | - |
