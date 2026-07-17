@@ -62,6 +62,32 @@ String? categoryForTravelProfile(
   return categories.firstWhereOrNull(matches)?.id;
 }
 
+/// Sibling of [categoryForTravelProfile]: given a bike-bucket keyword set
+/// (`RouteTravelBucket.keywords`, `route_travel_bucket.dart`) and the
+/// operator's loaded category list, returns the first [Category] whose
+/// name/short name (case-insensitive) contains any keyword — for ICON
+/// RESOLUTION ONLY. Never throws on an empty [categories] list; degrades
+/// gracefully to `null` (caller falls back to a hardcoded FontAwesome icon)
+/// when nothing matches.
+///
+/// A bucket's `bicycle_type` costing payload is fixed regardless of what
+/// categories the operator happens to have (RESEARCH.md Q2 key finding) — it
+/// is carried on `RouteTravelBucket` itself and is NEVER synthesized from a
+/// matched `Category` here.
+Category? categoryForBikeBucket(
+  List<String> keywords,
+  List<Category> categories,
+) {
+  bool matches(Category c) {
+    final name = c.name.toLowerCase();
+    final short = (c.shortName ?? '').toLowerCase();
+    final hay = '$name $short';
+    return keywords.any(hay.contains);
+  }
+
+  return categories.firstWhereOrNull(matches);
+}
+
 /// Builds a Valhalla shape list from [points], downsampling to ≤500 entries
 /// while always preserving the first and last point.
 ///

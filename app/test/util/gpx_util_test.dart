@@ -167,4 +167,49 @@ void main() {
       },
     );
   });
+
+  group('categoryForBikeBucket', () {
+    test(
+      'returns the first Category whose name/shortName (case-insensitive) '
+      'contains a keyword',
+      () {
+        const categories = [
+          Category(id: 'hike-id', name: 'Hiking Trails'),
+          Category(id: 'road-id', name: 'Road Racing'),
+        ];
+
+        final match = categoryForBikeBucket([
+          'road',
+          'race',
+          'racing',
+        ], categories);
+
+        expect(match?.id, 'road-id');
+      },
+    );
+
+    test('matches case-insensitively against shortName too', () {
+      const categories = [
+        Category(id: 'mtb-id', name: 'Off-road', shortName: 'MTB'),
+      ];
+
+      final match = categoryForBikeBucket(['mtb', 'mountain'], categories);
+
+      expect(match?.id, 'mtb-id');
+    });
+
+    test('returns null when nothing matches', () {
+      const categories = [Category(id: 'other-id', name: 'Wildlife')];
+
+      expect(categoryForBikeBucket(['road', 'race'], categories), isNull);
+    });
+
+    test('never throws on an empty category list', () {
+      expect(
+        () => categoryForBikeBucket(['road', 'race'], const []),
+        returnsNormally,
+      );
+      expect(categoryForBikeBucket(['road', 'race'], const []), isNull);
+    });
+  });
 }
