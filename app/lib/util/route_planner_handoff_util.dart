@@ -169,6 +169,70 @@ List<ml.Geographic> anchorsFromTrack(Gpx gpx) {
   return out;
 }
 
+/// Derives the full-resolution polyline for each inter-anchor span produced
+/// by [anchorsFromTrack] (quick-260718-e9j follow-up).
+///
+/// The web app never touches the original recorded points at seed time —
+/// `setRoute(gpx)` loads the untouched GPX and `initRouteAnchors` only places
+/// anchor markers; a segment's geometry is only ever replaced once the user
+/// actually drags/inserts on it (`recalculateRoute`). The initial port of
+/// this feature got that backwards: it built a 2-point straight line between
+/// each anchor pair and then immediately Valhalla-resolved every one of them
+/// on open. For a trail recorded off-road, that discarded the recording and
+/// snapped the whole route onto nearby roads before the user touched
+/// anything. This restores the original per-segment shape instead.
+///
+/// Anchor coordinates are located by exact value in the flattened,
+/// null-filtered point list (both this and [anchorsFromTrack] traverse
+/// `gpx.trks.first.trksegs` in the same order, so exact floating-point
+/// equality holds) via a forward-only search cursor, so a track that
+/// crosses/retraces itself is still sliced in traversal order rather than
+/// matching an earlier occurrence of the same coordinate.
+///
+/// Returns one polyline per consecutive anchor pair (`anchors.length - 1`
+/// entries); falls back to a straight 2-point line for any remaining pair if
+/// an anchor's coordinate is unexpectedly not found (defensive — should not
+/// happen given both functions share the same traversal).
+List<List<ml.Geographic>> segmentPolylinesFromTrack(
+  Gpx gpx,
+  List<ml.Geographic> anchors,
+) {
+  if (anchors.length < 2) return const [];
+
+  final segs = gpx.trks.isNotEmpty ? gpx.trks.first.trksegs : const <Trkseg>[];
+  final allPoints = [
+    for (final seg in segs)
+      for (final p in seg.trkpts)
+        if (p.lat != null && p.lon != null) ml.Geographic(lat: p.lat!, lon: p.lon!),
+  ];
+
+  final polylines = <List<ml.Geographic>>[];
+  var cursor = 0;
+  var prevIndex = 0;
+  for (var i = 0; i < anchors.length; i++) {
+    final anchor = anchors[i];
+    var idx = -1;
+    for (var j = cursor; j < allPoints.length; j++) {
+      if (allPoints[j].lat == anchor.lat && allPoints[j].lon == anchor.lon) {
+        idx = j;
+        break;
+      }
+    }
+    if (idx == -1) {
+      for (var k = i; k < anchors.length - 1; k++) {
+        polylines.add([anchors[k], anchors[k + 1]]);
+      }
+      return polylines;
+    }
+    if (i > 0) {
+      polylines.add(allPoints.sublist(prevIndex, idx + 1));
+    }
+    prevIndex = idx;
+    cursor = idx + 1;
+  }
+  return polylines;
+}
+
 /// Merges a Route Planner edit-mode result [finalGpx] onto an [existing]
 /// in-memory [Trail] (quick-260718-e9j, PLANNER-02), modeled on
 /// [buildDraftTrail] but as a `copyWith` — every non-track field (title,

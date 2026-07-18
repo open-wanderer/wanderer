@@ -583,8 +583,10 @@ void main() {
 
   group('RouteAnchors - seedFromTrack (quick-260718-e9j)', () {
     test(
-      'seeds one anchor per point, one straight segment per consecutive '
-      'pair, and an empty undo/redo stack, before auto-resolve settles',
+      'seeds one anchor per point, one straight-state segment per '
+      'consecutive pair (straight-line polyline, no segmentPolylines '
+      'given), and an empty undo/redo stack — and never dispatches a '
+      'Valhalla resolve on seed (destroys off-road recordings otherwise)',
       () async {
         var callCount = 0;
         final container = _buildContainer((options, index) async {
@@ -605,16 +607,49 @@ void main() {
         for (final segment in result.segments) {
           expect(segment.state, SegmentState.straight);
         }
+        expect(result.segments[0].polyline, [_anchorA, _anchorB]);
+        expect(result.segments[1].polyline, [_anchorB, _anchorC]);
         expect(result.undoStack, isEmpty);
         expect(result.redoStack, isEmpty);
         expect(result.travelProfile, 'bicycle');
         expect(result.costingOptions, {'bicycle_type': 'Road'});
 
-        // resolveAllSegments dispatches a fire-and-forget resolve for every
-        // segment (auto-routing on by default) — confirm it fires, without
-        // asserting on its eventual (irrelevant here) outcome.
+        // seedFromTrack must NOT auto-resolve segments on open — a segment
+        // is only ever Valhalla-routed once the user actually edits it.
         await _flushAsyncWork();
-        expect(callCount, 2);
+        expect(callCount, 0);
+      },
+    );
+
+    test(
+      'given segmentPolylines, seeds each segment with its full original '
+      'polyline (preserving off-road/recorded shape) rather than a '
+      'straight line — falling back to straight for any missing entry',
+      () async {
+        final container = _buildContainer(
+          (options, index) async => const _CannedResponse.failure(),
+        );
+        final notifier = container.read(routeAnchorsProvider.notifier);
+        final recorded = [
+          _anchorA,
+          const Geographic(lat: 47.0005, lon: 9.0005),
+          _anchorB,
+        ];
+
+        notifier.seedFromTrack(
+          [_anchorA, _anchorB, _anchorC],
+          'pedestrian',
+          null,
+          segmentPolylines: [recorded],
+        );
+
+        final result = container.read(routeAnchorsProvider);
+        expect(result.segments, hasLength(2));
+        expect(result.segments[0].polyline, recorded);
+        expect(result.segments[0].state, SegmentState.straight);
+        // No entry supplied for the second segment — falls back to a
+        // straight line between its bounding anchors.
+        expect(result.segments[1].polyline, [_anchorB, _anchorC]);
       },
     );
 

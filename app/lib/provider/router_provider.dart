@@ -264,11 +264,17 @@ class Router extends _$Router {
             // mode is inferred from this list being present/non-empty, not
             // from a separate flag).
             final seedAnchors = extra?['seedAnchors'] as List<Geographic>?;
+            // Full-resolution per-segment polylines aligned with
+            // seedAnchors (quick-260718-e9j follow-up) — preserves the
+            // original recorded route until the user edits it.
+            final seedSegmentPolylines =
+                extra?['seedSegmentPolylines'] as List<List<Geographic>>?;
             return RoutePlannerScreen(
               travelProfile: profile,
               initialCostingOptions: costingOptions,
               initialCenter: center,
               seedAnchors: seedAnchors,
+              seedSegmentPolylines: seedSegmentPolylines,
             );
           },
         ),

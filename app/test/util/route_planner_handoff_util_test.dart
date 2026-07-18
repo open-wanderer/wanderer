@@ -225,6 +225,83 @@ void main() {
     );
   });
 
+  group('segmentPolylinesFromTrack', () {
+    test(
+      'a single-trkseg track yields one segment whose polyline is every '
+      'recorded point (preserves an off-road recording, not a straight '
+      'line between the endpoints)',
+      () {
+        final gpx = Gpx();
+        gpx.trks = [
+          Trk(
+            trksegs: [
+              Trkseg(
+                trkpts: [
+                  Wpt(lat: 47.000, lon: 9.000),
+                  Wpt(lat: 47.0005, lon: 9.0015), // off the direct line
+                  Wpt(lat: 47.001, lon: 9.001),
+                  Wpt(lat: 47.002, lon: 9.002),
+                ],
+              ),
+            ],
+          ),
+        ];
+        final anchors = anchorsFromTrack(gpx);
+
+        final polylines = segmentPolylinesFromTrack(gpx, anchors);
+
+        expect(polylines, hasLength(1));
+        expect(polylines[0], hasLength(4));
+        expect(polylines[0][1].lat, 47.0005);
+        expect(polylines[0][1].lon, 9.0015);
+      },
+    );
+
+    test(
+      'a two-trkseg track yields one polyline per consecutive anchor pair, '
+      'each a contiguous slice of the flattened recorded points',
+      () {
+        final gpx = Gpx();
+        gpx.trks = [
+          Trk(
+            trksegs: [
+              Trkseg(
+                trkpts: [
+                  Wpt(lat: 47.000, lon: 9.000),
+                  Wpt(lat: 47.001, lon: 9.001),
+                ],
+              ),
+              Trkseg(
+                trkpts: [
+                  Wpt(lat: 47.010, lon: 9.010),
+                  Wpt(lat: 47.0105, lon: 9.0105),
+                  Wpt(lat: 47.011, lon: 9.011),
+                ],
+              ),
+            ],
+          ),
+        ];
+        final anchors = anchorsFromTrack(gpx);
+
+        final polylines = segmentPolylinesFromTrack(gpx, anchors);
+
+        expect(anchors, hasLength(3)); // seg0.first, seg1.first, seg1.last
+        expect(polylines, hasLength(2));
+        // seg0.first -> seg1.first: seg0's own points then the jump into seg1
+        expect(polylines[0], hasLength(3));
+        expect(polylines[0][0].lat, 47.000);
+        expect(polylines[0][2].lat, 47.010);
+        // seg1.first -> seg1.last: all of seg1's own points
+        expect(polylines[1], hasLength(3));
+        expect(polylines[1][1].lat, 47.0105);
+      },
+    );
+
+    test('fewer than 2 anchors yields an empty list', () {
+      expect(segmentPolylinesFromTrack(Gpx(), const []), isEmpty);
+    });
+  });
+
   group('mergeRouteIntoTrail', () {
     Trail buildSampleTrail() {
       return Trail(

@@ -254,14 +254,24 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   ///
   /// Defaults `travelProfile` to `'pedestrian'` (RESEARCH A1) — no travel
   /// profile is stored on a `Trail`, so there is nothing to restore.
-  Future<void> _onEditRoute(BuildContext context, List<ml.Geographic> points) async {
-    final newGpx = await context.push<Gpx>('/route-planner', extra: {
-      'mode': 'edit',
-      'seedAnchors': points,
-      'travelProfile': 'pedestrian',
-      'lat': trail.lat,
-      'lon': trail.lon,
-    });
+  Future<void> _onEditRoute(
+    BuildContext context,
+    List<ml.Geographic> points,
+  ) async {
+    final newGpx = await context.push<Gpx>(
+      '/route-planner',
+      extra: {
+        'mode': 'edit',
+        'seedAnchors': points,
+        'seedSegmentPolylines': segmentPolylinesFromTrack(
+          trail.expand!.gpx!,
+          points,
+        ),
+        'travelProfile': 'pedestrian',
+        'lat': trail.lat,
+        'lon': trail.lon,
+      },
+    );
     if (newGpx == null || !mounted) return;
     setState(() => trail = mergeRouteIntoTrail(trail, newGpx));
   }
@@ -437,14 +447,25 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                   ? anchorsFromTrack(trail.expand!.gpx!)
                   : const <ml.Geographic>[];
               return IconButton(
-                icon: const FaIcon(FontAwesomeIcons.route, size: 18),
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const FaIcon(FontAwesomeIcons.route, size: 18),
+                    Positioned(
+                      top: -2,
+                      child: const FaIcon(FontAwesomeIcons.pen, size: 9),
+                    ),
+                  ],
+                ),
                 tooltip: 'Edit route',
                 onPressed: seedAnchors.length >= 2
                     ? () => _onEditRoute(context, seedAnchors)
                     : null,
                 style: IconButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.surface,
-                  disabledBackgroundColor: Theme.of(context).colorScheme.surface,
+                  disabledBackgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surface,
                 ),
               );
             },

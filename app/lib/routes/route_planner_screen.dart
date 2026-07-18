@@ -56,12 +56,21 @@ class RoutePlannerScreen extends ConsumerStatefulWidget {
   /// via [finishPlanning].
   final List<ml.Geographic>? seedAnchors;
 
+  /// Per-segment full-resolution polylines aligned with [seedAnchors]
+  /// (quick-260718-e9j follow-up, from `segmentPolylinesFromTrack`) — the
+  /// original recorded points between each anchor pair, so the map shows the
+  /// exact prior route rather than a straight line or a Valhalla-recomputed
+  /// one until the user actually edits a segment. `null`/short falls back to
+  /// a straight line for the affected pair(s) in [RouteAnchors.seedFromTrack].
+  final List<List<ml.Geographic>>? seedSegmentPolylines;
+
   const RoutePlannerScreen({
     super.key,
     required this.travelProfile,
     this.initialCostingOptions,
     required this.initialCenter,
     this.seedAnchors,
+    this.seedSegmentPolylines,
   });
 
   @override
@@ -137,6 +146,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
               widget.seedAnchors!,
               widget.travelProfile,
               widget.initialCostingOptions,
+              segmentPolylines: widget.seedSegmentPolylines,
             );
       } else {
         ref

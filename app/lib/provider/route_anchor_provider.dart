@@ -368,24 +368,37 @@ class RouteAnchors extends _$RouteAnchors {
   /// Cancels + clears all in-flight/generation bookkeeping exactly like
   /// [resetForSession] (both the segment-resolve maps and the per-anchor
   /// location-search maps). Builds one [RouteAnchor] per point (fresh
-  /// [UniqueKey] ids — never reused across sessions) and a straight
-  /// [RouteSegment] between each consecutive pair, then sets state in a
-  /// single assignment with a fresh (empty) undo/redo baseline — this seed
-  /// is not itself undoable, matching [resetForSession]'s own contract.
+  /// [UniqueKey] ids — never reused across sessions) and one [RouteSegment]
+  /// per consecutive pair, then sets state in a single assignment with a
+  /// fresh (empty) undo/redo baseline — this seed is not itself undoable,
+  /// matching [resetForSession]'s own contract.
+  ///
+  /// [segmentPolylines] (from
+  /// [route_planner_handoff_util.dart]'s `segmentPolylinesFromTrack`), when
+  /// given, supplies each segment's full original recorded points; a
+  /// missing/short entry falls back to a straight 2-point line between its
+  /// bounding anchors. Every seeded segment is marked [SegmentState.straight]
+  /// regardless of point count — that enum name means "not Valhalla-routed",
+  /// not "exactly 2 points" (`splitSegmentAt` already works generically on
+  /// any polyline).
   ///
   /// Deliberately does NOT loop [appendAnchor] (each call pushes an undo
-  /// snapshot, which would let the user undo back through the seed) and does
+  /// snapshot, which would let the user undo back through the seed), does
   /// NOT call [_resolveAnchorLocation] for any seeded anchor (no
-  /// reverse-geocode at load time — matches web's `initRouteAnchors`).
-  ///
-  /// After seeding, calls [resolveAllSegments] so the boundary segments
-  /// re-route via Valhalla when auto-routing is on (mirrors web: anchors
-  /// seed, then Valhalla re-routes between them).
+  /// reverse-geocode at load time — matches web's `initRouteAnchors`), and,
+  /// critically, does NOT call [resolveAllSegments]. The web app never
+  /// touches the original recorded points at seed time (`setRoute(gpx)`
+  /// loads the untouched GPX; anchors are just markers on top of it) — a
+  /// segment is only ever Valhalla-resolved once the user actually edits it.
+  /// Auto-resolving every segment on open (this function's first version)
+  /// silently snapped an off-road recording onto nearby roads before the
+  /// user touched anything.
   void seedFromTrack(
     List<Geographic> points,
     String profile,
-    Map<String, dynamic>? opts,
-  ) {
+    Map<String, dynamic>? opts, {
+    List<List<Geographic>>? segmentPolylines,
+  }) {
     for (final token in _inFlight.values) {
       token.cancel();
     }
@@ -406,7 +419,9 @@ class RouteAnchors extends _$RouteAnchors {
         RouteSegment(
           beforeAnchorId: anchors[i].id,
           afterAnchorId: anchors[i + 1].id,
-          polyline: [anchors[i].point, anchors[i + 1].point],
+          polyline: (segmentPolylines != null && i < segmentPolylines.length)
+              ? segmentPolylines[i]
+              : [anchors[i].point, anchors[i + 1].point],
           state: SegmentState.straight,
         ),
     ];
@@ -420,8 +435,6 @@ class RouteAnchors extends _$RouteAnchors {
       undoStack: const [],
       redoStack: const [],
     );
-
-    resolveAllSegments();
   }
 
   /// Pushes the current (pre-mutation) anchors/segments onto the undo stack
