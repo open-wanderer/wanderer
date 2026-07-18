@@ -214,7 +214,6 @@ class _SourceActionCard extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              // Icon Badge container
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -225,7 +224,6 @@ class _SourceActionCard extends StatelessWidget {
               ),
               const SizedBox(width: 16),
 
-              // Text Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,7 +247,6 @@ class _SourceActionCard extends StatelessWidget {
               ),
               const SizedBox(width: 16),
 
-              // Trailing action (Spinner or Chevron)
               if (isLoading)
                 const SizedBox(
                   width: 16,

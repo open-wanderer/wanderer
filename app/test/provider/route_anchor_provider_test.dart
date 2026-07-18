@@ -9,10 +9,6 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/util/polyline_util.dart';
 
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
-
 const _anchorA = Geographic(lat: 47.000, lon: 9.000);
 const _anchorB = Geographic(lat: 47.001, lon: 9.000);
 const _anchorC = Geographic(lat: 47.002, lon: 9.000);
@@ -22,11 +18,9 @@ const _profile = 'pedestrian';
 /// Waits long enough for a fire-and-forget resolve dispatched by a `void`
 /// mutation method (e.g. `appendAnchor`) to fully settle.
 ///
-/// Dio's own interceptor-wrapping pipeline (`dio_mixin.dart`'s
-/// `requestInterceptorWrapper`) schedules each step via the `Future(...)`
-/// constructor, which Dart implements with `Timer.run` — a macrotask, not a
-/// microtask — so a pure microtask flush (`await Future.value()` in a loop)
-/// is NOT sufficient here; a real, if brief, elapsed-time wait is required.
+/// Dio schedules its interceptor pipeline via `Timer.run` (a macrotask, not
+/// a microtask), so a plain microtask flush isn't enough here — a real,
+/// if brief, elapsed-time wait is required.
 Future<void> _flushAsyncWork() async {
   await Future<void>.delayed(const Duration(milliseconds: 50));
 }
@@ -42,29 +36,18 @@ Map<String, dynamic> _tripData(String shape) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Fake API harness
+// Fake API harness.
 //
-// Empirically verified against dio 5.9.2 (see 19-02-SUMMARY.md "Deviations"
-// for the full trace): every interceptor step Dio's `fetch()` builds is
-// wrapped via `listenCancelForAsyncTask`, which races the step against
-// `cancelToken.whenCancel` using `Future.any`. Because our fake resolves
-// entirely inside that same interceptor step (no real socket), a request
-// that gets cancelled *before* its own response has already been handed to
-// `handler.resolve()`/`reject()` ALWAYS loses that race and settles with
-// `DioException(type: cancel)` — never with a late, "successful" response.
-// `_resolveSegment` always cancels the previous in-flight token for a given
-// segment key before dispatching a new one, so for two `retrySegment` calls
-// issued back-to-back for the same key, the FIRST one is reliably caught by
-// this cancellation path (the `if (e.type == DioExceptionType.cancel)
-// return;` branch), not by the generation-counter check in the success
-// path — that check remains valuable defense-in-depth for a narrower race
-// (an already-resolved-but-not-yet-applied response racing a fresh
-// dispatch) that a real network layer can produce but this fast, in-process
-// fake cannot reliably force. The test below verifies the OBSERVABLE
-// contract instead: a stale, superseded dispatch never corrupts state and
-// never throws uncaught, regardless of which of the two guards catches it.
-// ---------------------------------------------------------------------------
+// Dio wraps every interceptor step in a race against `cancelToken.whenCancel`
+// (`listenCancelForAsyncTask`). Because our fake resolves synchronously
+// inside that same step, a cancelled request always settles via
+// `DioException(type: cancel)`, never a late "successful" response. So for
+// two back-to-back `retrySegment` calls on the same segment key, the first
+// is reliably caught by the cancellation branch, not the generation-counter
+// check — that check is defense-in-depth for a narrower race a real network
+// layer can produce but this fake can't force. Tests below verify the
+// observable contract instead: a stale dispatch never corrupts state or
+// throws uncaught, regardless of which guard catches it.
 
 class _CannedResponse {
   const _CannedResponse.success(this.data) : isSuccess = true;
@@ -89,14 +72,11 @@ class _FakeApi extends Api {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // appendAnchor/dragAnchor/insertAnchorOnSegment now also fire a
-          // reverse-geocode search (route_anchor_provider.dart's
-          // _resolveAnchorLocation, quick-260717-t7q follow-up) through the
-          // same apiProvider. Intercept it here with a fixed "no address
-          // found" response so it never consumes a Valhalla-call-index slot
-          // or corrupts the call-count assertions the tests below make
-          // against `/valhalla/route` specifically — the location search is
-          // a separate concern from every test in this file.
+          // appendAnchor/dragAnchor/insertAnchorOnSegment also fire a
+          // reverse-geocode search through the same apiProvider. Intercept
+          // it with a fixed "no address found" response so it never
+          // consumes a call-index slot or corrupts the call-count
+          // assertions the tests make against `/valhalla/route`.
           if (options.path.contains('/geocoding/reverse')) {
             handler.resolve(
               Response(
@@ -108,14 +88,10 @@ class _FakeApi extends Api {
             return;
           }
 
-          // Every segment creation/update now also fires a fire-and-forget
-          // `/valhalla/height` fetch (route_anchor_provider.dart's
-          // `_resolveElevation`) through this same apiProvider. Carved out
-          // exactly like `/geocoding/reverse` above so it never consumes a
-          // `/valhalla/route`-call-index slot or corrupts the call-count
-          // assertions the tests below make against that endpoint
-          // specifically — elevation is a separate concern from every test
-          // in this file.
+          // Every segment creation/update also fires a fire-and-forget
+          // `/valhalla/height` fetch through the same apiProvider. Carved
+          // out like `/geocoding/reverse` above so it never corrupts the
+          // call-count assertions the tests make against `/valhalla/route`.
           if (options.path.contains('/valhalla/height')) {
             final shape = options.data is Map
                 ? (options.data as Map)['shape'] as List?
@@ -160,19 +136,15 @@ ProviderContainer _buildContainer(_Responder responder) {
     overrides: [apiProvider.overrideWith(() => _FakeApi(responder))],
   );
   addTearDown(container.dispose);
-  // routeAnchorsProvider is autoDispose; keep it alive for the test's
-  // duration via a persistent listener (mirrors how a real screen would
-  // `ref.watch` it continuously), so in-flight fire-and-forget resolution
-  // work isn't torn down across an `await` gap.
+  // routeAnchorsProvider is autoDispose; a persistent listener keeps it
+  // alive so in-flight fire-and-forget work isn't torn down mid-`await`.
   container.listen(routeAnchorsProvider, (_, _) {});
   return container;
 }
 
-/// A `RouteAnchors` subclass whose `build()` returns a pre-populated state
-/// instead of the empty default — lets the segment-resolution engine's own
-/// tests (`_resolveSegment`/`retrySegment`/`toggleAutoRouting`) seed a
-/// 2-anchor/1-segment fixture directly, without depending on the anchor
-/// mutation methods (`appendAnchor` et al.), which are a separate concern.
+/// A `RouteAnchors` subclass whose `build()` returns a pre-populated state,
+/// letting tests seed a fixture directly without going through the anchor
+/// mutation methods.
 class _SeededRouteAnchors extends RouteAnchors {
   _SeededRouteAnchors(
     this._anchors,
@@ -397,12 +369,8 @@ void main() {
         );
         final notifier = container.read(routeAnchorsProvider.notifier);
 
-        // Two dispatches in quick succession for the SAME segment key.
-        // `_resolveSegment` cancels the first's in-flight `CancelToken`
-        // before starting the second — the first must settle cleanly
-        // (never throw uncaught, never apply its result over the second's)
-        // regardless of whether it's caught by the cancellation branch or
-        // the generation-counter check.
+        // Two dispatches in quick succession for the same segment key; the
+        // first must settle cleanly and never clobber the second's result.
         final f1 = notifier.retrySegment(_anchorIdA, _anchorIdB);
         final f2 = notifier.retrySegment(_anchorIdA, _anchorIdB);
 

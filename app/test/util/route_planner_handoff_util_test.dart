@@ -4,12 +4,9 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
 
-// ---------------------------------------------------------------------------
-// Tests for the pure handoff helpers (no network/navigation): buildDraftTrail
-// and mergeHeightsIntoGpx. finishPlanning's orchestration (network fetch +
-// pendingImportedTrail + navigation) is intentionally not unit-tested here —
-// it has no pure/synchronous seam without a WidgetRef/BuildContext harness.
-// ---------------------------------------------------------------------------
+// Tests for the pure handoff helpers (no network/navigation). finishPlanning's
+// orchestration is not unit-tested here — it has no pure/synchronous seam
+// without a WidgetRef/BuildContext harness.
 
 void main() {
   group('buildDraftTrail', () {

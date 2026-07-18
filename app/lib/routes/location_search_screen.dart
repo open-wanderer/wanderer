@@ -10,7 +10,7 @@ import 'package:wanderer/provider/search/global_search_provider.dart';
 /// structure, minus the category-chip row and every non-location result
 /// branch. Selecting a result pops the [LocationSearchResult] back to the
 /// caller (the Route Planner) instead of navigating to `/map` — the planner
-/// owns the camera animation (PLANUI-03, D-14/D-15).
+/// owns the camera animation.
 class LocationSearchScreen extends ConsumerStatefulWidget {
   const LocationSearchScreen({super.key});
 
@@ -40,8 +40,8 @@ class _LocationSearchScreenState extends ConsumerState<LocationSearchScreen> {
 
   @override
   void dispose() {
-    // Reset the shared provider so a locations-only session does not bleed
-    // a stuck filter/state into the global search screen (T-20-02-02).
+    // Reset the shared provider so this locations-only session doesn't leak
+    // a stuck filter/state into the global search screen.
     _notifier.setCategory(GlobalSearchCategory.all);
     _notifier.setQuery('');
     _controller.dispose();

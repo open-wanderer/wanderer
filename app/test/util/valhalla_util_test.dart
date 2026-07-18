@@ -46,9 +46,9 @@ void main() {
       () {
         const category = Category(id: 'cycle-id', name: 'Cycling Routes');
 
-        // Forward direction (existing heuristic).
+        // Forward direction.
         expect(costingForCategory(category.name), 'bicycle');
-        // Reverse direction (this task's new heuristic) agrees.
+        // Reverse direction agrees.
         expect(
           categoryForTravelProfile('bicycle', const [category]),
           'cycle-id',

@@ -22,12 +22,9 @@ class ElevationProfile extends ConsumerStatefulWidget {
   final Function(TrackPoint? point)? onLineTouch;
   final bool enableLineTouch;
 
-  /// Overrides the header's total-duration stat when [gpx] carries no `time`
-  /// data of its own — the route planner's in-progress `Gpx` never has
-  /// timestamps, so `_points.last.duration` would otherwise always read
-  /// 0:00. Passed in by `ElevationTab` as the Valhalla-derived/estimated
-  /// total from `RouteAnchorsState.estimatedDurationSeconds`. Ignored when
-  /// `null` (every other caller keeps the GPX-timestamp-derived duration).
+  /// Overrides the header's total-duration stat when [gpx] has no `time`
+  /// data (e.g. the route planner's in-progress `Gpx`, which has no
+  /// timestamps). Ignored when `null`.
   final Duration? durationOverride;
   const ElevationProfile({
     super.key,
@@ -116,8 +113,8 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
 
   @override
   Widget build(BuildContext context) {
-    // Establish the rebuild dependency on the unit provider; helper methods
-    // read the same value synchronously via ref.read during this frame.
+    // Watched here so the widget rebuilds on unit change; helper methods
+    // read it via ref.read within the same frame.
     ref.watch(unitProvider);
 
     if (_points.isEmpty) {

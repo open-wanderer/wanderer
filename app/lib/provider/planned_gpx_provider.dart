@@ -5,17 +5,14 @@ import 'package:wanderer/provider/route_anchor_provider.dart';
 part 'planned_gpx_provider.g.dart';
 
 /// Derives an ordered, pre-elevation [Gpx] skeleton (points only, no `ele`)
-/// from the in-progress route held by [routeAnchorsProvider] (PLANUI-02).
+/// from the in-progress route held by [routeAnchorsProvider].
 ///
 /// Walks the anchor-id chain starting at `anchors.first`, following each
 /// segment's `beforeAnchorId -> afterAnchorId` link (not `state.segments`
-/// array order, Pitfall 3), appending each segment's polyline via
-/// `skip(1)` so the shared boundary point between two consecutive segments
-/// is not duplicated.
+/// array order), appending each segment's polyline via `skip(1)` so the
+/// shared boundary point between two consecutive segments isn't duplicated.
 ///
-/// Recomputes whenever `routeAnchorsProvider`'s anchors/segments identity
-/// changes. Never sets `ele` (D-10): the elevation tab owns the
-/// elevation-merged copy.
+/// Never sets `ele`: the elevation tab owns the elevation-merged copy.
 @riverpod
 Gpx plannedGpx(Ref ref) {
   final state = ref.watch(routeAnchorsProvider);
@@ -51,18 +48,14 @@ Gpx plannedGpx(Ref ref) {
 }
 
 /// Sibling of [plannedGpx]: an elevation-bearing `Gpx` for the Elevation
-/// tab's chart, built entirely from data already living on
-/// `routeAnchorsProvider`'s segments — no network call of its own (that
-/// fetch now lives on `route_anchor_provider.dart`'s `_resolveElevation`,
-/// fired fire-and-forget per segment on creation/update).
+/// tab's chart, built from data already on `routeAnchorsProvider`'s
+/// segments (elevation fetches happen there, fire-and-forget per segment).
 ///
-/// Same anchor-chain walk as [plannedGpx] (`beforeAnchorId -> afterAnchorId`
-/// links, not array order), but each segment contributes its own
-/// [RouteSegment.elevationProfile] points (falling back to [RouteSegment.polyline]
-/// when a segment's height fetch hasn't resolved yet) paired with
-/// [RouteSegment.elevations] — `ele` stays `null` for any point beyond
-/// what's been fetched so far, which the elevation chart already treats as
-/// `0` (transient, until that segment's fetch resolves).
+/// Same anchor-chain walk as [plannedGpx], but each segment contributes its
+/// [RouteSegment.elevationProfile] points (falling back to
+/// [RouteSegment.polyline] while a segment's height fetch is pending) paired
+/// with [RouteSegment.elevations]; `ele` stays `null` for points not yet
+/// fetched, which the chart treats as `0` until that segment resolves.
 @riverpod
 Gpx plannedElevationGpx(Ref ref) {
   final state = ref.watch(routeAnchorsProvider);
@@ -73,9 +66,8 @@ Gpx plannedElevationGpx(Ref ref) {
   final segByBefore = {for (final s in state.segments) s.beforeAnchorId: s};
 
   final first = state.anchors.first;
-  // The seed anchor's own elevation is never known (heights live on
-  // segments, not anchors) — `ele: null` here degrades the same way the
-  // chart already treats any not-yet-fetched point.
+  // Heights live on segments, not anchors, so the seed anchor's elevation
+  // is always unknown; `ele: null` degrades the same as any unfetched point.
   final trackSegments = <Trkseg>[
     Trkseg(trkpts: [Wpt(lat: first.lat, lon: first.lon)]),
   ];

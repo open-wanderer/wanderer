@@ -12,8 +12,8 @@ extension TrailFormData on Trail {
     bool isCreate = true,
   }) async {
     final fields = <MapEntry<String, String>>[
-      // `uploadUpdate` (web/src/lib/util/api_util.ts) ignores the URL path id
-      // and reads it from the form body instead — required on update.
+      // uploadUpdate ignores the URL path id and reads it from the form body
+      // instead — required on update.
       if (!isCreate) MapEntry('id', id),
       MapEntry('name', name),
       if (location != null) MapEntry('location', location!),
@@ -44,13 +44,9 @@ extension TrailFormData on Trail {
         ),
     ];
 
-    // Sent on update too (quick-260718-e9j follow-up), not just create: the
-    // Route Planner's "edit an existing route" flow produces a new
-    // expand.gpxData for an already-persisted trail, and that edit was being
-    // silently dropped — the server never saw it, so the saved trail's track
-    // stayed exactly as it was before the edit. A single-file field like
-    // `gpx` is replaced wholesale by a new upload under the same field name,
-    // so resending unchanged gpxData on a metadata-only update is harmless.
+    // Sent on update too, not just create — otherwise an edited route's
+    // track would be silently dropped. Resending unchanged gpxData on a
+    // metadata-only update is harmless since it just replaces the file.
     final gpxData = expand?.gpxData;
     if (gpxData != null) {
       files.add(

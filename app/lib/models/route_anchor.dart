@@ -6,14 +6,12 @@ part 'route_anchor.freezed.dart';
 
 /// A single tap/drag point along an in-progress, unsaved route plan.
 ///
-/// This is a deliberately distinct, new in-memory type (D-01) — it does not
-/// reuse the model backing a persisted `Trail`'s route points, which is a
-/// different data type/concept. `RouteAnchor` backs the route planner's
-/// in-memory state only.
+/// Deliberately distinct from the model backing a persisted `Trail`'s route
+/// points — `RouteAnchor` backs the route planner's in-memory state only.
 @freezed
 abstract class RouteAnchor with _$RouteAnchor {
   const factory RouteAnchor({
-    required String id, // generated via UniqueKey().toString() at creation
+    required String id,
     required double lat,
     required double lon,
     ReverseLocationResult? location,
@@ -50,26 +48,18 @@ abstract class RouteSegment with _$RouteSegment {
     required List<Geographic> polyline,
     required SegmentState state,
 
-    /// Estimated travel time for this segment, in seconds. Valhalla's own
-    /// `trip.summary.time` when [state] is [SegmentState.routed]; `null` for
-    /// a [SegmentState.straight]/[SegmentState.blocked] segment, which never
-    /// made a successful Valhalla call — callers estimate those from
-    /// distance + travel profile instead (`valhalla_util.dart`'s
-    /// `estimateSegmentDurationSeconds`).
+    /// Estimated travel time in seconds. Valhalla's `trip.summary.time` when
+    /// [state] is [SegmentState.routed]; `null` otherwise (callers estimate
+    /// from distance + travel profile instead).
     double? durationSeconds,
 
-    /// A downsampled (`buildNavShape`-capped) subset of [polyline], used only
-    /// as the point set queried against `/valhalla/height`. Deliberately
-    /// distinct from [polyline] (which drives map rendering at full
-    /// resolution) — `null` until [elevations] has been resolved for the
-    /// current [polyline].
+    /// A downsampled subset of [polyline] used as the point set queried
+    /// against `/valhalla/height`. `null` until [elevations] resolves.
     List<Geographic>? elevationProfile,
 
-    /// Heights (meters), one per [elevationProfile] point, fetched from
-    /// `/valhalla/height` by `route_anchor_provider.dart`'s
-    /// `_resolveElevation` — fired fire-and-forget after every segment
-    /// creation/update so it never blocks the segment's own polyline from
-    /// rendering. `null` until that fetch resolves.
+    /// Heights (meters), one per [elevationProfile] point. Fetched
+    /// fire-and-forget so it never blocks the polyline from rendering.
+    /// `null` until that fetch resolves.
     List<double>? elevations,
   }) = _RouteSegment;
 
@@ -86,9 +76,7 @@ abstract class RouteSegment with _$RouteSegment {
   }
 
   /// This segment's own elevation gain, in meters: the sum of positive
-  /// deltas between consecutive [elevations] samples. `0` while
-  /// [elevations] is still unresolved (a fresh segment, mid-fetch) rather
-  /// than blocking on the height lookup.
+  /// deltas between consecutive [elevations] samples. `0` while unresolved.
   double get elevationGainMeters {
     final elevs = elevations;
     if (elevs == null || elevs.length < 2) return 0;

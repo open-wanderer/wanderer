@@ -2,19 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
-// ---------------------------------------------------------------------------
-// Tests for buildNavShape downsampling guarantees.
-//
-// Verifies: passthrough for ≤500 points, cap at ≤500 for >500 points,
-// first/last point preservation, and last-point deduplication.
-// ---------------------------------------------------------------------------
-
 void main() {
   group('buildNavShape', () {
-    // Geographic() clamps latitude to [-90, 90] and wraps longitude to
-    // (-180, 180], unlike the old LatLng which stored raw doubles verbatim.
-    // Fixtures scale the index down so every generated point stays within
-    // valid coordinate bounds while still uniquely encoding its index.
+    // Geographic clamps latitude to [-90, 90] and wraps longitude to
+    // (-180, 180], so fixtures scale the index down to stay within bounds
+    // while still uniquely encoding it.
     const scale = 0.0001;
 
     test('2-point input returns 2 shape maps without downsampling', () {
@@ -59,10 +51,8 @@ void main() {
     test(
       '501-point input is downsampled to ≤500 and last point appears exactly once',
       () {
-        // step = ceil(501/499) = 2
-        // modulo sampling at step=2 visits indices 0,2,4,...,500 — so index 500
-        // (the last point) IS already included by the modulo loop. The dedup
-        // guard must not append it a second time.
+        // step = ceil(501/499) = 2, so modulo sampling already includes index
+        // 500 (the last point) — the dedup guard must not append it again.
         final points = List.generate(
           501,
           (i) => Geographic(lat: i * scale, lon: i * scale),
@@ -71,13 +61,11 @@ void main() {
 
         expect(result.length, lessThanOrEqualTo(500));
 
-        // Last point (lat=500*scale, lon=500*scale) must appear exactly once.
         final lastPointCount = result
             .where((m) => m['lat'] == 500 * scale)
             .length;
         expect(lastPointCount, 1);
 
-        // First point must be preserved.
         expect(result.first, {'lat': 0.0, 'lon': 0.0});
       },
     );

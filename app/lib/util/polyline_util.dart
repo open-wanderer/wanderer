@@ -18,7 +18,6 @@ class PolylineUtil {
     int lastLng = 0;
 
     for (final point in points) {
-      // Geographic uses .lat and .lon
       final int lat = (point.lat * factor).round();
       final int lng = (point.lon * factor).round();
 
@@ -75,7 +74,6 @@ class PolylineUtil {
       final int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
       lng += dlng;
 
-      // Natively populating MapLibre's Geographic positions
       points.add(Geographic(lat: lat / factor, lon: lng / factor));
     }
 

@@ -4,15 +4,14 @@ import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
 
-/// The route planner sheet's "Settings" tab (quick-260717-t7q): hosts the
-/// relocated auto-routing toggle plus the unified 5-option travel-profile
-/// picker that replaces the web's separate activity + bike-type pickers.
+/// The route planner sheet's "Settings" tab: hosts the auto-routing toggle
+/// plus the unified 5-option travel-profile picker.
 ///
-/// Reads/writes [routeAnchorsProvider] directly — no constructor params, and
-/// (CRITICAL, RESEARCH.md Q4 / flutter#55388) never accepts the sheet's
-/// shared `scrollController`: `TabBarView` keeps every page mounted
-/// simultaneously, so only [RouteAnchorListTab] may hold that controller.
-/// This tab manages its own scroll via a plain [SingleChildScrollView].
+/// Reads/writes [routeAnchorsProvider] directly — no constructor params.
+/// Never accepts the sheet's shared `scrollController` (flutter#55388):
+/// `TabBarView` keeps every page mounted simultaneously, so only
+/// [RouteAnchorListTab] may hold that controller. This tab manages its own
+/// scroll via a plain [SingleChildScrollView].
 class SettingsTab extends ConsumerWidget {
   final ScrollController? scrollController;
 
@@ -57,10 +56,9 @@ class SettingsTab extends ConsumerWidget {
               bucket: bucket,
               icon: bucketIcon(bucket, categories),
               selected: bucket == selectedBucket,
-              // No-op on the already-active bucket — switchProfile always
-              // clears undo/redo and re-dispatches every segment (a fresh
-              // baseline, by design), so re-tapping the current selection
-              // must not pay that cost for nothing.
+              // No-op on the already-active bucket — switchProfile clears
+              // undo/redo and re-dispatches every segment, so re-tapping the
+              // current selection must not pay that cost for nothing.
               onTap: bucket == selectedBucket
                   ? null
                   : () => notifier.switchProfile(

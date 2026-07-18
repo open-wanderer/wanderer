@@ -5,27 +5,22 @@ import 'package:wanderer/components/route_planner/elevation_tab.dart';
 import 'package:wanderer/components/route_planner/route_anchor_list_tab.dart';
 import 'package:wanderer/components/route_planner/settings_tab.dart';
 
-/// The route planner's docked, tabbed [DraggableScrollableSheet] (PLANUI-01,
-/// D-02/D-03) hosting the Route Anchors tab (Plan 04), the Elevation tab
-/// (Plan 03), and the Settings tab (quick-260717-t7q).
+/// The route planner's docked, tabbed [DraggableScrollableSheet], hosting
+/// the Route Anchors, Elevation, and Settings tabs.
 ///
-/// This composition is the phase's hardest problem (RESEARCH.md Pattern 1):
-/// `TabBarView` keeps both tab pages built/mounted simultaneously (it
+/// `TabBarView` keeps all tab pages built/mounted simultaneously (it
 /// preloads the adjacent page for the swipe animation), so passing the same
 /// `scrollController` to more than one tab's scrollable throws
 /// `"ScrollController attached to multiple scroll views"` at runtime
 /// (flutter/flutter#55388). The fix: the sheet's builder-supplied
 /// `scrollController` is wired to ONLY [RouteAnchorListTab] — the one
-/// genuinely-scrollable tab — while [ElevationTab] receives no shared
-/// controller at all. Expand/collapse is driven by a dedicated
-/// [DraggableScrollableController] (already an established pattern via
-/// `WaypointSheet`) attached to a manual `GestureDetector.onVerticalDragUpdate`
-/// on the handle-bar row, entirely decoupled from the scrollController
-/// plumbing.
+/// genuinely-scrollable tab. Expand/collapse is driven by a dedicated
+/// [DraggableScrollableController] via a manual
+/// `GestureDetector.onVerticalDragUpdate` on the handle-bar row, decoupled
+/// from the scrollController plumbing.
 ///
-/// The sheet never fully dismisses (D-03) — `minChildSize` is the non-zero
-/// peek height, and there is no `onClose`/drag-to-dismiss path (unlike
-/// `WaypointSheet`, which this chrome is otherwise modeled on).
+/// The sheet never fully dismisses — `minChildSize` is the non-zero peek
+/// height, and there is no `onClose`/drag-to-dismiss path.
 class RouteAnchorSheet extends ConsumerStatefulWidget {
   const RouteAnchorSheet({super.key});
 
@@ -70,7 +65,7 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet>
     return DraggableScrollableSheet(
       controller: _sheetController,
       initialChildSize: sheetMinSize,
-      minChildSize: sheetMinSize, // no full-dismiss (D-03) — never 0.0
+      minChildSize: sheetMinSize, // never 0.0 — no full-dismiss
       maxChildSize: sheetMaxSize,
       snap: true,
       snapSizes: [sheetMinSize, sheetMaxSize],
@@ -89,13 +84,10 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet>
           ),
           child: Column(
             children: [
-              // Handle-bar + TabBar header — the ONLY expand/collapse
-              // driver (Pattern 1). A vertical drag anywhere in this header
-              // (not just the thin handle strip) resizes the sheet; a
-              // stationary tap still resolves to TabBar's own tap
-              // recognizer via the gesture arena, so tab switching is
-              // unaffected. No close button (D-03: peek is the floor, sheet
-              // never dismisses).
+              // Handle-bar + TabBar header is the only expand/collapse driver:
+              // a vertical drag anywhere here resizes the sheet, while a
+              // stationary tap still resolves to TabBar's tap recognizer via
+              // the gesture arena.
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onVerticalDragUpdate: (details) {
@@ -167,11 +159,9 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    // CRITICAL (Pitfall 1): the builder's scrollController
-                    // is attached to ONLY this tab. ElevationTab and
-                    // SettingsTab below get no shared controller — passing
-                    // it into more than one would throw at runtime since
-                    // TabBarView keeps every child built simultaneously.
+                    // The builder's scrollController is attached to ONLY this
+                    // tab — passing it to more than one throws at runtime
+                    // since TabBarView keeps every child built simultaneously.
                     RouteAnchorListTab(
                       scrollController: _activeIndex == 0
                           ? scrollController

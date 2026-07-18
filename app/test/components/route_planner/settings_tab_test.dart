@@ -8,10 +8,8 @@ import 'package:wanderer/models/category.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 
-/// A `RouteAnchors` subclass with an empty seeded state — real
-/// `switchProfile`/`toggleAutoRouting` are exercised (no anchors means
-/// `resolveAllSegments`/`Future.wait` never touch `apiProvider`, so no Dio
-/// override is needed for this widget test).
+/// Empty seeded state — no anchors means resolveAllSegments never touches
+/// apiProvider, so no Dio override is needed for this widget test.
 class _SeededRouteAnchors extends RouteAnchors {
   @override
   RouteAnchorsState build() {
@@ -27,8 +25,8 @@ class _SeededRouteAnchors extends RouteAnchors {
   }
 }
 
-/// A `CategoryNotifier` fake returning an empty list synchronously — avoids
-/// hitting the network or ObjectBox in this widget test.
+/// Fake returning an empty list synchronously — avoids hitting the network
+/// or ObjectBox in this widget test.
 class _FakeCategoryNotifier extends CategoryNotifier {
   @override
   FutureOr<List<Category>> build() async => const [];
@@ -135,14 +133,11 @@ void main() {
       );
       await tester.pump();
 
-      // Default seeded state is pedestrian -> Hiking is selected -> exactly
-      // one check-circle indicator renders.
       expect(find.byIcon(Icons.check_circle), findsOneWidget);
 
       await tester.tap(find.text('Biking / Road'));
       await tester.pump();
 
-      // Still exactly one selected indicator, now on the new bucket.
       expect(find.byIcon(Icons.check_circle), findsOneWidget);
     },
   );

@@ -14,8 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$RouteAnchor {
 
- String get id;// generated via UniqueKey().toString() at creation
- double get lat; double get lon; ReverseLocationResult? get location;
+ String get id; double get lat; double get lon; ReverseLocationResult? get location;
 /// Create a copy of RouteAnchor
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -214,7 +213,6 @@ class _RouteAnchor extends RouteAnchor {
   
 
 @override final  String id;
-// generated via UniqueKey().toString() at creation
 @override final  double lat;
 @override final  double lon;
 @override final  ReverseLocationResult? location;
@@ -282,22 +280,14 @@ as ReverseLocationResult?,
 /// @nodoc
 mixin _$RouteSegment {
 
- String get beforeAnchorId; String get afterAnchorId; List<Geographic> get polyline; SegmentState get state;/// Estimated travel time for this segment, in seconds. Valhalla's own
-/// `trip.summary.time` when [state] is [SegmentState.routed]; `null` for
-/// a [SegmentState.straight]/[SegmentState.blocked] segment, which never
-/// made a successful Valhalla call — callers estimate those from
-/// distance + travel profile instead (`valhalla_util.dart`'s
-/// `estimateSegmentDurationSeconds`).
- double? get durationSeconds;/// A downsampled (`buildNavShape`-capped) subset of [polyline], used only
-/// as the point set queried against `/valhalla/height`. Deliberately
-/// distinct from [polyline] (which drives map rendering at full
-/// resolution) — `null` until [elevations] has been resolved for the
-/// current [polyline].
- List<Geographic>? get elevationProfile;/// Heights (meters), one per [elevationProfile] point, fetched from
-/// `/valhalla/height` by `route_anchor_provider.dart`'s
-/// `_resolveElevation` — fired fire-and-forget after every segment
-/// creation/update so it never blocks the segment's own polyline from
-/// rendering. `null` until that fetch resolves.
+ String get beforeAnchorId; String get afterAnchorId; List<Geographic> get polyline; SegmentState get state;/// Estimated travel time in seconds. Valhalla's `trip.summary.time` when
+/// [state] is [SegmentState.routed]; `null` otherwise (callers estimate
+/// from distance + travel profile instead).
+ double? get durationSeconds;/// A downsampled subset of [polyline] used as the point set queried
+/// against `/valhalla/height`. `null` until [elevations] resolves.
+ List<Geographic>? get elevationProfile;/// Heights (meters), one per [elevationProfile] point. Fetched
+/// fire-and-forget so it never blocks the polyline from rendering.
+/// `null` until that fetch resolves.
  List<double>? get elevations;
 /// Create a copy of RouteSegment
 /// with the given fields replaced by the non-null parameter values.
@@ -509,24 +499,15 @@ class _RouteSegment extends RouteSegment {
 }
 
 @override final  SegmentState state;
-/// Estimated travel time for this segment, in seconds. Valhalla's own
-/// `trip.summary.time` when [state] is [SegmentState.routed]; `null` for
-/// a [SegmentState.straight]/[SegmentState.blocked] segment, which never
-/// made a successful Valhalla call — callers estimate those from
-/// distance + travel profile instead (`valhalla_util.dart`'s
-/// `estimateSegmentDurationSeconds`).
+/// Estimated travel time in seconds. Valhalla's `trip.summary.time` when
+/// [state] is [SegmentState.routed]; `null` otherwise (callers estimate
+/// from distance + travel profile instead).
 @override final  double? durationSeconds;
-/// A downsampled (`buildNavShape`-capped) subset of [polyline], used only
-/// as the point set queried against `/valhalla/height`. Deliberately
-/// distinct from [polyline] (which drives map rendering at full
-/// resolution) — `null` until [elevations] has been resolved for the
-/// current [polyline].
+/// A downsampled subset of [polyline] used as the point set queried
+/// against `/valhalla/height`. `null` until [elevations] resolves.
  final  List<Geographic>? _elevationProfile;
-/// A downsampled (`buildNavShape`-capped) subset of [polyline], used only
-/// as the point set queried against `/valhalla/height`. Deliberately
-/// distinct from [polyline] (which drives map rendering at full
-/// resolution) — `null` until [elevations] has been resolved for the
-/// current [polyline].
+/// A downsampled subset of [polyline] used as the point set queried
+/// against `/valhalla/height`. `null` until [elevations] resolves.
 @override List<Geographic>? get elevationProfile {
   final value = _elevationProfile;
   if (value == null) return null;
@@ -535,17 +516,13 @@ class _RouteSegment extends RouteSegment {
   return EqualUnmodifiableListView(value);
 }
 
-/// Heights (meters), one per [elevationProfile] point, fetched from
-/// `/valhalla/height` by `route_anchor_provider.dart`'s
-/// `_resolveElevation` — fired fire-and-forget after every segment
-/// creation/update so it never blocks the segment's own polyline from
-/// rendering. `null` until that fetch resolves.
+/// Heights (meters), one per [elevationProfile] point. Fetched
+/// fire-and-forget so it never blocks the polyline from rendering.
+/// `null` until that fetch resolves.
  final  List<double>? _elevations;
-/// Heights (meters), one per [elevationProfile] point, fetched from
-/// `/valhalla/height` by `route_anchor_provider.dart`'s
-/// `_resolveElevation` — fired fire-and-forget after every segment
-/// creation/update so it never blocks the segment's own polyline from
-/// rendering. `null` until that fetch resolves.
+/// Heights (meters), one per [elevationProfile] point. Fetched
+/// fire-and-forget so it never blocks the polyline from rendering.
+/// `null` until that fetch resolves.
 @override List<double>? get elevations {
   final value = _elevations;
   if (value == null) return null;

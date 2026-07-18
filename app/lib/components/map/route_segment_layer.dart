@@ -4,13 +4,11 @@ import 'package:wanderer/util/route_segment_util.dart';
 
 /// Owns the native MapLibre GL style layers/source that draw the route
 /// planner's segment lines: one `GeoJsonSource` feeding three `state`-
-/// filtered `LineStyleLayer`s (routed/straight/blocked, per UI-SPEC's
-/// Segment Rendering Contract) plus one invisible, wide hit-test layer
-/// spanning all states (Pitfall 4).
+/// filtered `LineStyleLayer`s (routed/straight/blocked) plus one invisible,
+/// wide hit-test layer spanning all states.
 ///
-/// Mirrors `TrailLayer`'s plain-class shape (`trail_layer.dart`) — this is
-/// not a widget, but a small stateful helper a screen calls into from its
-/// own `onStyleLoaded`/mutation-listener lifecycle.
+/// Not a widget — a small stateful helper a screen calls into from its own
+/// `onStyleLoaded`/mutation-listener lifecycle.
 class RouteSegmentLayer {
   RouteSegmentLayer({
     this.sourceId = 'route-segments',
@@ -29,12 +27,10 @@ class RouteSegmentLayer {
 
   /// Draws/updates the segment lines for [segments].
   ///
-  /// On first call, adds the `GeoJsonSource` and all five style layers (in
-  /// draw order: routed casing under routed, so 2px of white shows as an
-  /// outline — matching `TrailLayer.add`'s ordering). On every subsequent
-  /// call, updates the existing source's data in place via
-  /// [ml.StyleController.updateGeoJsonSource] — never removes/re-adds the
-  /// source, avoiding a flicker on every route mutation.
+  /// On first call, adds the `GeoJsonSource` and all five style layers (draw
+  /// order: routed casing under routed, so 2px of white shows as an
+  /// outline). On subsequent calls, updates the existing source's data in
+  /// place via [ml.StyleController.updateGeoJsonSource] to avoid flicker.
   Future<void> update(ml.StyleController style, List<RouteSegment> segments) async {
     final data = buildSegmentsGeoJson(segments);
 
@@ -114,21 +110,14 @@ class RouteSegmentLayer {
         ),
       );
 
-      // Invisible wide tap-detection layer, deliberately unfiltered so it
-      // matches segments in every state. A thin (3-5px) rendered line is a
-      // tiny, hard-to-tap native-GL target; this 24px-wide layer sharing the
-      // same source is queried by a tap handler via
-      // `featuresAtPoint(point, layerIds: [hitLayerId])` instead of the
-      // visible layers (Pitfall 4), mirroring D-04's 36px invisible
-      // marker tap-radius precedent.
+      // Invisible wide tap-detection layer, unfiltered so it matches
+      // segments in every state — the visible lines are too thin (3-5px) to
+      // tap reliably, so a tap handler queries this 24px layer instead via
+      // `featuresAtPoint(point, layerIds: [hitLayerId])`.
       //
-      // line-opacity is 0.01, not 0: both native bindings' featuresAtPoint
-      // (iOS `visibleFeaturesAtPoint`, Android `queryRenderedFeatures`) only
-      // return features from layers that are actually rendered — a fully
-      // transparent (opacity: 0) layer is skipped entirely by the native GL
-      // query, so every segment tap silently missed and fell through to the
-      // empty-map-tap handler. 0.01 is visually indistinguishable from 0 but
-      // keeps the layer eligible for the hit-test query.
+      // line-opacity is 0.01, not 0: native featuresAtPoint implementations
+      // skip fully transparent (opacity: 0) layers entirely, so taps would
+      // silently miss. 0.01 is visually indistinguishable but stays queryable.
       await style.addLayer(
         ml.LineStyleLayer(
           id: hitLayerId,
@@ -141,16 +130,14 @@ class RouteSegmentLayer {
       return;
     }
 
-    // Already added — update the source's data in place. Verified no-flicker
-    // per RESEARCH.md: this never removes/re-adds the source or layers.
+    // Already added — update the source's data in place rather than
+    // removing/re-adding the source or layers.
     await style.updateGeoJsonSource(id: sourceId, data: data);
   }
 
-  /// Removes the layers/source added by [update], in reverse order (layers
-  /// before the source they depend on). Safe to call even if [update] was
-  /// never called or already removed — each removal is individually
-  /// guarded since [ml.StyleController.removeLayer]/`removeSource` throw on
-  /// an unknown id, mirroring `TrailLayer.remove`.
+  /// Removes the layers/source added by [update], in reverse order. Safe to
+  /// call even if [update] was never called — each removal is individually
+  /// guarded since removeLayer/removeSource throw on an unknown id.
   Future<void> remove(ml.StyleController style) async {
     for (final id in [
       hitLayerId,

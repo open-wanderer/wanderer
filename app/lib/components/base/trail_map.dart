@@ -14,21 +14,16 @@ import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 
-/// A native MapLibre GL map host for a single [Trail]. Renders the
-/// Protomaps basemap from [mapStyleJsonProvider] via native GL, swaps
-/// light/dark styles live with [ml.MapController.setStyle] (no
-/// remount/flash), fits the trail bounds in `onStyleLoaded`, shows
-/// the built-in scale bar + attribution, and hosts the
+/// Native MapLibre GL map host for a single [Trail]. Swaps light/dark styles
+/// live via [ml.MapController.setStyle] (no remount/flash) and hosts the
 /// elevation-scrub and interim-location markers.
 ///
-/// Single-trail detail views only — for screens that render a collection of
-/// trails (search results, list previews), use `TrailCollectionMap` instead.
+/// Single-trail detail views only — use `TrailCollectionMap` for screens
+/// showing a collection of trails.
 class TrailMap extends ConsumerStatefulWidget {
   final Trail trail;
 
-  /// Hands the native [ml.MapController] back to the caller once the map is
-  /// created. The controller is created by the native map (it cannot be
-  /// free-standing), so callers hold it as a nullable field set from here.
+  /// Hands the native [ml.MapController] back to the caller once created.
   final void Function(ml.MapController controller)? onMapCreated;
 
   final bool disabled;
@@ -41,8 +36,6 @@ class TrailMap extends ConsumerStatefulWidget {
   final bool showLocation;
   final Waypoint? selectedWaypoint;
 
-  /// Called with the tapped geographic point on a map click (was flutter_map's
-  /// `TapCallback`; now driven by the native `onEvent` click event).
   final void Function(ml.Geographic point)? onTap;
   final void Function(ml.MapEvent event)? onMapEvent;
   final void Function(Waypoint wp)? onWaypointTap;
@@ -75,35 +68,27 @@ class _TrailMapState extends ConsumerState<TrailMap> {
 
   ml.MapController? _controller;
 
-  /// Buffers a style-loaded event that arrives before [_controller] is set.
-  /// The native platform channel does not always fire `onMapCreated` before
-  /// `onStyleLoaded` despite the package docs implying that order — callers
-  /// that call back into [ml.MapController] from `onStyleLoaded` (e.g.
-  /// `fitBounds`) would silently no-op on a still-null controller otherwise.
+  /// Buffers a style-loaded event that arrives before [_controller] is set —
+  /// the native channel doesn't always fire `onMapCreated` first despite docs.
   ml.StyleController? _pendingStyle;
 
-  /// The last successfully-resolved style JSON. Cached so a provider refresh
-  /// (e.g. a theme toggle) never drops us back to the loading state and
-  /// remounts the map — the live swap goes through [ml.MapController.setStyle]
-  /// instead.
+  /// Last resolved style JSON, cached so a provider refresh (theme toggle)
+  /// swaps in place via [ml.MapController.setStyle] instead of remounting.
   String? _lastStyleJson;
 
   bool _cacheWarmed = false;
 
   @override
   Widget build(BuildContext context) {
-    // Warms the shared app-wide glyph/sprite cache on first map open.
-    // Idempotent against the trail-download trigger.
+    // Warms the shared glyph/sprite cache on first open; idempotent
+    // against the trail-download trigger.
     if (!_cacheWarmed) {
       _cacheWarmed = true;
       ref.read(glyphSpriteCacheProvider.future).ignore();
     }
 
-    // Live style swap: when the style JSON changes (theme toggle) —
-    // or, for a downloaded trail, when the offline glyph/sprite cache finishes
-    // warming — swap the composed style in place on the already-mounted map, no
-    // ObjectKey remount, no flash. The offline branch reruns the
-    // rewrite so the swap keeps resolving from file:// + pmtiles://file://.
+    // Swap the style in place on theme toggle, or once the offline
+    // glyph/sprite cache finishes warming — no remount, no flash.
     ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
     if (widget.offline) {
       ref.listen(glyphSpriteCacheProvider, (_, _) => _swapStyle());
@@ -113,10 +98,8 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     final baseJson = baseAsync.value;
     Object? error = baseAsync.error;
 
-    // Offline: the style is rewritten so glyphs/sprite resolve
-    // from the app-wide file:// cache and the protomaps tiles resolve
-    // from the trail's local .pmtiles cells. Online trails use the base JSON
-    // unchanged.
+    // Offline: rewrite the style so glyphs/sprite/tiles resolve from local
+    // file:// / .pmtiles caches instead of the network.
     GlyphSpriteCachePaths? cache;
     if (widget.offline) {
       final cacheAsync = ref.watch(glyphSpriteCacheProvider);
@@ -138,13 +121,9 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     return _buildMap(context, styleJson);
   }
 
-  /// Composes the style JSON to hand to the map from the two resolved inputs.
-  ///
-  /// Online: the [baseJson] as-is. Offline: [baseJson] rewritten
-  /// via [rewriteStyleForOffline] so `glyphs`/`sprite` resolve from [cache] and
-  /// the protomaps tiles resolve from `trail.pmTiles` (`pmtiles://file://`).
-  /// Returns null while a required input is still resolving or if the rewrite
-  /// rejects an input — the caller then shows the loading passthrough.
+  /// Composes the style JSON: [baseJson] as-is when online, or rewritten via
+  /// [rewriteStyleForOffline] when offline. Returns null while an input is
+  /// still resolving or the rewrite rejects it.
   String? _composeStyle(String? baseJson, GlyphSpriteCachePaths? cache) {
     if (baseJson == null) return null;
     if (!widget.offline) return baseJson;
@@ -166,8 +145,6 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     }
   }
 
-  /// Recomposes the (possibly offline-rewritten) style from current provider
-  /// state and swaps it onto the mounted controller in place.
   void _swapStyle() {
     final controller = _controller;
     if (controller == null) return;
@@ -220,8 +197,7 @@ class _TrailMapState extends ConsumerState<TrailMap> {
       },
       layers: const [],
       children: [
-        // Interactive trail markers (tappable waypoints + start/finish
-        // pins with the 36px proximity nudge) as a WidgetLayer.
+        // Tappable waypoint + start/finish markers, with a 36px proximity nudge.
         if (widget.showTrail && widget.trail.expand?.gpx != null)
           TrailMarkerLayer(
             trail: widget.trail,
@@ -234,13 +210,11 @@ class _TrailMapState extends ConsumerState<TrailMap> {
 
         if (widget.showLocation) const LocationMarkerLayer(),
 
-        const ml.MapScalebar(
-          alignment: Alignment.topLeft,
-        ), // default bottom-left
+        const ml.MapScalebar(alignment: Alignment.topLeft),
         const WandererAttribution(
           alignment: Alignment.topLeft,
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 44),
-        ), // default bottom-right (ODbL)
+        ),
 
         Align(
           alignment: Alignment.topRight,
@@ -253,26 +227,20 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     );
   }
 
-  /// (re)runs the style-loaded work: the initial camera fit plus (re)adding
-  /// the trail track + static arrows. Buffered/replayed via [_pendingStyle]
-  /// when the native platform channel fires `onStyleLoaded` before
-  /// `onMapCreated` — otherwise `_fitInitialCamera`'s null-`_controller`
-  /// early-return would silently no-op the initial fit.
+  /// Runs the initial camera fit and (re)adds the trail track, buffered via
+  /// [_pendingStyle] if `onStyleLoaded` fires before `onMapCreated`.
   void _onStyleLoaded(ml.StyleController style) {
     _fitInitialCamera().ignore();
-    // (Re)adds the trail track + static arrows after every style
-    // load, so they survive the theme swap (setStyle drops them).
+    // Re-add track + arrows after every style load — setStyle drops them.
     if (widget.showTrail && widget.trail.expand?.gpx != null) {
       _trailLayer.add(style, widget.trail).ignore();
     }
   }
 
-  /// Reacts to [TrailMap.showTrail] flipping, and to the trail's own track
-  /// being replaced in place (e.g. the Route Planner's edit-route
-  /// pop-with-result merge, quick-260718-e9j) after the initial style load —
-  /// `_onStyleLoaded` only re-runs on a style swap (e.g. theme toggle), not
-  /// on a plain widget rebuild, so neither case would otherwise be reflected
-  /// on the already-mounted native GL layer.
+  /// Reacts to [TrailMap.showTrail] flipping and to the trail's track being
+  /// replaced in place (e.g. after a route-planner edit) — `_onStyleLoaded`
+  /// only re-runs on a style swap, not a plain widget rebuild, so neither
+  /// case would otherwise reach the mounted native GL layer.
   @override
   void didUpdateWidget(covariant TrailMap oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -288,10 +256,8 @@ class _TrailMapState extends ConsumerState<TrailMap> {
       return;
     }
 
-    // Identity compare: a route edit produces a new Gpx instance via
-    // mergeRouteIntoTrail; unrelated trail edits (title, waypoints, photos)
-    // carry the same gpx reference through copyWith, so this only fires for
-    // an actual track replacement.
+    // Identity compare: only a route edit produces a new Gpx instance;
+    // unrelated trail edits keep the same gpx reference via copyWith.
     if (widget.showTrail &&
         !identical(oldWidget.trail.expand?.gpx, widget.trail.expand?.gpx)) {
       _trailLayer
@@ -310,18 +276,16 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     final controller = _controller;
     if (controller == null) return;
 
-    // `min/max_lat/lon` ARE populated on every trail record (including the
-    // single-trail `GET /trail/:id`), so read the record's bounds directly
-    // rather than deriving bounds from the GPX track.
+    // `min/max_lat/lon` are populated on every trail record, so read
+    // bounds directly rather than deriving them from the GPX track.
     final bounds = widget.trail.bounds;
     final hasExtent =
         bounds.latitudeNorth != bounds.latitudeSouth ||
         bounds.longitudeEast != bounds.longitudeWest;
 
     if (hasExtent) {
-      // Near-instant initial fit to the trail bounds. Duration.zero is
-      // avoided — the Android native binding passes a zero duration to
-      // the underlying Java `animateCamera` as null, which throws.
+      // Duration.zero is avoided: the Android binding passes it to
+      // `animateCamera` as null, which throws.
       await controller.fitBounds(
         bounds: bounds,
         padding: widget.initialCameraFitPadding,
@@ -338,8 +302,7 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     }
   }
 
-  /// Elevation-profile scrub marker: a 12px white dot with a 2px
-  /// black border, driven by [TrailMap.elevationMarkerPosition].
+  /// Elevation-profile scrub marker, driven by [TrailMap.elevationMarkerPosition].
   Widget _buildElevationMarker() {
     return ml.WidgetLayer(
       markers: [

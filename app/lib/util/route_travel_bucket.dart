@@ -5,20 +5,16 @@ import 'package:wanderer/models/category.dart';
 import 'package:wanderer/util/category_icon_util.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
-/// The route planner's 5 fixed travel buckets (CONTEXT: "ONE picker, five
-/// options"), each carrying a hardcoded Valhalla costing profile + a fixed,
-/// non-user-adjustable `costing_options` payload (RESEARCH.md Q1 — values
-/// copied verbatim from `web/src/lib/components/trail/route_editor.svelte`).
+/// The route planner's 5 fixed travel buckets, each carrying a hardcoded
+/// Valhalla costing profile and a fixed, non-user-adjustable
+/// `costing_options` payload (mirrors `route_editor.svelte` on web).
 ///
-/// There is deliberately no manual-override UI (no sliders) — every value
-/// below is fixed at implementation time (CONTEXT "Explicitly excluded").
-/// `shortest` is always `false`.
+/// There is no manual-override UI (no sliders); `shortest` is always `false`.
 enum RouteTravelBucket { hiking, bikingHybrid, bikingMountain, bikingCross, bikingRoad }
 
 /// Resolved display/behavior data for each [RouteTravelBucket].
 extension RouteTravelBucketData on RouteTravelBucket {
-  /// Hardcoded English label (CONTEXT: matches the planner's other
-  /// hardcoded strings; no l10n key required for this picker).
+  /// Hardcoded English label (no l10n key for this picker).
   String get label {
     switch (this) {
       case RouteTravelBucket.hiking:
@@ -56,10 +52,10 @@ extension RouteTravelBucketData on RouteTravelBucket {
   String get costing =>
       this == RouteTravelBucket.hiking ? 'pedestrian' : 'bicycle';
 
-  /// Fixed, immutable Valhalla `costing_options` payload for this bucket
-  /// (RESEARCH.md Q1). Int/double literals are written exactly as the web
-  /// reference emits them (hiking `use_hills` is int `1`; bike `use_hills`
-  /// is `0.5`) so JSON serialization mirrors the web verbatim.
+  /// Fixed, immutable Valhalla `costing_options` payload for this bucket.
+  /// Int/double literals match the web reference exactly (hiking
+  /// `use_hills` is int `1`; bike `use_hills` is `0.5`) so serialized JSON
+  /// mirrors the web verbatim.
   Map<String, Object> get costingOptions {
     switch (this) {
       case RouteTravelBucket.hiking:
@@ -109,8 +105,7 @@ extension RouteTravelBucketData on RouteTravelBucket {
   }
 
   /// Keyword set used to resolve an operator [Category] to this bucket for
-  /// icon purposes only (RESEARCH.md Q2) — never used to derive the costing
-  /// payload, which is always carried on the bucket itself.
+  /// icon purposes only — never used to derive the costing payload.
   List<String> get keywords {
     switch (this) {
       case RouteTravelBucket.hiking:
@@ -142,10 +137,9 @@ extension RouteTravelBucketData on RouteTravelBucket {
   }
 
   /// Small badge icon overlaid on the bike buckets' primary icon so the 4
-  /// bicycle_type options stay visually discernible even when no operator
-  /// [Category] matches (all 4 share the identical [fallbackIcon] otherwise
-  /// — a plain bicycle glyph, indistinguishable from one another). `null`
-  /// for hiking, which has only one option and needs no badge.
+  /// bicycle_type options stay visually distinct when no operator [Category]
+  /// matches (they'd otherwise all share the same plain-bicycle
+  /// [fallbackIcon]). `null` for hiking, which needs no badge.
   FaIconData? get badgeIcon {
     switch (this) {
       case RouteTravelBucket.hiking:
@@ -162,19 +156,13 @@ extension RouteTravelBucketData on RouteTravelBucket {
   }
 }
 
-/// Resolves the leading icon for [bucket]'s picker card — the single shared
-/// implementation for both `settings_tab.dart` and `travel_profile_sheet.dart`
-/// (previously duplicated verbatim between the two, quick-260717-t7q code
-/// review IN-02).
+/// Resolves the leading icon for [bucket]'s picker card — shared by
+/// `settings_tab.dart` and `travel_profile_sheet.dart`.
 ///
 /// Prefers a matching operator [Category] icon (via [trailCategoryIcon]),
-/// falling back to [RouteTravelBucket.fallbackIcon] when no category
-/// matches (RESEARCH.md Q2) — icon resolution only, never the costing
-/// payload. Always overlays [RouteTravelBucket.badgeIcon] (mirroring
-/// `trailCategoryIcon`'s own subcategory-badge Stack shape) so the 4 bike
-/// buckets stay discernible from each other regardless of whether a
-/// category match was found — the fallback icon alone is identical
-/// (a plain bicycle) across all 4.
+/// falling back to [RouteTravelBucket.fallbackIcon]. Always overlays
+/// [RouteTravelBucket.badgeIcon] so the 4 bike buckets stay visually
+/// distinct even when no category match is found.
 Widget bucketIcon(
   RouteTravelBucket bucket,
   List<Category> categories, {

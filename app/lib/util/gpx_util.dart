@@ -1,13 +1,6 @@
 import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart';
 
-/// Derives the Valhalla costing string from a trail category name.
-///
-/// Returns `'bicycle'` when [category] (case-insensitive) contains `'bike'`,
-/// `'cycling'`, or `'bicycle'`; otherwise returns `'pedestrian'`.
-///
-/// Shared by [launchNavigation] (online path) and [downloadTrail]
-/// (cache-write path) so the two costing derivations can never diverge.
 /// GPX 1.1 requires `<email id="user" domain="example.com"/>` but some files
 /// use the non-standard text form `<email>user@example.com</email>`, which
 /// crashes `GpxReader` with `Bad state: No element`. Rewrites the latter into
@@ -41,10 +34,8 @@ List<Map<String, double>> buildNavShape(List<Geographic> points) {
         sampled.add({'lat': points[i].lat, 'lon': points[i].lon});
       }
     }
-    // Always include the last point; deduplicate if already present.
-    // Note: Map<String, double> uses identity (not structural) equality with !=,
-    // so compare coordinate values directly to detect whether the last sampled
-    // entry already corresponds to the last input point.
+    // Always include the last point, deduplicated by coordinate value (Map
+    // equality here is identity-based, not structural).
     final lastLat = points.last.lat;
     final lastLon = points.last.lon;
     if (sampled.isEmpty ||
@@ -59,14 +50,9 @@ List<Map<String, double>> buildNavShape(List<Geographic> points) {
 }
 
 /// Builds a minimal [Gpx] (single [Trk] > single [Trkseg] > one [Wpt] per
-/// point) from an ordered list of planner points, with no `ele`/`time` set.
-///
-/// Used by the route planner's [plannedGpxProvider] to synthesize a
-/// pre-elevation `Gpx` skeleton from the in-progress `RouteAnchors` state
-/// (D-09) — the elevation tab merges `ele` in later (D-11), this helper never
-/// sets it.
-///
-/// Returns a bare, empty [Gpx] (no tracks) when [points] is empty.
+/// point) from an ordered list of planner points, with no `ele`/`time` set —
+/// elevation is merged in later by a separate step. Returns a bare, empty
+/// [Gpx] (no tracks) when [points] is empty.
 Gpx buildGpxFromPoints(List<Geographic> points) {
   final gpx = Gpx();
   if (points.isEmpty) return gpx;

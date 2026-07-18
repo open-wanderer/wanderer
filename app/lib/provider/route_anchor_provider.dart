@@ -28,15 +28,13 @@ class RouteAnchorsState {
   final List<RouteSegment> segments;
   final bool autoRoutingEnabled;
 
-  /// `'pedestrian'` or `'bicycle'` (Rec B) — no longer fixed for the
-  /// notifier's lifetime; switched via [RouteAnchors.switchProfile] /
-  /// [RouteAnchors.resetForSession], never via a family argument.
+  /// `'pedestrian'` or `'bicycle'`; switched via [RouteAnchors.switchProfile]
+  /// or [RouteAnchors.resetForSession] rather than fixed at construction.
   final String travelProfile;
 
-  /// Fixed Valhalla `costing_options` payload for the current
-  /// [travelProfile] (e.g. `bicycle_type`, `cycling_speed`). `null` until a
-  /// bucket has been applied. Set atomically with [travelProfile] by
-  /// [RouteAnchors.switchProfile] / [RouteAnchors.resetForSession].
+  /// Valhalla `costing_options` payload for the current [travelProfile].
+  /// `null` until a bucket has been applied; set atomically with
+  /// [travelProfile].
   final Map<String, dynamic>? costingOptions;
   final List<RouteAnchorsSnapshot> undoStack;
   final List<RouteAnchorsSnapshot> redoStack;
@@ -61,12 +59,9 @@ class RouteAnchorsState {
     );
   }
 
-  /// Total estimated travel time across every segment, in seconds: each
-  /// [SegmentState.routed] segment's own Valhalla `durationSeconds`, plus a
-  /// distance/speed estimate (`valhalla_util.dart`'s
-  /// `estimateSegmentDurationSeconds`) for every straight/blocked segment
-  /// that never resolved one. Never `null` — degrades to a full estimate
-  /// when auto-routing is off or every segment is unrouted.
+  /// Total estimated travel time across every segment, in seconds: uses each
+  /// routed segment's Valhalla `durationSeconds`, falling back to a
+  /// distance/speed estimate for any segment that never resolved one.
   double get estimatedDurationSeconds {
     var total = 0.0;
     for (final segment in segments) {
@@ -82,20 +77,13 @@ class RouteAnchorsState {
   }
 
   /// Per-anchor cumulative distance/duration/elevation-gain, keyed by anchor
-  /// id (stable across reorder — never array index, Pitfall 3), for the
-  /// Route Anchors tab's "so far" stats row. Walks the anchor chain the same
-  /// way [plannedGpxProvider] does — via each segment's
-  /// `beforeAnchorId -> afterAnchorId` link, not `segments` array order —
-  /// so a detached/orphaned segment can never contribute.
+  /// id (stable across reorder, unlike array index). Walks the anchor chain
+  /// via each segment's `beforeAnchorId -> afterAnchorId` link rather than
+  /// `segments` array order, so a detached/orphaned segment never
+  /// contributes.
   ///
-  /// The first anchor always maps to all-zero stats (nothing precedes it).
-  /// Each subsequent anchor's entry is the running total through the segment
-  /// that ends at it: [RouteSegment.distanceMeters] (always available,
-  /// geometry-only), duration ([RouteSegment.durationSeconds] when
-  /// Valhalla-resolved, else the same [estimateSegmentDurationSeconds]
-  /// fallback used by [estimatedDurationSeconds]), and
-  /// [RouteSegment.elevationGainMeters] (`0` until that segment's
-  /// fire-and-forget height fetch resolves — never blocks this map).
+  /// The first anchor always maps to all-zero stats. Elevation gain reads
+  /// `0` until that segment's fire-and-forget height fetch resolves.
   Map<String, AnchorRouteStats> get cumulativeStatsByAnchorId {
     if (anchors.isEmpty) return {};
 
@@ -159,34 +147,27 @@ class AnchorRouteStats {
 /// out-of-order responses), the geometric segment-split used by a plain
 /// insert tap, and an immutable-snapshot undo/redo stack.
 ///
-/// Rec B: a single `@Riverpod(keepAlive: true)` provider with NO family
-/// argument — `travelProfile` + `costingOptions` live fully inside state and
-/// are switched via [switchProfile] (mid-session bucket change) or
-/// [resetForSession] (called once per planner entry, since `keepAlive` means
-/// this single instance survives across sheet/screen mounts and must be
-/// reset so a re-entry never leaks the previous session's route).
+/// A single `@Riverpod(keepAlive: true)` provider with no family argument —
+/// `travelProfile`/`costingOptions` live in state and are switched via
+/// [switchProfile] (mid-session) or [resetForSession] (planner entry, since
+/// `keepAlive` means this instance survives across mounts and must be reset
+/// so re-entry never leaks the previous session's route).
 @Riverpod(keepAlive: true)
 class RouteAnchors extends _$RouteAnchors {
-  // Non-reactive bookkeeping — never in `state`, mirrors `_currentShapeIndex`
-  // in `navigation_provider.dart`. Keyed by the stable `segmentKey`
-  // (anchor-id pair), never array index (Pitfall 3).
+  // Non-reactive bookkeeping, never stored in `state`. Keyed by the stable
+  // `segmentKey` (anchor-id pair), never array index.
   final Map<String, CancelToken> _inFlight = {};
   final Map<String, int> _generation = {};
 
-  // Same cancel/generation bookkeeping as above, but keyed by anchor id for
-  // per-anchor reverse-geocode requests (quick-260717-t7q follow-up) — each
-  // anchor's location search is independent of every other anchor's, so a
-  // drag on one anchor never blocks/queues behind another's in-flight
-  // search (mirrors _resolveSegment's per-segment isolation, not the old
-  // widget-level sequential batch it replaces).
+  // Same cancel/generation bookkeeping, keyed by anchor id for per-anchor
+  // reverse-geocode requests — each anchor's location search is independent,
+  // so a drag on one anchor never blocks/queues behind another's.
   final Map<String, CancelToken> _locationInFlight = {};
   final Map<String, int> _locationGeneration = {};
 
-  // Same cancel/generation bookkeeping again, but for each segment's
-  // fire-and-forget `/valhalla/height` fetch (_resolveElevation) — keyed by
-  // `segmentKey`, mirrors `_inFlight`/`_generation` above so a rapid
-  // re-edit of the same segment (drag, re-route) supersedes rather than
-  // races its own prior elevation fetch.
+  // Same cancel/generation bookkeeping, but for each segment's
+  // fire-and-forget `/valhalla/height` fetch — a rapid re-edit of the same
+  // segment supersedes rather than races its own prior elevation fetch.
   final Map<String, CancelToken> _elevationInFlight = {};
   final Map<String, int> _elevationGeneration = {};
 
@@ -215,9 +196,8 @@ class RouteAnchors extends _$RouteAnchors {
   /// counter so an out-of-order (superseded) response is discarded rather
   /// than applied over a newer request's result.
   ///
-  /// On failure (non-cancel `DioException`, or a malformed response), the
-  /// segment is marked [SegmentState.blocked] and its prior polyline is left
-  /// untouched — ROUTE-05 forbids ever silently falling back to a straight
+  /// On failure, the segment is marked [SegmentState.blocked] and its prior
+  /// polyline is left untouched — never silently falls back to a straight
   /// line while auto-routing is on.
   Future<void> _resolveSegment(
     String beforeAnchorId,
@@ -228,7 +208,7 @@ class RouteAnchors extends _$RouteAnchors {
     final key = segmentKey(beforeAnchorId, afterAnchorId);
 
     if (!_isValidCoordinate(a) || !_isValidCoordinate(b)) {
-      // V5: reject out-of-range coordinates before ever calling Valhalla.
+      // Reject out-of-range coordinates before ever calling Valhalla.
       _markBlocked(key);
       return;
     }
@@ -257,8 +237,7 @@ class RouteAnchors extends _$RouteAnchors {
             cancelToken: token,
           );
 
-      // Stale-response guard: a newer request may have started (and even
-      // completed) while this one was in flight.
+      // Stale-response guard: a newer request may already have started.
       if (_generation[key] != myGeneration) return;
 
       final trip = response.data is Map ? response.data['trip'] : null;
@@ -287,7 +266,7 @@ class RouteAnchors extends _$RouteAnchors {
       if (e.type == DioExceptionType.cancel)
         return; // superseded, not a real failure
       if (_generation[key] != myGeneration) return;
-      _markBlocked(key); // ROUTE-05: never revert to straight, never clear
+      _markBlocked(key); // never revert to straight, never clear
     }
   }
 
@@ -324,19 +303,15 @@ class RouteAnchors extends _$RouteAnchors {
   }
 
   /// Fetches `/valhalla/height` for [polyline] (downsampled via
-  /// `buildNavShape`, mirroring the elevation tab's old fetch) and writes
-  /// the result onto the segment identified by [key] as its
-  /// [RouteSegment.elevationProfile]/[RouteSegment.elevations] pair.
+  /// `buildNavShape`) and writes the result onto the segment identified by
+  /// [key] as its [RouteSegment.elevationProfile]/[RouteSegment.elevations]
+  /// pair.
   ///
   /// Fire-and-forget (`.ignore()` at every call site): a segment's polyline
-  /// is applied to `state` — and so renders on the map — the instant it is
-  /// known, never blocked on this fetch. Same stale-response discipline as
-  /// [_resolveSegment]: a per-key `CancelToken` + monotonically increasing
-  /// generation guards against an out-of-order response clobbering a newer
-  /// edit's result, and the `for` rewrite below is naturally a no-op if
-  /// [key] no longer names a live segment (deleted/replaced since the fetch
-  /// started) — mirrors [_resolveSegment]'s own tolerance for that race
-  /// rather than tracking per-segment cancellation explicitly.
+  /// renders on the map the instant it's known, never blocked on this fetch.
+  /// Same stale-response discipline as [_resolveSegment] (per-key
+  /// `CancelToken` + generation counter); the `for` rewrite is naturally a
+  /// no-op if [key] no longer names a live segment.
   Future<void> _resolveElevation(String key, List<Geographic> polyline) async {
     if (polyline.length < 2) return;
 
@@ -383,15 +358,12 @@ class RouteAnchors extends _$RouteAnchors {
   /// writes the result onto that anchor's [RouteAnchor.location] field.
   /// Fired once from [appendAnchor]/[insertAnchorOnSegment] (new anchor) and
   /// once at drag-end from [dragAnchor] — never continuously during a drag
-  /// gesture (quick-260717-t7q follow-up: the search now lives here instead
-  /// of `route_anchor_list_tab.dart`'s local widget-state batch, so it never
-  /// re-runs just because the tab remounts).
+  /// gesture.
   ///
-  /// Best-effort and silent, mirroring the old widget-level behavior: on
-  /// failure (or supersession by a newer request for the same anchor) the
-  /// anchor's PRIOR `location` is left untouched rather than cleared — a
-  /// dragged anchor keeps showing its last-known label until the fresh
-  /// search resolves, never flashing back to the "Anchor N" fallback.
+  /// Best-effort and silent: on failure (or supersession by a newer request
+  /// for the same anchor) the anchor's prior `location` is left untouched
+  /// rather than cleared — a dragged anchor keeps showing its last-known
+  /// label until the fresh search resolves.
   Future<void> _resolveAnchorLocation(String anchorId, RouteAnchor anchor) async {
     _locationInFlight[anchorId]?.cancel();
     final token = CancelToken();
@@ -408,9 +380,8 @@ class RouteAnchors extends _$RouteAnchors {
         cancelToken: token,
       );
 
-      // Stale-response guard, same shape as _resolveSegment: a newer
-      // search for this same anchor may have started (or the anchor may
-      // have since been deleted) while this one was in flight.
+      // Stale-response guard, same shape as _resolveSegment: a newer search
+      // for this anchor may have started, or the anchor may be deleted.
       if (_locationGeneration[anchorId] != myGeneration) return;
       if (result == null) return;
 
@@ -428,15 +399,13 @@ class RouteAnchors extends _$RouteAnchors {
     }
   }
 
-  /// D-09: retry lives on the blocked segment itself. Re-dispatches
-  /// [_resolveSegment] for the given anchor pair.
+  /// Retries the blocked segment for the given anchor pair by re-dispatching
+  /// [_resolveSegment].
   ///
-  /// The native map's segment/marker hit-test layer syncs asynchronously
-  /// (`_segmentLayer.update(...).ignore()` in the screen), so a tap can carry
-  /// anchor ids that no longer exist in `state` (undo/delete/reorder raced
-  /// ahead of the native layer). `firstWhereOrNull` degrades this stale
-  /// hit-test to a silent no-op instead of an uncaught `StateError` thrown
-  /// synchronously out of the map's `onEvent` callback.
+  /// The native map's hit-test layer syncs asynchronously, so a tap can
+  /// carry anchor ids that no longer exist in `state` (an undo/delete/
+  /// reorder raced ahead of it). `firstWhereOrNull` degrades that stale hit
+  /// to a silent no-op instead of an uncaught `StateError`.
   Future<void> retrySegment(String beforeAnchorId, String afterAnchorId) {
     final a = state.anchors.firstWhereOrNull((x) => x.id == beforeAnchorId);
     final b = state.anchors.firstWhereOrNull((x) => x.id == afterAnchorId);
@@ -445,25 +414,19 @@ class RouteAnchors extends _$RouteAnchors {
   }
 
   /// Flips [RouteAnchorsState.autoRoutingEnabled]. Turning OFF leaves every
-  /// existing segment untouched (only new segments created afterward become
-  /// straight). Turning ON re-resolves every existing segment via Valhalla,
-  /// awaited in parallel via `Future.wait` so callers observe the fully
-  /// re-resolved state once this method completes.
+  /// existing segment untouched (only new segments become straight).
   Future<void> toggleAutoRouting() async {
     final enabled = !state.autoRoutingEnabled;
     state = state.copyWith(autoRoutingEnabled: enabled);
   }
 
-  /// Switches the travel bucket mid-session (Rec B): sets [profile] +
-  /// [opts] atomically and re-resolves every existing segment under the new
-  /// costing (this is the general rule — including a within-`bicycle`
-  /// sub-type switch like Hybrid -> Road, CONTEXT). Anchors are never
-  /// migrated (they never leave this single keepAlive instance).
+  /// Switches the travel bucket mid-session: sets [profile] + [opts]
+  /// atomically and re-resolves every existing segment under the new
+  /// costing (including a within-`bicycle` sub-type switch, e.g. Hybrid ->
+  /// Road).
   ///
-  /// A profile switch is a FRESH undo baseline (CONTEXT: "the switch itself
-  /// is not undoable") — both stacks are cleared and no undo snapshot is
-  /// pushed, matching the prior "travelProfile fixed for lifetime"
-  /// invariant.
+  /// A profile switch is a fresh undo baseline — both stacks are cleared and
+  /// no undo snapshot is pushed, since the switch itself is not undoable.
   void switchProfile(String profile, Map<String, dynamic> opts) {
     state = state.copyWith(
       travelProfile: profile,
@@ -474,12 +437,11 @@ class RouteAnchors extends _$RouteAnchors {
     resolveAllSegments();
   }
 
-  /// Bulk re-resolve: iterates every consecutive anchor pair that has an
-  /// existing segment and either re-dispatches a Valhalla resolve (when
-  /// auto-routing is on, fire-and-forget, mirroring [reorderAnchors]'s
-  /// `toResolve` loop) or applies a straight two-point polyline (when
-  /// auto-routing is off). Used by [switchProfile] so any bucket switch
-  /// re-resolves the WHOLE route, not just newly-adjacent pairs.
+  /// Bulk re-resolve: iterates every consecutive anchor pair with an
+  /// existing segment and either re-dispatches a Valhalla resolve
+  /// (auto-routing on, fire-and-forget) or applies a straight two-point
+  /// polyline (auto-routing off). Used by [switchProfile] to re-resolve the
+  /// whole route, not just newly-adjacent pairs.
   void resolveAllSegments() {
     final anchorsById = {for (final a in state.anchors) a.id: a};
     final segByKey = {
@@ -507,10 +469,9 @@ class RouteAnchors extends _$RouteAnchors {
     }
   }
 
-  /// Resets the single keepAlive instance to a brand-new empty session
-  /// (T-t7q-03): called once at planner-screen mount so a re-entry never
-  /// leaks the previous session's route. Cancels every in-flight request
-  /// first.
+  /// Resets the single keepAlive instance to a brand-new empty session.
+  /// Called once at planner-screen mount so a re-entry never leaks the
+  /// previous session's route. Cancels every in-flight request first.
   void resetForSession(String profile, Map<String, dynamic>? opts) {
     for (final token in _inFlight.values) {
       token.cancel();
@@ -540,42 +501,28 @@ class RouteAnchors extends _$RouteAnchors {
   }
 
   /// Seeds the single keepAlive instance from an existing track's
-  /// prepopulated anchors (quick-260718-e9j, PLANNER-02) — the Route
-  /// Planner's "edit an existing route" entry mode, as opposed to
-  /// [resetForSession]'s empty-session entry for a brand-new/imported route.
+  /// prepopulated anchors — the "edit an existing route" entry mode, as
+  /// opposed to [resetForSession]'s empty-session entry for a new/imported
+  /// route.
   ///
-  /// Cancels + clears all in-flight/generation bookkeeping exactly like
-  /// [resetForSession] (both the segment-resolve maps and the per-anchor
-  /// location-search maps). Builds one [RouteAnchor] per point (fresh
-  /// [UniqueKey] ids — never reused across sessions) and one [RouteSegment]
-  /// per consecutive pair, then sets state in a single assignment with a
-  /// fresh (empty) undo/redo baseline — this seed is not itself undoable,
-  /// matching [resetForSession]'s own contract.
+  /// Cancels + clears all in-flight/generation bookkeeping like
+  /// [resetForSession]. Builds one [RouteAnchor] per point (fresh
+  /// [UniqueKey] ids) and one [RouteSegment] per consecutive pair, with a
+  /// fresh (empty) undo/redo baseline — the seed itself is not undoable.
   ///
-  /// [segmentPolylines] (from
-  /// [route_planner_handoff_util.dart]'s `segmentPolylinesFromTrack`), when
-  /// given, supplies each segment's full original recorded points; a
-  /// missing/short entry falls back to a straight 2-point line between its
-  /// bounding anchors. Every seeded segment is marked [SegmentState.straight]
-  /// regardless of point count — that enum name means "not Valhalla-routed",
-  /// not "exactly 2 points" (`splitSegmentAt` already works generically on
-  /// any polyline).
+  /// [segmentPolylines], when given, supplies each segment's full original
+  /// recorded points; a missing/short entry falls back to a straight
+  /// 2-point line. Every seeded segment is marked [SegmentState.straight]
+  /// regardless of point count — the enum means "not Valhalla-routed", not
+  /// "exactly 2 points".
   ///
-  /// Deliberately does NOT loop [appendAnchor] (each call pushes an undo
-  /// snapshot, which would let the user undo back through the seed), does
-  /// NOT call [_resolveAnchorLocation] for any seeded anchor (no
-  /// reverse-geocode at load time — matches web's `initRouteAnchors`), and,
-  /// critically, does NOT call [resolveAllSegments]. The web app never
-  /// touches the original recorded points at seed time (`setRoute(gpx)`
-  /// loads the untouched GPX; anchors are just markers on top of it) — a
-  /// segment is only ever Valhalla-resolved once the user actually edits it.
-  /// Auto-resolving every segment on open (this function's first version)
-  /// silently snapped an off-road recording onto nearby roads before the
-  /// user touched anything. It DOES fire off each seeded segment's
-  /// [_resolveElevation] fetch, though (fire-and-forget, same as every other
-  /// segment-creation path) — that's a read-only height lookup, not a
-  /// routing decision, so it carries none of the "snap to nearby roads" risk
-  /// that ruled out auto-resolving.
+  /// Deliberately does NOT loop [appendAnchor] (would push an undo snapshot
+  /// per anchor), does NOT reverse-geocode any seeded anchor, and does NOT
+  /// call [resolveAllSegments] — auto-resolving on open would silently snap
+  /// an off-road recording onto nearby roads before the user touched
+  /// anything; a segment is only Valhalla-resolved once the user edits it.
+  /// It DOES still fire each segment's [_resolveElevation] fetch, since
+  /// that's a read-only height lookup rather than a routing decision.
   void seedFromTrack(
     List<Geographic> points,
     String profile,
@@ -633,8 +580,8 @@ class RouteAnchors extends _$RouteAnchors {
   }
 
   /// Pushes the current (pre-mutation) anchors/segments onto the undo stack
-  /// and clears the redo stack (D-11: any new action clears redo). Called
-  /// FIRST, before mutating, by every mutation method below.
+  /// and clears the redo stack. Called first, before mutating, by every
+  /// mutation method below.
   void _pushUndo() {
     state = state.copyWith(
       undoStack: [
@@ -645,8 +592,8 @@ class RouteAnchors extends _$RouteAnchors {
     );
   }
 
-  /// WAYP-01: appends a new anchor to the end of the route. If a previous
-  /// last anchor existed, also creates the connecting segment (straight by
+  /// Appends a new anchor to the end of the route. If a previous last
+  /// anchor existed, also creates the connecting segment (straight by
   /// default, auto-resolved via Valhalla if auto-routing is on).
   void appendAnchor(Geographic point) {
     _pushUndo();
@@ -685,9 +632,9 @@ class RouteAnchors extends _$RouteAnchors {
     }
   }
 
-  /// WAYP-02: repositions [anchorId] and re-resolves only its ≤2 adjacent
-  /// segments. Invoked once per drag gesture at `onPanEnd` (D-05), never
-  /// during `onPanUpdate`.
+  /// Repositions [anchorId] and re-resolves only its <=2 adjacent segments.
+  /// Invoked once per drag gesture at `onPanEnd`, never during
+  /// `onPanUpdate`.
   void dragAnchor(String anchorId, Geographic newPoint) {
     _pushUndo();
 
@@ -701,9 +648,8 @@ class RouteAnchors extends _$RouteAnchors {
     state = state.copyWith(anchors: anchors);
 
     final anchorsById = {for (final a in anchors) a.id: a};
-    // Drag-end only (D-05, never onPanUpdate) — re-searches this anchor's
-    // location against its NEW coordinates; the stale prior label persists
-    // until this resolves (never cleared eagerly).
+    // Drag-end only — re-searches this anchor's location against its new
+    // coordinates; the stale prior label persists until this resolves.
     _resolveAnchorLocation(anchorId, anchorsById[anchorId]!).ignore();
     final touched = state.segments.where(
       (s) => s.beforeAnchorId == anchorId || s.afterAnchorId == anchorId,
@@ -729,21 +675,18 @@ class RouteAnchors extends _$RouteAnchors {
     }
   }
 
-  /// WAYP-03: on a plain (non-blocked) segment tap, geometrically splits it
-  /// and inserts the new anchor between its two endpoint anchors — never
-  /// calls Valhalla (Open Question 1, resolved). The new anchor's list
-  /// position IS its D-02 display-number renumbering; numbers are always
-  /// derived from index, never stored.
+  /// On a plain (non-blocked) segment tap, geometrically splits it and
+  /// inserts the new anchor between its two endpoint anchors — never calls
+  /// Valhalla. The new anchor's list position determines its display
+  /// number, which is always derived from index, never stored.
   void insertAnchorOnSegment(
     String beforeAnchorId,
     String afterAnchorId,
     Geographic tapPoint,
   ) {
     final key = segmentKey(beforeAnchorId, afterAnchorId);
-    // Same stale-hit-test guard as retrySegment: the native layer's GeoJSON
-    // sync is async, so a tap can reference a segment already removed by an
-    // undo/delete/reorder. Bail out BEFORE _pushUndo() so a miss never
-    // pushes a spurious no-op undo snapshot.
+    // Same stale-hit-test guard as retrySegment. Bail out before _pushUndo()
+    // so a miss never pushes a spurious no-op undo snapshot.
     final targetSegment = state.segments.firstWhereOrNull(
       (s) => segmentKey(s.beforeAnchorId, s.afterAnchorId) == key,
     );
@@ -792,19 +735,17 @@ class RouteAnchors extends _$RouteAnchors {
     ).ignore();
   }
 
-  /// WAYP-04: removes [anchorId] from the route. If the removed anchor sat
-  /// between two surviving anchors, its two touching segments collapse into
-  /// one new straight segment spanning the surviving predecessor/successor
+  /// Removes [anchorId] from the route. If the removed anchor sat between
+  /// two surviving anchors, its two touching segments collapse into one new
+  /// straight segment spanning the surviving predecessor/successor
   /// (auto-resolved via Valhalla when auto-routing is on). Removing the
   /// first, last, or the only anchor removes at most one segment and creates
   /// none.
   void deleteAnchor(String anchorId) {
     _pushUndo();
 
-    // Cancel (rather than let dangle) any in-flight location search for the
-    // deleted anchor — its eventual response would already no-op harmlessly
-    // (the id no longer matches any anchor) but there is no reason to let
-    // the network call complete.
+    // Cancel any in-flight location search for the deleted anchor — its
+    // response would already no-op harmlessly, but no reason to let it run.
     _locationInFlight.remove(anchorId)?.cancel();
     _locationGeneration.remove(anchorId);
 
@@ -855,12 +796,12 @@ class RouteAnchors extends _$RouteAnchors {
     }
   }
 
-  /// WAYP-05: reassigns the anchor order to [newOrder] (a permutation of the
+  /// Reassigns the anchor order to [newOrder] (a permutation of the
   /// existing anchor ids). Segments for anchor pairs that remain adjacent
   /// after the reorder are reused verbatim (preserving any resolved
-  /// [SegmentState.routed] polyline and issuing zero Valhalla calls,
-  /// Pitfall 4); only newly-adjacent pairs get a fresh straight segment,
-  /// auto-resolved when auto-routing is on.
+  /// [SegmentState.routed] polyline and issuing zero Valhalla calls); only
+  /// newly-adjacent pairs get a fresh straight segment, auto-resolved when
+  /// auto-routing is on.
   void reorderAnchors(List<String> newOrder) {
     _pushUndo();
 
@@ -904,12 +845,11 @@ class RouteAnchors extends _$RouteAnchors {
   }
 
   /// Removes every anchor and segment at once. No-op on an already-empty
-  /// route. Immediate, no confirmation dialog (mirrors [deleteAnchor]'s own
-  /// D-06 discipline) — the app-bar Undo is the sole safety net.
+  /// route. Immediate, no confirmation dialog — the app-bar Undo is the sole
+  /// safety net.
   ///
-  /// Cancels every in-flight location search (mirrors [resetForSession]):
-  /// once an anchor is gone there is no reason to let its reverse-geocode
-  /// request complete.
+  /// Cancels every in-flight location search: once an anchor is gone there
+  /// is no reason to let its reverse-geocode request complete.
   void deleteAllAnchors() {
     if (state.anchors.isEmpty && state.segments.isEmpty) return;
 
@@ -924,18 +864,15 @@ class RouteAnchors extends _$RouteAnchors {
     state = state.copyWith(anchors: const [], segments: const []);
   }
 
-  /// Reverses the anchor order — the former start becomes the goal and vice
-  /// versa — and recomputes the route: every segment is rebuilt with its
-  /// `before`/`after` anchor ids swapped to match the new direction, then
-  /// re-resolved via [resolveAllSegments] (auto-routing on) or flattened to
-  /// a straight line (auto-routing off). A blind polyline-reversal is
-  /// deliberately NOT used — a real route can be direction-sensitive
-  /// (one-way streets), so the safe behavior is a fresh Valhalla resolve in
-  /// the new direction, not a mirrored copy of the old one.
+  /// Reverses the anchor order — former start becomes the goal — and
+  /// recomputes the route: every segment is rebuilt with its `before`/
+  /// `after` ids swapped, then re-resolved via [resolveAllSegments]. A blind
+  /// polyline-reversal is deliberately not used — a route can be
+  /// direction-sensitive (one-way streets), so a fresh Valhalla resolve in
+  /// the new direction is required rather than a mirrored copy of the old.
   ///
-  /// No-op below 2 anchors (nothing to reverse). Each [RouteAnchor] (and its
-  /// resolved `location`, if any) carries over unchanged — only order
-  /// flips, coordinates don't change, so no location re-search is needed.
+  /// No-op below 2 anchors. Anchor coordinates/locations carry over
+  /// unchanged — only order flips, so no location re-search is needed.
   void reverseRoute() {
     if (state.anchors.length < 2) return;
 
@@ -956,9 +893,9 @@ class RouteAnchors extends _$RouteAnchors {
     resolveAllSegments();
   }
 
-  /// ROUTE-04: restores the immediately prior anchors/segments snapshot.
-  /// No-ops if the undo stack is empty (defensive — the app-bar button is
-  /// also disabled per D-11).
+  /// Restores the immediately prior anchors/segments snapshot. No-ops if
+  /// the undo stack is empty (defensive — the app-bar button is also
+  /// disabled in this case).
   void undo() {
     final stack = state.undoStack;
     if (stack.isEmpty) return;
@@ -976,8 +913,8 @@ class RouteAnchors extends _$RouteAnchors {
     );
   }
 
-  /// ROUTE-04: re-applies the most recently undone mutation. No-ops if the
-  /// redo stack is empty.
+  /// Re-applies the most recently undone mutation. No-ops if the redo stack
+  /// is empty.
   void redo() {
     final stack = state.redoStack;
     if (stack.isEmpty) return;

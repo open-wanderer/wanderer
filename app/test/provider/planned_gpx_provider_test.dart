@@ -6,11 +6,9 @@ import 'package:wanderer/provider/planned_gpx_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
-// ---------------------------------------------------------------------------
 // Fixtures — mirrors route_anchor_provider_test.dart's _SeededRouteAnchors
-// harness so plannedGpxProvider can be exercised against a known
-// anchors/segments shape without depending on the mutator methods.
-// ---------------------------------------------------------------------------
+// harness so plannedGpxProvider can be tested against a known shape without
+// depending on the mutator methods.
 
 const _profile = 'pedestrian';
 
@@ -73,18 +71,16 @@ void main() {
       'walks the anchor-id chain (A-B-C) in path order, not array order, '
       'and does not duplicate the shared boundary point between segments',
       () {
-        // Middle segment carries a distinctive multi-point polyline; the
-        // shared boundary point (_anchorB / _anchorC) must not be duplicated
-        // across the A-B and B-C segment appends.
+        // The shared boundary point (_anchorB / _anchorC) must not be
+        // duplicated across the A-B and B-C segment appends.
         final anchors = [
           const RouteAnchor(id: _anchorIdA, lat: 47.000, lon: 9.000),
           const RouteAnchor(id: _anchorIdB, lat: 47.001, lon: 9.000),
           const RouteAnchor(id: _anchorIdC, lat: 47.002, lon: 9.000),
         ];
         const midPoint = Geographic(lat: 47.0015, lon: 9.0005);
-        // Deliberately reversed array order from traversal order, proving
-        // the walk follows the beforeAnchorId->afterAnchorId chain, not
-        // state.segments' array index.
+        // Reversed array order proves the walk follows the
+        // beforeAnchorId->afterAnchorId chain, not array index.
         final segments = [
           const RouteSegment(
             beforeAnchorId: _anchorIdB,

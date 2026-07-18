@@ -1,10 +1,8 @@
 import 'package:dio/dio.dart';
 
-/// The Dart analog of web's `search_store.ts` `ReverseLocationResult` type:
-/// a resolved reverse-geocoded location, split into a country-less [label]
-/// (used when every visible anchor shares one country — see
-/// `route_anchor_list_tab.dart`'s `commonAnchorCountry`) and a
-/// country-inclusive [fullLabel] (used otherwise).
+/// A resolved reverse-geocoded location: a country-less [label] (used when
+/// every visible anchor shares one country) and a country-inclusive
+/// [fullLabel] (used otherwise). Mirrors web's `search_store.ts`.
 class ReverseLocationResult {
   final String label;
   final String fullLabel;
@@ -29,10 +27,9 @@ class ReverseLocationResult {
 }
 
 /// Builds a comma-joined location description from a Nominatim `address`
-/// object, mirroring web's `search_store.ts` `getLocationDescription`
-/// exactly: `road` (only when [includeRoad]), then the first present of
-/// city/town/hamlet/village, then `state`, then `country` (only when
-/// [includeCountry]). Missing/absent keys are skipped — no empty commas.
+/// object: `road` (only when [includeRoad]), the first present of
+/// city/town/hamlet/village, `state`, then `country` (only when
+/// [includeCountry]). Missing keys are skipped, so no empty commas.
 String getLocationDescription(
   Map<String, dynamic> address, {
   bool includeRoad = false,
@@ -67,10 +64,9 @@ String getLocationDescription(
   return parts.join(', ');
 }
 
-/// Builds a [ReverseLocationResult] from a Nominatim `address` object,
-/// mirroring web's `search_store.ts` `getReverseLocationResult`: [label]
-/// omits the country, [fullLabel] includes it, and [label] falls back to
-/// [fullLabel] when the country-less description is empty.
+/// Builds a [ReverseLocationResult] from a Nominatim `address` object.
+/// [label] falls back to [fullLabel] when the country-less description is
+/// empty.
 ReverseLocationResult getReverseLocationResult(
   Map<String, dynamic> address, {
   bool includeRoad = false,
@@ -90,13 +86,10 @@ ReverseLocationResult getReverseLocationResult(
   );
 }
 
-/// Reverse-geocodes a coordinate via the server's `/geocoding/reverse` proxy
-/// (sibling of `global_search_provider.dart`'s `/geocoding/search` call),
+/// Reverse-geocodes a coordinate via the server's `/geocoding/reverse` proxy,
 /// returning a structured [ReverseLocationResult], or `null` when Nominatim
-/// has no address for the point. Lets [DioException] (including a
-/// cancellation via [cancelToken]) propagate to the caller — this function
-/// is a pure fetch, not a best-effort wrapper; the widget layer decides how
-/// to swallow failures.
+/// has no address for the point. Lets [DioException] propagate — this is a
+/// pure fetch; the caller decides how to handle failures.
 Future<ReverseLocationResult?> searchLocationReverseStructured(
   Dio api,
   double lat,

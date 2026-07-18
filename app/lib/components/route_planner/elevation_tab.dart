@@ -5,16 +5,13 @@ import 'package:wanderer/provider/planned_gpx_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
-/// The Elevation tab of the route planner's tabbed sheet (PLANUI-02).
+/// The Elevation tab of the route planner's tabbed sheet.
 ///
 /// Watches [plannedElevationGpxProvider] for the elevation-merged `Gpx`
-/// derived from the in-progress route's segments — every segment's own
-/// `/valhalla/height` fetch is owned by `route_anchor_provider.dart`'s
-/// `_resolveElevation` (fired fire-and-forget on creation/update), so this
-/// tab no longer makes any network call of its own; it just renders
-/// whatever's already on `routeAnchorsProvider` at any given moment, filling
-/// in progressively as each segment's fetch resolves. Renders the adapted
-/// `ElevationProfile` (`trail: null`).
+/// derived from the in-progress route's segments. Each segment's own
+/// `/valhalla/height` fetch is owned by `route_anchor_provider.dart`, so this
+/// tab makes no network call of its own — it renders whatever's already on
+/// `routeAnchorsProvider`, filling in progressively as fetches resolve.
 class ElevationTab extends ConsumerWidget {
   final ScrollController? scrollController;
   const ElevationTab({super.key, this.scrollController});

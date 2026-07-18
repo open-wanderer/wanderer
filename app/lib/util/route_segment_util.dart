@@ -6,31 +6,20 @@ import 'package:wanderer/models/route_anchor.dart';
 
 /// A stable, index-independent identity for a [RouteSegment], derived from
 /// its bounding anchor ids rather than array position — indices drift under
-/// insert/delete/reorder (RESEARCH.md Pitfall 3), but an anchor-id pair does
-/// not. Both the routing engine's in-flight/generation race-guard maps
-/// (`route_anchor_provider.dart`) and 19-03's GeoJSON feature properties key
-/// off this value.
+/// insert/delete/reorder, but an anchor-id pair does not.
 String segmentKey(String beforeAnchorId, String afterAnchorId) =>
     '${beforeAnchorId}_$afterAnchorId';
 
 /// Serializes [segments] into a GeoJSON `FeatureCollection` string for
-/// [RouteSegmentLayer]'s `GeoJsonSource`, matching `TrailLayer.add`'s
-/// `jsonEncode` (not string concatenation) idiom, which keeps geometry
-/// structurally isolated from the style document (T-19-03-01).
+/// [RouteSegmentLayer]'s `GeoJsonSource`.
 ///
-/// Each feature's `properties` deliberately carries [RouteSegment.beforeAnchorId]/
-/// [RouteSegment.afterAnchorId] as separate GeoJSON properties (not an
-/// illustrative `segmentIndex`) — per Pitfall 3, segment identity for
-/// hit-testing must be anchor-id-pair based, not index-based, so a tap
-/// handler can read these two properties directly rather than reconstructing
-/// a [segmentKey] string. `state` is the segment's [SegmentState.name]
-/// (`'routed'`/`'straight'`/`'blocked'`), used as the `filter` discriminator
-/// by [RouteSegmentLayer]'s three paint variants.
+/// Each feature's `properties` carries [RouteSegment.beforeAnchorId]/
+/// [RouteSegment.afterAnchorId] directly (not an index), so a tap handler
+/// can read them without reconstructing a [segmentKey] string. `state` is
+/// used as the `filter` discriminator by [RouteSegmentLayer]'s paint variants.
 ///
-/// Coordinates follow the same `[lon, lat]` ordering convention as
-/// `TrailLayer.add`'s GeoJSON construction. An empty [segments] list
-/// produces a valid `FeatureCollection` with an empty `features` array
-/// (never null, never throws) — defensive for a route with 0-1 anchors.
+/// Coordinates use `[lon, lat]` ordering. An empty [segments] list produces
+/// a valid `FeatureCollection` with an empty `features` array.
 String buildSegmentsGeoJson(List<RouteSegment> segments) {
   return jsonEncode(<String, Object?>{
     'type': 'FeatureCollection',
@@ -57,16 +46,12 @@ String buildSegmentsGeoJson(List<RouteSegment> segments) {
 /// Splits [segment] into two, inserting [newAnchorId] as the shared boundary
 /// anchor at the point on the existing polyline closest to [tapPoint].
 ///
-/// Never calls Valhalla — a plain WAYP-03 tap on a routed/straight segment
-/// geometrically splits the already-rendered path rather than re-routing
-/// (Open Question 1, resolved to the geometric-split strategy). Both halves
-/// inherit [segment]'s state unchanged.
+/// Never calls Valhalla — a tap geometrically splits the already-rendered
+/// path rather than re-routing. Both halves inherit [segment]'s state unchanged.
 ///
-/// The nearest point is found by projecting [tapPoint] onto every existing
-/// sub-edge of the polyline (not just snapping to an existing vertex) so a
-/// straight, 2-point (un-routed) segment — the common case for a freshly
-/// appended or dragged anchor pair — still splits at a genuine point between
-/// its two endpoints rather than degenerating to one of them.
+/// The nearest point is found by projecting [tapPoint] onto every sub-edge of
+/// the polyline (not just snapping to a vertex), so a straight, 2-point
+/// segment still splits at a genuine point between its endpoints.
 (RouteSegment, RouteSegment) splitSegmentAt(
   RouteSegment segment,
   String newAnchorId,
@@ -108,10 +93,8 @@ String buildSegmentsGeoJson(List<RouteSegment> segments) {
 }
 
 /// The closest point to [p] on the straight line between [a] and [b],
-/// approximated in a local planar (equirectangular) projection — mirrors the
-/// cross-track projection math in `navigation_provider.dart`'s
-/// `_projectAlongTrack`, adequate for the short, single-segment distances
-/// involved here.
+/// approximated via a local planar (equirectangular) projection — adequate
+/// for the short, single-segment distances involved here.
 Geographic _closestPointOnSegment(Geographic a, Geographic b, Geographic p) {
   const metersPerDegree = 111320.0;
   final midLatRad = ((a.lat + b.lat) / 2.0) * math.pi / 180.0;

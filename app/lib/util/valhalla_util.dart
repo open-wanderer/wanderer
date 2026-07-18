@@ -3,20 +3,16 @@ import 'package:maplibre/maplibre.dart' show Geographic, SphericalGreatCircle;
 import 'package:wanderer/models/category.dart';
 
 /// Valhalla's own default `walking_speed`/`cycling_speed` (km/h, `Hybrid`
-/// bike type), used when a segment has no Valhalla-resolved time (never
-/// routed, or the route call failed) and [RouteAnchorsState.costingOptions]
-/// hasn't set an explicit speed — mirrors the defaults Valhalla itself would
-/// apply server-side for the given `costing` profile.
+/// bike type) — used when a segment has no Valhalla-resolved time and no
+/// explicit speed is set, mirroring what Valhalla applies server-side.
 const _defaultWalkingSpeedKmh = 5.1;
 const _defaultCyclingSpeedKmh = 18.0;
 
-/// Infers a segment's travel time, in seconds, from its geometry when no
-/// Valhalla-resolved [RouteSegment.durationSeconds] is available (a
-/// straight/blocked segment never made a successful `/valhalla/route` call).
-/// Sums the great-circle length of [polyline] and divides by the
-/// `walking_speed`/`cycling_speed` (km/h) carried on [costingOptions] for
-/// [travelProfile] (`'bicycle'` vs anything else), falling back to
-/// Valhalla's own defaults when that key is absent.
+/// Estimates a segment's travel time, in seconds, from its geometry when no
+/// Valhalla-resolved duration is available. Sums the great-circle length of
+/// [polyline] and divides by the `walking_speed`/`cycling_speed` (km/h) on
+/// [costingOptions] for [travelProfile], falling back to Valhalla's own
+/// defaults when that key is absent.
 double estimateSegmentDurationSeconds({
   required List<Geographic> polyline,
   required String travelProfile,
@@ -59,18 +55,16 @@ String costingForCategory(String? category) {
   return 'pedestrian';
 }
 
-/// Inverse of [costingForCategory] (D-08): given a Valhalla travel profile
+/// Inverse of [costingForCategory]: given a Valhalla travel profile
 /// (`'bicycle'` or `'pedestrian'`) and the operator's loaded category list,
 /// returns the id of the first category whose name/short name matches the
 /// corresponding heuristic, or `null` when no category matches.
 ///
 /// Mirrors [costingForCategory]'s own check order (`'bike'` → `'cycling'` →
-/// `'bicycle'`) for symmetry (Pitfall 5) — categories are fully
-/// operator-managed runtime content with no reserved hiking/biking id, so a
-/// substring match against `name`/`shortName` is the only available
-/// heuristic. Never throws on an empty [categories] list; degrades
-/// gracefully to `null` (no pre-fill) when nothing matches (A1 — expected,
-/// not a bug).
+/// `'bicycle'`) for symmetry — categories are operator-managed runtime
+/// content with no reserved hiking/biking id, so a substring match is the
+/// only available heuristic. Returns `null` (no pre-fill) on no match,
+/// including an empty [categories] list.
 String? categoryForTravelProfile(
   String travelProfile,
   List<Category> categories,
@@ -91,17 +85,14 @@ String? categoryForTravelProfile(
 }
 
 /// Sibling of [categoryForTravelProfile]: given a bike-bucket keyword set
-/// (`RouteTravelBucket.keywords`, `route_travel_bucket.dart`) and the
-/// operator's loaded category list, returns the first [Category] whose
-/// name/short name (case-insensitive) contains any keyword — for ICON
-/// RESOLUTION ONLY. Never throws on an empty [categories] list; degrades
-/// gracefully to `null` (caller falls back to a hardcoded FontAwesome icon)
-/// when nothing matches.
+/// (`RouteTravelBucket.keywords`) and the operator's loaded category list,
+/// returns the first [Category] whose name/short name (case-insensitive)
+/// contains any keyword — for icon resolution only. Returns `null` (caller
+/// falls back to a hardcoded FontAwesome icon) when nothing matches.
 ///
 /// A bucket's `bicycle_type` costing payload is fixed regardless of what
-/// categories the operator happens to have (RESEARCH.md Q2 key finding) — it
-/// is carried on `RouteTravelBucket` itself and is NEVER synthesized from a
-/// matched `Category` here.
+/// categories exist — it lives on `RouteTravelBucket` and is never
+/// synthesized from a matched `Category` here.
 Category? categoryForBikeBucket(
   List<String> keywords,
   List<Category> categories,

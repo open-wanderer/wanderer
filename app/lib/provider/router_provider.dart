@@ -219,9 +219,7 @@ class Router extends _$Router {
                   builder: (context, state) {
                     final extra = state.extra;
                     if (extra is! Category) {
-                      // extra is lost across process restart / deep-link —
-                      // fall back so the user isn't left on a crashed
-                      // screen.
+                      // extra is lost across process restart / deep-link — fall back.
                       return const SettingsCategoriesScreen();
                     }
                     return SettingsSubcategoriesScreen(category: extra);
@@ -259,14 +257,11 @@ class Router extends _$Router {
             final center = (lat != null && lon != null)
                 ? Geographic(lat: lat, lon: lon)
                 : const Geographic(lat: 0, lon: 0);
-            // quick-260718-e9j (PLANNER-02): edit-mode seed anchors, carried
-            // alongside the `mode: 'edit'` extra key (informational — edit
-            // mode is inferred from this list being present/non-empty, not
-            // from a separate flag).
+            // Edit-mode seed anchors; edit mode is inferred from this list being
+            // non-empty, not from a separate flag.
             final seedAnchors = extra?['seedAnchors'] as List<Geographic>?;
-            // Full-resolution per-segment polylines aligned with
-            // seedAnchors (quick-260718-e9j follow-up) — preserves the
-            // original recorded route until the user edits it.
+            // Full-resolution per-segment polylines aligned with seedAnchors —
+            // preserves the original recorded route until the user edits it.
             final seedSegmentPolylines =
                 extra?['seedSegmentPolylines'] as List<List<Geographic>>?;
             return RoutePlannerScreen(
@@ -286,11 +281,9 @@ class Router extends _$Router {
               pendingImportedTrail = null;
               return TrailCreateScreen(trail: extra);
             }
-            // extra is lost across process restart / deep-link, or a
-            // same-process router refresh mid-navigation (see
-            // pendingImportedTrail's doc comment) — recover a just-imported
-            // trail if one is pending, else fall back to the source
-            // selector so the user isn't left on a blank screen.
+            // extra is lost across process restart / deep-link, or a same-process
+            // router refresh mid-navigation — recover a pending imported trail if
+            // any, else fall back to the source selector.
             final pending = pendingImportedTrail;
             if (pending != null) return TrailCreateScreen(trail: pending);
             return const TrailSourceSelectScreen();
@@ -317,8 +310,7 @@ class Router extends _$Router {
                 final extra = state.extra;
                 if (extra
                     is! (NavigateResponse, bool, ActiveNavigationEntity?)) {
-                  // extra is lost across process restart / deep-link — fall back
-                  // to trail detail so the user isn't left on a blank screen.
+                  // extra is lost across process restart / deep-link — fall back.
                   return TrailDetailScreen(id: trailId);
                 }
                 final (response, isOffline, resumeSession) = extra;

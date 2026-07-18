@@ -31,12 +31,10 @@ import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
 import 'package:wanderer/util/category_icon_util.dart';
 
 /// Zoom used when centering on a specific point (GPS fix or saved home
-/// location) — matches the convention used elsewhere for point-centering
-/// (`global_search_screen.dart`'s location-result tap).
+/// location).
 const double _kPointZoom = 13.0;
 
-/// World-view zoom for the (0,0) fallback when no other location is known —
-/// matches `TrailCollectionMap`'s own ultimate default.
+/// World-view zoom for the (0,0) fallback when no other location is known.
 const double _kWorldZoom = 3.0;
 
 class MapScreen extends ConsumerStatefulWidget {
@@ -102,8 +100,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
       reverseCurve: Curves.easeOut,
     );
 
-    // Only chase a GPS fix for the initial focus when nothing else (explicit
-    // route target or a previously saved camera) already decides it.
+    // Only chase a GPS fix when neither an explicit route target nor a
+    // saved camera already decides the initial focus.
     if (widget.initialCenter == null && ref.read(mapCameraProvider) == null) {
       _gpsSub = ref.read(foregroundPositionStreamProvider).listen((position) {
         if (position == null || _resolvedGpsCenter != null) return;
@@ -278,13 +276,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
       final pointCount = properties['point_count'];
       if (pointCount is! num || pointCount.toInt() != 1) continue;
-      // is_large is intentionally not filtered here: the server marks the
-      // top MAP_MAX_POLYLINES trails by size as is_large once zoom passes
-      // clusteringMaxZoom (~11) — with fewer trails in view than that
-      // threshold, this can mean ALL visible trails, not just rare huge
-      // ones. Full-polyline rendering for is_large trails is not yet
-      // implemented; for now any unclustered point (point_count == 1)
-      // renders as a category-icon marker regardless.
+      // is_large not filtered here: full-polyline rendering for is_large
+      // trails isn't implemented yet, so every unclustered point still
+      // renders as a category-icon marker.
 
       final trailId = properties['id'];
       if (trailId is! String) continue;

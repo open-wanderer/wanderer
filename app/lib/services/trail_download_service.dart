@@ -88,21 +88,16 @@ class TrailDownloadService {
       if (paths != null) waypointEntity.localPhotos = paths;
     }
 
-    // Best-effort Valhalla cache write. Any failure (Valhalla outage, null GPX,
-    // parse error) is silently swallowed so the tile download and entity
-    // persistence are never blocked.
+    // Best-effort Valhalla cache write; any failure is swallowed so tile
+    // download and entity persistence are never blocked.
     try {
       final gpx = trail.expand?.gpx;
       if (gpx != null) {
         final points = gpx.allPoints;
         if (points.length >= 2) {
-          // Same shape helper as the online path: ensures cache and live
-          // requests send byte-identical shape payloads to Valhalla.
+          // Shared with the online path so cache and live requests send
+          // identical payloads to Valhalla.
           final shape = buildNavShape(points);
-
-          // Derive costing from category via shared helper. Shared with
-          // launchNavigation so cache and live requests use the same
-          // costing string.
           final costing = costingForCategory(trail.expand?.category?.name);
 
           final res = await _api.post(
@@ -122,9 +117,8 @@ class TrailDownloadService {
         }
       }
     } catch (e) {
-      // Re-throw if the download was cancelled — must not write a partial entity.
+      // Re-throw on cancellation — must not write a partial entity.
       if (e is DioException && CancelToken.isCancel(e)) rethrow;
-      // Best-effort: Valhalla outage must not block download.
     }
 
     _store.runInTransaction(TxMode.write, () {
@@ -133,10 +127,8 @@ class TrailDownloadService {
   }
 
   /// Downloads the vector `.pmtiles` cell (fatal on failure) and, best-effort,
-  /// its companion DEM `_dem.pmtiles` cell (hillshade is cosmetic — a DEM
-  /// failure or a missing `demDownloadUrl` must never fail the trail
-  /// download). Returns `(vector paths, dem paths)`; `dem paths` may be
-  /// shorter than `vector paths` when some cells have no DEM archive.
+  /// its companion DEM cell (hillshade is cosmetic, so DEM failures never
+  /// fail the download). `dem paths` may be shorter than `vector paths`.
   Future<(List<String>, List<String>)> _downloadMapTiles(
     Trail trail,
     Directory trailDir, {
@@ -158,9 +150,8 @@ class TrailDownloadService {
 
     final total = infoList.cells.length;
 
-    // Tile downloads run concurrently via Future.wait. Progress is reported
-    // monotonically after all tasks finish to avoid non-monotonic counter
-    // updates caused by interleaving at await points.
+    // Downloads run concurrently; progress is reported once at the end to
+    // avoid non-monotonic counter updates from interleaved awaits.
     final downloadTasks = infoList.cells.map((cell) async {
       final key = cell.key;
       final localPath = '${tilesDir.path}/$key.pmtiles';
@@ -176,9 +167,7 @@ class TrailDownloadService {
       try {
         MapCellStatusResponse? readyCell;
 
-        // Fetch cell status when the vector archive is missing (needed to
-        // download it) or when the DEM archive is missing (needed for its
-        // demDownloadUrl) — a cache-hit on both skips the network entirely.
+        // A cache-hit on both vector and DEM skips the network entirely.
         if (!vectorCached || !demCached) {
           final requestRes = await _api.get(
             cell.url,
@@ -231,7 +220,6 @@ class TrailDownloadService {
     }).toList();
 
     final results = await Future.wait(downloadTasks);
-    // Report final progress after all concurrent tasks complete.
     if (onProgress != null) {
       onProgress(results.length, total);
     }

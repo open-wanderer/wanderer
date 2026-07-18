@@ -6,18 +6,14 @@ import 'package:wanderer/provider/route_anchor_provider.dart';
 /// Interactive route-anchor markers rendered as Flutter widgets over the
 /// native map via a single [ml.WidgetLayer]: numbered, draggable markers
 /// whose displayed number is always derived from the anchor's current
-/// position in the anchor list (D-02) — never a stored field.
+/// position in the anchor list — never a stored field.
 ///
-/// Unlike `TrailMarkerLayer` (`trail_layer.dart`), which is bound to a
-/// passed-in `Trail`, this widget reads its data directly from
-/// `ref.watch(routeAnchorsProvider)` since it is not bound to any persisted
-/// object — it renders the in-progress, unsaved route plan.
+/// Reads its data directly from `ref.watch(routeAnchorsProvider)` since it
+/// renders the in-progress, unsaved route plan rather than a persisted `Trail`.
 ///
-/// Dragging a marker reuses `TrailMarkerLayer`'s proven
-/// `GestureDetector.onPanStart/Update/End` pattern (D-05): the marker shows
-/// at a straight temporary screen position while dragging, and connected
-/// segments only re-resolve once the gesture ends — `dragAnchor` is called
-/// from `onPanEnd`, never from `onPanUpdate`.
+/// While dragging, the marker shows at a temporary screen position; connected
+/// segments only re-resolve once the gesture ends (`dragAnchor` is called
+/// from `onPanEnd`, never `onPanUpdate`).
 ///
 /// Place this in [ml.MapLibreMap.children]. It reads [ml.MapController]/
 /// [ml.MapCamera] from context so a drag-in-progress marker stays aligned
@@ -48,15 +44,14 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
     final anchors = ref.watch(routeAnchorsProvider).anchors;
     final controller = ml.MapController.maybeOf(context);
     // Subscribe to camera changes so a drag-in-progress marker recomputes as
-    // the user pans/zooms (mirrors TrailMarkerLayer's existing nudge
-    // subscription).
+    // the user pans/zooms.
     ml.MapCamera.maybeOf(context);
 
     final markers = <ml.Marker>[];
 
     for (var i = 0; i < anchors.length; i++) {
       final anchor = anchors[i];
-      final number = i + 1; // D-02: derived from list order, never stored.
+      final number = i + 1; // derived from list order, never stored.
       final isSelected = widget.selectedAnchorId == anchor.id;
       final isDragging = _draggingAnchorId == anchor.id;
       final point = (isDragging && controller != null && _dragOffset != null)
@@ -89,9 +84,8 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
               final offset = _dragOffset;
               _clearDrag();
               if (c != null && offset != null) {
-                // D-05: dragAnchor is called ONLY here, at gesture end —
-                // never from onPanUpdate. This re-resolves the anchor's ≤2
-                // adjacent segments to the current routing mode.
+                // Called only at gesture end, never onPanUpdate — re-resolves
+                // the anchor's adjacent segments to the current routing mode.
                 ref
                     .read(routeAnchorsProvider.notifier)
                     .dragAnchor(anchor.id, c.toLngLat(offset));
@@ -119,12 +113,8 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
   }
 }
 
-/// Numbered circular marker matching `trail_layer.dart`'s
-/// `_buildCircularMarker` visual shape (2px border, identical box-shadow
-/// spec), adapted to show a 1-based display number instead of a Font
-/// Awesome glyph. Selected/dragging state inverts to a white fill with an
-/// accent-colored border and number — the same invert pattern
-/// `_buildCircularMarker` already uses for `selected: true`.
+/// Numbered circular marker showing a 1-based display number. Selected/
+/// dragging state inverts to a white fill with an accent-colored border.
 Widget _buildNumberedMarker(
   BuildContext context,
   int number, {

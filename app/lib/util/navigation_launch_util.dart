@@ -19,15 +19,8 @@ import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
-/// Reads the cached [NavigateResponse] for [trailId] from ObjectBox.
-///
-/// Returns null if:
-/// - No [TrailEntity] is found for [trailId]
-/// - The entity's [navCacheJson] field is null
-/// - The JSON cannot be decoded (treat as cache miss)
-///
-/// Public — also used by the launch-time resume-detection flow in
-/// `main.dart` to resolve a persisted `trailId` back to a [NavigateResponse].
+/// Reads the cached [NavigateResponse] for [trailId] from ObjectBox, or null
+/// if not found/decodable. Also used by `main.dart`'s launch-time resume flow.
 NavigateResponse? readCachedNav(Store store, String trailId) {
   final box = store.box<TrailEntity>();
   final query = box.query(TrailEntity_.id.equals(trailId)).build();
@@ -41,17 +34,13 @@ NavigateResponse? readCachedNav(Store store, String trailId) {
   try {
     return NavigateResponse.fromJson(jsonDecode(json) as Map<String, dynamic>);
   } catch (_) {
-    // Undecodable cache treated as miss.
     return null;
   }
 }
 
-/// Silently re-caches [response] for [trailId] in ObjectBox.
-///
-/// Reads the existing entity by [trailId] and updates [navCacheJson] with
-/// the JSON-encoded [response]. Uses a write transaction. Swallows
-/// all errors — a re-cache failure must never surface to the user.
-/// If the trail entity is not found (trail not downloaded), does nothing.
+/// Silently re-caches [response] for [trailId] in ObjectBox. Swallows all
+/// errors — a re-cache failure must never surface to the user. No-ops if
+/// the trail isn't downloaded.
 Future<void> _recacheNav(
   Store store,
   String trailId,
@@ -70,38 +59,19 @@ Future<void> _recacheNav(
       box.put(entity);
     });
   } catch (_) {
-    // Swallow errors: cache write is best-effort.
+    // Cache write is best-effort.
   }
 }
 
-/// Launches turn-by-turn navigation for [trail] from either detail screen.
-///
-/// Flow:
-/// 1. Guards: needs a parsed GPX with ≥2 points (shows error toast + returns on failure).
-/// 2. Derives costing from [trail.expand?.category?.name].
-/// 3. Builds the waypoint list via [buildNavShape] (downsamples to ≤500,
-///    preserving first and last).
-/// 4. POSTs to `/valhalla/navigate` via [apiProvider].
-/// 5. Parses [NavigateResponse] from the response body; guards for
-///    non-empty maneuvers + shape.
-/// 6. Checks `context.mounted`.
-/// 7. Pushes `/trail/:id/navigate` with `(response, false)` as extra.
-/// 8. Fires an unawaited background re-cache write of the fresh response.
-///
-/// On [DioException] (network failure): reads cached [NavigateResponse] from
-/// ObjectBox. If valid (non-empty maneuvers + shape), pushes navigation with
-/// `(cached, true)` — isOffline:true. Otherwise falls
-/// through to the error toast.
-///
-/// On any error when no usable cache exists, shows an error toast and returns
-/// without navigating. The caller owns the loading state — this
-/// function does not manage spinners.
+/// Launches turn-by-turn navigation for [trail]. Requests a route from
+/// Valhalla; on network failure falls back to a cached [NavigateResponse]
+/// from ObjectBox if one exists, otherwise shows an error toast. Does not
+/// manage loading spinners — that's the caller's responsibility.
 Future<void> launchNavigation({
   required BuildContext context,
   required WidgetRef ref,
   required Trail trail,
 }) async {
-  // (0) Guard: location services must be enabled and permission granted.
   final l10n = AppLocalizations.of(context)!;
 
   void showError(String text) => ref
@@ -132,20 +102,13 @@ Future<void> launchNavigation({
       return;
     }
   }
-  // Two-step iOS Always upgrade: if the user granted WhenInUse, call
-  // requestPermission() again. On iOS this triggers the system prompt
-  // asking "Change to Always Allow?" only when
-  // NSLocationAlwaysAndWhenInUseUsageDescription is present in Info.plist.
-  // On Android this call is a no-op (already granted fine/background).
-  // The result may still be whileInUse if the user declines the upgrade —
-  // navigation proceeds either way (background tracking still works via
-  // allowBackgroundLocationUpdates on iOS and the foreground service on Android).
+  // iOS: re-requesting when WhenInUse triggers the "Change to Always
+  // Allow?" prompt (requires NSLocationAlwaysAndWhenInUseUsageDescription).
+  // No-op on Android. Navigation proceeds either way if declined.
   if (permission == LocationPermission.whileInUse && Platform.isIOS) {
     permission = await Geolocator.requestPermission();
-    // Do not block navigation if Always is declined — proceed with whileInUse.
   }
 
-  // (1) Guard: must have a parsed GPX with at least 2 points.
   final gpx = trail.expand?.gpx;
   if (gpx == null) {
     ref
@@ -174,30 +137,24 @@ Future<void> launchNavigation({
     return;
   }
 
-  // (2) Derive costing from the trail category via shared helper. Shared
-  //     with downloadTrail so cache and live costing match.
+  // Shared with downloadTrail so cache and live costing match.
   final costing = costingForCategory(trail.expand?.category?.name);
 
-  // (3) Build shape list via shared helper — downsamples to ≤500, preserves
-  //     first+last. Shared with downloadTrail so the cached
-  //     and online shapes are byte-identical.
+  // Shared with downloadTrail so cached and online shapes are byte-identical.
   final shape = buildNavShape(points);
 
   try {
-    // (4) POST to /valhalla/navigate (baseUrl already includes /api/v1)
     final api = ref.read(apiProvider);
     final res = await api.post(
       '/valhalla/navigate',
       data: {'shape': shape, 'costing': costing},
     );
 
-    // (5) Parse response and guard for non-empty content.
     final response = NavigateResponse.fromJson(
       res.data as Map<String, dynamic>,
     );
 
     if (response.maneuvers.isEmpty || response.shape.isEmpty) {
-      // Guard mounted before using context after await.
       if (!context.mounted) return;
       ref
           .read(toastProvider.notifier)
@@ -211,31 +168,23 @@ Future<void> launchNavigation({
       return;
     }
 
-    // (6) Guard against async gap where widget may have been unmounted.
     if (!context.mounted) return;
 
-    // (7) Navigate to the navigation screen; isOffline:false for online path.
-    // Third tuple element is the resume seed — null for a fresh launch.
+    // extra: (response, isOffline, resumeSeed) — null seed for a fresh launch.
     context.push('/trail/${trail.id}/navigate', extra: (response, false, null));
 
-    // (8) Silently re-cache the fresh response in the background.
     final store = ref.read(objectBoxProvider);
     unawaited(_recacheNav(store, trail.id, response));
   } on DioException catch (_) {
-    // Network failure — attempt cache fallback.
-    // Guard mounted before using context after async gap.
     if (!context.mounted) return;
     final store = ref.read(objectBoxProvider);
     final cached = readCachedNav(store, trail.id);
     if (cached != null &&
         cached.maneuvers.isNotEmpty &&
         cached.shape.isNotEmpty) {
-      // Valid cache — push with isOffline:true. Third tuple element is the
-      // resume seed — null for a fresh launch.
       context.push('/trail/${trail.id}/navigate', extra: (cached, true, null));
       return;
     }
-    // No usable cache — fall through to show error toast.
     ref
         .read(toastProvider.notifier)
         .add(
@@ -246,8 +195,6 @@ Future<void> launchNavigation({
           ),
         );
   } catch (_) {
-    // Non-Dio errors (parse failures, etc.) show toast and stay.
-    // Guard mounted before using context after await.
     if (!context.mounted) return;
     ref
         .read(toastProvider.notifier)

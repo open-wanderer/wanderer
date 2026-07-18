@@ -8,26 +8,23 @@ import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 
-/// The sheet's "Route Anchors" tab (WAYP-04/05, D-05..D-08): a
-/// [ReorderableListView] listing every in-progress route anchor in order,
-/// each row showing a numbered badge, its coordinates, and a trailing
-/// delete button.
+/// The sheet's "Route Anchors" tab: a [ReorderableListView] listing every
+/// in-progress route anchor in order, each row showing a numbered badge,
+/// its coordinates, and a trailing delete button.
 ///
-/// Follows `settings_categories_screen.dart`'s proven optimistic
-/// working-copy reorder pattern (D-08): a local [_orderedIds] list seeded
-/// from the provider on every build, guarded by [_reordering] so a mid-drag
-/// provider re-emission never snaps the dragged row back to its old slot.
-/// Unlike that analog, `reorderAnchors` is a synchronous in-memory mutation
-/// (no network, cannot throw) — there is no revert-on-error path here.
+/// Uses an optimistic working-copy reorder pattern: a local [_orderedIds]
+/// list seeded from the provider on every build, guarded by [_reordering]
+/// so a mid-drag provider re-emission never snaps the dragged row back.
+/// `reorderAnchors` is a synchronous in-memory mutation, so there's no
+/// revert-on-error path.
 ///
-/// Delete is immediate (D-06): no confirmation dialog, no snackbar-undo.
-/// Phase 19's app-bar Undo/Redo is the sole safety net. The delete button is
-/// never disabled (D-07) — deleting to zero anchors is valid; the parent
-/// screen un-mounts the sheet once `anchors` is empty.
+/// Delete is immediate — no confirmation dialog, no snackbar-undo; the
+/// app-bar Undo/Redo is the sole safety net. The delete button is never
+/// disabled — deleting to zero anchors is valid, and the parent screen
+/// un-mounts the sheet once `anchors` is empty.
 ///
-/// Accepts the sheet's [ScrollController] directly (Pattern 1) — this is the
-/// only genuinely scrollable tab, so the sheet's builder-supplied controller
-/// is wired to THIS tab's [ReorderableListView], not the Elevation tab.
+/// This is the only genuinely scrollable tab, so it's the one wired to the
+/// sheet's builder-supplied [ScrollController].
 class RouteAnchorListTab extends ConsumerStatefulWidget {
   final ScrollController? scrollController;
 
@@ -39,21 +36,15 @@ class RouteAnchorListTab extends ConsumerStatefulWidget {
 
 class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
   /// Working copy of the anchor id order, seeded from the provider on every
-  /// build while [_reordering] is false. Mutated optimistically during a
-  /// drag (Pitfall 2 — never reseed from the provider mid-drag).
+  /// build while [_reordering] is false. Never reseed mid-drag.
   List<String> _orderedIds = const [];
 
-  /// True for the duration of a drag gesture (set in `onReorderStart`,
-  /// cleared at the end of `_onReorder`). While true, `build()` must not
-  /// reseed [_orderedIds] from the provider.
+  /// True for the duration of a drag gesture. While true, `build()` must
+  /// not reseed [_orderedIds] from the provider.
   bool _reordering = false;
 
-  /// Optional cross-country nuance (mirror web's `commonAnchorCountry`): if
-  /// every resolved anchor shares one country, [_anchorTitle] omits it for a
-  /// cleaner, less redundant row title. Reads each anchor's own
-  /// [RouteAnchor.location] directly — the search itself now lives in
-  /// `route_anchor_provider.dart` (quick-260717-t7q follow-up), fired once
-  /// per creation/drag-end rather than re-run by this tab on every mount.
+  /// If every anchor shares one country, [_anchorTitle] omits it for a
+  /// cleaner row title (mirrors web's `commonAnchorCountry`).
   String? _commonAnchorCountry(List<RouteAnchor> anchors) {
     final countries = anchors
         .map((a) => a.location?.country)
@@ -80,11 +71,8 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
         : location.fullLabel;
   }
 
-  /// Formats the "so far" line shown under each anchor after the first
-  /// (whose stats are always zero — nothing precedes it): cumulative
-  /// distance, cumulative estimated duration, and cumulative elevation gain
-  /// through the route up to and including this anchor
-  /// ([RouteAnchorsState.cumulativeStatsByAnchorId]).
+  /// Formats the cumulative distance/duration/elevation-gain "so far" line
+  /// shown under each anchor after the first (whose stats are always zero).
   String _statsLabel(AnchorRouteStats stats, String unit) {
     final duration = Duration(seconds: stats.durationSeconds.round());
     return '${formatDistance(stats.distanceMeters, unit: unit)} · '
@@ -112,10 +100,8 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
         ? const Color(0xff3E435B)
         : const Color(0xff242734);
 
-    // The chip row is a fixed (non-scrolling) header above the list — the
-    // ReorderableListView below remains the SOLE owner of
-    // widget.scrollController (Pattern 1), wrapped in Expanded so it still
-    // fills the rest of the tab.
+    // The chip row is a fixed header; the ReorderableListView below is the
+    // sole owner of widget.scrollController.
     return Column(
       children: [
         _AnchorActionChips(anchors: anchors),
@@ -204,11 +190,6 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
               );
             },
             onReorderStart: (_) => setState(() => _reordering = true),
-            // The index-shift `if (newIndex > oldIndex) newIndex -= 1`
-            // inside _onReorder is the canonical onReorder contract
-            // (Pitfall 1); onReorderItem is not used so that shift stays
-            // explicit and testable, matching
-            // settings_categories_screen.dart's established pattern.
             // ignore: deprecated_member_use
             onReorder: _onReorder,
           ),
@@ -231,13 +212,9 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
   }
 }
 
-/// Two chip-sized actions at the top of the Route Anchors tab only (moved
-/// out of the shared sheet header so they're invisible on Elevation/
-/// Settings): "Delete all" (immediate, no confirmation —
-/// [RouteAnchors.deleteAllAnchors] mirrors [RouteAnchors.deleteAnchor]'s own
-/// D-06 discipline; Undo is the sole safety net) and "Reverse direction"
-/// ([RouteAnchors.reverseRoute]). Both disable themselves rather than no-op
-/// silently when there's nothing to act on.
+/// "Delete all" (immediate, no confirmation — Undo is the sole safety net)
+/// and "Reverse direction" chips, shown only on the Route Anchors tab. Both
+/// disable themselves rather than no-op silently when there's nothing to act on.
 class _AnchorActionChips extends ConsumerWidget {
   final List<RouteAnchor> anchors;
 

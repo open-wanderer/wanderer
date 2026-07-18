@@ -13,11 +13,10 @@ import 'package:wanderer/util/trail_import_util.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
 /// Builds a fresh, ele-merged [Gpx] by zipping [heights] onto [shape]
-/// index-for-index — a public copy of `ElevationTab._buildEleMergedGpx`
-/// (`elevation_tab.dart`). Merge must happen against [shape] (the
-/// `buildNavShape`-downsampled array), never against the original point
-/// list, so index alignment holds once a route exceeds Valhalla's 500-point
-/// shape cap (Pitfall 2).
+/// index-for-index (a public copy of `ElevationTab._buildEleMergedGpx`).
+/// Must merge against [shape] (the downsampled array), not the original
+/// points, so indices stay aligned once a route exceeds Valhalla's 500-point
+/// shape cap.
 ///
 /// Returns a bare (trackless) [Gpx] when [shape] is empty.
 Gpx mergeHeightsIntoGpx(List<Map<String, double>> shape, List<num> heights) {
@@ -42,25 +41,22 @@ Gpx mergeHeightsIntoGpx(List<Map<String, double>> shape, List<num> heights) {
   return gpx;
 }
 
-/// Builds an unsaved, in-memory draft [Trail] from a finished planner route
-/// (HANDOFF-01). Carries only the synthesized GPX track — `waypoints: []`
-/// (D-07) — the same shape a plain GPX-file import produces with no named
-/// points. Route anchors never become [Waypoint] records; they stay strictly
-/// internal to the Route Planner's own state.
+/// Builds an unsaved, in-memory draft [Trail] from a finished planner route.
+/// Carries only the synthesized GPX track — `waypoints: []` — the same shape
+/// a plain GPX-file import produces with no named points. Route anchors
+/// never become [Waypoint] records; they stay internal to the Route
+/// Planner's own state.
 ///
-/// Sets both `expand.gpxData` (the raw XML string `form_data_util.dart`'s
-/// `toFormData()` actually uploads on create) and `expand.gpx` (the parsed
-/// object used for client-side map preview) — Pitfall 1: setting only one of
-/// the two produces a draft that renders correctly but saves with no track,
-/// or vice versa.
+/// Sets both `expand.gpxData` (the raw XML `toFormData()` uploads on create)
+/// and `expand.gpx` (the parsed object for client-side map preview) —
+/// setting only one produces a draft that saves with no track, or previews
+/// incorrectly.
 ///
-/// Also sets `lat`/`lon`/`minLat`/`maxLat`/`minLon`/`maxLon` from the track's
-/// bounds. For a plain GPX-file import these arrive pre-computed from the
-/// server's `/trail/convert` (gpx2trail) response, but a planner draft never
-/// makes that round-trip — without this, `Trail.empty()`'s zeroed bounds and
-/// null lat/lon leave `TrailMap` centered on null island instead of fitting
-/// the route (`trail_map.dart`'s `fitBounds` only fires when bounds have
-/// spread).
+/// Also derives `lat`/`lon`/`minLat`/`maxLat`/`minLon`/`maxLon` from the
+/// track's bounds. A plain GPX-file import gets these pre-computed from the
+/// server's `/trail/convert` response, but a planner draft skips that
+/// round-trip — without this, `TrailMap` centers on null island instead of
+/// fitting the route.
 Trail buildDraftTrail(
   Gpx finalGpx, {
   String? category,
@@ -70,11 +66,9 @@ Trail buildDraftTrail(
   final bounds = finalGpx.getBounds();
   return Trail.empty().copyWith(
     category: category,
-    // A planner-built Gpx never carries `time` (D-10), so the server's own
-    // GPX-timestamp duration derivation would land on 0 — pre-fill from the
-    // planner's own Valhalla-time/speed estimate (routeAnchorsProvider's
-    // `estimatedDurationSeconds`) instead, same as the distance/elevation
-    // bounds above.
+    // A planner-built Gpx never carries `time`, so the server's GPX-timestamp
+    // duration derivation would land on 0 — pre-fill from the planner's own
+    // Valhalla-based estimate instead.
     duration: estimatedDurationSeconds ?? 0,
     lat: bounds != null
         ? (bounds.latitudeNorth + bounds.latitudeSouth) / 2
@@ -95,22 +89,21 @@ Trail buildDraftTrail(
 }
 
 /// Builds the final, ele-merged [Gpx] for the current planner session
-/// (extracted from [finishPlanning] so the edit-mode handoff — quick-260718-e9j
-/// — can pop this same value instead of forward-pushing a draft trail).
+/// (extracted from [finishPlanning] so the edit-mode handoff can pop this
+/// same value instead of forward-pushing a draft trail).
 ///
-/// Reads the final [plannedGpxProvider] snapshot, attempts a one-time
-/// `POST /valhalla/height` elevation merge (silent best-effort — D-06: any
-/// failure degrades to the pre-elevation `Gpx`, no error UI). Returns the
-/// bare (pre-elevation) `Gpx` unchanged when fewer than 2 points are
-/// available (D-05 backstop; the Finish action is already disabled below 2
-/// anchors at the call site).
+/// Reads the final [plannedGpxProvider] snapshot and attempts a one-time
+/// `POST /valhalla/height` elevation merge — best-effort; any failure
+/// degrades to the pre-elevation `Gpx` with no error UI. Returns the bare
+/// `Gpx` unchanged below 2 points (the Finish action is already disabled
+/// below that at the call site).
 Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
   final gpx = ref.read(plannedGpxProvider);
   final points = gpx.allPoints;
   if (points.length < 2) return gpx;
 
   final shape = buildNavShape(points);
-  var finalGpx = gpx; // fallback: pre-elevation, if the fetch fails (D-06)
+  var finalGpx = gpx; // fallback if the height fetch fails
   try {
     final response = await ref
         .read(apiProvider)
@@ -118,22 +111,20 @@ Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
     final heights = (response.data['height'] as List).cast<num>();
     finalGpx = mergeHeightsIntoGpx(shape, heights);
   } catch (_) {
-    // D-06: proceed silently with the pre-elevation Gpx, no error UI.
+    // Silent fallback: proceed with the pre-elevation Gpx.
   }
 
   return finalGpx;
 }
 
-/// Orchestrates the Route Planner's "Finish planning" handoff (HANDOFF-01) —
-/// the plain GPX-import forward-push path, unchanged by quick-260718-e9j.
+/// Orchestrates the Route Planner's "Finish planning" handoff — the plain
+/// GPX-import forward-push path.
 ///
 /// Builds the final ele-merged [Gpx] via [buildFinalPlannedGpx], resolves a
-/// category pre-fill via [categoryForTravelProfile] (D-08, may be `null` —
-/// deliberately UNCHANGED by the Settings-tab picker, quick-260717-t7q
-/// CONTEXT: "explicitly OUT of scope"), builds the draft [Trail] via
-/// [buildDraftTrail], then reuses the existing GPX-import handoff mechanism
-/// verbatim ([pendingImportedTrail] + `navContext.push('/trail/create/edit')`)
-/// — no parallel state-passing mechanism.
+/// category pre-fill via [categoryForTravelProfile] (may be `null`), builds
+/// the draft [Trail] via [buildDraftTrail], then reuses the existing
+/// GPX-import handoff mechanism ([pendingImportedTrail] +
+/// `navContext.push('/trail/create/edit')`).
 Future<void> finishPlanning({
   required WidgetRef ref,
   required BuildContext navContext,
@@ -157,18 +148,16 @@ Future<void> finishPlanning({
 }
 
 /// Derives segment-boundary [ml.Geographic] anchors from an existing track,
-/// mirroring web's `initRouteAnchors` (`+page.svelte:553-577`) exactly for
-/// the Route Planner's edit-mode seed (quick-260718-e9j, PLANNER-02): one
-/// anchor at the first point of every `trkseg`, plus the last point of the
-/// FINAL segment. No interior sampling, no reverse-geocoding at seed time.
+/// mirroring web's `initRouteAnchors` (`+page.svelte:553-577`): one anchor
+/// at the first point of every `trkseg`, plus the last point of the final
+/// segment. No interior sampling, no reverse-geocoding at seed time.
 ///
 /// Returns an empty list for a trackless (no `trks`) [gpx].
 List<ml.Geographic> anchorsFromTrack(Gpx gpx) {
   final segs = gpx.trks.isNotEmpty ? gpx.trks.first.trksegs : const <Trkseg>[];
-  // Only segments with at least one fully-coordinated point count — a
-  // trkpt missing lat/lon (spec-valid but malformed data) is dropped rather
-  // than force-unwrapped, and a trailing empty/coordinateless segment no
-  // longer swallows the true final-point addition for the segment before it.
+  // Only points with both lat and lon count; a malformed trkpt is dropped
+  // rather than force-unwrapped, and a trailing empty segment no longer
+  // swallows the true final point of the segment before it.
   final nonEmpty = segs
       .map((s) => s.trkpts.where((p) => p.lat != null && p.lon != null).toList())
       .where((pts) => pts.isNotEmpty)
@@ -185,29 +174,21 @@ List<ml.Geographic> anchorsFromTrack(Gpx gpx) {
 }
 
 /// Derives the full-resolution polyline for each inter-anchor span produced
-/// by [anchorsFromTrack] (quick-260718-e9j follow-up).
+/// by [anchorsFromTrack].
 ///
-/// The web app never touches the original recorded points at seed time —
-/// `setRoute(gpx)` loads the untouched GPX and `initRouteAnchors` only places
-/// anchor markers; a segment's geometry is only ever replaced once the user
-/// actually drags/inserts on it (`recalculateRoute`). The initial port of
-/// this feature got that backwards: it built a 2-point straight line between
-/// each anchor pair and then immediately Valhalla-resolved every one of them
-/// on open. For a trail recorded off-road, that discarded the recording and
-/// snapped the whole route onto nearby roads before the user touched
-/// anything. This restores the original per-segment shape instead.
+/// Uses the track's own recorded points rather than a straight line +
+/// immediate Valhalla resolve — an earlier version did that and silently
+/// snapped off-road recordings onto nearby roads before the user touched
+/// anything.
 ///
-/// Anchor coordinates are located by exact value in the flattened,
-/// null-filtered point list (both this and [anchorsFromTrack] traverse
-/// `gpx.trks.first.trksegs` in the same order, so exact floating-point
-/// equality holds) via a forward-only search cursor, so a track that
-/// crosses/retraces itself is still sliced in traversal order rather than
-/// matching an earlier occurrence of the same coordinate.
+/// Anchors are located by exact coordinate match via a forward-only search
+/// cursor (this and [anchorsFromTrack] traverse points in the same order),
+/// so a track that crosses/retraces itself is sliced in traversal order
+/// rather than matching an earlier occurrence of the same coordinate.
 ///
-/// Returns one polyline per consecutive anchor pair (`anchors.length - 1`
-/// entries); falls back to a straight 2-point line for any remaining pair if
-/// an anchor's coordinate is unexpectedly not found (defensive — should not
-/// happen given both functions share the same traversal).
+/// Returns one polyline per consecutive anchor pair; falls back to a
+/// straight 2-point line for any remaining pair if a coordinate is
+/// unexpectedly not found (defensive).
 List<List<ml.Geographic>> segmentPolylinesFromTrack(
   Gpx gpx,
   List<ml.Geographic> anchors,
@@ -249,21 +230,16 @@ List<List<ml.Geographic>> segmentPolylinesFromTrack(
 }
 
 /// Merges a Route Planner edit-mode result [finalGpx] onto an [existing]
-/// in-memory [Trail] (quick-260718-e9j, PLANNER-02), modeled on
-/// [buildDraftTrail] but as a `copyWith` — every non-track field (title,
-/// description, id, visibility, photos, waypoints, category) carries through
-/// untouched.
+/// in-memory [Trail], modeled on [buildDraftTrail] but as a `copyWith` —
+/// every non-track field (title, description, id, visibility, photos,
+/// waypoints, category) carries through untouched.
 ///
-/// Sets both `expand.gpxData` (the raw XML `form_data_util.dart`'s
-/// `toFormData()` actually uploads) AND `expand.gpx` (the parsed object used
-/// for client-side map preview) — Pitfall 1: setting only one of the two
-/// produces a trail that renders correctly but saves with no track, or vice
-/// versa.
+/// Sets both `expand.gpxData` and `expand.gpx` — setting only one produces a
+/// trail that saves with no track, or previews incorrectly.
 ///
 /// lat/lon/bounds are recomputed from [finalGpx]'s bounds when available,
 /// falling back to [existing]'s prior values when the merged route has no
-/// track (defensive; the Finish action guarantees >=2 anchors so this should
-/// not occur in practice).
+/// track (defensive; the Finish action guarantees >=2 anchors).
 Trail mergeRouteIntoTrail(
   Trail existing,
   Gpx finalGpx, {
@@ -272,10 +248,8 @@ Trail mergeRouteIntoTrail(
   final xml = GpxWriter().asString(finalGpx);
   final bounds = finalGpx.getBounds();
   return existing.copyWith(
-    // Same D-10 rationale as `buildDraftTrail`: an edited route's Gpx still
-    // carries no `time`, so re-derive `duration` from the planner's own
-    // estimate rather than leaving the pre-edit trail's stale value in
-    // place.
+    // An edited route's Gpx still carries no `time`, so re-derive `duration`
+    // from the planner's own estimate rather than the stale pre-edit value.
     duration: estimatedDurationSeconds ?? existing.duration,
     lat: bounds != null
         ? (bounds.latitudeNorth + bounds.latitudeSouth) / 2

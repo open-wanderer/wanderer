@@ -52,17 +52,13 @@ class TrailCreateScreen extends ConsumerStatefulWidget {
 class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   late Trail trail = widget.trail;
 
-  // Pristine snapshot of the trail as loaded, kept separate from `trail`
-  // (which is mutated in place by every waypoint/route edit below). Diffing
-  // against `trail` instead of this would compare the edited state against
-  // itself, so `updateTrail` would never see any waypoint as changed.
+  // Pristine snapshot kept separate from `trail`, which is mutated in place —
+  // diffing against `trail` itself would never detect changed waypoints.
   late final Trail _originalTrail = widget.trail;
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
 
-  // Owned here (not by TrailForm) so a Save action can read the edited values
-  // back out: `_formKey.currentState!.saveAndValidate()` then
-  // `trail.copyWith(name: _formKey.currentState!.value['name'] as String)`.
+  // Owned here (not by TrailForm) so _onSave can read the edited values back out.
   final _formKey = GlobalKey<FormBuilderState>();
 
   ml.MapController? _mapController;
@@ -77,12 +73,10 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   bool _saving = false;
   List<String> _removedServerPhotos = [];
 
-  // Guards the one-time default-category assignment below so it only fires
-  // once categoryProvider/categoryPreferenceProvider have actually loaded.
+  // Ensures the default-category assignment below fires only once.
   bool _categoryDefaulted = false;
 
-  // Guards the one-time default-privacy assignment below so it only fires
-  // once settingsProvider has actually loaded.
+  // Ensures the default-privacy assignment below fires only once.
   bool _privacyDefaulted = false;
 
   @override
@@ -121,8 +115,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     BuildContext context, {
     ml.Geographic? at,
   }) async {
-    // Defaults to the center of the currently visible map section (e.g. from
-    // the "Create waypoint" button); a tap on the map passes the tapped point.
+    // Falls back to the map's current center when not called from a tap.
     final point = at ?? _mapController?.camera?.center;
     final stub = Waypoint(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -140,9 +133,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     _appendWaypoint(waypoint);
   }
 
-  /// Picks multiple photos and creates one waypoint per photo that carries GPS
-  /// EXIF data (coordinates pre-filled, the photo attached). Photos without GPS
-  /// are skipped and reported.
+  /// Creates one waypoint per picked photo that has GPS EXIF data; photos
+  /// without GPS are skipped and reported.
   Future<void> _onCreateWaypointsFromPhotos() async {
     final picked = await ImagePicker().pickMultiImage();
     if (picked.isEmpty || !mounted) return;
@@ -212,9 +204,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     });
   }
 
-  /// Estimates [waypoint]'s `distanceFromStart` from the trail's GPX track so
-  /// it shows up on the elevation profile immediately, ahead of the server
-  /// recomputing the exact value on save.
+  /// Estimates [waypoint]'s `distanceFromStart` from the GPX track so it
+  /// shows on the elevation profile immediately, ahead of the server value.
   Waypoint _withDistanceFromStart(Waypoint waypoint) {
     final gpx = trail.expand?.gpx;
     if (gpx == null) return waypoint;
@@ -252,16 +243,12 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     });
   }
 
-  /// quick-260718-e9j (PLANNER-02): opens the Route Planner seeded from this
-  /// trail's existing track (segment-boundary anchors via [anchorsFromTrack])
-  /// and awaits the edited route back via pop-with-result. `null` means the
-  /// user backed out without saving — the in-memory `trail` is left
-  /// unchanged in that case. A non-null result is merged onto `trail` via
-  /// [mergeRouteIntoTrail], preserving every other field (title, description,
-  /// photos, id, visibility, waypoints).
+  /// Opens the Route Planner seeded from this trail's existing track and
+  /// awaits the edited route back. `null` means the user backed out without
+  /// saving. A non-null result is merged onto `trail` via
+  /// [mergeRouteIntoTrail], preserving every other field.
   ///
-  /// Defaults `travelProfile` to `'pedestrian'` (RESEARCH A1) — no travel
-  /// profile is stored on a `Trail`, so there is nothing to restore.
+  /// `travelProfile` defaults to `'pedestrian'` since none is stored on `Trail`.
   Future<void> _onEditRoute(
     BuildContext context,
     List<ml.Geographic> points,
@@ -281,9 +268,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       },
     );
     if (newGpx == null || !mounted) return;
-    // routeAnchorsProvider is keepAlive (RESEARCH.md Rec B) — its state from
-    // the just-finished planner session is still live here, before the next
-    // `seedFromTrack`/`resetForSession` call overwrites it.
+    // routeAnchorsProvider is keepAlive, so the just-finished planner
+    // session's state is still readable here before it gets overwritten.
     final estimatedDurationSeconds = ref
         .read(routeAnchorsProvider)
         .estimatedDurationSeconds;
@@ -415,9 +401,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   @override
   Widget build(BuildContext context) {
     // Default a categoryless trail (e.g. freshly imported from GPX) to the
-    // user's top-preferred category. Watched so this reruns once the
-    // providers resolve — reading them while loading gave an empty,
-    // unordered list. `_categoryDefaulted` makes this apply at most once.
+    // user's top-preferred category, once the providers resolve.
     final categoriesAsync = ref.watch(categoryProvider);
     final categoryPrefsAsync = ref.watch(categoryPreferenceProvider);
     if (!_categoryDefaulted &&
@@ -435,9 +419,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       }
     }
 
-    // Default a brand-new trail's visibility to the user's "default trail
-    // privacy" setting. Only applies on create (never overrides an existing
-    // trail's saved visibility) and applies at most once per screen.
+    // Default a brand-new trail's visibility to the user's privacy setting;
+    // never overrides an existing trail's saved visibility.
     final settings = ref.watch(settingsProvider);
     if (!_privacyDefaulted && trail.id.isEmpty && settings != null) {
       _privacyDefaulted = true;
@@ -459,10 +442,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         actions: [
           Builder(
             builder: (context) {
-              // quick-260718-e9j (PLANNER-02): enabled only when the track
-              // actually yields >=2 seedable anchors — a trk with no (or
-              // coordinateless) trksegs must not silently downgrade the
-              // Route Planner to "new route" mode (WR-01).
+              // Only enabled when the track yields >=2 seedable anchors, so a
+              // trk with no coordinates doesn't silently open "new route" mode.
               final seedAnchors = trail.expand?.gpx != null
                   ? anchorsFromTrack(trail.expand!.gpx!)
                   : const <ml.Geographic>[];

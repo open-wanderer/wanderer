@@ -91,15 +91,11 @@ class TrailSave extends _$TrailSave {
       expand: (model.expand ?? const TrailExpand()).copyWith(
         waypointsViaTrail: createdWaypoints,
         tags: resolvedTags,
-        // quick-260718-e9j follow-up: Trail.fromJson(response.data) never
-        // populates expand.gpx/gpxData (gpx is `includeFromJson: false`;
-        // gpxData is only ever parsed from the server's file endpoint by
-        // trail_provider.dart, not from this form-submit response). Without
-        // carrying the just-submitted track forward, the trail this method
-        // returns has no track at all — TrailMap gates both the route line
-        // and TrailMarkerLayer (which also renders waypoints) on
-        // expand.gpx != null, so the map goes blank the instant the caller
-        // adopts this result.
+        // Trail.fromJson never populates expand.gpx/gpxData (gpx is
+        // includeFromJson: false; gpxData only comes from the server's file
+        // endpoint). Carry the just-submitted track forward so TrailMap
+        // (which gates the route line and markers on expand.gpx != null)
+        // doesn't go blank the instant the caller adopts this result.
         gpx: trailToSend.expand?.gpx,
         gpxData: trailToSend.expand?.gpxData,
       ),
