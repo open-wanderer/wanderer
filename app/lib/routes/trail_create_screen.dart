@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gpx/gpx.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:textfield_tags/textfield_tags.dart';
 import 'package:wanderer/components/base/trail_map.dart';
@@ -36,6 +37,7 @@ import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/util/category_preference_sort.dart';
 import 'package:wanderer/util/exif_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/route_planner_handoff_util.dart';
 
 class TrailCreateScreen extends ConsumerStatefulWidget {
   final Trail trail;
@@ -242,6 +244,29 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     });
   }
 
+  /// quick-260718-e9j (PLANNER-02): opens the Route Planner seeded from this
+  /// trail's existing track (segment-boundary anchors via [anchorsFromTrack])
+  /// and awaits the edited route back via pop-with-result. `null` means the
+  /// user backed out without saving — the in-memory `trail` is left
+  /// unchanged in that case. A non-null result is merged onto `trail` via
+  /// [mergeRouteIntoTrail], preserving every other field (title, description,
+  /// photos, id, visibility, waypoints).
+  ///
+  /// Defaults `travelProfile` to `'pedestrian'` (RESEARCH A1) — no travel
+  /// profile is stored on a `Trail`, so there is nothing to restore.
+  Future<void> _onEditRoute(BuildContext context) async {
+    final points = anchorsFromTrack(trail.expand!.gpx!);
+    final newGpx = await context.push<Gpx>('/route-planner', extra: {
+      'mode': 'edit',
+      'seedAnchors': points,
+      'travelProfile': 'pedestrian',
+      'lat': trail.lat,
+      'lon': trail.lon,
+    });
+    if (newGpx == null || !mounted) return;
+    setState(() => trail = mergeRouteIntoTrail(trail, newGpx));
+  }
+
   void _onServerPhotosChanged(List<String> remainingFilenames) {
     _removedServerPhotos = trail.photos
         .where((p) => !remainingFilenames.contains(p))
@@ -403,6 +428,21 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            // quick-260718-e9j (PLANNER-02): enabled only when the trail has
+            // a recorded track to seed anchors from.
+            icon: const FaIcon(FontAwesomeIcons.route, size: 18),
+            tooltip: 'Edit route',
+            onPressed:
+                (trail.expand?.gpx != null &&
+                    trail.expand!.gpx!.trks.isNotEmpty)
+                ? () => _onEditRoute(context)
+                : null,
+            style: IconButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              disabledBackgroundColor: Theme.of(context).colorScheme.surface,
+            ),
+          ),
           IconButton(
             icon: _saving
                 ? const SizedBox(
