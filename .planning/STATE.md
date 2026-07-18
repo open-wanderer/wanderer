@@ -162,6 +162,7 @@ Recent decisions affecting current work:
 
 - Fix 3 pre-existing `flutter test` failures (`feed_item_test.dart` x2, `settings_screen_test.dart` x1) — logged in Phase 18's `deferred-items.md`; not blocking v1.5 work.
 - Manual on-device verification for quick task 260712-m9v (resume navigation after manual app termination): start navigation, swipe-kill the app, relaunch, accept the resume dialog, confirm maneuver index/distance/elevation/elapsed/breadcrumb continue; also verify decline and deliberate-exit paths show no prompt.
+- Way Types & Surfaces breakdown feature (mobile-first) — komoot-style stacked bar/legend of OSM way types + surfaces per trail via Valhalla `trace_attributes` (`max_hiking_difficulty: 6` fixes off-road hiking-trail match dropout, verified). Web API computes + persists `way_type_surface` on trail save (no Go/PocketBase hook needed — all writes go through the web API); Flutter renders first, SvelteKit UI deferred. Full plan: `.planning/todos/pending/2026-07-18-way-types-and-surfaces-breakdown.md`.
 
 ### Blockers/Concerns
 
