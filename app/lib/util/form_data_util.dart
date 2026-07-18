@@ -44,8 +44,15 @@ extension TrailFormData on Trail {
         ),
     ];
 
+    // Sent on update too (quick-260718-e9j follow-up), not just create: the
+    // Route Planner's "edit an existing route" flow produces a new
+    // expand.gpxData for an already-persisted trail, and that edit was being
+    // silently dropped — the server never saw it, so the saved trail's track
+    // stayed exactly as it was before the edit. A single-file field like
+    // `gpx` is replaced wholesale by a new upload under the same field name,
+    // so resending unchanged gpxData on a metadata-only update is harmless.
     final gpxData = expand?.gpxData;
-    if (isCreate && gpxData != null) {
+    if (gpxData != null) {
       files.add(
         MapEntry('gpx', MultipartFile.fromString(gpxData, filename: 'track.gpx')),
       );

@@ -28,6 +28,7 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/category_preference_provider.dart';
+import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
@@ -38,6 +39,7 @@ import 'package:wanderer/util/category_preference_sort.dart';
 import 'package:wanderer/util/exif_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
+import 'package:wanderer/util/valhalla_util.dart';
 
 class TrailCreateScreen extends ConsumerStatefulWidget {
   final Trail trail;
@@ -49,6 +51,12 @@ class TrailCreateScreen extends ConsumerStatefulWidget {
 
 class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   late Trail trail = widget.trail;
+
+  // Pristine snapshot of the trail as loaded, kept separate from `trail`
+  // (which is mutated in place by every waypoint/route edit below). Diffing
+  // against `trail` instead of this would compare the edited state against
+  // itself, so `updateTrail` would never see any waypoint as changed.
+  late final Trail _originalTrail = widget.trail;
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
 
@@ -267,13 +275,25 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           trail.expand!.gpx!,
           points,
         ),
-        'travelProfile': 'pedestrian',
+        'travelProfile': costingForCategory(trail.expand?.category?.name),
         'lat': trail.lat,
         'lon': trail.lon,
       },
     );
     if (newGpx == null || !mounted) return;
-    setState(() => trail = mergeRouteIntoTrail(trail, newGpx));
+    // routeAnchorsProvider is keepAlive (RESEARCH.md Rec B) — its state from
+    // the just-finished planner session is still live here, before the next
+    // `seedFromTrack`/`resetForSession` call overwrites it.
+    final estimatedDurationSeconds = ref
+        .read(routeAnchorsProvider)
+        .estimatedDurationSeconds;
+    setState(
+      () => trail = mergeRouteIntoTrail(
+        trail,
+        newGpx,
+        estimatedDurationSeconds: estimatedDurationSeconds,
+      ),
+    );
   }
 
   void _onServerPhotosChanged(List<String> remainingFilenames) {
@@ -331,7 +351,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           : await ref
                 .read(trailSaveProvider.notifier)
                 .updateTrail(
-                  trail,
+                  _originalTrail,
                   updatedTrail,
                   authorId: authorId,
                   newPhotos: newPhotoFiles,

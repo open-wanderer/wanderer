@@ -1,5 +1,46 @@
 import 'package:collection/collection.dart';
+import 'package:maplibre/maplibre.dart' show Geographic, SphericalGreatCircle;
 import 'package:wanderer/models/category.dart';
+
+/// Valhalla's own default `walking_speed`/`cycling_speed` (km/h, `Hybrid`
+/// bike type), used when a segment has no Valhalla-resolved time (never
+/// routed, or the route call failed) and [RouteAnchorsState.costingOptions]
+/// hasn't set an explicit speed — mirrors the defaults Valhalla itself would
+/// apply server-side for the given `costing` profile.
+const _defaultWalkingSpeedKmh = 5.1;
+const _defaultCyclingSpeedKmh = 18.0;
+
+/// Infers a segment's travel time, in seconds, from its geometry when no
+/// Valhalla-resolved [RouteSegment.durationSeconds] is available (a
+/// straight/blocked segment never made a successful `/valhalla/route` call).
+/// Sums the great-circle length of [polyline] and divides by the
+/// `walking_speed`/`cycling_speed` (km/h) carried on [costingOptions] for
+/// [travelProfile] (`'bicycle'` vs anything else), falling back to
+/// Valhalla's own defaults when that key is absent.
+double estimateSegmentDurationSeconds({
+  required List<Geographic> polyline,
+  required String travelProfile,
+  Map<String, dynamic>? costingOptions,
+}) {
+  if (polyline.length < 2) return 0;
+
+  var distanceMeters = 0.0;
+  for (var i = 1; i < polyline.length; i++) {
+    distanceMeters += SphericalGreatCircle(
+      polyline[i - 1],
+    ).distanceTo(polyline[i]);
+  }
+
+  final speedKmh = travelProfile == 'bicycle'
+      ? ((costingOptions?['cycling_speed'] as num?)?.toDouble() ??
+            _defaultCyclingSpeedKmh)
+      : ((costingOptions?['walking_speed'] as num?)?.toDouble() ??
+            _defaultWalkingSpeedKmh);
+  if (speedKmh <= 0) return 0;
+
+  final speedMetersPerSecond = speedKmh * 1000 / 3600;
+  return distanceMeters / speedMetersPerSecond;
+}
 
 /// Derives the Valhalla costing string from a trail category name.
 ///
@@ -10,7 +51,7 @@ import 'package:wanderer/models/category.dart';
 /// (cache-write path) so the two costing derivations can never diverge.
 String costingForCategory(String? category) {
   final lower = (category ?? '').toLowerCase();
-  if (lower.contains('bike') ||
+  if (lower.contains('bik') ||
       lower.contains('cycling') ||
       lower.contains('bicycle')) {
     return 'bicycle';

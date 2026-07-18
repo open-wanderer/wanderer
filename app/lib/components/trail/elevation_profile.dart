@@ -21,6 +21,14 @@ class ElevationProfile extends ConsumerStatefulWidget {
   final int smoothingWindowSize;
   final Function(TrackPoint? point)? onLineTouch;
   final bool enableLineTouch;
+
+  /// Overrides the header's total-duration stat when [gpx] carries no `time`
+  /// data of its own — the route planner's in-progress `Gpx` never has
+  /// timestamps, so `_points.last.duration` would otherwise always read
+  /// 0:00. Passed in by `ElevationTab` as the Valhalla-derived/estimated
+  /// total from `RouteAnchorsState.estimatedDurationSeconds`. Ignored when
+  /// `null` (every other caller keeps the GPX-timestamp-derived duration).
+  final Duration? durationOverride;
   const ElevationProfile({
     super.key,
     this.trail,
@@ -29,6 +37,7 @@ class ElevationProfile extends ConsumerStatefulWidget {
     this.smoothingWindowSize = 30,
     this.onLineTouch,
     this.enableLineTouch = true,
+    this.durationOverride,
   });
 
   @override
@@ -118,7 +127,7 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
     final minElev = _points.map((p) => p.elevationM).reduce(min);
     final maxElev = _points.map((p) => p.elevationM).reduce(max);
     final maxDist = _points.last.distanceM;
-    final maxDur = _points.last.duration;
+    final maxDur = widget.durationOverride ?? _points.last.duration;
 
     final yMin = (minElev / 100).floor() * 100.0;
     final yMax = ((maxElev + 100) / 50).ceil() * 50.0;

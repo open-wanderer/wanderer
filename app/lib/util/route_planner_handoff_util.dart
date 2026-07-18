@@ -61,11 +61,21 @@ Gpx mergeHeightsIntoGpx(List<Map<String, double>> shape, List<num> heights) {
 /// null lat/lon leave `TrailMap` centered on null island instead of fitting
 /// the route (`trail_map.dart`'s `fitBounds` only fires when bounds have
 /// spread).
-Trail buildDraftTrail(Gpx finalGpx, {String? category}) {
+Trail buildDraftTrail(
+  Gpx finalGpx, {
+  String? category,
+  double? estimatedDurationSeconds,
+}) {
   final xml = GpxWriter().asString(finalGpx);
   final bounds = finalGpx.getBounds();
   return Trail.empty().copyWith(
     category: category,
+    // A planner-built Gpx never carries `time` (D-10), so the server's own
+    // GPX-timestamp duration derivation would land on 0 — pre-fill from the
+    // planner's own Valhalla-time/speed estimate (routeAnchorsProvider's
+    // `estimatedDurationSeconds`) instead, same as the distance/elevation
+    // bounds above.
+    duration: estimatedDurationSeconds ?? 0,
     lat: bounds != null
         ? (bounds.latitudeNorth + bounds.latitudeSouth) / 2
         : null,
@@ -128,13 +138,18 @@ Future<void> finishPlanning({
   required WidgetRef ref,
   required BuildContext navContext,
 }) async {
-  final travelProfile = ref.read(routeAnchorsProvider).travelProfile;
+  final anchorsState = ref.read(routeAnchorsProvider);
+  final travelProfile = anchorsState.travelProfile;
   final finalGpx = await buildFinalPlannedGpx(ref);
 
   final categories = ref.read(categoryProvider).value ?? const [];
   final categoryId = categoryForTravelProfile(travelProfile, categories);
 
-  final draftTrail = buildDraftTrail(finalGpx, category: categoryId);
+  final draftTrail = buildDraftTrail(
+    finalGpx,
+    category: categoryId,
+    estimatedDurationSeconds: anchorsState.estimatedDurationSeconds,
+  );
 
   pendingImportedTrail = draftTrail;
   if (!navContext.mounted) return;
@@ -249,10 +264,19 @@ List<List<ml.Geographic>> segmentPolylinesFromTrack(
 /// falling back to [existing]'s prior values when the merged route has no
 /// track (defensive; the Finish action guarantees >=2 anchors so this should
 /// not occur in practice).
-Trail mergeRouteIntoTrail(Trail existing, Gpx finalGpx) {
+Trail mergeRouteIntoTrail(
+  Trail existing,
+  Gpx finalGpx, {
+  double? estimatedDurationSeconds,
+}) {
   final xml = GpxWriter().asString(finalGpx);
   final bounds = finalGpx.getBounds();
   return existing.copyWith(
+    // Same D-10 rationale as `buildDraftTrail`: an edited route's Gpx still
+    // carries no `time`, so re-derive `duration` from the planner's own
+    // estimate rather than leaving the pre-edit trail's stale value in
+    // place.
+    duration: estimatedDurationSeconds ?? existing.duration,
     lat: bounds != null
         ? (bounds.latitudeNorth + bounds.latitudeSouth) / 2
         : existing.lat,
