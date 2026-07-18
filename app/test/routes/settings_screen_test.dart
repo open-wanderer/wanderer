@@ -15,7 +15,7 @@ class _StubAuth extends Auth {
 }
 
 void main() {
-  testWidgets('settings screen lists all 5 rows in D-06 order (SETNAV-01)', (
+  testWidgets('settings screen lists all 6 rows in D-06 order (SETNAV-01)', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -36,14 +36,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Exactly five settings rows render.
-    expect(find.byType(ListTile), findsNWidgets(5));
+    // Exactly six settings rows render.
+    expect(find.byType(ListTile), findsNWidgets(6));
 
-    // The five English labels are present (SETNAV-01).
+    // The six English labels are present (SETNAV-01).
     expect(find.text('My Account'), findsOneWidget);
     expect(find.text('Privacy'), findsOneWidget);
     expect(find.text('Language & Units'), findsOneWidget);
     expect(find.text('Notifications'), findsOneWidget);
+    expect(find.text('Categories'), findsOneWidget);
     expect(find.text('Appearance'), findsOneWidget);
   });
 }
