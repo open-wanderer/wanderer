@@ -2263,7 +2263,7 @@
         "text-size": 12
       },
       "paint": {
-        "text-color": "#525252",
+        "text-color": "#949494",
         "text-halo-color": "#12141c",
         "text-halo-width": 1
       }
@@ -4080,7 +4080,7 @@
         "text-size": 12
       },
       "paint": {
-        "text-color": "#525252",
+        "text-color": "#949494",
         "text-halo-color": "#12141c",
         "text-halo-width": 1
       }
@@ -7864,7 +7864,7 @@
               "get",
               "min_zoom"
             ],
-            0
+            -2
           ]
         ]
       ],
@@ -12071,7 +12071,7 @@
         "text-transform": "uppercase"
       },
       "paint": {
-        "text-color": "#4a5070",
+        "text-color": "#8890b8",
         "text-halo-color": "#12141c",
         "text-halo-width": 1
       }
