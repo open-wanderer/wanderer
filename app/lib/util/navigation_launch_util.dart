@@ -17,6 +17,7 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/valhalla_util.dart';
 
 /// Reads the cached [NavigateResponse] for [trailId] from ObjectBox.
 ///

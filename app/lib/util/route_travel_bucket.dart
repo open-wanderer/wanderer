@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/util/category_icon_util.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/valhalla_util.dart';
 
 /// The route planner's 5 fixed travel buckets (CONTEXT: "ONE picker, five
 /// options"), each carrying a hardcoded Valhalla costing profile + a fixed,

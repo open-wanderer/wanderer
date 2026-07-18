@@ -12,6 +12,7 @@ import 'package:wanderer/models/map_cell.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/valhalla_util.dart';
 
 class TrailDownloadService {
   final Store _store;

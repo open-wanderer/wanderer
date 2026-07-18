@@ -9,6 +9,7 @@ import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/trail_import_util.dart';
+import 'package:wanderer/util/valhalla_util.dart';
 
 /// Builds a fresh, ele-merged [Gpx] by zipping [heights] onto [shape]
 /// index-for-index — a public copy of `ElevationTab._buildEleMergedGpx`
