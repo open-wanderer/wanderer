@@ -282,7 +282,23 @@ as ReverseLocationResult?,
 /// @nodoc
 mixin _$RouteSegment {
 
- String get beforeAnchorId; String get afterAnchorId; List<Geographic> get polyline; SegmentState get state;
+ String get beforeAnchorId; String get afterAnchorId; List<Geographic> get polyline; SegmentState get state;/// Estimated travel time for this segment, in seconds. Valhalla's own
+/// `trip.summary.time` when [state] is [SegmentState.routed]; `null` for
+/// a [SegmentState.straight]/[SegmentState.blocked] segment, which never
+/// made a successful Valhalla call — callers estimate those from
+/// distance + travel profile instead (`valhalla_util.dart`'s
+/// `estimateSegmentDurationSeconds`).
+ double? get durationSeconds;/// A downsampled (`buildNavShape`-capped) subset of [polyline], used only
+/// as the point set queried against `/valhalla/height`. Deliberately
+/// distinct from [polyline] (which drives map rendering at full
+/// resolution) — `null` until [elevations] has been resolved for the
+/// current [polyline].
+ List<Geographic>? get elevationProfile;/// Heights (meters), one per [elevationProfile] point, fetched from
+/// `/valhalla/height` by `route_anchor_provider.dart`'s
+/// `_resolveElevation` — fired fire-and-forget after every segment
+/// creation/update so it never blocks the segment's own polyline from
+/// rendering. `null` until that fetch resolves.
+ List<double>? get elevations;
 /// Create a copy of RouteSegment
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -293,16 +309,16 @@ $RouteSegmentCopyWith<RouteSegment> get copyWith => _$RouteSegmentCopyWithImpl<R
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RouteSegment&&(identical(other.beforeAnchorId, beforeAnchorId) || other.beforeAnchorId == beforeAnchorId)&&(identical(other.afterAnchorId, afterAnchorId) || other.afterAnchorId == afterAnchorId)&&const DeepCollectionEquality().equals(other.polyline, polyline)&&(identical(other.state, state) || other.state == state));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RouteSegment&&(identical(other.beforeAnchorId, beforeAnchorId) || other.beforeAnchorId == beforeAnchorId)&&(identical(other.afterAnchorId, afterAnchorId) || other.afterAnchorId == afterAnchorId)&&const DeepCollectionEquality().equals(other.polyline, polyline)&&(identical(other.state, state) || other.state == state)&&(identical(other.durationSeconds, durationSeconds) || other.durationSeconds == durationSeconds)&&const DeepCollectionEquality().equals(other.elevationProfile, elevationProfile)&&const DeepCollectionEquality().equals(other.elevations, elevations));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,beforeAnchorId,afterAnchorId,const DeepCollectionEquality().hash(polyline),state);
+int get hashCode => Object.hash(runtimeType,beforeAnchorId,afterAnchorId,const DeepCollectionEquality().hash(polyline),state,durationSeconds,const DeepCollectionEquality().hash(elevationProfile),const DeepCollectionEquality().hash(elevations));
 
 @override
 String toString() {
-  return 'RouteSegment(beforeAnchorId: $beforeAnchorId, afterAnchorId: $afterAnchorId, polyline: $polyline, state: $state)';
+  return 'RouteSegment(beforeAnchorId: $beforeAnchorId, afterAnchorId: $afterAnchorId, polyline: $polyline, state: $state, durationSeconds: $durationSeconds, elevationProfile: $elevationProfile, elevations: $elevations)';
 }
 
 
@@ -313,7 +329,7 @@ abstract mixin class $RouteSegmentCopyWith<$Res>  {
   factory $RouteSegmentCopyWith(RouteSegment value, $Res Function(RouteSegment) _then) = _$RouteSegmentCopyWithImpl;
 @useResult
 $Res call({
- String beforeAnchorId, String afterAnchorId, List<Geographic> polyline, SegmentState state
+ String beforeAnchorId, String afterAnchorId, List<Geographic> polyline, SegmentState state, double? durationSeconds, List<Geographic>? elevationProfile, List<double>? elevations
 });
 
 
@@ -330,13 +346,16 @@ class _$RouteSegmentCopyWithImpl<$Res>
 
 /// Create a copy of RouteSegment
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? beforeAnchorId = null,Object? afterAnchorId = null,Object? polyline = null,Object? state = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? beforeAnchorId = null,Object? afterAnchorId = null,Object? polyline = null,Object? state = null,Object? durationSeconds = freezed,Object? elevationProfile = freezed,Object? elevations = freezed,}) {
   return _then(_self.copyWith(
 beforeAnchorId: null == beforeAnchorId ? _self.beforeAnchorId : beforeAnchorId // ignore: cast_nullable_to_non_nullable
 as String,afterAnchorId: null == afterAnchorId ? _self.afterAnchorId : afterAnchorId // ignore: cast_nullable_to_non_nullable
 as String,polyline: null == polyline ? _self.polyline : polyline // ignore: cast_nullable_to_non_nullable
 as List<Geographic>,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
-as SegmentState,
+as SegmentState,durationSeconds: freezed == durationSeconds ? _self.durationSeconds : durationSeconds // ignore: cast_nullable_to_non_nullable
+as double?,elevationProfile: freezed == elevationProfile ? _self.elevationProfile : elevationProfile // ignore: cast_nullable_to_non_nullable
+as List<Geographic>?,elevations: freezed == elevations ? _self.elevations : elevations // ignore: cast_nullable_to_non_nullable
+as List<double>?,
   ));
 }
 
@@ -421,10 +440,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String beforeAnchorId,  String afterAnchorId,  List<Geographic> polyline,  SegmentState state)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String beforeAnchorId,  String afterAnchorId,  List<Geographic> polyline,  SegmentState state,  double? durationSeconds,  List<Geographic>? elevationProfile,  List<double>? elevations)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _RouteSegment() when $default != null:
-return $default(_that.beforeAnchorId,_that.afterAnchorId,_that.polyline,_that.state);case _:
+return $default(_that.beforeAnchorId,_that.afterAnchorId,_that.polyline,_that.state,_that.durationSeconds,_that.elevationProfile,_that.elevations);case _:
   return orElse();
 
 }
@@ -442,10 +461,10 @@ return $default(_that.beforeAnchorId,_that.afterAnchorId,_that.polyline,_that.st
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String beforeAnchorId,  String afterAnchorId,  List<Geographic> polyline,  SegmentState state)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String beforeAnchorId,  String afterAnchorId,  List<Geographic> polyline,  SegmentState state,  double? durationSeconds,  List<Geographic>? elevationProfile,  List<double>? elevations)  $default,) {final _that = this;
 switch (_that) {
 case _RouteSegment():
-return $default(_that.beforeAnchorId,_that.afterAnchorId,_that.polyline,_that.state);case _:
+return $default(_that.beforeAnchorId,_that.afterAnchorId,_that.polyline,_that.state,_that.durationSeconds,_that.elevationProfile,_that.elevations);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -462,10 +481,10 @@ return $default(_that.beforeAnchorId,_that.afterAnchorId,_that.polyline,_that.st
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String beforeAnchorId,  String afterAnchorId,  List<Geographic> polyline,  SegmentState state)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String beforeAnchorId,  String afterAnchorId,  List<Geographic> polyline,  SegmentState state,  double? durationSeconds,  List<Geographic>? elevationProfile,  List<double>? elevations)?  $default,) {final _that = this;
 switch (_that) {
 case _RouteSegment() when $default != null:
-return $default(_that.beforeAnchorId,_that.afterAnchorId,_that.polyline,_that.state);case _:
+return $default(_that.beforeAnchorId,_that.afterAnchorId,_that.polyline,_that.state,_that.durationSeconds,_that.elevationProfile,_that.elevations);case _:
   return null;
 
 }
@@ -476,8 +495,8 @@ return $default(_that.beforeAnchorId,_that.afterAnchorId,_that.polyline,_that.st
 /// @nodoc
 
 
-class _RouteSegment implements RouteSegment {
-  const _RouteSegment({required this.beforeAnchorId, required this.afterAnchorId, required final  List<Geographic> polyline, required this.state}): _polyline = polyline;
+class _RouteSegment extends RouteSegment {
+  const _RouteSegment({required this.beforeAnchorId, required this.afterAnchorId, required final  List<Geographic> polyline, required this.state, this.durationSeconds, final  List<Geographic>? elevationProfile, final  List<double>? elevations}): _polyline = polyline,_elevationProfile = elevationProfile,_elevations = elevations,super._();
   
 
 @override final  String beforeAnchorId;
@@ -490,6 +509,51 @@ class _RouteSegment implements RouteSegment {
 }
 
 @override final  SegmentState state;
+/// Estimated travel time for this segment, in seconds. Valhalla's own
+/// `trip.summary.time` when [state] is [SegmentState.routed]; `null` for
+/// a [SegmentState.straight]/[SegmentState.blocked] segment, which never
+/// made a successful Valhalla call — callers estimate those from
+/// distance + travel profile instead (`valhalla_util.dart`'s
+/// `estimateSegmentDurationSeconds`).
+@override final  double? durationSeconds;
+/// A downsampled (`buildNavShape`-capped) subset of [polyline], used only
+/// as the point set queried against `/valhalla/height`. Deliberately
+/// distinct from [polyline] (which drives map rendering at full
+/// resolution) — `null` until [elevations] has been resolved for the
+/// current [polyline].
+ final  List<Geographic>? _elevationProfile;
+/// A downsampled (`buildNavShape`-capped) subset of [polyline], used only
+/// as the point set queried against `/valhalla/height`. Deliberately
+/// distinct from [polyline] (which drives map rendering at full
+/// resolution) — `null` until [elevations] has been resolved for the
+/// current [polyline].
+@override List<Geographic>? get elevationProfile {
+  final value = _elevationProfile;
+  if (value == null) return null;
+  if (_elevationProfile is EqualUnmodifiableListView) return _elevationProfile;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
+/// Heights (meters), one per [elevationProfile] point, fetched from
+/// `/valhalla/height` by `route_anchor_provider.dart`'s
+/// `_resolveElevation` — fired fire-and-forget after every segment
+/// creation/update so it never blocks the segment's own polyline from
+/// rendering. `null` until that fetch resolves.
+ final  List<double>? _elevations;
+/// Heights (meters), one per [elevationProfile] point, fetched from
+/// `/valhalla/height` by `route_anchor_provider.dart`'s
+/// `_resolveElevation` — fired fire-and-forget after every segment
+/// creation/update so it never blocks the segment's own polyline from
+/// rendering. `null` until that fetch resolves.
+@override List<double>? get elevations {
+  final value = _elevations;
+  if (value == null) return null;
+  if (_elevations is EqualUnmodifiableListView) return _elevations;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
 
 /// Create a copy of RouteSegment
 /// with the given fields replaced by the non-null parameter values.
@@ -501,16 +565,16 @@ _$RouteSegmentCopyWith<_RouteSegment> get copyWith => __$RouteSegmentCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RouteSegment&&(identical(other.beforeAnchorId, beforeAnchorId) || other.beforeAnchorId == beforeAnchorId)&&(identical(other.afterAnchorId, afterAnchorId) || other.afterAnchorId == afterAnchorId)&&const DeepCollectionEquality().equals(other._polyline, _polyline)&&(identical(other.state, state) || other.state == state));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RouteSegment&&(identical(other.beforeAnchorId, beforeAnchorId) || other.beforeAnchorId == beforeAnchorId)&&(identical(other.afterAnchorId, afterAnchorId) || other.afterAnchorId == afterAnchorId)&&const DeepCollectionEquality().equals(other._polyline, _polyline)&&(identical(other.state, state) || other.state == state)&&(identical(other.durationSeconds, durationSeconds) || other.durationSeconds == durationSeconds)&&const DeepCollectionEquality().equals(other._elevationProfile, _elevationProfile)&&const DeepCollectionEquality().equals(other._elevations, _elevations));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,beforeAnchorId,afterAnchorId,const DeepCollectionEquality().hash(_polyline),state);
+int get hashCode => Object.hash(runtimeType,beforeAnchorId,afterAnchorId,const DeepCollectionEquality().hash(_polyline),state,durationSeconds,const DeepCollectionEquality().hash(_elevationProfile),const DeepCollectionEquality().hash(_elevations));
 
 @override
 String toString() {
-  return 'RouteSegment(beforeAnchorId: $beforeAnchorId, afterAnchorId: $afterAnchorId, polyline: $polyline, state: $state)';
+  return 'RouteSegment(beforeAnchorId: $beforeAnchorId, afterAnchorId: $afterAnchorId, polyline: $polyline, state: $state, durationSeconds: $durationSeconds, elevationProfile: $elevationProfile, elevations: $elevations)';
 }
 
 
@@ -521,7 +585,7 @@ abstract mixin class _$RouteSegmentCopyWith<$Res> implements $RouteSegmentCopyWi
   factory _$RouteSegmentCopyWith(_RouteSegment value, $Res Function(_RouteSegment) _then) = __$RouteSegmentCopyWithImpl;
 @override @useResult
 $Res call({
- String beforeAnchorId, String afterAnchorId, List<Geographic> polyline, SegmentState state
+ String beforeAnchorId, String afterAnchorId, List<Geographic> polyline, SegmentState state, double? durationSeconds, List<Geographic>? elevationProfile, List<double>? elevations
 });
 
 
@@ -538,13 +602,16 @@ class __$RouteSegmentCopyWithImpl<$Res>
 
 /// Create a copy of RouteSegment
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? beforeAnchorId = null,Object? afterAnchorId = null,Object? polyline = null,Object? state = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? beforeAnchorId = null,Object? afterAnchorId = null,Object? polyline = null,Object? state = null,Object? durationSeconds = freezed,Object? elevationProfile = freezed,Object? elevations = freezed,}) {
   return _then(_RouteSegment(
 beforeAnchorId: null == beforeAnchorId ? _self.beforeAnchorId : beforeAnchorId // ignore: cast_nullable_to_non_nullable
 as String,afterAnchorId: null == afterAnchorId ? _self.afterAnchorId : afterAnchorId // ignore: cast_nullable_to_non_nullable
 as String,polyline: null == polyline ? _self._polyline : polyline // ignore: cast_nullable_to_non_nullable
 as List<Geographic>,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
-as SegmentState,
+as SegmentState,durationSeconds: freezed == durationSeconds ? _self.durationSeconds : durationSeconds // ignore: cast_nullable_to_non_nullable
+as double?,elevationProfile: freezed == elevationProfile ? _self._elevationProfile : elevationProfile // ignore: cast_nullable_to_non_nullable
+as List<Geographic>?,elevations: freezed == elevations ? _self._elevations : elevations // ignore: cast_nullable_to_non_nullable
+as List<double>?,
   ));
 }
 

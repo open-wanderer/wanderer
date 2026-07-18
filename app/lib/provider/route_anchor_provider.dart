@@ -5,9 +5,11 @@ import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/polyline_util.dart';
 import 'package:wanderer/util/reverse_geocode_util.dart';
 import 'package:wanderer/util/route_segment_util.dart';
+import 'package:wanderer/util/valhalla_util.dart';
 
 part 'route_anchor_provider.g.dart';
 
@@ -58,6 +60,98 @@ class RouteAnchorsState {
       redoStack: redoStack ?? this.redoStack,
     );
   }
+
+  /// Total estimated travel time across every segment, in seconds: each
+  /// [SegmentState.routed] segment's own Valhalla `durationSeconds`, plus a
+  /// distance/speed estimate (`valhalla_util.dart`'s
+  /// `estimateSegmentDurationSeconds`) for every straight/blocked segment
+  /// that never resolved one. Never `null` — degrades to a full estimate
+  /// when auto-routing is off or every segment is unrouted.
+  double get estimatedDurationSeconds {
+    var total = 0.0;
+    for (final segment in segments) {
+      total +=
+          segment.durationSeconds ??
+          estimateSegmentDurationSeconds(
+            polyline: segment.polyline,
+            travelProfile: travelProfile,
+            costingOptions: costingOptions,
+          );
+    }
+    return total;
+  }
+
+  /// Per-anchor cumulative distance/duration/elevation-gain, keyed by anchor
+  /// id (stable across reorder — never array index, Pitfall 3), for the
+  /// Route Anchors tab's "so far" stats row. Walks the anchor chain the same
+  /// way [plannedGpxProvider] does — via each segment's
+  /// `beforeAnchorId -> afterAnchorId` link, not `segments` array order —
+  /// so a detached/orphaned segment can never contribute.
+  ///
+  /// The first anchor always maps to all-zero stats (nothing precedes it).
+  /// Each subsequent anchor's entry is the running total through the segment
+  /// that ends at it: [RouteSegment.distanceMeters] (always available,
+  /// geometry-only), duration ([RouteSegment.durationSeconds] when
+  /// Valhalla-resolved, else the same [estimateSegmentDurationSeconds]
+  /// fallback used by [estimatedDurationSeconds]), and
+  /// [RouteSegment.elevationGainMeters] (`0` until that segment's
+  /// fire-and-forget height fetch resolves — never blocks this map).
+  Map<String, AnchorRouteStats> get cumulativeStatsByAnchorId {
+    if (anchors.isEmpty) return {};
+
+    final segByBefore = {for (final s in segments) s.beforeAnchorId: s};
+
+    final result = <String, AnchorRouteStats>{
+      anchors.first.id: const AnchorRouteStats(
+        distanceMeters: 0,
+        durationSeconds: 0,
+        elevationGainMeters: 0,
+      ),
+    };
+
+    var distance = 0.0;
+    var duration = 0.0;
+    var elevationGain = 0.0;
+    var currentId = anchors.first.id;
+
+    while (segByBefore.containsKey(currentId)) {
+      final seg = segByBefore[currentId]!;
+
+      distance += seg.distanceMeters;
+      duration +=
+          seg.durationSeconds ??
+          estimateSegmentDurationSeconds(
+            polyline: seg.polyline,
+            travelProfile: travelProfile,
+            costingOptions: costingOptions,
+          );
+      elevationGain += seg.elevationGainMeters;
+
+      result[seg.afterAnchorId] = AnchorRouteStats(
+        distanceMeters: distance,
+        durationSeconds: duration,
+        elevationGainMeters: elevationGain,
+      );
+
+      currentId = seg.afterAnchorId;
+    }
+
+    return result;
+  }
+}
+
+/// A single anchor's running totals through the route up to (and including)
+/// it — see [RouteAnchorsState.cumulativeStatsByAnchorId].
+class AnchorRouteStats {
+  const AnchorRouteStats({
+    required this.distanceMeters,
+    required this.durationSeconds,
+    required this.elevationGainMeters,
+  });
+
+  final double distanceMeters;
+  final double durationSeconds;
+  final double elevationGainMeters;
 }
 
 /// Route-planner state provider: owns the ordered anchor list, the
@@ -87,6 +181,14 @@ class RouteAnchors extends _$RouteAnchors {
   // widget-level sequential batch it replaces).
   final Map<String, CancelToken> _locationInFlight = {};
   final Map<String, int> _locationGeneration = {};
+
+  // Same cancel/generation bookkeeping again, but for each segment's
+  // fire-and-forget `/valhalla/height` fetch (_resolveElevation) — keyed by
+  // `segmentKey`, mirrors `_inFlight`/`_generation` above so a rapid
+  // re-edit of the same segment (drag, re-route) supersedes rather than
+  // races its own prior elevation fetch.
+  final Map<String, CancelToken> _elevationInFlight = {};
+  final Map<String, int> _elevationGeneration = {};
 
   @override
   RouteAnchorsState build() {
@@ -169,8 +271,18 @@ class RouteAnchors extends _$RouteAnchors {
         return;
       }
 
+      final summary = trip is Map ? trip['summary'] : null;
+      final durationSeconds = summary is Map
+          ? (summary['time'] as num?)?.toDouble()
+          : null;
+
       final points = PolylineUtil.decode(shape, precision: 6);
-      _applySegment(key, points: points, segmentState: SegmentState.routed);
+      _applySegment(
+        key,
+        points: points,
+        segmentState: SegmentState.routed,
+        durationSeconds: durationSeconds,
+      );
     } on DioException catch (e) {
       if (e.type == DioExceptionType.cancel)
         return; // superseded, not a real failure
@@ -194,15 +306,77 @@ class RouteAnchors extends _$RouteAnchors {
     String key, {
     required List<Geographic> points,
     required SegmentState segmentState,
+    double? durationSeconds,
   }) {
     final segments = [
       for (final segment in state.segments)
         if (segmentKey(segment.beforeAnchorId, segment.afterAnchorId) == key)
-          segment.copyWith(polyline: points, state: segmentState)
+          segment.copyWith(
+            polyline: points,
+            state: segmentState,
+            durationSeconds: durationSeconds,
+          )
         else
           segment,
     ];
     state = state.copyWith(segments: segments);
+    _resolveElevation(key, points).ignore();
+  }
+
+  /// Fetches `/valhalla/height` for [polyline] (downsampled via
+  /// `buildNavShape`, mirroring the elevation tab's old fetch) and writes
+  /// the result onto the segment identified by [key] as its
+  /// [RouteSegment.elevationProfile]/[RouteSegment.elevations] pair.
+  ///
+  /// Fire-and-forget (`.ignore()` at every call site): a segment's polyline
+  /// is applied to `state` — and so renders on the map — the instant it is
+  /// known, never blocked on this fetch. Same stale-response discipline as
+  /// [_resolveSegment]: a per-key `CancelToken` + monotonically increasing
+  /// generation guards against an out-of-order response clobbering a newer
+  /// edit's result, and the `for` rewrite below is naturally a no-op if
+  /// [key] no longer names a live segment (deleted/replaced since the fetch
+  /// started) — mirrors [_resolveSegment]'s own tolerance for that race
+  /// rather than tracking per-segment cancellation explicitly.
+  Future<void> _resolveElevation(String key, List<Geographic> polyline) async {
+    if (polyline.length < 2) return;
+
+    _elevationInFlight[key]?.cancel();
+    final token = CancelToken();
+    _elevationInFlight[key] = token;
+    final myGeneration = (_elevationGeneration[key] ?? 0) + 1;
+    _elevationGeneration[key] = myGeneration;
+
+    final shape = buildNavShape(polyline);
+
+    try {
+      final response = await ref
+          .read(apiProvider)
+          .post('/valhalla/height', data: {'shape': shape}, cancelToken: token);
+
+      if (_elevationGeneration[key] != myGeneration) return;
+
+      final heights = (response.data['height'] as List).cast<num>();
+      final profile = [
+        for (final entry in shape)
+          Geographic(lat: entry['lat']!, lon: entry['lon']!),
+      ];
+      final elevations = [for (final h in heights) h.toDouble()];
+
+      final segments = [
+        for (final segment in state.segments)
+          if (segmentKey(segment.beforeAnchorId, segment.afterAnchorId) == key)
+            segment.copyWith(elevationProfile: profile, elevations: elevations)
+          else
+            segment,
+      ];
+      state = state.copyWith(segments: segments);
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) return; // superseded
+      // Best-effort, mirrors _resolveAnchorLocation: leave elevation unset
+      // on a genuine failure rather than surfacing an error.
+    } catch (_) {
+      // Non-Dio failure (malformed response) — same silent degrade.
+    }
   }
 
   /// Reverse-geocodes [anchorId]'s current coordinates and, on success,
@@ -348,6 +522,11 @@ class RouteAnchors extends _$RouteAnchors {
     }
     _locationInFlight.clear();
     _locationGeneration.clear();
+    for (final token in _elevationInFlight.values) {
+      token.cancel();
+    }
+    _elevationInFlight.clear();
+    _elevationGeneration.clear();
 
     state = RouteAnchorsState(
       anchors: const [],
@@ -392,7 +571,11 @@ class RouteAnchors extends _$RouteAnchors {
   /// segment is only ever Valhalla-resolved once the user actually edits it.
   /// Auto-resolving every segment on open (this function's first version)
   /// silently snapped an off-road recording onto nearby roads before the
-  /// user touched anything.
+  /// user touched anything. It DOES fire off each seeded segment's
+  /// [_resolveElevation] fetch, though (fire-and-forget, same as every other
+  /// segment-creation path) — that's a read-only height lookup, not a
+  /// routing decision, so it carries none of the "snap to nearby roads" risk
+  /// that ruled out auto-resolving.
   void seedFromTrack(
     List<Geographic> points,
     String profile,
@@ -409,6 +592,11 @@ class RouteAnchors extends _$RouteAnchors {
     }
     _locationInFlight.clear();
     _locationGeneration.clear();
+    for (final token in _elevationInFlight.values) {
+      token.cancel();
+    }
+    _elevationInFlight.clear();
+    _elevationGeneration.clear();
 
     final anchors = [
       for (final p in points)
@@ -435,6 +623,13 @@ class RouteAnchors extends _$RouteAnchors {
       undoStack: const [],
       redoStack: const [],
     );
+
+    for (final segment in segments) {
+      _resolveElevation(
+        segmentKey(segment.beforeAnchorId, segment.afterAnchorId),
+        segment.polyline,
+      ).ignore();
+    }
   }
 
   /// Pushes the current (pre-mutation) anchors/segments onto the undo stack
@@ -474,6 +669,10 @@ class RouteAnchors extends _$RouteAnchors {
         state: SegmentState.straight,
       );
       state = state.copyWith(segments: [...state.segments, newSegment]);
+      _resolveElevation(
+        segmentKey(previousLast.id, newAnchor.id),
+        newSegment.polyline,
+      ).ignore();
 
       if (state.autoRoutingEnabled) {
         _resolveSegment(
@@ -583,6 +782,14 @@ class RouteAnchors extends _$RouteAnchors {
 
     state = state.copyWith(anchors: anchors, segments: segments);
     _resolveAnchorLocation(newAnchor.id, newAnchor).ignore();
+    _resolveElevation(
+      segmentKey(first.beforeAnchorId, first.afterAnchorId),
+      first.polyline,
+    ).ignore();
+    _resolveElevation(
+      segmentKey(second.beforeAnchorId, second.afterAnchorId),
+      second.polyline,
+    ).ignore();
   }
 
   /// WAYP-04: removes [anchorId] from the route. If the removed anchor sat
@@ -631,13 +838,20 @@ class RouteAnchors extends _$RouteAnchors {
 
     state = state.copyWith(anchors: anchors, segments: segments);
 
-    if (predecessor != null && successor != null && state.autoRoutingEnabled) {
-      _resolveSegment(
-        predecessor.id,
-        successor.id,
-        predecessor,
-        successor,
+    if (predecessor != null && successor != null) {
+      _resolveElevation(
+        segmentKey(predecessor.id, successor.id),
+        [predecessor.point, successor.point],
       ).ignore();
+
+      if (state.autoRoutingEnabled) {
+        _resolveSegment(
+          predecessor.id,
+          successor.id,
+          predecessor,
+          successor,
+        ).ignore();
+      }
     }
   }
 
@@ -677,6 +891,7 @@ class RouteAnchors extends _$RouteAnchors {
             state: SegmentState.straight,
           ),
         );
+        _resolveElevation(key, [a.point, b.point]).ignore();
         if (state.autoRoutingEnabled) toResolve.add((a.id, b.id, a, b));
       }
     }

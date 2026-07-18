@@ -108,6 +108,28 @@ class _FakeApi extends Api {
             return;
           }
 
+          // Every segment creation/update now also fires a fire-and-forget
+          // `/valhalla/height` fetch (route_anchor_provider.dart's
+          // `_resolveElevation`) through this same apiProvider. Carved out
+          // exactly like `/geocoding/reverse` above so it never consumes a
+          // `/valhalla/route`-call-index slot or corrupts the call-count
+          // assertions the tests below make against that endpoint
+          // specifically — elevation is a separate concern from every test
+          // in this file.
+          if (options.path.contains('/valhalla/height')) {
+            final shape = options.data is Map
+                ? (options.data as Map)['shape'] as List?
+                : null;
+            handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: {'height': List.filled(shape?.length ?? 0, 0)},
+              ),
+            );
+            return;
+          }
+
           final index = callIndex++;
           final canned = await responder(options, index);
           if (canned.isSuccess) {

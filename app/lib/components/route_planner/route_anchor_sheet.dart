@@ -64,7 +64,7 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final sheetMinSize = 103 / MediaQuery.of(context).size.height;
+    final sheetMinSize = 164 / MediaQuery.of(context).size.height;
     final sheetMaxSize = 0.6;
 
     return DraggableScrollableSheet(
@@ -181,7 +181,6 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet>
                       scrollController: _activeIndex == 1
                           ? scrollController
                           : null,
-                      isVisible: _activeIndex == 1,
                     ),
                     SettingsTab(
                       scrollController: _activeIndex == 2

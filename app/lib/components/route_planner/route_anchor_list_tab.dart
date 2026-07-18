@@ -1,8 +1,12 @@
+import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/models/route_anchor.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
+import 'package:wanderer/util/format_util.dart';
 
 /// The sheet's "Route Anchors" tab (WAYP-04/05, D-05..D-08): a
 /// [ReorderableListView] listing every in-progress route anchor in order,
@@ -76,9 +80,25 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
         : location.fullLabel;
   }
 
+  /// Formats the "so far" line shown under each anchor after the first
+  /// (whose stats are always zero — nothing precedes it): cumulative
+  /// distance, cumulative estimated duration, and cumulative elevation gain
+  /// through the route up to and including this anchor
+  /// ([RouteAnchorsState.cumulativeStatsByAnchorId]).
+  String _statsLabel(AnchorRouteStats stats, String unit) {
+    final duration = Duration(seconds: stats.durationSeconds.round());
+    return '${formatDistance(stats.distanceMeters, unit: unit)} · '
+        '${duration.pretty(abbreviated: true, tersity: DurationTersity.minute)} · '
+        '↑ ${formatElevation(stats.elevationGainMeters, unit: unit)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final anchors = ref.watch(routeAnchorsProvider).anchors;
+    final cumulativeStats = ref.watch(
+      routeAnchorsProvider.select((s) => s.cumulativeStatsByAnchorId),
+    );
+    final unit = ref.watch(unitProvider);
 
     if (!_reordering) {
       _orderedIds = anchors.map((a) => a.id).toList();
@@ -135,20 +155,51 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                subtitle: Text(
-                  '${anchor.lat.toStringAsFixed(5)}, ${anchor.lon.toStringAsFixed(5)}',
-                  style: TextStyle(color: Colors.grey[600]),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${anchor.lat.toStringAsFixed(5)}, ${anchor.lon.toStringAsFixed(5)}',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    if (index > 0 && cumulativeStats[anchor.id] != null)
+                      Text(
+                        _statsLabel(cumulativeStats[anchor.id]!, unit),
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
                 ),
-                trailing: IconButton(
-                  icon: FaIcon(
-                    FontAwesomeIcons.trash,
-                    size: 14,
-                    color: Colors.red.shade400,
-                  ),
-                  onPressed: () => ref
-                      .read(routeAnchorsProvider.notifier)
-                      .deleteAnchor(anchor.id),
-                  visualDensity: VisualDensity.compact,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: FaIcon(
+                        FontAwesomeIcons.personWalkingArrowLoopLeft,
+                        size: 14,
+                      ),
+                      onPressed: () => ref
+                          .read(routeAnchorsProvider.notifier)
+                          .appendAnchor(
+                            Geographic(lon: anchor.lon, lat: anchor.lat),
+                          ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    IconButton(
+                      icon: FaIcon(
+                        FontAwesomeIcons.trash,
+                        size: 14,
+                        color: Colors.red.shade400,
+                      ),
+                      onPressed: () => ref
+                          .read(routeAnchorsProvider.notifier)
+                          .deleteAnchor(anchor.id),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
                 ),
               );
             },
