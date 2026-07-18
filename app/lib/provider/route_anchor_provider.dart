@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/util/polyline_util.dart';
+import 'package:wanderer/util/reverse_geocode_util.dart';
 import 'package:wanderer/util/route_segment_util.dart';
 
 part 'route_anchor_provider.g.dart';
@@ -77,6 +78,15 @@ class RouteAnchors extends _$RouteAnchors {
   // (anchor-id pair), never array index (Pitfall 3).
   final Map<String, CancelToken> _inFlight = {};
   final Map<String, int> _generation = {};
+
+  // Same cancel/generation bookkeeping as above, but keyed by anchor id for
+  // per-anchor reverse-geocode requests (quick-260717-t7q follow-up) — each
+  // anchor's location search is independent of every other anchor's, so a
+  // drag on one anchor never blocks/queues behind another's in-flight
+  // search (mirrors _resolveSegment's per-segment isolation, not the old
+  // widget-level sequential batch it replaces).
+  final Map<String, CancelToken> _locationInFlight = {};
+  final Map<String, int> _locationGeneration = {};
 
   @override
   RouteAnchorsState build() {
@@ -195,6 +205,55 @@ class RouteAnchors extends _$RouteAnchors {
     state = state.copyWith(segments: segments);
   }
 
+  /// Reverse-geocodes [anchorId]'s current coordinates and, on success,
+  /// writes the result onto that anchor's [RouteAnchor.location] field.
+  /// Fired once from [appendAnchor]/[insertAnchorOnSegment] (new anchor) and
+  /// once at drag-end from [dragAnchor] — never continuously during a drag
+  /// gesture (quick-260717-t7q follow-up: the search now lives here instead
+  /// of `route_anchor_list_tab.dart`'s local widget-state batch, so it never
+  /// re-runs just because the tab remounts).
+  ///
+  /// Best-effort and silent, mirroring the old widget-level behavior: on
+  /// failure (or supersession by a newer request for the same anchor) the
+  /// anchor's PRIOR `location` is left untouched rather than cleared — a
+  /// dragged anchor keeps showing its last-known label until the fresh
+  /// search resolves, never flashing back to the "Anchor N" fallback.
+  Future<void> _resolveAnchorLocation(String anchorId, RouteAnchor anchor) async {
+    _locationInFlight[anchorId]?.cancel();
+    final token = CancelToken();
+    _locationInFlight[anchorId] = token;
+    final myGeneration = (_locationGeneration[anchorId] ?? 0) + 1;
+    _locationGeneration[anchorId] = myGeneration;
+
+    try {
+      final result = await searchLocationReverseStructured(
+        ref.read(apiProvider),
+        anchor.lat,
+        anchor.lon,
+        includeRoad: true,
+        cancelToken: token,
+      );
+
+      // Stale-response guard, same shape as _resolveSegment: a newer
+      // search for this same anchor may have started (or the anchor may
+      // have since been deleted) while this one was in flight.
+      if (_locationGeneration[anchorId] != myGeneration) return;
+      if (result == null) return;
+
+      final anchors = [
+        for (final a in state.anchors)
+          if (a.id == anchorId) a.copyWith(location: result) else a,
+      ];
+      state = state.copyWith(anchors: anchors);
+    } on DioException catch (e) {
+      // Cancelled (superseded) or a genuine network/parse failure — both
+      // degrade silently, leaving the anchor's prior location untouched.
+      if (e.type == DioExceptionType.cancel) return;
+    } catch (_) {
+      // Non-Dio failure (e.g. malformed response) — same silent degrade.
+    }
+  }
+
   /// D-09: retry lives on the blocked segment itself. Re-dispatches
   /// [_resolveSegment] for the given anchor pair.
   ///
@@ -284,6 +343,11 @@ class RouteAnchors extends _$RouteAnchors {
     }
     _inFlight.clear();
     _generation.clear();
+    for (final token in _locationInFlight.values) {
+      token.cancel();
+    }
+    _locationInFlight.clear();
+    _locationGeneration.clear();
 
     state = RouteAnchorsState(
       anchors: const [],
@@ -323,6 +387,7 @@ class RouteAnchors extends _$RouteAnchors {
     final previousLast = state.anchors.isNotEmpty ? state.anchors.last : null;
 
     state = state.copyWith(anchors: [...state.anchors, newAnchor]);
+    _resolveAnchorLocation(newAnchor.id, newAnchor).ignore();
 
     if (previousLast != null) {
       final newSegment = RouteSegment(
@@ -360,6 +425,10 @@ class RouteAnchors extends _$RouteAnchors {
     state = state.copyWith(anchors: anchors);
 
     final anchorsById = {for (final a in anchors) a.id: a};
+    // Drag-end only (D-05, never onPanUpdate) — re-searches this anchor's
+    // location against its NEW coordinates; the stale prior label persists
+    // until this resolves (never cleared eagerly).
+    _resolveAnchorLocation(anchorId, anchorsById[anchorId]!).ignore();
     final touched = state.segments.where(
       (s) => s.beforeAnchorId == anchorId || s.afterAnchorId == anchorId,
     );
@@ -436,6 +505,7 @@ class RouteAnchors extends _$RouteAnchors {
     ];
 
     state = state.copyWith(anchors: anchors, segments: segments);
+    _resolveAnchorLocation(newAnchor.id, newAnchor).ignore();
   }
 
   /// WAYP-04: removes [anchorId] from the route. If the removed anchor sat
@@ -446,6 +516,13 @@ class RouteAnchors extends _$RouteAnchors {
   /// none.
   void deleteAnchor(String anchorId) {
     _pushUndo();
+
+    // Cancel (rather than let dangle) any in-flight location search for the
+    // deleted anchor — its eventual response would already no-op harmlessly
+    // (the id no longer matches any anchor) but there is no reason to let
+    // the network call complete.
+    _locationInFlight.remove(anchorId)?.cancel();
+    _locationGeneration.remove(anchorId);
 
     final anchors = state.anchors.where((a) => a.id != anchorId).toList();
 

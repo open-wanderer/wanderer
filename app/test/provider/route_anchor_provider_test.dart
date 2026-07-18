@@ -89,6 +89,25 @@ class _FakeApi extends Api {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          // appendAnchor/dragAnchor/insertAnchorOnSegment now also fire a
+          // reverse-geocode search (route_anchor_provider.dart's
+          // _resolveAnchorLocation, quick-260717-t7q follow-up) through the
+          // same apiProvider. Intercept it here with a fixed "no address
+          // found" response so it never consumes a Valhalla-call-index slot
+          // or corrupts the call-count assertions the tests below make
+          // against `/valhalla/route` specifically — the location search is
+          // a separate concern from every test in this file.
+          if (options.path.contains('/geocoding/reverse')) {
+            handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: {'features': <dynamic>[]},
+              ),
+            );
+            return;
+          }
+
           final index = callIndex++;
           final canned = await responder(options, index);
           if (canned.isSuccess) {
@@ -426,30 +445,28 @@ void main() {
     );
 
     test(
-      'toggleAutoRouting OFF to ON re-resolves every existing segment via '
-      'Valhalla, dispatched in parallel',
+      'toggleAutoRouting OFF to ON leaves the existing segment untouched '
+      'and issues zero Dio calls (symmetric with the ON-to-OFF direction — '
+      'toggling never retroactively rewrites existing segments; only new '
+      'mutations made while the flag is on trigger a Valhalla resolve)',
       () async {
-        final shape = PolylineUtil.encode([_anchorA, _anchorB], precision: 6);
-        final activeCallsAtDispatch = <int>[];
-        var activeCalls = 0;
-
+        var callCount = 0;
         final container = _buildSeededContainer((options, index) async {
-          activeCalls++;
-          activeCallsAtDispatch.add(activeCalls);
-          // Yield so overlapping in-flight calls have a chance to co-exist —
-          // proves Future.wait, not sequential awaits (single-segment fixture
-          // here still exercises the Future.wait call shape).
-          await Future<void>.delayed(Duration.zero);
-          activeCalls--;
-          return _CannedResponse.success(_tripData(shape));
+          callCount++;
+          return const _CannedResponse.failure();
         });
-
         final notifier = container.read(routeAnchorsProvider.notifier);
+        final before = container.read(routeAnchorsProvider).segments.single;
+
         await notifier.toggleAutoRouting(); // ON -> OFF (default true)
-        await notifier.toggleAutoRouting(); // OFF -> ON, resolves via Future.wait
+        await notifier.toggleAutoRouting(); // OFF -> ON
 
         final result = container.read(routeAnchorsProvider);
-        expect(result.segments.single.state, SegmentState.routed);
+        expect(result.autoRoutingEnabled, isTrue);
+        final segment = result.segments.single;
+        expect(segment.state, before.state);
+        expect(segment.polyline, before.polyline);
+        expect(callCount, 0);
       },
     );
   });
