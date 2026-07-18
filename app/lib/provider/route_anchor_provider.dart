@@ -611,6 +611,59 @@ class RouteAnchors extends _$RouteAnchors {
     }
   }
 
+  /// Removes every anchor and segment at once. No-op on an already-empty
+  /// route. Immediate, no confirmation dialog (mirrors [deleteAnchor]'s own
+  /// D-06 discipline) — the app-bar Undo is the sole safety net.
+  ///
+  /// Cancels every in-flight location search (mirrors [resetForSession]):
+  /// once an anchor is gone there is no reason to let its reverse-geocode
+  /// request complete.
+  void deleteAllAnchors() {
+    if (state.anchors.isEmpty && state.segments.isEmpty) return;
+
+    _pushUndo();
+
+    for (final token in _locationInFlight.values) {
+      token.cancel();
+    }
+    _locationInFlight.clear();
+    _locationGeneration.clear();
+
+    state = state.copyWith(anchors: const [], segments: const []);
+  }
+
+  /// Reverses the anchor order — the former start becomes the goal and vice
+  /// versa — and recomputes the route: every segment is rebuilt with its
+  /// `before`/`after` anchor ids swapped to match the new direction, then
+  /// re-resolved via [resolveAllSegments] (auto-routing on) or flattened to
+  /// a straight line (auto-routing off). A blind polyline-reversal is
+  /// deliberately NOT used — a real route can be direction-sensitive
+  /// (one-way streets), so the safe behavior is a fresh Valhalla resolve in
+  /// the new direction, not a mirrored copy of the old one.
+  ///
+  /// No-op below 2 anchors (nothing to reverse). Each [RouteAnchor] (and its
+  /// resolved `location`, if any) carries over unchanged — only order
+  /// flips, coordinates don't change, so no location re-search is needed.
+  void reverseRoute() {
+    if (state.anchors.length < 2) return;
+
+    _pushUndo();
+
+    final reversed = state.anchors.reversed.toList();
+    final segments = [
+      for (var i = 0; i < reversed.length - 1; i++)
+        RouteSegment(
+          beforeAnchorId: reversed[i].id,
+          afterAnchorId: reversed[i + 1].id,
+          polyline: [reversed[i].point, reversed[i + 1].point],
+          state: SegmentState.straight,
+        ),
+    ];
+
+    state = state.copyWith(anchors: reversed, segments: segments);
+    resolveAllSegments();
+  }
+
   /// ROUTE-04: restores the immediately prior anchors/segments snapshot.
   /// No-ops if the undo stack is empty (defensive — the app-bar button is
   /// also disabled per D-11).

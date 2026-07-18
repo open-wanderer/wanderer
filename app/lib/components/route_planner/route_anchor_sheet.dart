@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/route_planner/elevation_tab.dart';
 import 'package:wanderer/components/route_planner/route_anchor_list_tab.dart';
 import 'package:wanderer/components/route_planner/settings_tab.dart';
+import 'package:wanderer/provider/route_anchor_provider.dart';
 
 /// The route planner's docked, tabbed [DraggableScrollableSheet] (PLANUI-01,
 /// D-02/D-03) hosting the Route Anchors tab (Plan 04), the Elevation tab
@@ -163,6 +164,7 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet>
                   ],
                 ),
               ),
+              _SheetActionChips(),
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
@@ -195,6 +197,57 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet>
           ),
         );
       },
+    );
+  }
+}
+
+/// Two chip-sized actions at the top of the sheet, above the tab content
+/// (visible regardless of the active tab): "Delete all" (immediate, no
+/// confirmation — [RouteAnchors.deleteAllAnchors] mirrors [deleteAnchor]'s
+/// own D-06 discipline; Undo is the sole safety net) and "Reverse
+/// direction" ([RouteAnchors.reverseRoute]). Both disable themselves rather
+/// than no-op silently when there's nothing to act on.
+class _SheetActionChips extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final anchors = ref.watch(routeAnchorsProvider).anchors;
+    final notifier = ref.read(routeAnchorsProvider.notifier);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Wrap(
+        spacing: 8,
+        children: [
+          ActionChip(
+            visualDensity: VisualDensity.compact,
+            avatar: FaIcon(
+              FontAwesomeIcons.trash,
+              size: 12,
+              color: anchors.isEmpty
+                  ? null
+                  : theme.colorScheme.onErrorContainer,
+            ),
+            label: const Text('Delete all'),
+            backgroundColor: anchors.isEmpty
+                ? null
+                : theme.colorScheme.errorContainer,
+            labelStyle: anchors.isEmpty
+                ? null
+                : TextStyle(color: theme.colorScheme.onErrorContainer),
+            onPressed: anchors.isEmpty ? null : notifier.deleteAllAnchors,
+          ),
+          ActionChip(
+            visualDensity: VisualDensity.compact,
+            avatar: const FaIcon(
+              FontAwesomeIcons.arrowRightArrowLeft,
+              size: 12,
+            ),
+            label: const Text('Reverse direction'),
+            onPressed: anchors.length < 2 ? null : notifier.reverseRoute,
+          ),
+        ],
+      ),
     );
   }
 }

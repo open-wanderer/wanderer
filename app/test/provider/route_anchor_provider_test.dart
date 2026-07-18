@@ -995,4 +995,120 @@ void main() {
       },
     );
   });
+
+  group('RouteAnchors - deleteAllAnchors / reverseRoute', () {
+    test(
+      'deleteAllAnchors empties anchors and segments and pushes an undo '
+      'snapshot',
+      () async {
+        var callCount = 0;
+        final container = _buildThreeAnchorSeededContainer((
+          options,
+          index,
+        ) async {
+          callCount++;
+          return const _CannedResponse.failure();
+        });
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        notifier.deleteAllAnchors();
+
+        final result = container.read(routeAnchorsProvider);
+        expect(result.anchors, isEmpty);
+        expect(result.segments, isEmpty);
+        expect(result.undoStack, hasLength(1));
+        expect(callCount, 0);
+      },
+    );
+
+    test('deleteAllAnchors is a no-op on an already-empty route', () async {
+      var callCount = 0;
+      final container = _buildContainer((options, index) async {
+        callCount++;
+        return const _CannedResponse.failure();
+      });
+      final notifier = container.read(routeAnchorsProvider.notifier);
+
+      notifier.deleteAllAnchors();
+
+      final result = container.read(routeAnchorsProvider);
+      expect(result.anchors, isEmpty);
+      expect(result.undoStack, isEmpty); // no snapshot pushed for a no-op
+      expect(callCount, 0);
+    });
+
+    test(
+      'reverseRoute flips the anchor order (former start becomes the goal) '
+      'and rebuilds every segment with before/after swapped to match',
+      () async {
+        final container = _buildThreeAnchorSeededContainer((
+          options,
+          index,
+        ) async {
+          return const _CannedResponse.failure();
+        }, autoRoutingEnabled: false);
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        notifier.reverseRoute();
+
+        final result = container.read(routeAnchorsProvider);
+        expect(
+          result.anchors.map((a) => a.id).toList(),
+          [_anchorIdC, _anchorIdB, _anchorIdA],
+        );
+        expect(
+          result.segments.map(
+            (s) => (s.beforeAnchorId, s.afterAnchorId),
+          ),
+          [(_anchorIdC, _anchorIdB), (_anchorIdB, _anchorIdA)],
+        );
+      },
+    );
+
+    test(
+      'reverseRoute re-resolves every segment via Valhalla when '
+      'auto-routing is on, rather than blindly mirroring the old polyline',
+      () async {
+        var callCount = 0;
+        final container = _buildThreeAnchorSeededContainer((
+          options,
+          index,
+        ) async {
+          callCount++;
+          return _CannedResponse.success(
+            _tripData(PolylineUtil.encode([_anchorA, _anchorB], precision: 6)),
+          );
+        });
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        notifier.reverseRoute();
+        await _flushAsyncWork();
+
+        // 2 segments (A-B, B-C originally) both re-resolved in the new
+        // direction — never left as a stale mirror of the old polyline.
+        expect(callCount, 2);
+        final result = container.read(routeAnchorsProvider);
+        expect(
+          result.segments.every((s) => s.state == SegmentState.routed),
+          isTrue,
+        );
+      },
+    );
+
+    test('reverseRoute is a no-op below 2 anchors', () async {
+      var callCount = 0;
+      final container = _buildContainer((options, index) async {
+        callCount++;
+        return const _CannedResponse.failure();
+      });
+      final notifier = container.read(routeAnchorsProvider.notifier);
+
+      notifier.reverseRoute();
+
+      final result = container.read(routeAnchorsProvider);
+      expect(result.anchors, isEmpty);
+      expect(result.undoStack, isEmpty);
+      expect(callCount, 0);
+    });
+  });
 }
