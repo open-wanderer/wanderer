@@ -157,6 +157,72 @@ void main() {
     test('an empty/trackless Gpx yields an empty list', () {
       expect(anchorsFromTrack(Gpx()), isEmpty);
     });
+
+    test('a trk with an empty trksegs list yields an empty list (CR-01/WR-01 regression)', () {
+      final gpx = Gpx();
+      gpx.trks = [Trk(trksegs: const [])];
+
+      expect(anchorsFromTrack(gpx), isEmpty);
+    });
+
+    test(
+      'a trailing empty trkseg does not drop the true final point '
+      '(WR-02 regression)',
+      () {
+        final gpx = Gpx();
+        gpx.trks = [
+          Trk(
+            trksegs: [
+              Trkseg(
+                trkpts: [
+                  Wpt(lat: 47.000, lon: 9.000),
+                  Wpt(lat: 47.001, lon: 9.001),
+                ],
+              ),
+              Trkseg(trkpts: const []),
+            ],
+          ),
+        ];
+
+        final anchors = anchorsFromTrack(gpx);
+
+        expect(anchors, hasLength(2));
+        expect(anchors[0].lat, 47.000);
+        expect(anchors[0].lon, 9.000);
+        expect(anchors[1].lat, 47.001);
+        expect(anchors[1].lon, 9.001);
+      },
+    );
+
+    test(
+      'a trkpt with a null lat/lon is dropped rather than force-unwrapped '
+      '(CR-01 regression)',
+      () {
+        final gpx = Gpx();
+        gpx.trks = [
+          Trk(
+            trksegs: [
+              Trkseg(
+                trkpts: [
+                  Wpt(lat: null, lon: null),
+                  Wpt(lat: 47.001, lon: 9.001),
+                  Wpt(lat: 47.002, lon: 9.002),
+                ],
+              ),
+            ],
+          ),
+        ];
+
+        expect(() => anchorsFromTrack(gpx), returnsNormally);
+        final anchors = anchorsFromTrack(gpx);
+
+        expect(anchors, hasLength(2));
+        expect(anchors[0].lat, 47.001);
+        expect(anchors[0].lon, 9.001);
+        expect(anchors[1].lat, 47.002);
+        expect(anchors[1].lon, 9.002);
+      },
+    );
   });
 
   group('mergeRouteIntoTrail', () {

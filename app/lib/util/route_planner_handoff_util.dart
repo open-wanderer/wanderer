@@ -150,12 +150,19 @@ Future<void> finishPlanning({
 /// Returns an empty list for a trackless (no `trks`) [gpx].
 List<ml.Geographic> anchorsFromTrack(Gpx gpx) {
   final segs = gpx.trks.isNotEmpty ? gpx.trks.first.trksegs : const <Trkseg>[];
+  // Only segments with at least one fully-coordinated point count — a
+  // trkpt missing lat/lon (spec-valid but malformed data) is dropped rather
+  // than force-unwrapped, and a trailing empty/coordinateless segment no
+  // longer swallows the true final-point addition for the segment before it.
+  final nonEmpty = segs
+      .map((s) => s.trkpts.where((p) => p.lat != null && p.lon != null).toList())
+      .where((pts) => pts.isNotEmpty)
+      .toList();
   final out = <ml.Geographic>[];
-  for (var i = 0; i < segs.length; i++) {
-    final pts = segs[i].trkpts;
-    if (pts.isEmpty) continue;
+  for (var i = 0; i < nonEmpty.length; i++) {
+    final pts = nonEmpty[i];
     out.add(ml.Geographic(lat: pts.first.lat!, lon: pts.first.lon!));
-    if (i == segs.length - 1) {
+    if (i == nonEmpty.length - 1) {
       out.add(ml.Geographic(lat: pts.last.lat!, lon: pts.last.lon!));
     }
   }

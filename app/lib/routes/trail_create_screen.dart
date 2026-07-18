@@ -254,8 +254,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   ///
   /// Defaults `travelProfile` to `'pedestrian'` (RESEARCH A1) — no travel
   /// profile is stored on a `Trail`, so there is nothing to restore.
-  Future<void> _onEditRoute(BuildContext context) async {
-    final points = anchorsFromTrack(trail.expand!.gpx!);
+  Future<void> _onEditRoute(BuildContext context, List<ml.Geographic> points) async {
     final newGpx = await context.push<Gpx>('/route-planner', extra: {
       'mode': 'edit',
       'seedAnchors': points,
@@ -428,20 +427,27 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            // quick-260718-e9j (PLANNER-02): enabled only when the trail has
-            // a recorded track to seed anchors from.
-            icon: const FaIcon(FontAwesomeIcons.route, size: 18),
-            tooltip: 'Edit route',
-            onPressed:
-                (trail.expand?.gpx != null &&
-                    trail.expand!.gpx!.trks.isNotEmpty)
-                ? () => _onEditRoute(context)
-                : null,
-            style: IconButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              disabledBackgroundColor: Theme.of(context).colorScheme.surface,
-            ),
+          Builder(
+            builder: (context) {
+              // quick-260718-e9j (PLANNER-02): enabled only when the track
+              // actually yields >=2 seedable anchors — a trk with no (or
+              // coordinateless) trksegs must not silently downgrade the
+              // Route Planner to "new route" mode (WR-01).
+              final seedAnchors = trail.expand?.gpx != null
+                  ? anchorsFromTrack(trail.expand!.gpx!)
+                  : const <ml.Geographic>[];
+              return IconButton(
+                icon: const FaIcon(FontAwesomeIcons.route, size: 18),
+                tooltip: 'Edit route',
+                onPressed: seedAnchors.length >= 2
+                    ? () => _onEditRoute(context, seedAnchors)
+                    : null,
+                style: IconButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  disabledBackgroundColor: Theme.of(context).colorScheme.surface,
+                ),
+              );
+            },
           ),
           IconButton(
             icon: _saving
