@@ -267,20 +267,42 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     }
   }
 
-  /// Reacts to [TrailMap.showTrail] flipping after the initial style load —
+  /// Reacts to [TrailMap.showTrail] flipping, and to the trail's own track
+  /// being replaced in place (e.g. the Route Planner's edit-route
+  /// pop-with-result merge, quick-260718-e9j) after the initial style load —
   /// `_onStyleLoaded` only re-runs on a style swap (e.g. theme toggle), not
-  /// on a plain widget rebuild, so the trail track layers would otherwise
-  /// never be added/removed in response to the toggle.
+  /// on a plain widget rebuild, so neither case would otherwise be reflected
+  /// on the already-mounted native GL layer.
   @override
   void didUpdateWidget(covariant TrailMap oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.showTrail == widget.showTrail) return;
     final style = _controller?.style;
     if (style == null) return;
-    if (widget.showTrail && widget.trail.expand?.gpx != null) {
-      _trailLayer.add(style, widget.trail).ignore();
-    } else {
-      _trailLayer.remove(style).ignore();
+
+    if (oldWidget.showTrail != widget.showTrail) {
+      if (widget.showTrail && widget.trail.expand?.gpx != null) {
+        _trailLayer.add(style, widget.trail).ignore();
+      } else {
+        _trailLayer.remove(style).ignore();
+      }
+      return;
+    }
+
+    // Identity compare: a route edit produces a new Gpx instance via
+    // mergeRouteIntoTrail; unrelated trail edits (title, waypoints, photos)
+    // carry the same gpx reference through copyWith, so this only fires for
+    // an actual track replacement.
+    if (widget.showTrail &&
+        !identical(oldWidget.trail.expand?.gpx, widget.trail.expand?.gpx)) {
+      _trailLayer
+          .remove(style)
+          .then((_) {
+            if (widget.trail.expand?.gpx != null) {
+              _trailLayer.add(style, widget.trail).ignore();
+            }
+          })
+          .ignore();
+      _fitInitialCamera().ignore();
     }
   }
 
