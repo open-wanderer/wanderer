@@ -47,11 +47,21 @@ class RoutePlannerScreen extends ConsumerStatefulWidget {
   /// location or the trail-source-select flow's last map camera).
   final ml.Geographic initialCenter;
 
+  /// Segment-boundary anchors seeded from an existing trail's track
+  /// (quick-260718-e9j, PLANNER-02) — non-null and non-empty means this
+  /// session is editing an existing route rather than planning a new one.
+  /// When present, [RouteAnchors.seedFromTrack] replaces the usual
+  /// [RouteAnchors.resetForSession] empty-session reset, and Finish pops the
+  /// final [Gpx] back to the caller instead of forward-pushing a draft trail
+  /// via [finishPlanning].
+  final List<ml.Geographic>? seedAnchors;
+
   const RoutePlannerScreen({
     super.key,
     required this.travelProfile,
     this.initialCostingOptions,
     required this.initialCenter,
+    this.seedAnchors,
   });
 
   @override
@@ -110,14 +120,32 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   /// on mount instead — imperceptible against the map's own async style load.
   bool _sessionReady = false;
 
+  /// quick-260718-e9j (PLANNER-02): edit mode is inferred from a non-empty
+  /// [RoutePlannerScreen.seedAnchors] — no separate boolean/mode flag needed.
+  bool get _editMode =>
+      widget.seedAnchors != null && widget.seedAnchors!.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref
-          .read(routeAnchorsProvider.notifier)
-          .resetForSession(widget.travelProfile, widget.initialCostingOptions);
+      if (_editMode) {
+        ref
+            .read(routeAnchorsProvider.notifier)
+            .seedFromTrack(
+              widget.seedAnchors!,
+              widget.travelProfile,
+              widget.initialCostingOptions,
+            );
+      } else {
+        ref
+            .read(routeAnchorsProvider.notifier)
+            .resetForSession(
+              widget.travelProfile,
+              widget.initialCostingOptions,
+            );
+      }
       setState(() => _sessionReady = true);
     });
   }
@@ -444,15 +472,23 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     );
   }
 
-  /// HANDOFF-01: invokes [finishPlanning] to hand the finished route off as
-  /// a draft Trail. Guarded by [_finishing] (T-21-04-01) so a double-tap
-  /// cannot fire two `/valhalla/height` fetches or two navigations while a
-  /// handoff is already in flight.
+  /// HANDOFF-01 (import path): invokes [finishPlanning] to hand the finished
+  /// route off as a draft Trail via forward-push. quick-260718-e9j
+  /// (PLANNER-02, edit path): pops the ele-merged [Gpx] straight back to the
+  /// awaiting `trail_create_screen` instead. Guarded by [_finishing]
+  /// (T-21-04-01) so a double-tap cannot fire two `/valhalla/height` fetches
+  /// or two navigations while a handoff is already in flight.
   Future<void> _onFinish() async {
     if (_finishing) return;
     setState(() => _finishing = true);
     try {
-      await finishPlanning(ref: ref, navContext: context);
+      if (_editMode) {
+        final finalGpx = await buildFinalPlannedGpx(ref);
+        if (!mounted) return;
+        context.pop(finalGpx);
+      } else {
+        await finishPlanning(ref: ref, navContext: context);
+      }
     } finally {
       if (mounted) setState(() => _finishing = false);
     }

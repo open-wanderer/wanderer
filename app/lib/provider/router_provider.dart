@@ -259,10 +259,16 @@ class Router extends _$Router {
             final center = (lat != null && lon != null)
                 ? Geographic(lat: lat, lon: lon)
                 : const Geographic(lat: 0, lon: 0);
+            // quick-260718-e9j (PLANNER-02): edit-mode seed anchors, carried
+            // alongside the `mode: 'edit'` extra key (informational — edit
+            // mode is inferred from this list being present/non-empty, not
+            // from a separate flag).
+            final seedAnchors = extra?['seedAnchors'] as List<Geographic>?;
             return RoutePlannerScreen(
               travelProfile: profile,
               initialCostingOptions: costingOptions,
               initialCenter: center,
+              seedAnchors: seedAnchors,
             );
           },
         ),
