@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpx/gpx.dart';
+import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
 
 // ---------------------------------------------------------------------------
@@ -87,6 +89,178 @@ void main() {
       expect(result.minLat, 0);
       expect(result.maxLon, 0);
       expect(result.minLon, 0);
+    });
+  });
+
+  group('anchorsFromTrack', () {
+    test('single-trkseg track yields exactly [first, last] (2 anchors)', () {
+      final gpx = Gpx();
+      gpx.trks = [
+        Trk(
+          trksegs: [
+            Trkseg(
+              trkpts: [
+                Wpt(lat: 47.000, lon: 9.000),
+                Wpt(lat: 47.001, lon: 9.001),
+                Wpt(lat: 47.002, lon: 9.002),
+              ],
+            ),
+          ],
+        ),
+      ];
+
+      final anchors = anchorsFromTrack(gpx);
+
+      expect(anchors, hasLength(2));
+      expect(anchors[0].lat, 47.000);
+      expect(anchors[0].lon, 9.000);
+      expect(anchors[1].lat, 47.002);
+      expect(anchors[1].lon, 9.002);
+    });
+
+    test(
+      'two-trkseg track yields [seg0.first, seg1.first, seg1.last] '
+      '(3 anchors)',
+      () {
+        final gpx = Gpx();
+        gpx.trks = [
+          Trk(
+            trksegs: [
+              Trkseg(
+                trkpts: [
+                  Wpt(lat: 47.000, lon: 9.000),
+                  Wpt(lat: 47.001, lon: 9.001),
+                ],
+              ),
+              Trkseg(
+                trkpts: [
+                  Wpt(lat: 47.010, lon: 9.010),
+                  Wpt(lat: 47.011, lon: 9.011),
+                ],
+              ),
+            ],
+          ),
+        ];
+
+        final anchors = anchorsFromTrack(gpx);
+
+        expect(anchors, hasLength(3));
+        expect(anchors[0].lat, 47.000);
+        expect(anchors[0].lon, 9.000);
+        expect(anchors[1].lat, 47.010);
+        expect(anchors[1].lon, 9.010);
+        expect(anchors[2].lat, 47.011);
+        expect(anchors[2].lon, 9.011);
+      },
+    );
+
+    test('an empty/trackless Gpx yields an empty list', () {
+      expect(anchorsFromTrack(Gpx()), isEmpty);
+    });
+  });
+
+  group('mergeRouteIntoTrail', () {
+    Trail buildSampleTrail() {
+      return Trail(
+        id: 'trail-1',
+        name: 'Sample Trail',
+        description: 'A description',
+        public: true,
+        created: DateTime(2026),
+        updated: DateTime(2026),
+        expand: TrailExpand(
+          waypointsViaTrail: [
+            Waypoint(
+              id: 'wp-1',
+              lat: 47.5,
+              lon: 9.5,
+              created: DateTime(2026),
+              updated: DateTime(2026),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Gpx buildFinalGpx() {
+      final gpx = Gpx();
+      gpx.trks = [
+        Trk(
+          trksegs: [
+            Trkseg(
+              trkpts: [
+                Wpt(lat: 48.000, lon: 10.000),
+                Wpt(lat: 48.001, lon: 10.001),
+              ],
+            ),
+          ],
+        ),
+      ];
+      return gpx;
+    }
+
+    test('sets both expand.gpx and expand.gpxData (Pitfall 1)', () {
+      final existing = buildSampleTrail();
+      final finalGpx = buildFinalGpx();
+
+      final result = mergeRouteIntoTrail(existing, finalGpx);
+
+      expect(identical(result.expand!.gpx, finalGpx), isTrue);
+      expect(result.expand!.gpxData, isNotEmpty);
+      expect(result.expand!.gpxData, contains('<gpx'));
+    });
+
+    test(
+      'preserves title/description/id and existing waypoints unchanged',
+      () {
+        final existing = buildSampleTrail();
+        final finalGpx = buildFinalGpx();
+
+        final result = mergeRouteIntoTrail(existing, finalGpx);
+
+        expect(result.id, existing.id);
+        expect(result.name, existing.name);
+        expect(result.description, existing.description);
+        expect(result.public, existing.public);
+        expect(
+          result.expand!.waypointsViaTrail,
+          existing.expand!.waypointsViaTrail,
+        );
+      },
+    );
+
+    test('recomputes lat/lon/bounds from the finalGpx bounds', () {
+      final existing = buildSampleTrail();
+      final finalGpx = buildFinalGpx();
+
+      final result = mergeRouteIntoTrail(existing, finalGpx);
+
+      expect(result.maxLat, 48.001);
+      expect(result.minLat, 48.000);
+      expect(result.maxLon, 10.001);
+      expect(result.minLon, 10.000);
+      expect(result.lat, closeTo(48.0005, 1e-9));
+      expect(result.lon, closeTo(10.0005, 1e-9));
+    });
+
+    test('falls back to existing bounds/lat/lon for a trackless finalGpx', () {
+      final existing = buildSampleTrail().copyWith(
+        lat: 1,
+        lon: 2,
+        maxLat: 3,
+        minLat: 4,
+        maxLon: 5,
+        minLon: 6,
+      );
+
+      final result = mergeRouteIntoTrail(existing, Gpx());
+
+      expect(result.lat, 1);
+      expect(result.lon, 2);
+      expect(result.maxLat, 3);
+      expect(result.minLat, 4);
+      expect(result.maxLon, 5);
+      expect(result.minLon, 6);
     });
   });
 

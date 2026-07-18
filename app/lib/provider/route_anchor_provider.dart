@@ -360,6 +360,70 @@ class RouteAnchors extends _$RouteAnchors {
     );
   }
 
+  /// Seeds the single keepAlive instance from an existing track's
+  /// prepopulated anchors (quick-260718-e9j, PLANNER-02) — the Route
+  /// Planner's "edit an existing route" entry mode, as opposed to
+  /// [resetForSession]'s empty-session entry for a brand-new/imported route.
+  ///
+  /// Cancels + clears all in-flight/generation bookkeeping exactly like
+  /// [resetForSession] (both the segment-resolve maps and the per-anchor
+  /// location-search maps). Builds one [RouteAnchor] per point (fresh
+  /// [UniqueKey] ids — never reused across sessions) and a straight
+  /// [RouteSegment] between each consecutive pair, then sets state in a
+  /// single assignment with a fresh (empty) undo/redo baseline — this seed
+  /// is not itself undoable, matching [resetForSession]'s own contract.
+  ///
+  /// Deliberately does NOT loop [appendAnchor] (each call pushes an undo
+  /// snapshot, which would let the user undo back through the seed) and does
+  /// NOT call [_resolveAnchorLocation] for any seeded anchor (no
+  /// reverse-geocode at load time — matches web's `initRouteAnchors`).
+  ///
+  /// After seeding, calls [resolveAllSegments] so the boundary segments
+  /// re-route via Valhalla when auto-routing is on (mirrors web: anchors
+  /// seed, then Valhalla re-routes between them).
+  void seedFromTrack(
+    List<Geographic> points,
+    String profile,
+    Map<String, dynamic>? opts,
+  ) {
+    for (final token in _inFlight.values) {
+      token.cancel();
+    }
+    _inFlight.clear();
+    _generation.clear();
+    for (final token in _locationInFlight.values) {
+      token.cancel();
+    }
+    _locationInFlight.clear();
+    _locationGeneration.clear();
+
+    final anchors = [
+      for (final p in points)
+        RouteAnchor(id: UniqueKey().toString(), lat: p.lat, lon: p.lon),
+    ];
+    final segments = [
+      for (var i = 0; i < anchors.length - 1; i++)
+        RouteSegment(
+          beforeAnchorId: anchors[i].id,
+          afterAnchorId: anchors[i + 1].id,
+          polyline: [anchors[i].point, anchors[i + 1].point],
+          state: SegmentState.straight,
+        ),
+    ];
+
+    state = RouteAnchorsState(
+      anchors: anchors,
+      segments: segments,
+      autoRoutingEnabled: true,
+      travelProfile: profile,
+      costingOptions: opts,
+      undoStack: const [],
+      redoStack: const [],
+    );
+
+    resolveAllSegments();
+  }
+
   /// Pushes the current (pre-mutation) anchors/segments onto the undo stack
   /// and clears the redo stack (D-11: any new action clears redo). Called
   /// FIRST, before mutating, by every mutation method below.

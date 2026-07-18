@@ -581,6 +581,95 @@ void main() {
     );
   });
 
+  group('RouteAnchors - seedFromTrack (quick-260718-e9j)', () {
+    test(
+      'seeds one anchor per point, one straight segment per consecutive '
+      'pair, and an empty undo/redo stack, before auto-resolve settles',
+      () async {
+        var callCount = 0;
+        final container = _buildContainer((options, index) async {
+          callCount++;
+          return const _CannedResponse.failure();
+        });
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        notifier.seedFromTrack([
+          _anchorA,
+          _anchorB,
+          _anchorC,
+        ], 'bicycle', const {'bicycle_type': 'Road'});
+
+        final result = container.read(routeAnchorsProvider);
+        expect(result.anchors, hasLength(3));
+        expect(result.segments, hasLength(2));
+        for (final segment in result.segments) {
+          expect(segment.state, SegmentState.straight);
+        }
+        expect(result.undoStack, isEmpty);
+        expect(result.redoStack, isEmpty);
+        expect(result.travelProfile, 'bicycle');
+        expect(result.costingOptions, {'bicycle_type': 'Road'});
+
+        // resolveAllSegments dispatches a fire-and-forget resolve for every
+        // segment (auto-routing on by default) — confirm it fires, without
+        // asserting on its eventual (irrelevant here) outcome.
+        await _flushAsyncWork();
+        expect(callCount, 2);
+      },
+    );
+
+    test('a single point yields 1 anchor and 0 segments', () async {
+      final container = _buildContainer(
+        (options, index) async => const _CannedResponse.failure(),
+      );
+      final notifier = container.read(routeAnchorsProvider.notifier);
+
+      notifier.seedFromTrack([_anchorA], 'pedestrian', null);
+
+      final result = container.read(routeAnchorsProvider);
+      expect(result.anchors, hasLength(1));
+      expect(result.segments, isEmpty);
+    });
+
+    test('an empty point list yields an empty session', () async {
+      final container = _buildContainer(
+        (options, index) async => const _CannedResponse.failure(),
+      );
+      final notifier = container.read(routeAnchorsProvider.notifier);
+
+      notifier.seedFromTrack(const [], 'pedestrian', null);
+
+      final result = container.read(routeAnchorsProvider);
+      expect(result.anchors, isEmpty);
+      expect(result.segments, isEmpty);
+    });
+
+    test(
+      'clears any prior in-flight/undo/redo bookkeeping from an earlier '
+      'session (mirrors resetForSession)',
+      () async {
+        final container = _buildContainer(
+          (options, index) async => const _CannedResponse.failure(),
+        );
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        notifier.appendAnchor(_anchorA);
+        notifier.appendAnchor(_anchorB);
+        expect(
+          container.read(routeAnchorsProvider).undoStack,
+          isNotEmpty,
+        );
+
+        notifier.seedFromTrack([_anchorA, _anchorC], 'pedestrian', null);
+
+        final result = container.read(routeAnchorsProvider);
+        expect(result.undoStack, isEmpty);
+        expect(result.redoStack, isEmpty);
+        expect(result.anchors, hasLength(2));
+      },
+    );
+  });
+
   group('RouteAnchors - anchor mutations, geometric split, undo/redo', () {
     test(
       'appendAnchor on an empty route creates 1 anchor and 0 segments; a '
