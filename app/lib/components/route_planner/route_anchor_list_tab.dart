@@ -92,61 +92,77 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
         ? const Color(0xff3E435B)
         : const Color(0xff242734);
 
-    return ReorderableListView.builder(
-      scrollController: widget.scrollController,
-      buildDefaultDragHandles: true,
-      itemCount: _orderedIds.length,
-      itemBuilder: (context, index) {
-        final anchor = byId[_orderedIds[index]];
-        if (anchor == null) {
-          return SizedBox.shrink(key: ValueKey(_orderedIds[index]));
-        }
+    // The chip row is a fixed (non-scrolling) header above the list — the
+    // ReorderableListView below remains the SOLE owner of
+    // widget.scrollController (Pattern 1), wrapped in Expanded so it still
+    // fills the rest of the tab.
+    return Column(
+      children: [
+        _AnchorActionChips(anchors: anchors),
+        Expanded(
+          child: ReorderableListView.builder(
+            scrollController: widget.scrollController,
+            buildDefaultDragHandles: true,
+            itemCount: _orderedIds.length,
+            itemBuilder: (context, index) {
+              final anchor = byId[_orderedIds[index]];
+              if (anchor == null) {
+                return SizedBox.shrink(key: ValueKey(_orderedIds[index]));
+              }
 
-        return ListTile(
-          key: ValueKey(anchor.id),
-          leading: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-            child: Center(
-              child: Text(
-                '${index + 1}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+              return ListTile(
+                key: ValueKey(anchor.id),
+                leading: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${index + 1}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+                title: Text(
+                  _anchorTitle(anchor, index, commonCountry),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  '${anchor.lat.toStringAsFixed(5)}, ${anchor.lon.toStringAsFixed(5)}',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                trailing: IconButton(
+                  icon: FaIcon(
+                    FontAwesomeIcons.trash,
+                    size: 14,
+                    color: Colors.red.shade400,
+                  ),
+                  onPressed: () => ref
+                      .read(routeAnchorsProvider.notifier)
+                      .deleteAnchor(anchor.id),
+                  visualDensity: VisualDensity.compact,
+                ),
+              );
+            },
+            onReorderStart: (_) => setState(() => _reordering = true),
+            // The index-shift `if (newIndex > oldIndex) newIndex -= 1`
+            // inside _onReorder is the canonical onReorder contract
+            // (Pitfall 1); onReorderItem is not used so that shift stays
+            // explicit and testable, matching
+            // settings_categories_screen.dart's established pattern.
+            // ignore: deprecated_member_use
+            onReorder: _onReorder,
           ),
-          title: Text(
-            _anchorTitle(anchor, index, commonCountry),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            '${anchor.lat.toStringAsFixed(5)}, ${anchor.lon.toStringAsFixed(5)}',
-            style: TextStyle(color: Colors.grey[600]),
-          ),
-          trailing: IconButton(
-            icon: FaIcon(
-              FontAwesomeIcons.trash,
-              size: 14,
-              color: Colors.red.shade400,
-            ),
-            onPressed: () =>
-                ref.read(routeAnchorsProvider.notifier).deleteAnchor(anchor.id),
-            visualDensity: VisualDensity.compact,
-          ),
-        );
-      },
-      onReorderStart: (_) => setState(() => _reordering = true),
-      // The index-shift `if (newIndex > oldIndex) newIndex -= 1` inside
-      // _onReorder is the canonical onReorder contract (Pitfall 1);
-      // onReorderItem is not used so that shift stays explicit and testable,
-      // matching settings_categories_screen.dart's established pattern.
-      // ignore: deprecated_member_use
-      onReorder: _onReorder,
+        ),
+      ],
     );
   }
 
@@ -161,5 +177,60 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
     ref.read(routeAnchorsProvider.notifier).reorderAnchors(_orderedIds);
 
     setState(() => _reordering = false);
+  }
+}
+
+/// Two chip-sized actions at the top of the Route Anchors tab only (moved
+/// out of the shared sheet header so they're invisible on Elevation/
+/// Settings): "Delete all" (immediate, no confirmation —
+/// [RouteAnchors.deleteAllAnchors] mirrors [RouteAnchors.deleteAnchor]'s own
+/// D-06 discipline; Undo is the sole safety net) and "Reverse direction"
+/// ([RouteAnchors.reverseRoute]). Both disable themselves rather than no-op
+/// silently when there's nothing to act on.
+class _AnchorActionChips extends ConsumerWidget {
+  final List<RouteAnchor> anchors;
+
+  const _AnchorActionChips({required this.anchors});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final notifier = ref.read(routeAnchorsProvider.notifier);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Wrap(
+        spacing: 8,
+        children: [
+          ActionChip(
+            visualDensity: VisualDensity.compact,
+            avatar: const FaIcon(
+              FontAwesomeIcons.arrowRightArrowLeft,
+              size: 12,
+            ),
+            label: const Text('Reverse direction'),
+            onPressed: anchors.length < 2 ? null : notifier.reverseRoute,
+          ),
+          ActionChip(
+            visualDensity: VisualDensity.compact,
+            avatar: FaIcon(
+              FontAwesomeIcons.trash,
+              size: 12,
+              color: anchors.isEmpty
+                  ? null
+                  : theme.colorScheme.onErrorContainer,
+            ),
+            label: const Text('Delete all'),
+            backgroundColor: anchors.isEmpty
+                ? null
+                : theme.colorScheme.errorContainer,
+            labelStyle: anchors.isEmpty
+                ? null
+                : TextStyle(color: theme.colorScheme.onErrorContainer),
+            onPressed: anchors.isEmpty ? null : notifier.deleteAllAnchors,
+          ),
+        ],
+      ),
+    );
   }
 }
