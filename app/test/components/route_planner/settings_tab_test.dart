@@ -63,34 +63,31 @@ void main() {
     },
   );
 
-  testWidgets(
-    "tapping the 'Biking / Road' card calls switchProfile('bicycle', "
-    "roadOpts)",
-    (tester) async {
-      final container = ProviderContainer(
-        overrides: [
-          routeAnchorsProvider.overrideWith(() => _SeededRouteAnchors()),
-          categoryProvider.overrideWith(() => _FakeCategoryNotifier()),
-        ],
-      );
-      addTearDown(container.dispose);
+  testWidgets("tapping the 'Biking / Road' card calls switchProfile('bicycle', "
+      "roadOpts)", (tester) async {
+    final container = ProviderContainer(
+      overrides: [
+        routeAnchorsProvider.overrideWith(() => _SeededRouteAnchors()),
+        categoryProvider.overrideWith(() => _FakeCategoryNotifier()),
+      ],
+    );
+    addTearDown(container.dispose);
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(home: Scaffold(body: SettingsTab())),
-        ),
-      );
-      await tester.pump();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: SettingsTab())),
+      ),
+    );
+    await tester.pump();
 
-      await tester.tap(find.text('Biking / Road'));
-      await tester.pump();
+    await tester.tap(find.text('Biking / Road'));
+    await tester.pump();
 
-      final state = container.read(routeAnchorsProvider);
-      expect(state.travelProfile, 'bicycle');
-      expect(state.costingOptions?['bicycle_type'], 'Road');
-    },
-  );
+    final state = container.read(routeAnchorsProvider);
+    expect(state.travelProfile, 'bicycle');
+    expect(state.costingOptions?['bicycle_type'], 'Road');
+  });
 
   testWidgets('toggling the auto-routing switch flips autoRoutingEnabled', (
     tester,

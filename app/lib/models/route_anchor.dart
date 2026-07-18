@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:maplibre/maplibre.dart' show Geographic;
+import 'package:wanderer/util/reverse_geocode_util.dart';
 
 part 'route_anchor.freezed.dart';
 
@@ -15,6 +16,7 @@ abstract class RouteAnchor with _$RouteAnchor {
     required String id, // generated via UniqueKey().toString() at creation
     required double lat,
     required double lon,
+    ReverseLocationResult? location,
   }) = _RouteAnchor;
 
   const RouteAnchor._();

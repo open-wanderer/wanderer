@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 mixin _$RouteAnchor {
 
  String get id;// generated via UniqueKey().toString() at creation
- double get lat; double get lon;
+ double get lat; double get lon; ReverseLocationResult? get location;
 /// Create a copy of RouteAnchor
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -26,16 +26,16 @@ $RouteAnchorCopyWith<RouteAnchor> get copyWith => _$RouteAnchorCopyWithImpl<Rout
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RouteAnchor&&(identical(other.id, id) || other.id == id)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RouteAnchor&&(identical(other.id, id) || other.id == id)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.location, location) || other.location == location));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,lat,lon);
+int get hashCode => Object.hash(runtimeType,id,lat,lon,location);
 
 @override
 String toString() {
-  return 'RouteAnchor(id: $id, lat: $lat, lon: $lon)';
+  return 'RouteAnchor(id: $id, lat: $lat, lon: $lon, location: $location)';
 }
 
 
@@ -46,7 +46,7 @@ abstract mixin class $RouteAnchorCopyWith<$Res>  {
   factory $RouteAnchorCopyWith(RouteAnchor value, $Res Function(RouteAnchor) _then) = _$RouteAnchorCopyWithImpl;
 @useResult
 $Res call({
- String id, double lat, double lon
+ String id, double lat, double lon, ReverseLocationResult? location
 });
 
 
@@ -63,12 +63,13 @@ class _$RouteAnchorCopyWithImpl<$Res>
 
 /// Create a copy of RouteAnchor
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? lat = null,Object? lon = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? lat = null,Object? lon = null,Object? location = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double,lon: null == lon ? _self.lon : lon // ignore: cast_nullable_to_non_nullable
-as double,
+as double,location: freezed == location ? _self.location : location // ignore: cast_nullable_to_non_nullable
+as ReverseLocationResult?,
   ));
 }
 
@@ -153,10 +154,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  double lat,  double lon)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  double lat,  double lon,  ReverseLocationResult? location)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _RouteAnchor() when $default != null:
-return $default(_that.id,_that.lat,_that.lon);case _:
+return $default(_that.id,_that.lat,_that.lon,_that.location);case _:
   return orElse();
 
 }
@@ -174,10 +175,10 @@ return $default(_that.id,_that.lat,_that.lon);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  double lat,  double lon)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  double lat,  double lon,  ReverseLocationResult? location)  $default,) {final _that = this;
 switch (_that) {
 case _RouteAnchor():
-return $default(_that.id,_that.lat,_that.lon);case _:
+return $default(_that.id,_that.lat,_that.lon,_that.location);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -194,10 +195,10 @@ return $default(_that.id,_that.lat,_that.lon);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  double lat,  double lon)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  double lat,  double lon,  ReverseLocationResult? location)?  $default,) {final _that = this;
 switch (_that) {
 case _RouteAnchor() when $default != null:
-return $default(_that.id,_that.lat,_that.lon);case _:
+return $default(_that.id,_that.lat,_that.lon,_that.location);case _:
   return null;
 
 }
@@ -209,13 +210,14 @@ return $default(_that.id,_that.lat,_that.lon);case _:
 
 
 class _RouteAnchor extends RouteAnchor {
-  const _RouteAnchor({required this.id, required this.lat, required this.lon}): super._();
+  const _RouteAnchor({required this.id, required this.lat, required this.lon, this.location}): super._();
   
 
 @override final  String id;
 // generated via UniqueKey().toString() at creation
 @override final  double lat;
 @override final  double lon;
+@override final  ReverseLocationResult? location;
 
 /// Create a copy of RouteAnchor
 /// with the given fields replaced by the non-null parameter values.
@@ -227,16 +229,16 @@ _$RouteAnchorCopyWith<_RouteAnchor> get copyWith => __$RouteAnchorCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RouteAnchor&&(identical(other.id, id) || other.id == id)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RouteAnchor&&(identical(other.id, id) || other.id == id)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.location, location) || other.location == location));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,lat,lon);
+int get hashCode => Object.hash(runtimeType,id,lat,lon,location);
 
 @override
 String toString() {
-  return 'RouteAnchor(id: $id, lat: $lat, lon: $lon)';
+  return 'RouteAnchor(id: $id, lat: $lat, lon: $lon, location: $location)';
 }
 
 
@@ -247,7 +249,7 @@ abstract mixin class _$RouteAnchorCopyWith<$Res> implements $RouteAnchorCopyWith
   factory _$RouteAnchorCopyWith(_RouteAnchor value, $Res Function(_RouteAnchor) _then) = __$RouteAnchorCopyWithImpl;
 @override @useResult
 $Res call({
- String id, double lat, double lon
+ String id, double lat, double lon, ReverseLocationResult? location
 });
 
 
@@ -264,12 +266,13 @@ class __$RouteAnchorCopyWithImpl<$Res>
 
 /// Create a copy of RouteAnchor
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? lat = null,Object? lon = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? lat = null,Object? lon = null,Object? location = freezed,}) {
   return _then(_RouteAnchor(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double,lon: null == lon ? _self.lon : lon // ignore: cast_nullable_to_non_nullable
-as double,
+as double,location: freezed == location ? _self.location : location // ignore: cast_nullable_to_non_nullable
+as ReverseLocationResult?,
   ));
 }
 

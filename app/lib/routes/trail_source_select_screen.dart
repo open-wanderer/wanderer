@@ -144,7 +144,9 @@ class _TrailSourceSelectScreenState
             title: l10n.trail_source_record,
             description:
                 "Track your live coordinates and log your journey in real-time.",
-            onTap: _importLoading ? null : () => _comingSoon(l10n),
+            onTap: (_importLoading || _plannerLoading)
+                ? null
+                : () => _comingSoon(l10n),
           ),
           const SizedBox(height: 12),
           _SourceActionCard(
@@ -153,7 +155,9 @@ class _TrailSourceSelectScreenState
             description:
                 "Upload external GPX files directly from your device storage.",
             isLoading: _importLoading,
-            onTap: _importLoading ? null : () => _importGpx(l10n),
+            onTap: (_importLoading || _plannerLoading)
+                ? null
+                : () => _importGpx(l10n),
           ),
         ],
       ),

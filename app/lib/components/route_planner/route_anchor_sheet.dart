@@ -33,13 +33,30 @@ class RouteAnchorSheet extends ConsumerStatefulWidget {
   ConsumerState<RouteAnchorSheet> createState() => _RouteAnchorSheetState();
 }
 
-class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet> {
+class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet>
+    with SingleTickerProviderStateMixin {
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
+
+  late TabController _tabController;
+  int _activeIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
+      setState(() {
+        _activeIndex = _tabController.index;
+      });
+    });
+  }
 
   @override
   void dispose() {
     _sheetController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -47,109 +64,134 @@ class _RouteAnchorSheetState extends ConsumerState<RouteAnchorSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final sheetMinSize = 103 / MediaQuery.of(context).size.height;
+    final sheetMaxSize = 0.6;
+
     return DraggableScrollableSheet(
       controller: _sheetController,
-      initialChildSize: 0.14,
-      minChildSize: 0.14, // no full-dismiss (D-03) — never 0.0
-      maxChildSize: 0.6,
+      initialChildSize: sheetMinSize,
+      minChildSize: sheetMinSize, // no full-dismiss (D-03) — never 0.0
+      maxChildSize: sheetMaxSize,
       snap: true,
-      snapSizes: const [0.14, 0.6],
+      snapSizes: [sheetMinSize, sheetMaxSize],
       builder: (context, scrollController) {
-        return DefaultTabController(
-          length: 3,
-          child: Container(
-            decoration: BoxDecoration(
-              color: theme.canvasColor,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.canvasColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Handle-bar + TabBar header — the ONLY expand/collapse
-                // driver (Pattern 1). A vertical drag anywhere in this header
-                // (not just the thin handle strip) resizes the sheet; a
-                // stationary tap still resolves to TabBar's own tap
-                // recognizer via the gesture arena, so tab switching is
-                // unaffected. No close button (D-03: peek is the floor, sheet
-                // never dismisses).
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onVerticalDragUpdate: (details) {
-                    if (!_sheetController.isAttached) return;
-                    final screenHeight = MediaQuery.sizeOf(context).height;
-                    final target =
-                        (_sheetController.size -
-                                details.delta.dy / screenHeight)
-                            .clamp(0.14, 0.6);
-                    _sheetController.jumpTo(target);
-                  },
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Center(
-                          child: Container(
-                            width: 30,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              borderRadius: const BorderRadius.all(
-                                Radius.circular(24),
-                              ),
-                              color: theme.colorScheme.secondaryContainer,
+            ],
+          ),
+          child: Column(
+            children: [
+              // Handle-bar + TabBar header — the ONLY expand/collapse
+              // driver (Pattern 1). A vertical drag anywhere in this header
+              // (not just the thin handle strip) resizes the sheet; a
+              // stationary tap still resolves to TabBar's own tap
+              // recognizer via the gesture arena, so tab switching is
+              // unaffected. No close button (D-03: peek is the floor, sheet
+              // never dismisses).
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onVerticalDragUpdate: (details) {
+                  if (!_sheetController.isAttached) return;
+                  final screenHeight = MediaQuery.sizeOf(context).height;
+                  final target =
+                      (_sheetController.size - details.delta.dy / screenHeight)
+                          .clamp(sheetMinSize, sheetMaxSize);
+                  _sheetController.jumpTo(target);
+                },
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Center(
+                        child: Container(
+                          width: 30,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(24),
                             ),
+                            color: theme.colorScheme.secondaryContainer,
                           ),
                         ),
                       ),
-                      TabBar(
-                        dividerColor: Colors.transparent,
-                        labelColor: theme.brightness == Brightness.dark
-                            ? const Color(0xff3E435B)
-                            : const Color(0xff242734),
-                        indicatorColor: theme.brightness == Brightness.dark
-                            ? const Color(0xff3E435B)
-                            : const Color(0xff242734),
-                        tabs: const [
-                          Tab(
-                            icon: FaIcon(FontAwesomeIcons.listOl, size: 16),
-                            text: 'Route Anchors',
-                          ),
-                          Tab(
-                            icon: FaIcon(FontAwesomeIcons.mountain, size: 16),
-                            text: 'Elevation',
-                          ),
-                          Tab(
-                            icon: FaIcon(FontAwesomeIcons.gear, size: 16),
-                            text: 'Settings',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                    ),
+                    TabBar(
+                      controller: _tabController,
+                      onTap: (_) => {
+                        if (_sheetController.size == sheetMinSize)
+                          {
+                            _sheetController.animateTo(
+                              sheetMaxSize,
+                              duration: Duration(milliseconds: 250),
+                              curve: Curves.easeOut,
+                            ),
+                          },
+                      },
+                      dividerColor: Colors.transparent,
+                      labelColor: theme.brightness == Brightness.dark
+                          ? Colors.white
+                          : Theme.of(context).colorScheme.primary,
+                      indicatorColor: theme.brightness == Brightness.dark
+                          ? Colors.white
+                          : Theme.of(context).colorScheme.primary,
+                      unselectedLabelColor: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.3),
+                      tabs: const [
+                        Tab(
+                          icon: FaIcon(FontAwesomeIcons.listOl, size: 16),
+                          text: 'Route Anchors',
+                        ),
+                        Tab(
+                          icon: FaIcon(FontAwesomeIcons.mountain, size: 16),
+                          text: 'Elevation',
+                        ),
+                        Tab(
+                          icon: FaIcon(FontAwesomeIcons.gear, size: 16),
+                          text: 'Settings',
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      // CRITICAL (Pitfall 1): the builder's scrollController
-                      // is attached to ONLY this tab. ElevationTab and
-                      // SettingsTab below get no shared controller — passing
-                      // it into more than one would throw at runtime since
-                      // TabBarView keeps every child built simultaneously.
-                      RouteAnchorListTab(scrollController: scrollController),
-                      ElevationTab(),
-                      SettingsTab(),
-                    ],
-                  ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // CRITICAL (Pitfall 1): the builder's scrollController
+                    // is attached to ONLY this tab. ElevationTab and
+                    // SettingsTab below get no shared controller — passing
+                    // it into more than one would throw at runtime since
+                    // TabBarView keeps every child built simultaneously.
+                    RouteAnchorListTab(
+                      scrollController: _activeIndex == 0
+                          ? scrollController
+                          : null,
+                    ),
+                    ElevationTab(
+                      scrollController: _activeIndex == 1
+                          ? scrollController
+                          : null,
+                      isVisible: _activeIndex == 1,
+                    ),
+                    SettingsTab(
+                      scrollController: _activeIndex == 2
+                          ? scrollController
+                          : null,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },

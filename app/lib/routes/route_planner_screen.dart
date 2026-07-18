@@ -197,8 +197,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
           // D-03: the tabbed sheet mounts only once the route has >=1
           // anchor, and un-mounts entirely when it returns to empty — it
           // never shows an empty state of its own.
-          if (state.anchors.isNotEmpty)
-            RouteAnchorSheet(),
+          if (state.anchors.isNotEmpty) RouteAnchorSheet(),
         ],
       ),
     );
@@ -217,7 +216,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       options: ml.MapOptions(
         initStyle: styleJson,
         initCenter: widget.initialCenter,
-        initZoom: 2,
+        initZoom: widget.initialCenter.lat == 0 && widget.initialCenter.lon == 0
+            ? 2
+            : 14,
         gestures: const ml.MapGestures.all(),
         androidForegroundLoadColor: Theme.of(context).colorScheme.surface,
       ),
@@ -248,9 +249,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
               layerIds: const ['route-segments-hit'],
             ) ??
             const [];
-        final notifier = ref.read(
-          routeAnchorsProvider.notifier,
-        );
+        final notifier = ref.read(routeAnchorsProvider.notifier);
 
         if (hits.isNotEmpty) {
           final props = hits.first.properties;
@@ -290,8 +289,13 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         // live here too (D-04, 21-CONTEXT). The auto-routing toggle has
         // moved into the Settings tab (quick-260717-t7q) — this column now
         // hosts only undo/redo.
+        const ml.MapCompass(
+          hideIfRotatedNorth: true,
+
+          padding: EdgeInsets.only(top: 236, right: 4),
+        ),
         Positioned(
-          top: 128,
+          top: 112,
           right: 0,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -309,10 +313,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   void _onStyleLoaded(ml.StyleController style) {
     _resolvedStyle = style;
     _segmentLayer
-        .update(
-          style,
-          ref.read(routeAnchorsProvider).segments,
-        )
+        .update(style, ref.read(routeAnchorsProvider).segments)
         .ignore();
   }
 
@@ -383,15 +384,11 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
             FontAwesomeIcons.arrowRotateLeft,
             size: 18,
             color: state.undoStack.isNotEmpty
-                ? (Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xff3E435B)
-                      : const Color(0xff242734))
+                ? Theme.of(context).colorScheme.onSurface
                 : Theme.of(context).colorScheme.onSurface.withValues(alpha: .4),
           ),
           onPressed: state.undoStack.isNotEmpty
-              ? ref
-                    .read(routeAnchorsProvider.notifier)
-                    .undo
+              ? ref.read(routeAnchorsProvider.notifier).undo
               : null,
         ),
       ),
@@ -416,15 +413,11 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
             FontAwesomeIcons.arrowRotateRight,
             size: 18,
             color: state.redoStack.isNotEmpty
-                ? (Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xff3E435B)
-                      : const Color(0xff242734))
+                ? Theme.of(context).colorScheme.onSurface
                 : Theme.of(context).colorScheme.onSurface.withValues(alpha: .4),
           ),
           onPressed: state.redoStack.isNotEmpty
-              ? ref
-                    .read(routeAnchorsProvider.notifier)
-                    .redo
+              ? ref.read(routeAnchorsProvider.notifier).redo
               : null,
         ),
       ),

@@ -28,9 +28,9 @@ import 'package:wanderer/util/reverse_geocode_util.dart';
 /// only genuinely scrollable tab, so the sheet's builder-supplied controller
 /// is wired to THIS tab's [ReorderableListView], not the Elevation tab.
 class RouteAnchorListTab extends ConsumerStatefulWidget {
-  final ScrollController scrollController;
+  final ScrollController? scrollController;
 
-  const RouteAnchorListTab({super.key, required this.scrollController});
+  const RouteAnchorListTab({super.key, this.scrollController});
 
   @override
   ConsumerState<RouteAnchorListTab> createState() => _RouteAnchorListTabState();
@@ -216,9 +216,8 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
               size: 14,
               color: Colors.red.shade400,
             ),
-            onPressed: () => ref
-                .read(routeAnchorsProvider.notifier)
-                .deleteAnchor(anchor.id),
+            onPressed: () =>
+                ref.read(routeAnchorsProvider.notifier).deleteAnchor(anchor.id),
             visualDensity: VisualDensity.compact,
           ),
         );

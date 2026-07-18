@@ -23,56 +23,38 @@ import 'package:wanderer/util/gpx_util.dart';
 /// Assumes this widget is the second page (index 1) of a 2-tab
 /// `DefaultTabController` (tab 0 = Route Anchors, tab 1 = Elevation).
 class ElevationTab extends ConsumerStatefulWidget {
-  const ElevationTab({super.key});
+  final ScrollController? scrollController;
+  final bool isVisible;
+  const ElevationTab({
+    super.key,
+    required this.isVisible,
+    this.scrollController,
+  });
 
   @override
   ConsumerState<ElevationTab> createState() => _ElevationTabState();
 }
 
 class _ElevationTabState extends ConsumerState<ElevationTab> {
-  static const int _tabIndex = 1;
-
-  TabController? _tabController;
   Timer? _debounce;
   Gpx? _eleMergedGpx;
-  bool _wasVisible = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final controller = DefaultTabController.maybeOf(context);
-    if (_tabController != controller) {
-      _tabController?.removeListener(_onTabChanged);
-      _tabController = controller;
-      _tabController?.addListener(_onTabChanged);
-      // The controller may already be sitting on this tab at mount time
-      // (e.g. re-entering the sheet with Elevation as the last-active tab).
-      _onTabChanged();
+  void didUpdateWidget(covariant ElevationTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Gated on visibility transitions directly via widget properties
+    if (widget.isVisible && !oldWidget.isVisible) {
+      _scheduleFetch();
+    } else if (!widget.isVisible && oldWidget.isVisible) {
+      _debounce?.cancel();
     }
   }
 
   @override
   void dispose() {
-    _tabController?.removeListener(_onTabChanged);
     _debounce?.cancel();
     super.dispose();
-  }
-
-  bool get _isVisible =>
-      _tabController != null &&
-      _tabController!.index == _tabIndex &&
-      !_tabController!.indexIsChanging;
-
-  void _onTabChanged() {
-    if (!mounted) return;
-    final visible = _isVisible;
-    if (visible && !_wasVisible) {
-      _scheduleFetch();
-    } else if (!visible && _wasVisible) {
-      // Leaving the tab: no point firing a fetch for content the user can't see.
-      _debounce?.cancel();
-    }
-    _wasVisible = visible;
   }
 
   void _scheduleFetch() {
@@ -81,7 +63,7 @@ class _ElevationTabState extends ConsumerState<ElevationTab> {
   }
 
   Future<void> _fetchHeights() async {
-    if (!mounted || !_isVisible) return;
+    if (!mounted || !widget.isVisible) return;
 
     final gpx = ref.read(plannedGpxProvider);
     final points = gpx.allPoints;
@@ -97,7 +79,7 @@ class _ElevationTabState extends ConsumerState<ElevationTab> {
         '/valhalla/height',
         data: {'shape': shape},
       );
-      if (!mounted || !_isVisible) return;
+      if (!mounted || !widget.isVisible) return;
 
       final heights = (response.data['height'] as List).cast<num>();
       final merged = _buildEleMergedGpx(shape, heights);
@@ -140,7 +122,7 @@ class _ElevationTabState extends ConsumerState<ElevationTab> {
     // changes while this tab is visible. plannedGpxProvider itself re-emits
     // regardless of tab visibility, so the gating happens here, not there.
     ref.listen(plannedGpxProvider, (previous, next) {
-      if (_isVisible) _scheduleFetch();
+      if (widget.isVisible) _scheduleFetch();
     });
 
     if (gpx.allPoints.length < 2) {
@@ -149,7 +131,13 @@ class _ElevationTabState extends ConsumerState<ElevationTab> {
 
     final displayGpx = _eleMergedGpx ?? gpx;
 
-    return ElevationProfile(trail: null, gpx: displayGpx);
+    return SingleChildScrollView(
+      controller: widget.scrollController,
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: ElevationProfile(trail: null, gpx: displayGpx),
+      ),
+    );
   }
 }
 

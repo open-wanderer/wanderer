@@ -140,9 +140,7 @@ class RouteAnchors extends _$RouteAnchors {
               ],
               'costing': state.travelProfile,
               if (state.costingOptions != null)
-                'costing_options': {
-                  state.travelProfile: state.costingOptions,
-                },
+                'costing_options': {state.travelProfile: state.costingOptions},
             },
             cancelToken: token,
           );
@@ -221,21 +219,6 @@ class RouteAnchors extends _$RouteAnchors {
   Future<void> toggleAutoRouting() async {
     final enabled = !state.autoRoutingEnabled;
     state = state.copyWith(autoRoutingEnabled: enabled);
-    if (!enabled) return;
-
-    final anchorsById = {for (final a in state.anchors) a.id: a};
-    final futures = <Future<void>>[
-      for (final segment in state.segments)
-        if (anchorsById[segment.beforeAnchorId] != null &&
-            anchorsById[segment.afterAnchorId] != null)
-          _resolveSegment(
-            segment.beforeAnchorId,
-            segment.afterAnchorId,
-            anchorsById[segment.beforeAnchorId]!,
-            anchorsById[segment.afterAnchorId]!,
-          ),
-    ];
-    await Future.wait(futures);
   }
 
   /// Switches the travel bucket mid-session (Rec B): sets [profile] +

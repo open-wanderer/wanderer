@@ -14,7 +14,9 @@ import 'package:wanderer/util/route_travel_bucket.dart';
 /// simultaneously, so only [RouteAnchorListTab] may hold that controller.
 /// This tab manages its own scroll via a plain [SingleChildScrollView].
 class SettingsTab extends ConsumerWidget {
-  const SettingsTab({super.key});
+  final ScrollController? scrollController;
+
+  const SettingsTab({super.key, this.scrollController});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,6 +30,7 @@ class SettingsTab extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
+      controller: scrollController,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,7 +102,9 @@ class _BucketCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: selected ? theme.colorScheme.primary : theme.colorScheme.outline,
+          color: selected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outline,
           width: selected ? 2 : 1,
         ),
       ),
