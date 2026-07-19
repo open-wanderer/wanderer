@@ -1573,6 +1573,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get time => 'Time';
 
   @override
+  String get time_in_motion => 'Time in Motion';
+
+  @override
   String get toilets => 'Baños';
 
   @override

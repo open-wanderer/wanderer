@@ -2912,6 +2912,12 @@ abstract class AppLocalizations {
   /// **'Time'**
   String get time;
 
+  /// No description provided for @time_in_motion.
+  ///
+  /// In en, this message translates to:
+  /// **'Time in Motion'**
+  String get time_in_motion;
+
   /// No description provided for @toilets.
   ///
   /// In en, this message translates to:

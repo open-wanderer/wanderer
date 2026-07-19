@@ -1569,6 +1569,9 @@ class AppLocalizationsHu extends AppLocalizations {
   String get time => 'Time';
 
   @override
+  String get time_in_motion => 'Time in Motion';
+
+  @override
   String get toilets => 'Toilets';
 
   @override

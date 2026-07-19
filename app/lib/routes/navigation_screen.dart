@@ -1402,7 +1402,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                     children: [
                       _buildStatCell(
                         context,
-                        localizations.time,
+                        localizations.time_in_motion,
                         formatElapsed(stats.elapsed),
                       ),
                       _buildStatCell(

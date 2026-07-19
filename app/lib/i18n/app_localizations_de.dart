@@ -1574,6 +1574,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get time => 'Zeit';
 
   @override
+  String get time_in_motion => 'Time in Motion';
+
+  @override
   String get toilets => 'Toiletten';
 
   @override
