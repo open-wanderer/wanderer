@@ -446,5 +446,8 @@
   "waypoints": "{n, plural, =1 {Veipunkt} other {Veipunkter}}",
   "width": "Bredde",
   "wrong_username_or_password": "Feil brukernavn eller passord",
-  "you_can": "Du kan"
+  "you_can": "Du kan",
+  "stop_recording": "Stopp opptak",
+  "stop_recording_confirm": "Stoppe opptaket?",
+  "resume_recording_prompt": "Gjenoppta opptaket?"
 }

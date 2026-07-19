@@ -555,6 +555,12 @@ class AppLocalizationsZh extends AppLocalizations {
       'Stop navigation and return to the trail?';
 
   @override
+  String get stop_recording => '停止录制';
+
+  @override
+  String get stop_recording_confirm => '停止录制？';
+
+  @override
   String get search_this_area => 'Search this area';
 
   @override
@@ -1294,6 +1300,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String resume_navigation_prompt(String trail) {
     return 'Resume navigation on $trail?';
   }
+
+  @override
+  String get resume_recording_prompt => '恢复录制？';
 
   @override
   String get reverse_direction => '反向';

@@ -405,5 +405,8 @@
   "waypoints": "{n, plural, one {}=1 {Punto de Interés} other {Puntos de Interés}}",
   "width": "Anchura",
   "wrong_username_or_password": "Usuario o contraseña no correctas",
-  "you_can": "Puedes"
+  "you_can": "Puedes",
+  "stop_recording": "Detener grabación",
+  "stop_recording_confirm": "¿Detener la grabación?",
+  "resume_recording_prompt": "¿Reanudar la grabación?"
 }

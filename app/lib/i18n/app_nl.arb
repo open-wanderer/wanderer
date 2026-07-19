@@ -406,5 +406,8 @@
   "waypoints": "{n, plural,=1 {Routepunt} other {Routepunten}}",
   "width": "Breedte",
   "wrong_username_or_password": "Onjuiste gebruikersnaam of wachtwoord",
-  "you_can": "Jij kunt"
+  "you_can": "Jij kunt",
+  "stop_recording": "Opname stoppen",
+  "stop_recording_confirm": "Opname stoppen?",
+  "resume_recording_prompt": "Opname hervatten?"
 }

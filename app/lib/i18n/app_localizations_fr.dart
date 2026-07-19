@@ -569,6 +569,12 @@ class AppLocalizationsFr extends AppLocalizations {
       'Stop navigation and return to the trail?';
 
   @override
+  String get stop_recording => 'Arrêter l\'enregistrement';
+
+  @override
+  String get stop_recording_confirm => 'Arrêter l\'enregistrement ?';
+
+  @override
   String get search_this_area => 'Search this area';
 
   @override
@@ -1320,6 +1326,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String resume_navigation_prompt(String trail) {
     return 'Resume navigation on $trail?';
   }
+
+  @override
+  String get resume_recording_prompt => 'Reprendre l\'enregistrement ?';
 
   @override
   String get reverse_direction => 'Inverser la direction';

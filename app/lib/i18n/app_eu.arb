@@ -405,5 +405,8 @@
   "waypoints": "{n, plural, one {}=1 {bidepuntu} other {bidepuntu}}",
   "width": "Zabalera",
   "wrong_username_or_password": "Erabiltzaile izena edo pasahitza okerrak dira",
-  "you_can": "Hau egin dezakezu"
+  "you_can": "Hau egin dezakezu",
+  "stop_recording": "Stop recording",
+  "stop_recording_confirm": "Stop recording?",
+  "resume_recording_prompt": "Resume recording?"
 }

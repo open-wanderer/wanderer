@@ -563,6 +563,12 @@ class AppLocalizationsHu extends AppLocalizations {
       'Stop navigation and return to the trail?';
 
   @override
+  String get stop_recording => 'Felvétel leállítása';
+
+  @override
+  String get stop_recording_confirm => 'Leállítja a felvételt?';
+
+  @override
   String get search_this_area => 'Search this area';
 
   @override
@@ -1308,6 +1314,9 @@ class AppLocalizationsHu extends AppLocalizations {
   String resume_navigation_prompt(String trail) {
     return 'Resume navigation on $trail?';
   }
+
+  @override
+  String get resume_recording_prompt => 'Folytatja a felvételt?';
 
   @override
   String get reverse_direction => 'Reverse direction';

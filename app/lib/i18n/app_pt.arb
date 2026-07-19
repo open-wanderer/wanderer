@@ -405,5 +405,8 @@
   "waypoints": "{n, plural, =1 {Ponto de passagem} other {Pontos de passagem}}",
   "width": "Width",
   "wrong_username_or_password": "Nome de utilizador ou palavra-passe errados",
-  "you_can": "Podes"
+  "you_can": "Podes",
+  "stop_recording": "Parar gravação",
+  "stop_recording_confirm": "Parar a gravação?",
+  "resume_recording_prompt": "Retomar a gravação?"
 }

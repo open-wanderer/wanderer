@@ -168,6 +168,8 @@
   "explore_some_trails": "Explore some trails",
   "exit_navigation": "Exit",
   "stop_navigation_confirm": "Stop navigation and return to the trail?",
+  "stop_recording": "Stop recording",
+  "stop_recording_confirm": "Stop recording?",
   "search_this_area": "Search this area",
   "export": "Export",
   "export_all_trails": "Export all trails",
@@ -400,6 +402,7 @@
       }
     }
   },
+  "resume_recording_prompt": "Resume recording?",
   "reverse_direction": "Reverse direction",
   "road": "Road",
   "route": "{n, plural, =1 {Route} other {Routes}}",

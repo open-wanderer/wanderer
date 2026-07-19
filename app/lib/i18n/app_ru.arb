@@ -405,5 +405,8 @@
   "waypoints": "{n, plural, =1 {Путевая точка} other {Путевые точки}}",
   "width": "Ширина",
   "wrong_username_or_password": "Неверный логин или пароль",
-  "you_can": "Вы можете"
+  "you_can": "Вы можете",
+  "stop_recording": "Остановить запись",
+  "stop_recording_confirm": "Остановить запись?",
+  "resume_recording_prompt": "Возобновить запись?"
 }

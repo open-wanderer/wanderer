@@ -565,6 +565,12 @@ class AppLocalizationsDe extends AppLocalizations {
       'Navigation beenden und zur Route zurückkehren?';
 
   @override
+  String get stop_recording => 'Aufnahme stoppen';
+
+  @override
+  String get stop_recording_confirm => 'Aufnahme stoppen?';
+
+  @override
   String get search_this_area => 'In diesem Bereich suchen';
 
   @override
@@ -1311,6 +1317,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String resume_navigation_prompt(String trail) {
     return 'Resume navigation on $trail?';
   }
+
+  @override
+  String get resume_recording_prompt => 'Aufnahme fortsetzen?';
 
   @override
   String get reverse_direction => 'Richtung umkehren';

@@ -54,12 +54,20 @@ class NavigationScreen extends ConsumerStatefulWidget {
   final bool isOffline;
   final ActiveNavigationEntity? resumeSession;
 
+  /// True for a trail-less GPS-recording session (pushed via the top-level
+  /// `/record` route) — false (default) preserves every existing
+  /// turn-by-turn navigation call site unchanged. See the recording-mode
+  /// branches in `_buildButtonRow`, `_confirmExit`, `_persistNow`, and
+  /// `_buildElevationPage`.
+  final bool isRecording;
+
   const NavigationScreen({
     super.key,
     required this.id,
     required this.response,
     this.isOffline = false,
     this.resumeSession,
+    this.isRecording = false,
   });
 
   @override
@@ -590,8 +598,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
     final entity = ActiveNavigationEntity(
       obxId: _activeRowObxId,
-      sessionType: ActiveSessionType.nav,
-      trailId: widget.id,
+      sessionType: widget.isRecording
+          ? ActiveSessionType.rec
+          : ActiveSessionType.nav,
+      trailId: widget.isRecording ? null : widget.id,
       isOffline: widget.isOffline,
       currentManeuverIndex: navState.currentManeuverIndex,
       breadcrumbPolyline: PolylineUtil.encode(
@@ -1128,7 +1138,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     showDialog<_NavExitChoice>(
       context: context,
       builder: (ctx) => AlertDialog(
-        content: Text(localizations.stop_navigation_confirm),
+        content: Text(
+          widget.isRecording
+              ? localizations.stop_recording_confirm
+              : localizations.stop_navigation_confirm,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(_NavExitChoice.cancel),
@@ -1513,6 +1527,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     BuildContext context,
     AsyncValue<Trail> trailAsync,
   ) {
+    // Recording mode has no trail GPX to profile — trailProvider('') resolves
+    // to AsyncError, which would otherwise render error_reading_file.
+    if (widget.isRecording) return const SizedBox.shrink();
     return trailAsync.when(
       data: (trail) {
         final gpx = trail.expand?.gpx;
@@ -1538,11 +1555,122 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
+  /// Dominant Pause/Resume, icon-only FAB — shared verbatim between nav mode
+  /// (center slot) and recording mode (left slot). Also reflects
+  /// isStationary (auto-paused by tracelet's motion engine) so the
+  /// icon/tooltip stay accurate even when the user never pressed the
+  /// button — onPressed still only ever toggles the manual pause.
+  Widget _buildPauseFab(AppLocalizations localizations, NavigationStats stats) {
+    return FloatingActionButton(
+      heroTag: 'nav_pause',
+      tooltip: (stats.isPaused || stats.isStationary)
+          ? localizations.resume
+          : localizations.pause,
+      elevation: 2,
+      shape: StadiumBorder(),
+      onPressed: () {
+        ref
+            .read(
+              navigationStatsProvider(
+                widget.response,
+                resume: _resumeStats,
+              ).notifier,
+            )
+            .togglePause();
+        _persistNow();
+      },
+      child: FaIcon(
+        (stats.isPaused || stats.isStationary)
+            ? FontAwesomeIcons.play
+            : FontAwesomeIcons.pause,
+      ),
+    );
+  }
+
+  /// Toggle between additional stats and elevation profile — unchanged
+  /// between nav and recording mode, always the right-most button.
+  Widget _buildElevationFab(AppLocalizations localizations) {
+    return FloatingActionButton.small(
+      heroTag: 'nav_elevation',
+      tooltip: localizations.elevation_profile,
+      shape: const StadiumBorder(),
+      elevation: 2,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      onPressed: () {
+        if (!_showingElevation) {
+          // Stats → elevation: raise ceiling first, then expand + switch.
+          setState(() {
+            _sheetAtElevationSize = true;
+            _showingElevation = true;
+          });
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _sheetController.animateTo(
+                _kSheetElevationSize,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            }
+          });
+        } else {
+          // Elevation → stats: switch content + shrink simultaneously;
+          // lower the ceiling only after the animation completes so the
+          // sheet is never clamped mid-animation.
+          setState(() => _showingElevation = false);
+          _sheetController.animateTo(
+            _kSheetStatsSize,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) setState(() => _sheetAtElevationSize = false);
+          });
+        }
+      },
+      child: FaIcon(
+        _showingElevation
+            ? FontAwesomeIcons.chartSimple
+            : FontAwesomeIcons.chartArea,
+        color: Theme.of(context).colorScheme.onSurface,
+        size: 18,
+      ),
+    );
+  }
+
   Widget _buildButtonRow(
     BuildContext context,
     AppLocalizations localizations,
     NavigationStats stats,
   ) {
+    if (widget.isRecording) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            // Left — Pause/Resume toggle.
+            _buildPauseFab(localizations, stats),
+
+            // Center — dominant red Stop button; the ONLY finish trigger for
+            // a recording session (isArrived is structurally always false
+            // with empty maneuvers, so there is no auto-arrival banner).
+            FloatingActionButton(
+              heroTag: 'rec_stop',
+              tooltip: localizations.stop_recording,
+              elevation: 2,
+              shape: StadiumBorder(),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              onPressed: () => _confirmExit(context, localizations),
+              child: const FaIcon(FontAwesomeIcons.stop),
+            ),
+
+            // Right — toggle between additional stats and elevation profile.
+            _buildElevationFab(localizations),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Row(
@@ -1561,81 +1689,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               color: Theme.of(context).colorScheme.onSurface,
               size: 18,
             ),
-          ), // Center — dominant Pause/Resume, icon-only FAB. Also reflects
-          // isStationary (auto-paused by tracelet's motion engine) so the
-          // icon/tooltip stay accurate even when the user never pressed the
-          // button — onPressed still only ever toggles the manual pause.
-          FloatingActionButton(
-            heroTag: 'nav_pause',
-            tooltip: (stats.isPaused || stats.isStationary)
-                ? localizations.resume
-                : localizations.pause,
-            elevation: 2,
-            shape: StadiumBorder(),
-            onPressed: () {
-              ref
-                  .read(
-                    navigationStatsProvider(
-                      widget.response,
-                      resume: _resumeStats,
-                    ).notifier,
-                  )
-                  .togglePause();
-              _persistNow();
-            },
-            child: FaIcon(
-              (stats.isPaused || stats.isStationary)
-                  ? FontAwesomeIcons.play
-                  : FontAwesomeIcons.pause,
-            ),
           ),
 
+          // Center — dominant Pause/Resume.
+          _buildPauseFab(localizations, stats),
+
           // Right — toggle between additional stats and elevation profile.
-          FloatingActionButton.small(
-            heroTag: 'nav_elevation',
-            tooltip: localizations.elevation_profile,
-            shape: const StadiumBorder(),
-            elevation: 2,
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            onPressed: () {
-              if (!_showingElevation) {
-                // Stats → elevation: raise ceiling first, then expand + switch.
-                setState(() {
-                  _sheetAtElevationSize = true;
-                  _showingElevation = true;
-                });
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    _sheetController.animateTo(
-                      _kSheetElevationSize,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  }
-                });
-              } else {
-                // Elevation → stats: switch content + shrink simultaneously;
-                // lower the ceiling only after the animation completes so the
-                // sheet is never clamped mid-animation.
-                setState(() => _showingElevation = false);
-                _sheetController.animateTo(
-                  _kSheetStatsSize,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  if (mounted) setState(() => _sheetAtElevationSize = false);
-                });
-              }
-            },
-            child: FaIcon(
-              _showingElevation
-                  ? FontAwesomeIcons.chartSimple
-                  : FontAwesomeIcons.chartArea,
-              color: Theme.of(context).colorScheme.onSurface,
-              size: 18,
-            ),
-          ),
+          _buildElevationFab(localizations),
         ],
       ),
     );

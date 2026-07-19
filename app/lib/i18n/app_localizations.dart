@@ -1130,6 +1130,18 @@ abstract class AppLocalizations {
   /// **'Stop navigation and return to the trail?'**
   String get stop_navigation_confirm;
 
+  /// No description provided for @stop_recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop recording'**
+  String get stop_recording;
+
+  /// No description provided for @stop_recording_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop recording?'**
+  String get stop_recording_confirm;
+
   /// No description provided for @search_this_area.
   ///
   /// In en, this message translates to:
@@ -2437,6 +2449,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Resume navigation on {trail}?'**
   String resume_navigation_prompt(String trail);
+
+  /// No description provided for @resume_recording_prompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume recording?'**
+  String get resume_recording_prompt;
 
   /// No description provided for @reverse_direction.
   ///

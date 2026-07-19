@@ -404,5 +404,8 @@
   "waypoints": "{n, plural, =1 {Bod trasy} few {Body trasy} other {Bodů trasy}}",
   "width": "Šířka",
   "wrong_username_or_password": "Nesprávné uživatelské jméno nebo heslo",
-  "you_can": "Můžete"
+  "you_can": "Můžete",
+  "stop_recording": "Zastavit nahrávání",
+  "stop_recording_confirm": "Zastavit nahrávání?",
+  "resume_recording_prompt": "Obnovit nahrávání?"
 }

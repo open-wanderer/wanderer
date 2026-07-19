@@ -404,5 +404,8 @@
   "waypoints": "{n, plural, =1 {路点} other {路点}}",
   "width": "宽度",
   "wrong_username_or_password": "用户名或密码无效",
-  "you_can": "你可以"
+  "you_can": "你可以",
+  "stop_recording": "停止录制",
+  "stop_recording_confirm": "停止录制？",
+  "resume_recording_prompt": "恢复录制？"
 }

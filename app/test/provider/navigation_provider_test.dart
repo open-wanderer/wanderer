@@ -299,6 +299,39 @@ void main() {
     );
   });
 
+  group('NavigationNotifier recording mode (empty response)', () {
+    test(
+      'empty NavigateResponse resolves to an empty state without throwing, '
+      'then a fed position still appends to the breadcrumb',
+      () {
+        const emptyResponse = NavigateResponse(maneuvers: [], shape: []);
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        expect(
+          () => container.read(navigationProvider(emptyResponse)),
+          returnsNormally,
+        );
+
+        final state = container.read(navigationProvider(emptyResponse));
+        expect(state.currentManeuverIndex, 0);
+        expect(state.breadcrumb, isEmpty);
+
+        final notifier = container.read(
+          navigationProvider(emptyResponse).notifier,
+        );
+        expect(
+          () => notifier.onPosition(const Geographic(lat: 47.0, lon: 9.0)),
+          returnsNormally,
+        );
+
+        final afterState = container.read(navigationProvider(emptyResponse));
+        expect(afterState.breadcrumb.length, 1);
+        expect(afterState.currentManeuverIndex, 0);
+      },
+    );
+  });
+
   group('NavigationNotifier hairpin route handling', () {
     test(
       'a single noisy fix near a hairpin apex does not skip ahead to the '

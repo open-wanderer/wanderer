@@ -405,5 +405,8 @@
   "waypoints": "{n, plural, one {Punkt} few {Punkty} many {Punktów}=1 {Punkt} other {Punktów}}",
   "width": "Szerokość",
   "wrong_username_or_password": "Zła nazwa użytkownika lub hasło",
-  "you_can": "Możesz"
+  "you_can": "Możesz",
+  "stop_recording": "Zatrzymaj nagrywanie",
+  "stop_recording_confirm": "Zatrzymać nagrywanie?",
+  "resume_recording_prompt": "Wznowić nagrywanie?"
 }

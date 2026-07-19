@@ -405,5 +405,8 @@
   "waypoints": "{n, plural, =1 {Waypoint} other {Waypoints}}",
   "width": "Width",
   "wrong_username_or_password": "Helytelen felhasználónév vagy jelszó",
-  "you_can": "You can"
+  "you_can": "You can",
+  "stop_recording": "Felvétel leállítása",
+  "stop_recording_confirm": "Leállítja a felvételt?",
+  "resume_recording_prompt": "Folytatja a felvételt?"
 }
