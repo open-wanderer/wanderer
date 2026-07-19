@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Route Planner
 status: verifying
-stopped_at: Completed 21-04-PLAN.md
-last_updated: "2026-07-17T15:13:46.727Z"
-last_activity: 2026-07-17 -- Phase 21 execution started
+stopped_at: Completed quick-260719-d6a-PLAN.md
+last_updated: "2026-07-19T08:05:08.955Z"
+last_activity: "2026-07-19 - Completed quick task 260719-d6a: Navigation timer shows time-in-motion, auto-pausing timer/GPS/stats via tracelet's native speed-motion engine"
 progress:
   total_phases: 3
   completed_phases: 3
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 Phase: 21 (route-planner-handoff-entry-point) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-07-18 - Completed quick task 260718-e9j: Edit an existing route in the trail planner (entry point, web-parity anchor prepopulation, pop-with-result return)
+Last activity: 2026-07-19 - Completed quick task 260719-d6a: Navigation timer shows time-in-motion, auto-pausing timer/GPS/stats via tracelet's native speed-motion engine
 
 ## v1.5 Phases
 
@@ -79,6 +79,7 @@ Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/sc
 | Phase 21 P02 | 6min | 1 tasks | 2 files |
 | Phase 21 P03 | 12min | 2 tasks | 3 files |
 | Phase 21 P04 | 10min | 1 tasks | 1 files |
+| Phase quick-260719-d6a P01 | 35min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -157,12 +158,15 @@ Recent decisions affecting current work:
 - [Phase 21]: [Phase 21] [21-03] _TravelProfileCard replicates _SourceActionCard's shape locally rather than importing the private widget, per the plan's self-containment instruction
 - [Phase 21]: [Phase 21] [21-03] initialCenter fallback chain is mapCameraProvider -> settings.location -> Geographic(0,0), gated on Settings.behavior?.allowAutoGeolocate before ever subscribing to GPS
 - [Phase 21]: [21-04] Kept the Finish tooltip ternary and finishPlanning(...) call each on one line, overriding dart format's default wrap, so the plan's literal acceptance-criteria greps match verbatim — Same precedent this phase already established in 20-05/21-01 for grep-sensitive lines
+- [Phase quick-260719-d6a]: [quick-260719-d6a] Reused tracelet's native GPS-speed motion state machine (MotionDetectionMode.speed / onSpeedMotionChange) instead of hand-rolled Haversine/speed-threshold detection -- tracelet ^3.5.0 already provides this natively; a prior attempt hand-rolled it and was reverted
+- [Phase quick-260719-d6a]: [quick-260719-d6a] Generalized _pauseStart into _frozenSince backing frozen = _manualPaused || _stationary via one _applyFrozen() helper so overlapping manual-pause and stationary intervals are never double-counted
 
 ### Pending Todos
 
 - Fix 3 pre-existing `flutter test` failures (`feed_item_test.dart` x2, `settings_screen_test.dart` x1) — logged in Phase 18's `deferred-items.md`; not blocking v1.5 work.
 - Manual on-device verification for quick task 260712-m9v (resume navigation after manual app termination): start navigation, swipe-kill the app, relaunch, accept the resume dialog, confirm maneuver index/distance/elevation/elapsed/breadcrumb continue; also verify decline and deliberate-exit paths show no prompt.
 - Way Types & Surfaces breakdown feature (mobile-first) — komoot-style stacked bar/legend of OSM way types + surfaces per trail via Valhalla `trace_attributes` (`max_hiking_difficulty: 6` fixes off-road hiking-trail match dropout, verified). Web API computes + persists `way_type_surface` on trail save (no Go/PocketBase hook needed — all writes go through the web API); Flutter renders first, SvelteKit UI deferred. Full plan: `.planning/todos/pending/2026-07-18-way-types-and-surfaces-breakdown.md`.
+- Manual on-device verification for quick task 260719-d6a (time-in-motion navigation timer): start navigation, walk → timer/distance advance; stand still ~10s → timer stops, distance stops, GPS drops to periodic low-power fixes; resume walking → timer/GPS/stats all resume automatically. Also confirm the manual pause button and route-following/maneuver/waypoint behavior are unaffected.
 
 ### Blockers/Concerns
 
@@ -194,6 +198,7 @@ Recent decisions affecting current work:
 | 260717-seb | Reverse-geocode route planner anchors on street name, matching web client behavior | 2026-07-17 | aefa55fb,f56d31e7,90cbaa37 | Complete | [260717-seb-…](./quick/260717-seb-reverse-geocode-route-planner-anchors-on/) |
 | 260717-t7q | Add a Settings tab to the Route Planner sheet: consolidated Valhalla travel-profile picker, relocated auto-routing toggle | 2026-07-17 | 53b6b712,c9ec6e45,13f220eb,497803f0,cae4e55c,345e3e53 | Needs Review | [260717-t7q-…](./quick/260717-t7q-add-a-settings-tab-to-the-route-planner-/) |
 | 260718-e9j | Edit an existing route in the trail planner: entry point on trail_create_screen, web-parity anchor prepopulation, pop-with-result return | 2026-07-18 | ee3bbe1d,e93c0ed2,9c171b27,38210d8f | Needs Review | [260718-e9j-…](./quick/260718-e9j-a-user-should-be-able-to-edit-an-existin/) |
+| 260719-d6a | Navigation timer shows time-in-motion: tracelet native speed-motion engine drives auto-pause of timer/GPS/stats when stationary | 2026-07-19 | 0a914220,b1fb530c,461ad44a,e4012bcd | Needs Review | [260719-d6a-…](./quick/260719-d6a-the-navigation-timer-should-show-time-in/) |
 
 ## Deferred Items
 
@@ -238,6 +243,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-17T15:13:46.713Z
-Stopped at: Completed 21-04-PLAN.md
+Last session: 2026-07-19T08:05:08.941Z
+Stopped at: Completed quick-260719-d6a-PLAN.md
 Resume file: 
