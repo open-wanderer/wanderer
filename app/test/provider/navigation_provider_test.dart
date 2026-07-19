@@ -276,6 +276,47 @@ void main() {
     );
 
     test(
+      'onPosition with recordBreadcrumb: false does not append to breadcrumb '
+      '(simulates a fix received while paused/stationary)',
+      () {
+        final notifier = container.read(navigationProvider(response).notifier);
+
+        notifier.onPosition(_farFromManeuver1, recordBreadcrumb: false);
+
+        final state = container.read(navigationProvider(response));
+        expect(state.breadcrumb, isEmpty);
+      },
+    );
+
+    test(
+      'onPosition with recordBreadcrumb: false still advances maneuver index '
+      '(pausing must not stop turn-by-turn progress tracking)',
+      () {
+        final notifier = container.read(navigationProvider(response).notifier);
+
+        notifier.onPosition(_nearManeuver1, recordBreadcrumb: false);
+
+        final state = container.read(navigationProvider(response));
+        expect(state.currentManeuverIndex, 1);
+        expect(state.breadcrumb, isEmpty);
+      },
+    );
+
+    test(
+      'onPosition with recordBreadcrumb defaulting to true appends to '
+      'breadcrumb (simulates a fix received while unpaused/moving)',
+      () {
+        final notifier = container.read(navigationProvider(response).notifier);
+
+        notifier.onPosition(_farFromManeuver1);
+
+        final state = container.read(navigationProvider(response));
+        expect(state.breadcrumb.length, 1);
+        expect(_asGeo(state.breadcrumb[0]), _farFromManeuver1);
+      },
+    );
+
+    test(
       'each onPosition call appends exactly one Geographic to breadcrumb',
       () {
         final notifier = container.read(navigationProvider(response).notifier);

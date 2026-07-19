@@ -111,6 +111,14 @@ class Navigation extends _$Navigation {
   /// [NavigationState.currentManeuverIndex] as far as the matched along-track
   /// distance warrants. [heading]/[headingAccuracy]/[speed]/[accuracy] are
   /// optional; passing them improves the matcher's accuracy.
+  ///
+  /// [recordBreadcrumb] gates only the breadcrumb append (the data persisted
+  /// to disk and exported as the saved trail's GPX) — pass `false` while
+  /// navigation is frozen (manually paused or auto-stationary) so paused
+  /// intervals are excluded from the saved track. Maneuver-advance detection
+  /// below is unrelated bookkeeping and always runs regardless of this flag,
+  /// so pausing during turn-by-turn navigation does not stop progress
+  /// tracking.
   void onPosition(
     Geographic pos, {
     double? heading,
@@ -118,13 +126,16 @@ class Navigation extends _$Navigation {
     double? speed,
     double? altitude,
     double? accuracy,
+    bool recordBreadcrumb = true,
   }) {
-    state = state.copyWith(
-      breadcrumb: [
-        ...state.breadcrumb,
-        Wpt(lat: pos.lat, lon: pos.lon, ele: altitude, time: DateTime.now()),
-      ],
-    );
+    if (recordBreadcrumb) {
+      state = state.copyWith(
+        breadcrumb: [
+          ...state.breadcrumb,
+          Wpt(lat: pos.lat, lon: pos.lon, ele: altitude, time: DateTime.now()),
+        ],
+      );
+    }
 
     final shape = state.response.shapeAsGeographic;
     if (shape.isEmpty || _maneuverCumulativeMeters.isEmpty) return;

@@ -347,6 +347,17 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           resumeManeuverIndex: _resumeManeuverIndex,
           resumeBreadcrumb: _resumeBreadcrumb,
         );
+        final statsProviderInstance = navigationStatsProvider(
+          widget.response,
+          resume: _resumeStats,
+        );
+        // Frozen (manually paused and/or tracelet-detected stationary) must
+        // not append to the breadcrumb — that's the data persisted to disk
+        // and exported as the saved trail's GPX. Maneuver-advance detection
+        // is unrelated bookkeeping and must keep running even while frozen,
+        // so it's not gated here — only the breadcrumb append is.
+        final stats = ref.read(statsProviderInstance);
+        final frozen = stats.isPaused || stats.isStationary;
         final beforeIndex = ref.read(navProviderInstance).currentManeuverIndex;
         ref
             .read(navProviderInstance.notifier)
@@ -357,16 +368,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               headingAccuracy: pos.headingAccuracy,
               speed: pos.speed,
               accuracy: pos.accuracy,
+              recordBreadcrumb: !frozen,
             );
         final afterIndex = ref.read(navProviderInstance).currentManeuverIndex;
-        ref
-            .read(
-              navigationStatsProvider(
-                widget.response,
-                resume: _resumeStats,
-              ).notifier,
-            )
-            .onPosition(pos);
+        ref.read(statsProviderInstance.notifier).onPosition(pos);
         _onFix(pos);
         if (afterIndex > beforeIndex) {
           _persistNow();
