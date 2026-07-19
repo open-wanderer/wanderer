@@ -314,7 +314,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         final beforeIndex = ref.read(navProviderInstance).currentManeuverIndex;
         ref
             .read(navProviderInstance.notifier)
-            .onPosition(ml.Geographic(lat: pos.latitude, lon: pos.longitude));
+            .onPosition(
+              ml.Geographic(lat: pos.latitude, lon: pos.longitude),
+              heading: pos.heading,
+              headingAccuracy: pos.headingAccuracy,
+              speed: pos.speed,
+              accuracy: pos.accuracy,
+            );
         final afterIndex = ref.read(navProviderInstance).currentManeuverIndex;
         ref
             .read(
@@ -574,6 +580,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// Builds a stub [Trail] from the recorded breadcrumb and hands off to
   /// `trail_create_screen`, ending the navigation session either way.
   ///
+  /// Pre-fills duration and elevation gain/loss from `NavigationStats` since
+  /// the recorded breadcrumb carries no per-fix `ele`/`time` for the server
+  /// to derive them from.
+  ///
   /// Reads `navState`/`stats` via `ref.read` with the IDENTICAL family seed
   /// args used everywhere else in this file — a different seed would resolve
   /// a different (split-brain) provider instance.
@@ -591,6 +601,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final trail = buildRecordedTrackTrail(
       navState.breadcrumb,
       durationSeconds: stats.elapsed.inSeconds.toDouble(),
+      elevationGainMeters: stats.elevationGainMeters,
+      elevationLossMeters: stats.elevationLossMeters,
     );
 
     // Saving ends the session either way — same deliberate-exit cleanup

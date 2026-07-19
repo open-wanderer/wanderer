@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -41,51 +42,27 @@ Gpx mergeHeightsIntoGpx(List<Map<String, double>> shape, List<num> heights) {
   return gpx;
 }
 
-/// Builds an unsaved, in-memory draft [Trail] from a finished planner route.
-/// Carries only the synthesized GPX track — `waypoints: []` — the same shape
-/// a plain GPX-file import produces with no named points. Route anchors
-/// never become [Waypoint] records; they stay internal to the Route
-/// Planner's own state.
-///
-/// Sets both `expand.gpxData` (the raw XML `toFormData()` uploads on create)
-/// and `expand.gpx` (the parsed object for client-side map preview) —
-/// setting only one produces a draft that saves with no track, or previews
-/// incorrectly.
-///
-/// Also derives `lat`/`lon`/`minLat`/`maxLat`/`minLon`/`maxLon` from the
-/// track's bounds. A plain GPX-file import gets these pre-computed from the
-/// server's `/trail/convert` response, but a planner draft skips that
-/// round-trip — without this, `TrailMap` centers on null island instead of
-/// fitting the route.
-Trail buildDraftTrail(
+Future<Trail> buildDraftTrail(
+  WidgetRef ref,
   Gpx finalGpx, {
   String? category,
-  double? estimatedDurationSeconds,
-}) {
+}) async {
   final xml = GpxWriter().asString(finalGpx);
-  final bounds = finalGpx.getBounds();
-  return Trail.empty().copyWith(
-    category: category,
-    // A planner-built Gpx never carries `time`, so the server's GPX-timestamp
-    // duration derivation would land on 0 — pre-fill from the planner's own
-    // Valhalla-based estimate instead.
-    duration: estimatedDurationSeconds ?? 0,
-    lat: bounds != null
-        ? (bounds.latitudeNorth + bounds.latitudeSouth) / 2
-        : null,
-    lon: bounds != null
-        ? (bounds.longitudeEast + bounds.longitudeWest) / 2
-        : null,
-    maxLat: bounds?.latitudeNorth ?? 0,
-    minLat: bounds?.latitudeSouth ?? 0,
-    maxLon: bounds?.longitudeEast ?? 0,
-    minLon: bounds?.longitudeWest ?? 0,
-    expand: TrailExpand(
-      gpxData: xml,
-      gpx: finalGpx,
-      waypointsViaTrail: const [],
+  final formData = FormData.fromMap({
+    'file': MultipartFile.fromString(
+      xml,
+      filename: 'route.gpx',
+      contentType: DioMediaType('application', 'gpx+xml'),
     ),
+  });
+  Trail trail = await convertGpxToTrail(ref, formData);
+
+  trail = trail.copyWith(
+    category: category,
+    expand: (trail.expand ?? const TrailExpand()).copyWith(gpx: finalGpx),
   );
+
+  return trail;
 }
 
 /// Builds the final, ele-merged [Gpx] for the current planner session
@@ -136,11 +113,7 @@ Future<void> finishPlanning({
   final categories = ref.read(categoryProvider).value ?? const [];
   final categoryId = categoryForTravelProfile(travelProfile, categories);
 
-  final draftTrail = buildDraftTrail(
-    finalGpx,
-    category: categoryId,
-    estimatedDurationSeconds: anchorsState.estimatedDurationSeconds,
-  );
+  final draftTrail = await buildDraftTrail(ref, finalGpx, category: categoryId);
 
   pendingImportedTrail = draftTrail;
   if (!navContext.mounted) return;
@@ -159,7 +132,9 @@ List<ml.Geographic> anchorsFromTrack(Gpx gpx) {
   // rather than force-unwrapped, and a trailing empty segment no longer
   // swallows the true final point of the segment before it.
   final nonEmpty = segs
-      .map((s) => s.trkpts.where((p) => p.lat != null && p.lon != null).toList())
+      .map(
+        (s) => s.trkpts.where((p) => p.lat != null && p.lon != null).toList(),
+      )
       .where((pts) => pts.isNotEmpty)
       .toList();
   final out = <ml.Geographic>[];
@@ -199,7 +174,8 @@ List<List<ml.Geographic>> segmentPolylinesFromTrack(
   final allPoints = [
     for (final seg in segs)
       for (final p in seg.trkpts)
-        if (p.lat != null && p.lon != null) ml.Geographic(lat: p.lat!, lon: p.lon!),
+        if (p.lat != null && p.lon != null)
+          ml.Geographic(lat: p.lat!, lon: p.lon!),
   ];
 
   final polylines = <List<ml.Geographic>>[];

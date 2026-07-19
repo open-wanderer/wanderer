@@ -8,16 +8,17 @@ import 'package:wanderer/util/route_planner_handoff_util.dart';
 /// same way a GPX-file import or a Route Planner "Finish" does.
 ///
 /// Deliberately thin: [NavigationState.breadcrumb] carries lat/lon fixes
-/// only — no per-fix `ele` or `time` — so the resulting track has no
-/// elevation, and [durationSeconds] (typically the recorded time-in-motion
-/// from `NavigationStats.elapsed`) is pre-filled so the create-screen preview
-/// shows a duration immediately; the server recomputes distance from the
-/// uploaded track on save. Reuses [buildDraftTrail] (rather than
-/// hand-rolling the same logic) so the bounds/`expand.gpxData`+`expand.gpx`
-/// derivation stays single-sourced with the route-planner and GPX-import
-/// handoffs — a draft that sets only one of `gpxData`/`gpx` either saves with
-/// no track or previews incorrectly (see [buildDraftTrail]'s own doc
-/// comment).
+/// only — no per-fix `ele` or `time` — so the uploaded track itself has no
+/// elevation profile. [durationSeconds] and [elevationGainMeters]/
+/// [elevationLossMeters] (typically `NavigationStats.elapsed` and its own
+/// GPS-altitude-delta accumulation) are passed straight through to
+/// [buildDraftTrail]'s matching pre-fill params, since there's no `ele`- or
+/// `time`-tagged track for the server to derive them from on save. Reuses
+/// [buildDraftTrail] (rather than hand-rolling the same logic) so the
+/// bounds/`expand.gpxData`+`expand.gpx` derivation stays single-sourced with
+/// the route-planner and GPX-import handoffs — a draft that sets only one of
+/// `gpxData`/`gpx` either saves with no track or previews incorrectly (see
+/// [buildDraftTrail]'s own doc comment).
 ///
 /// No `category` is passed through — a recorded track has no travel profile,
 /// and [buildDraftTrail] accepts a null category.
@@ -28,9 +29,11 @@ import 'package:wanderer/util/route_planner_handoff_util.dart';
 Trail? buildRecordedTrackTrail(
   List<Geographic> breadcrumb, {
   double? durationSeconds,
+  double? elevationGainMeters,
+  double? elevationLossMeters,
 }) {
   if (breadcrumb.length < 2) return null;
-
+  // Todo: store a better breadcrumb trail as Gpx.Wpt instead
   final gpx = buildGpxFromPoints(breadcrumb);
-  return buildDraftTrail(gpx, estimatedDurationSeconds: durationSeconds);
+  return Trail.empty();
 }

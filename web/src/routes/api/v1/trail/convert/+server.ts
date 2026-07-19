@@ -39,28 +39,52 @@ import { ClientResponseError } from "pocketbase";
  */
 export async function POST(event: RequestEvent) {
     try {
-        const data = await event.request.formData();
+        let gpxData: string = "";
+        let customName: string | undefined = undefined;
 
-        const { gpxData } = await fromFile(data.get("file") as Blob);
-        if (!gpxData.length) {
-            throw new ClientResponseError({ status: 400, response: { message: "Empty file" } });
+        const contentType = event.request.headers.get("content-type") || "";
+
+        if (contentType.includes("multipart/form-data")) {
+            // 1. Handle File Upload
+            const data = await event.request.formData();
+            const fileBlob = data.get("file") as Blob | null;
+            
+            if (!fileBlob) {
+                throw new ClientResponseError({ status: 400, response: { message: "Missing file field" } });
+            }
+
+            // Extract the text content from the file blob
+            const parsed = await fromFile(fileBlob);
+            gpxData = parsed.gpxData;
+            customName = (data.get("name") as string | undefined) ?? undefined;
+        } else if (contentType.includes("application/json")) {
+            // 2. Handle JSON / Direct String Input
+            const body = await event.request.json();
+            gpxData = body.gpx || body.gpxData || "";
+            customName = body.name ?? undefined;
+        } else {
+            // 3. Fallback: Treat raw body text as the GPX string directly
+            gpxData = await event.request.text();
+        }
+
+        // Validate we actually got something
+        if (!gpxData || !gpxData.trim().length) {
+            throw new ClientResponseError({ status: 400, response: { message: "Empty GPX data" } });
         }
 
         let trail: Trail;
         try {
             ({ trail } = await gpx2trail(
                 gpxData,
-                (data.get("name") as string | undefined) ?? undefined,
+                customName,
                 false,
                 event.fetch,
             ));
         } catch (e) {
-            throw new ClientResponseError({ status: 400, response: { message: "Invalid file" } });
+            throw new ClientResponseError({ status: 400, response: { message: "Invalid GPX content" } });
         }
 
-        // Reverse-geocode the start point so `location` arrives prefilled on the
-        // client, mirroring the upload route. Best-effort: a geocoding failure
-        // must not fail the conversion.
+        // Reverse-geocode the start point
         if (trail.lat && trail.lon) {
             try {
                 const location = await searchLocationReverse(
@@ -75,9 +99,7 @@ export async function POST(event: RequestEvent) {
             }
         }
 
-        // Return the parsed trail without persisting it (no trails_create / pb write).
-        // Attach the raw GPX so the client can render the route/geometry on the map —
-        // there is no saved file to fetch from /files for an unsaved trail.
+        // Attach the raw GPX to the response
         trail.expand = { ...trail.expand, gpx_data: gpxData };
         return json(trail);
     } catch (e) {

@@ -57,37 +57,12 @@ Future<void> importTrailFile({
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(path, filename: name),
     });
-    final res = await ref
-        .read(apiProvider)
-        .post('/trail/convert', data: formData);
-    // Not persisted yet, so id/created/updated are missing from the server
-    // response; supply placeholders (required, non-nullable on the model)
-    // for both the trail and any nested waypoints, or parsing throws.
-    final data = res.data as Map<String, dynamic>;
-    final now = DateTime.now().toIso8601String();
-    final expand = data['expand'] as Map<String, dynamic>?;
-    final waypoints = expand?['waypoints_via_trail'] as List<dynamic>?;
-    if (waypoints != null) {
-      for (var i = 0; i < waypoints.length; i++) {
-        waypoints[i] = {
-          'id': '',
-          'created': now,
-          'updated': now,
-          ...waypoints[i] as Map<String, dynamic>,
-        };
-      }
-    }
-    var trail = Trail.fromJson({
-      'id': '',
-      'created': now,
-      'updated': now,
-      ...data,
-    });
+    Trail trail = await convertGpxToTrail(ref, formData);
 
     // Parse the inline raw GPX client-side (Gpx isn't serializable) so the
     // route can be drawn on the map.
     final gpxData = trail.expand?.gpxData;
-    if (gpxData != null && gpxData.isNotEmpty) {
+    if (gpxData != null && gpxData.isNotEmpty && trail.expand?.gpx == null) {
       final parsedGpx = GpxReader().fromString(sanitizeGpxEmail(gpxData));
       trail = trail.copyWith(
         expand: (trail.expand ?? const TrailExpand()).copyWith(gpx: parsedGpx),
@@ -100,4 +75,34 @@ Future<void> importTrailFile({
   } catch (e) {
     showError();
   }
+}
+
+Future<Trail> convertGpxToTrail(WidgetRef ref, FormData formData) async {
+  final res = await ref
+      .read(apiProvider)
+      .post('/trail/convert', data: formData);
+  // Not persisted yet, so id/created/updated are missing from the server
+  // response; supply placeholders (required, non-nullable on the model)
+  // for both the trail and any nested waypoints, or parsing throws.
+  final data = res.data as Map<String, dynamic>;
+  final now = DateTime.now().toIso8601String();
+  final expand = data['expand'] as Map<String, dynamic>?;
+  final waypoints = expand?['waypoints_via_trail'] as List<dynamic>?;
+  if (waypoints != null) {
+    for (var i = 0; i < waypoints.length; i++) {
+      waypoints[i] = {
+        'id': '',
+        'created': now,
+        'updated': now,
+        ...waypoints[i] as Map<String, dynamic>,
+      };
+    }
+  }
+  var trail = Trail.fromJson({
+    'id': '',
+    'created': now,
+    'updated': now,
+    ...data,
+  });
+  return trail;
 }

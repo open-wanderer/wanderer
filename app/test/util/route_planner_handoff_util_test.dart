@@ -64,8 +64,8 @@ void main() {
       expect(result.category, isNull);
     });
 
-    test('sets lat/lon/bounds from the track so the map centers on the '
-        'route instead of null island', () {
+    test('sets bounds from the track and lat/lon from its first point '
+        'so the map centers on the route instead of null island', () {
       final gpx = buildSampleGpx();
       final result = buildDraftTrail(gpx);
 
@@ -73,8 +73,8 @@ void main() {
       expect(result.minLat, 47.000);
       expect(result.maxLon, 9.001);
       expect(result.minLon, 9.000);
-      expect(result.lat, closeTo(47.0005, 1e-9));
-      expect(result.lon, closeTo(9.0005, 1e-9));
+      expect(result.lat, 47.000);
+      expect(result.lon, 9.000);
     });
 
     test('leaves lat/lon null and bounds zeroed for an empty track', () {

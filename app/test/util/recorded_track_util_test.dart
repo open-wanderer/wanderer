@@ -87,6 +87,30 @@ void main() {
 
         expect(result!.duration, 0);
       });
+
+      test(
+        'sets elevationGain/elevationLoss from the given meters when supplied',
+        () {
+          final result = buildRecordedTrackTrail(
+            breadcrumb,
+            elevationGainMeters: 42.5,
+            elevationLossMeters: 17.0,
+          );
+
+          expect(result!.elevationGain, 42.5);
+          expect(result.elevationLoss, 17.0);
+        },
+      );
+
+      test(
+        'defaults elevationGain/elevationLoss to 0 when omitted',
+        () {
+          final result = buildRecordedTrackTrail(breadcrumb);
+
+          expect(result!.elevationGain, 0);
+          expect(result.elevationLoss, 0);
+        },
+      );
     });
   });
 }

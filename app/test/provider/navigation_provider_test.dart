@@ -73,6 +73,50 @@ const _midpointBeforeManeuver1 = Geographic(lat: 47.0016, lon: 9.000);
 /// projection must equal maneuver 2's cumulative distance (~667 m).
 const _exactlyManeuver2 = Geographic(lat: 47.006, lon: 9.000);
 
+/// Builds a tight hairpin route: an "entry" leg climbing north (shape[0..50])
+/// then an "exit" leg descending back south only ~15 m away — offset 0.0002°
+/// longitude at this latitude — from shape[51..101]. Every entry-leg point
+/// has a spatially-close counterpart on the exit leg that sits hundreds of
+/// metres away *along the route*, the exact ambiguity a nearest-point
+/// projection gets wrong.
+NavigateResponse _buildHairpinResponse() {
+  const startLat = 47.0000;
+  const stepLat = 0.0001; // ~11.1 m
+  const entryLon = 9.0000;
+  const exitLon = 9.0002; // ~15.2 m east at this latitude
+
+  final shape = <List<double>>[];
+  for (var i = 0; i <= 50; i++) {
+    shape.add([startLat + stepLat * i, entryLon]);
+  }
+  for (var i = 50; i >= 0; i--) {
+    shape.add([startLat + stepLat * i, exitLon]);
+  }
+
+  return NavigateResponse(
+    shape: shape,
+    maneuvers: const [
+      NavigateManeuver(instruction: 'Start', length: 0, beginShapeIndex: 0),
+      NavigateManeuver(
+        instruction: 'Continue up entry leg',
+        length: 0,
+        beginShapeIndex: 5,
+      ),
+      NavigateManeuver(
+        instruction: 'Switchback turn',
+        length: 0,
+        beginShapeIndex: 51,
+      ),
+      NavigateManeuver(
+        instruction: 'Near end of exit leg',
+        length: 0,
+        beginShapeIndex: 95,
+      ),
+      NavigateManeuver(instruction: 'Arrive', length: 0, beginShapeIndex: 101),
+    ],
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -245,6 +289,52 @@ void main() {
         expect(breadcrumb[0], p1);
         expect(breadcrumb[1], p2);
         expect(breadcrumb[2], p3);
+      },
+    );
+  });
+
+  group('NavigationNotifier hairpin route handling', () {
+    test(
+      'a single noisy fix near a hairpin apex does not skip ahead to the '
+      'exit leg maneuvers',
+      () {
+        final hairpinResponse = _buildHairpinResponse();
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        final notifier = container.read(
+          navigationProvider(hairpinResponse).notifier,
+        );
+        final shape = hairpinResponse.shapeAsGeographic;
+
+        // Walk the first 10 points of the entry leg for real — advances past
+        // maneuver 1 ("Continue up entry leg", beginShapeIndex 5).
+        for (var i = 0; i <= 9; i++) {
+          notifier.onPosition(shape[i]);
+        }
+        expect(
+          container
+              .read(navigationProvider(hairpinResponse))
+              .currentManeuverIndex,
+          1,
+        );
+
+        // One noisy fix near shape[10], offset toward the exit leg by ~11 m
+        // — spatially closer to the exit leg's same-latitude point than to
+        // the entry leg it's actually on. The old nearest-point projection
+        // would snap onto the exit leg and skip straight to maneuver 3 or 4.
+        final apex = shape[10];
+        notifier.onPosition(Geographic(lat: apex.lat, lon: apex.lon + 0.00015));
+
+        expect(
+          container
+              .read(navigationProvider(hairpinResponse))
+              .currentManeuverIndex,
+          1,
+          reason:
+              'a single noisy fix near the apex must not skip past the '
+              'switchback turn maneuvers onto the exit leg',
+        );
       },
     );
   });

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:collection/collection.dart';
@@ -26,6 +27,7 @@ import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/category_preference_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
@@ -38,6 +40,7 @@ import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/util/category_preference_sort.dart';
 import 'package:wanderer/util/exif_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/reverse_geocode_util.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
@@ -84,6 +87,41 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     super.initState();
     _sheetController.addListener(_onSheetSizeChanged);
     _sheetSize = ValueNotifier<double>(sheetMinSize);
+    _maybeResolveMissingLocation();
+  }
+
+  /// A draft trail handed in from the Route Planner or a recorded navigation
+  /// track (see `buildDraftTrail`) carries `lat`/`lon` from its first track
+  /// point, but no place-name `location` — unlike a plain GPX-file import,
+  /// which gets `location` pre-computed server-side. Best-effort, fire-once:
+  /// reverse-geocodes the first track point so the location field isn't
+  /// blank in the create form.
+  void _maybeResolveMissingLocation() {
+    if (trail.location?.isNotEmpty ?? false) return;
+    final firstPoint = trail.expand?.gpx?.allPoints.firstOrNull;
+    if (firstPoint == null) return;
+    unawaited(_resolveMissingLocation(firstPoint));
+  }
+
+  Future<void> _resolveMissingLocation(ml.Geographic firstPoint) async {
+    try {
+      final result = await searchLocationReverseStructured(
+        ref.read(apiProvider),
+        firstPoint.lat,
+        firstPoint.lon,
+        includeRoad: false,
+      );
+      if (!mounted || result == null) return;
+      setState(() => trail = trail.copyWith(location: result.fullLabel));
+      // WandererTextField's initialValue is only read on first build (see
+      // flutter_form_builder's FormBuilderField.didUpdateWidget) — the
+      // setState above alone would leave the visible field blank, so also
+      // push the fetched value into the already-mounted form field directly.
+      _formKey.currentState?.fields['location']?.didChange(result.fullLabel);
+    } catch (_) {
+      // Best-effort — leave location blank on failure, same silent-failure
+      // precedent as _resolveAnchorLocation in route_anchor_provider.dart.
+    }
   }
 
   @override
