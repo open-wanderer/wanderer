@@ -246,6 +246,36 @@ void main() {
     );
 
     test(
+      'setStationary toggling before the first GPS fix does not inflate '
+      'pausedAccum (regression: negative elapsed once the session starts)',
+      () async {
+        // Autodispose provider: without an active listener it would be
+        // torn down once the synchronous setup below returns, before the
+        // `await` resumes — keep it alive for the duration of the test.
+        container.listen(navigationStatsProvider(response), (_, _) {});
+        final n = notifier();
+        // No onPosition yet — _start is still null. This mirrors a
+        // trail-less recording session waiting for its first GPS lock while
+        // tracelet's motion engine has already reported the device as
+        // stationary (physically still) and then moving.
+        n.setStationary(true);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        n.setStationary(false);
+
+        // The frozen interval occurred entirely before the stopwatch
+        // started, so it must not be folded into pausedAccum — there is no
+        // elapsed interval yet for it to belong to. Before the fix this
+        // accumulated ~50ms of real wall-clock time regardless.
+        expect(n.pausedAccum, Duration.zero);
+
+        // Once the session actually starts, the first fix must anchor
+        // normally (no residual frozen state left over).
+        n.onPosition(_pos(lat: 47.000, lon: 9.000));
+        expect(read().distanceMeters, 0);
+      },
+    );
+
+    test(
       'overlapping manual pause + stationary: paused time not '
       'double-counted, resumes cleanly with a single re-anchor',
       () {

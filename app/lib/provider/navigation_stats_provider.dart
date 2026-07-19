@@ -270,10 +270,19 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
   /// unfrozen transitions, not on every individual toggle.
   ///
   /// On false→true: records [_frozenSince] and forces current speed to 0.
-  /// On true→false: adds the elapsed frozen interval to [_pausedAccum],
-  /// clears [_frozenSince], and re-anchors the distance/altitude references
-  /// so the frozen interval contributes zero distance/elevation — identical
-  /// to the previous manual-pause-only resume behavior.
+  /// On true→false: adds the elapsed frozen interval to [_pausedAccum] —
+  /// but only once the stopwatch has actually started (`_start != null`).
+  /// Tracelet's motion engine can flip stationary↔moving before the first
+  /// GPS fix ever arrives (e.g. waiting for a lock while physically still),
+  /// which set `_frozenSince` and later accumulated real wall-clock seconds
+  /// into `_pausedAccum` for a session that hadn't started yet — inflating
+  /// `_pausedAccum` beyond the elapsed time `_tick` computes once `_start`
+  /// is finally set, making `elapsed` go negative. Time frozen before the
+  /// session starts isn't part of any elapsed interval, so it's discarded
+  /// rather than accumulated. Also clears [_frozenSince] and re-anchors the
+  /// distance/altitude references so the frozen interval contributes zero
+  /// distance/elevation — identical to the previous manual-pause-only
+  /// resume behavior.
   void _applyFrozen(bool nowFrozen) {
     final wasFrozen = _frozenSince != null;
     if (nowFrozen == wasFrozen) return;
@@ -282,7 +291,9 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
       _frozenSince = DateTime.now();
       state = state.copyWith(currentSpeedKmh: 0);
     } else {
-      _pausedAccum += DateTime.now().difference(_frozenSince!);
+      if (_start != null) {
+        _pausedAccum += DateTime.now().difference(_frozenSince!);
+      }
       _frozenSince = null;
       // Re-anchor so the frozen interval contributes no distance/elevation.
       _lastPoint = null;
