@@ -1348,6 +1348,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get save_list => 'Uložit seznam';
 
   @override
+  String get save_track => 'Save track';
+
+  @override
   String get save_trail => 'Uložit trasu';
 
   @override

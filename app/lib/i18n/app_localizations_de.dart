@@ -1342,6 +1342,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get save_list => 'Liste speichern';
 
   @override
+  String get save_track => 'Save track';
+
+  @override
   String get save_trail => 'Route speichern';
 
   @override

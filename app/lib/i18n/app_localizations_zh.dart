@@ -1325,6 +1325,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get save_list => '保存列表';
 
   @override
+  String get save_track => 'Save track';
+
+  @override
   String get save_trail => '保存路线';
 
   @override

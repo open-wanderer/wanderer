@@ -1343,6 +1343,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get save_list => 'Zapisz listę';
 
   @override
+  String get save_track => 'Save track';
+
+  @override
   String get save_trail => 'Zapisz szlak';
 
   @override

@@ -51,21 +51,33 @@ void main() {
         expect(result!.expand?.waypointsViaTrail, isEmpty);
       });
 
-      test('derives non-null lat/lon and bounds bracketing the input points', () {
-        final result = buildRecordedTrackTrail(breadcrumb);
+      test(
+        'derives non-null lat/lon and bounds bracketing the input points',
+        () {
+          final result = buildRecordedTrackTrail(breadcrumb);
 
-        expect(result!.lat, isNotNull);
-        expect(result.lon, isNotNull);
-        expect(result.maxLat, 47.002);
-        expect(result.minLat, 47.000);
-        expect(result.maxLon, 9.001);
-        expect(result.minLon, 9.000);
-        expect(result.lat! >= result.minLat && result.lat! <= result.maxLat, isTrue);
-        expect(result.lon! >= result.minLon && result.lon! <= result.maxLon, isTrue);
-      });
+          expect(result!.lat, isNotNull);
+          expect(result.lon, isNotNull);
+          expect(result.maxLat, 47.002);
+          expect(result.minLat, 47.000);
+          expect(result.maxLon, 9.001);
+          expect(result.minLon, 9.000);
+          expect(
+            result.lat! >= result.minLat && result.lat! <= result.maxLat,
+            isTrue,
+          );
+          expect(
+            result.lon! >= result.minLon && result.lon! <= result.maxLon,
+            isTrue,
+          );
+        },
+      );
 
       test('sets duration from durationSeconds when supplied', () {
-        final result = buildRecordedTrackTrail(breadcrumb, durationSeconds: 123.0);
+        final result = buildRecordedTrackTrail(
+          breadcrumb,
+          durationSeconds: 123.0,
+        );
 
         expect(result!.duration, 123.0);
       });

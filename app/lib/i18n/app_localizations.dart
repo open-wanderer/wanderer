@@ -2480,6 +2480,12 @@ abstract class AppLocalizations {
   /// **'Save List'**
   String get save_list;
 
+  /// No description provided for @save_track.
+  ///
+  /// In en, this message translates to:
+  /// **'Save track'**
+  String get save_track;
+
   /// No description provided for @save_trail.
   ///
   /// In en, this message translates to:

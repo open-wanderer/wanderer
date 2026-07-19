@@ -1342,6 +1342,9 @@ class AppLocalizationsNl extends AppLocalizations {
   String get save_list => 'Bewaar lijst';
 
   @override
+  String get save_track => 'Save track';
+
+  @override
   String get save_trail => 'Bewaar Route';
 
   @override

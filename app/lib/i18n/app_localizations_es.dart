@@ -1343,6 +1343,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get save_list => 'Guardar Lista';
 
   @override
+  String get save_track => 'Save track';
+
+  @override
   String get save_trail => 'Guardar Ruta';
 
   @override

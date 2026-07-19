@@ -1339,6 +1339,9 @@ class AppLocalizationsHu extends AppLocalizations {
   String get save_list => 'Save List';
 
   @override
+  String get save_track => 'Save track';
+
+  @override
   String get save_trail => 'Útvonal mentése';
 
   @override

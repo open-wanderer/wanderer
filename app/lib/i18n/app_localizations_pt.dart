@@ -1340,6 +1340,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get save_list => 'Gravar lista';
 
   @override
+  String get save_track => 'Save track';
+
+  @override
   String get save_trail => 'Guardar trilho';
 
   @override

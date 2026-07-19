@@ -36,7 +36,13 @@ import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 import 'package:wanderer/util/polyline_util.dart';
+import 'package:wanderer/util/recorded_track_util.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
+import 'package:wanderer/util/trail_import_util.dart';
+
+/// The three actions offered by [_NavigationScreenState._confirmExit]'s
+/// premature-exit dialog.
+enum _NavExitChoice { cancel, exit, saveTrack }
 
 class NavigationScreen extends ConsumerStatefulWidget {
   final String id;
@@ -565,6 +571,49 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _activeRowObxId = active_nav.save(_store, entity);
   }
 
+  /// Builds a stub [Trail] from the recorded breadcrumb and hands off to
+  /// `trail_create_screen`, ending the navigation session either way.
+  ///
+  /// Reads `navState`/`stats` via `ref.read` with the IDENTICAL family seed
+  /// args used everywhere else in this file — a different seed would resolve
+  /// a different (split-brain) provider instance.
+  void _saveRecordedTrack() {
+    final navState = ref.read(
+      navigationProvider(
+        widget.response,
+        resumeManeuverIndex: _resumeManeuverIndex,
+        resumeBreadcrumb: _resumeBreadcrumb,
+      ),
+    );
+    final stats = ref.read(
+      navigationStatsProvider(widget.response, resume: _resumeStats),
+    );
+    final trail = buildRecordedTrackTrail(
+      navState.breadcrumb,
+      durationSeconds: stats.elapsed.inSeconds.toDouble(),
+    );
+
+    // Saving ends the session either way — same deliberate-exit cleanup
+    // _confirmExit already does, so no stale resume prompt appears on next
+    // launch.
+    active_nav.clear(_store);
+
+    if (trail == null) {
+      // Fewer than 2 recorded fixes — nothing to save; just leave navigation.
+      if (context.mounted) context.pop();
+      return;
+    }
+
+    pendingImportedTrail = trail;
+    if (context.mounted) {
+      // pushReplacement (not push) removes the finished/abandoned navigation
+      // screen from the stack — otherwise backing out of the create screen
+      // would return to a live, disposed-on-exit navigation screen.
+      // Disposing this screen also stops GPS/tracelet via dispose().
+      context.pushReplacement('/trail/create/edit', extra: trail);
+    }
+  }
+
   void _onWaypointSelected(Waypoint wp) {
     setState(() => _selectedWaypoint = wp);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -992,29 +1041,40 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   }
 
   void _confirmExit(BuildContext context, AppLocalizations localizations) {
-    showDialog<bool>(
+    showDialog<_NavExitChoice>(
       context: context,
       builder: (ctx) => AlertDialog(
         content: Text(localizations.stop_navigation_confirm),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
+            onPressed: () => Navigator.of(ctx).pop(_NavExitChoice.cancel),
             child: Text(localizations.cancel),
           ),
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
+            onPressed: () => Navigator.of(ctx).pop(_NavExitChoice.exit),
             child: Text(localizations.exit_navigation),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(_NavExitChoice.saveTrack),
+            child: Text(localizations.save_track),
           ),
         ],
       ),
-    ).then((confirmed) {
-      if (confirmed == true) {
-        // Deliberate exit — best-effort clear so no stale resume prompt
-        // appears on next launch.
-        active_nav.clear(_store);
-        if (context.mounted) {
-          context.pop();
-        }
+    ).then((choice) {
+      switch (choice) {
+        case _NavExitChoice.saveTrack:
+          _saveRecordedTrack();
+        case _NavExitChoice.exit:
+          // Deliberate exit — best-effort clear so no stale resume prompt
+          // appears on next launch.
+          active_nav.clear(_store);
+          if (context.mounted) {
+            context.pop();
+          }
+        case _NavExitChoice.cancel:
+        case null:
+          // Cancel, or barrier dismiss — do nothing.
+          break;
       }
     });
   }
@@ -1135,26 +1195,38 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     BuildContext context,
     AppLocalizations localizations,
   ) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        FaIcon(FontAwesomeIcons.circleCheck, color: Colors.greenAccent),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                localizations.you_have_arrived,
-                style: Theme.of(context).textTheme.titleLarge,
+        Row(
+          children: [
+            FaIcon(FontAwesomeIcons.circleCheck, color: Colors.greenAccent),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    localizations.you_have_arrived,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    localizations.reached_end_of_trail,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                localizations.reached_end_of_trail,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: _saveRecordedTrack,
+          icon: const FaIcon(FontAwesomeIcons.floppyDisk, size: 16),
+          label: Text(localizations.save_track),
         ),
       ],
     );

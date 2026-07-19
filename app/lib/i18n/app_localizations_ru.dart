@@ -1335,6 +1335,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get save_list => 'Сохранить список';
 
   @override
+  String get save_track => 'Save track';
+
+  @override
   String get save_trail => 'Сохранить трек';
 
   @override

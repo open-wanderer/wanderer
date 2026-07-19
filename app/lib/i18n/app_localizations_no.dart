@@ -1341,6 +1341,9 @@ class AppLocalizationsNo extends AppLocalizations {
   String get save_list => 'Lagre liste';
 
   @override
+  String get save_track => 'Save track';
+
+  @override
   String get save_trail => 'Lagre sti';
 
   @override

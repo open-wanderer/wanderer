@@ -1343,6 +1343,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get save_list => 'Salta Lista';
 
   @override
+  String get save_track => 'Save track';
+
+  @override
   String get save_trail => 'Salva percorso';
 
   @override
