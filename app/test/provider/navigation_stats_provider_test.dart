@@ -185,5 +185,95 @@ void main() {
       expect(read().elevationGainMeters, 0);
       expect(read().elevationLossMeters, 0);
     });
+
+    test('setStationary(true) sets isStationary and freezes accumulation', () {
+      final n = notifier();
+      n.onPosition(_pos(lat: 47.000, lon: 9.000));
+      n.setStationary(true);
+      expect(read().isStationary, true);
+
+      // While stationary, distance/elevation must NOT accumulate and speed
+      // is forced to 0.
+      n.onPosition(
+        _pos(lat: 47.010, lon: 9.000, altitude: 200.0, speed: 5.0),
+      );
+      expect(read().distanceMeters, 0);
+      expect(read().elevationGainMeters, 0);
+      expect(read().currentSpeedKmh, 0);
+    });
+
+    test(
+      'setStationary(false) after setStationary(true) re-anchors so no '
+      'distance jump occurs',
+      () {
+        final n = notifier();
+        n.onPosition(_pos(lat: 47.000, lon: 9.000));
+        n.setStationary(true);
+        // User "moves" while stationary-frozen (no accumulation).
+        n.onPosition(_pos(lat: 47.010, lon: 9.000));
+        n.setStationary(false);
+        expect(read().isStationary, false);
+
+        // First post-resume fix anchors; distance still 0 (no jump from the
+        // frozen interval).
+        n.onPosition(_pos(lat: 47.010, lon: 9.000));
+        expect(read().distanceMeters, 0);
+
+        // A subsequent fix ~111 m away accumulates normally.
+        n.onPosition(_pos(lat: 47.011, lon: 9.000));
+        expect(read().distanceMeters, closeTo(111, 5));
+      },
+    );
+
+    test(
+      'manual togglePause sets isPaused independently of isStationary; '
+      'setStationary(false) while manually paused leaves accumulation frozen',
+      () {
+        final n = notifier();
+        n.onPosition(_pos(lat: 47.000, lon: 9.000));
+        n.togglePause(); // manual pause
+        expect(read().isPaused, true);
+        expect(read().isStationary, false);
+
+        n.setStationary(false); // no-op: was already false, idempotent
+        expect(read().isPaused, true);
+
+        // Still frozen — manual pause holds regardless of isStationary.
+        n.onPosition(_pos(lat: 47.010, lon: 9.000, speed: 5.0));
+        expect(read().distanceMeters, 0);
+        expect(read().currentSpeedKmh, 0);
+      },
+    );
+
+    test(
+      'overlapping manual pause + stationary: paused time not '
+      'double-counted, resumes cleanly with a single re-anchor',
+      () {
+        final n = notifier();
+        n.onPosition(_pos(lat: 47.000, lon: 9.000));
+        n.togglePause(); // manual pause starts freeze
+        n.setStationary(true); // stationary while already manually paused
+        n.setStationary(false); // still frozen — manual pause still holds
+        expect(read().isPaused, true);
+        expect(read().isStationary, false);
+
+        // Frozen throughout — no accumulation from any of the above.
+        n.onPosition(_pos(lat: 47.010, lon: 9.000, speed: 5.0));
+        expect(read().distanceMeters, 0);
+        expect(read().currentSpeedKmh, 0);
+
+        n.togglePause(); // resume — the only unfreeze
+        expect(read().isPaused, false);
+
+        // First post-resume fix anchors; distance still 0 (single re-anchor,
+        // no jump from the combined frozen interval).
+        n.onPosition(_pos(lat: 47.010, lon: 9.000));
+        expect(read().distanceMeters, 0);
+
+        // A subsequent fix ~111 m away accumulates normally.
+        n.onPosition(_pos(lat: 47.011, lon: 9.000));
+        expect(read().distanceMeters, closeTo(111, 5));
+      },
+    );
   });
 }
