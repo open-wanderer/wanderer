@@ -1562,16 +1562,16 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   }
 
   /// Dominant Pause/Resume, icon-only FAB — shared verbatim between nav mode
-  /// (center slot) and recording mode (left slot). Also reflects
-  /// isStationary (auto-paused by tracelet's motion engine) so the
-  /// icon/tooltip stay accurate even when the user never pressed the
-  /// button — onPressed still only ever toggles the manual pause.
+  /// (center slot) and recording mode (left slot). Reflects only the manual
+  /// [NavigationStats.isPaused] flag — isStationary (auto-freeze by
+  /// tracelet's motion engine) still freezes the timer/breadcrumb but must
+  /// not flip this button to its "paused" state, since the user never asked
+  /// to pause and onPressed always toggles the manual flag regardless of
+  /// isStationary.
   Widget _buildPauseFab(AppLocalizations localizations, NavigationStats stats) {
     return FloatingActionButton(
       heroTag: 'nav_pause',
-      tooltip: (stats.isPaused || stats.isStationary)
-          ? localizations.resume
-          : localizations.pause,
+      tooltip: stats.isPaused ? localizations.resume : localizations.pause,
       elevation: 2,
       shape: StadiumBorder(),
       onPressed: () {
@@ -1586,9 +1586,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         _persistNow();
       },
       child: FaIcon(
-        (stats.isPaused || stats.isStationary)
-            ? FontAwesomeIcons.play
-            : FontAwesomeIcons.pause,
+        stats.isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
       ),
     );
   }
@@ -1665,7 +1663,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               tooltip: localizations.stop_recording,
               elevation: 2,
               shape: StadiumBorder(),
-              backgroundColor: Theme.of(context).colorScheme.error,
+              backgroundColor: Colors.redAccent,
               onPressed: () => _confirmExit(context, localizations),
               child: const FaIcon(FontAwesomeIcons.stop),
             ),
