@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 Phase: 21 (route-planner-handoff-entry-point) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-07-19 - Completed quick task 260719-d6a: Navigation timer shows time-in-motion, auto-pausing timer/GPS/stats via tracelet's native speed-motion engine
+Last activity: 2026-07-19 - Completed quick task 260719-fjw: Save track recorded during navigation (stub Trail from breadcrumb, offered on completion banner and premature-exit dialog)
 
 ## v1.5 Phases
 
@@ -199,6 +199,7 @@ Recent decisions affecting current work:
 | 260717-t7q | Add a Settings tab to the Route Planner sheet: consolidated Valhalla travel-profile picker, relocated auto-routing toggle | 2026-07-17 | 53b6b712,c9ec6e45,13f220eb,497803f0,cae4e55c,345e3e53 | Needs Review | [260717-t7q-…](./quick/260717-t7q-add-a-settings-tab-to-the-route-planner-/) |
 | 260718-e9j | Edit an existing route in the trail planner: entry point on trail_create_screen, web-parity anchor prepopulation, pop-with-result return | 2026-07-18 | ee3bbe1d,e93c0ed2,9c171b27,38210d8f | Needs Review | [260718-e9j-…](./quick/260718-e9j-a-user-should-be-able-to-edit-an-existin/) |
 | 260719-d6a | Navigation timer shows time-in-motion: tracelet native speed-motion engine drives auto-pause of timer/GPS/stats when stationary | 2026-07-19 | 0a914220,b1fb530c,461ad44a,e4012bcd | Needs Review | [260719-d6a-…](./quick/260719-d6a-the-navigation-timer-should-show-time-in/) |
+| 260719-fjw | Save track recorded during navigation: stub Trail from breadcrumb, offered on completion banner and premature-exit dialog, hands off to trail_create_screen | 2026-07-19 | 2bd575f0,61497acd,2b2aa687 | Needs Review | [260719-fjw-…](./quick/260719-fjw-save-track-recorded-during-navigation-cr/) |
 
 ## Deferred Items
 
