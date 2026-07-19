@@ -5,7 +5,7 @@ milestone_name: Route Planner
 status: verifying
 stopped_at: Completed quick-260719-n8g-PLAN.md
 last_updated: "2026-07-19T15:16:37.706Z"
-last_activity: "2026-07-19 - Completed quick task 260719-n8g: Implement the missing route recorder (isRecording flag on NavigationScreen, /record route, ActiveSessionType.rec resume)"
+last_activity: "2026-07-19 - Completed quick task 260719-n8g: Implement the missing route recorder (isRecording flag on NavigationScreen, /record route, ActiveSessionType.rec resume); post-review fix 602be822 gates breadcrumb capture on pause/stationary"
 progress:
   total_phases: 3
   completed_phases: 3
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 Phase: 21 (route-planner-handoff-entry-point) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-07-19 - Completed quick task 260719-n8g: Implement the missing route recorder (isRecording flag on NavigationScreen, /record route, ActiveSessionType.rec resume)
+Last activity: 2026-07-19 - Completed quick task 260719-n8g: Implement the missing route recorder (isRecording flag on NavigationScreen, /record route, ActiveSessionType.rec resume); post-review fix 602be822 gates breadcrumb capture on pause/stationary
 
 ## v1.5 Phases
 
@@ -205,7 +205,7 @@ Recent decisions affecting current work:
 | 260718-e9j | Edit an existing route in the trail planner: entry point on trail_create_screen, web-parity anchor prepopulation, pop-with-result return | 2026-07-18 | ee3bbe1d,e93c0ed2,9c171b27,38210d8f | Needs Review | [260718-e9j-…](./quick/260718-e9j-a-user-should-be-able-to-edit-an-existin/) |
 | 260719-d6a | Navigation timer shows time-in-motion: tracelet native speed-motion engine drives auto-pause of timer/GPS/stats when stationary | 2026-07-19 | 0a914220,b1fb530c,461ad44a,e4012bcd | Needs Review | [260719-d6a-…](./quick/260719-d6a-the-navigation-timer-should-show-time-in/) |
 | 260719-fjw | Save track recorded during navigation: stub Trail from breadcrumb, offered on completion banner and premature-exit dialog, hands off to trail_create_screen | 2026-07-19 | 2bd575f0,61497acd,2b2aa687 | Needs Review | [260719-fjw-…](./quick/260719-fjw-save-track-recorded-during-navigation-cr/) |
-| 260719-n8g | Implement the missing route recorder: isRecording flag reuses NavigationScreen for trail-less GPS recording, wired Record trail card + /record route, ActiveSessionType.rec resume-after-kill | 2026-07-19 | 20316c47,c41b757d | Needs Review | [260719-n8g-…](./quick/260719-n8g-implement-the-missing-route-recorder-mos/) |
+| 260719-n8g | Implement the missing route recorder: isRecording flag reuses NavigationScreen for trail-less GPS recording, wired Record trail card + /record route, ActiveSessionType.rec resume-after-kill; post-review fix gates breadcrumb capture on pause/stationary | 2026-07-19 | 20316c47,c41b757d,602be822 | Needs Review | [260719-n8g-…](./quick/260719-n8g-implement-the-missing-route-recorder-mos/) |
 
 ## Deferred Items
 
