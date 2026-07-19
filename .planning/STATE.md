@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Route Planner
 status: verifying
-stopped_at: Completed quick-260719-d6a-PLAN.md
-last_updated: "2026-07-19T08:05:08.955Z"
-last_activity: "2026-07-19 - Completed quick task 260719-d6a: Navigation timer shows time-in-motion, auto-pausing timer/GPS/stats via tracelet's native speed-motion engine"
+stopped_at: Completed quick-260719-n8g-PLAN.md
+last_updated: "2026-07-19T15:16:37.706Z"
+last_activity: "2026-07-19 - Completed quick task 260719-n8g: Implement the missing route recorder (isRecording flag on NavigationScreen, /record route, ActiveSessionType.rec resume)"
 progress:
   total_phases: 3
   completed_phases: 3
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 Phase: 21 (route-planner-handoff-entry-point) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-07-19 - Completed quick task 260719-fjw: Save track recorded during navigation (stub Trail from breadcrumb, offered on completion banner and premature-exit dialog)
+Last activity: 2026-07-19 - Completed quick task 260719-n8g: Implement the missing route recorder (isRecording flag on NavigationScreen, /record route, ActiveSessionType.rec resume)
 
 ## v1.5 Phases
 
@@ -80,6 +80,7 @@ Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/sc
 | Phase 21 P03 | 12min | 2 tasks | 3 files |
 | Phase 21 P04 | 10min | 1 tasks | 1 files |
 | Phase quick-260719-d6a P01 | 35min | 3 tasks | 6 files |
+| Phase quick-260719-n8g P01 | ~20min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,9 @@ Recent decisions affecting current work:
 - [Phase 21]: [21-04] Kept the Finish tooltip ternary and finishPlanning(...) call each on one line, overriding dart format's default wrap, so the plan's literal acceptance-criteria greps match verbatim — Same precedent this phase already established in 20-05/21-01 for grep-sensitive lines
 - [Phase quick-260719-d6a]: [quick-260719-d6a] Reused tracelet's native GPS-speed motion state machine (MotionDetectionMode.speed / onSpeedMotionChange) instead of hand-rolled Haversine/speed-threshold detection -- tracelet ^3.5.0 already provides this natively; a prior attempt hand-rolled it and was reverted
 - [Phase quick-260719-d6a]: [quick-260719-d6a] Generalized _pauseStart into _frozenSince backing frozen = _manualPaused || _stationary via one _applyFrozen() helper so overlapping manual-pause and stationary intervals are never double-counted
+- [Phase quick-260719-n8g]: Reused NavigationScreen directly via isRecording flag rather than a separate RecordScreen -- every maneuver/route-dependent UI already null-guards to nothing on empty input
+- [Phase quick-260719-n8g]: Sentinel id: '' for widget.id in recording mode (not a nullable-id refactor) -- every trailProvider(widget.id) read was already null-guarded
+- [Phase quick-260719-n8g]: Recording's only finish trigger is the existing 3-option exit dialog (Cancel/Exit/Save), reused verbatim -- isArrived is structurally always false with empty maneuvers so there is no auto-arrival banner
 
 ### Pending Todos
 
@@ -167,6 +171,7 @@ Recent decisions affecting current work:
 - Manual on-device verification for quick task 260712-m9v (resume navigation after manual app termination): start navigation, swipe-kill the app, relaunch, accept the resume dialog, confirm maneuver index/distance/elevation/elapsed/breadcrumb continue; also verify decline and deliberate-exit paths show no prompt.
 - Way Types & Surfaces breakdown feature (mobile-first) — komoot-style stacked bar/legend of OSM way types + surfaces per trail via Valhalla `trace_attributes` (`max_hiking_difficulty: 6` fixes off-road hiking-trail match dropout, verified). Web API computes + persists `way_type_surface` on trail save (no Go/PocketBase hook needed — all writes go through the web API); Flutter renders first, SvelteKit UI deferred. Full plan: `.planning/todos/pending/2026-07-18-way-types-and-surfaces-breakdown.md`.
 - Manual on-device verification for quick task 260719-d6a (time-in-motion navigation timer): start navigation, walk → timer/distance advance; stand still ~10s → timer stops, distance stops, GPS drops to periodic low-power fixes; resume walking → timer/GPS/stats all resume automatically. Also confirm the manual pause button and route-following/maneuver/waypoint behavior are unaffected.
+- Manual on-device verification for quick task 260719-n8g (route recorder): tap "Record trail" → grant permission → recording session opens (map centers on first fix, no maneuver banner, bottom row [pause, stop, elevation]); walk → stats/timer advance, pause/resume works; tap red Stop → "Stop recording?" dialog → Save hands off to trail_create_screen with the recorded track prefilled; start a recording, swipe-kill the app, relaunch → "Resume recording?" prompt → accept continues breadcrumb/stats, decline shows no prompt on next launch.
 
 ### Blockers/Concerns
 
@@ -200,6 +205,7 @@ Recent decisions affecting current work:
 | 260718-e9j | Edit an existing route in the trail planner: entry point on trail_create_screen, web-parity anchor prepopulation, pop-with-result return | 2026-07-18 | ee3bbe1d,e93c0ed2,9c171b27,38210d8f | Needs Review | [260718-e9j-…](./quick/260718-e9j-a-user-should-be-able-to-edit-an-existin/) |
 | 260719-d6a | Navigation timer shows time-in-motion: tracelet native speed-motion engine drives auto-pause of timer/GPS/stats when stationary | 2026-07-19 | 0a914220,b1fb530c,461ad44a,e4012bcd | Needs Review | [260719-d6a-…](./quick/260719-d6a-the-navigation-timer-should-show-time-in/) |
 | 260719-fjw | Save track recorded during navigation: stub Trail from breadcrumb, offered on completion banner and premature-exit dialog, hands off to trail_create_screen | 2026-07-19 | 2bd575f0,61497acd,2b2aa687 | Needs Review | [260719-fjw-…](./quick/260719-fjw-save-track-recorded-during-navigation-cr/) |
+| 260719-n8g | Implement the missing route recorder: isRecording flag reuses NavigationScreen for trail-less GPS recording, wired Record trail card + /record route, ActiveSessionType.rec resume-after-kill | 2026-07-19 | 20316c47,c41b757d | Needs Review | [260719-n8g-…](./quick/260719-n8g-implement-the-missing-route-recorder-mos/) |
 
 ## Deferred Items
 
@@ -244,6 +250,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-19T08:05:08.941Z
-Stopped at: Completed quick-260719-d6a-PLAN.md
-Resume file: 
+Last session: 2026-07-19T15:16:00.049Z
+Stopped at: Completed quick-260719-n8g-PLAN.md
+Resume file: None
