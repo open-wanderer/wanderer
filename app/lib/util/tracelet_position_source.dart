@@ -10,8 +10,12 @@ import 'package:tracelet/tracelet.dart' as tl;
 /// Drives BOTH recording/stats and the live UI off this single stream via
 /// two reconfigurable profiles, swapped live with [setForeground] as the app
 /// foregrounds/backgrounds — no separate GPS session needed for the UI:
-/// - Foreground (navigating): continuous, no distance filter, stop-detection
-///   disabled so fixes never throttle down while the user is briefly still.
+/// - Foreground (navigating): continuous while moving. Motion is detected by
+///   tracelet's native GPS-speed state machine
+///   ([tl.MotionDetectionMode.speed]), which automatically drops to
+///   low-power periodic fixes while stationary and resumes continuous
+///   tracking the moment GPS speed confirms movement again — no manual
+///   config swap needed for this dimension.
 /// - Background: battery-conscious, 5 m distance filter, tracelet's default
 ///   adaptive/stationary handling.
 ///
@@ -19,28 +23,46 @@ import 'package:tracelet/tracelet.dart' as tl;
 /// `didChangeAppLifecycleState`, [dispose] in dispose().
 class TraceletPositionSource {
   final _controller = StreamController<geo.Position>.broadcast();
+  final _movingController = StreamController<bool>.broadcast();
   StreamSubscription<tl.Location>? _locationSub;
+  StreamSubscription<tl.SpeedMotionEvent>? _motionSub;
 
   String? _notificationTitle;
   String? _notificationText;
 
   Stream<geo.Position> get stream => _controller.stream;
 
+  /// Emits `true` while tracelet's native speed-motion state machine
+  /// considers the user moving (`moving`/`slowing`) and `false` only once it
+  /// has confirmed a `stationary` transition — this is the sole "is the user
+  /// moving" signal for the rest of the app; nothing here recomputes motion
+  /// from raw GPS speed/displacement independently.
+  Stream<bool> get isMovingStream => _movingController.stream;
+
   /// Config for while the navigation screen is foregrounded — continuous
-  /// tracking with no distance/stationary throttling. Based on tracelet's
-  /// own `highAccuracy` preset, with nested configs chained via their own
+  /// tracking with no distance filter while moving. Based on tracelet's own
+  /// `highAccuracy` preset, with nested configs chained via their own
   /// `copyWith` rather than replaced wholesale — replacing `geo`/`android`
   /// entirely (as this used to) silently drops the preset's other tuned
   /// values, falling back to each nested config's own class defaults.
   tl.Config _foregroundConfig() => tl.Config.highAccuracy().copyWith(
     geo: tl.Config.highAccuracy().geo.copyWith(distanceFilter: 0.0),
     // No `MotionConfig.copyWith` exists, so this is fully specified rather
-    // than chained — but with stop detection disabled, stationary-tracking
-    // fields never trigger, so the rest don't matter here.
+    // than chained. Uses tracelet's native GPS-speed motion state machine
+    // (not the accelerometer `stopTimeout`, which is minute-grained) tuned
+    // for walking pace rather than tracelet's vehicle-oriented defaults
+    // (`speedMovingThreshold: 1.5` m/s, `speedStationaryDelay: 180`s). When
+    // the engine declares `stationary` it automatically switches to
+    // low-power periodic fixes ([tl.StationaryTrackingMode.periodic]) and
+    // switches back to continuous the moment it re-confirms motion — no
+    // second, manually-swapped config is needed for this.
     motion: const tl.MotionConfig(
-      motionDetectionMode: tl.MotionDetectionMode.accelerometer,
-      stopTimeout: 3,
-      disableStopDetection: true,
+      motionDetectionMode: tl.MotionDetectionMode.speed,
+      speedMovingThreshold: 0.4, // m/s (~1.5 km/h) — slow walking still moves
+      speedStationaryDelay: 10, // seconds below threshold before stationary
+      stationaryTrackingMode: tl.StationaryTrackingMode.periodic,
+      stationaryPeriodicInterval: 20, // seconds between fixes while stopped
+      stationaryPeriodicAccuracy: tl.DesiredAccuracy.medium,
     ),
     app: const tl.AppConfig(stopOnTerminate: false),
     android: tl.Config.highAccuracy().android.copyWith(
@@ -78,6 +100,7 @@ class TraceletPositionSource {
     _notificationTitle = notificationTitle;
     _notificationText = notificationText;
     _locationSub = tl.Tracelet.onLocation(_onLocation);
+    _motionSub = tl.Tracelet.onSpeedMotionChange(_onSpeedMotionChange);
 
     await tl.Tracelet.ready(_foregroundConfig());
     await tl.Tracelet.start();
@@ -111,10 +134,22 @@ class TraceletPositionSource {
     );
   }
 
+  /// Maps tracelet's native `moving → slowing → stationary` state machine to
+  /// a single is-moving boolean. `slowing` still counts as moving — it's a
+  /// grace window before the engine commits to `stationary`, and freezing
+  /// during it would cut off accumulation prematurely on every brief slow-down.
+  void _onSpeedMotionChange(tl.SpeedMotionEvent event) {
+    if (_movingController.isClosed) return;
+    _movingController.add(event.state != tl.SpeedMotionState.stationary);
+  }
+
   Future<void> dispose() async {
     await _locationSub?.cancel();
     _locationSub = null;
+    await _motionSub?.cancel();
+    _motionSub = null;
     await tl.Tracelet.stop();
     await _controller.close();
+    await _movingController.close();
   }
 }
