@@ -64,6 +64,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   late final Stream<geo.Position> _positionStream;
   StreamSubscription<geo.Position>? _sub;
 
+  /// Drives `NavigationStatsNotifier.setStationary` from tracelet's native
+  /// speed-motion engine (via [TraceletPositionSource.isMovingStream]), so
+  /// the timer/GPS/stats auto-freeze while stationary and auto-resume on
+  /// motion.
+  StreamSubscription<bool>? _movingSub;
+
   /// ObjectBox store, read once in [initState] — used to persist/clear the
   /// single active-session row via `active_navigation_store`.
   late final Store _store;
@@ -260,6 +266,19 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
     _positionSource = TraceletPositionSource();
     _positionStream = _positionSource.stream;
+    // Couples tracelet's native speed-motion engine to the stats notifier:
+    // stationary → freeze timer/GPS-power/stats; moving → auto-resume. The
+    // notifier never computes motion itself, it only reacts to this stream.
+    _movingSub = _positionSource.isMovingStream.listen((moving) {
+      ref
+          .read(
+            navigationStatsProvider(
+              widget.response,
+              resume: _resumeStats,
+            ).notifier,
+          )
+          .setStationary(!moving);
+    });
     // AppLocalizations.of(context) isn't safe to call synchronously here —
     // inherited-widget dependencies aren't established until after the first
     // frame — so the notification-text lookup (and thus `start()`) is
@@ -496,6 +515,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _sub?.cancel();
+    _movingSub?.cancel();
     _headingSub?.cancel();
     _persistTimer?.cancel();
     _positionAnimController.dispose();
@@ -1376,10 +1396,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               color: Theme.of(context).colorScheme.onSurface,
               size: 18,
             ),
-          ), // Center — dominant Pause/Resume, icon-only FAB.
+          ), // Center — dominant Pause/Resume, icon-only FAB. Also reflects
+          // isStationary (auto-paused by tracelet's motion engine) so the
+          // icon/tooltip stay accurate even when the user never pressed the
+          // button — onPressed still only ever toggles the manual pause.
           FloatingActionButton(
             heroTag: 'nav_pause',
-            tooltip: stats.isPaused
+            tooltip: (stats.isPaused || stats.isStationary)
                 ? localizations.resume
                 : localizations.pause,
             elevation: 2,
@@ -1396,7 +1419,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               _persistNow();
             },
             child: FaIcon(
-              stats.isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
+              (stats.isPaused || stats.isStationary)
+                  ? FontAwesomeIcons.play
+                  : FontAwesomeIcons.pause,
             ),
           ),
 
