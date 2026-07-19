@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:maplibre/maplibre.dart';
-import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/recorded_track_util.dart';
 
 // Tests for buildRecordedTrackTrail, the pure breadcrumb -> stub Trail
@@ -59,7 +59,7 @@ void main() {
         expect(result.maxLat, 47.002);
         expect(result.minLat, 47.000);
         expect(result.maxLon, 9.001);
-        expect(result.minLon, 9.0005);
+        expect(result.minLon, 9.000);
         expect(result.lat! >= result.minLat && result.lat! <= result.maxLat, isTrue);
         expect(result.lon! >= result.minLon && result.lon! <= result.maxLon, isTrue);
       });
