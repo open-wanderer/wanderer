@@ -1020,7 +1020,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                         ),
 
                         Positioned(
-                          top: 128,
+                          top: widget.isRecording ? 8 : 128,
                           left: 8,
                           child: SafeArea(
                             child: const ml.MapScalebar(
@@ -1038,7 +1038,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                           ),
                         ), //
                         Positioned(
-                          top: 128,
+                          top: widget.isRecording ? 8 : 128,
                           right: 8,
                           child: SafeArea(
                             child: Column(
@@ -1097,19 +1097,20 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                     ),
                   ),
 
-                  SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                      child: _buildBanner(
-                        context,
-                        localizations,
-                        maneuvers,
-                        currentIndex,
-                        isArrived,
-                        unit,
+                  if (!widget.isRecording)
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                        child: _buildBanner(
+                          context,
+                          localizations,
+                          maneuvers,
+                          currentIndex,
+                          isArrived,
+                          unit,
+                        ),
                       ),
                     ),
-                  ),
 
                   _buildStatsSheet(
                     context,
