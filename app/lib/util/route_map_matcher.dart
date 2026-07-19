@@ -45,6 +45,19 @@ class _Hypothesis {
 /// loses to the coherent nearby chain — unless the fixes stay off the
 /// current leg for a while, in which case [offRouteCrossTrackThresholdMeters]
 /// triggers a wider recovery search (see there for why).
+///
+/// The *reported* along-track distance is a separately gated "commit" on top
+/// of that internal beam (see [commitConfirmFixes]): a route can contain a
+/// self-similar spur narrower than the recovery window (two legs occupying
+/// near-identical coordinates but only a couple hundred metres apart
+/// along-track — the same ambiguity a hairpin has, just too wide for a
+/// single fix's cross-track/heading signal to resolve on its own, especially
+/// under a bike's wider cornering). Letting the top hypothesis flip legs
+/// silently would report a route as finished mid-ride. Instead, a forward
+/// jump larger than plausible ground movement must keep winning for several
+/// consecutive fixes before it's trusted — exactly the same evidence a
+/// genuine cross-country shortcut also produces, just confirmed over time
+/// instead of on the first fix.
 class RouteMapMatcher {
   RouteMapMatcher({
     required List<Geographic> shape,
@@ -58,11 +71,15 @@ class RouteMapMatcher {
     this.warmWindowFactor = 6.0,
     this.warmWindowFloorMeters = 20.0,
     this.warmWindowCapMeters = 150.0,
+    this.warmWindowCapSpeedCoeff = 20.0,
     this.backMarginMeters = 15.0,
     this.movingSpeedThresholdMetersPerSecond = 0.3,
     this.offRouteCrossTrackThresholdMeters = 40.0,
+    this.crossTrackSpeedCoeff = 3.0,
+    this.recoveryTriggerFixes = 3,
     this.recoveryLookAheadMeters = 400.0,
     this.recoveryTransitionSigmaMultiplier = 20.0,
+    this.commitConfirmFixes = 3,
   }) : _shape = shape,
        _cumulative = shapeCumulativeMeters {
     if (initialAlongTrackMeters != null && _shape.length >= 2) {
@@ -74,6 +91,8 @@ class RouteMapMatcher {
           score: 0,
         ),
       ];
+      _committedAtd = initialAlongTrackMeters;
+      _committedSegmentIndex = seededIndex;
     }
   }
 
@@ -100,12 +119,20 @@ class RouteMapMatcher {
   final double coldStartLookAheadMeters;
 
   /// Warm-update forward search window = `max(warmWindowFloorMeters,
-  /// groundDistance * warmWindowFactor)`, capped at [warmWindowCapMeters].
-  /// Bounding candidate generation by plausible travel distance is what
-  /// keeps a hairpin's far leg out of consideration in the first place.
+  /// groundDistance * warmWindowFactor)`, capped at the speed-adjusted
+  /// [warmWindowCapMeters] (see [warmWindowCapSpeedCoeff]). Bounding
+  /// candidate generation by plausible travel distance is what keeps a
+  /// hairpin's far leg out of consideration in the first place.
   final double warmWindowFactor;
   final double warmWindowFloorMeters;
   final double warmWindowCapMeters;
+
+  /// Added to [warmWindowCapMeters] per m/s of GPS `speed`. At walking pace
+  /// this is negligible; at biking pace it keeps normal-window tracking
+  /// (which along-track-gates candidates) covering enough ground that
+  /// off-route recovery — and the wrong-leg ambiguity it risks — is rarely
+  /// needed at all.
+  final double warmWindowCapSpeedCoeff;
 
   /// How far behind a hypothesis a candidate may fall and still be
   /// considered, tolerating GPS jitter before the transition term rejects it.
@@ -121,8 +148,20 @@ class RouteMapMatcher {
   /// along-route saving, so it would fail the transition check same as a
   /// noisy fix would — the distinguishing signal is that it's *sustained*
   /// (cross-track to the current leg keeps growing) rather than a single
-  /// blip, which is what this threshold detects.
+  /// blip, which is what [recoveryTriggerFixes] detects.
   final double offRouteCrossTrackThresholdMeters;
+
+  /// Added to [offRouteCrossTrackThresholdMeters] per m/s of GPS `speed`. A
+  /// bike's wider cornering radius and larger in-motion GPS error push
+  /// cross-track past a walking-tuned threshold on ordinary curves, not just
+  /// genuine excursions — without this, bikes would enter recovery mode (and
+  /// its wrong-leg risk) far more readily than the geometry warrants.
+  final double crossTrackSpeedCoeff;
+
+  /// Consecutive off-route fixes required before recovery mode actually
+  /// widens the search window. A single wide-cornered or noisy fix no longer
+  /// opens the window that a self-similar spur could be ambiguous within.
+  final int recoveryTriggerFixes;
 
   /// Forward search window used only once off-route — wide enough to
   /// re-acquire a leg reached by a genuine cross-country shortcut, but still
@@ -134,14 +173,34 @@ class RouteMapMatcher {
   /// recovery scoring is emission-led.
   final double recoveryTransitionSigmaMultiplier;
 
+  /// Consecutive fixes a forward jump larger than plausible ground movement
+  /// must keep winning before [update] reports it — see the class doc. `1`
+  /// reproduces committing on the first fix (no gating).
+  final int commitConfirmFixes;
+
   List<_Hypothesis> _hypotheses = const [];
   Geographic? _lastPos;
+  int _consecutiveOffRoute = 0;
+
+  /// The along-track distance actually reported by [update]. May lag behind
+  /// the beam's current best hypothesis while a large forward jump awaits
+  /// confirmation — see [commitConfirmFixes].
+  double _committedAtd = 0.0;
+  int _committedSegmentIndex = 0;
+
+  /// The not-yet-confirmed jump candidate and how many consecutive fixes
+  /// it has kept winning. Reset whenever the leading hypothesis changes or
+  /// a jump is confirmed.
+  double? _pendingJumpAtd;
+  int _pendingJumpFixes = 0;
 
   double get _totalLength => _cumulative.isEmpty ? 0.0 : _cumulative.last;
 
   /// Feeds one GPS fix into the matcher and returns the newly committed
   /// match. [heading]/[headingAccuracy]/[speed]/[accuracy] are all optional;
-  /// omitting them degrades to emission-by-cross-track-only.
+  /// omitting them degrades to emission-by-cross-track-only, and disables
+  /// the speed-adaptive widening described on [warmWindowCapSpeedCoeff] and
+  /// [crossTrackSpeedCoeff].
   MapMatchResult update({
     required Geographic pos,
     double? heading,
@@ -157,6 +216,7 @@ class RouteMapMatcher {
     final groundDistance = isFirstFix
         ? 0.0
         : SphericalGreatCircle(_lastPos!).distanceTo(pos);
+    _lastPos = pos;
 
     final sources = _hypotheses.isEmpty
         ? const [_Hypothesis(segmentIndex: 0, alongTrackMeters: 0, score: 0)]
@@ -167,10 +227,21 @@ class RouteMapMatcher {
         .map((h) => h.alongTrackMeters)
         .reduce(math.max);
 
+    final effSpeed = math.max(0.0, speed ?? 0.0);
+    final effectiveWarmWindowCap =
+        warmWindowCapMeters + warmWindowCapSpeedCoeff * effSpeed;
+    final effectiveOffRouteThreshold =
+        offRouteCrossTrackThresholdMeters + crossTrackSpeedCoeff * effSpeed;
+    final plausibleStep = math.max(
+      warmWindowFloorMeters,
+      groundDistance * warmWindowFactor,
+    );
+
     final Map<int, _Candidate> candidatesBysegment;
     var effectiveTransitionSigma = transitionSigmaMeters;
 
     if (isFirstFix) {
+      _consecutiveOffRoute = 0;
       final candidates = _candidatesInWindow(
         pos,
         math.max(0.0, baseAtd),
@@ -180,7 +251,7 @@ class RouteMapMatcher {
     } else {
       final normalWindow = (groundDistance * warmWindowFactor).clamp(
         warmWindowFloorMeters,
-        warmWindowCapMeters,
+        effectiveWarmWindowCap,
       );
       final normalMin = math.max(0.0, baseAtd - backMarginMeters);
       final normalMax = math.min(_totalLength, maxSourceAtd + normalWindow);
@@ -194,7 +265,10 @@ class RouteMapMatcher {
         for (final c in normalCandidates) c.segmentIndex: c,
       };
 
-      if (bestNormalCrossTrack > offRouteCrossTrackThresholdMeters) {
+      final isOffRoute = bestNormalCrossTrack > effectiveOffRouteThreshold;
+      _consecutiveOffRoute = isOffRoute ? _consecutiveOffRoute + 1 : 0;
+
+      if (isOffRoute && _consecutiveOffRoute >= recoveryTriggerFixes) {
         final recoveryMax = math.min(
           _totalLength,
           maxSourceAtd + recoveryLookAheadMeters,
@@ -236,7 +310,15 @@ class RouteMapMatcher {
 
       double best = double.negativeInfinity;
       if (isFirstFix) {
-        best = 0.0;
+        // No transition term exists yet to break emission ties, and a
+        // self-overlapping route (e.g. starting near an out-and-back's own
+        // endpoint) can tie *every* candidate in the cold-start window at
+        // zero cross-track. This nudge is far too small to affect any real
+        // emission gap — it only makes that tie resolve deterministically
+        // toward the candidate nearest the caller-supplied start, instead of
+        // an implementation-defined sort outcome that could land anywhere
+        // in the window.
+        best = -1e-6 * (c.alongTrackMeters - baseAtd).abs();
       } else {
         for (final source in sources) {
           final delta = c.alongTrackMeters - source.alongTrackMeters;
@@ -260,20 +342,39 @@ class RouteMapMatcher {
 
     if (scored.isEmpty) {
       // No candidate fell in any window (e.g. a wild GPS outlier, or the
-      // route ended) — hold the previous match rather than lose state.
-      _lastPos = pos;
-      final held = sources.reduce((a, b) => a.score >= b.score ? a : b);
+      // route ended) — hold the previous commit rather than lose state.
       return MapMatchResult(
-        alongTrackMeters: held.alongTrackMeters,
-        shapeIndex: held.segmentIndex,
+        alongTrackMeters: _committedAtd,
+        shapeIndex: _committedSegmentIndex,
       );
     }
 
     scored.sort((a, b) => b.score.compareTo(a.score));
-    final kept = scored.take(topK).toList(growable: false);
+    final globalBest = scored.first;
+
+    // Keep whichever hypothesis best explains "I stayed on the leg I was
+    // already committed to" alive in the beam, even if topK pruning would
+    // otherwise drop it in favour of several higher-scoring candidates on a
+    // spatially-close-but-far-along-route leg — that continuation is what
+    // [_gateCommit] needs available next fix to eventually reject a false
+    // jump once real evidence (fixes staying on the true leg) arrives.
+    final continuation = isFirstFix
+        ? null
+        : _findContinuation(scored, _committedAtd, groundDistance, plausibleStep);
+
+    var kept = scored.take(topK).toList(growable: false);
+    if (continuation != null &&
+        !kept.any(
+          (h) =>
+              h.segmentIndex == continuation.segmentIndex &&
+              h.alongTrackMeters == continuation.alongTrackMeters,
+        )) {
+      kept = [...kept.take(math.max(0, topK - 1)), continuation];
+    }
+
+    final maxScore = kept.map((h) => h.score).reduce(math.max);
     // Rebase against the running best so scores don't drift to large
     // negative magnitudes over a long session; ranking is unaffected.
-    final maxScore = kept.first.score;
     _hypotheses = kept
         .map(
           (h) => _Hypothesis(
@@ -283,13 +384,88 @@ class RouteMapMatcher {
           ),
         )
         .toList(growable: false);
-    _lastPos = pos;
 
-    final best = _hypotheses.first;
+    if (isFirstFix) {
+      _committedAtd = globalBest.alongTrackMeters;
+      _committedSegmentIndex = globalBest.segmentIndex;
+      _pendingJumpAtd = null;
+      _pendingJumpFixes = 0;
+    } else {
+      _gateCommit(globalBest, plausibleStep, groundDistance);
+    }
+
     return MapMatchResult(
-      alongTrackMeters: best.alongTrackMeters,
-      shapeIndex: best.segmentIndex,
+      alongTrackMeters: _committedAtd,
+      shapeIndex: _committedSegmentIndex,
     );
+  }
+
+  /// Updates [_committedAtd]/[_committedSegmentIndex] from this fix's
+  /// leading hypothesis, gating any forward jump larger than [plausibleStep]
+  /// behind [commitConfirmFixes] consecutive fixes agreeing on (approximately)
+  /// the same jumped-to position — see the class doc for why.
+  void _gateCommit(
+    _Hypothesis globalBest,
+    double plausibleStep,
+    double groundDistance,
+  ) {
+    final advance = globalBest.alongTrackMeters - _committedAtd;
+
+    if (advance <= plausibleStep) {
+      _committedAtd = globalBest.alongTrackMeters;
+      _committedSegmentIndex = globalBest.segmentIndex;
+      _pendingJumpAtd = null;
+      _pendingJumpFixes = 0;
+      return;
+    }
+
+    final sameJump =
+        _pendingJumpAtd != null &&
+        (globalBest.alongTrackMeters - _pendingJumpAtd!).abs() <=
+            plausibleStep;
+    _pendingJumpAtd = globalBest.alongTrackMeters;
+    _pendingJumpFixes = sameJump ? _pendingJumpFixes + 1 : 1;
+
+    if (_pendingJumpFixes >= commitConfirmFixes) {
+      _committedAtd = globalBest.alongTrackMeters;
+      _committedSegmentIndex = globalBest.segmentIndex;
+      _pendingJumpAtd = null;
+      _pendingJumpFixes = 0;
+    } else {
+      // Not yet confirmed — coast forward on the current leg by measured
+      // ground distance rather than freezing (a real, non-ambiguous advance
+      // shouldn't stall) or jumping (an unconfirmed one shouldn't commit).
+      _committedAtd = math.min(
+        globalBest.alongTrackMeters,
+        _committedAtd + groundDistance,
+      );
+      _committedSegmentIndex = _shapeIndexForAlongTrack(_committedAtd);
+    }
+  }
+
+  /// Among [scored], the highest-scoring hypothesis that represents staying
+  /// on the current leg — its along-track advance from [committedAtd] is at
+  /// most a plausible step, so it's excluded from being "the jump" itself.
+  _Hypothesis? _findContinuation(
+    List<_Hypothesis> scored,
+    double committedAtd,
+    double groundDistance,
+    double plausibleStep,
+  ) {
+    final target = committedAtd + groundDistance;
+    _Hypothesis? bestMatch;
+    var bestDistance = double.infinity;
+    for (final h in scored) {
+      if (h.alongTrackMeters - committedAtd > plausibleStep) {
+        continue;
+      }
+      final d = (h.alongTrackMeters - target).abs();
+      if (d < bestDistance) {
+        bestDistance = d;
+        bestMatch = h;
+      }
+    }
+    return bestMatch;
   }
 
   int _shapeIndexForAlongTrack(double atd) {

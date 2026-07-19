@@ -123,6 +123,42 @@ NavigateResponse _buildHairpinResponse() {
   );
 }
 
+/// Builds a ~330 m out-and-back spur route: the return leg retraces the
+/// outbound leg's exact coordinates (shape[j] == shape[60 - j] for j <= 29),
+/// so points before the apex have a spatially-identical twin a couple
+/// hundred metres away *along the route* — inside the map-matcher's
+/// off-route recovery window. This is the geometry that produced a reported
+/// false "route finished" while biking: a burst of wide-cornering fixes
+/// (bikes corner wider than the foot-pace recording) pushes cross-track past
+/// the off-route threshold right in the danger zone.
+NavigateResponse _buildNarrowSpurResponse() {
+  const startLat = 47.0000;
+  const stepLat = 0.0001; // ~11.1 m
+  const lon = 9.0000;
+
+  final outbound = List.generate(31, (i) => [startLat + stepLat * i, lon]);
+  final inbound = outbound.reversed.skip(1).toList();
+  final shape = [...outbound, ...inbound];
+
+  return NavigateResponse(
+    shape: shape,
+    maneuvers: const [
+      NavigateManeuver(instruction: 'Start', length: 0, beginShapeIndex: 0),
+      NavigateManeuver(
+        instruction: 'Approach turnaround',
+        length: 0,
+        beginShapeIndex: 25,
+      ),
+      NavigateManeuver(
+        instruction: 'On the return leg (false-jump target)',
+        length: 0,
+        beginShapeIndex: 40,
+      ),
+      NavigateManeuver(instruction: 'Arrive', length: 0, beginShapeIndex: 60),
+    ],
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -414,6 +450,63 @@ void main() {
           reason:
               'a single noisy fix near the apex must not skip past the '
               'switchback turn maneuvers onto the exit leg',
+        );
+      },
+    );
+  });
+
+  group('NavigationNotifier narrow out-and-back spur handling', () {
+    test(
+      'sustained wide-cornering fixes at bike speed through the spur apex '
+      'do not skip ahead to the return-leg maneuvers',
+      () {
+        final spurResponse = _buildNarrowSpurResponse();
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        final notifier = container.read(
+          navigationProvider(spurResponse).notifier,
+        );
+        final shape = spurResponse.shapeAsGeographic;
+
+        // Walk the outbound leg for real, at bike speed — advances past
+        // "Approach turnaround" (beginShapeIndex 25... reached later, so
+        // just past "Start" for now).
+        for (var i = 0; i <= 18; i++) {
+          notifier.onPosition(shape[i], speed: 6.0);
+        }
+
+        // A burst of wide-cornering fixes through the danger zone — offset
+        // enough to exceed even the speed-adjusted recovery trigger for
+        // several consecutive fixes, as a bike's wider turning radius
+        // plausibly would on a spur originally recorded on foot. The old
+        // behavior would let this snap onto the return leg's identical
+        // coordinates and report the route as finished.
+        for (var i = 19; i <= 22; i++) {
+          final wide = Geographic(
+            lat: shape[i].lat,
+            lon: shape[i].lon + 0.0009, // ~68 m east
+          );
+          notifier.onPosition(wide, speed: 6.0);
+        }
+
+        // Resume tracking correctly along the real outbound leg, up to (but
+        // not through) the turnaround.
+        for (var i = 23; i <= 29; i++) {
+          notifier.onPosition(shape[i], speed: 6.0);
+        }
+
+        final currentIndex = container
+            .read(navigationProvider(spurResponse))
+            .currentManeuverIndex;
+
+        expect(
+          currentIndex,
+          lessThan(2),
+          reason:
+              'must still be on/before "Approach turnaround" — a false '
+              'snap onto the return leg would have skipped straight to the '
+              '"On the return leg" or "Arrive" maneuvers',
         );
       },
     );

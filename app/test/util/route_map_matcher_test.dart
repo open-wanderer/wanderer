@@ -61,6 +61,26 @@ List<Geographic> _wideGapLoopShape() {
   return shape;
 }
 
+/// A ~330 m out-and-back spur: the return leg retraces the outbound leg's
+/// exact coordinates, so every point before the apex has a spatially
+/// *identical* twin on the return leg a couple hundred metres away
+/// along-track — inside the off-route recovery window, unlike
+/// [_hairpinShape] (offset ~15 m, never truly coincident) or
+/// [_wideGapLoopShape] (a different, unconnected leg ~78 m away). This is
+/// the geometry that produced the reported false "route finished" while
+/// biking: `shape[j] == shape[60 - j]` for `j <= 29`.
+List<Geographic> _narrowSpurShape({int legPoints = 30}) {
+  const startLat = 47.0000;
+  const lon = 9.0000;
+  const stepLat = 0.0001; // ~11.1 m
+  final outbound = List.generate(
+    legPoints + 1,
+    (i) => Geographic(lat: startLat + stepLat * i, lon: lon),
+  );
+  final inbound = outbound.reversed.skip(1).toList();
+  return [...outbound, ...inbound];
+}
+
 /// Linearly interpolates [steps] intermediate points from [a] to [b]
 /// (inclusive of [b], exclusive of [a]).
 List<Geographic> _interpolate(Geographic a, Geographic b, int steps) {
@@ -160,6 +180,12 @@ void main() {
         for (final step in steps) {
           result = matcher.update(pos: step);
         }
+        // A jump this large must keep winning for several consecutive fixes
+        // before it's committed (see commitConfirmFixes) — a real shortcut
+        // does exactly this, so confirm it by staying at the target.
+        for (var i = 0; i < 3; i++) {
+          result = matcher.update(pos: shape[targetIndex]);
+        }
 
         // This genuinely saves several hundred metres of route distance for
         // ~80 m of cross-country walking — confirm the setup is meaningful.
@@ -199,6 +225,89 @@ void main() {
 
       expect((after - committed).abs(), lessThan(5.0));
     });
+
+    test(
+      'narrow out-and-back spur: sustained wide-cornering fixes at bike '
+      'speed do not commit onto the spatially-identical return leg',
+      () {
+        final shape = _narrowSpurShape();
+        final cumulative = _cumulativeMeters(shape);
+
+        // Confirm the fixture reproduces the reported bug's geometry:
+        // identical coordinates, along-track gap inside the recovery window
+        // but outside the normal (non-recovery) window.
+        expect(shape[20], shape[40]);
+        final gap = cumulative[40] - cumulative[20];
+        expect(gap, lessThan(400));
+        expect(gap, greaterThan(150));
+
+        final matcher = RouteMapMatcher(
+          shape: shape,
+          shapeCumulativeMeters: cumulative,
+        );
+
+        // Walk the outbound leg for real, at bike speed.
+        for (var i = 0; i <= 18; i++) {
+          matcher.update(pos: shape[i], speed: 6.0);
+        }
+
+        // A burst of wide-cornering fixes through the danger zone — offset
+        // enough to exceed even the speed-adjusted recovery trigger for
+        // several consecutive fixes, as a bike's wider turning radius
+        // plausibly would on a spur originally recorded on foot.
+        for (var i = 19; i <= 22; i++) {
+          final wide = Geographic(
+            lat: shape[i].lat,
+            lon: shape[i].lon + 0.0009, // ~68 m east
+          );
+          matcher.update(pos: wide, speed: 6.0);
+        }
+
+        // Resume tracking correctly along the real outbound leg.
+        MapMatchResult? result;
+        for (var i = 23; i <= 29; i++) {
+          result = matcher.update(pos: shape[i], speed: 6.0);
+        }
+
+        // Must reflect forward progress on the true (outbound) leg, not a
+        // false snap onto the spatially-identical return leg.
+        expect(result!.alongTrackMeters, closeTo(cumulative[29], 80.0));
+        expect(result.alongTrackMeters, lessThan(cumulative[35]));
+      },
+    );
+
+    test(
+      'bike cornering: moderate cross-track fixes at bike speed stay in the '
+      'normal window instead of forcing recovery',
+      () {
+        final shape = _straightShape();
+        final cumulative = _cumulativeMeters(shape);
+        final matcher = RouteMapMatcher(
+          shape: shape,
+          shapeCumulativeMeters: cumulative,
+        );
+
+        matcher.update(pos: shape[5], speed: 6.0);
+
+        // ~46 m offset: past the walking-tuned threshold (40 m) but under
+        // the bike-speed-adjusted one (40 + 3*6 = 58 m) — a wide corner, not
+        // a genuine excursion.
+        MapMatchResult? result;
+        for (var i = 6; i <= 9; i++) {
+          final wide = Geographic(
+            lat: shape[i].lat,
+            lon: shape[i].lon + 0.00042,
+          );
+          result = matcher.update(pos: wide, speed: 6.0);
+        }
+
+        // Should have kept tracking forward along the route, not stalled or
+        // jumped — the wide cornering shouldn't have been treated as
+        // off-route at all.
+        expect(result!.alongTrackMeters, greaterThan(cumulative[5]));
+        expect(result.alongTrackMeters, closeTo(cumulative[9], 15.0));
+      },
+    );
 
     test('a poor-accuracy fix does not throw and still returns a finite match', () {
       final shape = _straightShape();
