@@ -276,17 +276,26 @@ class Router extends _$Router {
         GoRoute(
           path: '/record',
           builder: (context, state) {
-            // extra: an ActiveNavigationEntity resume seed when re-entering
-            // an in-progress recording (see main.dart's _maybeResume rec
-            // branch); null for a fresh recording session.
-            final resume = state.extra is ActiveNavigationEntity
-                ? state.extra as ActiveNavigationEntity
+            // extra: either an ActiveNavigationEntity resume seed when
+            // re-entering an in-progress recording (see main.dart's
+            // _maybeResume rec branch), or a {'lat', 'lon'} map with the
+            // real GPS fix resolved before starting a fresh recording (see
+            // trail_source_select_screen.dart's _openRecorder) — null for
+            // neither case falls back to NavigationScreen's own default.
+            final extra = state.extra;
+            final resume = extra is ActiveNavigationEntity ? extra : null;
+            final center = extra is Map
+                ? Geographic(
+                    lat: extra['lat'] as double,
+                    lon: extra['lon'] as double,
+                  )
                 : null;
             return NavigationScreen(
               id: '',
               response: const NavigateResponse(maneuvers: [], shape: []),
               isRecording: true,
               resumeSession: resume,
+              initialCenter: center,
             );
           },
         ),

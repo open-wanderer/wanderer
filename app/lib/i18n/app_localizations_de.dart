@@ -273,6 +273,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Die Standortberechtigung wurde dauerhaft verweigert. Bitte aktiviere sie in den Einstellungen.';
 
   @override
+  String get location_unavailable =>
+      'Unable to determine your location. Please try again.';
+
+  @override
   String get copy_link => 'Link kopieren';
 
   @override

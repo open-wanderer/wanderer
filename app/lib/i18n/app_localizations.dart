@@ -590,6 +590,12 @@ abstract class AppLocalizations {
   /// **'Location permission is permanently denied. Please enable it in Settings.'**
   String get location_permission_permanently_denied;
 
+  /// No description provided for @location_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to determine your location. Please try again.'**
+  String get location_unavailable;
+
   /// No description provided for @copy_link.
   ///
   /// In en, this message translates to:

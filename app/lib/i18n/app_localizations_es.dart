@@ -274,6 +274,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Location permission is permanently denied. Please enable it in Settings.';
 
   @override
+  String get location_unavailable =>
+      'Unable to determine your location. Please try again.';
+
+  @override
   String get copy_link => 'Copiar Enlace';
 
   @override

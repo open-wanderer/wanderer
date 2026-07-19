@@ -78,6 +78,7 @@
   "location_services_disabled": "Location services are disabled. Please enable GPS to use navigation.",
   "location_permission_denied": "Location permission is required for navigation.",
   "location_permission_permanently_denied": "Location permission is permanently denied. Please enable it in Settings.",
+  "location_unavailable": "Unable to determine your location. Please try again.",
   "copy_link": "Copy Link",
   "create_new_list": "Create new list",
   "create_waypoint": "Create waypoint",

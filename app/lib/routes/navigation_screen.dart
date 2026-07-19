@@ -61,6 +61,13 @@ class NavigationScreen extends ConsumerStatefulWidget {
   /// `_buildElevationPage`.
   final bool isRecording;
 
+  /// Initial map camera center for a fresh recording session (recording mode
+  /// has no `response.shape` to derive one from). Resolved by the caller
+  /// (`trail_source_select_screen.dart`'s `_openRecorder`) from a real GPS
+  /// fix before pushing `/record`, so the map never opens at the
+  /// `Geographic(0, 0)` fallback. Ignored outside recording mode.
+  final ml.Geographic? initialCenter;
+
   const NavigationScreen({
     super.key,
     required this.id,
@@ -68,6 +75,7 @@ class NavigationScreen extends ConsumerStatefulWidget {
     this.isOffline = false,
     this.resumeSession,
     this.isRecording = false,
+    this.initialCenter,
   });
 
   @override
@@ -969,9 +977,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                     child: ml.MapLibreMap(
                       options: ml.MapOptions(
                         initStyle: styleJson,
-                        initCenter: widget.response.shapeAsGeographic.isNotEmpty
-                            ? widget.response.shapeAsGeographic.first
-                            : const ml.Geographic(lat: 0, lon: 0),
+                        initCenter:
+                            widget.initialCenter ??
+                            (widget.response.shapeAsGeographic.isNotEmpty
+                                ? widget.response.shapeAsGeographic.first
+                                : const ml.Geographic(lat: 0, lon: 0)),
                         initZoom: 15,
                         androidForegroundLoadColor: Theme.of(
                           context,

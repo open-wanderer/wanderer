@@ -29,12 +29,19 @@ class _TrailSourceSelectScreenState
     extends ConsumerState<TrailSourceSelectScreen> {
   bool _importLoading = false;
   bool _plannerLoading = false;
+  bool _recorderLoading = false;
 
   /// Requests location permission (mirroring `navigation_launch_util.dart`'s
-  /// `launchNavigation` gate — `NavigationScreen` does not self-request it)
-  /// then pushes the trail-less GPS-recording session. No `extra` — a fresh
-  /// recording always starts from a clean session.
+  /// `launchNavigation` gate — `NavigationScreen` does not self-request it),
+  /// then waits for a real GPS fix before pushing the trail-less
+  /// GPS-recording session — without this, `NavigationScreen` has no
+  /// `response.shape` to derive a map center from and would briefly open at
+  /// `Geographic(0, 0)`. `_recorderLoading` drives the card's spinner and
+  /// disables all three source cards for the duration, matching
+  /// `_openPlanner`/`_importGpx`'s existing loading-flag pattern.
   Future<void> _openRecorder(AppLocalizations l10n) async {
+    if (_recorderLoading) return;
+
     void showError(String text) => ref
         .read(toastProvider.notifier)
         .add(
@@ -71,7 +78,29 @@ class _TrailSourceSelectScreenState
     }
 
     if (!mounted) return;
-    context.push('/record');
+    setState(() => _recorderLoading = true);
+    try {
+      LocationMarkerPosition? pos;
+      try {
+        pos = await ref
+            .read(foregroundPositionStreamProvider)
+            .firstWhere((p) => p != null)
+            .timeout(const Duration(seconds: 20));
+      } catch (_) {
+        pos = null;
+      }
+      if (!mounted) return;
+      if (pos == null) {
+        showError(l10n.location_unavailable);
+        return;
+      }
+      context.push(
+        '/record',
+        extra: {'lat': pos.latitude, 'lon': pos.longitude},
+      );
+    } finally {
+      if (mounted) setState(() => _recorderLoading = false);
+    }
   }
 
   Future<void> _openPlanner(AppLocalizations l10n) async {
@@ -169,7 +198,7 @@ class _TrailSourceSelectScreenState
             description:
                 "Design your perfect route from scratch using our map tools.",
             isLoading: _plannerLoading,
-            onTap: (_importLoading || _plannerLoading)
+            onTap: (_importLoading || _plannerLoading || _recorderLoading)
                 ? null
                 : () => _openPlanner(l10n),
           ),
@@ -179,7 +208,8 @@ class _TrailSourceSelectScreenState
             title: l10n.trail_source_record,
             description:
                 "Track your live coordinates and log your journey in real-time.",
-            onTap: (_importLoading || _plannerLoading)
+            isLoading: _recorderLoading,
+            onTap: (_importLoading || _plannerLoading || _recorderLoading)
                 ? null
                 : () => _openRecorder(l10n),
           ),
@@ -190,7 +220,7 @@ class _TrailSourceSelectScreenState
             description:
                 "Upload external GPX files directly from your device storage.",
             isLoading: _importLoading,
-            onTap: (_importLoading || _plannerLoading)
+            onTap: (_importLoading || _plannerLoading || _recorderLoading)
                 ? null
                 : () => _importGpx(l10n),
           ),
