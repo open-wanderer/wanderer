@@ -1,7 +1,10 @@
+import 'dart:io' show Platform;
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/components/route_planner/travel_profile_sheet.dart';
@@ -27,16 +30,48 @@ class _TrailSourceSelectScreenState
   bool _importLoading = false;
   bool _plannerLoading = false;
 
-  void _comingSoon(AppLocalizations l10n) {
-    ref
+  /// Requests location permission (mirroring `navigation_launch_util.dart`'s
+  /// `launchNavigation` gate — `NavigationScreen` does not self-request it)
+  /// then pushes the trail-less GPS-recording session. No `extra` — a fresh
+  /// recording always starts from a clean session.
+  Future<void> _openRecorder(AppLocalizations l10n) async {
+    void showError(String text) => ref
         .read(toastProvider.notifier)
         .add(
           ToastMessage(
-            type: ToastType.info,
-            icon: FontAwesomeIcons.circleInfo,
-            text: l10n.coming_soon,
+            type: ToastType.error,
+            icon: FontAwesomeIcons.triangleExclamation,
+            text: text,
           ),
         );
+
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      showError(l10n.location_services_disabled);
+      return;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.deniedForever) {
+      showError(l10n.location_permission_permanently_denied);
+      return;
+    }
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        showError(l10n.location_permission_denied);
+        return;
+      }
+    }
+    // iOS: re-requesting when WhenInUse triggers the "Change to Always
+    // Allow?" prompt (requires NSLocationAlwaysAndWhenInUseUsageDescription).
+    // No-op on Android. Recording proceeds either way if declined.
+    if (permission == LocationPermission.whileInUse && Platform.isIOS) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (!mounted) return;
+    context.push('/record');
   }
 
   Future<void> _openPlanner(AppLocalizations l10n) async {
@@ -146,7 +181,7 @@ class _TrailSourceSelectScreenState
                 "Track your live coordinates and log your journey in real-time.",
             onTap: (_importLoading || _plannerLoading)
                 ? null
-                : () => _comingSoon(l10n),
+                : () => _openRecorder(l10n),
           ),
           const SizedBox(height: 12),
           _SourceActionCard(

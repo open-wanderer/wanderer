@@ -174,9 +174,13 @@ class _MainAppState extends ConsumerState<MainApp> {
     final row = active_nav.read(store);
     if (row == null) return;
 
-    // Only nav-type rows are resumable today — this also future-proofs
-    // against a later rec row landing here before that mode has its own
-    // resume handling.
+    if (row.sessionType == ActiveSessionType.rec) {
+      _maybeResumeRecording(store, row);
+      return;
+    }
+
+    // Only nav-type rows are resumable below — an unresolvable/non-nav row
+    // is dropped silently.
     if (row.sessionType != ActiveSessionType.nav || row.trailId == null) {
       active_nav.clear(store);
       return;
@@ -225,6 +229,42 @@ class _MainAppState extends ConsumerState<MainApp> {
           '/trail/${row.trailId}/navigate',
           extra: (response, row.isOffline ?? false, row),
         );
+      } else {
+        active_nav.clear(store);
+      }
+    });
+  }
+
+  /// Resumes an in-progress `ActiveSessionType.rec` row — mirrors
+  /// [_maybeResume]'s `.nav` dialog structure but with no trail name (a
+  /// recording session has no trail) and skips `readCachedNav` entirely
+  /// (there is no trail to look up). Accepting re-pushes `/record` seeded
+  /// with the row; `NavigationScreen.initState` already rehydrates
+  /// breadcrumb + stats generically from `resumeSession`.
+  void _maybeResumeRecording(Store store, ActiveNavigationEntity row) {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return;
+
+    showDialog<bool>(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        content: Text(
+          AppLocalizations.of(dialogCtx)!.resume_recording_prompt,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: Text(AppLocalizations.of(dialogCtx)!.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            child: Text(AppLocalizations.of(dialogCtx)!.resume),
+          ),
+        ],
+      ),
+    ).then((accepted) {
+      if (accepted == true) {
+        navigatorKey.currentContext?.push('/record', extra: row);
       } else {
         active_nav.clear(store);
       }

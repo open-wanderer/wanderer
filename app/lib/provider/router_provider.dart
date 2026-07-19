@@ -274,6 +274,23 @@ class Router extends _$Router {
           },
         ),
         GoRoute(
+          path: '/record',
+          builder: (context, state) {
+            // extra: an ActiveNavigationEntity resume seed when re-entering
+            // an in-progress recording (see main.dart's _maybeResume rec
+            // branch); null for a fresh recording session.
+            final resume = state.extra is ActiveNavigationEntity
+                ? state.extra as ActiveNavigationEntity
+                : null;
+            return NavigationScreen(
+              id: '',
+              response: const NavigateResponse(maneuvers: [], shape: []),
+              isRecording: true,
+              resumeSession: resume,
+            );
+          },
+        ),
+        GoRoute(
           path: '/trail/create/edit',
           builder: (context, state) {
             final extra = state.extra;
