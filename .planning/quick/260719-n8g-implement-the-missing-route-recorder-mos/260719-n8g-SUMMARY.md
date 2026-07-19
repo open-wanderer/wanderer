@@ -116,3 +116,13 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 All created/modified files confirmed present on disk; both task commit hashes (`20316c47`, `c41b757d`) confirmed present in git log.
+
+## Post-Review Fix
+
+**Bug (CR-01, confirmed independently by the verifier):** Pausing a recording (or tracelet auto-freezing on stationary) did not stop GPS breadcrumb capture. `NavigationStatsNotifier.onPosition` already early-returned while `state.isPaused || state.isStationary`, but the sibling `Navigation.onPosition` (owner of `breadcrumb`, the data persisted to disk and exported as the saved trail's GPX via `buildGpxFromPoints`) had no such gate — the single position-stream listener in `NavigationScreen.initState` called both notifiers unconditionally on every GPS fix. Net effect: the visible timer/stats froze on pause, but the saved GPX silently kept the "paused" GPS points.
+
+**Fix:** Added a `recordBreadcrumb` flag (default `true`) to `Navigation.onPosition` (`app/lib/provider/navigation_provider.dart`) — when `false`, only the breadcrumb append is skipped; maneuver-advance detection (turn-by-turn progress tracking, unrelated bookkeeping) still runs unconditionally so pausing during real navigation never stalls maneuver progress. `NavigationScreen`'s position-stream listener (`app/lib/routes/navigation_screen.dart`, `initState`) now reads the current `NavigationStats` once per fix and passes `recordBreadcrumb: !(stats.isPaused || stats.isStationary)`.
+
+**Tests added:** `app/test/provider/navigation_provider_test.dart` — a fix with `recordBreadcrumb: false` does not append to breadcrumb but still advances the maneuver index; a fix with the default `true` still appends. Full `navigation_provider_test.dart` (14 tests) and `navigation_stats_provider_test.dart` (16 tests) suites pass; `flutter analyze` shows zero new issues.
+
+**Commit:** `602be822` — `fix(quick-260719-n8g): gate breadcrumb capture on pause/stationary`
