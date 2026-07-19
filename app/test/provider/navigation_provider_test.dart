@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/provider/navigation_provider.dart';
@@ -7,6 +8,11 @@ import 'package:wanderer/provider/navigation_provider.dart';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/// [NavigationState.breadcrumb] entries are [Wpt] (carrying ele/time), not
+/// [Geographic] — extracts just lat/lon for equality against a plain
+/// [Geographic] fix.
+Geographic _asGeo(Wpt wpt) => Geographic(lat: wpt.lat!, lon: wpt.lon!);
 
 /// Build a [NavigateResponse] with three maneuvers and a known shape so that
 /// the 30 m advancement threshold is deterministic in tests.
@@ -154,7 +160,7 @@ void main() {
         final state = container.read(navigationProvider(response));
         expect(state.currentManeuverIndex, 0);
         expect(state.breadcrumb.length, 1);
-        expect(state.breadcrumb[0], _farFromManeuver1);
+        expect(_asGeo(state.breadcrumb[0]), _farFromManeuver1);
       },
     );
 
@@ -286,9 +292,9 @@ void main() {
             .read(navigationProvider(response))
             .breadcrumb;
         expect(breadcrumb.length, 3);
-        expect(breadcrumb[0], p1);
-        expect(breadcrumb[1], p2);
-        expect(breadcrumb[2], p3);
+        expect(_asGeo(breadcrumb[0]), p1);
+        expect(_asGeo(breadcrumb[1]), p2);
+        expect(_asGeo(breadcrumb[2]), p3);
       },
     );
   });

@@ -1,12 +1,99 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpx/gpx.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
+import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
 
-// Tests for the pure handoff helpers (no network/navigation). finishPlanning's
-// orchestration is not unit-tested here — it has no pure/synchronous seam
-// without a WidgetRef/BuildContext harness.
+// Tests for the pure handoff helpers (no network/navigation), plus
+// buildDraftTrail, which now round-trips through `/trail/convert` (see
+// convertGpxToTrail in trail_import_util.dart) and so needs a WidgetRef and a
+// faked Api. finishPlanning's own orchestration is still not unit-tested here
+// — it has no seam beyond buildDraftTrail worth re-testing.
+
+/// Fakes the `/trail/convert` response so `buildDraftTrail` can be tested
+/// without a real server. Mirrors the `_FakeApi` pattern in
+/// `test/provider/route_anchor_provider_test.dart`.
+class _FakeApi extends Api {
+  _FakeApi({this.response, this.shouldFail = false});
+
+  final Map<String, dynamic>? response;
+  final bool shouldFail;
+
+  @override
+  Dio build() {
+    final dio = Dio(BaseOptions(baseUrl: 'https://test.local/api/v1'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          if (shouldFail) {
+            handler.reject(
+              DioException(
+                requestOptions: options,
+                type: DioExceptionType.connectionError,
+              ),
+            );
+            return;
+          }
+          handler.resolve(
+            Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: response,
+            ),
+          );
+        },
+      ),
+    );
+    return dio;
+  }
+}
+
+/// Pumps a bare `Consumer` inside a `ProviderScope` overriding [apiProvider]
+/// with [_FakeApi], and hands back the captured [WidgetRef] for the test to
+/// call ref-requiring functions with.
+Future<WidgetRef> _pumpRef(
+  WidgetTester tester, {
+  Map<String, dynamic>? response,
+  bool shouldFail = false,
+}) async {
+  late WidgetRef capturedRef;
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        apiProvider.overrideWith(
+          () => _FakeApi(response: response, shouldFail: shouldFail),
+        ),
+      ],
+      child: Consumer(
+        builder: (context, ref, _) {
+          capturedRef = ref;
+          return const SizedBox();
+        },
+      ),
+    ),
+  );
+  return capturedRef;
+}
+
+/// Calls [buildDraftTrail] inside [WidgetTester.runAsync] — `testWidgets`
+/// runs under a fake clock that never fires real `Timer`s on its own, and
+/// Dio schedules its interceptor pipeline via `Timer.run` (a real timer), so
+/// awaiting the call directly hangs forever. `runAsync` steps outside the
+/// fake zone into a real one so that timer actually fires.
+Future<Trail> _buildDraftTrail(
+  WidgetTester tester,
+  WidgetRef ref,
+  Gpx gpx, {
+  String? category,
+}) async {
+  return (await tester.runAsync(
+    () => buildDraftTrail(ref, gpx, category: category),
+  ))!;
+}
 
 void main() {
   group('buildDraftTrail', () {
@@ -27,65 +114,125 @@ void main() {
       return gpx;
     }
 
-    test('sets a non-empty expand.gpxData containing "<gpx" (Pitfall 1)', () {
-      final gpx = buildSampleGpx();
-      final result = buildDraftTrail(gpx);
+    /// A minimal, valid `/trail/convert` response — enough for
+    /// `Trail.fromJson` (plus `convertGpxToTrail`'s injected id/created/
+    /// updated placeholders) to parse successfully.
+    Map<String, dynamic> buildServerResponse({
+      Map<String, dynamic>? overrides,
+    }) {
+      return {
+        'name': 'Sample Trail',
+        'lat': 47.000,
+        'lon': 9.000,
+        'max_lat': 47.001,
+        'min_lat': 47.000,
+        'max_lon': 9.001,
+        'min_lon': 9.000,
+        'expand': {
+          'gpx_data': '<gpx><trk><trkseg></trkseg></trk></gpx>',
+          'waypoints_via_trail': <dynamic>[],
+        },
+        ...?overrides,
+      };
+    }
 
-      expect(result.expand?.gpxData, isNotNull);
-      expect(result.expand!.gpxData, isNotEmpty);
-      expect(result.expand!.gpxData, contains('<gpx'));
-    });
+    testWidgets(
+      'sets a non-empty expand.gpxData containing "<gpx" (Pitfall 1)',
+      (tester) async {
+        final gpx = buildSampleGpx();
+        final ref = await _pumpRef(tester, response: buildServerResponse());
 
-    test('leaves expand.waypointsViaTrail empty (D-07)', () {
+        final result = await _buildDraftTrail(tester, ref, gpx);
+
+        expect(result.expand?.gpxData, isNotNull);
+        expect(result.expand!.gpxData, isNotEmpty);
+        expect(result.expand!.gpxData, contains('<gpx'));
+      },
+    );
+
+    testWidgets('leaves expand.waypointsViaTrail empty (D-07)', (
+      tester,
+    ) async {
       final gpx = buildSampleGpx();
-      final result = buildDraftTrail(gpx);
+      final ref = await _pumpRef(tester, response: buildServerResponse());
+
+      final result = await _buildDraftTrail(tester, ref, gpx);
 
       expect(result.expand?.waypointsViaTrail, isEmpty);
     });
 
-    test('keeps expand.gpx identical to the finalGpx passed in', () {
+    testWidgets('keeps expand.gpx identical to the finalGpx passed in', (
+      tester,
+    ) async {
       final gpx = buildSampleGpx();
-      final result = buildDraftTrail(gpx);
+      final ref = await _pumpRef(tester, response: buildServerResponse());
+
+      final result = await _buildDraftTrail(tester, ref, gpx);
 
       expect(identical(result.expand!.gpx, gpx), isTrue);
     });
 
-    test('passes a supplied category id through', () {
+    testWidgets('passes a supplied category id through', (tester) async {
       final gpx = buildSampleGpx();
-      final result = buildDraftTrail(gpx, category: 'bike-id');
+      final ref = await _pumpRef(tester, response: buildServerResponse());
+
+      final result = await _buildDraftTrail(
+        tester,
+        ref,
+        gpx,
+        category: 'bike-id',
+      );
 
       expect(result.category, 'bike-id');
     });
 
-    test('leaves category null when none is supplied', () {
+    testWidgets('leaves category null when none is supplied', (
+      tester,
+    ) async {
       final gpx = buildSampleGpx();
-      final result = buildDraftTrail(gpx);
+      final ref = await _pumpRef(tester, response: buildServerResponse());
+
+      final result = await _buildDraftTrail(tester, ref, gpx);
 
       expect(result.category, isNull);
     });
 
-    test('sets bounds from the track and lat/lon from its first point '
-        'so the map centers on the route instead of null island', () {
+    testWidgets(
+      'passes through the bounds/lat/lon the server computed from the track',
+      (tester) async {
+        final gpx = buildSampleGpx();
+        final ref = await _pumpRef(tester, response: buildServerResponse());
+
+        final result = await _buildDraftTrail(tester, ref, gpx);
+
+        expect(result.maxLat, 47.001);
+        expect(result.minLat, 47.000);
+        expect(result.maxLon, 9.001);
+        expect(result.minLon, 9.000);
+        expect(result.lat, 47.000);
+        expect(result.lon, 9.000);
+      },
+    );
+
+    testWidgets('propagates a /trail/convert failure to the caller', (
+      tester,
+    ) async {
       final gpx = buildSampleGpx();
-      final result = buildDraftTrail(gpx);
+      final ref = await _pumpRef(tester, shouldFail: true);
 
-      expect(result.maxLat, 47.001);
-      expect(result.minLat, 47.000);
-      expect(result.maxLon, 9.001);
-      expect(result.minLon, 9.000);
-      expect(result.lat, 47.000);
-      expect(result.lon, 9.000);
-    });
+      // runAsync's own returned Future doesn't reliably propagate an error
+      // thrown inside the callback back through expectLater/throwsA — catch
+      // it inside the real-zone callback instead and assert on that.
+      Object? caught;
+      await tester.runAsync(() async {
+        try {
+          await buildDraftTrail(ref, gpx);
+        } catch (e) {
+          caught = e;
+        }
+      });
 
-    test('leaves lat/lon null and bounds zeroed for an empty track', () {
-      final result = buildDraftTrail(Gpx());
-
-      expect(result.lat, isNull);
-      expect(result.lon, isNull);
-      expect(result.maxLat, 0);
-      expect(result.minLat, 0);
-      expect(result.maxLon, 0);
-      expect(result.minLon, 0);
+      expect(caught, isA<DioException>());
     });
   });
 

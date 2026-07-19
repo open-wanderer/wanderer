@@ -1,3 +1,4 @@
+import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/navigate_response.dart';
@@ -18,12 +19,12 @@ class NavigationState {
   final int currentManeuverIndex;
 
   /// Session-only; discarded on screen exit (never persisted to disk or GPX).
-  final List<Geographic> breadcrumb;
+  final List<Wpt> breadcrumb;
 
   NavigationState copyWith({
     NavigateResponse? response,
     int? currentManeuverIndex,
-    List<Geographic>? breadcrumb,
+    List<Wpt>? breadcrumb,
   }) {
     return NavigationState(
       response: response ?? this.response,
@@ -52,7 +53,7 @@ class Navigation extends _$Navigation {
   NavigationState build(
     NavigateResponse response, {
     int? resumeManeuverIndex,
-    List<Geographic>? resumeBreadcrumb,
+    List<Wpt>? resumeBreadcrumb,
   }) {
     final shape = response.shapeAsGeographic;
 
@@ -115,9 +116,15 @@ class Navigation extends _$Navigation {
     double? heading,
     double? headingAccuracy,
     double? speed,
+    double? altitude,
     double? accuracy,
   }) {
-    state = state.copyWith(breadcrumb: [...state.breadcrumb, pos]);
+    state = state.copyWith(
+      breadcrumb: [
+        ...state.breadcrumb,
+        Wpt(lat: pos.lat, lon: pos.lon, ele: altitude, time: DateTime.now()),
+      ],
+    );
 
     final shape = state.response.shapeAsGeographic;
     if (shape.isEmpty || _maneuverCumulativeMeters.isEmpty) return;

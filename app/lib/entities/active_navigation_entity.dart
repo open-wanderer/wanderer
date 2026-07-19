@@ -43,6 +43,9 @@ class ActiveNavigationEntity {
   /// future `rec` session this would be the primary payload.
   String? breadcrumbPolyline;
 
+  List<double>? elevations;
+  List<int>? timestampsUtc;
+
   double distanceMeters;
   double elevationGainMeters;
   double elevationLossMeters;
@@ -60,6 +63,8 @@ class ActiveNavigationEntity {
     this.isOffline,
     this.currentManeuverIndex,
     this.breadcrumbPolyline,
+    this.elevations,
+    this.timestampsUtc,
     this.distanceMeters = 0,
     this.elevationGainMeters = 0,
     this.elevationLossMeters = 0,

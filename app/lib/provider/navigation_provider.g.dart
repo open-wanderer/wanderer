@@ -19,7 +19,7 @@ final class NavigationProvider
     required (
       NavigateResponse, {
       int? resumeManeuverIndex,
-      List<Geographic>? resumeBreadcrumb,
+      List<Wpt>? resumeBreadcrumb,
     })
     super.argument,
   }) : super(
@@ -63,7 +63,7 @@ final class NavigationProvider
   }
 }
 
-String _$navigationHash() => r'd54003a7561c0336c0eb32cbf9576536154772fc';
+String _$navigationHash() => r'e918fed0c2eff6e55d68f18870630cc56ad0a6ab';
 
 final class NavigationFamily extends $Family
     with
@@ -75,7 +75,7 @@ final class NavigationFamily extends $Family
           (
             NavigateResponse, {
             int? resumeManeuverIndex,
-            List<Geographic>? resumeBreadcrumb,
+            List<Wpt>? resumeBreadcrumb,
           })
         > {
   NavigationFamily._()
@@ -90,7 +90,7 @@ final class NavigationFamily extends $Family
   NavigationProvider call(
     NavigateResponse response, {
     int? resumeManeuverIndex,
-    List<Geographic>? resumeBreadcrumb,
+    List<Wpt>? resumeBreadcrumb,
   }) => NavigationProvider._(
     argument: (
       response,
@@ -110,16 +110,16 @@ abstract class _$Navigation extends $Notifier<NavigationState> {
           as (
             NavigateResponse, {
             int? resumeManeuverIndex,
-            List<Geographic>? resumeBreadcrumb,
+            List<Wpt>? resumeBreadcrumb,
           });
   NavigateResponse get response => _$args.$1;
   int? get resumeManeuverIndex => _$args.resumeManeuverIndex;
-  List<Geographic>? get resumeBreadcrumb => _$args.resumeBreadcrumb;
+  List<Wpt>? get resumeBreadcrumb => _$args.resumeBreadcrumb;
 
   NavigationState build(
     NavigateResponse response, {
     int? resumeManeuverIndex,
-    List<Geographic>? resumeBreadcrumb,
+    List<Wpt>? resumeBreadcrumb,
   });
   @$mustCallSuper
   @override

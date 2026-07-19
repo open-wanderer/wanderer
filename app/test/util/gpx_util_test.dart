@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:gpx/gpx.dart';
 
 void main() {
   group('buildNavShape', () {
@@ -83,20 +84,17 @@ void main() {
       'with no ele set',
       () {
         final points = [
-          const Geographic(lat: 47.000, lon: 9.000),
-          const Geographic(lat: 47.001, lon: 9.001),
-          const Geographic(lat: 47.002, lon: 9.002),
+          Wpt(lat: 47.000, lon: 9.000),
+          Wpt(lat: 47.001, lon: 9.001),
+          Wpt(lat: 47.002, lon: 9.002),
         ];
 
         final gpx = buildGpxFromPoints(points);
 
         expect(gpx.trks, hasLength(1));
         expect(gpx.trks.single.trksegs, hasLength(1));
-        expect(gpx.allPoints, points);
-        expect(
-          gpx.allWaypoints.every((wpt) => wpt.ele == null),
-          isTrue,
-        );
+        expect(gpx.allWaypoints, points);
+        expect(gpx.allWaypoints.every((wpt) => wpt.ele == null), isTrue);
       },
     );
   });

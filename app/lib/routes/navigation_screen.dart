@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' show exp, pi;
 import 'dart:ui' show lerpDouble;
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_rotation_sensor/flutter_rotation_sensor.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:go_router/go_router.dart';
+import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
@@ -24,19 +26,21 @@ import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
-import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 import 'package:wanderer/util/polyline_util.dart';
-import 'package:wanderer/util/recorded_track_util.dart';
+import 'package:wanderer/util/route_planner_handoff_util.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/trail_import_util.dart';
 
@@ -85,7 +89,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// the identical seed fields or the family resolves to a different
   /// (split-brain) provider instance.
   late final int? _resumeManeuverIndex;
-  late final List<ml.Geographic>? _resumeBreadcrumb;
+  late final List<Wpt>? _resumeBreadcrumb;
   late final NavigationStatsSeed? _resumeStats;
 
   /// obxId of the single active-session row this screen owns. 0 means "not
@@ -97,6 +101,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// Periodic best-effort persistence tick (in addition to maneuver-advance
   /// and pause-toggle saves).
   Timer? _persistTimer;
+
+  /// Guards [_saveRecordedTrack] against a double-tap firing two concurrent
+  /// `/trail/convert` uploads/navigations, and drives the completion
+  /// banner's loading state.
+  bool _savingTrack = false;
 
   /// Latest *animated* GPS fix, driving both the custom [_LocationMarkerLayer]
   /// marker and camera-follow. A [ValueNotifier] so the marker rebuilds in a
@@ -245,9 +254,28 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final resumeSession = widget.resumeSession;
     _resumeManeuverIndex = resumeSession?.currentManeuverIndex;
     _activeRowObxId = resumeSession?.obxId ?? 0;
-    _resumeBreadcrumb = resumeSession?.breadcrumbPolyline != null
+    final resumePos = resumeSession?.breadcrumbPolyline != null
         ? PolylineUtil.decode(resumeSession!.breadcrumbPolyline!)
         : null;
+    // elevations/timestampsUtc may be null or shorter than the decoded
+    // polyline (e.g. a row persisted before these fields existed) — index
+    // defensively rather than assuming they're always the same length.
+    final resumeElevations = resumeSession?.elevations;
+    final resumeTimestamps = resumeSession?.timestampsUtc;
+    _resumeBreadcrumb = resumePos
+        ?.mapIndexed(
+          (i, pos) => Wpt(
+            lat: pos.lat,
+            lon: pos.lon,
+            ele: (resumeElevations != null && i < resumeElevations.length)
+                ? resumeElevations[i]
+                : null,
+            time: (resumeTimestamps != null && i < resumeTimestamps.length)
+                ? DateTime.fromMillisecondsSinceEpoch(resumeTimestamps[i])
+                : null,
+          ),
+        )
+        .toList();
     _resumeStats = resumeSession != null
         ? NavigationStatsSeed(
             distanceMeters: resumeSession.distanceMeters,
@@ -316,6 +344,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
             .read(navProviderInstance.notifier)
             .onPosition(
               ml.Geographic(lat: pos.latitude, lon: pos.longitude),
+              altitude: pos.altitude,
               heading: pos.heading,
               headingAccuracy: pos.headingAccuracy,
               speed: pos.speed,
@@ -565,7 +594,22 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       trailId: widget.id,
       isOffline: widget.isOffline,
       currentManeuverIndex: navState.currentManeuverIndex,
-      breadcrumbPolyline: PolylineUtil.encode(navState.breadcrumb),
+      breadcrumbPolyline: PolylineUtil.encode(
+        navState.breadcrumb
+            .map((wpt) => ml.Geographic(lon: wpt.lon!, lat: wpt.lat!))
+            .toList(),
+      ),
+      // ele/time can be null for a point rehydrated from a resumed session
+      // whose persisted elevations/timestampsUtc were null or short (see
+      // initState) — default rather than force-unwrap so a resumed session
+      // can always be persisted again.
+      elevations: navState.breadcrumb.map((wpt) => wpt.ele ?? 0.0).toList(),
+      timestampsUtc: navState.breadcrumb
+          .map(
+            (wpt) =>
+                (wpt.time ?? DateTime.now()).toUtc().millisecondsSinceEpoch,
+          )
+          .toList(),
       distanceMeters: stats.distanceMeters,
       elevationGainMeters: stats.elevationGainMeters,
       elevationLossMeters: stats.elevationLossMeters,
@@ -577,17 +621,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _activeRowObxId = active_nav.save(_store, entity);
   }
 
-  /// Builds a stub [Trail] from the recorded breadcrumb and hands off to
-  /// `trail_create_screen`, ending the navigation session either way.
-  ///
-  /// Pre-fills duration and elevation gain/loss from `NavigationStats` since
-  /// the recorded breadcrumb carries no per-fix `ele`/`time` for the server
-  /// to derive them from.
-  ///
-  /// Reads `navState`/`stats` via `ref.read` with the IDENTICAL family seed
-  /// args used everywhere else in this file — a different seed would resolve
-  /// a different (split-brain) provider instance.
-  void _saveRecordedTrack() {
+  /// Whether the recorded breadcrumb has enough points for "Save track" to be
+  /// offered at all — a 0-1 point track has nothing meaningful to convert.
+  /// Gates the option's *visibility* on the completion banner and exit
+  /// dialog, rather than accepting the tap and no-op'ing inside
+  /// [_saveRecordedTrack].
+  bool _hasSavableTrack() {
     final navState = ref.read(
       navigationProvider(
         widget.response,
@@ -595,34 +634,67 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         resumeBreadcrumb: _resumeBreadcrumb,
       ),
     );
-    final stats = ref.read(
-      navigationStatsProvider(widget.response, resume: _resumeStats),
-    );
-    final trail = buildRecordedTrackTrail(
-      navState.breadcrumb,
-      durationSeconds: stats.elapsed.inSeconds.toDouble(),
-      elevationGainMeters: stats.elevationGainMeters,
-      elevationLossMeters: stats.elevationLossMeters,
-    );
+    return navState.breadcrumb.length >= 2;
+  }
 
-    // Saving ends the session either way — same deliberate-exit cleanup
-    // _confirmExit already does, so no stale resume prompt appears on next
-    // launch.
-    active_nav.clear(_store);
+  /// Builds a stub [Trail] from the recorded breadcrumb (via the same
+  /// `/trail/convert` round-trip the Route Planner and GPX-file import use)
+  /// and hands off to `trail_create_screen`. Callers must only invoke this
+  /// with a breadcrumb of >=2 points (see the completion-banner and
+  /// exit-dialog guards) — the server-side conversion isn't meaningful for a
+  /// near-empty track.
+  ///
+  /// Reads `navState` via `ref.read` with the IDENTICAL family seed args used
+  /// everywhere else in this file — a different seed would resolve a
+  /// different (split-brain) provider instance.
+  ///
+  /// Guarded by [_savingTrack] so a double-tap can't fire two concurrent
+  /// conversions/navigations (mirrors `route_planner_screen.dart`'s
+  /// `_finishing`). On failure (e.g. offline), shows an error toast and
+  /// leaves the session intact so the user can retry — matching
+  /// `trail_import_util.dart`'s `importTrailFile` precedent for this same
+  /// `/trail/convert` call.
+  Future<void> _saveRecordedTrack() async {
+    if (_savingTrack) return;
+    setState(() => _savingTrack = true);
 
-    if (trail == null) {
-      // Fewer than 2 recorded fixes — nothing to save; just leave navigation.
-      if (context.mounted) context.pop();
-      return;
-    }
+    try {
+      final navState = ref.read(
+        navigationProvider(
+          widget.response,
+          resumeManeuverIndex: _resumeManeuverIndex,
+          resumeBreadcrumb: _resumeBreadcrumb,
+        ),
+      );
 
-    pendingImportedTrail = trail;
-    if (context.mounted) {
-      // pushReplacement (not push) removes the finished/abandoned navigation
-      // screen from the stack — otherwise backing out of the create screen
-      // would return to a live, disposed-on-exit navigation screen.
-      // Disposing this screen also stops GPS/tracelet via dispose().
-      context.pushReplacement('/trail/create/edit', extra: trail);
+      final originalTrail = ref.read(trailProvider(widget.id)).value;
+
+      final gpx = buildGpxFromPoints(navState.breadcrumb);
+      final trail = await buildDraftTrail(
+        ref,
+        gpx,
+        category: originalTrail?.categoryId,
+      );
+
+      active_nav.clear(_store);
+
+      pendingImportedTrail = trail;
+      if (context.mounted) {
+        context.pushReplacement('/trail/create/edit', extra: trail);
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: AppLocalizations.of(context)!.error_saving_trail,
+            ),
+          );
+    } finally {
+      if (mounted) setState(() => _savingTrack = false);
     }
   }
 
@@ -721,7 +793,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// source/`breadcrumb-route` layer for the rest of the session. So below
   /// 2 points this returns an empty (but valid) FeatureCollection instead,
   /// which renders nothing until real geometry is available.
-  String _breadcrumbGeoJson(List<ml.Geographic> pts) {
+  String _breadcrumbGeoJson(List<Wpt> pts) {
     if (pts.length < 2) {
       return jsonEncode(<String, Object?>{
         'type': 'FeatureCollection',
@@ -734,7 +806,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       'geometry': <String, Object?>{
         'type': 'LineString',
         'coordinates': <List<double>>[
-          for (final p in pts) <double>[p.lon, p.lat],
+          for (final p in pts) <double>[p.lon!, p.lat!],
         ],
       },
     });
@@ -1066,10 +1138,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
             onPressed: () => Navigator.of(ctx).pop(_NavExitChoice.exit),
             child: Text(localizations.exit_navigation),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(_NavExitChoice.saveTrack),
-            child: Text(localizations.save_track),
-          ),
+          if (_hasSavableTrack())
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(_NavExitChoice.saveTrack),
+              child: Text(localizations.save_track),
+            ),
         ],
       ),
     ).then((choice) {
@@ -1234,12 +1307,20 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: _saveRecordedTrack,
-          icon: const FaIcon(FontAwesomeIcons.floppyDisk, size: 16),
-          label: Text(localizations.save_track),
-        ),
+        if (_hasSavableTrack()) ...[
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _savingTrack ? null : _saveRecordedTrack,
+            icon: _savingTrack
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const FaIcon(FontAwesomeIcons.floppyDisk, size: 16),
+            label: Text(localizations.save_track),
+          ),
+        ],
       ],
     );
   }
