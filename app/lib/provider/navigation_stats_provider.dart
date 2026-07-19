@@ -44,8 +44,15 @@ abstract class NavigationStats with _$NavigationStats {
     /// Average speed in km/h (distance / elapsed).
     @Default(0) double averageSpeedKmh,
 
-    /// Whether stat accumulation is currently frozen by the user.
+    /// Whether stat accumulation is currently frozen by the user via the
+    /// manual pause button.
     @Default(false) bool isPaused,
+
+    /// Whether stat accumulation is currently frozen because tracelet's
+    /// native speed-motion engine reports the user as stationary. Distinct
+    /// from [isPaused] (manual) — the two compose (frozen = either true) via
+    /// [NavigationStatsNotifier._applyFrozen].
+    @Default(false) bool isStationary,
   }) = _NavigationStats;
 }
 
@@ -95,11 +102,23 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
   /// Wall-clock instant of the first GPS fix (start of the stopwatch).
   DateTime? _start;
 
-  /// Total time spent paused, subtracted from wall-clock elapsed.
+  /// Total time spent frozen (manually paused and/or stationary), subtracted
+  /// from wall-clock elapsed.
   Duration _pausedAccum = Duration.zero;
 
-  /// Instant the current pause began; null when not paused.
-  DateTime? _pauseStart;
+  /// Instant the current frozen interval began; null when not frozen.
+  /// Generalizes the old `_pauseStart` to cover both manual pause and
+  /// stationary freezing via [_applyFrozen], so overlapping intervals are
+  /// counted once, not twice.
+  DateTime? _frozenSince;
+
+  /// Backs [NavigationStats.isPaused] — true while manually paused via the
+  /// pause button.
+  bool _manualPaused = false;
+
+  /// Backs [NavigationStats.isStationary] — true while tracelet's native
+  /// speed-motion engine reports the user as stationary.
+  bool _stationary = false;
 
   /// Last accumulated altitude reference (metres); null until first fix.
   double? _lastAltitude;
@@ -124,8 +143,14 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
     // would double-count paused time — this formula avoids that.
     _start = DateTime.now().subtract(resume.elapsed + resume.pausedAccum);
     _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    // Stationary state is NOT persisted/resumed here — it is re-derived
+    // within seconds of session resume via tracelet's engine re-emitting a
+    // SpeedMotionEvent once tracking restarts. Any stationary interval that
+    // was already in progress before termination is already folded into
+    // `resume.pausedAccum`.
+    _manualPaused = resume.isPaused;
     if (resume.isPaused) {
-      _pauseStart = DateTime.now();
+      _frozenSince = DateTime.now();
     }
 
     return NavigationStats(
@@ -143,12 +168,13 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
 
   /// Feeds a GPS [Position] into the accumulator.
   ///
-  /// While paused, accumulation is frozen and current speed is forced to 0.
-  /// The first fix only sets the distance/altitude references (no distance is
-  /// added). Invalid speed values (NaN/negative) are clamped to 0.
+  /// While frozen (manually paused and/or stationary), accumulation is
+  /// frozen and current speed is forced to 0. The first fix only sets the
+  /// distance/altitude references (no distance is added). Invalid speed
+  /// values (NaN/negative) are clamped to 0.
   void onPosition(geo.Position pos) {
-    // While paused, do not accumulate distance/elevation; force speed to 0.
-    if (state.isPaused) {
+    // While frozen, do not accumulate distance/elevation; force speed to 0.
+    if (state.isPaused || state.isStationary) {
       if (state.currentSpeedKmh != 0) {
         state = state.copyWith(currentSpeedKmh: 0);
       }
@@ -201,9 +227,11 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
   }
 
   /// 1-second tick: updates [NavigationStats.elapsed] and the derived average
-  /// speed. No-op while paused or before the first fix.
+  /// speed. No-op while frozen (paused or stationary) or before the first
+  /// fix — freezing on stationary this way is what turns [elapsed] into
+  /// time-in-motion automatically, with no separate "motion clock".
   void _tick() {
-    if (state.isPaused || _start == null) return;
+    if (state.isPaused || state.isStationary || _start == null) return;
     final elapsed = DateTime.now().difference(_start!) - _pausedAccum;
     final avg = elapsed.inSeconds > 0
         ? state.distanceMeters / elapsed.inSeconds * 3.6
@@ -211,27 +239,54 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
     state = state.copyWith(elapsed: elapsed, averageSpeedKmh: avg);
   }
 
-  /// Toggles the paused state.
+  /// Toggles the manual paused state (the pause button).
   ///
-  /// On pause: records the pause start and forces current speed to 0.
-  /// On resume: adds the paused interval to [_pausedAccum] and resets the
-  /// distance/altitude references so the next fix re-anchors without producing
-  /// a jump.
+  /// Routes through [_applyFrozen] so overlapping manual pause and
+  /// stationary intervals never double-count paused time.
   void togglePause() {
-    if (state.isPaused) {
-      // Resume.
-      if (_pauseStart != null) {
-        _pausedAccum += DateTime.now().difference(_pauseStart!);
-        _pauseStart = null;
-      }
-      // Re-anchor so the paused interval contributes no distance/elevation.
+    _manualPaused = !_manualPaused;
+    state = state.copyWith(isPaused: _manualPaused);
+    _applyFrozen(_manualPaused || _stationary);
+  }
+
+  /// Called externally (from the screen) whenever tracelet's native
+  /// speed-motion engine transitions between moving and stationary. This
+  /// notifier does not compute motion itself — [stationary] is purely a
+  /// reaction to [TraceletPositionSource.isMovingStream].
+  ///
+  /// Idempotent against duplicate stream events: a no-op if [stationary]
+  /// matches the current state.
+  void setStationary(bool stationary) {
+    if (stationary == _stationary) return;
+    _stationary = stationary;
+    state = state.copyWith(isStationary: _stationary);
+    _applyFrozen(_manualPaused || _stationary);
+  }
+
+  /// Single derived "frozen" transition handler shared by [togglePause] and
+  /// [setStationary]. `frozen = _manualPaused || _stationary`, so an overlap
+  /// between the two (e.g. manually paused while also stationary) is counted
+  /// once, not twice: the accumulator only starts/stops on real frozen ↔
+  /// unfrozen transitions, not on every individual toggle.
+  ///
+  /// On false→true: records [_frozenSince] and forces current speed to 0.
+  /// On true→false: adds the elapsed frozen interval to [_pausedAccum],
+  /// clears [_frozenSince], and re-anchors the distance/altitude references
+  /// so the frozen interval contributes zero distance/elevation — identical
+  /// to the previous manual-pause-only resume behavior.
+  void _applyFrozen(bool nowFrozen) {
+    final wasFrozen = _frozenSince != null;
+    if (nowFrozen == wasFrozen) return;
+
+    if (nowFrozen) {
+      _frozenSince = DateTime.now();
+      state = state.copyWith(currentSpeedKmh: 0);
+    } else {
+      _pausedAccum += DateTime.now().difference(_frozenSince!);
+      _frozenSince = null;
+      // Re-anchor so the frozen interval contributes no distance/elevation.
       _lastPoint = null;
       _lastAltitude = null;
-      state = state.copyWith(isPaused: false);
-    } else {
-      // Pause.
-      _pauseStart = DateTime.now();
-      state = state.copyWith(isPaused: true, currentSpeedKmh: 0);
     }
   }
 }

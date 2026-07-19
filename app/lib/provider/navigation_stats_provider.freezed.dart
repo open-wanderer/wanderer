@@ -21,8 +21,13 @@ mixin _$NavigationStats {
 /// metre value.
  double get elevationLossMeters;/// Instantaneous GPS speed in km/h (guarded against NaN/negative).
  double get currentSpeedKmh;/// Average speed in km/h (distance / elapsed).
- double get averageSpeedKmh;/// Whether stat accumulation is currently frozen by the user.
- bool get isPaused;
+ double get averageSpeedKmh;/// Whether stat accumulation is currently frozen by the user via the
+/// manual pause button.
+ bool get isPaused;/// Whether stat accumulation is currently frozen because tracelet's
+/// native speed-motion engine reports the user as stationary. Distinct
+/// from [isPaused] (manual) — the two compose (frozen = either true) via
+/// [NavigationStatsNotifier._applyFrozen].
+ bool get isStationary;
 /// Create a copy of NavigationStats
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -33,16 +38,16 @@ $NavigationStatsCopyWith<NavigationStats> get copyWith => _$NavigationStatsCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigationStats&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainMeters, elevationGainMeters) || other.elevationGainMeters == elevationGainMeters)&&(identical(other.elevationLossMeters, elevationLossMeters) || other.elevationLossMeters == elevationLossMeters)&&(identical(other.currentSpeedKmh, currentSpeedKmh) || other.currentSpeedKmh == currentSpeedKmh)&&(identical(other.averageSpeedKmh, averageSpeedKmh) || other.averageSpeedKmh == averageSpeedKmh)&&(identical(other.isPaused, isPaused) || other.isPaused == isPaused));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigationStats&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainMeters, elevationGainMeters) || other.elevationGainMeters == elevationGainMeters)&&(identical(other.elevationLossMeters, elevationLossMeters) || other.elevationLossMeters == elevationLossMeters)&&(identical(other.currentSpeedKmh, currentSpeedKmh) || other.currentSpeedKmh == currentSpeedKmh)&&(identical(other.averageSpeedKmh, averageSpeedKmh) || other.averageSpeedKmh == averageSpeedKmh)&&(identical(other.isPaused, isPaused) || other.isPaused == isPaused)&&(identical(other.isStationary, isStationary) || other.isStationary == isStationary));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,elapsed,distanceMeters,elevationGainMeters,elevationLossMeters,currentSpeedKmh,averageSpeedKmh,isPaused);
+int get hashCode => Object.hash(runtimeType,elapsed,distanceMeters,elevationGainMeters,elevationLossMeters,currentSpeedKmh,averageSpeedKmh,isPaused,isStationary);
 
 @override
 String toString() {
-  return 'NavigationStats(elapsed: $elapsed, distanceMeters: $distanceMeters, elevationGainMeters: $elevationGainMeters, elevationLossMeters: $elevationLossMeters, currentSpeedKmh: $currentSpeedKmh, averageSpeedKmh: $averageSpeedKmh, isPaused: $isPaused)';
+  return 'NavigationStats(elapsed: $elapsed, distanceMeters: $distanceMeters, elevationGainMeters: $elevationGainMeters, elevationLossMeters: $elevationLossMeters, currentSpeedKmh: $currentSpeedKmh, averageSpeedKmh: $averageSpeedKmh, isPaused: $isPaused, isStationary: $isStationary)';
 }
 
 
@@ -53,7 +58,7 @@ abstract mixin class $NavigationStatsCopyWith<$Res>  {
   factory $NavigationStatsCopyWith(NavigationStats value, $Res Function(NavigationStats) _then) = _$NavigationStatsCopyWithImpl;
 @useResult
 $Res call({
- Duration elapsed, double distanceMeters, double elevationGainMeters, double elevationLossMeters, double currentSpeedKmh, double averageSpeedKmh, bool isPaused
+ Duration elapsed, double distanceMeters, double elevationGainMeters, double elevationLossMeters, double currentSpeedKmh, double averageSpeedKmh, bool isPaused, bool isStationary
 });
 
 
@@ -70,7 +75,7 @@ class _$NavigationStatsCopyWithImpl<$Res>
 
 /// Create a copy of NavigationStats
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? elapsed = null,Object? distanceMeters = null,Object? elevationGainMeters = null,Object? elevationLossMeters = null,Object? currentSpeedKmh = null,Object? averageSpeedKmh = null,Object? isPaused = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? elapsed = null,Object? distanceMeters = null,Object? elevationGainMeters = null,Object? elevationLossMeters = null,Object? currentSpeedKmh = null,Object? averageSpeedKmh = null,Object? isPaused = null,Object? isStationary = null,}) {
   return _then(_self.copyWith(
 elapsed: null == elapsed ? _self.elapsed : elapsed // ignore: cast_nullable_to_non_nullable
 as Duration,distanceMeters: null == distanceMeters ? _self.distanceMeters : distanceMeters // ignore: cast_nullable_to_non_nullable
@@ -79,6 +84,7 @@ as double,elevationLossMeters: null == elevationLossMeters ? _self.elevationLoss
 as double,currentSpeedKmh: null == currentSpeedKmh ? _self.currentSpeedKmh : currentSpeedKmh // ignore: cast_nullable_to_non_nullable
 as double,averageSpeedKmh: null == averageSpeedKmh ? _self.averageSpeedKmh : averageSpeedKmh // ignore: cast_nullable_to_non_nullable
 as double,isPaused: null == isPaused ? _self.isPaused : isPaused // ignore: cast_nullable_to_non_nullable
+as bool,isStationary: null == isStationary ? _self.isStationary : isStationary // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
@@ -164,10 +170,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Duration elapsed,  double distanceMeters,  double elevationGainMeters,  double elevationLossMeters,  double currentSpeedKmh,  double averageSpeedKmh,  bool isPaused)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Duration elapsed,  double distanceMeters,  double elevationGainMeters,  double elevationLossMeters,  double currentSpeedKmh,  double averageSpeedKmh,  bool isPaused,  bool isStationary)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _NavigationStats() when $default != null:
-return $default(_that.elapsed,_that.distanceMeters,_that.elevationGainMeters,_that.elevationLossMeters,_that.currentSpeedKmh,_that.averageSpeedKmh,_that.isPaused);case _:
+return $default(_that.elapsed,_that.distanceMeters,_that.elevationGainMeters,_that.elevationLossMeters,_that.currentSpeedKmh,_that.averageSpeedKmh,_that.isPaused,_that.isStationary);case _:
   return orElse();
 
 }
@@ -185,10 +191,10 @@ return $default(_that.elapsed,_that.distanceMeters,_that.elevationGainMeters,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Duration elapsed,  double distanceMeters,  double elevationGainMeters,  double elevationLossMeters,  double currentSpeedKmh,  double averageSpeedKmh,  bool isPaused)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Duration elapsed,  double distanceMeters,  double elevationGainMeters,  double elevationLossMeters,  double currentSpeedKmh,  double averageSpeedKmh,  bool isPaused,  bool isStationary)  $default,) {final _that = this;
 switch (_that) {
 case _NavigationStats():
-return $default(_that.elapsed,_that.distanceMeters,_that.elevationGainMeters,_that.elevationLossMeters,_that.currentSpeedKmh,_that.averageSpeedKmh,_that.isPaused);case _:
+return $default(_that.elapsed,_that.distanceMeters,_that.elevationGainMeters,_that.elevationLossMeters,_that.currentSpeedKmh,_that.averageSpeedKmh,_that.isPaused,_that.isStationary);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -205,10 +211,10 @@ return $default(_that.elapsed,_that.distanceMeters,_that.elevationGainMeters,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Duration elapsed,  double distanceMeters,  double elevationGainMeters,  double elevationLossMeters,  double currentSpeedKmh,  double averageSpeedKmh,  bool isPaused)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Duration elapsed,  double distanceMeters,  double elevationGainMeters,  double elevationLossMeters,  double currentSpeedKmh,  double averageSpeedKmh,  bool isPaused,  bool isStationary)?  $default,) {final _that = this;
 switch (_that) {
 case _NavigationStats() when $default != null:
-return $default(_that.elapsed,_that.distanceMeters,_that.elevationGainMeters,_that.elevationLossMeters,_that.currentSpeedKmh,_that.averageSpeedKmh,_that.isPaused);case _:
+return $default(_that.elapsed,_that.distanceMeters,_that.elevationGainMeters,_that.elevationLossMeters,_that.currentSpeedKmh,_that.averageSpeedKmh,_that.isPaused,_that.isStationary);case _:
   return null;
 
 }
@@ -220,7 +226,7 @@ return $default(_that.elapsed,_that.distanceMeters,_that.elevationGainMeters,_th
 
 
 class _NavigationStats implements NavigationStats {
-  const _NavigationStats({this.elapsed = Duration.zero, this.distanceMeters = 0, this.elevationGainMeters = 0, this.elevationLossMeters = 0, this.currentSpeedKmh = 0, this.averageSpeedKmh = 0, this.isPaused = false});
+  const _NavigationStats({this.elapsed = Duration.zero, this.distanceMeters = 0, this.elevationGainMeters = 0, this.elevationLossMeters = 0, this.currentSpeedKmh = 0, this.averageSpeedKmh = 0, this.isPaused = false, this.isStationary = false});
   
 
 /// Wall-clock elapsed time since the first GPS fix, excluding paused time.
@@ -236,8 +242,14 @@ class _NavigationStats implements NavigationStats {
 @override@JsonKey() final  double currentSpeedKmh;
 /// Average speed in km/h (distance / elapsed).
 @override@JsonKey() final  double averageSpeedKmh;
-/// Whether stat accumulation is currently frozen by the user.
+/// Whether stat accumulation is currently frozen by the user via the
+/// manual pause button.
 @override@JsonKey() final  bool isPaused;
+/// Whether stat accumulation is currently frozen because tracelet's
+/// native speed-motion engine reports the user as stationary. Distinct
+/// from [isPaused] (manual) — the two compose (frozen = either true) via
+/// [NavigationStatsNotifier._applyFrozen].
+@override@JsonKey() final  bool isStationary;
 
 /// Create a copy of NavigationStats
 /// with the given fields replaced by the non-null parameter values.
@@ -249,16 +261,16 @@ _$NavigationStatsCopyWith<_NavigationStats> get copyWith => __$NavigationStatsCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigationStats&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainMeters, elevationGainMeters) || other.elevationGainMeters == elevationGainMeters)&&(identical(other.elevationLossMeters, elevationLossMeters) || other.elevationLossMeters == elevationLossMeters)&&(identical(other.currentSpeedKmh, currentSpeedKmh) || other.currentSpeedKmh == currentSpeedKmh)&&(identical(other.averageSpeedKmh, averageSpeedKmh) || other.averageSpeedKmh == averageSpeedKmh)&&(identical(other.isPaused, isPaused) || other.isPaused == isPaused));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigationStats&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainMeters, elevationGainMeters) || other.elevationGainMeters == elevationGainMeters)&&(identical(other.elevationLossMeters, elevationLossMeters) || other.elevationLossMeters == elevationLossMeters)&&(identical(other.currentSpeedKmh, currentSpeedKmh) || other.currentSpeedKmh == currentSpeedKmh)&&(identical(other.averageSpeedKmh, averageSpeedKmh) || other.averageSpeedKmh == averageSpeedKmh)&&(identical(other.isPaused, isPaused) || other.isPaused == isPaused)&&(identical(other.isStationary, isStationary) || other.isStationary == isStationary));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,elapsed,distanceMeters,elevationGainMeters,elevationLossMeters,currentSpeedKmh,averageSpeedKmh,isPaused);
+int get hashCode => Object.hash(runtimeType,elapsed,distanceMeters,elevationGainMeters,elevationLossMeters,currentSpeedKmh,averageSpeedKmh,isPaused,isStationary);
 
 @override
 String toString() {
-  return 'NavigationStats(elapsed: $elapsed, distanceMeters: $distanceMeters, elevationGainMeters: $elevationGainMeters, elevationLossMeters: $elevationLossMeters, currentSpeedKmh: $currentSpeedKmh, averageSpeedKmh: $averageSpeedKmh, isPaused: $isPaused)';
+  return 'NavigationStats(elapsed: $elapsed, distanceMeters: $distanceMeters, elevationGainMeters: $elevationGainMeters, elevationLossMeters: $elevationLossMeters, currentSpeedKmh: $currentSpeedKmh, averageSpeedKmh: $averageSpeedKmh, isPaused: $isPaused, isStationary: $isStationary)';
 }
 
 
@@ -269,7 +281,7 @@ abstract mixin class _$NavigationStatsCopyWith<$Res> implements $NavigationStats
   factory _$NavigationStatsCopyWith(_NavigationStats value, $Res Function(_NavigationStats) _then) = __$NavigationStatsCopyWithImpl;
 @override @useResult
 $Res call({
- Duration elapsed, double distanceMeters, double elevationGainMeters, double elevationLossMeters, double currentSpeedKmh, double averageSpeedKmh, bool isPaused
+ Duration elapsed, double distanceMeters, double elevationGainMeters, double elevationLossMeters, double currentSpeedKmh, double averageSpeedKmh, bool isPaused, bool isStationary
 });
 
 
@@ -286,7 +298,7 @@ class __$NavigationStatsCopyWithImpl<$Res>
 
 /// Create a copy of NavigationStats
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? elapsed = null,Object? distanceMeters = null,Object? elevationGainMeters = null,Object? elevationLossMeters = null,Object? currentSpeedKmh = null,Object? averageSpeedKmh = null,Object? isPaused = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? elapsed = null,Object? distanceMeters = null,Object? elevationGainMeters = null,Object? elevationLossMeters = null,Object? currentSpeedKmh = null,Object? averageSpeedKmh = null,Object? isPaused = null,Object? isStationary = null,}) {
   return _then(_NavigationStats(
 elapsed: null == elapsed ? _self.elapsed : elapsed // ignore: cast_nullable_to_non_nullable
 as Duration,distanceMeters: null == distanceMeters ? _self.distanceMeters : distanceMeters // ignore: cast_nullable_to_non_nullable
@@ -295,6 +307,7 @@ as double,elevationLossMeters: null == elevationLossMeters ? _self.elevationLoss
 as double,currentSpeedKmh: null == currentSpeedKmh ? _self.currentSpeedKmh : currentSpeedKmh // ignore: cast_nullable_to_non_nullable
 as double,averageSpeedKmh: null == averageSpeedKmh ? _self.averageSpeedKmh : averageSpeedKmh // ignore: cast_nullable_to_non_nullable
 as double,isPaused: null == isPaused ? _self.isPaused : isPaused // ignore: cast_nullable_to_non_nullable
+as bool,isStationary: null == isStationary ? _self.isStationary : isStationary // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }

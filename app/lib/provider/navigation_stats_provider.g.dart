@@ -90,7 +90,7 @@ final class NavigationStatsNotifierProvider
 }
 
 String _$navigationStatsNotifierHash() =>
-    r'd47a5c121647af004cb9967c418cb7399d799113';
+    r'be13443d66418ce5873ed972b08504aeaa284fb5';
 
 /// Riverpod notifier that computes live navigation statistics for a single
 /// [NavigateResponse] session.
