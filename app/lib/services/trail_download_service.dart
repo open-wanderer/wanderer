@@ -37,47 +37,98 @@ class TrailDownloadService {
       await trailDir.create(recursive: true);
     }
 
-    final List<String> localPaths = await _downloadPhotos(
-      trail.photos
-          .map((p) => trail.getFileUrl(baseUrl, p))
-          .whereType<String>()
-          .toList(),
-      trailDir,
-      cancelToken: cancelToken,
-    );
+    final trailPhotoUrls = trail.photos
+        .map((p) => trail.getFileUrl(baseUrl, p))
+        .whereType<String>()
+        .toList();
 
+    // Build the per-waypoint photo jobs up front so the progress total below
+    // matches exactly the number of photos `_downloadPhotos` will process
+    // (after the same null-URL filtering).
     final waypoints = trail.expand?.waypointsViaTrail ?? [];
-    final Map<String, List<String>> waypointLocalPhotos = {};
+    final waypointPhotoJobs = <(String, Directory, List<String>)>[];
     for (final waypoint in waypoints) {
-      if (waypoint.photos.isEmpty) continue;
-      final waypointDir = Directory(
-        '${trailDir.path}/waypoints/${waypoint.id}',
-      );
-      waypointLocalPhotos[waypoint.id] = await _downloadPhotos(
-        waypoint.photos
-            .map((p) => waypoint.getFileUrl(baseUrl, p))
-            .whereType<String>()
-            .toList(),
-        waypointDir,
-        cancelToken: cancelToken,
-      );
+      final urls = waypoint.photos
+          .map((p) => waypoint.getFileUrl(baseUrl, p))
+          .whereType<String>()
+          .toList();
+      if (urls.isEmpty) continue;
+      waypointPhotoJobs.add((
+        waypoint.id,
+        Directory('${trailDir.path}/waypoints/${waypoint.id}'),
+        urls,
+      ));
     }
 
-    final List<String> cellPaths;
-    final List<String> demCellPaths;
+    // Progress counts photos and tile cells together. The photo total is known
+    // now; the cell total only after `_fetchCellList` returns. `report()`
+    // no-ops until the cell total is known (that brief window shows the seeded
+    // indeterminate "Preparing download…"), then emits a combined count so the
+    // bar only reaches 100% right before the entity is persisted — never a
+    // misleading "100% but tiles/photos still running" state.
+    final photoTotal = trailPhotoUrls.length +
+        waypointPhotoJobs.fold<int>(0, (sum, job) => sum + job.$3.length);
+    var done = 0;
+    int? cellTotal;
+    void report() {
+      if (cellTotal == null) return;
+      onProgress?.call(done, cellTotal! + photoTotal);
+    }
+
+    void onUnit() {
+      done++;
+      report();
+    }
+
+    // Kick photos and tiles off together: starting the tile download alongside
+    // the photos overlaps server-side tile generation with photo downloading.
+    // Default Future.wait (eagerError: false) lets in-flight photo downloads
+    // settle before cleanup runs on a tile failure, so we never delete the
+    // directory while a photo is still being written.
+    List<String> localPaths = [];
+    var waypointLocalPhotos = <String, List<String>>{};
+    (List<String>, List<String>)? tileResult;
+
+    final futures = <Future<void>>[
+      () async {
+        tileResult = await _downloadMapTiles(
+          trail,
+          trailDir,
+          cancelToken: cancelToken,
+          onCellTotal: (total) {
+            cellTotal = total;
+            report();
+          },
+          onCellDone: onUnit,
+        );
+      }(),
+      () async {
+        localPaths = await _downloadPhotos(
+          trailPhotoUrls,
+          trailDir,
+          cancelToken: cancelToken,
+          onPhotoDone: onUnit,
+        );
+      }(),
+      () async {
+        waypointLocalPhotos = await _downloadWaypointPhotos(
+          waypointPhotoJobs,
+          cancelToken: cancelToken,
+          onPhotoDone: onUnit,
+        );
+      }(),
+    ];
+
     try {
-      final tileResult = await _downloadMapTiles(
-        trail,
-        trailDir,
-        cancelToken: cancelToken,
-        onProgress: onProgress,
-      );
-      cellPaths = tileResult.$1;
-      demCellPaths = tileResult.$2;
+      await Future.wait(futures);
     } catch (e) {
-      await trailDir.delete(recursive: true);
+      if (await trailDir.exists()) {
+        await trailDir.delete(recursive: true);
+      }
       rethrow;
     }
+
+    final (cellPaths, demCellPaths) = tileResult!;
 
     final entity = TrailEntity.fromModel(trail);
     entity.photos = localPaths;
@@ -133,7 +184,8 @@ class TrailDownloadService {
     Trail trail,
     Directory trailDir, {
     CancelToken? cancelToken,
-    void Function(int done, int total)? onProgress,
+    void Function(int total)? onCellTotal,
+    void Function()? onCellDone,
   }) async {
     final LngLatBounds bounds = trail.bounds;
 
@@ -141,17 +193,21 @@ class TrailDownloadService {
         '${bounds.longitudeWest},${bounds.latitudeSouth},${bounds.longitudeEast},${bounds.latitudeNorth}';
 
     final infoList = await _fetchCellList(bbox, cancelToken: cancelToken);
-    if (infoList.cells.isEmpty) return (<String>[], <String>[]);
+    if (infoList.cells.isEmpty) {
+      onCellTotal?.call(0);
+      return (<String>[], <String>[]);
+    }
 
     final tilesDir = Directory('${trailDir.path}/tiles');
     if (!await tilesDir.exists()) {
       await tilesDir.create(recursive: true);
     }
 
-    final total = infoList.cells.length;
+    onCellTotal?.call(infoList.cells.length);
 
-    // Downloads run concurrently; progress is reported once at the end to
-    // avoid non-monotonic counter updates from interleaved awaits.
+    // Downloads run concurrently; each task reports as it finishes. A plain
+    // counter incremented from these async tails is race-free (single-threaded
+    // event loop) and strictly monotonic.
     final downloadTasks = infoList.cells.map((cell) async {
       final key = cell.key;
       final localPath = '${tilesDir.path}/$key.pmtiles';
@@ -161,6 +217,7 @@ class TrailDownloadService {
       final demCached = await File(demLocalPath).exists();
 
       if (vectorCached && demCached) {
+        onCellDone?.call();
         return (localPath, demLocalPath);
       }
 
@@ -210,6 +267,7 @@ class TrailDownloadService {
           }
         }
 
+        onCellDone?.call();
         return (localPath, demPath);
       } on DioException {
         if (await File(localPath).exists()) {
@@ -220,9 +278,6 @@ class TrailDownloadService {
     }).toList();
 
     final results = await Future.wait(downloadTasks);
-    if (onProgress != null) {
-      onProgress(results.length, total);
-    }
     return (
       results.map((r) => r.$1).toList(),
       results.map((r) => r.$2).whereType<String>().toList(),
@@ -248,9 +303,7 @@ class TrailDownloadService {
   ]) async {
     final deadline = DateTime.now().add(_pollTimeout);
 
-    while (DateTime.now().isBefore(deadline)) {
-      await Future.delayed(_pollInterval);
-
+    while (true) {
       final res = await _api.get(statusUrl, cancelToken: cancelToken);
       final data = MapCellStatusResponse.fromJson(res.data!);
 
@@ -263,16 +316,20 @@ class TrailDownloadService {
           );
         case MapCellStatus.pending:
         case MapCellStatus.isNew:
+          if (DateTime.now().isAfter(deadline)) {
+            throw Exception('Timed out waiting for map cell $cellKey');
+          }
+          await Future.delayed(_pollInterval);
           continue;
       }
     }
-    throw Exception('Timed out waiting for map cell $cellKey');
   }
 
   Future<List<String>> _downloadPhotos(
     List<String> urls,
     Directory trailDir, {
     CancelToken? cancelToken,
+    void Function()? onPhotoDone,
   }) async {
     final photoDir = Directory('${trailDir.path}/photos');
     if (!await photoDir.exists()) {
@@ -299,10 +356,37 @@ class TrailDownloadService {
       } catch (e) {
         debugPrint('Failed to download photo $url: $e');
         return null;
+      } finally {
+        // Count as done on success or best-effort failure, so the shared
+        // progress counter can't stall on a single dropped photo.
+        onPhotoDone?.call();
       }
     }).toList();
 
     final results = await Future.wait(downloadTasks);
     return results.whereType<String>().toList();
+  }
+
+  /// Downloads all waypoint photos concurrently (across waypoints, not just
+  /// within one), keyed by waypoint id so the caller can attach local paths
+  /// back onto the corresponding `TrailEntity.waypoints` entry.
+  Future<Map<String, List<String>>> _downloadWaypointPhotos(
+    List<(String, Directory, List<String>)> jobs, {
+    CancelToken? cancelToken,
+    void Function()? onPhotoDone,
+  }) async {
+    final entries = await Future.wait(
+      jobs.map((job) async {
+        final (waypointId, waypointDir, urls) = job;
+        final paths = await _downloadPhotos(
+          urls,
+          waypointDir,
+          cancelToken: cancelToken,
+          onPhotoDone: onPhotoDone,
+        );
+        return MapEntry(waypointId, paths);
+      }),
+    );
+    return Map.fromEntries(entries);
   }
 }

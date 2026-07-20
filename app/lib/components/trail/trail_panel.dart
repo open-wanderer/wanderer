@@ -25,9 +25,11 @@ class TrailPanel extends ConsumerWidget {
     super.key,
     required this.trail,
     required this.scrollController,
+    this.availableOffline = false,
   });
 
   final Trail trail;
+  final bool availableOffline;
   final ScrollController scrollController;
 
   @override
@@ -107,6 +109,42 @@ class TrailPanel extends ConsumerWidget {
                           ),
                         ),
                       ],
+                      if (availableOffline) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.greenAccent.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.green.shade400,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.cloud_done,
+                                size: 9,
+                                color: Colors.green.shade500,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Available offline',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   Text(
@@ -149,7 +187,7 @@ class TrailPanel extends ConsumerWidget {
                     spacing: 10,
                     runSpacing: 10,
                     children: [
-                      if (trail.categoryId != null)
+                      if (trail.categoryId?.isNotEmpty == true)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
@@ -162,7 +200,6 @@ class TrailPanel extends ConsumerWidget {
                           child: TrailCategoryLabel(
                             categoryId: trail.categoryId!,
                             subcategoryId: trail.subcategoryId,
-                            color: Colors.blueGrey,
                           ),
                         ),
                       StatChip(

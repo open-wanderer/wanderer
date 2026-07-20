@@ -476,10 +476,22 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ],
         ),
 
+        // Rides up with the sheet as it drags from min to medium size, then
+        // holds still at that height and gets covered as the sheet expands
+        // past medium.
         if (_selectedTrail == null)
-          Positioned(
-            bottom: MediaQuery.of(context).size.height * sheetMinSize + 12,
-            right: 16,
+          ValueListenableBuilder<double>(
+            valueListenable: _sheetSize,
+            builder: (context, sheetSize, child) {
+              final clampedSize = sheetSize < sheetMediumsize
+                  ? sheetSize
+                  : sheetMediumsize;
+              return Positioned(
+                bottom: MediaQuery.of(context).size.height * clampedSize + 12,
+                right: 16,
+                child: child!,
+              );
+            },
             child: StreamBuilder<LocationMarkerPosition?>(
               stream: ref.watch(foregroundPositionStreamProvider),
               builder: (context, snapshot) {

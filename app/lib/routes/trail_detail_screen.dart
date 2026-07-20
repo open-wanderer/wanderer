@@ -7,6 +7,12 @@ import 'package:wanderer/components/trail/like_button.dart';
 import 'package:wanderer/components/trail/trail_dropdown.dart';
 import 'package:wanderer/components/trail/trail_panel.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/provider/download_notification_provider.dart';
+import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
+import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/provider/trail/trail_download_provider.dart';
+import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/navigation_launch_util.dart';
 
@@ -20,6 +26,7 @@ class TrailDetailScreen extends ConsumerStatefulWidget {
 
 class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
   bool _isLaunching = false;
+  bool _isDownloading = false;
   late final ScrollController _scrollController = ScrollController();
 
   double _appBarOpacity = 0.0;
@@ -61,85 +68,119 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
     final theme = Theme.of(context);
 
     return trailAsync.when(
-      data: (trail) => Scaffold(
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
-            onPressed: () => context.pop(),
-            style: IconButton.styleFrom(
-              backgroundColor: theme.colorScheme.surface.withValues(
-                alpha: 1.0 - _appBarOpacity,
-              ),
-            ),
-          ),
-
-          backgroundColor: theme.colorScheme.surface.withValues(
-            alpha: _appBarOpacity,
-          ),
-
-          shadowColor: Colors.black.withValues(alpha: _appBarOpacity * 0.15),
-          elevation: _appBarOpacity > 0 ? 2 : 0,
-
-          scrolledUnderElevation: 0,
-
-          actions: [
-            LikeButton(trail: trail),
-            const SizedBox(width: 8),
-            TrailDropdown(trail: trail),
-          ],
-        ),
-        body: Stack(
-          children: [
-            Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 72),
-                child: TrailPanel(
-                  trail: trail,
-                  scrollController: _scrollController, // Passes perfectly now
+      data: (trail) {
+        final availableOffline = ref
+            .watch(trailLibraryProvider)
+            .any((t) => t.id == trail.id);
+        return Scaffold(
+          extendBodyBehindAppBar: true,
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+              onPressed: () => context.pop(),
+              style: IconButton.styleFrom(
+                backgroundColor: theme.colorScheme.surface.withValues(
+                  alpha: 1.0 - _appBarOpacity,
                 ),
               ),
             ),
 
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                color: theme.scaffoldBackgroundColor,
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isLaunching
-                        ? null
-                        : () async {
-                            setState(() => _isLaunching = true);
-                            await launchNavigation(
-                              context: context,
-                              ref: ref,
-                              trail: trail,
-                            );
-                            if (mounted) setState(() => _isLaunching = false);
-                          },
-                    icon: _isLaunching
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const FaIcon(FontAwesomeIcons.locationArrow),
-                    label: Text(AppLocalizations.of(context)!.navigate),
+            backgroundColor: theme.colorScheme.surface.withValues(
+              alpha: _appBarOpacity,
+            ),
+
+            shadowColor: Colors.black.withValues(alpha: _appBarOpacity * 0.15),
+            elevation: _appBarOpacity > 0 ? 2 : 0,
+
+            scrolledUnderElevation: 0,
+
+            actions: [
+              LikeButton(trail: trail),
+              const SizedBox(width: 8),
+              TrailDropdown(trail: trail, availableOffline: availableOffline),
+            ],
+          ),
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 72),
+                  child: TrailPanel(
+                    trail: trail,
+                    scrollController: _scrollController,
+                    availableOffline: availableOffline,
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
+
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  color: theme.scaffoldBackgroundColor,
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Row(
+                    children: [
+                      if (!availableOffline) ...[
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _isDownloading
+                                ? null
+                                : () => _downloadTrail(context, ref, trail),
+                            icon: _isDownloading
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
+                                  )
+                                : FaIcon(FontAwesomeIcons.download),
+                            label: Text(AppLocalizations.of(context)!.download),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _isLaunching
+                              ? null
+                              : () async {
+                                  setState(() => _isLaunching = true);
+                                  await launchNavigation(
+                                    context: context,
+                                    ref: ref,
+                                    trail: trail,
+                                  );
+                                  if (mounted) {
+                                    setState(() => _isLaunching = false);
+                                  }
+                                },
+                          icon: _isLaunching
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const FaIcon(FontAwesomeIcons.locationArrow),
+                          label: Text(AppLocalizations.of(context)!.navigate),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
       loading: () => Container(
         color: Theme.of(context).colorScheme.surface,
         child: const Center(child: CircularProgressIndicator()),
@@ -148,5 +189,50 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         body: WandererError(err: err, stack: stack),
       ),
     );
+  }
+
+  void _downloadTrail(BuildContext context, WidgetRef ref, Trail trail) async {
+    setState(() => _isDownloading = true);
+
+    final trailDownloadService = ref.read(trailDownloadServiceProvider);
+    final notificationService = ref.read(downloadNotificationServiceProvider);
+
+    final toastNotifier = ref.read(toastProvider.notifier);
+
+    final glyphCacheWarm = ref.read(glyphSpriteCacheProvider.future);
+
+    await notificationService.showProgress(trail.name, 0, 0);
+
+    try {
+      await trailDownloadService.downloadTrail(
+        trail,
+        onProgress: (done, total) =>
+            notificationService.showProgress(trail.name, done, total),
+      );
+      await notificationService.showSuccess(trail.name);
+      ref.invalidate(trailLibraryProvider);
+      toastNotifier.add(
+        ToastMessage(
+          type: ToastType.success,
+          icon: FontAwesomeIcons.circleCheck,
+          text: 'Trail saved for offline use',
+        ),
+      );
+    } catch (e) {
+      await notificationService.showError(trail.name);
+      toastNotifier.add(
+        ToastMessage(
+          type: ToastType.error,
+          icon: FontAwesomeIcons.xmark,
+          text: 'Error saving trail',
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
+
+    try {
+      await glyphCacheWarm;
+    } catch (_) {}
   }
 }

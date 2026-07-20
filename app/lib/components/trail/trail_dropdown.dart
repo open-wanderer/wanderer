@@ -23,7 +23,12 @@ enum TrailAction { open, directions, download, edit, delete }
 
 class TrailDropdown extends ConsumerStatefulWidget {
   final Trail trail;
-  const TrailDropdown({super.key, required this.trail});
+  final bool availableOffline;
+  const TrailDropdown({
+    super.key,
+    required this.trail,
+    this.availableOffline = false,
+  });
 
   @override
   ConsumerState<TrailDropdown> createState() => _TrailDropdownState();
@@ -36,10 +41,8 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   Widget build(BuildContext context) {
     final trail = widget.trail;
     final l18n = AppLocalizations.of(context)!;
-    final isOffline = ref
-        .watch(trailLibraryProvider)
-        .any((t) => t.id == trail.id);
-    final downloadEnabled = !isOffline && !_isDownloading;
+
+    final downloadEnabled = !widget.availableOffline && !_isDownloading;
     return PopupMenuButton<TrailAction>(
       offset: const Offset(0, 48),
       borderRadius: BorderRadius.all(Radius.circular(56)),
@@ -111,15 +114,17 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : FaIcon(
-                    isOffline
+                    widget.availableOffline
                         ? FontAwesomeIcons.circleCheck
                         : FontAwesomeIcons.download,
                     size: 18,
-                    color: isOffline ? Colors.green : null,
+                    color: widget.availableOffline ? Colors.green : null,
                   ),
             title: Text(
-              isOffline ? 'Available offline' : l18n.download,
-              style: isOffline ? const TextStyle(color: Colors.green) : null,
+              widget.availableOffline ? 'Available offline' : l18n.download,
+              style: widget.availableOffline
+                  ? const TextStyle(color: Colors.green)
+                  : null,
             ),
             contentPadding: EdgeInsets.zero,
           ),

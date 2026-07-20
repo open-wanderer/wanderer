@@ -34,8 +34,9 @@ class TrailCategoryLabel extends ConsumerWidget {
     final categories = ref.watch(categoryProvider).value ?? [];
     final subcategories = ref.watch(subcategoryProvider);
 
-    final Category? category =
-        categories.firstWhereOrNull((c) => c.id == categoryId);
+    final Category? category = categories.firstWhereOrNull(
+      (c) => c.id == categoryId,
+    );
     final Subcategory? subcategory = subcategoryId != null
         ? subcategories.firstWhereOrNull((s) => s.id == subcategoryId)
         : null;
@@ -45,7 +46,7 @@ class TrailCategoryLabel extends ConsumerWidget {
     final label = subcategory != null
         ? '${category.displayName(locale)} / ${subcategory.displayName(locale)}'
         : category.displayName(locale);
-    final labelColor = color ?? Colors.grey[800];
+    final labelColor = color ?? Theme.of(context).colorScheme.onSurface;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -54,10 +55,13 @@ class TrailCategoryLabel extends ConsumerWidget {
           category,
           subcategory: subcategory,
           size: iconSize,
-          color: color ?? Colors.grey[700],
+          color: color ?? Colors.blueGrey,
         ),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: fontSize, color: labelColor)),
+        Text(
+          label,
+          style: TextStyle(fontSize: fontSize, color: labelColor),
+        ),
       ],
     );
   }
