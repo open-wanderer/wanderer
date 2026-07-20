@@ -833,7 +833,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get search_for_a_location => 'Search for a location';
 
   @override
-  String no_results_for_query(Object query) {
+  String no_results_for_query(String query) {
     return 'No results for \"$query\"';
   }
 
@@ -841,7 +841,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get filter => 'Filter';
 
   @override
-  String no_label_yet(Object label) {
+  String no_label_yet(String label) {
     return 'No $label yet.';
   }
 
@@ -861,7 +861,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get search_location => 'Search location';
 
   @override
-  String no_servers_match_query(Object query) {
+  String no_servers_match_query(String query) {
     return 'No servers match \"$query\"';
   }
 
@@ -878,7 +878,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get search_library => 'Search library…';
 
   @override
-  String language_and_units(Object language, Object units) {
+  String language_and_units(String language, String units) {
     return '$language & $units';
   }
 

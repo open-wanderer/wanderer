@@ -1584,7 +1584,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'No results for \"{query}\"'**
-  String no_results_for_query(Object query);
+  String no_results_for_query(String query);
 
   /// No description provided for @filter.
   ///
@@ -1596,7 +1596,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'No {label} yet.'**
-  String no_label_yet(Object label);
+  String no_label_yet(String label);
 
   /// No description provided for @no_lists_yet.
   ///
@@ -1632,7 +1632,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'No servers match \"{query}\"'**
-  String no_servers_match_query(Object query);
+  String no_servers_match_query(String query);
 
   /// No description provided for @use_custom_url_instead.
   ///
@@ -1662,7 +1662,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{language} & {units}'**
-  String language_and_units(Object language, Object units);
+  String language_and_units(String language, String units);
 
   /// No description provided for @edit_route.
   ///

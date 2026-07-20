@@ -1,3 +1,5 @@
 files:
   - source: /web/src/lib/i18n/locales/en.json
     translation: /web/src/lib/i18n/locales/%two_letters_code%.%file_extension%
+  - source: /app/lib/i18n/app_en.arb
+    translation: /app/lib/i18n/app_%two_letters_code%.arb
