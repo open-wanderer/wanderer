@@ -876,6 +876,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get locations => 'Orte';
 
   @override
+  String get center_on_my_location => 'Center on my location';
+
+  @override
   String get location_tracking_notification_title => 'Wanderer';
 
   @override

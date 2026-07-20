@@ -126,9 +126,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ref
                   .read(mapClusterSearchProvider.notifier)
                   .searchInBounds(bounds, zoom);
-              ref
-                  .read(mapTrailSearchProvider.notifier)
-                  .searchInBounds(bounds);
+              ref.read(mapTrailSearchProvider.notifier).searchInBounds(bounds);
             });
       }, onError: (_) {});
     }
@@ -481,6 +479,43 @@ class _MapScreenState extends ConsumerState<MapScreen>
         if (_selectedTrail == null)
           Positioned(
             bottom: MediaQuery.of(context).size.height * sheetMinSize + 12,
+            right: 16,
+            child: StreamBuilder<LocationMarkerPosition?>(
+              stream: ref.watch(foregroundPositionStreamProvider),
+              builder: (context, snapshot) {
+                final position = snapshot.data;
+                return Material(
+                  color: Theme.of(context).colorScheme.surface,
+                  elevation: 4,
+                  shadowColor: Colors.black26,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    icon: const FaIcon(
+                      FontAwesomeIcons.locationCrosshairs,
+                      size: 18,
+                    ),
+                    tooltip: AppLocalizations.of(context)!.center_on_my_location,
+                    onPressed: position == null
+                        ? null
+                        : () {
+                            _controller?.animateCamera(
+                              center: ml.Geographic(
+                                lat: position.latitude,
+                                lon: position.longitude,
+                              ),
+                              zoom: _kPointZoom,
+                              nativeDuration: const Duration(milliseconds: 750),
+                            );
+                          },
+                  ),
+                );
+              },
+            ),
+          ),
+
+        if (_selectedTrail == null)
+          Positioned(
+            bottom: MediaQuery.of(context).size.height * sheetMinSize + 12,
             left: 0,
             right: 0,
             child: Center(
@@ -541,7 +576,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   asyncValue: searchResultAsync,
                   mockData: List.generate(5, (_) => TrailSearchResult.mock()),
                   builder: (trails) => ListView(
-                    padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      8,
+                      16,
+                      kBottomNavigationBarHeight + 16 + 32,
+                    ),
                     controller: scrollController,
                     children: [
                       ValueListenableBuilder<double>(

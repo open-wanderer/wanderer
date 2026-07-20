@@ -261,6 +261,7 @@
   "list_share_warning_update": "Added trails will be shared with everyone that has access to this list.",
   "location": "Location",
   "locations": "Locations",
+  "center_on_my_location": "Center on my location",
   "location_tracking_notification_title": "Wanderer",
   "location_tracking_notification_text": "Recording your trail",
   "login": "Login",

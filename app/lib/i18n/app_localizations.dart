@@ -1688,6 +1688,12 @@ abstract class AppLocalizations {
   /// **'Locations'**
   String get locations;
 
+  /// No description provided for @center_on_my_location.
+  ///
+  /// In en, this message translates to:
+  /// **'Center on my location'**
+  String get center_on_my_location;
+
   /// No description provided for @location_tracking_notification_title.
   ///
   /// In en, this message translates to:
