@@ -20,6 +20,14 @@
   "cancel": "Annuleren",
   "car": "Wagen",
   "card": "{n, plural, =1 {Kaart} other {Kaarten}}",
+  "@card": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of cards to pluralize the label for"
+      }
+    }
+  },
   "categories": "Categorieën",
   "category": "Categorie",
   "change_email": "E-mail wijzigen",
@@ -27,6 +35,14 @@
   "clear_all": "Wis alles",
   "close": "Sluiten",
   "comment": "{n, plural, =1 {Opmerking} other {Opmerkingen}}",
+  "@comment": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of comments to pluralize the label for"
+      }
+    }
+  },
   "completed": "Voltooid",
   "completion_status": "Voltooiingsstatus",
   "confirm_deletion": "Bevestig verwijderen",
@@ -99,6 +115,14 @@
   "liked": "Leuk gevonden",
   "likes": "Vind-ik-leuks",
   "list": "{n, plural, =1 {Lijst} other {Lijsten}}",
+  "@list": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of lists to pluralize the label for"
+      }
+    }
+  },
   "location": "Locatie",
   "locations": "Locations",
   "center_on_my_location": "Center on my location",
@@ -115,6 +139,13 @@
   "mountain": "Berg",
   "my_account": "Mijn Account",
   "in_distance": "in {distance}",
+  "@in_distance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
   "name": "Naam",
   "navigate": "Navigate",
   "near": "Nabij",
@@ -143,6 +174,14 @@
   "passwords_must_match": "Wachtwoorden moeten overeenkomen",
   "photos": "Foto's",
   "photos_skipped_no_gps": "{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}",
+  "@photos_skipped_no_gps": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos skipped because they had no GPS data"
+      }
+    }
+  },
   "print": "Afdrukken",
   "privacy": "Privacy",
   "private": "Privaat",
@@ -156,9 +195,24 @@
   "reset": "Herstellen",
   "resume": "Resume",
   "resume_navigation_prompt": "Resume navigation on {trail}?",
+  "@resume_navigation_prompt": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
   "resume_recording_prompt": "Opname hervatten?",
   "road": "Weg",
   "route": "{n, plural,=1 {Tocht} other {Tochten}}",
+  "@route": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of routes to pluralize the label for"
+      }
+    }
+  },
   "save": "Bewaren",
   "save_track": "Save track",
   "search": "Search",
@@ -191,6 +245,9 @@
   "speed": "Snelheid",
   "start": "Start",
   "subcategories": "Subcategorieën",
+  "@subcategories": {
+    "description": "Label for the subcategories filter section"
+  },
   "summit_book": "Bergtopboek",
   "table": "Tabel",
   "tags": "Labels",
@@ -201,6 +258,14 @@
   "time": "Time",
   "time_in_motion": "Time in Motion",
   "trail": "{n, plural, =1 {Route} other {Routes}}",
+  "@trail": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of trails to pluralize the label for"
+      }
+    }
+  },
   "trail_saved_successfully": "Route succesvol bewaard",
   "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
   "units": "Eenheden",
@@ -212,6 +277,14 @@
   "water": "Water",
   "web": "Web",
   "waypoints": "{n, plural,=1 {Routepunt} other {Routepunten}}",
+  "@waypoints": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of waypoints to pluralize the label for"
+      }
+    }
+  },
   "welcome_to": "Welcome to",
   "width": "Breedte",
   "wrong_username_or_password": "Onjuiste gebruikersnaam of wachtwoord",
@@ -219,6 +292,13 @@
   "settings_categories_confirm_disable_title": "Hide this category?",
   "settings_categories_confirm_disable_subcategory_title": "Hide this subcategory?",
   "settings_categories_confirm_disable_body": "{count} of your trails use this category. They will stay published but this filter will be hidden.",
+  "@settings_categories_confirm_disable_body": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settings_categories_confirm_view_trails": "View trails",
   "settings_categories_confirm_disable_confirm": "Disable anyway",
   "settings_categories_empty_title": "No subcategories",
@@ -244,19 +324,55 @@
   "search_lists": "Search lists…",
   "search_for_a_location": "Search for a location",
   "no_results_for_query": "No results for \"{query}\"",
+  "@no_results_for_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back in the empty-results message"
+      }
+    }
+  },
   "filter": "Filter",
   "no_label_yet": "No {label} yet.",
+  "@no_label_yet": {
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "description": "The already-localized noun describing what's missing, e.g. 'followers' or 'following'"
+      }
+    }
+  },
   "no_lists_yet": "No lists yet.",
   "no_bio_yet": "No bio yet.",
   "feed": "Feed",
   "no_trails_yet": "No trails yet.",
   "search_location": "Search location",
   "no_servers_match_query": "No servers match \"{query}\"",
+  "@no_servers_match_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back when no server instances match"
+      }
+    }
+  },
   "use_custom_url_instead": "Use custom URL instead",
   "select_instance": "Select Instance",
   "enter_server_url_hint": "Enter server URL (e.g. wanderer.to)",
   "search_library": "Search library…",
   "language_and_units": "{language} & {units}",
+  "@language_and_units": {
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "description": "The already-localized name of the selected display language"
+      },
+      "units": {
+        "type": "String",
+        "description": "The already-localized name of the selected measurement units (e.g. metric or imperial)"
+      }
+    }
+  },
   "edit_route": "Bewerk route",
   "undo": "Undo",
   "redo": "Redo",
