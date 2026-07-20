@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Route Planner
 status: verifying
-stopped_at: Completed quick-260719-n8g-PLAN.md
-last_updated: "2026-07-19T15:16:37.706Z"
+stopped_at: Completed quick-260720-s7m-PLAN.md
+last_updated: "2026-07-20T19:03:37.044Z"
 last_activity: "2026-07-19 - Completed quick task 260719-n8g: Implement the missing route recorder (isRecording flag on NavigationScreen, /record route, ActiveSessionType.rec resume); post-review fix 602be822 gates breadcrumb capture on pause/stationary"
 progress:
   total_phases: 3
@@ -81,6 +81,7 @@ Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/sc
 | Phase 21 P04 | 10min | 1 tasks | 1 files |
 | Phase quick-260719-d6a P01 | 35min | 3 tasks | 6 files |
 | Phase quick-260719-n8g P01 | ~20min | 2 tasks | 5 files |
+| Phase quick-260720-s7m P01 | ~70min | 4 tasks | 51 files |
 
 ## Accumulated Context
 
@@ -164,6 +165,8 @@ Recent decisions affecting current work:
 - [Phase quick-260719-n8g]: Reused NavigationScreen directly via isRecording flag rather than a separate RecordScreen -- every maneuver/route-dependent UI already null-guards to nothing on empty input
 - [Phase quick-260719-n8g]: Sentinel id: '' for widget.id in recording mode (not a nullable-id refactor) -- every trailProvider(widget.id) read was already null-guarded
 - [Phase quick-260719-n8g]: Recording's only finish trigger is the existing 3-option exit dialog (Cancel/Exit/Save), reused verbatim -- isArrived is structurally always false with empty maneuvers so there is no auto-arrival banner
+- [Phase quick-260720-s7m]: Fixed a pre-existing ICU plural-syntax bug (redundant 'one' clause fully shadowed by '=1') in es/eu/pl ARB files surfaced by gen-l10n during the dead-key equalization pass
+- [Phase quick-260720-s7m]: New placeholder-bearing l10n keys use double-quote literals around interpolated values instead of single quotes, since a single quote is ICU MessageFormat's escape character and would silently break the placeholder
 
 ### Pending Todos
 
@@ -206,6 +209,7 @@ Recent decisions affecting current work:
 | 260719-d6a | Navigation timer shows time-in-motion: tracelet native speed-motion engine drives auto-pause of timer/GPS/stats when stationary | 2026-07-19 | 0a914220,b1fb530c,461ad44a,e4012bcd | Needs Review | [260719-d6a-…](./quick/260719-d6a-the-navigation-timer-should-show-time-in/) |
 | 260719-fjw | Save track recorded during navigation: stub Trail from breadcrumb, offered on completion banner and premature-exit dialog, hands off to trail_create_screen | 2026-07-19 | 2bd575f0,61497acd,2b2aa687 | Needs Review | [260719-fjw-…](./quick/260719-fjw-save-track-recorded-during-navigation-cr/) |
 | 260719-n8g | Implement the missing route recorder: isRecording flag reuses NavigationScreen for trail-less GPS recording, wired Record trail card + /record route, ActiveSessionType.rec resume-after-kill; post-review fix gates breadcrumb capture on pause/stationary | 2026-07-19 | 20316c47,c41b757d,602be822 | Needs Review | [260719-n8g-…](./quick/260719-n8g-implement-the-missing-route-recorder-mos/) |
+| 260720-s7m | Clean up ARB translation files: safety-scanned dead-key removal (291 removed), equalized all 14 locales to 267 keys, extracted 43 hard-coded Dart literals into l10n keys, added @key ICU metadata, extended crowdin.yml for the app | 2026-07-20 | bde01f50,4116ecba,dc6b98a9,f10dc9d8 | Needs Review | [260720-s7m-…](./quick/260720-s7m-clean-up-arb-translation-files-remove-un/) |
 
 ## Deferred Items
 
@@ -250,6 +254,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-19T15:16:00.049Z
-Stopped at: Completed quick-260719-n8g-PLAN.md
+Last session: 2026-07-20T19:03:37.028Z
+Stopped at: Completed quick-260720-s7m-PLAN.md
 Resume file: None
