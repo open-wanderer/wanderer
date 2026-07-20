@@ -8,6 +8,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre/maplibre.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
@@ -696,7 +697,7 @@ class _EmptyState extends StatelessWidget {
           Icon(Icons.terrain, size: 48),
           SizedBox(height: 8),
           Text(
-            'No track data',
+            AppLocalizations.of(context)!.no_track_data,
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface,
               fontSize: 14,

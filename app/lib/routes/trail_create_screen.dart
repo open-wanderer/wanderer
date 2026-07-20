@@ -496,7 +496,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                     ),
                   ],
                 ),
-                tooltip: 'Edit route',
+                tooltip: AppLocalizations.of(context)!.edit_route,
                 onPressed: seedAnchors.length >= 2
                     ? () => _onEditRoute(context, seedAnchors)
                     : null,

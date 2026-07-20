@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/trail/waypoint_card.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
@@ -21,13 +22,14 @@ class TrailTimeline extends ConsumerWidget {
     if (waypoints.isEmpty) return const SizedBox.shrink();
 
     final unit = ref.watch(unitProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     final rows = <_RowData>[
-      _RowData.cap(icon: FontAwesomeIcons.bullseye, label: 'Start'),
+      _RowData.cap(icon: FontAwesomeIcons.bullseye, label: l10n.start),
       for (final wp in waypoints) _RowData.waypoint(waypoint: wp),
       _RowData.cap(
         icon: FontAwesomeIcons.flagCheckered,
-        label: 'Finish',
+        label: l10n.finish,
         distanceLabel: totalDistance != null
             ? formatDistance(totalDistance, unit: unit)
             : null,

@@ -764,7 +764,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             shape: StadiumBorder(
                               side: BorderSide(color: Colors.transparent),
                             ),
-                            label: const Text('Filter'),
+                            label: Text(AppLocalizations.of(context)!.filter),
                             backgroundColor: Theme.of(
                               context,
                             ).colorScheme.surface,

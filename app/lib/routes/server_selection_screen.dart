@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/server_instance.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/welcome/server_selection_provider.dart'; // Your custom button
@@ -43,9 +44,10 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final severSelection = ref.watch(serverSelectionProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Select Instance")),
+      appBar: AppBar(title: Text(l10n.select_instance)),
       body: Column(
         children: [
           Padding(
@@ -54,7 +56,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
               controller: _urlController,
               cursorColor: Theme.of(context).colorScheme.onSurface,
               decoration: InputDecoration(
-                hintText: "Enter server URL (e.g. wanderer.to)",
+                hintText: l10n.enter_server_url_hint,
                 hintStyle: TextStyle(color: Colors.grey),
                 prefixIcon: const Icon(Icons.link),
 
@@ -114,12 +116,12 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                           size: 48,
                         ),
                         const SizedBox(height: 16),
-                        Text("No servers match '$_searchQuery'"),
+                        Text(l10n.no_servers_match_query(_searchQuery)),
                         TextButton(
                           onPressed: () => _selectAndGoBack(
                             ServerInstance(url: _urlController.text.trim()),
                           ),
-                          child: const Text("Use custom URL instead"),
+                          child: Text(l10n.use_custom_url_instead),
                         ),
                       ],
                     ),

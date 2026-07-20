@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:tiptap_flutter/tiptap_flutter.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 
 /// A limited WYSIWYG editor that produces HTML, mirroring the web client's
 /// TipTap editor (`web/src/lib/components/base/editor.svelte`).
@@ -204,6 +205,7 @@ class _WandererRichTextEditorState extends State<WandererRichTextEditor> {
   }
 
   Widget _buildToolbar(ThemeData theme) {
+    final l10n = AppLocalizations.of(context)!;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -211,14 +213,14 @@ class _WandererRichTextEditorState extends State<WandererRichTextEditor> {
           _toolButton(
             theme,
             icon: FontAwesomeIcons.bold,
-            tooltip: 'Bold',
+            tooltip: l10n.bold,
             active: _markActive('bold'),
             onPressed: () => _controller.execCommand(EditorCommand.toggleBold),
           ),
           _toolButton(
             theme,
             icon: FontAwesomeIcons.italic,
-            tooltip: 'Italic',
+            tooltip: l10n.italic,
             active: _markActive('italic'),
             onPressed: () =>
                 _controller.execCommand(EditorCommand.toggleItalic),
@@ -226,14 +228,14 @@ class _WandererRichTextEditorState extends State<WandererRichTextEditor> {
           _toolButton(
             theme,
             icon: FontAwesomeIcons.underline,
-            tooltip: 'Underline',
+            tooltip: l10n.underline,
             active: _markActive('underline'),
             onPressed: () => _controller.execCommand(_toggleUnderline),
           ),
           _toolButton(
             theme,
             icon: FontAwesomeIcons.listUl,
-            tooltip: 'Bullet list',
+            tooltip: l10n.bullet_list,
             active: _controller.isCommandActive(EditorCommand.toggleBulletList),
             onPressed: () =>
                 _controller.execCommand(EditorCommand.toggleBulletList),
@@ -241,7 +243,7 @@ class _WandererRichTextEditorState extends State<WandererRichTextEditor> {
           _toolButton(
             theme,
             icon: FontAwesomeIcons.listOl,
-            tooltip: 'Ordered list',
+            tooltip: l10n.ordered_list,
             active: _controller.isCommandActive(
               EditorCommand.toggleOrderedList,
             ),
@@ -251,7 +253,7 @@ class _WandererRichTextEditorState extends State<WandererRichTextEditor> {
           _toolButton(
             theme,
             icon: FontAwesomeIcons.quoteLeft,
-            tooltip: 'Blockquote',
+            tooltip: l10n.blockquote,
             active: _controller.isCommandActive(EditorCommand.toggleBlockquote),
             onPressed: () =>
                 _controller.execCommand(EditorCommand.toggleBlockquote),
@@ -259,7 +261,7 @@ class _WandererRichTextEditorState extends State<WandererRichTextEditor> {
           _toolButton(
             theme,
             icon: FontAwesomeIcons.link,
-            tooltip: 'Link',
+            tooltip: l10n.link,
             active: _markActive('link'),
             onPressed: _openLinkDialog,
           ),
@@ -366,15 +368,16 @@ class _LinkDialogState extends State<_LinkDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final onSurface = theme.colorScheme.onSurface;
+    final l10n = AppLocalizations.of(context)!;
 
     return AlertDialog(
-      title: Text('Link', style: TextStyle(color: onSurface)),
+      title: Text(l10n.link, style: TextStyle(color: onSurface)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'URL',
+            l10n.url,
             style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: onSurface,
@@ -411,7 +414,7 @@ class _LinkDialogState extends State<_LinkDialog> {
             controlAffinity: ListTileControlAffinity.leading,
             value: _newTab,
             onChanged: (v) => setState(() => _newTab = v ?? false),
-            title: Text('Open in new tab', style: TextStyle(color: onSurface)),
+            title: Text(l10n.open_in_new_tab, style: TextStyle(color: onSurface)),
           ),
         ],
       ),
@@ -421,13 +424,13 @@ class _LinkDialogState extends State<_LinkDialog> {
             onPressed: () => Navigator.of(context).pop(
               const _LinkDialogResult(href: '', newTab: false, remove: true),
             ),
-            child: Text('Remove', style: TextStyle(color: Colors.red.shade400)),
+            child: Text(l10n.remove, style: TextStyle(color: Colors.red.shade400)),
           ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
-        TextButton(onPressed: _apply, child: const Text('Apply')),
+        TextButton(onPressed: _apply, child: Text(l10n.apply)),
       ],
     );
   }

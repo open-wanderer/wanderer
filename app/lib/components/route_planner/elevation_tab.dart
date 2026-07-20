@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/planned_gpx_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
@@ -47,6 +48,7 @@ class _ElevationEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       height: 200,
       decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
@@ -57,7 +59,7 @@ class _ElevationEmptyState extends StatelessWidget {
           const Icon(Icons.terrain, size: 48),
           const SizedBox(height: 8),
           Text(
-            'Add at least 2 anchors to see the elevation profile.',
+            l10n.add_at_least_2_anchors_hint,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface,

@@ -85,7 +85,7 @@ class WandererLayout extends ConsumerWidget {
             const SizedBox(width: kBottomNavigationBarHeight - 16),
             _NavItem(
               icon: const FaIcon(FontAwesomeIcons.bookAtlas),
-              label: "Library",
+              label: AppLocalizations.of(context)!.library,
               selected: selectedIndex == 2,
               selectedColor: selectedColor,
               unselectedColor: unselectedColor,

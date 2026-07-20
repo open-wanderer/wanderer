@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 
 class WandererError extends StatelessWidget {
   final Object err;
@@ -11,6 +12,7 @@ class WandererError extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context)!;
 
     return Center(
       child: Padding(
@@ -26,7 +28,7 @@ class WandererError extends StatelessWidget {
             const SizedBox(height: 24),
 
             Text(
-              "Something went wrong",
+              l10n.something_went_wrong,
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -45,7 +47,7 @@ class WandererError extends StatelessWidget {
 
             if (stack != null)
               ExpansionTile(
-                title: const Text("Technical Details"),
+                title: Text(l10n.technical_details),
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),

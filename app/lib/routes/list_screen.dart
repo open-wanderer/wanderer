@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/list/list_card.dart';
 import 'package:wanderer/components/list/list_quick_filter_bar.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/list/list_filter_provider.dart';
 import 'package:wanderer/provider/list/list_search_provider.dart';
 
@@ -53,6 +54,7 @@ class _ListScreenState extends ConsumerState<ListScreen> {
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(listSearchProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return SafeArea(
       bottom: false,
@@ -68,7 +70,7 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                 onChanged: _onQueryChanged,
                 cursorColor: Theme.of(context).colorScheme.onSurface,
                 decoration: InputDecoration(
-                  hintText: 'Search lists…',
+                  hintText: l10n.search_lists,
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
@@ -105,7 +107,7 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                   mockData: ListSearchState.mock(),
                   builder: (state) {
                     if (state.lists.isEmpty) {
-                      return const Center(child: Text('No lists found'));
+                      return Center(child: Text(l10n.no_lists_found));
                     }
                     return ListView.builder(
                       controller: _scrollController,

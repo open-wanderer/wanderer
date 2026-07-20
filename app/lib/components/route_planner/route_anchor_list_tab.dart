@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:maplibre/maplibre.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
@@ -224,6 +225,7 @@ class _AnchorActionChips extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final notifier = ref.read(routeAnchorsProvider.notifier);
+    final l10n = AppLocalizations.of(context)!;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
@@ -236,7 +238,7 @@ class _AnchorActionChips extends ConsumerWidget {
               FontAwesomeIcons.arrowRightArrowLeft,
               size: 12,
             ),
-            label: const Text('Reverse direction'),
+            label: Text(l10n.reverse_direction),
             onPressed: anchors.length < 2 ? null : notifier.reverseRoute,
           ),
           ActionChip(
@@ -248,7 +250,7 @@ class _AnchorActionChips extends ConsumerWidget {
                   ? null
                   : theme.colorScheme.onErrorContainer,
             ),
-            label: const Text('Delete all'),
+            label: Text(l10n.delete_all),
             backgroundColor: anchors.isEmpty
                 ? null
                 : theme.colorScheme.errorContainer,

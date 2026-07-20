@@ -48,6 +48,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final router = ref.watch(routerProvider);
     final filterAsync = ref.watch(trailFilterProvider('library'));
     final visible = _filtered(trailLibrary, filterAsync.value);
+    final l10n = AppLocalizations.of(context)!;
 
     return SafeArea(
       bottom: false,
@@ -62,7 +63,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 onChanged: (v) => setState(() => _query = v),
                 cursorColor: Theme.of(context).colorScheme.onSurface,
                 decoration: InputDecoration(
-                  hintText: 'Search library…',
+                  hintText: l10n.search_library,
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _query.isNotEmpty
                       ? IconButton(

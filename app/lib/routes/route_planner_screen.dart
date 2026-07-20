@@ -344,7 +344,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Search location',
+                  AppLocalizations.of(context)!.search_location,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Colors.grey, fontSize: 16),
                 ),
@@ -381,7 +381,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         ),
         child: IconButton(
           visualDensity: VisualDensity.compact,
-          tooltip: 'Undo',
+          tooltip: AppLocalizations.of(context)!.undo,
           icon: FaIcon(
             FontAwesomeIcons.arrowRotateLeft,
             size: 18,
@@ -408,7 +408,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         ),
         child: IconButton(
           visualDensity: VisualDensity.compact,
-          tooltip: 'Redo',
+          tooltip: AppLocalizations.of(context)!.redo,
           icon: FaIcon(
             FontAwesomeIcons.arrowRotateRight,
             size: 18,

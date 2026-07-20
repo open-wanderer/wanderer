@@ -1465,6 +1465,264 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Categories control which trail types you see and in what order. Turn one off to hide it as a filter — your trails stay published, they just won\'t appear under that category. Tap a category to manage its subcategories individually.\n\nTo change the order, press and hold a row, then drag it to a new position. The order you set here is reflected everywhere categories are shown.'**
   String get settings_categories_reorder_hint;
+
+  /// No description provided for @something_went_wrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong'**
+  String get something_went_wrong;
+
+  /// No description provided for @technical_details.
+  ///
+  /// In en, this message translates to:
+  /// **'Technical Details'**
+  String get technical_details;
+
+  /// No description provided for @link.
+  ///
+  /// In en, this message translates to:
+  /// **'Link'**
+  String get link;
+
+  /// No description provided for @url.
+  ///
+  /// In en, this message translates to:
+  /// **'URL'**
+  String get url;
+
+  /// No description provided for @open_in_new_tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in new tab'**
+  String get open_in_new_tab;
+
+  /// No description provided for @remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get remove;
+
+  /// No description provided for @apply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get apply;
+
+  /// No description provided for @add_at_least_2_anchors_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least 2 anchors to see the elevation profile.'**
+  String get add_at_least_2_anchors_hint;
+
+  /// No description provided for @reverse_direction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reverse direction'**
+  String get reverse_direction;
+
+  /// No description provided for @delete_all.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all'**
+  String get delete_all;
+
+  /// No description provided for @auto_routing.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-routing'**
+  String get auto_routing;
+
+  /// No description provided for @auto_routing_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically follow roads and paths between anchors.'**
+  String get auto_routing_hint;
+
+  /// No description provided for @travel_profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Travel profile'**
+  String get travel_profile;
+
+  /// No description provided for @no_track_data.
+  ///
+  /// In en, this message translates to:
+  /// **'No track data'**
+  String get no_track_data;
+
+  /// No description provided for @offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get offline;
+
+  /// No description provided for @available_offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Available offline'**
+  String get available_offline;
+
+  /// No description provided for @no_lists_found.
+  ///
+  /// In en, this message translates to:
+  /// **'No lists found'**
+  String get no_lists_found;
+
+  /// No description provided for @search_lists.
+  ///
+  /// In en, this message translates to:
+  /// **'Search lists…'**
+  String get search_lists;
+
+  /// No description provided for @search_for_a_location.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for a location'**
+  String get search_for_a_location;
+
+  /// No description provided for @no_results_for_query.
+  ///
+  /// In en, this message translates to:
+  /// **'No results for \"{query}\"'**
+  String no_results_for_query(Object query);
+
+  /// No description provided for @filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get filter;
+
+  /// No description provided for @no_label_yet.
+  ///
+  /// In en, this message translates to:
+  /// **'No {label} yet.'**
+  String no_label_yet(Object label);
+
+  /// No description provided for @no_lists_yet.
+  ///
+  /// In en, this message translates to:
+  /// **'No lists yet.'**
+  String get no_lists_yet;
+
+  /// No description provided for @no_bio_yet.
+  ///
+  /// In en, this message translates to:
+  /// **'No bio yet.'**
+  String get no_bio_yet;
+
+  /// No description provided for @feed.
+  ///
+  /// In en, this message translates to:
+  /// **'Feed'**
+  String get feed;
+
+  /// No description provided for @no_trails_yet.
+  ///
+  /// In en, this message translates to:
+  /// **'No trails yet.'**
+  String get no_trails_yet;
+
+  /// No description provided for @search_location.
+  ///
+  /// In en, this message translates to:
+  /// **'Search location'**
+  String get search_location;
+
+  /// No description provided for @no_servers_match_query.
+  ///
+  /// In en, this message translates to:
+  /// **'No servers match \"{query}\"'**
+  String no_servers_match_query(Object query);
+
+  /// No description provided for @use_custom_url_instead.
+  ///
+  /// In en, this message translates to:
+  /// **'Use custom URL instead'**
+  String get use_custom_url_instead;
+
+  /// No description provided for @select_instance.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Instance'**
+  String get select_instance;
+
+  /// No description provided for @enter_server_url_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter server URL (e.g. wanderer.to)'**
+  String get enter_server_url_hint;
+
+  /// No description provided for @search_library.
+  ///
+  /// In en, this message translates to:
+  /// **'Search library…'**
+  String get search_library;
+
+  /// No description provided for @language_and_units.
+  ///
+  /// In en, this message translates to:
+  /// **'{language} & {units}'**
+  String language_and_units(Object language, Object units);
+
+  /// No description provided for @edit_route.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit route'**
+  String get edit_route;
+
+  /// No description provided for @undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get undo;
+
+  /// No description provided for @redo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get redo;
+
+  /// No description provided for @bold.
+  ///
+  /// In en, this message translates to:
+  /// **'Bold'**
+  String get bold;
+
+  /// No description provided for @italic.
+  ///
+  /// In en, this message translates to:
+  /// **'Italic'**
+  String get italic;
+
+  /// No description provided for @underline.
+  ///
+  /// In en, this message translates to:
+  /// **'Underline'**
+  String get underline;
+
+  /// No description provided for @bullet_list.
+  ///
+  /// In en, this message translates to:
+  /// **'Bullet list'**
+  String get bullet_list;
+
+  /// No description provided for @ordered_list.
+  ///
+  /// In en, this message translates to:
+  /// **'Ordered list'**
+  String get ordered_list;
+
+  /// No description provided for @blockquote.
+  ///
+  /// In en, this message translates to:
+  /// **'Blockquote'**
+  String get blockquote;
+
+  /// No description provided for @library.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get library;
 }
 
 class _AppLocalizationsDelegate

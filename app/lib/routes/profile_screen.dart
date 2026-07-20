@@ -279,7 +279,10 @@ class _BioSectionState extends State<_BioSection> {
     if (summary == null || summary.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: Text('No bio yet.', style: TextStyle(color: Colors.grey[600])),
+        child: Text(
+          AppLocalizations.of(context)!.no_bio_yet,
+          style: TextStyle(color: Colors.grey[600]),
+        ),
       );
     }
 
@@ -384,7 +387,7 @@ class _FeedSection extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(
-                'Feed',
+                AppLocalizations.of(context)!.feed,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,

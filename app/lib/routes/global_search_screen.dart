@@ -205,7 +205,7 @@ class _ResultsList extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'No results for "${state.query}"',
+              l10n.no_results_for_query(state.query),
               style: TextStyle(color: Colors.grey.shade500),
             ),
           ],

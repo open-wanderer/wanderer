@@ -106,7 +106,10 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text('No lists yet.', style: TextStyle(color: Colors.grey[600])),
+      child: Text(
+        AppLocalizations.of(context)!.no_lists_yet,
+        style: TextStyle(color: Colors.grey[600]),
+      ),
     );
   }
 }

@@ -68,7 +68,7 @@ class SettingsLanguageScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: Text("${l10n.language} & ${l10n.units}"),
+        title: Text(l10n.language_and_units(l10n.language, l10n.units)),
       ),
       body: ListView(
         children: [

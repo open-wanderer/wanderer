@@ -168,7 +168,7 @@ class _EmptyState extends StatelessWidget {
     final label = type == 'following' ? l.following : l.followers;
     return Center(
       child: Text(
-        'No $label yet.',
+        l.no_label_yet(label),
         style: TextStyle(color: Colors.grey[600]),
       ),
     );

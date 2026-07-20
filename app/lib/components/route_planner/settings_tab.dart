@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
@@ -27,6 +28,7 @@ class SettingsTab extends ConsumerWidget {
       state.costingOptions,
     );
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return SingleChildScrollView(
       controller: scrollController,
@@ -36,16 +38,14 @@ class SettingsTab extends ConsumerWidget {
         children: [
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Auto-routing'),
-            subtitle: const Text(
-              'Automatically follow roads and paths between anchors.',
-            ),
+            title: Text(l10n.auto_routing),
+            subtitle: Text(l10n.auto_routing_hint),
             value: state.autoRoutingEnabled,
             onChanged: (_) => notifier.toggleAutoRouting(),
           ),
           const SizedBox(height: 8),
           Text(
-            'Travel profile',
+            l10n.travel_profile,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),

@@ -770,4 +770,143 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get settings_categories_reorder_hint =>
       'Categories control which trail types you see and in what order. Turn one off to hide it as a filter — your trails stay published, they just won\'t appear under that category. Tap a category to manage its subcategories individually.\n\nTo change the order, press and hold a row, then drag it to a new position. The order you set here is reflected everywhere categories are shown.';
+
+  @override
+  String get something_went_wrong => 'Something went wrong';
+
+  @override
+  String get technical_details => 'Technical Details';
+
+  @override
+  String get link => 'Link';
+
+  @override
+  String get url => 'URL';
+
+  @override
+  String get open_in_new_tab => 'Otwórz w nowej zakładce';
+
+  @override
+  String get remove => 'Remove';
+
+  @override
+  String get apply => 'Apply';
+
+  @override
+  String get add_at_least_2_anchors_hint =>
+      'Add at least 2 anchors to see the elevation profile.';
+
+  @override
+  String get reverse_direction => 'Odwróć kierunek';
+
+  @override
+  String get delete_all => 'Delete all';
+
+  @override
+  String get auto_routing => 'Auto-routing';
+
+  @override
+  String get auto_routing_hint =>
+      'Automatically follow roads and paths between anchors.';
+
+  @override
+  String get travel_profile => 'Travel profile';
+
+  @override
+  String get no_track_data => 'No track data';
+
+  @override
+  String get offline => 'Offline';
+
+  @override
+  String get available_offline => 'Available offline';
+
+  @override
+  String get no_lists_found => 'No lists found';
+
+  @override
+  String get search_lists => 'Search lists…';
+
+  @override
+  String get search_for_a_location => 'Search for a location';
+
+  @override
+  String no_results_for_query(Object query) {
+    return 'No results for \"$query\"';
+  }
+
+  @override
+  String get filter => 'Filter';
+
+  @override
+  String no_label_yet(Object label) {
+    return 'No $label yet.';
+  }
+
+  @override
+  String get no_lists_yet => 'No lists yet.';
+
+  @override
+  String get no_bio_yet => 'No bio yet.';
+
+  @override
+  String get feed => 'Feed';
+
+  @override
+  String get no_trails_yet => 'No trails yet.';
+
+  @override
+  String get search_location => 'Search location';
+
+  @override
+  String no_servers_match_query(Object query) {
+    return 'No servers match \"$query\"';
+  }
+
+  @override
+  String get use_custom_url_instead => 'Use custom URL instead';
+
+  @override
+  String get select_instance => 'Select Instance';
+
+  @override
+  String get enter_server_url_hint => 'Enter server URL (e.g. wanderer.to)';
+
+  @override
+  String get search_library => 'Search library…';
+
+  @override
+  String language_and_units(Object language, Object units) {
+    return '$language & $units';
+  }
+
+  @override
+  String get edit_route => 'Edytuj trasę';
+
+  @override
+  String get undo => 'Undo';
+
+  @override
+  String get redo => 'Redo';
+
+  @override
+  String get bold => 'Bold';
+
+  @override
+  String get italic => 'Italic';
+
+  @override
+  String get underline => 'Underline';
+
+  @override
+  String get bullet_list => 'Bullet list';
+
+  @override
+  String get ordered_list => 'Ordered list';
+
+  @override
+  String get blockquote => 'Blockquote';
+
+  @override
+  String get library => 'Library';
 }

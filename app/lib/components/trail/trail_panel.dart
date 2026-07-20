@@ -98,7 +98,7 @@ class TrailPanel extends ConsumerWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'Offline',
+                                l18n.offline,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -134,7 +134,7 @@ class TrailPanel extends ConsumerWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'Available offline',
+                                l18n.available_offline,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
