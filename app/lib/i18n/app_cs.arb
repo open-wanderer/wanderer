@@ -20,6 +20,14 @@
   "cancel": "Zrušit",
   "car": "Auto",
   "card": "{n, plural, =1 {Karta} few {Karty} other {Karet}}",
+  "@card": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of cards to pluralize the label for"
+      }
+    }
+  },
   "categories": "Kategorie",
   "category": "Kategorie",
   "change_email": "Změnit e-mail",
@@ -27,6 +35,14 @@
   "clear_all": "Vymazat vše",
   "close": "Zavřít",
   "comment": "{n, plural, =1 {Komentář} few {Komentáře} other {Komentářů}}",
+  "@comment": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of comments to pluralize the label for"
+      }
+    }
+  },
   "completed": "Dokončeno",
   "completion_status": "Stav dokončení",
   "confirm_deletion": "Potvrdit odstranění",
@@ -99,6 +115,14 @@
   "liked": "Líbilo se",
   "likes": "Líbí se",
   "list": "{n, plural, =1 {Seznam} few {Seznamy} other {Seznamů}}",
+  "@list": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of lists to pluralize the label for"
+      }
+    }
+  },
   "location": "Poloha",
   "locations": "Locations",
   "center_on_my_location": "Center on my location",
@@ -115,6 +139,13 @@
   "mountain": "Hora",
   "my_account": "Můj účet",
   "in_distance": "in {distance}",
+  "@in_distance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
   "name": "Název",
   "navigate": "Navigate",
   "near": "Poblíž",
@@ -143,6 +174,14 @@
   "passwords_must_match": "Hesla se musí shodovat",
   "photos": "Fotografie a videa",
   "photos_skipped_no_gps": "{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}",
+  "@photos_skipped_no_gps": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos skipped because they had no GPS data"
+      }
+    }
+  },
   "print": "Vytisknout",
   "privacy": "Soukromí",
   "private": "Soukromé",
@@ -156,9 +195,24 @@
   "reset": "Obnovit",
   "resume": "Resume",
   "resume_navigation_prompt": "Resume navigation on {trail}?",
+  "@resume_navigation_prompt": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
   "resume_recording_prompt": "Obnovit nahrávání?",
   "road": "Silnice",
   "route": "{n, plural, =1 {Trasa} few {Trasy} other {Tras}}",
+  "@route": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of routes to pluralize the label for"
+      }
+    }
+  },
   "save": "Uložit",
   "save_track": "Save track",
   "search": "Search",
@@ -191,6 +245,9 @@
   "speed": "Rychlost",
   "start": "Start",
   "subcategories": "Podkategorie",
+  "@subcategories": {
+    "description": "Label for the subcategories filter section"
+  },
   "summit_book": "Vrcholová kniha",
   "table": "Stůl",
   "tags": "Štítky",
@@ -201,6 +258,14 @@
   "time": "Time",
   "time_in_motion": "Time in Motion",
   "trail": "{n, plural, =1 {Trasa} few {Trasy} other {Tras}}",
+  "@trail": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of trails to pluralize the label for"
+      }
+    }
+  },
   "trail_saved_successfully": "Trasa úspěšně uložena",
   "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
   "units": "Jednotky",
@@ -212,6 +277,14 @@
   "water": "Voda",
   "web": "Web",
   "waypoints": "{n, plural, =1 {Bod trasy} few {Body trasy} other {Bodů trasy}}",
+  "@waypoints": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of waypoints to pluralize the label for"
+      }
+    }
+  },
   "welcome_to": "Welcome to",
   "width": "Šířka",
   "wrong_username_or_password": "Nesprávné uživatelské jméno nebo heslo",
@@ -219,6 +292,13 @@
   "settings_categories_confirm_disable_title": "Hide this category?",
   "settings_categories_confirm_disable_subcategory_title": "Hide this subcategory?",
   "settings_categories_confirm_disable_body": "{count} of your trails use this category. They will stay published but this filter will be hidden.",
+  "@settings_categories_confirm_disable_body": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settings_categories_confirm_view_trails": "View trails",
   "settings_categories_confirm_disable_confirm": "Disable anyway",
   "settings_categories_empty_title": "No subcategories",
@@ -244,19 +324,55 @@
   "search_lists": "Search lists…",
   "search_for_a_location": "Search for a location",
   "no_results_for_query": "No results for \"{query}\"",
+  "@no_results_for_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back in the empty-results message"
+      }
+    }
+  },
   "filter": "Filter",
   "no_label_yet": "No {label} yet.",
+  "@no_label_yet": {
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "description": "The already-localized noun describing what's missing, e.g. 'followers' or 'following'"
+      }
+    }
+  },
   "no_lists_yet": "No lists yet.",
   "no_bio_yet": "No bio yet.",
   "feed": "Feed",
   "no_trails_yet": "No trails yet.",
   "search_location": "Search location",
   "no_servers_match_query": "No servers match \"{query}\"",
+  "@no_servers_match_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back when no server instances match"
+      }
+    }
+  },
   "use_custom_url_instead": "Use custom URL instead",
   "select_instance": "Select Instance",
   "enter_server_url_hint": "Enter server URL (e.g. wanderer.to)",
   "search_library": "Search library…",
   "language_and_units": "{language} & {units}",
+  "@language_and_units": {
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "description": "The already-localized name of the selected display language"
+      },
+      "units": {
+        "type": "String",
+        "description": "The already-localized name of the selected measurement units (e.g. metric or imperial)"
+      }
+    }
+  },
   "edit_route": "Upravit trasu",
   "undo": "Undo",
   "redo": "Redo",
