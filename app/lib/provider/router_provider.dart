@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart';
@@ -45,6 +46,7 @@ import 'package:wanderer/routes/trail_source_select_screen.dart';
 import 'package:wanderer/routes/trail_sort_screen.dart';
 import 'package:wanderer/routes/waypoint_create_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
+import 'package:wanderer/util/polyline_util.dart';
 import 'package:wanderer/util/trail_import_util.dart';
 
 part 'router_provider.g.dart';
@@ -289,7 +291,14 @@ class Router extends _$Router {
                     lat: extra['lat'] as double,
                     lon: extra['lon'] as double,
                   )
-                : null;
+                // A resumed session has no fresh GPS fix yet either (that's
+                // still pending, same as a brand-new recording) — center on
+                // its last known breadcrumb point instead of falling all the
+                // way through to Geographic(0, 0).
+                : (resume?.breadcrumbPolyline != null
+                      ? PolylineUtil.decode(resume!.breadcrumbPolyline!)
+                            .lastOrNull
+                      : null);
             return NavigationScreen(
               id: '',
               response: const NavigateResponse(maneuvers: [], shape: []),
