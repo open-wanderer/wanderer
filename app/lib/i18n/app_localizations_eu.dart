@@ -1089,6 +1089,9 @@ class AppLocalizationsEu extends AppLocalizations {
   String get no_routes_added => 'Ez da ibilaldirik gehitu';
 
   @override
+  String get no_trails_found => 'No trails found';
+
+  @override
   String get no_waypoints_yet => 'Ez dago bidepunturik';
 
   @override

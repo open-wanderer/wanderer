@@ -1092,6 +1092,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get no_routes_added => 'Nebyly přidány žádné trasy';
 
   @override
+  String get no_trails_found => 'No trails found';
+
+  @override
   String get no_waypoints_yet => 'Zatím žádné body trasy';
 
   @override

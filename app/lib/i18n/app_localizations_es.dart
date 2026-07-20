@@ -1089,6 +1089,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get no_routes_added => 'Ninguna ruta añadida';
 
   @override
+  String get no_trails_found => 'No trails found';
+
+  @override
   String get no_waypoints_yet => 'No Puntos de Interés todavía';
 
   @override

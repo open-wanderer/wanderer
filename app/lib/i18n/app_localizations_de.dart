@@ -1087,6 +1087,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get no_routes_added => 'Keine Routen hinzugefügt';
 
   @override
+  String get no_trails_found => 'No trails found';
+
+  @override
   String get no_waypoints_yet => 'Noch keine Wegpunkte';
 
   @override

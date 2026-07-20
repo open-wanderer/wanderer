@@ -2060,6 +2060,12 @@ abstract class AppLocalizations {
   /// **'No routes added'**
   String get no_routes_added;
 
+  /// No description provided for @no_trails_found.
+  ///
+  /// In en, this message translates to:
+  /// **'No trails found'**
+  String get no_trails_found;
+
   /// No description provided for @no_waypoints_yet.
   ///
   /// In en, this message translates to:
