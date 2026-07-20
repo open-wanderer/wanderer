@@ -15,7 +15,6 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
@@ -56,6 +55,19 @@
                 <data android:mimeType="application/xml"/>
                 <data android:mimeType="text/xml"/>
                 <data android:mimeType="application/octet-stream"/>
+            </intent-filter>
+        </activity>
+        <!-- Callback activity for flutter_web_auth_2: catches the OAuth
+             redirect relayed from the web app's /login/redirect page via the
+             wanderer:// custom scheme. -->
+        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true">
+            <intent-filter android:label="wanderer_oauth_callback">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="wanderer"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

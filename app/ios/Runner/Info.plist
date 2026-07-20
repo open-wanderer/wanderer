@@ -94,6 +94,16 @@
 				<string>ShareMedia-$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 			</array>
 		</dict>
+		<!-- Callback scheme for flutter_web_auth_2: catches the OAuth redirect
+		     relayed from the web app's /login/redirect page. -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>wanderer</string>
+			</array>
+		</dict>
 	</array>
 	<!-- Offer Wanderer as an "Open in" target for trail files. -->
 	<key>CFBundleDocumentTypes</key>

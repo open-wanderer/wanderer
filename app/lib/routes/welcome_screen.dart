@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:wanderer/components/base/wanderer_button.dart';
+import 'package:wanderer/components/welcome/oauth_provider_buttons.dart';
 import 'package:wanderer/components/welcome/server_selctor.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/router_provider.dart';
 import 'package:wanderer/provider/welcome/server_selection_provider.dart';
 
@@ -13,6 +15,7 @@ class WelcomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final serverSelection = ref.watch(serverSelectionProvider);
+    final authState = ref.watch(authProvider);
 
     final router = ref.watch(routerProvider);
 
@@ -48,18 +51,26 @@ class WelcomeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   WandererButton(
-                    onPressed: () => {router.push('/login')},
+                    onPressed: authState.isLoading
+                        ? null
+                        : () => {router.push('/login')},
                     primary: true,
                     disabled: serverSelection.value?.selectedServer == null,
                     child: Text(AppLocalizations.of(context)!.login),
                   ),
                   const SizedBox(height: 12),
                   WandererButton(
-                    onPressed: () => {router.push('/register')},
+                    onPressed: authState.isLoading
+                        ? null
+                        : () => {router.push('/register')},
                     secondary: true,
                     disabled: serverSelection.value?.selectedServer == null,
                     child: Text(AppLocalizations.of(context)!.register),
                   ),
+                  if (serverSelection.value?.selectedServer != null)
+                    OAuthProviderButtons(
+                      serverUrl: serverSelection.value!.selectedServer!.url,
+                    ),
                 ],
               ),
               const SizedBox(height: 32),

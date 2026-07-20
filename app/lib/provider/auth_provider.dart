@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/auth_response.dart';
+import 'package:wanderer/models/oauth_provider.dart';
 import 'package:wanderer/models/user.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
@@ -12,6 +14,22 @@ import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 
 part 'auth_provider.g.dart';
+
+/// The custom URL scheme registered natively (Android intent-filter, iOS
+/// CFBundleURLSchemes) to receive the OAuth callback relayed by the web app's
+/// `/login/redirect` page. Must match [OAuthProvider.url]'s redirect_uri host
+/// registered with each OAuth provider — see login/+page.svelte redirect page.
+const _oauthCallbackScheme = "wanderer";
+
+/// Appended to the PocketBase-generated `state` value before opening the
+/// authorization URL, so `/login/redirect` can tell an app-originated flow
+/// apart from a plain web login by looking at the state value itself, rather
+/// than inferring it from the absence of web-only signals (localStorage),
+/// which browsers can also legitimately lack. PocketBase's OAuth2 code
+/// exchange never inspects `state` server-side — it's a purely client-side
+/// CSRF check — so it's safe to tag. Keep in sync with the identical
+/// constant in login/redirect/+page.svelte.
+const _oauthAppStateMarker = ".wanderer-app";
 
 @Riverpod(keepAlive: true)
 class Auth extends _$Auth {
@@ -126,6 +144,67 @@ class Auth extends _$Auth {
       // Fetch user data with expanded actor
       final userEntity = await _updateUserEntity(authData.record.id);
       return userEntity;
+    });
+    return state.value;
+  }
+
+  Future<UserEntity?> loginWithOAuth(OAuthProvider provider) async {
+    state = const AsyncLoading();
+
+    state = await AsyncValue.guard(() async {
+      final authUrl = Uri.parse(provider.url);
+      final launchUrl = authUrl.replace(
+        queryParameters: {
+          ...authUrl.queryParameters,
+          'state': '${provider.state}$_oauthAppStateMarker',
+        },
+      );
+
+      final callbackUrl = await FlutterWebAuth2.authenticate(
+        url: launchUrl.toString(),
+        callbackUrlScheme: _oauthCallbackScheme,
+        // Also activates flutter_web_auth_2's browser-compatibility check for
+        // Chrome's Auth Tab feature (unsupported by most non-Chrome browsers,
+        // e.g. Firefox): without this, it unconditionally opts into Auth Tab,
+        // which can race the OAuth redirect and report a spurious cancel.
+        options: const FlutterWebAuth2Options(),
+      );
+
+      final callback = Uri.parse(callbackUrl);
+      final oauthError = callback.queryParameters['error'];
+      if (oauthError != null) {
+        throw Exception(
+          callback.queryParameters['error_description'] ?? oauthError,
+        );
+      }
+
+      final code = callback.queryParameters['code'];
+      final rawState = callback.queryParameters['state'];
+      final oauthState = rawState?.endsWith(_oauthAppStateMarker) == true
+          ? rawState!.substring(
+              0,
+              rawState.length - _oauthAppStateMarker.length,
+            )
+          : rawState;
+      if (code == null || oauthState == null || oauthState != provider.state) {
+        throw Exception(
+          "OAuth provider response did not match the requested login.",
+        );
+      }
+
+      final exchangeResponse = await ref
+          .read(apiProvider)
+          .post(
+            '/auth/oauth',
+            data: {
+              'name': provider.name,
+              'code': code,
+              'codeVerifier': provider.codeVerifier,
+            },
+          );
+      final authData = AuthResponse.fromJson(exchangeResponse.data);
+
+      return await _updateUserEntity(authData.record.id);
     });
     return state.value;
   }

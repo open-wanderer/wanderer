@@ -195,7 +195,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
       child: Text(
         text,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: Theme.of(context).colorScheme.onPrimaryContainer,
+          color: Theme.of(context).colorScheme.onSurface,
           fontSize: 10,
         ),
       ),

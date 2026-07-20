@@ -62,56 +62,58 @@ class LoginScreen extends ConsumerWidget {
           child: FormBuilder(
             key: _formKey,
             autovalidateMode: AutovalidateMode.onUnfocus,
-            child: Column(
-              spacing: 12,
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SvgPicture.asset(
-                  "assets/svgs/logo_text_twoline_${Theme.of(context).brightness.name}.svg",
-                  semanticsLabel: 'wanderer logo with text',
-                ),
-                Text(
-                  AppLocalizations.of(context)!.slogan,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                SizedBox(height: 12),
-
-                ServerSelector(icon: FontAwesomeIcons.pencil),
-                WandererTextField(
-                  name: 'username',
-                  label:
-                      "${AppLocalizations.of(context)!.username}/${AppLocalizations.of(context)!.email}",
-                  validator: FormBuilderValidators.required(),
-                ),
-                WandererTextField(
-                  name: 'password',
-                  label: AppLocalizations.of(context)!.password,
-                  isPassword: true,
-                  validator: FormBuilderValidators.compose([
-                    FormBuilderValidators.required(),
-                    FormBuilderValidators.minLength(8),
-                  ]),
-                ),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: WandererButton(
-                    primary: true,
-                    large: true,
-                    loading: loginState.isLoading,
-                    child: Text(AppLocalizations.of(context)!.login),
-                    onPressed: () async {
-                      if (_formKey.currentState?.saveAndValidate() ?? false) {
-                        final data = _formKey.currentState!.value;
-                        ref
-                            .read(authProvider.notifier)
-                            .login(data['username'], data['password']);
-                      }
-                    },
+            child: SingleChildScrollView(
+              child: Column(
+                spacing: 12,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SvgPicture.asset(
+                    "assets/svgs/logo_text_twoline_${Theme.of(context).brightness.name}.svg",
+                    semanticsLabel: 'wanderer logo with text',
                   ),
-                ),
-              ],
+                  Text(
+                    AppLocalizations.of(context)!.slogan,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  SizedBox(height: 12),
+
+                  ServerSelector(icon: FontAwesomeIcons.pencil),
+                  WandererTextField(
+                    name: 'username',
+                    label:
+                        "${AppLocalizations.of(context)!.username}/${AppLocalizations.of(context)!.email}",
+                    validator: FormBuilderValidators.required(),
+                  ),
+                  WandererTextField(
+                    name: 'password',
+                    label: AppLocalizations.of(context)!.password,
+                    isPassword: true,
+                    validator: FormBuilderValidators.compose([
+                      FormBuilderValidators.required(),
+                      FormBuilderValidators.minLength(8),
+                    ]),
+                  ),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: WandererButton(
+                      primary: true,
+                      large: true,
+                      loading: loginState.isLoading,
+                      child: Text(AppLocalizations.of(context)!.login),
+                      onPressed: () async {
+                        if (_formKey.currentState?.saveAndValidate() ?? false) {
+                          final data = _formKey.currentState!.value;
+                          ref
+                              .read(authProvider.notifier)
+                              .login(data['username'], data['password']);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

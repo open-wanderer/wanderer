@@ -26,6 +26,7 @@ dependencies:
   flutter_riverpod: ^3.3.1
   flutter_rotation_sensor: ^0.2.0
   flutter_svg: ^2.2.4
+  flutter_web_auth_2: ^5.0.3
   font_awesome_flutter: ^11.0.0
   form_builder_validators: ^11.3.0
   freezed_annotation: ^3.1.0
