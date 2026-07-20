@@ -11,8 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Verify head branch is a release branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          HEAD_REF="${{ github.head_ref }}"
           if [[ "$HEAD_REF" == release/v* ]]; then
             echo "OK: $HEAD_REF is allowed to merge into main"
           else
