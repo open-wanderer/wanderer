@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -21,11 +22,26 @@ class TrailDownloadService {
   static const _pollInterval = Duration(seconds: 3);
   static const _pollTimeout = Duration(minutes: 3);
 
+  // Progress is tracked in fractional "points" per unit (photo or cell) so a
+  // download can report smooth incremental movement instead of jumping in
+  // whole-unit steps. Reserved purely for the *downloading* phase — the
+  // (opaque, server-side) tile-generation wait is reported separately via
+  // `onGeneratingChanged`, since the server exposes no generation percentage,
+  // only new/pending/ready/error.
+  static const _pointsPerUnit = 1000;
+
+  // When a download's response has no `Content-Length` header, Dio can't
+  // report real byte progress. In that case we fake a plausible climb (capped
+  // below 100%) over this assumed duration so the bar keeps moving instead of
+  // freezing, then jump to 100% the instant the download actually completes.
+  static const _fakeDownloadDuration = Duration(seconds: 5);
+
   TrailDownloadService(this._store, this._api);
 
   Future<void> downloadTrail(
     Trail trail, {
     CancelToken? cancelToken,
+    void Function(bool isGenerating)? onGeneratingChanged,
     void Function(int done, int total)? onProgress,
   }) async {
     final box = _store.box<TrailEntity>();
@@ -60,23 +76,37 @@ class TrailDownloadService {
       ));
     }
 
-    // Progress counts photos and tile cells together. The photo total is known
-    // now; the cell total only after `_fetchCellList` returns. `report()`
-    // no-ops until the cell total is known (that brief window shows the seeded
-    // indeterminate "Preparing download…"), then emits a combined count so the
-    // bar only reaches 100% right before the entity is persisted — never a
-    // misleading "100% but tiles/photos still running" state.
+    // Download progress counts photos and tile-file downloads together, in
+    // fractional points per unit, so the bar animates smoothly rather than in
+    // big whole-unit jumps. It's suppressed (via `isGenerating`) for the
+    // entire time any cell is still being generated on the server — that
+    // phase has no measurable progress, so it's reported as a separate
+    // indeterminate signal instead of a fake percentage. Once generation
+    // finishes (or was never needed), accumulated progress is flushed and the
+    // bar takes over for the remaining, genuinely trackable download work.
     final photoTotal = trailPhotoUrls.length +
         waypointPhotoJobs.fold<int>(0, (sum, job) => sum + job.$3.length);
-    var done = 0;
-    int? cellTotal;
+    var currentPoints = 0;
+    int? totalPoints;
+    var isGenerating = false;
     void report() {
-      if (cellTotal == null) return;
-      onProgress?.call(done, cellTotal! + photoTotal);
+      if (totalPoints == null || isGenerating) return;
+      onProgress?.call(currentPoints, totalPoints!);
     }
 
-    void onUnit() {
-      done++;
+    void handleGeneratingChanged(bool generating) {
+      isGenerating = generating;
+      if (!generating) report();
+      onGeneratingChanged?.call(generating);
+    }
+
+    void onPhotoPointsDelta(int delta) {
+      currentPoints += delta;
+      report();
+    }
+
+    void onCellPointsDelta(int delta) {
+      currentPoints += delta;
       report();
     }
 
@@ -95,11 +125,12 @@ class TrailDownloadService {
           trail,
           trailDir,
           cancelToken: cancelToken,
-          onCellTotal: (total) {
-            cellTotal = total;
+          onCellTotal: (cellCount) {
+            totalPoints = (cellCount + photoTotal) * _pointsPerUnit;
             report();
           },
-          onCellDone: onUnit,
+          onGeneratingChanged: handleGeneratingChanged,
+          onCellPointsDelta: onCellPointsDelta,
         );
       }(),
       () async {
@@ -107,14 +138,14 @@ class TrailDownloadService {
           trailPhotoUrls,
           trailDir,
           cancelToken: cancelToken,
-          onPhotoDone: onUnit,
+          onPhotoPointsDelta: onPhotoPointsDelta,
         );
       }(),
       () async {
         waypointLocalPhotos = await _downloadWaypointPhotos(
           waypointPhotoJobs,
           cancelToken: cancelToken,
-          onPhotoDone: onUnit,
+          onPhotoPointsDelta: onPhotoPointsDelta,
         );
       }(),
     ];
@@ -185,7 +216,8 @@ class TrailDownloadService {
     Directory trailDir, {
     CancelToken? cancelToken,
     void Function(int total)? onCellTotal,
-    void Function()? onCellDone,
+    void Function(bool isGenerating)? onGeneratingChanged,
+    void Function(int delta)? onCellPointsDelta,
   }) async {
     final LngLatBounds bounds = trail.bounds;
 
@@ -205,19 +237,45 @@ class TrailDownloadService {
 
     onCellTotal?.call(infoList.cells.length);
 
-    // Downloads run concurrently; each task reports as it finishes. A plain
-    // counter incremented from these async tails is race-free (single-threaded
-    // event loop) and strictly monotonic.
+    // Aggregate "is any cell still waiting on server-side generation" across
+    // all cells running concurrently below, so the caller can show a single
+    // indeterminate "Generating map tiles" signal for as long as at least one
+    // cell isn't ready yet, and switch to real download progress once none
+    // are (including the common case where nothing needed generating at all).
+    var waitingForGeneration = 0;
+    void enterWaiting() {
+      waitingForGeneration++;
+      onGeneratingChanged?.call(true);
+    }
+
+    void exitWaiting() {
+      waitingForGeneration--;
+      if (waitingForGeneration == 0) onGeneratingChanged?.call(false);
+    }
+
+    // Downloads run concurrently; each task reports its own cumulative points
+    // as they increase. `reported` tracks this cell's own last-reported value
+    // so only the delta (never negative) is forwarded — safe to sum across
+    // concurrently running cells since each cell only ever reports its own
+    // monotonic progress.
     final downloadTasks = infoList.cells.map((cell) async {
       final key = cell.key;
       final localPath = '${tilesDir.path}/$key.pmtiles';
       final demLocalPath = '${tilesDir.path}/${key}_dem.pmtiles';
 
+      var reported = 0;
+      void reportPoints(int points) {
+        final clamped = points.clamp(0, _pointsPerUnit);
+        if (clamped <= reported) return;
+        onCellPointsDelta?.call(clamped - reported);
+        reported = clamped;
+      }
+
       final vectorCached = await File(localPath).exists();
       final demCached = await File(demLocalPath).exists();
 
       if (vectorCached && demCached) {
-        onCellDone?.call();
+        reportPoints(_pointsPerUnit);
         return (localPath, demLocalPath);
       }
 
@@ -233,29 +291,49 @@ class TrailDownloadService {
           readyCell = MapCellStatusResponse.fromJson(requestRes.data!);
 
           if (readyCell.status != MapCellStatus.ready) {
-            readyCell = await _pollUntilReady(
-              readyCell.statusUrl!,
-              key,
-              cancelToken,
-            );
+            enterWaiting();
+            try {
+              readyCell = await _pollUntilReady(
+                readyCell.statusUrl!,
+                key,
+                cancelToken,
+              );
+            } finally {
+              exitWaiting();
+            }
           }
         }
 
+        // Ready (whether confirmed instantly or via poll): only local file
+        // transfer remains, which is genuinely trackable — split the cell's
+        // full point budget between the vector and (optional) DEM download.
+        final wantsDem = !demCached && readyCell?.demDownloadUrl != null;
+        final vectorSlice = wantsDem
+            ? (_pointsPerUnit * 0.8).round()
+            : _pointsPerUnit;
+        final demSlice = _pointsPerUnit - vectorSlice;
+
         if (!vectorCached) {
-          await _api.download(
+          await _downloadTracked(
             readyCell!.downloadUrl!,
             localPath,
             cancelToken: cancelToken,
+            onFraction: (f) => reportPoints((f * vectorSlice).round()),
           );
         }
+        // Full credit for the vector slice regardless of path taken (already
+        // cached, or downloaded without a Content-Length header to track).
+        reportPoints(vectorSlice);
 
         String? demPath = demCached ? demLocalPath : null;
-        if (!demCached && readyCell?.demDownloadUrl != null) {
+        if (wantsDem) {
           try {
-            await _api.download(
+            await _downloadTracked(
               readyCell!.demDownloadUrl!,
               demLocalPath,
               cancelToken: cancelToken,
+              onFraction: (f) =>
+                  reportPoints(vectorSlice + (f * demSlice).round()),
             );
             demPath = demLocalPath;
           } catch (e) {
@@ -267,7 +345,8 @@ class TrailDownloadService {
           }
         }
 
-        onCellDone?.call();
+        reportPoints(_pointsPerUnit);
+
         return (localPath, demPath);
       } on DioException {
         if (await File(localPath).exists()) {
@@ -298,9 +377,9 @@ class TrailDownloadService {
 
   Future<MapCellStatusResponse> _pollUntilReady(
     String statusUrl,
-    String cellKey, [
+    String cellKey,
     CancelToken? cancelToken,
-  ]) async {
+  ) async {
     final deadline = DateTime.now().add(_pollTimeout);
 
     while (true) {
@@ -325,11 +404,52 @@ class TrailDownloadService {
     }
   }
 
+  /// Wraps a Dio `.download` call so progress is reported continuously even
+  /// when the response has no `Content-Length` header: real byte progress is
+  /// used when available, otherwise a timer fakes a plausible climb (capped
+  /// below 100%, see `_fakeDownloadDuration`) so the bar keeps moving. Either
+  /// way `onFraction(1.0)` fires exactly once, right when the download
+  /// actually completes.
+  Future<void> _downloadTracked(
+    String url,
+    String savePath, {
+    required CancelToken? cancelToken,
+    required void Function(double fraction) onFraction,
+  }) async {
+    var sawRealProgress = false;
+    final start = DateTime.now();
+    final fakeProgressTimer = Timer.periodic(
+      const Duration(milliseconds: 250),
+      (_) {
+        if (sawRealProgress) return;
+        final elapsed = DateTime.now().difference(start).inMilliseconds;
+        final fraction = elapsed / _fakeDownloadDuration.inMilliseconds;
+        onFraction(fraction.clamp(0.0, 0.9));
+      },
+    );
+
+    try {
+      await _api.download(
+        url,
+        savePath,
+        cancelToken: cancelToken,
+        onReceiveProgress: (received, total) {
+          if (total <= 0) return;
+          sawRealProgress = true;
+          onFraction((received / total).clamp(0.0, 1.0));
+        },
+      );
+      onFraction(1.0);
+    } finally {
+      fakeProgressTimer.cancel();
+    }
+  }
+
   Future<List<String>> _downloadPhotos(
     List<String> urls,
     Directory trailDir, {
     CancelToken? cancelToken,
-    void Function()? onPhotoDone,
+    void Function(int delta)? onPhotoPointsDelta,
   }) async {
     final photoDir = Directory('${trailDir.path}/photos');
     if (!await photoDir.exists()) {
@@ -337,16 +457,22 @@ class TrailDownloadService {
     }
 
     final downloadTasks = urls.map((url) async {
+      var reported = 0;
+      void reportPoints(int points) {
+        final clamped = points.clamp(0, _pointsPerUnit);
+        if (clamped <= reported) return;
+        onPhotoPointsDelta?.call(clamped - reported);
+        reported = clamped;
+      }
+
       try {
         final fileName = p.basename(Uri.parse(url).path);
         final savePath = '${photoDir.path}/$fileName';
-        await _api.download(
+        await _downloadTracked(
           url,
           savePath,
           cancelToken: cancelToken,
-          onReceiveProgress: (received, total) {
-            if (total != -1) {}
-          },
+          onFraction: (f) => reportPoints((f * _pointsPerUnit).round()),
         );
         return savePath;
       } on DioException catch (e) {
@@ -357,9 +483,9 @@ class TrailDownloadService {
         debugPrint('Failed to download photo $url: $e');
         return null;
       } finally {
-        // Count as done on success or best-effort failure, so the shared
-        // progress counter can't stall on a single dropped photo.
-        onPhotoDone?.call();
+        // Count as fully done on success or best-effort failure, so the
+        // shared progress counter can't stall on a single dropped photo.
+        reportPoints(_pointsPerUnit);
       }
     }).toList();
 
@@ -373,7 +499,7 @@ class TrailDownloadService {
   Future<Map<String, List<String>>> _downloadWaypointPhotos(
     List<(String, Directory, List<String>)> jobs, {
     CancelToken? cancelToken,
-    void Function()? onPhotoDone,
+    void Function(int delta)? onPhotoPointsDelta,
   }) async {
     final entries = await Future.wait(
       jobs.map((job) async {
@@ -382,7 +508,7 @@ class TrailDownloadService {
           urls,
           waypointDir,
           cancelToken: cancelToken,
-          onPhotoDone: onPhotoDone,
+          onPhotoPointsDelta: onPhotoPointsDelta,
         );
         return MapEntry(waypointId, paths);
       }),

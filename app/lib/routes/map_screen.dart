@@ -506,7 +506,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       FontAwesomeIcons.locationCrosshairs,
                       size: 18,
                     ),
-                    tooltip: AppLocalizations.of(context)!.center_on_my_location,
+                    tooltip: AppLocalizations.of(
+                      context,
+                    )!.center_on_my_location,
                     onPressed: position == null
                         ? null
                         : () {
@@ -526,32 +528,45 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ),
 
         if (_selectedTrail == null)
-          Positioned(
-            bottom: MediaQuery.of(context).size.height * sheetMinSize + 12,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: ScaleTransition(
-                scale: _searchAreaScale,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    _searchAreaController.reverse();
-                    final controller = _controller;
-                    if (controller == null) return;
-                    final bounds = controller.getVisibleRegion();
-                    final zoom = controller.getCamera().zoom;
-                    ref
-                        .read(mapClusterSearchProvider.notifier)
-                        .searchInBounds(bounds, zoom);
-                    ref
-                        .read(mapTrailSearchProvider.notifier)
-                        .searchInBounds(bounds);
-                  },
-                  icon: const FaIcon(FontAwesomeIcons.mapLocationDot, size: 14),
-                  label: Text(AppLocalizations.of(context)!.search_this_area),
+          ValueListenableBuilder(
+            valueListenable: _sheetSize,
+            builder: (context, sheetSize, child) {
+              final clampedSize = sheetSize < sheetMediumsize
+                  ? sheetSize
+                  : sheetMediumsize;
+              return Positioned(
+                bottom: MediaQuery.of(context).size.height * clampedSize + 12,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: ScaleTransition(
+                    scale: _searchAreaScale,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        _searchAreaController.reverse();
+                        final controller = _controller;
+                        if (controller == null) return;
+                        final bounds = controller.getVisibleRegion();
+                        final zoom = controller.getCamera().zoom;
+                        ref
+                            .read(mapClusterSearchProvider.notifier)
+                            .searchInBounds(bounds, zoom);
+                        ref
+                            .read(mapTrailSearchProvider.notifier)
+                            .searchInBounds(bounds);
+                      },
+                      icon: const FaIcon(
+                        FontAwesomeIcons.mapLocationDot,
+                        size: 14,
+                      ),
+                      label: Text(
+                        AppLocalizations.of(context)!.search_this_area,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
 
         Opacity(

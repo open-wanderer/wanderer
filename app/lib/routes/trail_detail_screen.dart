@@ -7,11 +7,7 @@ import 'package:wanderer/components/trail/like_button.dart';
 import 'package:wanderer/components/trail/trail_dropdown.dart';
 import 'package:wanderer/components/trail/trail_panel.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
-import 'package:wanderer/models/trail.dart';
-import 'package:wanderer/provider/download_notification_provider.dart';
-import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
-import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/provider/trail/trail_download_provider.dart';
+import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/navigation_launch_util.dart';
@@ -26,7 +22,6 @@ class TrailDetailScreen extends ConsumerStatefulWidget {
 
 class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
   bool _isLaunching = false;
-  bool _isDownloading = false;
   late final ScrollController _scrollController = ScrollController();
 
   double _appBarOpacity = 0.0;
@@ -72,6 +67,9 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         final availableOffline = ref
             .watch(trailLibraryProvider)
             .any((t) => t.id == trail.id);
+        final isDownloading = ref
+            .watch(downloadingTrailIdsProvider)
+            .contains(trail.id);
         return Scaffold(
           extendBodyBehindAppBar: true,
           appBar: AppBar(
@@ -125,10 +123,12 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
                       if (!availableOffline) ...[
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: _isDownloading
+                            onPressed: isDownloading
                                 ? null
-                                : () => _downloadTrail(context, ref, trail),
-                            icon: _isDownloading
+                                : () => ref
+                                    .read(downloadingTrailIdsProvider.notifier)
+                                    .download(trail),
+                            icon: isDownloading
                                 ? SizedBox(
                                     width: 18,
                                     height: 18,
@@ -189,50 +189,5 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         body: WandererError(err: err, stack: stack),
       ),
     );
-  }
-
-  void _downloadTrail(BuildContext context, WidgetRef ref, Trail trail) async {
-    setState(() => _isDownloading = true);
-
-    final trailDownloadService = ref.read(trailDownloadServiceProvider);
-    final notificationService = ref.read(downloadNotificationServiceProvider);
-
-    final toastNotifier = ref.read(toastProvider.notifier);
-
-    final glyphCacheWarm = ref.read(glyphSpriteCacheProvider.future);
-
-    await notificationService.showProgress(trail.name, 0, 0);
-
-    try {
-      await trailDownloadService.downloadTrail(
-        trail,
-        onProgress: (done, total) =>
-            notificationService.showProgress(trail.name, done, total),
-      );
-      await notificationService.showSuccess(trail.name);
-      ref.invalidate(trailLibraryProvider);
-      toastNotifier.add(
-        ToastMessage(
-          type: ToastType.success,
-          icon: FontAwesomeIcons.circleCheck,
-          text: 'Trail saved for offline use',
-        ),
-      );
-    } catch (e) {
-      await notificationService.showError(trail.name);
-      toastNotifier.add(
-        ToastMessage(
-          type: ToastType.error,
-          icon: FontAwesomeIcons.xmark,
-          text: 'Error saving trail',
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isDownloading = false);
-    }
-
-    try {
-      await glyphCacheWarm;
-    } catch (_) {}
   }
 }

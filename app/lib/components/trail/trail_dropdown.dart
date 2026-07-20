@@ -9,10 +9,8 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_share.dart';
 import 'package:wanderer/provider/auth_provider.dart';
-import 'package:wanderer/provider/download_notification_provider.dart';
-import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/provider/trail/trail_download_provider.dart';
+import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/profile/profile_trails_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
@@ -35,14 +33,15 @@ class TrailDropdown extends ConsumerStatefulWidget {
 }
 
 class _TrailDropdownState extends ConsumerState<TrailDropdown> {
-  bool _isDownloading = false;
-
   @override
   Widget build(BuildContext context) {
     final trail = widget.trail;
     final l18n = AppLocalizations.of(context)!;
 
-    final downloadEnabled = !widget.availableOffline && !_isDownloading;
+    final isDownloading = ref
+        .watch(downloadingTrailIdsProvider)
+        .contains(trail.id);
+    final downloadEnabled = !widget.availableOffline && !isDownloading;
     return PopupMenuButton<TrailAction>(
       offset: const Offset(0, 48),
       borderRadius: BorderRadius.all(Radius.circular(56)),
@@ -103,11 +102,12 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
         PopupMenuItem<TrailAction>(
           value: TrailAction.download,
           onTap: downloadEnabled
-              ? () => _downloadTrail(context, ref, trail)
+              ? () =>
+                    ref.read(downloadingTrailIdsProvider.notifier).download(trail)
               : null,
           enabled: downloadEnabled,
           child: ListTile(
-            leading: _isDownloading
+            leading: isDownloading
                 ? const SizedBox(
                     width: 18,
                     height: 18,
@@ -231,71 +231,6 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
       await launchUrl(nativeUrl);
     } else {
       await launchUrl(webUrl, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  void _downloadTrail(BuildContext context, WidgetRef ref, Trail trail) async {
-    setState(() => _isDownloading = true);
-
-    final trailDownloadService = ref.read(trailDownloadServiceProvider);
-    final notificationService = ref.read(downloadNotificationServiceProvider);
-    // Captured up front: this notifier is keepAlive, so it outlives the
-    // widget. Calling it later via the captured reference (instead of
-    // `ref.read` again) avoids touching WidgetRef after the widget is
-    // unmounted, which throws if the screen is closed mid-download.
-    final toastNotifier = ref.read(toastProvider.notifier);
-
-    // Trail download is a second, independent trigger for the shared
-    // app-wide glyph/sprite cache warm. Fire it concurrently with the trail
-    // download and await it separately (below) so a glyph-cache failure never
-    // fails or corrupts the trail entity write. Idempotent + keepAlive → a
-    // no-op if the map was already opened first.
-    final glyphCacheWarm = ref.read(glyphSpriteCacheProvider.future);
-
-    toastNotifier.add(
-      ToastMessage(
-        type: ToastType.info,
-        icon: FontAwesomeIcons.download,
-        text: 'Downloading ${trail.name}...',
-      ),
-    );
-    await notificationService.showProgress(trail.name, 0, 0);
-
-    try {
-      await trailDownloadService.downloadTrail(
-        trail,
-        onProgress: (done, total) =>
-            notificationService.showProgress(trail.name, done, total),
-      );
-      await notificationService.showSuccess(trail.name);
-      toastNotifier.add(
-        ToastMessage(
-          type: ToastType.success,
-          icon: FontAwesomeIcons.circleCheck,
-          text: 'Trail saved for offline use',
-        ),
-      );
-    } catch (e) {
-      await notificationService.showError(trail.name);
-      toastNotifier.add(
-        ToastMessage(
-          type: ToastType.error,
-          icon: FontAwesomeIcons.xmark,
-          text: 'Error saving trail',
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isDownloading = false);
-    }
-
-    // Await the shared cache warm separately: its failure
-    // is isolated from the trail download's success/failure above so a
-    // glyph/sprite miss never surfaces as a trail-download error.
-    try {
-      await glyphCacheWarm;
-    } catch (_) {
-      // Best-effort: glyph/sprite cache warm failure must not block or fail the
-      // offline trail download.
     }
   }
 }

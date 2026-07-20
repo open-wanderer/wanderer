@@ -109,7 +109,7 @@ class TrailPanel extends ConsumerWidget {
                           ),
                         ),
                       ],
-                      if (availableOffline) ...[
+                      if (availableOffline && !trail.isOffline) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
