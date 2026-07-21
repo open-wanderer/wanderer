@@ -387,7 +387,13 @@ Backend requires no phase of its own — the grid-cell/`bbox` endpoints (`db/rou
   3. An ObjectBox `DownloadedTilePackage` entity tracks the vector and DEM packages for a region independently — separate local file path, timestamp, size on disk, and status per package — so a region can show its vector package downloaded while its DEM package is not.
   4. The app builds and runs unchanged; nothing yet reads from the new entities.
 
-**Plans**: TBD
+**Plans**: 2 plans (2 waves)
+
+Plans:
+
+- [ ] 22-01-PLAN.md — Bundled `regions.json` asset (4 real regions) + `RegionManifest`/`RegionManifestEntry` @freezed parse model (REGN-01)
+- [ ] 22-02-PLAN.md — ObjectBox `RegionEntity` + `DownloadedTilePackageEntity` with `.code` status persistence, computed `Region.status` getter, `fromManifestEntry` (REGN-02, REGN-03)
+
 
 ### Phase 23: TileRepositoryManager — Download Engine
 
