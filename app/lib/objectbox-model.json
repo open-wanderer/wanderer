@@ -625,7 +625,7 @@
     },
     {
       "id": "10:8580051984298238879",
-      "lastPropertyId": "17:5054022175370517237",
+      "lastPropertyId": "18:5891370304847306650",
       "name": "ActiveNavigationEntity",
       "properties": [
         {
@@ -705,6 +705,11 @@
           "id": "17:5054022175370517237",
           "name": "timestampsUtc",
           "type": 27
+        },
+        {
+          "id": "18:5891370304847306650",
+          "name": "recordingCosting",
+          "type": 9
         }
       ],
       "relations": []

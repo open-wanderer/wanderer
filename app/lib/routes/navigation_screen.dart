@@ -35,6 +35,7 @@ import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/util/format_util.dart';
@@ -77,6 +78,15 @@ class NavigationScreen extends ConsumerStatefulWidget {
   /// hand off) — the marker waits for tracelet's fix same as before.
   final geo.Position? initialPosition;
 
+  /// Valhalla costing (`'pedestrian'`/`'bicycle'`) chosen via
+  /// `showTravelProfileSheet` at record start (`_openRecorder`) — gives
+  /// "Follow roads" the same profile picker the route planner already has,
+  /// instead of always costing as pedestrian for a trail-less recording
+  /// (which has no trail category for [costingForCategory] to read). Ignored
+  /// outside recording mode; a resumed session reads its own persisted
+  /// [ActiveNavigationEntity.recordingCosting] instead (see `initState`).
+  final String? recordingCosting;
+
   const NavigationScreen({
     super.key,
     required this.id,
@@ -86,6 +96,7 @@ class NavigationScreen extends ConsumerStatefulWidget {
     this.isRecording = false,
     this.initialCenter,
     this.initialPosition,
+    this.recordingCosting,
   });
 
   @override
@@ -117,6 +128,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   late final int? _resumeManeuverIndex;
   late final List<Wpt>? _resumeBreadcrumb;
   late final NavigationStatsSeed? _resumeStats;
+
+  /// Resolved once in [initState]: a resumed recording's own persisted
+  /// costing wins over [NavigationScreen.recordingCosting] (a fresh push
+  /// only ever supplies one of the two — resume seeds have no fresh sheet
+  /// selection to carry). Null outside recording mode.
+  late final String? _recordingCosting;
 
   /// obxId of the single active-session row this screen owns. 0 means "not
   /// yet inserted" — the first [_persistNow] call inserts and this is updated
@@ -280,6 +297,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final resumeSession = widget.resumeSession;
     _resumeManeuverIndex = resumeSession?.currentManeuverIndex;
     _activeRowObxId = resumeSession?.obxId ?? 0;
+    _recordingCosting = resumeSession?.recordingCosting ?? widget.recordingCosting;
     final resumePos = resumeSession?.breadcrumbPolyline != null
         ? PolylineUtil.decode(resumeSession!.breadcrumbPolyline!)
         : null;
@@ -627,6 +645,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           : ActiveSessionType.nav,
       trailId: widget.isRecording ? null : widget.id,
       isOffline: widget.isOffline,
+      recordingCosting: widget.isRecording ? _recordingCosting : null,
       currentManeuverIndex: navState.currentManeuverIndex,
       breadcrumbPolyline: PolylineUtil.encode(
         navState.breadcrumb
@@ -738,15 +757,15 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         ];
 
         if (followRoads && workingShape.length >= 2) {
-          // For a trail-less GPS recording (`isRecording`), `originalTrail`
-          // is always null — `_openRecorder` never collects a travel
-          // profile the way the route planner's `_openPlanner` does — so
-          // this always costs as pedestrian. Correct for a real trail's
-          // navigate/save flow; a known limitation for bike recordings
-          // until recording captures an activity type at start.
-          final costing = costingForCategory(
-            originalTrail?.expand?.category?.name,
-          );
+          // `_recordingCosting` (from `showTravelProfileSheet` at record
+          // start, see `_openRecorder`) wins for a trail-less recording,
+          // where `originalTrail` is always null and `costingForCategory`
+          // would otherwise always fall back to pedestrian regardless of
+          // the recorded activity. Falls through to the trail's own
+          // category for a real trail's navigate/save flow.
+          final costing =
+              _recordingCosting ??
+              costingForCategory(originalTrail?.expand?.category?.name);
           // buildNavShape's cap applies only to this outbound hint — the
           // matched path Valhalla returns replaces workingShape entirely.
           workingShape = await snapShapeToRoads(
@@ -766,11 +785,20 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         gpx = buildGpxFromPoints(navState.breadcrumb);
       }
 
-      final trail = await buildDraftTrail(
-        ref,
-        gpx,
-        category: originalTrail?.categoryId,
-      );
+      // For a real trail, keep its own category. For a trail-less
+      // recording, derive one from the chosen travel profile (same
+      // categoryForTravelProfile pre-fill the route planner already uses)
+      // rather than always leaving it unset.
+      final category =
+          originalTrail?.categoryId ??
+          (_recordingCosting != null
+              ? categoryForTravelProfile(
+                  _recordingCosting,
+                  ref.read(categoryProvider).value ?? const [],
+                )
+              : null);
+
+      final trail = await buildDraftTrail(ref, gpx, category: category);
 
       active_nav.clear(_store);
 

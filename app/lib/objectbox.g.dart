@@ -760,7 +760,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(10, 8580051984298238879),
     name: 'ActiveNavigationEntity',
-    lastPropertyId: const obx_int.IdUid(17, 5054022175370517237),
+    lastPropertyId: const obx_int.IdUid(18, 5891370304847306650),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -852,6 +852,12 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(17, 5054022175370517237),
         name: 'timestampsUtc',
         type: 27,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(18, 5891370304847306650),
+        name: 'recordingCosting',
+        type: 9,
         flags: 0,
       ),
     ],
@@ -1867,7 +1873,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final timestampsUtcOffset = object.timestampsUtc == null
             ? null
             : fbb.writeListInt64(object.timestampsUtc!);
-        fbb.startTable(18);
+        final recordingCostingOffset = object.recordingCosting == null
+            ? null
+            : fbb.writeString(object.recordingCosting!);
+        fbb.startTable(19);
         fbb.addInt64(0, object.obxId);
         fbb.addInt64(1, object.dbSessionType);
         fbb.addOffset(2, trailIdOffset);
@@ -1883,6 +1892,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(14, breadcrumbPolylineOffset);
         fbb.addOffset(15, elevationsOffset);
         fbb.addOffset(16, timestampsUtcOffset);
+        fbb.addOffset(17, recordingCostingOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1903,6 +1913,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           rootOffset,
           10,
         );
+        final recordingCostingParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 38);
         final currentManeuverIndexParam = const fb.Int64Reader()
             .vTableGetNullable(buffer, rootOffset, 12);
         final breadcrumbPolylineParam = const fb.StringReader(
@@ -1961,6 +1974,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 obxId: obxIdParam,
                 trailId: trailIdParam,
                 isOffline: isOfflineParam,
+                recordingCosting: recordingCostingParam,
                 currentManeuverIndex: currentManeuverIndexParam,
                 breadcrumbPolyline: breadcrumbPolylineParam,
                 elevations: elevationsParam,
@@ -2620,5 +2634,11 @@ class ActiveNavigationEntity_ {
   static final timestampsUtc =
       obx.QueryIntegerVectorProperty<ActiveNavigationEntity>(
         _entities[8].properties[14],
+      );
+
+  /// See [ActiveNavigationEntity.recordingCosting].
+  static final recordingCosting =
+      obx.QueryStringProperty<ActiveNavigationEntity>(
+        _entities[8].properties[15],
       );
 }

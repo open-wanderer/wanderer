@@ -43,6 +43,13 @@ class _TrailSourceSelectScreenState
   Future<void> _openRecorder(AppLocalizations l10n) async {
     if (_recorderLoading) return;
 
+    // Same entry-point picker `_openPlanner` uses — a trail-less recording
+    // has no trail category for `costingForCategory` to derive "Follow
+    // roads"' costing from at save time, so the choice is captured here
+    // instead and threaded through to `NavigationScreen.recordingCosting`.
+    final bucket = await showTravelProfileSheet(context);
+    if (!mounted || bucket == null) return;
+
     void showError(String text) => ref
         .read(toastProvider.notifier)
         .add(
@@ -101,6 +108,7 @@ class _TrailSourceSelectScreenState
           'lat': pos.latitude,
           'lon': pos.longitude,
           'position': seedPositionFrom(pos),
+          'costing': bucket.costing,
         },
       );
     } finally {

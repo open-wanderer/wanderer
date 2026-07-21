@@ -281,11 +281,11 @@ class Router extends _$Router {
           builder: (context, state) {
             // extra: either an ActiveNavigationEntity resume seed when
             // re-entering an in-progress recording (see main.dart's
-            // _maybeResume rec branch), or a {'lat', 'lon', 'position'} map
-            // with the real GPS fix resolved before starting a fresh
-            // recording (see trail_source_select_screen.dart's
-            // _openRecorder) — null for neither case falls back to
-            // NavigationScreen's own default.
+            // _maybeResume rec branch), or a {'lat', 'lon', 'position',
+            // 'costing'} map with the real GPS fix and chosen travel
+            // profile resolved before starting a fresh recording (see
+            // trail_source_select_screen.dart's _openRecorder) — null for
+            // neither case falls back to NavigationScreen's own default.
             final extra = state.extra;
             final resume = extra is ActiveNavigationEntity ? extra : null;
             final center = extra is Map
@@ -304,6 +304,9 @@ class Router extends _$Router {
             final seedPosition = extra is Map
                 ? extra['position'] as geo.Position?
                 : null;
+            final recordingCosting = extra is Map
+                ? extra['costing'] as String?
+                : null;
             return NavigationScreen(
               id: '',
               response: const NavigateResponse(maneuvers: [], shape: []),
@@ -311,6 +314,7 @@ class Router extends _$Router {
               resumeSession: resume,
               initialCenter: center,
               initialPosition: seedPosition,
+              recordingCosting: recordingCosting,
             );
           },
         ),
