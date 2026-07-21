@@ -5,82 +5,96 @@
 
 **Date:** 2026-07-21
 **Phase:** 22-region-package-data-model
-**Areas discussed:** Explicit-int status pattern, regions.json initial content, DownloadedTilePackage shape, Region vs package status relationship
+**Areas discussed:** Catalog fetch & merge strategy, Backend status vs local download status, Staleness → updateAvailable mapping, Region removed from catalog / partial DEM handling
+
+**Note:** This is a full re-discussion, replacing an earlier same-date discussion. The prior CONTEXT.md/DISCUSSION-LOG.md assumed a bundled `assets/map/regions.json` asset — obsoleted by Phase 21.5's insertion, which established the region catalog is fetched from a new backend API instead. This discussion re-derives Phase 22's decisions against that new API contract (`GET /api/v1/regions`, see `db/routes/regions_get.go`).
 
 ---
 
-## Explicit-int status pattern
+## Catalog Fetch & Merge Strategy
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| Enum with explicit int getter | Enhanced enum with a `const int code` per value; persist/read via `code`, never `.index`. Order-independent when adding new statuses later. | ✓ |
-| Plain int class constants, no enum | `static const int` values on a plain class, raw int field on entity. Simpler persistence, loses exhaustiveness checking. | |
-| Enhanced enum + @Transient (mirrors existing shadow pattern) | Same enhanced-enum idea but explicitly keeping the existing shadow-property shape from TrailEntity/ActiveNavigationEntity, swapping `.index` for `.code`. | |
+| Upsert by id, preserve local fields | Find-or-create by region id; update catalog-owned fields in place; never touch local-only fields | ✓ |
+| Replace-all like subcategory_provider | removeAll() + putMany() every refresh, matching an established app pattern | |
+| You decide | Claude picks | |
 
-**User's choice:** Enum with explicit int getter (Recommended option).
-**Notes:** Confirmed persistence still needs a shadow int property (never `.index`) — effectively merges the recommended option with the structural shape of option 3.
+**User's choice:** Upsert by id, preserve local fields.
+**Notes:** Rejected the replace-all pattern despite it being the codebase's established shape (subcategory/category providers) because it would destroy ToOne package links and local download status via ObjectBox's obxId-keyed removeAll().
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| On-demand (Settings page open) | Fetch only when Settings/Regions screen opens; no background refresh on launch | ✓ |
+| Eager on app launch + on-demand refresh | Mirrors subcategory_provider's build()-triggers-refresh pattern | |
+| You decide (defer the wiring) | This phase only builds the fetch function, timing decided later | |
+
+**User's choice:** On-demand (Settings page open).
+**Notes:** Since this phase has zero UI, the actual call site isn't wired here regardless — this sets intent for Phase 24 without hard-coding it into the function's design.
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Keep existing rows untouched, surface error to caller | Don't swallow the error at this layer since there's no UI yet to swallow into | ✓ |
+| You decide | Claude picks | |
+
+**User's choice:** Keep existing rows untouched, surface error to caller.
 
 ---
 
-## regions.json initial content
+## Backend Status vs Local Download Status
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| Real regions, real URLs | A handful of real named regions with real bbox/PMTiles/DEM URLs against the existing backend pipeline. | ✓ |
-| Placeholder/test entries | Dummy ids/names/URLs just to prove the parse model works; real content swapped in later. | |
-| One real region, rest placeholder | One fully real testable region + a few placeholders to prove multi-entry/partial-DEM handling. | |
+| Two separate fields | `catalogStatus` (backend building/ready/error) + existing computed `status` getter (local download state) | ✓ |
+| Single Region.status enum merges both | Extend RegionStatus with notAvailable alongside download states | |
+| You decide | Claude picks based on locked D-01/D-02/D-07 | |
 
-**User's choice:** Real regions, real URLs.
-
-**Follow-up question:** Which real regions should the initial manifest cover?
+**User's choice:** Two separate fields.
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| You decide / Claude's discretion | Pick a small sensible starting set based on existing trail data density. | |
-| One region covering the whole test/demo dataset | Single region bbox covering seeded/demo trail data. | |
-| I'll specify exact regions now | (free text) | ✓ |
+| Same explicit-int enum pattern | catalogStatus gets its own enhanced enum with `code` int, same shadow-property persistence | ✓ |
+| Store as plain string | Simpler since it's fully overwritten on every fetch, never read via .index | |
+| You decide | Claude picks | |
 
-**User's choice (free text):** "Research how osmand and comaps split the world into regions. Model it after that. Include 3-4 regions for now."
-**Notes:** Captured as a research flag (D-05 in CONTEXT.md) — exact region boundaries/URLs are not fully locked in this discussion; the phase researcher should investigate OsmAnd/CoMaps' region-splitting convention and propose concrete regions + URLs before planning finalizes manifest content.
+**User's choice:** Same explicit-int enum pattern.
 
 ---
 
-## DownloadedTilePackage shape
+## Staleness → updateAvailable Mapping
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| Two ToOne fields on Region | `vectorPackage`/`demPackage` as two nullable `ToOne<DownloadedTilePackage>` fields. Direct field access, no discriminator. | ✓ |
-| ToMany + type discriminator | `ToMany<DownloadedTilePackage>` with a `PackageType` enum field per row. More extensible, needs a filter on every read. | |
+| Store lastDownloadedVersion on Region, compare on fetch | Persist version string at last successful vector download; flip to updateAvailable on mismatch + ready + already-downloaded | ✓ |
+| You decide | Claude designs the mechanism | |
 
-**User's choice:** Two ToOne fields on Region (Recommended option).
+**User's choice:** Store lastDownloadedVersion on Region, compare on fetch.
+**Notes:** Claude noted (not asked as a question, derived from reading `db/routes/regions_get.go`) that the backend response has no DEM-equivalent version field — DEM has no staleness/updateAvailable concept in this phase, per Phase 21.5's D-11.
 
 ---
 
-## Region vs package status relationship
+## Region Removed from Catalog / Partial DEM Handling
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| Region.status is independently tracked | Own stored field, set directly by TileRepositoryManager alongside package updates. | (initial choice, revised) |
-| Region.status is a computed getter, not stored | Derived on the fly from package statuses; guarantees no drift but contradicts REGN-02's literal "persists a live status" wording. | ✓ |
+| Keep row + files, mark as orphaned | `inCatalog: bool` field flipped false on missing fetch; files untouched | ✓ |
+| Delete row and packages immediately on fetch | Full referential sync with backend as ground truth | |
+| You decide | Claude picks the safer default | |
 
-**User's choice:** Region.status is a computed getter, not stored.
-
-**Follow-up question (flagging the REGN-02 wording tension):** What should the getter return when no package rows exist yet (pre-download state)?
+**User's choice:** Keep row + files, mark as orphaned.
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| Getter defaults to notDownloaded when no packages exist | `vectorPackage.target?.status ?? RegionStatus.notDownloaded`, folding in demPackage when required/present. | ✓ |
-| Actually, store it after all | Revert to a stored field set by TileRepositoryManager in the same transaction as package updates. | |
+| No package row until a download actually starts | DownloadedTilePackage only created when Phase 23's engine begins downloading; matches original D-06 exactly | ✓ |
+| You decide | Claude confirms against locked D-06 | |
 
-**User's choice:** Getter defaults to `notDownloaded` when no packages exist.
-**Notes:** Flagged for the planner that this is an intentional, discussed deviation from REGN-02's literal "persists... a live status" wording — not an oversight. If Phase 23/24 need to query/filter/sort by Region status directly in ObjectBox, that may require revisiting this (stored+synced field, or in-memory post-fetch filter).
+**User's choice:** No package row until a download actually starts.
 
 ---
 
 ## Claude's Discretion
 
-None — all four selected gray areas were explicitly decided by the user.
+None — every gray area reached an explicit user decision.
 
 ## Deferred Ideas
 
-None — discussion stayed within phase scope.
+None raised. The bigger scope question (what UI shows for orphaned/updateAvailable regions) was explicitly routed to Phase 24/26, not deferred as a new capability — it's already in those phases' scope.
