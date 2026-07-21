@@ -215,7 +215,7 @@ class _TrailSourceSelectScreenState
                 ? null
                 : () => _openPlanner(l10n),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _SourceActionCard(
             icon: FontAwesomeIcons.solidCircleDot,
             title: l10n.trail_source_record,
@@ -226,7 +226,7 @@ class _TrailSourceSelectScreenState
                 ? null
                 : () => _openRecorder(l10n),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _SourceActionCard(
             icon: FontAwesomeIcons.fileArrowUp,
             title: l10n.trail_source_import,
