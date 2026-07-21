@@ -263,8 +263,9 @@ class RouteAnchors extends _$RouteAnchors {
         durationSeconds: durationSeconds,
       );
     } on DioException catch (e) {
-      if (e.type == DioExceptionType.cancel)
+      if (e.type == DioExceptionType.cancel) {
         return; // superseded, not a real failure
+      }
       if (_generation[key] != myGeneration) return;
       _markBlocked(key); // never revert to straight, never clear
     }
@@ -364,7 +365,10 @@ class RouteAnchors extends _$RouteAnchors {
   /// for the same anchor) the anchor's prior `location` is left untouched
   /// rather than cleared — a dragged anchor keeps showing its last-known
   /// label until the fresh search resolves.
-  Future<void> _resolveAnchorLocation(String anchorId, RouteAnchor anchor) async {
+  Future<void> _resolveAnchorLocation(
+    String anchorId,
+    RouteAnchor anchor,
+  ) async {
     _locationInFlight[anchorId]?.cancel();
     final token = CancelToken();
     _locationInFlight[anchorId] = token;
@@ -780,10 +784,10 @@ class RouteAnchors extends _$RouteAnchors {
     state = state.copyWith(anchors: anchors, segments: segments);
 
     if (predecessor != null && successor != null) {
-      _resolveElevation(
-        segmentKey(predecessor.id, successor.id),
-        [predecessor.point, successor.point],
-      ).ignore();
+      _resolveElevation(segmentKey(predecessor.id, successor.id), [
+        predecessor.point,
+        successor.point,
+      ]).ignore();
 
       if (state.autoRoutingEnabled) {
         _resolveSegment(

@@ -1,12 +1,12 @@
-import { handleError } from '$lib/util/api_util';
-import { decodePolyline } from '$lib/util/polyline_util';
 import {
   TraceRouteRequestSchema,
   type TraceRouteResponse,
   type TraceRouteShapePoint,
 } from '$lib/models/api/valhalla_trace_route_schema';
+import { getValhallaUrl } from '$lib/server/valhalla';
+import { handleError } from '$lib/util/api_util';
+import { decodePolyline } from '$lib/util/polyline_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
-import { getValhallaTraceRouteUrl } from '$lib/server/valhalla';
 
 /**
  * @swagger
@@ -75,9 +75,9 @@ export async function POST(event: RequestEvent) {
   }
 
   try {
-    const traceRouteUrl = getValhallaTraceRouteUrl();
+    const traceRouteUrl = getValhallaUrl() + '/trace_route';
     if (!traceRouteUrl) {
-      return json({ message: "VALHALLA_TRACE_ROUTE_URL not set" }, { status: 400 });
+      return json({ message: "VALHALLA_URL not set" }, { status: 400 });
     }
 
     const body = TraceRouteRequestSchema.parse(await event.request.json());

@@ -297,7 +297,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final resumeSession = widget.resumeSession;
     _resumeManeuverIndex = resumeSession?.currentManeuverIndex;
     _activeRowObxId = resumeSession?.obxId ?? 0;
-    _recordingCosting = resumeSession?.recordingCosting ?? widget.recordingCosting;
+    _recordingCosting =
+        resumeSession?.recordingCosting ?? widget.recordingCosting;
     final resumePos = resumeSession?.breadcrumbPolyline != null
         ? PolylineUtil.decode(resumeSession!.breadcrumbPolyline!)
         : null;
@@ -724,7 +725,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// merge/handoff helpers here are elevation-only, matching the planner
   /// handoff. Only the no-transform path preserves the recorded breadcrumb's
   /// timestamps verbatim.
-  Future<void> _saveRecordedTrack() async {
+  Future<void> _saveRecordedTrack(BuildContext context) async {
     final options = await showTrackSaveOptionsSheet(context);
     if (options == null) return;
     if (_savingTrack) return;
@@ -1279,7 +1280,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     ).then((choice) {
       switch (choice) {
         case _NavExitChoice.saveTrack:
-          if (context.mounted) _saveRecordedTrack();
+          if (context.mounted) _saveRecordedTrack(context);
         case _NavExitChoice.exit:
           // Deliberate exit — best-effort clear so no stale resume prompt
           // appears on next launch.
@@ -1441,7 +1442,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         if (_hasSavableTrack()) ...[
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: _savingTrack ? null : _saveRecordedTrack,
+            onPressed: _savingTrack ? null : () => _saveRecordedTrack(context),
             icon: _savingTrack
                 ? const SizedBox(
                     width: 16,
@@ -1775,8 +1776,19 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               elevation: 2,
               shape: StadiumBorder(),
               backgroundColor: Colors.redAccent,
-              onPressed: () => _confirmExit(context, localizations),
-              child: const FaIcon(FontAwesomeIcons.stop),
+              onPressed: _savingTrack
+                  ? null
+                  : () => _confirmExit(context, localizations),
+              child: _savingTrack
+                  ? SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: const CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const FaIcon(FontAwesomeIcons.stop),
             ),
 
             // Right — toggle between additional stats and elevation profile.

@@ -125,7 +125,7 @@ Future<List<Map<String, double>>> snapShapeToRoads(
       return snapped;
     }
     return shape;
-  } catch (_) {
+  } catch (e) {
     // Silent fallback: proceed with the pre-snap shape.
     return shape;
   }

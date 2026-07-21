@@ -27,7 +27,7 @@ class WandererSortChipGroup<T extends Enum> extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Wrap(
-      spacing: 8.0,
+      spacing: 11.0,
       runSpacing: 4.0,
       children: options.map((option) {
         final isSelected = option.value == currentSort;
@@ -37,11 +37,11 @@ class WandererSortChipGroup<T extends Enum> extends StatelessWidget {
 
         return RawChip(
           label: Text(option.text),
-          avatar: AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-            child: isSelected
-                ? SizedBox(
+          avatar: isSelected
+              ? AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                  child: SizedBox(
                     width: 18,
                     height: 18,
                     child: AnimatedRotation(
@@ -54,9 +54,10 @@ class WandererSortChipGroup<T extends Enum> extends StatelessWidget {
                         color: colorScheme.onSecondaryContainer,
                       ),
                     ),
-                  )
-                : const SizedBox.shrink(),
-          ),
+                  ),
+                )
+              : null,
+
           selected: isSelected,
           showCheckmark: false,
           onPressed: () {

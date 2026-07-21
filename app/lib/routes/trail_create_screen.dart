@@ -57,7 +57,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
 
   // Pristine snapshot kept separate from `trail`, which is mutated in place —
   // diffing against `trail` itself would never detect changed waypoints.
-  late final Trail _originalTrail = widget.trail;
+  late Trail _originalTrail = widget.trail;
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
 
@@ -386,6 +386,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       setState(() {
         trail = result.trail;
         _removedServerPhotos = [];
+        _originalTrail = trail;
       });
 
       ref
@@ -419,7 +420,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     }
   }
 
-  bool get _hasUnsavedChanges => trail != _originalTrail;
+  bool get _hasUnsavedChanges =>
+      trail != _originalTrail || _formKey.currentState?.isDirty == true;
 
   Future<void> _confirmDiscard(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
