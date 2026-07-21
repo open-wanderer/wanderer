@@ -8,6 +8,7 @@
 - ✅ **v1.3 Category Redesign** — Phases 10-12 (shipped 2026-07-02)
 - ✅ **v1.4 MapLibre Migration** — Phases 13-18 (shipped 2026-07-10)
 - 🚧 **v1.5 Route Planner** — Phases 19-21 (in progress)
+- 🚧 **v1.6 Offline Region Tile Repository** — Phases 22-27 (in progress)
 
 ## Phases
 
@@ -345,14 +346,133 @@ Plans:
 
 **UI hint**: yes
 
+### v1.6 Offline Region Tile Repository (In Progress)
+
+**Milestone Goal:** Replace trail-scoped PMTiles downloads with an app-wide, region-based offline tile repository (vector + optional Mapterhorn DEM), managed in Settings, so map rendering and offline trail recording work anywhere within a downloaded region instead of only within a specific trail's cached cells.
+
+- [ ] **Phase 22: Region & Package Data Model** - Bundled `regions.json` manifest and ObjectBox `Region`/`DownloadedTilePackage` entities with an explicit-int status enum
+- [ ] **Phase 23: TileRepositoryManager — Download Engine** - Resumable, disk-safe, backgrounding-aware region downloads plus a bbox-to-local-paths query, fully decoupled from Trail
+- [ ] **Phase 24: Settings — Offline Maps/Regions UI** - Flat searchable region list with download/pause/resume/delete, DEM toggle, and total disk usage
+- [ ] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** - `TrailMap`/`navigation_screen` read region tiles through a viewport-scoped style pipeline, settled by a maplibre 0.3.5 spike
+- [ ] **Phase 26: Trail Download Guard** - Trail downloads check region coverage first, naming missing regions with an inline download CTA
+- [ ] **Phase 27: Legacy Cleanup** - Trail-scoped tile code deleted outright, orphaned legacy files swept on first launch
+
+#### Sequencing Rationale
+
+This milestone follows research/SUMMARY.md's recommended build order almost verbatim — data model → download engine → Settings UI → map-screen rewiring (with a spike) → trail guard → legacy ripout — because each step is either purely additive to the running app or swaps exactly one thing while the old trail-scoped path stays physically present until proven redundant, mirroring the discipline validated in v1.4 ("forks deleted last").
+
+1. **Data model first (Phase 22), with zero UI.** `Region`/`DownloadedTilePackage` are new ObjectBox entities and a bundled manifest — nothing downstream (download engine, UI, rendering) can exist without this schema, and getting the status-enum persistence contract right here (explicit int constants, not `Enum.values[index]`) avoids a data-corruption class of bug research flagged as expensive to retrofit once real downloads exist on-device.
+
+2. **Download engine before any UI depends on it (Phase 23).** Resume, disk-space pre-check, and backgrounding-aware pause are download-primitive concerns specific to region-sized files (10s-100s of MB) that the old trail-cell code never needed. Building and proving these against `TileRepositoryManager` directly — before Settings UI exists to mask failures behind a spinner — is cheaper than discovering a resume bug after the UI ships.
+
+3. **Settings UI next (Phase 24), independently demoable.** The region list, download/pause/resume/delete, DEM toggle, and disk-usage summary are user-visible and testable without touching any existing map or trail flow — this validates Phase 23 end-to-end before anything else depends on it.
+
+4. **Map rendering is pulled forward, ahead of the guard (Phase 25).** This is the architectural crux — "app-wide, region-based" — and PITFALLS.md flags it as the piece most likely to need rework if discovered late (unconfirmed maplibre 0.3.5 incremental-source API, unproven layer-count scaling past a handful of trail cells). An explicit spike settles the composition strategy before the guard (Phase 26) or ripout (Phase 27) build on top of it.
+
+5. **The trail guard (Phase 26) comes after the region system it points users into is real.** Its dialog offers an in-dialog "Download region" CTA — that only makes sense once Phase 23's download engine and Phase 24's UI patterns are proven, not while the download lifecycle is still being designed.
+
+6. **Legacy ripout is always last (Phase 27).** `trail_download_service.dart`'s tile methods and `TrailEntity.pmTiles`/`demPmTiles` are deleted only once the region path has replaced them end-to-end (rendering + guard both live) — deleting the fallback earlier would leave no working offline path if something upstream needed rework. The one-time orphaned-file cleanup sweep ships in this same phase, not as a follow-up, so the new disk-usage figure is trustworthy from the moment the old code is gone.
+
+Backend requires no phase of its own — the grid-cell/`bbox` endpoints (`db/routes/map_cells_id.go`, `db/services/tiles/generator.go`) are already trail-agnostic; "region" is a purely client-side, bundled-manifest concept, confirmed in research.
+
+### Phase 22: Region & Package Data Model
+
+**Goal**: The app has a bundled region manifest and an ObjectBox schema for regions and their downloadable tile packages — the foundation every later phase in this milestone builds on.
+**Depends on**: Phase 21 (v1.5 complete; first phase of v1.6)
+**Requirements**: REGN-01, REGN-02, REGN-03
+**Success Criteria** (what must be TRUE):
+
+  1. A bundled `assets/map/regions.json` app asset parses into a typed manifest model exposing, per region, an id, name, bbox, vector PMTiles URL + size, and optional DEM URL + size.
+  2. An ObjectBox `Region` entity persists every manifest field plus a live status (notDownloaded/downloading/downloaded/updateAvailable) backed by explicit stable int constants — never `Enum.values[index]` — and the status survives an app restart.
+  3. An ObjectBox `DownloadedTilePackage` entity tracks the vector and DEM packages for a region independently — separate local file path, timestamp, size on disk, and status per package — so a region can show its vector package downloaded while its DEM package is not.
+  4. The app builds and runs unchanged; nothing yet reads from the new entities.
+
+**Plans**: TBD
+
+### Phase 23: TileRepositoryManager — Download Engine
+
+**Goal**: A region's vector and DEM tile packages can be downloaded, paused, resumed, and deleted through one app-wide manager, safely and independent of any Trail.
+**Depends on**: Phase 22
+**Requirements**: TILE-01, TILE-02, TILE-03, TILE-04, TILE-05, DEM-01, DEM-02
+**Success Criteria** (what must be TRUE):
+
+  1. `TileRepositoryManager` starts, pauses, resumes, and deletes a region's vector download; the DEM download reuses the existing Mapterhorn pipeline (`generator.go` / download-dem endpoint) re-keyed to the region, toggled independently of the vector package.
+  2. Interrupting an in-progress region download and resuming it continues from a partial file via HTTP Range + `FileAccessMode.append`, not from byte 0, within the same app session (no cross-restart resume).
+  3. Before each file write, available disk space is checked with a safety margin; a download that would exceed it is refused with a specific state rather than partially writing a corrupt file.
+  4. The app backgrounding mid-download (iOS suspension / Android Doze) leaves the download in a deliberate paused state that resumes cleanly on foreground, not a silently dead transfer.
+  5. `localTilePathsForBounds(bbox)` returns the local vector/DEM file paths for every downloaded region intersecting a given bounding box, ready for map rendering to consume.
+
+**Plans**: TBD
+
+### Phase 24: Settings — Offline Maps/Regions UI
+
+**Goal**: A user can discover, download, manage, and monitor offline regions entirely from Settings.
+**Depends on**: Phase 23
+**Requirements**: SETUI-01, SETUI-02, SETUI-03, SETUI-04, SETUI-05, SETUI-06
+**Success Criteria** (what must be TRUE):
+
+  1. From Settings, a user opens "Offline Maps/Regions" and sees a flat, searchable list of every bundled region (no hierarchical tree).
+  2. Each region row shows its name, current 4-state status, and a size breakdown (vector vs DEM) visible before any download starts.
+  3. A user can download, pause, resume, or delete a region directly from its row, with visible progress while downloading.
+  4. Each region row has its own DEM toggle, presented as the optional/adds-size choice, independent of the vector download.
+  5. The screen shows a total disk usage summary across all downloaded regions.
+  6. A region with `updateAvailable` status shows a non-blocking badge with an optional user-triggered "update" action, and continues to appear/behave as downloaded while the badge is shown.
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 25: Map Rendering — Region-Based Viewport Pipeline
+
+**Goal**: Trail detail maps and the navigation screen render offline tiles from the region registry instead of trail-bound caches, with style composition limited to what the current viewport actually needs.
+**Depends on**: Phase 24
+**Requirements**: RENDER-01, RENDER-02, RENDER-03
+**Success Criteria** (what must be TRUE):
+
+  1. A spike against the pinned maplibre 0.3.5 confirms whether incremental style source/layer add/remove is supported (vs. only full style reload) and measures rendering behavior with 10-20 duplicated source/layer sets on a mid-tier Android device, settling which composition strategy the phase ships.
+  2. `TrailMap` and `navigation_screen` read offline vector/DEM tile paths via `TileRepositoryManager.localTilePathsForBounds` instead of `Trail.pmTiles`/`demPmTiles`.
+  3. Only regions intersecting the current map viewport contribute style sources — panning to an area covered by a different downloaded region swaps sources in rather than accumulating every downloaded region's sources unconditionally.
+  4. A downloaded region's basemap (and hillshade, when its DEM was downloaded) renders correctly offline on both the trail detail map and the navigation screen, reusing `offline_style_rewriter.dart` unchanged.
+
+**Plans**: TBD
+**UI hint**: yes
+
+**Risk gate**: RENDER-03's spike is this milestone's highest-risk unknown — research flags maplibre 0.3.5's incremental source/layer API availability and layer-count scaling as LOW/MEDIUM confidence, unconfirmed from docs. Resolve this first, before investing in the rest of the phase's rewiring.
+
+### Phase 26: Trail Download Guard
+
+**Goal**: Before a trail downloads, the app makes sure its area is actually covered by a downloaded region, and makes it easy to fix when it isn't.
+**Depends on**: Phase 25 (region-based rendering live; guard sends users into a proven download flow)
+**Requirements**: GUARD-01, GUARD-02, GUARD-03, GUARD-04
+**Success Criteria** (what must be TRUE):
+
+  1. Tapping a trail's download action checks the trail's bbox against downloaded (or updateAvailable) regions before proceeding; when fully covered, the download starts immediately as before.
+  2. When coverage is missing, a dialog names the specific missing region(s) and their size, with a direct in-dialog "Download region" action per region — never a silent block or generic message.
+  3. A trail spanning multiple regions lists every missing region with individual and combined size, lets the user download any subset, and never forces full coverage before letting the trail download proceed.
+  4. A region with `updateAvailable` status satisfies the coverage check the same as `downloaded` — the guard never re-fires for a region that is merely stale.
+
+**Plans**: TBD
+
+### Phase 27: Legacy Cleanup
+
+**Goal**: The old trail-scoped tile system is gone and any files it left behind are cleaned up, so the region system is the only tile path left and its disk-usage figure is trustworthy.
+**Depends on**: Phase 26 (region system fully proven end-to-end before removing the fallback)
+**Requirements**: CLEAN-01, CLEAN-02
+**Success Criteria** (what must be TRUE):
+
+  1. `trail_download_service.dart`'s tile-download methods, `TrailEntity.pmTiles`/`demPmTiles` fields, and any trail-scoped tile-download UI are deleted outright — no dual-run, no migration path; the app builds and runs with zero remaining references.
+  2. On first launch after the update, a one-time sweep deletes orphaned legacy tile files from existing dev/test installs, and the Settings disk-usage total reflects only region-based storage afterward.
+  3. A hiker can still download and use a trail fully offline (basemap + navigation) end-to-end purely through the region system, with no functional regression from removing the legacy path.
+
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases 13 and 14 are independent and may execute in either order or in parallel; 15-18 are strictly sequential. Phases 19-21 (v1.5) are strictly sequential after Phase 18:
+Phases 13 and 14 are independent and may execute in either order or in parallel; 15-27 are strictly sequential:
 
 ```
 13 ─┐
-    ├─→ 15 → 16 → 17 → 18 → 19 → 20 → 21
+    ├─→ 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23 → 24 → 25 → 26 → 27
 14 ─┘
 ```
 
@@ -379,3 +499,9 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 19. Route Planner Core — Waypoint Editing & Routing Engine | v1.5 | 4/4 | Complete   | 2026-07-16 |
 | 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 5/5 | Complete   | 2026-07-16 |
 | 21. Route Planner Handoff & Entry Point | v1.5 | 4/4 | Complete   | 2026-07-17 |
+| 22. Region & Package Data Model | v1.6 | 0/TBD | Not started | - |
+| 23. TileRepositoryManager — Download Engine | v1.6 | 0/TBD | Not started | - |
+| 24. Settings — Offline Maps/Regions UI | v1.6 | 0/TBD | Not started | - |
+| 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 0/TBD | Not started | - |
+| 26. Trail Download Guard | v1.6 | 0/TBD | Not started | - |
+| 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |

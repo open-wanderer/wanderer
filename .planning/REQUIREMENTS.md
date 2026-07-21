@@ -87,37 +87,37 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REGN-01 | TBD | Pending |
-| REGN-02 | TBD | Pending |
-| REGN-03 | TBD | Pending |
-| TILE-01 | TBD | Pending |
-| TILE-02 | TBD | Pending |
-| TILE-03 | TBD | Pending |
-| TILE-04 | TBD | Pending |
-| TILE-05 | TBD | Pending |
-| DEM-01 | TBD | Pending |
-| DEM-02 | TBD | Pending |
-| SETUI-01 | TBD | Pending |
-| SETUI-02 | TBD | Pending |
-| SETUI-03 | TBD | Pending |
-| SETUI-04 | TBD | Pending |
-| SETUI-05 | TBD | Pending |
-| SETUI-06 | TBD | Pending |
-| GUARD-01 | TBD | Pending |
-| GUARD-02 | TBD | Pending |
-| GUARD-03 | TBD | Pending |
-| GUARD-04 | TBD | Pending |
-| RENDER-01 | TBD | Pending |
-| RENDER-02 | TBD | Pending |
-| RENDER-03 | TBD | Pending |
-| CLEAN-01 | TBD | Pending |
-| CLEAN-02 | TBD | Pending |
+| REGN-01 | Phase 22 | Pending |
+| REGN-02 | Phase 22 | Pending |
+| REGN-03 | Phase 22 | Pending |
+| TILE-01 | Phase 23 | Pending |
+| TILE-02 | Phase 23 | Pending |
+| TILE-03 | Phase 23 | Pending |
+| TILE-04 | Phase 23 | Pending |
+| TILE-05 | Phase 23 | Pending |
+| DEM-01 | Phase 23 | Pending |
+| DEM-02 | Phase 23 | Pending |
+| SETUI-01 | Phase 24 | Pending |
+| SETUI-02 | Phase 24 | Pending |
+| SETUI-03 | Phase 24 | Pending |
+| SETUI-04 | Phase 24 | Pending |
+| SETUI-05 | Phase 24 | Pending |
+| SETUI-06 | Phase 24 | Pending |
+| GUARD-01 | Phase 26 | Pending |
+| GUARD-02 | Phase 26 | Pending |
+| GUARD-03 | Phase 26 | Pending |
+| GUARD-04 | Phase 26 | Pending |
+| RENDER-01 | Phase 25 | Pending |
+| RENDER-02 | Phase 25 | Pending |
+| RENDER-03 | Phase 25 | Pending |
+| CLEAN-01 | Phase 27 | Pending |
+| CLEAN-02 | Phase 27 | Pending |
 
 **Coverage:**
-- v1 requirements: 24 total
-- Mapped to phases: 0
-- Unmapped: 24 ⚠️ (roadmap not yet created)
+- v1 requirements: 25 total
+- Mapped to phases: 25
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-21*
-*Last updated: 2026-07-21 after initial definition*
+*Last updated: 2026-07-21 after roadmap creation (24-item count in this file corrected to 25 — the Coverage summary had undercounted the requirement list by one)*

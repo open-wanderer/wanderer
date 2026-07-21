@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: planning
-last_updated: "2026-07-21T12:33:02.474Z"
+last_updated: "2026-07-21T13:15:00.000Z"
 last_activity: 2026-07-21
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,22 +20,27 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 21 — route-planner-handoff-entry-point
+**Current focus:** Phase 22 — region-package-data-model
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-07-21 — Milestone v1.6 started
+Phase: 22 of 27 (Region & Package Data Model)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-07-21 — ROADMAP.md created for v1.6 (Phases 22-27)
 
-## v1.5 Phases
+## v1.6 Phases
 
-- [x] **Phase 19: Route Planner Core — Waypoint Editing & Routing Engine** — WAYP-01/02/03, ROUTE-01..05
-- [ ] **Phase 20: Route Planner Views — Waypoint List, Elevation & Location Search** — WAYP-04/05, PLANUI-01..03
-- [ ] **Phase 21: Route Planner Handoff & Entry Point** — HANDOFF-01/02/03
+- [ ] **Phase 22: Region & Package Data Model** — REGN-01/02/03
+- [ ] **Phase 23: TileRepositoryManager — Download Engine** — TILE-01..05, DEM-01/02
+- [ ] **Phase 24: Settings — Offline Maps/Regions UI** — SETUI-01..06
+- [ ] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** — RENDER-01..03
+- [ ] **Phase 26: Trail Download Guard** — GUARD-01..04
+- [ ] **Phase 27: Legacy Cleanup** — CLEAN-01/02
 
-Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/screen is a prerequisite for the next).
+Execution order: 22 → 23 → 24 → 25 → 26 → 27 (strictly sequential — data model → download engine → Settings UI → map-screen rewiring/spike → trail guard → legacy ripout; matches research/SUMMARY.md's recommended build order).
+
+v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has not yet been run through `/gsd-complete-milestone`.
 
 ## Performance Metrics
 
@@ -170,6 +175,8 @@ Recent decisions affecting current work:
 - [Phase quick-260721-eob]: snapResultAcceptable rejects on bbox-diagonal shrink (<0.6x original), never on point count -- trace_route legitimately re-vertexes at Valhalla's own density
 - [Phase quick-260721-eob]: Any transform path (snap and/or heights) produces a timeless track (elevation-only merge helpers); only the no-transform path preserves the recorded breadcrumb's timestamps verbatim
 - [Phase quick-260721-eob]: New /valhalla/trace-route proxy is authenticated (locals.user gate), matching /valhalla/navigate's trust class rather than the unauthenticated /valhalla/route and /valhalla/height siblings
+- [v1.6 roadmap] 6 phases (22-27), following research/SUMMARY.md's recommended build order almost verbatim: data model → download engine → Settings UI → map-screen rewiring+spike → trail guard → legacy ripout. Strictly sequential (no parallel phases) — each step swaps exactly one thing while the old trail-scoped path stays live until proven redundant, same discipline as v1.4's "forks deleted last." RENDER-03's maplibre 0.3.5 incremental-source spike is pulled into Phase 25, ahead of the guard/ripout phases, because research flags it as the piece most likely to need rework if discovered late.
+- [v1.6 roadmap] REQUIREMENTS.md's own Coverage line undercounted the v1 list by one (said "24 total"; the actual requirement table has 25 REQ-IDs). Corrected during roadmap creation — all 25 requirements map 1:1 to exactly one of Phases 22-27, no orphans.
 
 ### Pending Todos
 
@@ -258,6 +265,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-21T09:00:23.883Z
-Stopped at: Completed quick-260721-eob: Save recording options sheet (Recalculate heights / Follow roads)
+Last session: 2026-07-21T13:15:00.000Z
+Stopped at: Created ROADMAP.md for v1.6 (Phases 22-27) — data model, download engine, Settings UI, map-rendering pipeline + spike, trail guard, legacy cleanup. All 25 v1 requirements mapped, no orphans. Next: /gsd-plan-phase 22.
 Resume file: None
