@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart' as geo;
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -280,10 +281,11 @@ class Router extends _$Router {
           builder: (context, state) {
             // extra: either an ActiveNavigationEntity resume seed when
             // re-entering an in-progress recording (see main.dart's
-            // _maybeResume rec branch), or a {'lat', 'lon'} map with the
-            // real GPS fix resolved before starting a fresh recording (see
-            // trail_source_select_screen.dart's _openRecorder) — null for
-            // neither case falls back to NavigationScreen's own default.
+            // _maybeResume rec branch), or a {'lat', 'lon', 'position'} map
+            // with the real GPS fix resolved before starting a fresh
+            // recording (see trail_source_select_screen.dart's
+            // _openRecorder) — null for neither case falls back to
+            // NavigationScreen's own default.
             final extra = state.extra;
             final resume = extra is ActiveNavigationEntity ? extra : null;
             final center = extra is Map
@@ -299,12 +301,16 @@ class Router extends _$Router {
                       ? PolylineUtil.decode(resume!.breadcrumbPolyline!)
                             .lastOrNull
                       : null);
+            final seedPosition = extra is Map
+                ? extra['position'] as geo.Position?
+                : null;
             return NavigationScreen(
               id: '',
               response: const NavigateResponse(maneuvers: [], shape: []),
               isRecording: true,
               resumeSession: resume,
               initialCenter: center,
+              initialPosition: seedPosition,
             );
           },
         ),
@@ -344,16 +350,23 @@ class Router extends _$Router {
                 final trailId = state.pathParameters['id']!;
                 final extra = state.extra;
                 if (extra
-                    is! (NavigateResponse, bool, ActiveNavigationEntity?)) {
+                    is! (
+                      NavigateResponse,
+                      bool,
+                      ActiveNavigationEntity?,
+                      geo.Position?,
+                    )) {
                   // extra is lost across process restart / deep-link — fall back.
                   return TrailDetailScreen(id: trailId);
                 }
-                final (response, isOffline, resumeSession) = extra;
+                final (response, isOffline, resumeSession, seedPosition) =
+                    extra;
                 return NavigationScreen(
                   id: trailId,
                   response: response,
                   isOffline: isOffline,
                   resumeSession: resumeSession,
+                  initialPosition: seedPosition,
                 );
               },
             ),

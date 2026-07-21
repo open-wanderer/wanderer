@@ -102,8 +102,9 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
         PopupMenuItem<TrailAction>(
           value: TrailAction.download,
           onTap: downloadEnabled
-              ? () =>
-                    ref.read(downloadingTrailIdsProvider.notifier).download(trail)
+              ? () => ref
+                    .read(downloadingTrailIdsProvider.notifier)
+                    .download(trail)
               : null,
           enabled: downloadEnabled,
           child: ListTile(
@@ -164,6 +165,9 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   }
 
   bool _allowDelete(WidgetRef ref) {
+    if (widget.trail.isOffline) {
+      return true;
+    }
     final user = ref.watch(authProvider).value;
     if (user == null) return false;
 
@@ -195,6 +199,11 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   }
 
   Future<void> _deleteTrail(BuildContext context, Trail trail) async {
+    if (trail.isOffline) {
+      Navigator.of(context).pop();
+      ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
+    }
+
     final router = GoRouter.of(context);
 
     try {

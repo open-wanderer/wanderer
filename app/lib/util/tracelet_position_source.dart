@@ -2,6 +2,28 @@ import 'dart:async';
 
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:tracelet/tracelet.dart' as tl;
+import 'package:wanderer/provider/foreground_position_stream_provider.dart'
+    show LocationMarkerPosition;
+
+/// Converts an already-resolved [LocationMarkerPosition] (from
+/// `foregroundPositionStreamProvider`, typically resolved by the caller
+/// before pushing to `NavigationScreen` — see `_openRecorder` and
+/// `launchNavigation`) into a seed [geo.Position] for
+/// [TraceletPositionSource.start]. Altitude/speed aren't tracked by
+/// [LocationMarkerPosition], so they're zeroed rather than left to fall back
+/// on stale values.
+geo.Position seedPositionFrom(LocationMarkerPosition pos) => geo.Position(
+  latitude: pos.latitude,
+  longitude: pos.longitude,
+  altitude: 0,
+  altitudeAccuracy: 0,
+  speed: 0,
+  speedAccuracy: 0,
+  heading: pos.heading ?? 0,
+  headingAccuracy: pos.headingAccuracy ?? 0,
+  accuracy: pos.accuracy,
+  timestamp: DateTime.now(),
+);
 
 /// Bridges tracelet's location engine into a [geo.Position] stream so the
 /// navigation screen's existing consumers (maneuver provider, stats
@@ -96,11 +118,19 @@ class TraceletPositionSource {
   Future<void> start({
     required String notificationTitle,
     required String notificationText,
+    geo.Position? seed,
   }) async {
     _notificationTitle = notificationTitle;
     _notificationText = notificationText;
     _locationSub = tl.Tracelet.onLocation(_onLocation);
     _motionSub = tl.Tracelet.onSpeedMotionChange(_onSpeedMotionChange);
+
+    // Emit the caller's already-resolved fix immediately so the live marker
+    // doesn't sit blank through tracelet's own cold GPS acquisition —
+    // overwritten the moment `_onLocation` fires for real.
+    if (seed != null && !_controller.isClosed) {
+      _controller.add(seed);
+    }
 
     await tl.Tracelet.ready(_foregroundConfig());
     await tl.Tracelet.start();

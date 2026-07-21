@@ -15,6 +15,7 @@ import 'package:wanderer/provider/map_camera_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
+import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/trail_import_util.dart';
 
 class TrailSourceSelectScreen extends ConsumerStatefulWidget {
@@ -96,7 +97,11 @@ class _TrailSourceSelectScreenState
       }
       context.push(
         '/record',
-        extra: {'lat': pos.latitude, 'lon': pos.longitude},
+        extra: {
+          'lat': pos.latitude,
+          'lon': pos.longitude,
+          'position': seedPositionFrom(pos),
+        },
       );
     } finally {
       if (mounted) setState(() => _recorderLoading = false);

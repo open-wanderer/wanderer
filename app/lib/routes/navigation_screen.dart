@@ -68,6 +68,13 @@ class NavigationScreen extends ConsumerStatefulWidget {
   /// `Geographic(0, 0)` fallback. Ignored outside recording mode.
   final ml.Geographic? initialCenter;
 
+  /// Already-resolved GPS fix — from `_openRecorder` (recording) or
+  /// `launchNavigation` (turn-by-turn) — seeded into [TraceletPositionSource]
+  /// so the live marker renders instantly instead of waiting for tracelet's
+  /// own cold GPS acquisition. Null for a resumed session (no fresh fix to
+  /// hand off) — the marker waits for tracelet's fix same as before.
+  final geo.Position? initialPosition;
+
   const NavigationScreen({
     super.key,
     required this.id,
@@ -76,6 +83,7 @@ class NavigationScreen extends ConsumerStatefulWidget {
     this.resumeSession,
     this.isRecording = false,
     this.initialCenter,
+    this.initialPosition,
   });
 
   @override
@@ -340,6 +348,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         _positionSource.start(
           notificationTitle: localizations.location_tracking_notification_title,
           notificationText: localizations.location_tracking_notification_text,
+          seed: widget.initialPosition,
         ),
       );
     });

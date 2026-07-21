@@ -14,9 +14,11 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
 /// Reads the cached [NavigateResponse] for [trailId] from ObjectBox, or null
@@ -109,6 +111,23 @@ Future<void> launchNavigation({
     permission = await Geolocator.requestPermission();
   }
 
+  // Best-effort: seed the live marker with an already-warm fix from the
+  // singleton foreground stream (see `foreground_position_stream_provider`)
+  // so it doesn't sit blank through tracelet's own cold GPS acquisition in
+  // NavigationScreen. Short timeout and swallowed failure — unlike
+  // `_openRecorder`'s blocking fetch, a miss here must never delay or block
+  // starting navigation, since the tracelet fix will still arrive shortly.
+  Position? seedFix;
+  try {
+    final pos = await ref
+        .read(foregroundPositionStreamProvider)
+        .firstWhere((p) => p != null)
+        .timeout(const Duration(seconds: 3));
+    if (pos != null) seedFix = seedPositionFrom(pos);
+  } catch (_) {
+    seedFix = null;
+  }
+
   final gpx = trail.expand?.gpx;
   if (gpx == null) {
     ref
@@ -170,8 +189,12 @@ Future<void> launchNavigation({
 
     if (!context.mounted) return;
 
-    // extra: (response, isOffline, resumeSeed) — null seed for a fresh launch.
-    context.push('/trail/${trail.id}/navigate', extra: (response, false, null));
+    // extra: (response, isOffline, resumeSeed, seedFix) — null resumeSeed
+    // for a fresh launch.
+    context.push(
+      '/trail/${trail.id}/navigate',
+      extra: (response, false, null, seedFix),
+    );
 
     final store = ref.read(objectBoxProvider);
     unawaited(_recacheNav(store, trail.id, response));
@@ -182,7 +205,10 @@ Future<void> launchNavigation({
     if (cached != null &&
         cached.maneuvers.isNotEmpty &&
         cached.shape.isNotEmpty) {
-      context.push('/trail/${trail.id}/navigate', extra: (cached, true, null));
+      context.push(
+        '/trail/${trail.id}/navigate',
+        extra: (cached, true, null, seedFix),
+      );
       return;
     }
     ref

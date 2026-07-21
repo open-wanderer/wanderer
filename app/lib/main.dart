@@ -227,7 +227,9 @@ class _MainAppState extends ConsumerState<MainApp> {
       if (accepted == true) {
         navigatorKey.currentContext?.push(
           '/trail/${row.trailId}/navigate',
-          extra: (response, row.isOffline ?? false, row),
+          // No fresh fix to seed on resume — same as a brand-new session
+          // pending its first tracelet fix.
+          extra: (response, row.isOffline ?? false, row, null),
         );
       } else {
         active_nav.clear(store);
