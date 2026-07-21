@@ -8,9 +8,19 @@
 
 ### Region Manifest & Data Model
 
-- [ ] **REGN-01**: A bundled `regions.json` app asset defines regions (id, name, bbox, vector PMTiles URL + size, optional DEM URL + size)
-- [ ] **REGN-02**: ObjectBox `Region` entity stores manifest fields plus live status (notDownloaded/downloading/downloaded/updateAvailable), using explicit stable int constants (not index-backed enum persistence)
+- [ ] **REGN-01**: The app fetches its region catalog from this Wanderer instance's backend API at runtime — id, name, bbox, vector archive URL + size, optional DEM archive URL + size, per region. No bundled `regions.json` asset: the catalog reflects only the regions *this* instance's admin has configured (see BACK-01/BACK-04), so a fresh/default instance with no admin config yet returns an empty catalog rather than a fixed global list.
+- [ ] **REGN-02**: ObjectBox `Region` entity stores fetched-catalog fields plus live status (notDownloaded/downloading/downloaded/updateAvailable), using explicit stable int constants (not index-backed enum persistence)
 - [ ] **REGN-03**: ObjectBox `DownloadedTilePackage` entity tracks vector and DEM as independent packages per region — local file path, timestamp, size on disk, status
+
+### Backend — Region Catalog & Archive Pre-Build
+
+**Why this exists:** This corrects two assumptions made during Phase 22 planning. First, that the existing per-cell backend (`db/services/tiles/generator.go`, `GET /api/v1/map/cells?bbox=...`, `db/routes/map_cells_id.go`) could be reused as-is by pointing the manifest's `vector_url`/`dem_url` at that endpoint and letting the client fan out into N per-cell requests at download time — wrong shape for a "download this region for offline" feature (forces the client to orchestrate/retry/account many small requests instead of one resumable file). Second, that `regions.json` should be a bundled app asset at all — for a self-hostable app, the set of offline-downloadable regions is an admin decision per instance (a small instance may only want to serve the regions its own trails cover), not something fixed at Flutter build time. The design that replaces both: an admin defines their instance's regions in a config file mounted via Docker volume; a cronjob pre-builds each region's archives ahead of any user request so downloads are instant; the app fetches the resulting catalog from an API endpoint instead of parsing a bundled asset.
+
+- [ ] **BACK-01**: Backend loads a region catalog from an admin-supplied config file (mounted via Docker volume) at startup — each entry defines a region's id, name, and bbox; no per-region URL/size in the config, since those are generated, not admin-supplied
+- [ ] **BACK-02**: A cronjob pre-builds a single mosaicked vector PMTiles archive per configured region — merging the grid cells covering the region's bbox into one file — ahead of any user download request
+- [ ] **BACK-03**: The same cronjob pre-builds a single DEM archive per configured region on the same basis, reusing the existing Mapterhorn extraction (`generator.go`, `mapterhornSource`, `demMaxZoom = 12`) as its data source but mosaicked to the region's bbox instead of served per grid cell
+- [ ] **BACK-04**: Backend exposes an API endpoint returning this instance's region catalog (id, name, bbox, vector archive URL + size, DEM archive URL + size, version/status) for the app to fetch at runtime, per REGN-01
+- [ ] **BACK-05**: Cron regeneration is staleness-aware — it only rebuilds a region's archive when the underlying source tiles have changed since the last build, and that changed-since check is what drives the client-visible `updateAvailable` status (exact cadence/staleness-detection mechanics: open question, revisit at discuss-phase for this phase)
 
 ### Tile Repository (Download Engine)
 
@@ -22,7 +32,7 @@
 
 ### DEM Support
 
-- [ ] **DEM-01**: Per-region optional DEM toggle reuses the existing Mapterhorn DEM pipeline (`generator.go` / download-dem endpoint), re-keyed to regions instead of trail cells
+- [ ] **DEM-01**: Per-region optional DEM toggle downloads the pre-built region-scoped DEM archive produced by BACK-03, served via BACK-04's catalog endpoint — not the existing per-cell `download-dem` endpoint pointed at a region bbox
 - [ ] **DEM-02**: DEM download/deletion is tracked as its own `DownloadedTilePackage` per region, independent of the vector package's status
 
 ### Settings — Offline Maps/Regions UI
@@ -61,7 +71,7 @@ Deferred to future release. Tracked but not in current roadmap.
 - **REGN-F01**: Map boundary highlight overlay showing downloaded region coverage directly on the map
 - **REGN-F02**: Bulk download/delete actions (add once the manifest grows past ~5+ regions)
 - **REGN-F03**: Auto-download the region containing the user's current GPS location on first launch
-- **REGN-F04**: Remote/updatable region manifest (revisit only if the bundled-asset manifest proves stale in practice)
+- ~~**REGN-F04**: Remote/updatable region manifest~~ — superseded, pulled into v1 as REGN-01/BACK-01/BACK-04 (2026-07-21)
 - **REGN-F05**: User-drawn custom download areas
 - **REGN-F06**: Offline search within downloaded regions
 
@@ -72,7 +82,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | Feature | Reason |
 |---------|--------|
 | Legacy trail-cache migration | App is pre-production; old trail-scoped tile/DEM cache is deleted outright, no conversion path |
-| Remote/server-fetched region manifest | v1.6 ships a bundled `regions.json` app asset only |
+| Admin UI/API for region catalog CRUD | v1.6 region definition is a config file mounted via Docker volume, edited by redeploying; a settings/admin screen for live editing is deferred |
 | Polygon region geometries | v1.6 regions are bounding-box only; arbitrary polygon boundaries add geometry-processing complexity with no functional download benefit |
 | 3D terrain/hillshade rendering redesign | v1.6 only relocates the existing DEM download/storage pipeline to be region-based; `offline_style_rewriter.dart`'s hillshade rendering is reused as-is |
 | Background/resumable downloads across app restarts | Session-scoped pause/resume only — cross-restart resume is a documented source of bugs even in mature apps (OsmAnd) |
@@ -87,9 +97,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REGN-01 | Phase 22 | Pending |
+| REGN-01 | Phase 22 (replan needed — see todo) | Pending |
 | REGN-02 | Phase 22 | Pending |
 | REGN-03 | Phase 22 | Pending |
+| BACK-01 | Phase 21.5 | Pending |
+| BACK-02 | Phase 21.5 | Pending |
+| BACK-03 | Phase 21.5 | Pending |
+| BACK-04 | Phase 21.5 | Pending |
+| BACK-05 | Phase 21.5 | Pending |
 | TILE-01 | Phase 23 | Pending |
 | TILE-02 | Phase 23 | Pending |
 | TILE-03 | Phase 23 | Pending |
@@ -114,10 +129,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLEAN-02 | Phase 27 | Pending |
 
 **Coverage:**
-- v1 requirements: 25 total
-- Mapped to phases: 25
-- Unmapped: 0 ✓
+- v1 requirements: 30 total
+- Mapped to phases: 30
+- Unmapped: 0 ✓ (REGN-01 maps to Phase 22, but that phase's existing plans need replanning — see `.planning/todos/pending/replan-phase-22-region-manifest.md`)
 
 ---
 *Requirements defined: 2026-07-21*
-*Last updated: 2026-07-21 after roadmap creation (24-item count in this file corrected to 25 — the Coverage summary had undercounted the requirement list by one)*
+*Last updated: 2026-07-21 — reworked region catalog design from "bundled app asset" to "per-instance API, admin-configured via a Docker-mounted config file, pre-built by cronjob" (REGN-01 rewritten; BACK-01..05 replace the earlier on-demand-generation framing; REGN-F04 superseded and pulled into v1). See `.planning/notes/region-catalog-backend-decision-trail.md` for the full rationale. New requirements mapped to Phase 21.5 in ROADMAP.md.*
