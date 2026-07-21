@@ -388,10 +388,16 @@ This milestone follows research/SUMMARY.md's recommended build order almost verb
   1. On startup, the Go backend reads a region catalog (id, name, bbox per region) from a config file mounted via Docker volume; an instance with no config file or an empty one serves an empty catalog rather than erroring.
   2. A cronjob pre-builds a single mosaicked vector PMTiles archive per configured region, merging the grid cells covering that region's bbox, without waiting for any user request.
   3. The same cronjob pre-builds a single DEM archive per configured region on the same basis, reusing the existing Mapterhorn extraction pipeline as its data source.
-  4. `GET` (endpoint TBD at planning) returns this instance's region catalog — id, name, bbox, vector archive URL + size, DEM archive URL + size, version/status — reflecting only what pre-built successfully.
+  4. `GET /api/v1/regions` (auth-gated, any logged-in user — literal Go-router path, no SvelteKit proxy this phase) returns this instance's region catalog — id, name, bbox, status, version, vector archive URL + size, DEM archive URL + size — reflecting only what pre-built successfully.
   5. Cron regeneration only rebuilds a region's archive when its underlying source tiles changed since the last build; exact cadence and staleness-detection mechanics are open questions for this phase's discuss-phase step, not locked here.
 
-**Plans**: TBD
+**Plans**: 3 plans (3 waves)
+
+Plans:
+
+- [ ] 21.5-01-PLAN.md — Region config loader (id/bbox validation, path-safety) + `region_archives` collection migration (BACK-01)
+- [ ] 21.5-02-PLAN.md — Archive builder: vector + DEM `pmtiles extract` with atomic rename, date-gated vector rebuild, build-once DEM, in-flight guard (BACK-02/03/05)
+- [ ] 21.5-03-PLAN.md — Auth-gated `GET /api/v1/regions` catalog + archive download routes, daily build cron, docker-compose config wiring (BACK-04/01/05)
 
 **Note:** This phase reverses an assumption made when Phase 22 was originally planned (that no backend change was needed). See the milestone-level "Correction" note above `Phase 22` for context, and the linked note/todo for what this means for Phase 22's already-drafted plans.
 
