@@ -1,186 +1,218 @@
 # Feature Research
 
-**Domain:** Mobile route-planning tool for hiking/cycling (interactive map-based route builder)
-**Researched:** 2026-07-16
-**Milestone:** v1.5 Route Planner
-**Confidence:** MEDIUM-HIGH (verified against Komoot, Strava, gpx.studio, OsmAnd documentation + Wanderer's own maplibre/Valhalla/trail-save infrastructure)
+**Domain:** Region-based offline map/tile management in a mobile hiking/navigation app
+**Researched:** 2026-07-21
+**Milestone:** v1.6 Offline Region Tile Repository
+**Confidence:** MEDIUM (WebSearch-derived, cross-checked across multiple apps; no Context7/official API docs exist for competitor UX — these are product/UX conventions, not library APIs)
+
+## Scope Note
+
+This research is scoped to the **new** v1.6 capability only: app-wide predefined-region offline map management + the trail-download guard. It does not re-litigate what's already decided in PROJECT.md (bundled `regions.json`, `notDownloaded/downloading/downloaded/updateAvailable` status enum, session-scoped pause/resume, bbox-only regions, no remote manifest). Where research confirms or refines those decisions, it's called out explicitly.
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Anyone who has used Komoot, Strava's Route Builder, gpx.studio, or OsmAnd's route planner will expect these. Missing them makes the planner feel broken, not "MVP."
+Features users assume exist in any "download regions for offline use" surface. Missing these makes the feature feel broken or untrustworthy.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Tap-to-add waypoint (appends to route end) | Universal across Komoot, Strava, OsmAnd, gpx.studio — single tap on empty map drops the next point | LOW | Wanderer already has tap-handling patterns on `wanderer_map.dart`/`search_map.dart`; new part is turning a tap into a route point + re-render |
-| Drag existing waypoint to reposition | Komoot: "existing waypoints can be moved around via drag and drop"; Strava: "drag and drop existing waypoints to adjust the route" | MEDIUM-HIGH | `maplibre` 0.3.5 has no native draggable-annotation API. Verified fix: render waypoints via `WidgetLayer`/`Marker` (`allowInteraction: true`) + `GestureDetector`/`PanUpdate`, convert the resulting screen offset back to a coordinate with `MapController.toLngLat(Offset)` (confirmed present in `maplibre_platform_interface` 0.3.5 source). This is the core new interaction to build |
-| Insert waypoint mid-segment (tap/drag the line itself) | Komoot: "drag the line anywhere to create a new waypoint"; Strava: "add new ones by clicking on the line between two points" | MEDIUM-HIGH | Needs hit-testing against the rendered route polyline with a touch-friendly tolerance band (a 2–3px line is not tappable with a finger — pad the hit area, don't rely on exact pixel intersection), then split the segment at the projected point |
-| Delete a waypoint | Implicit in every tool listed; also explicit in Wanderer's own v1.5 scope | LOW | Standard list/marker delete action; must also re-resolve the routed segment(s) that touched the deleted point |
-| Reorder waypoints | Komoot's waypoint list supports drag-handle reordering; OsmAnd markers list is order-driven | LOW-MEDIUM | Cheaper and more mobile-friendly as a **list drag-handle** (`ReorderableListView`, already used for category priority per Key Decisions) than as free-form map drag — matches Wanderer's own precedent of avoiding pointer-drag-on-map for ordering |
-| Undo/redo | gpx.studio ships explicit undo/redo buttons; expected in any "editor" mental model once users start making mistakes with a finger | MEDIUM | No existing undo/redo infra anywhere in the app (settings screens are single-state auto-save). Needs a command/snapshot stack scoped to the planning session only (not persisted) |
-| Snap-to-path ("routed") as default, freehand as an explicit opt-out | Komoot: "by default the planner locks onto roads and trails"; Strava's "Manual Mode" is the opt-out; gpx.studio's "Routing mode vs Off-road mode" | MEDIUM | Directly maps to Wanderer's planned Valhalla toggle. Re-resolving on toggle/profile change is the correct behavior per all three tools — matches PROJECT.md's stated design |
-| Live distance / elevation feedback while building | Strava: "real-time updates on distance, elevation gain, and estimated moving time" as you place points | LOW-MEDIUM | Wanderer already has `GpxMappingUtils.getTotals()` (distance/duration/elevation gain+loss) — reusable as-is against a synthesized in-memory `Gpx`, no new stats math needed |
-| Live elevation profile chart | Strava and Komoot both surface an elevation graph during planning, not just after saving | LOW (reuse) | `ElevationProfile` widget (`app/lib/components/trail/elevation_profile.dart`) already renders a scrubbing chart from a `Trail` + `Gpx` — feed it the in-progress synthesized `Gpx` and it works largely unmodified |
-| Waypoint list view | Komoot's "See waypoints list"; OsmAnd's marker list | LOW | Straightforward list backed by the same route-point array driving the map |
-| Search-to-pan to a start location | Every planning tool (incl. desktop ones) lets you find a place before you start dropping points | LOW (already built) | Wanderer's `GlobalSearchScreen`/`global_search_provider` already does this — reuse, don't rebuild |
-| Hand off finished route into a save/edit flow | Every consumer tool eventually exports/saves the route (GPX export, "Save route", etc.) | MEDIUM | Wanderer already has the exact mechanism: `pendingImportedTrail` global + `context.push('/trail/create/edit', extra: trail)`, used today by GPX import (`trail_import_util.dart`). Net-new work is *synthesizing* a `Trail`+`Gpx` from planner state (waypoints + routed/straight segments) — no equivalent synthesis code exists yet, must be written |
+| Flat or lightly-grouped region list with search/filter | Users scan for their region by name, not by drilling a taxonomy — this is true even in apps with deep hierarchies (OsmAnd) where a search box at the top is the actual primary interaction | LOW | A hiking app manifest is small (tens, not thousands, of regions) — a flat list is the right complexity; no country→state→region tree needed. See Complexity Guidance below. |
+| Per-region download button + progress indicator | Universal pattern (OsmAnd, Organic Maps, Gaia GPS, AllTrails) — tap to start, inline progress bar/percentage while downloading | LOW-MEDIUM | Already scoped: reuse `DownloadedTilePackage` status field to drive per-row UI state. |
+| Size shown *before* download starts | Explicit UX-pattern guidance: "inform users of the anticipated package size before they start downloading it" (mapuipatterns.com) — users decide whether to download based on size vs available storage | LOW | `regions.json` already carries size fields per PROJECT.md — just needs to render pre-download. |
+| Delete/remove downloaded region + reclaim storage | Every reviewed app (OsmAnd, Organic Maps, Gaia GPS) treats delete as a first-class action, usually via swipe or a per-region overflow/detail view | LOW | Already scoped as a v1.6 requirement. |
+| Downloaded-region visual distinction in the list | Downloaded rows need a different affordance than not-downloaded rows (checkmark, filled icon, "Downloaded" label) so users don't re-trigger a full download by accident | LOW | Maps directly to the 4-state enum already decided — each status needs a distinct icon/label, not just a progress bar that disappears. |
+| Pause/resume affordance during download | Long region downloads (vector + DEM can be 10s–100s of MB) on cellular need a pause control; users expect to stop and continue without restarting from zero | LOW-MEDIUM | Already scoped as session-only pause/resume — matches OsmAnd's actual behavior (resume works within a session; cross-restart resume is a known OsmAnd pain point per GitHub issues, so *not* supporting it in v1 is a reasonable, validated cut, not a gap). |
+| Total disk usage summary | Users managing multiple regions want to see "X GB used" in one place, especially before deciding to delete something | LOW | Already scoped ("total disk usage" on the Settings page). |
+| Guard/prompt when content needs an undownloaded region | Komoot explicitly surfaces "which region is needed" when a tour starts in a locked/undownloaded region rather than silently failing | MEDIUM | This is the "trail needs region X" flow — see Guard UX section below for the recommended shape. |
 
 ### Differentiators (Competitive Advantage)
 
-Not required for a defensible v1, but where a mobile hiking-focused planner can distinguish itself. None of these are in the v1.5 Active scope — listed so the roadmap can consciously defer them rather than accidentally build a sliver of each.
+Not required for v1, but observed in mature apps as what separates a good offline experience from a merely functional one.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Foot/bike-only profile switch mid-plan with instant re-routing | Matches Wanderer's actual audience (hikers/cyclists) better than Strava/Komoot's broader profile lists | LOW (already scoped) | Already in Active scope — this is the "differentiator that's actually in v1", not a stretch feature |
-| Trail-category-aware waypoint icons on the elevation profile & map (reusing existing waypoint icon system) | Consistent visual language with the rest of the app (trail detail, navigation) rather than a generic pin | LOW | `ElevationProfile` already draws category icons for a saved trail's waypoints — extending this to in-progress planning is cheap and reinforces brand consistency ("Terrain Log" per DESIGN.md) |
-| Offline-aware graceful degradation (auto-routing unavailable → falls back to freehand with a clear banner, rather than a hard error) | Hikers plan routes at trailheads with poor signal; Komoot/Strava assume near-constant connectivity | MEDIUM | Reuses the existing Dio-try-catch-as-offline-gate pattern from navigation (Key Decisions) rather than a new connectivity check |
-| Single-thumb "confirm placement" step after drag (tap-drop-adjust-confirm rather than pure live-drag) | Desktop tools assume mouse precision; a confirm step reduces mis-placed waypoints from "fat finger" drag on a phone | LOW-MEDIUM | Not shown in any competitor (they're all mouse-first) — a genuine mobile-only affordance worth prototyping, not copying |
+| Layer/size breakdown per region (base map vs DEM) | OsmAnd treats contour lines/hillshade as a visibly separate download line from the base map, with its own size — lets users skip terrain shading on a small phone to save space | LOW | Already scoped as "size breakdown (vector vs DEM)" — research confirms this is the right level of granularity (2 layers, not N). Don't expose more granular layer toggles (e.g., separate roads/POIs/water) — no reviewed hiking app does this at the region level. |
+| Update-available indicator when source tiles change | OsmAnd flags regions as outdated when newer extracts exist; a distinct 4th status. Real-world OsmAnd GitHub issues show this is *also* a common source of user confusion (false "outdated" flags, blocking navigation on stale-but-usable maps) | MEDIUM | Already scoped in the status enum. Key lesson from OsmAnd's pitfalls: **never block existing offline functionality (rendering/routing) just because `updateAvailable` is true** — it should be an optional nudge, not a functional gate. Stale-but-present tiles must keep working. |
+| Bulk actions ("download all," "delete all") | Useful once a user has 5+ regions downloaded, but not essential for a v1 with a handful of regions bundled | LOW | Defer unless the initial `regions.json` ships with many small regions (e.g., per-country splits) — with few, large regions, bulk actions add little value. |
+| Auto-download the region containing current GPS location on first launch | Organic Maps auto-downloads the map for the user's current location without a prompt on first open, reducing time-to-value | MEDIUM | Genuinely nice but requires location-permission-before-onboarding sequencing; worth flagging as a fast-follow, not v1 — it interacts with permission flow ordering already established in the app (geolocator + auto-geolocate setting, see project memory on `allowAutoGeolocate`). |
+| Highlight downloaded region boundaries on the map | Recent Organic Maps addition — helps users visually confirm coverage on the map itself, not just in a settings list | LOW-MEDIUM | Nice differentiator once the region registry exists; a bbox rectangle overlay is cheap to add given regions are already bbox-only. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
+Features that look good on a competitor screenshot but create disproportionate complexity for a v1 predefined-region hiking app. All of the following are already correctly excluded in PROJECT.md's Out of Scope — this research validates those cuts with concrete evidence from the ecosystem.
+
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|------------------|-------------|
-| Route optimization / auto-reorder waypoints (TSP-style "optimize my stops") | Some desktop route builders (Strava web) offer it; feels like a natural "smart" addition | Optimization solves a delivery/errand-routing problem, not a hiking-route problem — hikers place waypoints in the order they intend to walk them; auto-reordering would silently rewrite user intent. High algorithmic complexity for negative value here | Don't build it. If ordering is wrong, the user reorders manually via the list |
-| Automatic loop/route generation ("suggest a 10km loop from here") | Komoot/Strava "Discover" features generate routes from a starting point + distance/heading | Requires a generation service (heuristic loop-finding over the road/trail graph), far beyond Valhalla's point-to-point routing; entirely different backend capability | Out of scope; if wanted later, it's a distinct milestone requiring new backend infra, not an extension of this planner |
-| Multi-day / touring route planning (overnight stops, lodging) | Komoot's Tour Planner supports multi-day cycling tours | Large scope: day-splitting logic, lodging POIs, per-day stats — none of it maps to Wanderer's single-`Trail` model | Not applicable to Wanderer's data model; explicitly out of scope |
-| Per-segment travel profile (walk this bit, bike that bit) | Desktop tools with mixed-mode trips sometimes support it | Already explicitly ruled out in PROJECT.md ("Per-segment travel profiles... a single profile applies to the whole route") — flagging here because it's the single most common escalation request once users see foot/bike toggle exists | Single profile for the whole route; if truly needed later, is its own milestone |
-| Free-form vertex/curve smoothing tools (simplify, smooth spline, snap-to-nearest-track) | gpx.studio (desktop-first) offers these as power-user GPX cleanup tools | Desktop-precision editing operations assume a mouse and a large canvas; on a phone they're fiddly to a degree that actively hurts usability, and they duplicate what auto-routing already does | Auto-routing (Valhalla snap) already produces clean paths; freehand segments are intentionally freehand — don't add a "clean this up" tool on top |
-| Real-time collaborative editing of a single route (two people planning together live) | Sounds appealing for group trip planning | No sync/conflict-resolution infra exists anywhere in the app; this is a distributed-systems problem bolted onto what's currently a local, single-session editor | Out of scope; sharing happens after save via existing trail-sharing/federation features, not during planning |
-| Desktop-style always-visible side-by-side map + waypoint-list + elevation-chart panels | It's how Strava/Komoot/gpx.studio look on the web | Screen real estate on a phone can't fit three simultaneous panels without shrinking the map to uselessness | Mutually-exclusive bottom-sheet toggle between waypoint list and elevation profile (already the planned v1.5 design) — matches how Strava's *own* mobile app collapses these into a single toggled panel, unlike its web builder |
-| Offline caching / resumable drafts of an in-progress plan | Users may expect "my draft survives if I background the app or lose signal," matching offline navigation | Explicitly out of scope in PROJECT.md; auto-routing calls need network anyway, so a fully offline planning session degrades to freehand-only regardless of caching | Freehand-only planning still works offline (no network call needed for straight lines); auto-routing simply becomes unavailable until reconnected, surfaced via a banner, not silently cached |
+| User-drawn custom download areas (Gaia GPS / AllTrails "Custom Areas" style) | "Let me download exactly the bbox I want" feels more flexible | Requires a map-based draw-and-confirm UI, tile-count/size estimation for an arbitrary polygon, and dedup logic against already-downloaded regions (Gaia GPS explicitly dedupes overlapping custom boxes to avoid double storage) — none of which exists yet, and it's orthogonal to a curated hiking-region manifest | Predefined bbox regions from `regions.json`, sized to hiking-relevant areas (parks, ranges, states) — matches Organic Maps' "whole state, not custom area" model, which is the right complexity match for this app |
+| Country → state/province → sub-region hierarchical tree navigation | OsmAnd does this because its manifest has thousands of entries worldwide | For a bundled, curated manifest (tens of regions, hiking-relevant), a tree adds navigation depth with no payoff — users would tap through 2-3 screens to reach a region a flat searchable list would show in one | Flat list, optionally grouped by a single level (e.g., country) only if the manifest later grows past ~30-40 entries; not needed for v1's bundled regions.json |
+| Full polygon region boundaries (non-bbox) | Bboxes "waste" space by including area outside the actual region of interest | Polygon clipping requires geometry processing beyond what `regions.json` + PocketBase's `generator.go` pipeline supports today, and it doesn't change what's functionally downloadable (bbox tiles still fully cover the region) | Bbox-only regions (already decided) — oversized coverage is a acceptable tradeoff for a v1, revisit only if disk usage complaints emerge |
+| Cross-app-restart resumable/background downloads | Feels like table stakes coming from OS-level download managers | OsmAnd's own GitHub issues show this is a persistent source of bugs (stalled downloads that can't restart, corrupted partial state) even for a mature app; implementing it correctly requires a background task/foreground-service architecture that doesn't exist in this app yet | Session-scoped pause/resume (already decided) — if the app is killed mid-download, the user restarts the download; acceptable given regions aren't enormous and this mirors many apps' actual (if not marketed) behavior |
+| Remote/dynamically-fetched region manifest with per-user region unlocking (Komoot-style paid region packs) | Komoot's "unlock this region" flow is well-known and looks like a natural fit for a "which region do I need" guard | Adds an entitlement/purchase layer entirely irrelevant to Wanderer (no paywall model), and a remote manifest means handling manifest versioning/staleness — unnecessary complexity for a v1 bundled-asset approach | Bundled `regions.json` app asset (already decided); the guard dialog borrows Komoot's *messaging* pattern ("this needs region X, download it") without any unlock/entitlement logic |
+| Granular per-layer toggles (roads, POIs, contour intervals, water) beyond vector-vs-DEM | Power users may want finer control | No reviewed hiking app exposes this at the region-download level — OsmAnd's contour plugin is the único example of a second toggle, and even that's a single on/off, not granular | Two-way toggle only: base vector map (always) + optional DEM (toggle) — matches what's already scoped |
 
 ## Feature Dependencies
 
 ```
-Tap-to-add waypoint
-    └──requires──> Editable route-point array (new state, no existing analog)
-                       └──requires──> Interactive map layer (WidgetLayer + Marker, allowInteraction:true)
+Region list UI (browse/search)
+    └──requires──> Bundled regions.json manifest
+    └──requires──> ObjectBox Region entity (status, size, paths)
 
-Drag-to-reposition waypoint
-    └──requires──> Interactive map layer (WidgetLayer + Marker)
-                       └──requires──> MapController.toLngLat(Offset) for screen→coordinate conversion
+Per-region download/pause/resume/delete
+    └──requires──> Region list UI
+    └──requires──> TileRepositoryManager (lifecycle)
+    └──requires──> DownloadedTilePackage entity
 
-Insert-mid-segment
-    └──requires──> Rendered route polyline with touch-tolerant hit-testing
-    └──requires──> Editable route-point array
+DEM toggle per region
+    └──requires──> Per-region download lifecycle
+    └──requires──> Existing Mapterhorn DEM pipeline (generator.go), re-keyed to regions
 
-Auto-routing toggle (Valhalla)
-    └──requires──> POST /api/v1/valhalla/navigate (existing endpoint, reused for shape resolution)
-    └──requires──> costingForCategory() (existing, already foot/bike-only — matches v1.5 scope)
+Total disk usage summary
+    └──requires──> DownloadedTilePackage entity (size + status tracking)
 
-Live distance/elevation feedback ──uses──> GpxMappingUtils.getTotals() (existing)
-Live elevation profile view ──uses──> ElevationProfile widget (existing, needs synthesized Gpx input)
+Trail download guard ("region X needed")
+    └──requires──> Region list UI + download lifecycle (must be able to trigger a download from the guard dialog)
+    └──requires──> Region coverage check (trail bbox ⊂ region bbox, or overlap)
 
-Undo/redo
-    └──requires──> New command/snapshot stack (no existing analog anywhere in app)
-    └──enhances──> All point-mutating actions (add/drag/insert/delete/reorder)
+Update-available indicator ──enhances──> Region list UI (does not block trail rendering/download of already-downloaded regions)
 
-Handoff to trail_create_screen
-    └──requires──> Route → Trail/Gpx synthesis (new code)
-    └──requires──> pendingImportedTrail + context.push('/trail/create/edit', extra: trail) (existing pattern from GPX import)
-
-Search-to-focus panning ──uses──> GlobalSearchScreen / global_search_provider (existing, no new work)
-
-Route optimization (anti-feature) ──conflicts──> User-intended waypoint ordering
-Multi-day touring (anti-feature) ──conflicts──> Single-Trail data model
+Map rendering from global region registry ──requires──> TileRepositoryManager
+    └──conflicts with──> legacy trail-scoped tile cache (must be fully removed, not dual-run, per PROJECT.md's "no migration" decision)
 ```
 
 ### Dependency Notes
 
-- **Drag-to-reposition requires the interactive map layer, not the reverse:** build the `WidgetLayer`/`Marker` + gesture-handling scaffold first; tap-to-add, drag, and insert-mid-segment all sit on top of the same editable point array and the same interactive layer, so this is naturally the first phase's foundation, not a late add-on.
-- **Auto-routing toggle requires no new backend work:** `/api/v1/valhalla/navigate` and `costingForCategory()` already exist and already restrict to `pedestrian`/`bicycle` — this lines up exactly with PROJECT.md's "foot/bike only" constraint. The only new work is calling it per-segment (or for the whole waypoint chain) during planning and discarding the maneuver data (the planner only needs `shape`, not turn-by-turn instructions).
-- **Live elevation profile enhances, doesn't require, the routed/straight-line distinction:** it needs *a* `Gpx`, and works the same whether the underlying segment is Valhalla-routed or a straight line — synthesize the `Gpx` from whatever the current route-point array + resolved segments are at any given moment.
-- **Undo/redo has no existing analog to build on** — every other stateful editor in the app (settings screens) is auto-save/single-state, not multi-step. This is the one piece of "table stakes" with the least code reuse and should be scoped generously in complexity estimates.
-- **Handoff requires new Trail/Gpx synthesis code** — the existing `pendingImportedTrail` handoff mechanism (from `trail_import_util.dart`) only ever received an already-server-converted `Trail`. The route planner is the first caller that must build a `Trail` (with `expand.gpx` and raw `gpxData`) entirely client-side from a list of route points, using the `gpx` package's own model classes (`Gpx`/`Trk`/`Trkseg`/`Wpt`).
-- **Route optimization conflicts with user-intended ordering:** any "smart reorder" feature is fundamentally incompatible with hikers placing waypoints in the order they intend to walk — this is why it's an anti-feature, not a deferred differentiator.
+- **Region list UI requires the manifest and entity model to exist first:** the roadmap phase that builds `regions.json` + `Region`/`DownloadedTilePackage` ObjectBox entities must precede any Settings screen work — there's nothing to list otherwise.
+- **DEM toggle requires per-region download lifecycle to exist first:** the toggle is a modifier on an existing per-region download action, not a standalone feature; sequencing DEM after core download/delete avoids building UI for a lifecycle that doesn't exist yet.
+- **Trail guard requires the region list/download lifecycle to be functional before it can offer a "download it now" CTA** — a guard dialog that can only say "go to Settings" (rather than triggering the download inline) is a degraded but valid fallback if sequencing forces the guard earlier; recommend sequencing guard *after* core region download UI so the CTA can be a direct, in-dialog download trigger (see Guard UX below).
+- **Update-available enhances but must not gate** the list/rendering — this is a correctness constraint distilled from OsmAnd's real-world bug reports, not just a UX nicety: an `updateAvailable` region must still render and route exactly like a `downloaded` region.
+- **Map rendering from the global registry conflicts with (replaces) the legacy trail-scoped cache** — per PROJECT.md this is an outright deletion, not a parallel/fallback path, so this phase should be sequenced after the region registry is proven functional (region UI + at least one successful download/render round-trip), not before.
 
 ## MVP Definition
 
-### Launch With (v1 — matches PROJECT.md's v1.5 Active scope)
+### Launch With (v1)
 
-- [ ] Tap-to-add / drag / insert-mid-route / delete / reorder waypoints — the entire editing surface; without all five, the tool feels half-built (reorder and delete are the two most likely to be under-scoped)
-- [ ] Undo/redo — mobile drag precision is worse than desktop mouse precision; users *will* mis-place waypoints, and without undo the only recovery is delete-and-redo, which is punishing
-- [ ] Auto-routing toggle (Valhalla, foot/bike) vs straight-line, re-resolved on toggle/profile change — this is the single feature every comparable tool treats as core, not optional
-- [ ] Live distance/elevation stats + elevation profile view (mutually exclusive with waypoint list) — validates the core value ("build a route and see what you're getting") before the user commits to saving
-- [ ] Search-to-focus panning — needed just to get to a starting area; already built, low cost to include
-- [ ] Handoff to trail_create_screen as a draft Trail — without this the planner is a dead end with no output
+Minimum viable region-management surface — matches and refines what PROJECT.md's Active requirements already specify.
+
+- [ ] Flat, searchable region list (Settings → Offline Maps/Regions) — no hierarchical tree; manifest size doesn't justify one
+- [ ] Per-region row showing: name, status (not-downloaded / downloading+progress / downloaded / update-available), size (vector + DEM breakdown)
+- [ ] Download / pause / resume / delete actions per region, matching the existing list-item + sub-route Settings pattern
+- [ ] Per-region DEM toggle (default off or on — decide based on typical vector-vs-DEM size ratio; DEM should be clearly the "optional, adds size" choice)
+- [ ] Total disk usage summary at the top or bottom of the region list
+- [ ] Trail download guard: on trail download tap, check region coverage; if missing, show an informative dialog naming the region(s) needed with a direct "Download region" CTA (not a silent block, not a generic "download maps first" message)
+- [ ] Partial-coverage handling: if a trail spans two regions, guard dialog lists both missing regions and lets the user download either/both before proceeding (see Guard UX below)
 
 ### Add After Validation (v1.x)
 
-- [ ] Offline-aware graceful degradation banner for auto-routing (fall back to freehand automatically when Valhalla is unreachable, matching the existing navigation-offline UX pattern) — add once real-world trailhead connectivity issues surface in usage
-- [ ] Confirm-placement affordance for drag (tap-drop-adjust-confirm instead of live-drag-only) — add if user testing shows mis-drops are common with pure live-drag
+- [ ] Update-available → user-triggered re-download flow (non-blocking nudge, e.g., a badge + "update" action, not a modal)
+- [ ] Bulk download/delete actions — add once the manifest grows past a size where per-region tapping becomes tedious
+- [ ] Map-based region boundary highlight overlay — nice visual confirmation once the region registry is stable
 
 ### Future Consideration (v2+)
 
-- [ ] Per-segment travel profiles — explicitly deferred in PROJECT.md; requires rethinking the single-profile Trail model
-- [ ] Automatic loop/route generation from a starting point — requires new backend route-generation capability beyond Valhalla point-to-point routing
-- [ ] Multi-day touring routes — requires a data model beyond the single `Trail`
-- [ ] Editing an *existing* trail's route in the planner (as opposed to from-scratch only) — explicitly deferred in PROJECT.md
+- [ ] Auto-download the region containing the user's current location on first launch — depends on permission-flow sequencing decisions beyond this milestone's scope
+- [ ] Remote/updatable region manifest — explicitly deferred in PROJECT.md; revisit only if bundled-asset manifest staleness becomes a real problem
+- [ ] User-drawn custom download areas — explicitly deferred; only revisit if predefined regions prove too coarse for real usage patterns
+- [ ] Offline search within downloaded regions — not part of this milestone's scope (map rendering + trail download only); would be a separate, larger feature touching search infrastructure
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Tap-to-add waypoint | HIGH | LOW | P1 |
-| Drag-to-reposition waypoint | HIGH | MEDIUM-HIGH | P1 |
-| Insert-mid-segment | HIGH | MEDIUM-HIGH | P1 |
-| Delete / reorder waypoint | HIGH | LOW-MEDIUM | P1 |
-| Undo/redo | HIGH | MEDIUM | P1 |
-| Auto-routing toggle (Valhalla) | HIGH | MEDIUM | P1 |
-| Live distance/elevation stats | MEDIUM-HIGH | LOW | P1 |
-| Live elevation profile view | MEDIUM-HIGH | LOW (reuse) | P1 |
-| Search-to-focus panning | MEDIUM | LOW (already built) | P1 |
-| Handoff to trail_create_screen | HIGH | MEDIUM | P1 |
-| Offline-aware auto-routing fallback banner | MEDIUM | LOW-MEDIUM | P2 |
-| Confirm-placement drag affordance | MEDIUM | LOW-MEDIUM | P2 |
-| Per-segment profiles | LOW-MEDIUM | HIGH | P3 |
-| Auto loop generation | MEDIUM | HIGH | P3 |
-| Route optimization / auto-reorder | LOW | HIGH | Do not build |
+| Flat searchable region list w/ 4-state status | HIGH | LOW | P1 |
+| Download/pause/resume/delete per region | HIGH | MEDIUM | P1 |
+| Size shown pre-download (vector + DEM breakdown) | HIGH | LOW | P1 |
+| Total disk usage summary | MEDIUM | LOW | P1 |
+| Trail guard dialog with direct download CTA | HIGH | MEDIUM | P1 |
+| Partial-coverage (multi-region) guard handling | MEDIUM | MEDIUM | P1 (trails near region borders will hit this; skipping it means a confusing dead-end guard) |
+| DEM toggle per region | MEDIUM | LOW | P1 |
+| Update-available non-blocking indicator | LOW-MEDIUM | LOW-MEDIUM | P2 |
+| Map boundary highlight overlay | LOW | LOW | P2 |
+| Bulk download/delete | LOW | LOW | P3 |
+| Auto-download region on first launch | MEDIUM | MEDIUM-HIGH | P3 |
+| Hierarchical region tree | LOW (for this manifest size) | MEDIUM | P3 (not recommended — see Anti-Features) |
 
 **Priority key:**
-- P1: Must have for launch
-- P2: Should have, add when possible
-- P3: Nice to have, future consideration
+- P1: Must have for v1.6 launch
+- P2: Should have, add when possible within v1.6 or immediate follow-up
+- P3: Nice to have, future consideration — not v1.6
+
+## Complexity Guidance: Region Presentation
+
+**Recommendation: flat list, not hierarchical tree, not map-based selection.**
+
+Evidence:
+- OsmAnd's continent → country → sub-region tree exists because its manifest has thousands of entries; the app's *actual* primary interaction is still a search box at the top of the download tab, not tree navigation.
+- Organic Maps downloads "whole states" — one level, no sub-hierarchy for most of the world — and this is considered a reasonable, well-liked tradeoff (efficient vector format keeps sizes manageable even at state granularity).
+- A bundled `regions.json` manifest for a single hiking app is realistically tens of entries (specific trail-dense areas/parks/ranges), not a global country database. A tree adds navigation depth (2-3 taps to reach a leaf) with zero payoff at this scale.
+- Map-based region selection (tap-a-region-on-the-map) is a plausible v1.x enhancement (pairs well with the "highlight downloaded regions on the map" differentiator) but is not needed for v1 discovery — a list with a search field is faster to reach a specific known region name.
+
+**If the manifest grows** (e.g., splits into many small per-park regions later), add a single grouping level (e.g., group by country/macro-region) with a search box, not a multi-level tree.
+
+## Status/State UX Guidance
+
+The 4-state enum (`notDownloaded` / `downloading` / `downloaded` / `updateAvailable`) already decided in PROJECT.md maps cleanly to observed patterns, with these per-state UI affordances:
+
+| Status | Row affordance | Primary action | Secondary |
+|--------|----------------|-----------------|-----------|
+| `notDownloaded` | Size shown (vector + DEM breakdown), no icon/muted download icon | "Download" button | — |
+| `downloading` | Progress bar/percentage, size shown | "Pause" | Cancel (removes partial download) |
+| Paused (within session — a UI sub-state of `downloading`, not necessarily a distinct enum value) | Progress bar frozen at last percentage, distinct visual (e.g., outlined vs filled) | "Resume" | Cancel |
+| `downloaded` | Checkmark/filled icon, size on disk shown | "Delete" (or overflow menu) | DEM toggle if applicable |
+| `updateAvailable` | `downloaded` styling + a small badge/label ("Update available") — must NOT look broken or block use | "Update" (optional, user-triggered) | "Delete" still available |
+
+Key lesson pulled directly from OsmAnd's real-world issue tracker: **do not let `updateAvailable` degrade functionality.** Multiple OsmAnd GitHub issues describe navigation/routing breaking or refusing to proceed because the app decided a map was "outdated," even fully offline with no way to update. For Wanderer, `updateAvailable` should be purely informational — the region keeps rendering and the trail guard should treat `updateAvailable` identically to `downloaded` (i.e., it satisfies the coverage check, no guard dialog fires).
+
+## Storage Communication Guidance
+
+- Show size **before** download starts (all reviewed apps agree this is non-negotiable) — already possible since `regions.json` is bundled with size fields.
+- Break size into exactly two components: base vector map size, optional DEM size — matches OsmAnd's contour-lines-as-separate-download precedent and matches what's already scoped. Don't go finer-grained (no reviewed app exposes per-layer sizes beyond this split at the region level).
+- Show a running total disk usage figure somewhere on the region list screen (not just per-row) — this is what lets users decide *which* region to delete when storage is tight, mirroring Gaia GPS/OsmAnd's storage-management framing.
+- Because sizes are pre-computed and bundled in `regions.json` (not estimated live from tile counts), there's no need for the "estimate vs actual size mismatch" handling that Gaia GPS users report as a pain point (their sizes are dynamically computed from a live tile count against a moving map selection — not applicable here since regions are fixed, pre-packaged bboxes).
+
+## Trail-Guard UX Guidance
+
+**Recommended shape: informative dialog with a direct download CTA, never a silent block.**
+
+Evidence base: Komoot's pattern — when a tour starts in an undownloaded/unlocked region, the app explicitly surfaces *which* region is needed rather than a generic failure. This directly matches what PROJECT.md's guard requirement already specifies ("checks region coverage before a trail download, prompts to download the covering region if missing").
+
+Concrete recommendation for the dialog:
+1. **Trigger point:** on trail download tap (matches PROJECT.md — checked before, not after, the trail download begins).
+2. **Content:** name the specific region(s) that cover the trail's bbox, plus their download size. Don't just say "map data required" — name it, the way Komoot names the specific region.
+3. **Primary CTA:** "Download [Region Name]" — triggers the region download directly from the dialog (reusing the same download lifecycle as the Settings region list), not just a link that dumps the user into Settings to find it themselves. This requires the guard to depend on the core region download lifecycle already existing (see Feature Dependencies).
+4. **Partial coverage (trail spans two regions):** list all missing regions with their individual sizes and a combined total; allow downloading one, both, or dismissing. Do not force downloading all covering regions before allowing the trail download to proceed at all if only one region is missing — trail download should proceed for whatever regions the user has now chosen, with the guard simply not re-blocking once minimum coverage exists. (Coverage rule to formalize during planning: does "covered" mean 100% of trail bbox inside downloaded region(s) union, or just the trail's own start point? Recommend bbox-union coverage since regions are bbox-only and the app already computes trail bboxes for the existing per-trail grid-cell download.)
+5. **Dismissal:** user can cancel out of the dialog without downloading anything; the underlying trail download action should then simply not proceed (not silently degrade to a partial/broken download) — consistent with the existing PopScope-guard conventions already used elsewhere in trail creation flows (see recent commit `955c3cdf` "Adds popscope guard for trail_create_screen" for the app's existing guard-dialog idiom to match visually/behaviorally).
 
 ## Competitor Feature Analysis
 
-| Feature | Komoot (mobile) | Strava (mobile) | gpx.studio (web-only) | Wanderer's Approach |
-|---------|------------------|------------------|------------------------|----------------------|
-| Add waypoint | Tap map, choose "add to end" or "as waypoint," confirm | Manual Mode → tap map to drop a point | Select "Add Waypoint" tool, then tap map | Tap map appends to route end — simpler single-mode interaction, no mode confirmation dialog |
-| Reposition waypoint | Drag-and-drop on map; Android requires "unfold" + tap-hold two lines | Drag and drop existing waypoints | Click + drag on map | Drag via `WidgetLayer`/`Marker` + `toLngLat` — same end result, native-GL implementation |
-| Insert mid-segment | Drag the route line to create a new waypoint | Click/tap the line between two points | Click on the track line | Tap/drag on rendered polyline with padded hit-tolerance for touch |
-| Snap-to-path vs freehand | Default "locks onto roads and trails"; no explicit freehand toggle documented for mobile | Explicit "Manual Mode" toggle for direct/freehand lines | Explicit "Routing mode" vs "Off-road mode" toggle | Explicit toggle (matches Strava/gpx.studio pattern) with foot/bike-only profiles, re-resolves on change |
-| Elevation profile | Shown during planning | Toggleable graph in lower-right corner, real-time updates | Full graph, point-linked | Reuses existing `ElevationProfile` widget already used on trail detail — visual/interaction consistency with the rest of the app |
-| Undo/redo | Not documented as explicit buttons (relies on manual re-edit) | Not documented as explicit buttons | Explicit undo/redo buttons | Explicit, always-visible toolbar buttons — closer to gpx.studio's approach than Komoot/Strava's mobile apps, because mobile drag precision needs a safety net more than desktop does |
-| List vs map-panel layout | Bottom sheet / "More" menu for waypoint list | Single mobile view, no side panel | Side-by-side panels (desktop assumes wide screen) | Mutually-exclusive bottom-sheet toggle (list *or* elevation, never both) — deliberately narrower than gpx.studio's desktop layout, closer to Strava mobile's single-panel collapse |
-
-## Mobile-Specific UX Constraints
-
-- **Touch target sizing:** waypoint markers and the polyline's tappable hit-area both need generous touch tolerance (44×44pt minimum per platform guidance) — a marker or line rendered at its visual pixel size is not reliably tappable with a finger ("fat finger" problem); this affects insert-mid-segment most, since a thin route line is the smallest target in the whole planner.
-- **Tap vs pan disambiguation:** the map already handles single-finger pan/zoom; tap-to-add must not fire on every incidental tap during panning. Follow Komoot/OsmAnd's pattern of a deliberate, discrete tap on otherwise-empty map surface, and keep pan gestures uninterrupted elsewhere (the existing `WidgetLayer` requires `TranslucentPointer` when `allowInteraction: false ` precisely to avoid blocking map panning — the inverse needs equal care once interaction is turned on for markers).
-- **Drag precision:** phones lack a mouse's pixel-precise pointer; a live-drag-only interaction risks frequent mis-placement, especially outdoors in bright sun or with gloves. A tap-drop-then-adjust flow (differentiator, above) mitigates this; at minimum, undo must be cheap and always visible (toolbar button, not buried in a menu) since it is the primary recovery path from drag error.
-- **One-handed / thumb-reach layout:** primary controls — add-point affordance, undo/redo, auto-route toggle, waypoint-list/elevation-profile toggle — should sit within thumb reach at the bottom of the screen, consistent with Wanderer's existing bottom-sheet and bottom-nav patterns, not in top app-bar corners that require a hand-shift to reach one-handed on a trail.
-- **Small screen real estate:** a phone cannot show map + waypoint list + elevation profile simultaneously without the map becoming too small to use for placing points accurately — the planned mutually-exclusive bottom-sheet toggle (list *or* profile) is the correct mobile adaptation of what Strava/Komoot/gpx.studio show as separate panels on their web builders.
-- **Field conditions:** hikers planning routes at a trailhead may have poor connectivity (auto-routing calls can fail or lag) and may be planning one-handed with a pack on — favor large, forgiving hit targets and an always-available freehand fallback over any interaction that assumes ideal conditions.
+| Feature | OsmAnd | Organic Maps | Gaia GPS | Komoot | Our Approach |
+|---------|--------|---------------|----------|--------|--------------|
+| Region granularity | Country/state hierarchy, thousands of entries | State/whole-region, one level | User-drawn custom bbox (not predefined) | Predefined regions, paywalled | Predefined, bbox-only, flat list — tens of entries in bundled manifest |
+| Status states | Downloaded / downloading / **outdated** (buggy blocking behavior reported) | Downloaded / downloading | Downloaded / downloading (no update concept — static export) | Locked / unlocked / downloaded | 4-state enum (already decided); `updateAvailable` explicitly non-blocking, unlike OsmAnd |
+| Size breakdown | Base map separate from contour-lines/hillshade plugin download | Single size (vector map only) | Live tile-count estimate (can mismatch actual) | Not surfaced prominently | Vector vs DEM, both pre-computed in bundled manifest (no estimate drift) |
+| Trail/route-needs-region guard | Routing continues/fails inconsistently on outdated maps (issue-tracker complaints) | N/A (search-first onboarding nudge, not a hard guard) | N/A (no route-vs-download-area linkage) | Explicit: names the needed region on tour start | Explicit dialog naming region(s), direct in-dialog download CTA, non-blocking dismissal |
+| Resume across app restart | Attempted, frequently buggy per GitHub issues | Not prominent | Not applicable (fast small downloads) | N/A | Explicitly out of scope for v1 — session-only pause/resume, matching the safer, lower-complexity end of the spectrum |
 
 ## Sources
 
-- [Plan routes in the app – komoot](https://support.komoot.com/hc/en-us/articles/10206792140826-Plan-routes-in-the-app) — MEDIUM confidence (official support docs)
-- [Route Planner Tips and Tricks – komoot](https://www.komoot.com/help/routeplanner) — MEDIUM confidence
-- [Advanced route planning – komoot](https://support.komoot.com/hc/en-us/articles/10268757747738-Advanced-route-planning) — MEDIUM confidence
-- [Planning Tours on iOS – komoot](https://support.komoot.com/hc/en-us/articles/4403138423066-Planning-Tours-on-iOS) — MEDIUM confidence
-- [Planning Tours on Android – komoot](https://support.komoot.com/hc/en-us/articles/4402920434458-Planning-Tours-on-Android) — MEDIUM confidence
-- [Creating Routes on Mobile – Strava Help Center](https://support.strava.com/hc/en-us/articles/18001474720397-Creating-Routes-on-Mobile) — MEDIUM confidence (official support docs)
-- [Strava rolls out new finger-dragging route creation feature — DC Rainmaker](https://www.dcrainmaker.com/2019/02/dragging-creation-feature.html) — MEDIUM confidence (independent hands-on review, corroborates official docs)
-- [gpx.studio — help | Route planning and editing](https://gpx.studio/help/toolbar/routing) — MEDIUM confidence (official docs)
-- [gpx.studio — help | Edit actions](https://gpx.studio/help/menu/edit) — MEDIUM confidence (official docs, confirms undo/redo)
-- [OsmAnd — Plan a Route](https://osmand.net/docs/user/plan-route/create-route/) — MEDIUM confidence (official docs)
-- [OsmAnd — Map Markers](https://osmand.net/blog/map-markers/) — MEDIUM confidence
-- [Map UI Design: Best Practices, Tools & Real-World Examples — Eleken](https://www.eleken.co/blog-posts/map-ui-design) — LOW-MEDIUM confidence (secondary UX-blog source, used only for general touch-target/one-handed guidance, not product-specific claims)
-- [One-Handed Mobile UX: Best Practices — Upslide Design Studio](https://upslidedesignstudio.com/blogs/one-handed-mobile-ux-design-best-practices-for-better-mobile-apps) — LOW-MEDIUM confidence (general UX guidance, not hiking-specific)
-- Wanderer codebase (HIGH confidence, primary source): `app/lib/util/gpx_util.dart`, `app/lib/util/navigation_launch_util.dart`, `app/lib/util/trail_import_util.dart`, `app/lib/components/trail/elevation_profile.dart`, `app/lib/provider/router_provider.dart`, and `maplibre`/`maplibre_platform_interface` 0.3.5 package source (`widget_layer.dart`, `map_controller.dart`) confirming `WidgetLayer`/`Marker`/`MapController.toLngLat(Offset)` are the available primitives for drag interactions
+- [OsmAnd — Maps & Resources docs](https://osmand.net/docs/user/personal/maps-resources/)
+- [OsmAnd — Download Maps docs](https://osmand.net/docs/user/start-with/download-maps/)
+- [OsmAnd — Topography (contour lines) plugin docs](https://osmand.net/docs/user/plugins/topography/)
+- [OsmAnd GitHub — Improve Downloads to monitor/resume stalled downloads (#4467)](https://github.com/osmandapp/OsmAnd/issues/4467)
+- [OsmAnd GitHub — Don't stop routing because of outdated maps (#21092)](https://github.com/osmandapp/OsmAnd/issues/21092)
+- [OsmAnd GitHub — Offline navigation stopped while driving, asked to download maps (#19498)](https://github.com/osmandapp/OsmAnd/issues/19498)
+- [Organic Maps official site](https://organicmaps.app/)
+- [Organic Maps GitHub — First app open, explain offline + map download (#7210)](https://github.com/organicmaps/organicmaps/issues/7210)
+- [MobileMaplets — How to Download Maps for Offline Use](https://www.mobilemaplets.com/blog/download-maps-offline)
+- [Gaia GPS Help — Download Maps for Offline Use](https://help.gaiagps.com/hc/en-us/articles/360047131513-Download-Maps-for-Offline-Use)
+- [Gaia GPS Help — Individual Offline Map Tile Limits](https://help.gaiagps.com/hc/en-us/articles/360000915488-Individual-Offline-Map-Tile-Limits)
+- [Komoot Support — Offline gebruiken (offline usage)](https://support.komoot.com/hc/articles/360023078891-Komoot-offline-gebruiken)
+- [Komoot Support — Regio niet beschikbaar om te downloaden (region not available to download)](https://support.komoot.com/hc/articles/360024969212-Regio-niet-beschikbaar-om-te-downloaden)
+- [Map UI Patterns — Offline maps](https://mapuipatterns.com/offline-maps/)
+- [Material Design (m1) — Offline states pattern](https://m1.material.io/patterns/offline-states.html)
+- [AllTrails Help — Download custom areas for offline use](https://support.alltrails.com/hc/en-us/articles/37758009767444-Download-custom-areas-for-offline-use)
+- Existing codebase context: `app/lib/services/trail_download_service.dart`, `app/lib/routes/settings_screen.dart` family, `db/services/tiles/generator.go` (read for continuity, not web-searched)
 
 ---
-*Feature research for: Mobile route-planning tool (Wanderer v1.5 Route Planner)*
-*Researched: 2026-07-16*
+*Feature research for: region-based offline map management, hiking/navigation app domain*
+*Researched: 2026-07-21*
