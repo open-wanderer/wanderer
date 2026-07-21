@@ -396,7 +396,7 @@ This milestone follows research/SUMMARY.md's recommended build order almost verb
 Plans:
 
 - [x] 21.5-01-PLAN.md — Region config loader (id/bbox validation, path-safety) + `region_archives` collection migration (BACK-01)
-- [ ] 21.5-02-PLAN.md — Archive builder: vector + DEM `pmtiles extract` with atomic rename, date-gated vector rebuild, build-once DEM, in-flight guard (BACK-02/03/05)
+- [x] 21.5-02-PLAN.md — Archive builder: vector + DEM `pmtiles extract` with atomic rename, date-gated vector rebuild, build-once DEM, in-flight guard (BACK-02/03/05)
 - [ ] 21.5-03-PLAN.md — Auth-gated `GET /api/v1/regions` catalog + archive download routes, daily build cron, docker-compose config wiring (BACK-04/01/05)
 
 **Note:** This phase reverses an assumption made when Phase 22 was originally planned (that no backend change was needed). See the milestone-level "Correction" note above `Phase 22` for context, and the linked note/todo for what this means for Phase 22's already-drafted plans.
