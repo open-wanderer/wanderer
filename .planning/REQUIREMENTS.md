@@ -19,7 +19,7 @@
 - [x] **BACK-01**: Backend loads a region catalog from an admin-supplied config file (mounted via Docker volume) at startup — each entry defines a region's id, name, and bbox; no per-region URL/size in the config, since those are generated, not admin-supplied
 - [x] **BACK-02**: A cronjob pre-builds a single mosaicked vector PMTiles archive per configured region — merging the grid cells covering the region's bbox into one file — ahead of any user download request
 - [x] **BACK-03**: The same cronjob pre-builds a single DEM archive per configured region on the same basis, reusing the existing Mapterhorn extraction (`generator.go`, `mapterhornSource`, `demMaxZoom = 12`) as its data source but mosaicked to the region's bbox instead of served per grid cell
-- [ ] **BACK-04**: Backend exposes an API endpoint returning this instance's region catalog (id, name, bbox, vector archive URL + size, DEM archive URL + size, version/status) for the app to fetch at runtime, per REGN-01
+- [x] **BACK-04**: Backend exposes an API endpoint returning this instance's region catalog (id, name, bbox, vector archive URL + size, DEM archive URL + size, version/status) for the app to fetch at runtime, per REGN-01
 - [x] **BACK-05**: Cron regeneration is staleness-aware — it only rebuilds a region's archive when the underlying source tiles have changed since the last build, and that changed-since check is what drives the client-visible `updateAvailable` status (exact cadence/staleness-detection mechanics: open question, revisit at discuss-phase for this phase)
 
 ### Tile Repository (Download Engine)
@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BACK-01 | Phase 21.5 | Complete |
 | BACK-02 | Phase 21.5 | Complete |
 | BACK-03 | Phase 21.5 | Complete |
-| BACK-04 | Phase 21.5 | Pending |
+| BACK-04 | Phase 21.5 | Complete |
 | BACK-05 | Phase 21.5 | Complete |
 | TILE-01 | Phase 23 | Pending |
 | TILE-02 | Phase 23 | Pending |

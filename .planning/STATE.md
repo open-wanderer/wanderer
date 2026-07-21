@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: executing
-stopped_at: Completed 21.5-02-PLAN.md
-last_updated: "2026-07-21T19:09:41.819Z"
+status: verifying
+stopped_at: Completed 21.5-03-PLAN.md (Phase 21.5 all plans complete)
+last_updated: "2026-07-21T19:17:06.835Z"
 last_activity: 2026-07-21 -- Phase 21.5 execution started
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
-  completed_plans: 2
-  percent: 0
+  completed_plans: 3
+  percent: 14
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 Phase: 21.5 (region-catalog-archive-pre-build-backend) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-21 -- Phase 21.5 execution started
 
 ## v1.6 Phases
@@ -90,6 +90,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 260721-eob P01 | 35min | 2 tasks | 9 files |
 | Phase 21.5 P01 | 4min | 2 tasks | 3 files |
 | Phase 21.5 P02 | 10min | 2 tasks | 3 files |
+| Phase 21.5 P03 | 3min | 4 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -184,6 +185,8 @@ Recent decisions affecting current work:
 - [Phase 21.5]: [21.5-01] region_archives collection status/dem_status select values are building/ready/error (not pending) per D-08, dem_status independently nullable so DEM status never blocks a vector-ready region
 - [Phase 21.5]: [Phase 21.5] [21.5-02] bboxChanged uses exact float64 equality (no epsilon) — both sides originate from the same JSON-parsed float64 values, so no floating-point drift is introduced between comparison sides
 - [Phase 21.5]: [Phase 21.5] [21.5-02] buildRegion wrapped in buildRegionSafely (defer/recover) so a single region panic can never abort BuildAll's loop over remaining regions
+- [Phase 21.5]: [21.5-03] The Go /api/v1/regions route is internal-only (db's port unpublished in prod/dev compose); SvelteKit proxies the same public path for external clients (Phase 22's Flutter app included)
+- [Phase 21.5]: [21.5-03] Download proxy routes reuse event.locals.pb.baseURL + Bearer Authorization header (existing map/cells download precedent) rather than $env/dynamic/public — same outcome, established codebase convention
 
 ### Pending Todos
 
@@ -272,6 +275,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-21T19:09:41.803Z
-Stopped at: Completed 21.5-02-PLAN.md
+Last session: 2026-07-21T19:17:06.820Z
+Stopped at: Completed 21.5-03-PLAN.md (Phase 21.5 all plans complete)
 Resume file: None

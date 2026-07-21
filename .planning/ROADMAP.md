@@ -350,7 +350,7 @@ Plans:
 
 **Milestone Goal:** Replace trail-scoped PMTiles downloads with an app-wide, region-based offline tile repository (vector + optional Mapterhorn DEM), managed in Settings, so map rendering and offline trail recording work anywhere within a downloaded region instead of only within a specific trail's cached cells.
 
-- [ ] **Phase 21.5: Region Catalog & Archive Pre-Build (Backend)** - Go backend reads an admin-supplied, Docker-volume-mounted config file defining this instance's regions, a cronjob pre-builds one mosaicked vector PMTiles + one DEM archive per region, and an API endpoint serves the resulting catalog
+- [x] **Phase 21.5: Region Catalog & Archive Pre-Build (Backend)** - Go backend reads an admin-supplied, Docker-volume-mounted config file defining this instance's regions, a cronjob pre-builds one mosaicked vector PMTiles + one DEM archive per region, and an API endpoint serves the resulting catalog (completed 2026-07-21)
 - [ ] **Phase 22: Region & Package Data Model** - App-side region manifest (fetched from Phase 21.5's API, not bundled) and ObjectBox `Region`/`DownloadedTilePackage` entities with an explicit-int status enum
 - [ ] **Phase 23: TileRepositoryManager — Download Engine** - Resumable, disk-safe, backgrounding-aware region downloads plus a bbox-to-local-paths query, fully decoupled from Trail
 - [ ] **Phase 24: Settings — Offline Maps/Regions UI** - Flat searchable region list with download/pause/resume/delete, DEM toggle, and total disk usage
@@ -397,7 +397,7 @@ Plans:
 
 - [x] 21.5-01-PLAN.md — Region config loader (id/bbox validation, path-safety) + `region_archives` collection migration (BACK-01)
 - [x] 21.5-02-PLAN.md — Archive builder: vector + DEM `pmtiles extract` with atomic rename, date-gated vector rebuild, build-once DEM, in-flight guard (BACK-02/03/05)
-- [ ] 21.5-03-PLAN.md — Auth-gated `GET /api/v1/regions` catalog + archive download routes, daily build cron, docker-compose config wiring (BACK-04/01/05)
+- [x] 21.5-03-PLAN.md — Auth-gated `GET /api/v1/regions` catalog + archive download routes, daily build cron, docker-compose config wiring (BACK-04/01/05)
 
 **Note:** This phase reverses an assumption made when Phase 22 was originally planned (that no backend change was needed). See the milestone-level "Correction" note above `Phase 22` for context, and the linked note/todo for what this means for Phase 22's already-drafted plans.
 
