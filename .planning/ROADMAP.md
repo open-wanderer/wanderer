@@ -386,7 +386,7 @@ This milestone follows research/SUMMARY.md's recommended build order almost verb
 **Success Criteria** (what must be TRUE):
 
   1. On startup, the Go backend reads a region catalog (id, name, bbox per region) from a config file mounted via Docker volume; an instance with no config file or an empty one serves an empty catalog rather than erroring.
-  2. A cronjob pre-builds a single mosaicked vector PMTiles archive per configured region, merging the grid cells covering that region's bbox, without waiting for any user request.
+  2. A cronjob pre-builds a single mosaicked vector PMTiles archive per configured region, merging the grid cells covering that region's bbox, without waiting for any user request. **SCOPE CHANGE (resolved in 21.5-CONTEXT.md, D-01/D-02):** implemented as a direct `pmtiles extract --bbox=<region bbox>` against the Protomaps/Mapterhorn sources per region, not a merge of existing per-cell grid archives — same end result (one archive per region, built ahead of request), simpler build path.
   3. The same cronjob pre-builds a single DEM archive per configured region on the same basis, reusing the existing Mapterhorn extraction pipeline as its data source.
   4. `GET /api/v1/regions` (auth-gated, any logged-in user — literal Go-router path, no SvelteKit proxy this phase) returns this instance's region catalog — id, name, bbox, status, version, vector archive URL + size, DEM archive URL + size — reflecting only what pre-built successfully.
   5. Cron regeneration only rebuilds a region's archive when its underlying source tiles changed since the last build; exact cadence and staleness-detection mechanics are open questions for this phase's discuss-phase step, not locked here.
