@@ -9,6 +9,7 @@ import (
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 
@@ -16,6 +17,7 @@ import (
 	"pocketbase/hooks"
 	"pocketbase/pluginsystem"
 	"pocketbase/routes"
+	"pocketbase/services/regions"
 
 	_ "pocketbase/migrations"
 	"pocketbase/util"
@@ -219,6 +221,20 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	g.GET("/{cellKey}/download", routes.MapCellsDownload)
 	g.GET("/{cellKey}/download-dem", routes.MapCellsDownloadDem)
 
+	// /api/v1/regions is an internal-only contract (D-06/D-07): the literal
+	// /api/v1 prefix deviates from every other unprefixed custom Go route in
+	// this file, per the routing resolution recorded in
+	// 21.5-03-PLAN.md's <assumptions>. It is reachable only from inside the
+	// docker network — a SvelteKit proxy under the same public path forwards
+	// external requests to it (web/src/routes/api/v1/regions/**). Auth is
+	// ENABLED (not dormant like /map/cells above) — D-07 requires any
+	// logged-in user for both the catalog listing and the archive downloads.
+	regionsGroup := se.Router.Group("/api/v1/regions")
+	regionsGroup.Bind(apis.RequireAuth())
+
+	regionsGroup.GET("", routes.RegionsList)
+	regionsGroup.GET("/{id}/download", routes.RegionArchiveDownload)
+	regionsGroup.GET("/{id}/download-dem", routes.RegionArchiveDownloadDem)
 }
 
 func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
@@ -233,6 +249,15 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 			fmt.Println(warning)
 			app.Logger().Error(warning)
 		}
+	})
+
+	regionSchedule := os.Getenv("REGION_ARCHIVE_CRON_SCHEDULE")
+	if len(regionSchedule) == 0 {
+		regionSchedule = "0 3 * * *"
+	}
+
+	app.Cron().MustAdd("region-archive-build", regionSchedule, func() {
+		regions.BuildAll(app)
 	})
 }
 
