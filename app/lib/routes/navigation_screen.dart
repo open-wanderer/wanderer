@@ -738,6 +738,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         ];
 
         if (followRoads && workingShape.length >= 2) {
+          // For a trail-less GPS recording (`isRecording`), `originalTrail`
+          // is always null — `_openRecorder` never collects a travel
+          // profile the way the route planner's `_openPlanner` does — so
+          // this always costs as pedestrian. Correct for a real trail's
+          // navigate/save flow; a known limitation for bike recordings
+          // until recording captures an activity type at start.
           final costing = costingForCategory(
             originalTrail?.expand?.category?.name,
           );
