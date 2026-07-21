@@ -1076,11 +1076,41 @@ abstract class AppLocalizations {
   /// **'{n, plural, =1 {Route} other {Routes}}'**
   String route(num n);
 
+  /// No description provided for @follow_roads.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow roads'**
+  String get follow_roads;
+
+  /// No description provided for @follow_roads_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Snap the recorded path to the nearest roads and trails.'**
+  String get follow_roads_description;
+
+  /// No description provided for @recalculate_heights.
+  ///
+  /// In en, this message translates to:
+  /// **'Recalculate heights'**
+  String get recalculate_heights;
+
+  /// No description provided for @recalculate_heights_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace recorded GPS elevation with more accurate values from the map.'**
+  String get recalculate_heights_description;
+
   /// No description provided for @save.
   ///
   /// In en, this message translates to:
   /// **'Save'**
   String get save;
+
+  /// No description provided for @save_recording_options.
+  ///
+  /// In en, this message translates to:
+  /// **'Save recording'**
+  String get save_recording_options;
 
   /// No description provided for @save_track.
   ///

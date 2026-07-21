@@ -542,7 +542,24 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get follow_roads => 'Follow roads';
+
+  @override
+  String get follow_roads_description =>
+      'Snap the recorded path to the nearest roads and trails.';
+
+  @override
+  String get recalculate_heights => 'Recalculate heights';
+
+  @override
+  String get recalculate_heights_description =>
+      'Replace recorded GPS elevation with more accurate values from the map.';
+
+  @override
   String get save => 'Sauvegarder';
+
+  @override
+  String get save_recording_options => 'Save recording';
 
   @override
   String get save_track => 'Save track';

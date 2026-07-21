@@ -17,6 +17,7 @@ import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
+import 'package:wanderer/components/navigation/track_save_options_sheet.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/waypoint_sheet.dart';
 import 'package:wanderer/entities/active_navigation_entity.dart';
@@ -25,6 +26,7 @@ import 'package:wanderer/models/glyph_sprite_cache_paths.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
+import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
@@ -43,6 +45,7 @@ import 'package:wanderer/util/polyline_util.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/trail_import_util.dart';
+import 'package:wanderer/util/valhalla_util.dart';
 
 /// The three actions offered by [_NavigationScreenState._confirmExit]'s
 /// premature-exit dialog.
@@ -686,7 +689,26 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// leaves the session intact so the user can retry — matching
   /// `trail_import_util.dart`'s `importTrailFile` precedent for this same
   /// `/trail/convert` call.
+  ///
+  /// Opens [showTrackSaveOptionsSheet] FIRST, before the [_savingTrack]
+  /// guard, so both call sites (exit-dialog and completion-banner) inherit
+  /// the sheet with no change. Cancelling/dismissing the sheet aborts the
+  /// save entirely — no change to the session.
+  ///
+  /// When "Follow roads" is on, the breadcrumb is snapped to the road
+  /// network via [snapShapeToRoads] BEFORE "Recalculate heights" runs, so
+  /// elevation reflects the final (possibly snapped) shape. Both transforms
+  /// are best-effort with silent fallback (see [snapShapeToRoads]'s and
+  /// `/valhalla/height`'s own fallback behavior) — a failure never blocks
+  /// the save nor surfaces an error toast.
+  ///
+  /// Any transform path (snap and/or heights) yields a timeless track — the
+  /// merge/handoff helpers here are elevation-only, matching the planner
+  /// handoff. Only the no-transform path preserves the recorded breadcrumb's
+  /// timestamps verbatim.
   Future<void> _saveRecordedTrack() async {
+    final options = await showTrackSaveOptionsSheet(context);
+    if (options == null) return;
     if (_savingTrack) return;
     setState(() => _savingTrack = true);
 
@@ -701,7 +723,41 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
       final originalTrail = ref.read(trailProvider(widget.id)).value;
 
-      final gpx = buildGpxFromPoints(navState.breadcrumb);
+      Gpx gpx;
+      final (recalcHeights, followRoads) = options;
+      if (recalcHeights || followRoads) {
+        final breadcrumbPoints = [
+          for (final wpt in navState.breadcrumb)
+            if (wpt.lat != null && wpt.lon != null)
+              ml.Geographic(lat: wpt.lat!, lon: wpt.lon!),
+        ];
+        var workingShape = buildNavShape(breadcrumbPoints);
+
+        if (followRoads && workingShape.length >= 2) {
+          final costing = costingForCategory(
+            originalTrail?.expand?.category?.name,
+          );
+          workingShape = await snapShapeToRoads(ref, workingShape, costing);
+        }
+
+        if (recalcHeights && workingShape.length >= 2) {
+          var heights = const <num>[];
+          try {
+            final response = await ref
+                .read(apiProvider)
+                .post('/valhalla/height', data: {'shape': workingShape});
+            heights = (response.data['height'] as List).cast<num>();
+          } catch (_) {
+            // Silent fallback: merge with no heights (null ele).
+          }
+          gpx = mergeHeightsIntoGpx(workingShape, heights);
+        } else {
+          gpx = mergeHeightsIntoGpx(workingShape, const []);
+        }
+      } else {
+        gpx = buildGpxFromPoints(navState.breadcrumb);
+      }
+
       final trail = await buildDraftTrail(
         ref,
         gpx,

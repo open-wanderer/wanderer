@@ -1,3 +1,5 @@
+import 'dart:math' show sqrt;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +42,93 @@ Gpx mergeHeightsIntoGpx(List<Map<String, double>> shape, List<num> heights) {
     ),
   ];
   return gpx;
+}
+
+/// Computes the bounding-box diagonal (in degrees) of a `{lat,lon}` shape
+/// array. Pure helper backing [snapResultAcceptable].
+double _bboxDiagonal(List<Map<String, double>> points) {
+  var minLat = points.first['lat']!;
+  var maxLat = minLat;
+  var minLon = points.first['lon']!;
+  var maxLon = minLon;
+  for (final p in points) {
+    final lat = p['lat']!;
+    final lon = p['lon']!;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+    if (lon < minLon) minLon = lon;
+    if (lon > maxLon) maxLon = lon;
+  }
+  final dLat = maxLat - minLat;
+  final dLon = maxLon - minLon;
+  return sqrt(dLat * dLat + dLon * dLon);
+}
+
+/// Guards against Valhalla `trace_route`'s partial map-match truncation
+/// (valhalla#4802), where a low-confidence trace can silently drop its tail
+/// into `data.alternates` instead of `trip.legs`, yielding a materially
+/// shorter snapped path.
+///
+/// PURE. Returns `false` when [snapped] is empty. Otherwise compares each
+/// shape's bounding-box diagonal: [snapped] is rejected when its diagonal is
+/// < 0.6x [original]'s. Point COUNT is deliberately not part of this check —
+/// `trace_route` re-vertexes the path at Valhalla's own density, so a
+/// shorter [snapped] list with a comparable bbox is expected and acceptable.
+///
+/// An empty (zero-length) [original] bbox is treated as trivially acceptable
+/// (nothing to truncate).
+bool snapResultAcceptable(
+  List<Map<String, double>> original,
+  List<Map<String, double>> snapped,
+) {
+  if (snapped.isEmpty) return false;
+  if (original.isEmpty) return true;
+
+  final originalDiagonal = _bboxDiagonal(original);
+  if (originalDiagonal == 0) return true;
+
+  final snappedDiagonal = _bboxDiagonal(snapped);
+  return snappedDiagonal >= 0.6 * originalDiagonal;
+}
+
+/// Best-effort road-snap of a recorded [shape] via the authenticated
+/// `POST /valhalla/trace-route` proxy, using [costing] (derived from the
+/// trail's category via [costingForCategory] at the call site).
+///
+/// On any error/timeout, or when [snapResultAcceptable] rejects the result
+/// as a partial map-match truncation, returns [shape] unchanged — mirrors
+/// [buildFinalPlannedGpx]'s silent-fallback precedent (no toast, no
+/// rethrow).
+Future<List<Map<String, double>>> snapShapeToRoads(
+  WidgetRef ref,
+  List<Map<String, double>> shape,
+  String costing,
+) async {
+  try {
+    final response = await ref
+        .read(apiProvider)
+        .post(
+          '/valhalla/trace-route',
+          data: {'shape': shape, 'costing': costing},
+        );
+    final snapped = (response.data['shape'] as List)
+        .cast<Map<String, dynamic>>()
+        .map(
+          (p) => {
+            'lat': (p['lat'] as num).toDouble(),
+            'lon': (p['lon'] as num).toDouble(),
+          },
+        )
+        .toList();
+
+    if (snapResultAcceptable(shape, snapped)) {
+      return snapped;
+    }
+    return shape;
+  } catch (_) {
+    // Silent fallback: proceed with the pre-snap shape.
+    return shape;
+  }
 }
 
 Future<Trail> buildDraftTrail(
