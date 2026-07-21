@@ -1,52 +1,69 @@
-# Requirements: Wanderer Trail Navigation — v1.5 Route Planner
+# Requirements: Wanderer Trail Navigation — v1.6 Offline Region Tile Repository
 
-**Defined:** 2026-07-16
+**Defined:** 2026-07-21
 **Core Value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
+**Milestone Goal:** Replace trail-scoped PMTiles downloads with an app-wide, region-based offline tile repository (vector + optional Mapterhorn DEM), managed in Settings, so map rendering and offline trail recording work anywhere within a downloaded region instead of only within a specific trail's cached cells.
 
 ## v1 Requirements
 
-Requirements for the v1.5 Route Planner milestone. Each maps to a roadmap phase.
+### Region Manifest & Data Model
 
-### Waypoint Editing
+- [ ] **REGN-01**: A bundled `regions.json` app asset defines regions (id, name, bbox, vector PMTiles URL + size, optional DEM URL + size)
+- [ ] **REGN-02**: ObjectBox `Region` entity stores manifest fields plus live status (notDownloaded/downloading/downloaded/updateAvailable), using explicit stable int constants (not index-backed enum persistence)
+- [ ] **REGN-03**: ObjectBox `DownloadedTilePackage` entity tracks vector and DEM as independent packages per region — local file path, timestamp, size on disk, status
 
-- [x] **WAYP-01**: User can tap the map to add a waypoint to the in-progress route
-- [x] **WAYP-02**: User can drag an existing waypoint to reposition it, with connected segments re-resolving
-- [x] **WAYP-03**: User can tap an existing route segment to insert a new waypoint between its endpoints
-- [x] **WAYP-04**: User can delete a route anchor from the route anchor list tab
-- [x] **WAYP-05**: User can reorder route anchors via the route anchor list tab
+### Tile Repository (Download Engine)
 
-### Routing
+- [ ] **TILE-01**: `TileRepositoryManager` service owns region download lifecycle (start/pause/resume/delete), fully decoupled from `Trail`
+- [ ] **TILE-02**: Region downloads are resumable within a session via HTTP Range requests + Dio `FileAccessMode.append` (no cross-restart resume)
+- [ ] **TILE-03**: Disk-space is checked with a safety margin before each file download in a region, before writing begins
+- [ ] **TILE-04**: App backgrounding mid-download (iOS suspension / Android Doze) is treated as a deliberate pause, not a silent failure
+- [ ] **TILE-05**: A bbox-based query (`localTilePathsForBounds`) returns local vector/DEM file paths covering a given area, for use by map rendering
 
-- [x] **ROUTE-01**: User can toggle auto-routing on (Valhalla-routed segments via `/api/v1/valhalla/route`, foot/bike profile only) or off (straight-line segments between waypoints)
-- [x] **ROUTE-02**: Toggling auto-routing on re-resolves all existing segments via Valhalla; toggling off leaves existing segments untouched and only affects segments created afterward
-- [x] **ROUTE-04**: User can undo/redo waypoint add/move/insert/delete/reorder actions (in-memory only, cleared on exit)
-- [x] **ROUTE-05**: When a segment fails to auto-route (unreachable backend, no route found), that segment is blocked and a retry action is surfaced — it never silently falls back to a straight line while auto-routing is on
+### DEM Support
 
-### Planning UI
+- [ ] **DEM-01**: Per-region optional DEM toggle reuses the existing Mapterhorn DEM pipeline (`generator.go` / download-dem endpoint), re-keyed to regions instead of trail cells
+- [ ] **DEM-02**: DEM download/deletion is tracked as its own `DownloadedTilePackage` per region, independent of the vector package's status
 
-- [x] **PLANUI-01** *(SCOPE CHANGE — see 20-CONTEXT.md)*: A route anchor list and a live elevation profile are available as two tabs of a single persistent bottom sheet (docked at peek height once the route has ≥1 anchor, draggable to expand) — not separate views toggled via map control buttons
-- [x] **PLANUI-02**: The elevation profile is built from a `Gpx` synthesized incrementally from the in-progress route (via `/api/v1/valhalla/height` for elevation, fetched only while the elevation tab is visible) and updates live as the route changes
-- [x] **PLANUI-03**: User can open a dedicated location-search screen (magnifying-glass map control button) that searches locations only (not trails/lists/accounts) and pans/zooms the planner map to the selected result
+### Settings — Offline Maps/Regions UI
 
-### Handoff
+- [ ] **SETUI-01**: Settings → Offline Maps/Regions screen shows a flat, searchable region list (no hierarchical tree)
+- [ ] **SETUI-02**: Each region row shows name, 4-state status, and size breakdown (vector vs DEM) shown before download starts
+- [ ] **SETUI-03**: Download / pause / resume / delete actions available per region
+- [ ] **SETUI-04**: Per-region DEM toggle control, clearly presented as the optional/adds-size choice
+- [ ] **SETUI-05**: Total disk usage summary shown on the region list screen
+- [ ] **SETUI-06**: `updateAvailable` regions show a non-blocking badge/label with an optional user-triggered update action — region continues to render/route normally while the badge is shown
 
-- [x] **HANDOFF-01** *(SCOPE CHANGE — see 21-CONTEXT.md)*: User can finish planning and hand off the route as a draft Trail (synthesized GPX track only, no Waypoint records — route anchors stay planner-only and are never converted to named waypoints; elevation populated via a one-time `/api/v1/valhalla/height` fetch at handoff time — regardless of whether the Elevation tab was ever opened during planning) to the existing trail create/edit screen
-- [x] **HANDOFF-02**: The Route Planner is reachable from a new entry point in the trail-source-select flow, alongside the existing "import trail file" option
-- [x] **HANDOFF-03**: Tapping "Open trail planner" shows a hike/bike selection dialog before the planner screen opens; the selection sets the Route Planner's initial travel profile for the whole session (fixed — no in-planner profile switch)
+### Trail Download Guard
+
+- [ ] **GUARD-01**: On trail download tap, the app checks the trail's bbox coverage against downloaded (or updateAvailable) regions before proceeding
+- [ ] **GUARD-02**: If coverage is missing, a dialog names the specific missing region(s) and their size, with a direct in-dialog "Download region" CTA per region
+- [ ] **GUARD-03**: Partial-coverage handling: a trail spanning multiple regions lists all missing regions with individual + combined size, lets the user download any subset, and does not force full coverage before allowing the trail download to proceed
+- [ ] **GUARD-04**: `updateAvailable` regions satisfy the coverage check identically to `downloaded` — the guard never re-fires for a region that's merely stale
+
+### Map Rendering Integration
+
+- [ ] **RENDER-01**: `TrailMap` and `navigation_screen` read offline tiles from the region registry via `TileRepositoryManager`, replacing trail-bound cache reads
+- [ ] **RENDER-02**: Style composition is viewport-scoped — only regions intersecting the current viewport contribute style sources, not every downloaded region unconditionally
+- [ ] **RENDER-03**: Before finalizing the rendering approach, verify maplibre 0.3.5's incremental source add/remove behavior (vs. full style reload) and layer-count scaling with a spike against the pinned package version
+
+### Legacy Cleanup
+
+- [ ] **CLEAN-01**: Trail-scoped tile download code is removed outright — `trail_download_service.dart` tile-download methods, `TrailEntity.pmTiles`/`demPmTiles` fields, and related UI — no dual-run, no migration path (app is pre-production)
+- [ ] **CLEAN-02**: A one-time on-device cleanup sweep deletes orphaned legacy tile files left on existing dev/test installs, so the new disk-usage figure is accurate
 
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
 
-### Route Planner
+### Region Management Enhancements
 
-- **PLANNER-01**: Car/driving costing profile for auto-routing
-- **PLANNER-02**: Editing an existing trail's route (not just from-scratch planning)
-- **PLANNER-03**: Per-segment travel profiles
-- **PLANNER-04**: Offline caching of in-progress route plans
-- **PLANNER-05**: Confirm-placement drag affordance (tap-drop-adjust-confirm), if mis-drops prove common
-- **PLANNER-06**: Offline-aware graceful degradation banner for auto-routing
-- **PLANNER-07**: Mid-session travel profile switch (cut from v1.5 as ROUTE-03; profile is now fixed at entry via HANDOFF-03)
+- **REGN-F01**: Map boundary highlight overlay showing downloaded region coverage directly on the map
+- **REGN-F02**: Bulk download/delete actions (add once the manifest grows past ~5+ regions)
+- **REGN-F03**: Auto-download the region containing the user's current GPS location on first launch
+- **REGN-F04**: Remote/updatable region manifest (revisit only if the bundled-asset manifest proves stale in practice)
+- **REGN-F05**: User-drawn custom download areas
+- **REGN-F06**: Offline search within downloaded regions
 
 ## Out of Scope
 
@@ -54,15 +71,15 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Car/driving costing profile | `costingForCategory` only maps foot/bike today; out of scope for v1.5, tracked as PLANNER-01 |
-| Editing an existing trail's route | v1.5 is from-scratch planning only |
-| Per-segment travel profiles | One profile applies to the whole route |
-| Offline route caching for in-progress plans | Not needed for v1.5 |
-| Route optimization / automatic waypoint reordering | Conflicts with user-intended waypoint ordering |
-| Automatic loop generation, multi-day touring | Not requested; adds complexity disproportionate to a from-scratch mobile planner |
-| Reusing `GlobalSearchScreen` for location search | It also returns trails/lists/accounts; a dedicated location-only search screen is required instead |
-| Any Go backend or SvelteKit changes | `/api/v1/valhalla/route` and `/api/v1/valhalla/height` already exist and require no changes (confirmed via research) |
-| Switching travel profile after entry (ROUTE-03, cut during Phase 19 discussion) | Profile is set once via the hike/bike dialog at entry (HANDOFF-03) and fixed for the planning session; tracked as PLANNER-07 |
+| Legacy trail-cache migration | App is pre-production; old trail-scoped tile/DEM cache is deleted outright, no conversion path |
+| Remote/server-fetched region manifest | v1.6 ships a bundled `regions.json` app asset only |
+| Polygon region geometries | v1.6 regions are bounding-box only; arbitrary polygon boundaries add geometry-processing complexity with no functional download benefit |
+| 3D terrain/hillshade rendering redesign | v1.6 only relocates the existing DEM download/storage pipeline to be region-based; `offline_style_rewriter.dart`'s hillshade rendering is reused as-is |
+| Background/resumable downloads across app restarts | Session-scoped pause/resume only — cross-restart resume is a documented source of bugs even in mature apps (OsmAnd) |
+| Hierarchical region tree navigation | Manifest is tens of entries, not thousands — a flat searchable list is the right complexity |
+| Granular per-layer toggles beyond vector/DEM | No reviewed hiking app exposes finer-grained toggles (roads/POIs/water) at the region-download level |
+| Map boundary highlight overlay | Nice differentiator, deferred to v1.x (REGN-F01) |
+| Region entitlement/paywall model | No paywall exists in Wanderer; guard dialog borrows Komoot's messaging pattern only, not its unlock/purchase logic |
 
 ## Traceability
 
@@ -70,28 +87,37 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WAYP-01 | Phase 19 | Complete |
-| WAYP-02 | Phase 19 | Complete |
-| WAYP-03 | Phase 19 | Complete |
-| WAYP-04 | Phase 20 | Complete |
-| WAYP-05 | Phase 20 | Complete |
-| ROUTE-01 | Phase 19 | Complete |
-| ROUTE-02 | Phase 19 | Complete |
-| ROUTE-04 | Phase 19 | Complete |
-| ROUTE-05 | Phase 19 | Complete |
-| PLANUI-01 | Phase 20 | Complete |
-| PLANUI-02 | Phase 20 | Complete |
-| PLANUI-03 | Phase 20 | Complete |
-| HANDOFF-01 | Phase 21 | Complete |
-| HANDOFF-02 | Phase 21 | Complete |
-| HANDOFF-03 | Phase 21 | Complete |
+| REGN-01 | TBD | Pending |
+| REGN-02 | TBD | Pending |
+| REGN-03 | TBD | Pending |
+| TILE-01 | TBD | Pending |
+| TILE-02 | TBD | Pending |
+| TILE-03 | TBD | Pending |
+| TILE-04 | TBD | Pending |
+| TILE-05 | TBD | Pending |
+| DEM-01 | TBD | Pending |
+| DEM-02 | TBD | Pending |
+| SETUI-01 | TBD | Pending |
+| SETUI-02 | TBD | Pending |
+| SETUI-03 | TBD | Pending |
+| SETUI-04 | TBD | Pending |
+| SETUI-05 | TBD | Pending |
+| SETUI-06 | TBD | Pending |
+| GUARD-01 | TBD | Pending |
+| GUARD-02 | TBD | Pending |
+| GUARD-03 | TBD | Pending |
+| GUARD-04 | TBD | Pending |
+| RENDER-01 | TBD | Pending |
+| RENDER-02 | TBD | Pending |
+| RENDER-03 | TBD | Pending |
+| CLEAN-01 | TBD | Pending |
+| CLEAN-02 | TBD | Pending |
 
 **Coverage:**
-
-- v1 requirements: 15 total
-- Mapped to phases: 15
-- Unmapped: 0 ✓
+- v1 requirements: 24 total
+- Mapped to phases: 0
+- Unmapped: 24 ⚠️ (roadmap not yet created)
 
 ---
-*Requirements defined: 2026-07-16*
-*Last updated: 2026-07-16 — ROUTE-03 cut during Phase 19 discussion (profile fixed at entry, tracked as PLANNER-07); requirements now 15/15 mapped*
+*Requirements defined: 2026-07-21*
+*Last updated: 2026-07-21 after initial definition*
