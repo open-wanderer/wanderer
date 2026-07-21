@@ -593,4 +593,64 @@ void main() {
       expect(gpx.trks, isEmpty);
     });
   });
+
+  group('snapResultAcceptable', () {
+    // A 5-point original shape spanning a 0.010° x 0.010° bbox
+    // (diagonal ~= 0.014142).
+    final original = [
+      {'lat': 47.000, 'lon': 9.000},
+      {'lat': 47.0025, 'lon': 9.0025},
+      {'lat': 47.005, 'lon': 9.005},
+      {'lat': 47.0075, 'lon': 9.0075},
+      {'lat': 47.010, 'lon': 9.010},
+    ];
+
+    List<Map<String, double>> scaledBboxShape(double scale, {int points = 5}) {
+      return [
+        for (var i = 0; i < points; i++)
+          {
+            'lat': 47.000 + (0.010 * scale) * (i / (points - 1)),
+            'lon': 9.000 + (0.010 * scale) * (i / (points - 1)),
+          },
+      ];
+    }
+
+    test('returns false for an empty snapped shape', () {
+      expect(snapResultAcceptable(original, const []), isFalse);
+    });
+
+    test(
+      'returns true when the snapped bbox diagonal is ~0.9x the original '
+      '(comparable, not truncated)',
+      () {
+        final snapped = scaledBboxShape(0.9);
+
+        expect(snapResultAcceptable(original, snapped), isTrue);
+      },
+    );
+
+    test(
+      'returns false when the snapped bbox diagonal is ~0.3x the original '
+      '(partial map-match truncation, valhalla#4802)',
+      () {
+        final snapped = scaledBboxShape(0.3);
+
+        expect(snapResultAcceptable(original, snapped), isFalse);
+      },
+    );
+
+    test(
+      'returns true for a snapped shape with far fewer points but a '
+      'comparable bbox (Valhalla re-vertexes; point count is not the '
+      'rejection signal)',
+      () {
+        final snapped = [
+          {'lat': 47.000, 'lon': 9.000},
+          {'lat': 47.010, 'lon': 9.010},
+        ];
+
+        expect(snapResultAcceptable(original, snapped), isTrue);
+      },
+    );
+  });
 }
