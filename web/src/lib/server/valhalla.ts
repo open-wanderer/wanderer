@@ -15,3 +15,7 @@ export function getValhallaHeightUrl(): string | null {
 export function getValhallaNavigateUrl(): string | null {
     return getServiceUrl("VALHALLA_NAVIGATE_URL");
 }
+
+export function getValhallaTraceRouteUrl(): string | null {
+    return getServiceUrl("VALHALLA_TRACE_ROUTE_URL");
+}
