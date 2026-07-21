@@ -395,7 +395,7 @@ This milestone follows research/SUMMARY.md's recommended build order almost verb
 
 Plans:
 
-- [ ] 21.5-01-PLAN.md — Region config loader (id/bbox validation, path-safety) + `region_archives` collection migration (BACK-01)
+- [x] 21.5-01-PLAN.md — Region config loader (id/bbox validation, path-safety) + `region_archives` collection migration (BACK-01)
 - [ ] 21.5-02-PLAN.md — Archive builder: vector + DEM `pmtiles extract` with atomic rename, date-gated vector rebuild, build-once DEM, in-flight guard (BACK-02/03/05)
 - [ ] 21.5-03-PLAN.md — Auth-gated `GET /api/v1/regions` catalog + archive download routes, daily build cron, docker-compose config wiring (BACK-04/01/05)
 
@@ -419,7 +419,6 @@ Plans (pre-replan, kept for reference):
 
 - [ ] 22-01-PLAN.md — Bundled `regions.json` asset (4 real regions) + `RegionManifest`/`RegionManifestEntry` @freezed parse model (REGN-01) — **superseded, see replan todo**
 - [ ] 22-02-PLAN.md — ObjectBox `RegionEntity` + `DownloadedTilePackageEntity` with `.code` status persistence, computed `Region.status` getter, `fromManifestEntry` (REGN-02, REGN-03) — **likely still valid, re-verify against replanned 22-01 during replan**
-
 
 ### Phase 23: TileRepositoryManager — Download Engine
 

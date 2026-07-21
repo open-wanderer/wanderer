@@ -16,7 +16,7 @@
 
 **Why this exists:** This corrects two assumptions made during Phase 22 planning. First, that the existing per-cell backend (`db/services/tiles/generator.go`, `GET /api/v1/map/cells?bbox=...`, `db/routes/map_cells_id.go`) could be reused as-is by pointing the manifest's `vector_url`/`dem_url` at that endpoint and letting the client fan out into N per-cell requests at download time — wrong shape for a "download this region for offline" feature (forces the client to orchestrate/retry/account many small requests instead of one resumable file). Second, that `regions.json` should be a bundled app asset at all — for a self-hostable app, the set of offline-downloadable regions is an admin decision per instance (a small instance may only want to serve the regions its own trails cover), not something fixed at Flutter build time. The design that replaces both: an admin defines their instance's regions in a config file mounted via Docker volume; a cronjob pre-builds each region's archives ahead of any user request so downloads are instant; the app fetches the resulting catalog from an API endpoint instead of parsing a bundled asset.
 
-- [ ] **BACK-01**: Backend loads a region catalog from an admin-supplied config file (mounted via Docker volume) at startup — each entry defines a region's id, name, and bbox; no per-region URL/size in the config, since those are generated, not admin-supplied
+- [x] **BACK-01**: Backend loads a region catalog from an admin-supplied config file (mounted via Docker volume) at startup — each entry defines a region's id, name, and bbox; no per-region URL/size in the config, since those are generated, not admin-supplied
 - [ ] **BACK-02**: A cronjob pre-builds a single mosaicked vector PMTiles archive per configured region — merging the grid cells covering the region's bbox into one file — ahead of any user download request
 - [ ] **BACK-03**: The same cronjob pre-builds a single DEM archive per configured region on the same basis, reusing the existing Mapterhorn extraction (`generator.go`, `mapterhornSource`, `demMaxZoom = 12`) as its data source but mosaicked to the region's bbox instead of served per grid cell
 - [ ] **BACK-04**: Backend exposes an API endpoint returning this instance's region catalog (id, name, bbox, vector archive URL + size, DEM archive URL + size, version/status) for the app to fetch at runtime, per REGN-01
@@ -100,7 +100,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REGN-01 | Phase 22 (replan needed — see todo) | Pending |
 | REGN-02 | Phase 22 | Pending |
 | REGN-03 | Phase 22 | Pending |
-| BACK-01 | Phase 21.5 | Pending |
+| BACK-01 | Phase 21.5 | Complete |
 | BACK-02 | Phase 21.5 | Pending |
 | BACK-03 | Phase 21.5 | Pending |
 | BACK-04 | Phase 21.5 | Pending |
@@ -129,6 +129,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLEAN-02 | Phase 27 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 30 total
 - Mapped to phases: 30
 - Unmapped: 0 ✓ (REGN-01 maps to Phase 22, but that phase's existing plans need replanning — see `.planning/todos/pending/replan-phase-22-region-manifest.md`)

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: planning
+status: executing
 stopped_at: Phase 21.5 context gathered
-last_updated: "2026-07-21T18:08:25.166Z"
-last_activity: 2026-07-21 — ROADMAP.md created for v1.6 (Phases 22-27)
+last_updated: "2026-07-21T19:04:08.040Z"
+last_activity: 2026-07-21 -- Phase 21.5 execution started
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 3
-  completed_plans: 0
+  total_plans: 6
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 22 — region-package-data-model
+**Current focus:** Phase 21.5 — region-catalog-archive-pre-build-backend
 
 ## Current Position
 
-Phase: 22 of 27 (Region & Package Data Model)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-07-21 — ROADMAP.md created for v1.6 (Phases 22-27)
+Phase: 21.5 (region-catalog-archive-pre-build-backend) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-07-21 -- Phase 21.5 execution started
 
 ## v1.6 Phases
 
@@ -88,6 +88,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase quick-260719-n8g P01 | ~20min | 2 tasks | 5 files |
 | Phase quick-260720-s7m P01 | ~70min | 4 tasks | 51 files |
 | Phase 260721-eob P01 | 35min | 2 tasks | 9 files |
+| Phase 21.5 P01 | 4min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -178,6 +179,8 @@ Recent decisions affecting current work:
 - [Phase quick-260721-eob]: New /valhalla/trace-route proxy is authenticated (locals.user gate), matching /valhalla/navigate's trust class rather than the unauthenticated /valhalla/route and /valhalla/height siblings
 - [v1.6 roadmap] 6 phases (22-27), following research/SUMMARY.md's recommended build order almost verbatim: data model → download engine → Settings UI → map-screen rewiring+spike → trail guard → legacy ripout. Strictly sequential (no parallel phases) — each step swaps exactly one thing while the old trail-scoped path stays live until proven redundant, same discipline as v1.4's "forks deleted last." RENDER-03's maplibre 0.3.5 incremental-source spike is pulled into Phase 25, ahead of the guard/ripout phases, because research flags it as the piece most likely to need rework if discovered late.
 - [v1.6 roadmap] REQUIREMENTS.md's own Coverage line undercounted the v1 list by one (said "24 total"; the actual requirement table has 25 REQ-IDs). Corrected during roadmap creation — all 25 requirements map 1:1 to exactly one of Phases 22-27, no orphans.
+- [Phase 21.5]: [21.5-01] Bbox stored as [4]float64 in [minLon, minLat, maxLon, maxLat] order — matches generator.go's pmtiles extract argument order and RegionArchivePath/RegionDemPath path builders; documented since Phase 22's client manifest depends on this exact order
+- [Phase 21.5]: [21.5-01] region_archives collection status/dem_status select values are building/ready/error (not pending) per D-08, dem_status independently nullable so DEM status never blocks a vector-ready region
 
 ### Pending Todos
 
@@ -266,6 +269,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-21T18:08:25.146Z
+Last session: 2026-07-21T19:01:31.383Z
 Stopped at: Phase 21.5 context gathered
 Resume file: .planning/phases/21.5-region-catalog-archive-pre-build-backend/21.5-CONTEXT.md
