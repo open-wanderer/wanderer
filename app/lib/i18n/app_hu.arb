@@ -18,6 +18,8 @@
   "behavior": "Behavior",
   "by": "by",
   "cancel": "Mégsem",
+  "discard": "Discard",
+  "discard_trail_confirm": "Discard this trail and its changes?",
   "car": "Car",
   "card": "{n, plural, =1 {Kártya} other {Kártyák}}",
   "@card": {
@@ -213,7 +215,12 @@
       }
     }
   },
+  "follow_roads": "Follow roads",
+  "follow_roads_description": "Snap the recorded path to the nearest roads and trails.",
+  "recalculate_heights": "Recalculate heights",
+  "recalculate_heights_description": "Replace recorded GPS elevation with more accurate values from the map.",
   "save": "Mentés",
+  "save_recording_options": "Save recording",
   "save_track": "Save track",
   "search": "Search",
   "search_for_trails_places": "Nyomvonalak, helyek keresése",
