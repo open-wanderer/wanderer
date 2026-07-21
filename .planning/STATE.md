@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: planning
-stopped_at: Phase 22 context gathered
-last_updated: "2026-07-21T13:15:48.035Z"
+stopped_at: Phase 21.5 context gathered
+last_updated: "2026-07-21T18:08:25.166Z"
 last_activity: 2026-07-21 — ROADMAP.md created for v1.6 (Phases 22-27)
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 0
-  total_plans: 0
+  total_plans: 3
   completed_plans: 0
   percent: 0
 ---
@@ -266,6 +266,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-21T13:15:48.010Z
-Stopped at: Phase 22 context gathered
-Resume file: .planning/phases/22-region-package-data-model/22-CONTEXT.md
+Last session: 2026-07-21T18:08:25.146Z
+Stopped at: Phase 21.5 context gathered
+Resume file: .planning/phases/21.5-region-catalog-archive-pre-build-backend/21.5-CONTEXT.md
