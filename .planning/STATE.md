@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Route Planner
 status: verifying
-stopped_at: Completed quick-260720-s7m-PLAN.md
-last_updated: "2026-07-20T19:03:37.044Z"
-last_activity: "2026-07-19 - Completed quick task 260719-n8g: Implement the missing route recorder (isRecording flag on NavigationScreen, /record route, ActiveSessionType.rec resume); post-review fix 602be822 gates breadcrumb capture on pause/stationary"
+stopped_at: "Completed quick-260721-eob: Save recording options sheet (Recalculate heights / Follow roads)"
+last_updated: "2026-07-21T09:00:29.773Z"
+last_activity: "2026-07-21 - Completed quick task 260721-eob: Add a track-save options bottom sheet (Recalculate heights / Follow roads) with a new authenticated /valhalla/trace-route proxy and a bbox-diagonal snap-truncation guard"
 progress:
   total_phases: 3
   completed_phases: 3
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 Phase: 21 (route-planner-handoff-entry-point) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-07-19 - Completed quick task 260719-n8g: Implement the missing route recorder (isRecording flag on NavigationScreen, /record route, ActiveSessionType.rec resume); post-review fix 602be822 gates breadcrumb capture on pause/stationary
+Last activity: 2026-07-21 - Completed quick task 260721-eob: Add a track-save options bottom sheet (Recalculate heights / Follow roads) with a new authenticated /valhalla/trace-route proxy and a bbox-diagonal snap-truncation guard
 
 ## v1.5 Phases
 
@@ -82,6 +82,7 @@ Execution order: 19 → 20 → 21 (strictly sequential — each phase's state/sc
 | Phase quick-260719-d6a P01 | 35min | 3 tasks | 6 files |
 | Phase quick-260719-n8g P01 | ~20min | 2 tasks | 5 files |
 | Phase quick-260720-s7m P01 | ~70min | 4 tasks | 51 files |
+| Phase 260721-eob P01 | 35min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -167,6 +168,9 @@ Recent decisions affecting current work:
 - [Phase quick-260719-n8g]: Recording's only finish trigger is the existing 3-option exit dialog (Cancel/Exit/Save), reused verbatim -- isArrived is structurally always false with empty maneuvers so there is no auto-arrival banner
 - [Phase quick-260720-s7m]: Fixed a pre-existing ICU plural-syntax bug (redundant 'one' clause fully shadowed by '=1') in es/eu/pl ARB files surfaced by gen-l10n during the dead-key equalization pass
 - [Phase quick-260720-s7m]: New placeholder-bearing l10n keys use double-quote literals around interpolated values instead of single quotes, since a single quote is ICU MessageFormat's escape character and would silently break the placeholder
+- [Phase quick-260721-eob]: snapResultAcceptable rejects on bbox-diagonal shrink (<0.6x original), never on point count -- trace_route legitimately re-vertexes at Valhalla's own density
+- [Phase quick-260721-eob]: Any transform path (snap and/or heights) produces a timeless track (elevation-only merge helpers); only the no-transform path preserves the recorded breadcrumb's timestamps verbatim
+- [Phase quick-260721-eob]: New /valhalla/trace-route proxy is authenticated (locals.user gate), matching /valhalla/navigate's trust class rather than the unauthenticated /valhalla/route and /valhalla/height siblings
 
 ### Pending Todos
 
@@ -210,6 +214,7 @@ Recent decisions affecting current work:
 | 260719-fjw | Save track recorded during navigation: stub Trail from breadcrumb, offered on completion banner and premature-exit dialog, hands off to trail_create_screen | 2026-07-19 | 2bd575f0,61497acd,2b2aa687 | Needs Review | [260719-fjw-…](./quick/260719-fjw-save-track-recorded-during-navigation-cr/) |
 | 260719-n8g | Implement the missing route recorder: isRecording flag reuses NavigationScreen for trail-less GPS recording, wired Record trail card + /record route, ActiveSessionType.rec resume-after-kill; post-review fix gates breadcrumb capture on pause/stationary | 2026-07-19 | 20316c47,c41b757d,602be822 | Needs Review | [260719-n8g-…](./quick/260719-n8g-implement-the-missing-route-recorder-mos/) |
 | 260720-s7m | Clean up ARB translation files: safety-scanned dead-key removal (291 removed), equalized all 14 locales to 267 keys, extracted 43 hard-coded Dart literals into l10n keys, added @key ICU metadata, extended crowdin.yml for the app | 2026-07-20 | bde01f50,4116ecba,dc6b98a9,f10dc9d8 | Needs Review | [260720-s7m-…](./quick/260720-s7m-clean-up-arb-translation-files-remove-un/) |
+| 260721-eob | Add a bottom modal sheet on track save from navigation screen with Recalculate-heights/Follow-roads toggles; new authenticated /valhalla/trace-route SvelteKit proxy + snap-then-heights pipeline with a bbox-diagonal truncation guard | 2026-07-21 | d35be0e6,5c93547a,9346ef8e | Needs Review | [260721-eob-…](./quick/260721-eob-add-a-bottom-modal-sheet-on-track-save-f/) |
 
 ## Deferred Items
 
@@ -254,6 +259,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-20T19:03:37.028Z
-Stopped at: Completed quick-260720-s7m-PLAN.md
+Last session: 2026-07-21T09:00:23.883Z
+Stopped at: Completed quick-260721-eob: Save recording options sheet (Recalculate heights / Follow roads)
 Resume file: None
