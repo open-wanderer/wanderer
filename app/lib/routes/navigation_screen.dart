@@ -26,7 +26,6 @@ import 'package:wanderer/models/glyph_sprite_cache_paths.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
-import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
@@ -731,25 +730,28 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
             if (wpt.lat != null && wpt.lon != null)
               ml.Geographic(lat: wpt.lat!, lon: wpt.lon!),
         ];
-        var workingShape = buildNavShape(breadcrumbPoints);
+        // Full recorded resolution — NOT [buildNavShape]'s downsampled form.
+        // Downsampling to Valhalla's 500-point cap is fine for an outbound
+        // routing *request* hint but must never define what gets saved.
+        var workingShape = [
+          for (final p in breadcrumbPoints) {'lat': p.lat, 'lon': p.lon},
+        ];
 
         if (followRoads && workingShape.length >= 2) {
           final costing = costingForCategory(
             originalTrail?.expand?.category?.name,
           );
-          workingShape = await snapShapeToRoads(ref, workingShape, costing);
+          // buildNavShape's cap applies only to this outbound hint — the
+          // matched path Valhalla returns replaces workingShape entirely.
+          workingShape = await snapShapeToRoads(
+            ref,
+            buildNavShape(breadcrumbPoints),
+            costing,
+          );
         }
 
         if (recalcHeights && workingShape.length >= 2) {
-          var heights = const <num>[];
-          try {
-            final response = await ref
-                .read(apiProvider)
-                .post('/valhalla/height', data: {'shape': workingShape});
-            heights = (response.data['height'] as List).cast<num>();
-          } catch (_) {
-            // Silent fallback: merge with no heights (null ele).
-          }
+          final heights = await fetchHeightsForShape(ref, workingShape);
           gpx = mergeHeightsIntoGpx(workingShape, heights);
         } else {
           gpx = mergeHeightsIntoGpx(workingShape, const []);
@@ -1243,7 +1245,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     ).then((choice) {
       switch (choice) {
         case _NavExitChoice.saveTrack:
-          _saveRecordedTrack();
+          if (context.mounted) _saveRecordedTrack();
         case _NavExitChoice.exit:
           // Deliberate exit — best-effort clear so no stale resume prompt
           // appears on next launch.

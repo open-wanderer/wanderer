@@ -131,6 +131,40 @@ Future<List<Map<String, double>>> snapShapeToRoads(
   }
 }
 
+/// Fetches elevation for a full-resolution recorded [shape] via
+/// `POST /valhalla/height`, batching into ≤500-point chunks and
+/// concatenating results — [buildNavShape]'s downsampling is appropriate for
+/// a Valhalla routing *request* hint, but would silently truncate a *saved*
+/// track's actual point count, which is what [shape] preserves here.
+///
+/// Best-effort: any chunk failing (network, non-2xx, malformed body, or a
+/// response whose height count doesn't match the chunk it answered) drops
+/// the whole result to an empty list, so [mergeHeightsIntoGpx] falls back to
+/// no elevation rather than a partially-heighted track — mirrors
+/// [snapShapeToRoads]'s silent-fallback precedent.
+Future<List<num>> fetchHeightsForShape(
+  WidgetRef ref,
+  List<Map<String, double>> shape,
+) async {
+  if (shape.isEmpty) return const [];
+
+  final heights = <num>[];
+  try {
+    for (var i = 0; i < shape.length; i += 500) {
+      final chunk = shape.sublist(i, (i + 500).clamp(0, shape.length));
+      final response = await ref
+          .read(apiProvider)
+          .post('/valhalla/height', data: {'shape': chunk});
+      final chunkHeights = (response.data['height'] as List).cast<num>();
+      if (chunkHeights.length != chunk.length) return const [];
+      heights.addAll(chunkHeights);
+    }
+  } catch (_) {
+    return const [];
+  }
+  return heights;
+}
+
 Future<Trail> buildDraftTrail(
   WidgetRef ref,
   Gpx finalGpx, {

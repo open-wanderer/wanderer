@@ -1,6 +1,10 @@
 import { handleError } from '$lib/util/api_util';
 import { decodePolyline } from '$lib/util/polyline_util';
-import { TraceRouteRequestSchema } from '$lib/models/api/valhalla_trace_route_schema';
+import {
+  TraceRouteRequestSchema,
+  type TraceRouteResponse,
+  type TraceRouteShapePoint,
+} from '$lib/models/api/valhalla_trace_route_schema';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import { getValhallaTraceRouteUrl } from '$lib/server/valhalla';
 
@@ -101,7 +105,7 @@ export async function POST(event: RequestEvent) {
       return json({ message: "valhalla_error", detail: "unexpected response shape" }, { status: 502 });
     }
 
-    const shape: { lat: number; lon: number }[] = [];
+    const shape: TraceRouteShapePoint[] = [];
 
     for (const leg of trip.legs) {
       for (const [lng, lat] of decodePolyline(leg.shape)) {
@@ -109,7 +113,8 @@ export async function POST(event: RequestEvent) {
       }
     }
 
-    return json({ shape });
+    const response: TraceRouteResponse = { shape };
+    return json(response);
   } catch (e: any) {
     return handleError(e);
   }

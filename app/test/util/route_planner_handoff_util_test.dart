@@ -79,6 +79,68 @@ Future<WidgetRef> _pumpRef(
   return capturedRef;
 }
 
+/// Fakes `/valhalla/height`'s per-chunk response so [fetchHeightsForShape]'s
+/// batching can be tested without a real server. [respond] receives the
+/// request's `shape` list and returns the `height` list to answer with — a
+/// length mismatch or a thrown error lets tests exercise the silent-fallback
+/// paths per-chunk.
+class _FakeHeightApi extends Api {
+  _FakeHeightApi(this.respond);
+
+  final List<num> Function(List<dynamic> shape) respond;
+  int requestCount = 0;
+
+  @override
+  Dio build() {
+    final dio = Dio(BaseOptions(baseUrl: 'https://test.local/api/v1'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          requestCount++;
+          try {
+            final shape = (options.data as Map)['shape'] as List;
+            handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: {'height': respond(shape)},
+              ),
+            );
+          } catch (e) {
+            handler.reject(
+              DioException(
+                requestOptions: options,
+                type: DioExceptionType.connectionError,
+                error: e,
+              ),
+            );
+          }
+        },
+      ),
+    );
+    return dio;
+  }
+}
+
+Future<WidgetRef> _pumpHeightRef(
+  WidgetTester tester,
+  List<num> Function(List<dynamic> shape) respond,
+) async {
+  late WidgetRef capturedRef;
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [apiProvider.overrideWith(() => _FakeHeightApi(respond))],
+      child: Consumer(
+        builder: (context, ref, _) {
+          capturedRef = ref;
+          return const SizedBox();
+        },
+      ),
+    ),
+  );
+  return capturedRef;
+}
+
 /// Calls [buildDraftTrail] inside [WidgetTester.runAsync] — `testWidgets`
 /// runs under a fake clock that never fires real `Timer`s on its own, and
 /// Dio schedules its interceptor pipeline via `Timer.run` (a real timer), so
@@ -650,6 +712,108 @@ void main() {
         ];
 
         expect(snapResultAcceptable(original, snapped), isTrue);
+      },
+    );
+  });
+
+  group('fetchHeightsForShape', () {
+    List<Map<String, double>> buildShape(int length) => [
+      for (var i = 0; i < length; i++) {'lat': 47.0 + i * 0.0001, 'lon': 9.0},
+    ];
+
+    testWidgets('returns an empty list for an empty shape with no request', (
+      tester,
+    ) async {
+      var calls = 0;
+      final ref = await _pumpHeightRef(tester, (shape) {
+        calls++;
+        return List<num>.filled(shape.length, 0);
+      });
+
+      final result = await tester.runAsync(
+        () => fetchHeightsForShape(ref, const []),
+      );
+
+      expect(result, isEmpty);
+      expect(calls, 0);
+    });
+
+    testWidgets(
+      'a shape of exactly 500 points is sent as a single chunk',
+      (tester) async {
+        final calls = <int>[];
+        final ref = await _pumpHeightRef(tester, (shape) {
+          calls.add(shape.length);
+          return List<num>.generate(shape.length, (i) => i.toDouble());
+        });
+        final shape = buildShape(500);
+
+        final result = await tester.runAsync(
+          () => fetchHeightsForShape(ref, shape),
+        );
+
+        expect(calls, [500]);
+        expect(result, hasLength(500));
+      },
+    );
+
+    testWidgets(
+      'a shape over 500 points is batched into multiple chunks and '
+      'concatenated 1:1 — the CR-01 fix (no longer downsampled/truncated)',
+      (tester) async {
+        final calls = <int>[];
+        final ref = await _pumpHeightRef(tester, (shape) {
+          calls.add(shape.length);
+          return List<num>.generate(shape.length, (i) => calls.length * 1000.0 + i);
+        });
+        final shape = buildShape(650);
+
+        final result = await tester.runAsync(
+          () => fetchHeightsForShape(ref, shape),
+        );
+
+        expect(calls, [500, 150]);
+        expect(result, hasLength(650));
+        // First chunk's heights come first, second chunk's follow — no
+        // reordering/dropping across the batch boundary.
+        expect(result![0], 1000.0);
+        expect(result[499], 1499.0);
+        expect(result[500], 2000.0);
+        expect(result[649], 2149.0);
+      },
+    );
+
+    testWidgets(
+      'falls back to an empty list when any chunk request fails '
+      '(silent fallback, no partially-heighted track)',
+      (tester) async {
+        final ref = await _pumpHeightRef(tester, (shape) {
+          throw StateError('simulated network failure');
+        });
+        final shape = buildShape(10);
+
+        final result = await tester.runAsync(
+          () => fetchHeightsForShape(ref, shape),
+        );
+
+        expect(result, isEmpty);
+      },
+    );
+
+    testWidgets(
+      'falls back to an empty list when a chunk response length does not '
+      'match the chunk it answered (malformed upstream body)',
+      (tester) async {
+        final ref = await _pumpHeightRef(tester, (shape) {
+          return List<num>.filled(shape.length - 1, 0);
+        });
+        final shape = buildShape(10);
+
+        final result = await tester.runAsync(
+          () => fetchHeightsForShape(ref, shape),
+        );
+
+        expect(result, isEmpty);
       },
     );
   });

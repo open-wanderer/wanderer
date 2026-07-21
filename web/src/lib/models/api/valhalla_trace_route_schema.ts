@@ -13,16 +13,15 @@ const TraceRouteRequestSchema = z.object({
   costing: z.enum(["pedestrian", "bicycle"]).default("pedestrian"),
 });
 
-type TraceRouteRequest = z.infer<typeof TraceRouteRequestSchema>;
+export type TraceRouteRequest = z.infer<typeof TraceRouteRequestSchema>;
 
-type TraceRouteShapePoint = {
+export type TraceRouteShapePoint = {
   lat: number;
   lon: number;
 };
 
-type TraceRouteResponse = {
+export type TraceRouteResponse = {
   shape: TraceRouteShapePoint[];
 };
 
 export { TraceRouteRequestSchema };
-export type { TraceRouteRequest, TraceRouteShapePoint, TraceRouteResponse };
