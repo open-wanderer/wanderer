@@ -230,6 +230,18 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get cancel;
 
+  /// No description provided for @discard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get discard;
+
+  /// No description provided for @discard_trail_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard this trail and its changes?'**
+  String get discard_trail_confirm;
+
   /// No description provided for @car.
   ///
   /// In en, this message translates to:

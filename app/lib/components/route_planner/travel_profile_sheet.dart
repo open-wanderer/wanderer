@@ -21,7 +21,6 @@ Future<RouteTravelBucket?> showTravelProfileSheet(BuildContext context) {
     builder: (context) {
       return Consumer(
         builder: (context, ref, _) {
-          final theme = Theme.of(context);
           final categories = ref.watch(categoryProvider).value ?? const [];
 
           // 5 cards can exceed the sheet height on smaller screens, so make
@@ -36,21 +35,6 @@ Future<RouteTravelBucket?> showTravelProfileSheet(BuildContext context) {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Center(
-                    child: Container(
-                      width: 30,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(24),
-                        ),
-                        color: theme.colorScheme.secondaryContainer,
-                      ),
-                    ),
-                  ),
-                ),
                 for (final bucket in RouteTravelBucket.values) ...[
                   _TravelProfileCard(
                     icon: bucketIcon(bucket, categories),

@@ -64,6 +64,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cancel => 'Annuler';
 
   @override
+  String get discard => 'Discard';
+
+  @override
+  String get discard_trail_confirm => 'Discard this trail and its changes?';
+
+  @override
   String get car => 'Voiture';
 
   @override

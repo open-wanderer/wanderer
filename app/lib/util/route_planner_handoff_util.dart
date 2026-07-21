@@ -240,7 +240,7 @@ Future<void> finishPlanning({
 
   pendingImportedTrail = draftTrail;
   if (!navContext.mounted) return;
-  navContext.push('/trail/create/edit', extra: draftTrail);
+  navContext.pushReplacement('/trail/create/edit', extra: draftTrail);
 }
 
 /// Derives segment-boundary [ml.Geographic] anchors from an existing track,

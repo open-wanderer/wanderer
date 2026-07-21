@@ -18,6 +18,8 @@
   "behavior": "Behavior",
   "by": "by",
   "cancel": "Cancel",
+  "discard": "Discard",
+  "discard_trail_confirm": "Discard this trail and its changes?",
   "car": "Car",
   "card": "{n, plural, =1 {Card} other {Cards}}",
   "@card": {
