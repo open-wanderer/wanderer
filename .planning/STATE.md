@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: Route Planner
-status: verifying
-stopped_at: "Completed quick-260721-eob: Save recording options sheet (Recalculate heights / Follow roads)"
-last_updated: "2026-07-21T09:00:29.773Z"
-last_activity: "2026-07-21 - Completed quick task 260721-eob: Add a track-save options bottom sheet (Recalculate heights / Follow roads) with a new authenticated /valhalla/trace-route proxy and a bbox-diagonal snap-truncation guard"
+milestone: v1.6
+milestone_name: Offline Region Tile Repository
+status: planning
+last_updated: "2026-07-21T12:33:02.474Z"
+last_activity: 2026-07-21
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 13
-  completed_plans: 13
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 ## Current Position
 
-Phase: 21 (route-planner-handoff-entry-point) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-07-21 - Completed quick task 260721-eob: Add a track-save options bottom sheet (Recalculate heights / Follow roads) with a new authenticated /valhalla/trace-route proxy and a bbox-diagonal snap-truncation guard
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-21 — Milestone v1.6 started
 
 ## v1.5 Phases
 
