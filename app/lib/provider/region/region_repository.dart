@@ -1,8 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:objectbox/objectbox.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/region_entity.dart';
 import 'package:wanderer/models/region_catalog_entry.dart';
 import 'package:wanderer/objectbox.g.dart';
+import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/objectbox_store_provider.dart';
+
+part 'region_repository.g.dart';
 
 /// Typed error thrown by [fetchRegionCatalog]/[RegionRepository.fetchCatalog]
 /// on any network or parse failure (D-03). Callers must not silently swallow
@@ -138,4 +143,13 @@ class RegionRepository {
   Future<void> refreshCatalog() async {
     upsertCatalog(await fetchCatalog());
   }
+}
+
+/// Construction-only provider seam (D-02) -- builds a [RegionRepository]
+/// from the existing [apiProvider]/[objectBoxProvider] without performing
+/// any fetch on build. Not wired to any screen lifecycle yet; Phase 24
+/// decides when [RegionRepository.refreshCatalog] is actually invoked.
+@Riverpod(keepAlive: true)
+RegionRepository regionRepository(Ref ref) {
+  return RegionRepository(ref.watch(apiProvider), ref.watch(objectBoxProvider));
 }
