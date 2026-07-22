@@ -15,7 +15,7 @@ const RegionIdSchema = z.object({
  *       Streams the companion DEM .pmtiles archive for the given region.
  *       Only call this once the region's dem_status is "ready" — returns 404
  *       if the archive hasn't been built yet. Proxies to the internal Go
- *       backend's /api/v1/regions/{id}/download-dem route, forwarding the
+ *       backend's /regions/{id}/download-dem route, forwarding the
  *       caller's own auth token.
  *     tags:
  *       - Regions
@@ -46,14 +46,16 @@ const RegionIdSchema = z.object({
 export async function GET(event: RequestEvent) {
   try {
     const { id } = RegionIdSchema.parse(event.params);
+    const range = event.request.headers.get('Range');
 
     const response = await event.fetch(
-      `${event.locals.pb.baseURL}/api/v1/regions/${id}/download-dem`,
+      `${event.locals.pb.baseURL}/regions/${id}/download-dem`,
       {
         headers: {
           Authorization: event.locals.pb.authStore.token
             ? `Bearer ${event.locals.pb.authStore.token}`
             : '',
+          ...(range ? { Range: range } : {}),
         },
       }
     );
@@ -63,13 +65,22 @@ export async function GET(event: RequestEvent) {
     }
 
     return new Response(response.body, {
-      status: 200,
+      status: response.status,
       headers: {
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${id}-dem.pmtiles"`,
         // Forward Content-Length if present so the client can show download progress
         ...(response.headers.get('Content-Length')
           ? { 'Content-Length': response.headers.get('Content-Length')! }
+          : {}),
+        // Forward Content-Range/Accept-Ranges so a resumed (Range) request's
+        // 206 Partial Content response carries the byte-offset info the
+        // client needs to append correctly
+        ...(response.headers.get('Content-Range')
+          ? { 'Content-Range': response.headers.get('Content-Range')! }
+          : {}),
+        ...(response.headers.get('Accept-Ranges')
+          ? { 'Accept-Ranges': response.headers.get('Accept-Ranges')! }
           : {}),
       },
     });
