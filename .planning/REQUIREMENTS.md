@@ -24,10 +24,10 @@
 
 ### Tile Repository (Download Engine)
 
-- [ ] **TILE-01**: `TileRepositoryManager` service owns region download lifecycle (start/pause/resume/delete), fully decoupled from `Trail`
+- [x] **TILE-01**: `TileRepositoryManager` service owns region download lifecycle (start/pause/resume/delete), fully decoupled from `Trail`
 - [x] **TILE-02**: Region downloads are resumable within a session via HTTP Range requests + Dio `FileAccessMode.append` (no cross-restart resume)
 - [ ] **TILE-03**: Disk-space is checked with a safety margin before each file download in a region, before writing begins
-- [ ] **TILE-04**: App backgrounding mid-download (iOS suspension / Android Doze) is treated as a deliberate pause, not a silent failure
+- [x] **TILE-04**: App backgrounding mid-download (iOS suspension / Android Doze) is treated as a deliberate pause, not a silent failure
 - [ ] **TILE-05**: A bbox-based query (`localTilePathsForBounds`) returns local vector/DEM file paths covering a given area, for use by map rendering
 
 ### DEM Support
@@ -105,10 +105,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BACK-03 | Phase 21.5 | Complete |
 | BACK-04 | Phase 21.5 | Complete |
 | BACK-05 | Phase 21.5 | Complete |
-| TILE-01 | Phase 23 | Pending |
+| TILE-01 | Phase 23 | Complete |
 | TILE-02 | Phase 23 | Complete |
 | TILE-03 | Phase 23 | Pending |
-| TILE-04 | Phase 23 | Pending |
+| TILE-04 | Phase 23 | Complete |
 | TILE-05 | Phase 23 | Pending |
 | DEM-01 | Phase 23 | Pending |
 | DEM-02 | Phase 23 | Pending |

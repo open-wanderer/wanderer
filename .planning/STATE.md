@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: executing
-stopped_at: Completed 23-01-PLAN.md
-last_updated: "2026-07-22T09:26:43.141Z"
+stopped_at: Completed 23-02-PLAN.md
+last_updated: "2026-07-22T09:33:28.066Z"
 last_activity: 2026-07-22 -- Phase 23 execution started
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 12
-  completed_plans: 6
+  completed_plans: 7
   percent: 14
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 ## Current Position
 
 Phase: 23 (TileRepositoryManager — Download Engine) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-07-22 -- Phase 23 execution started
 
@@ -94,6 +94,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 22 P01 | 6min | 3 tasks | 9 files |
 | Phase 22 P02 | 12min | 2 tasks | 3 files |
 | Phase 23 P01 | 4min | 2 tasks | 4 files |
+| Phase 23 P02 | 6min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -195,6 +196,7 @@ Recent decisions affecting current work:
 - [Phase 22-02]: Malformed catalog elements dropped at two independent layers: parseRegionCatalog catches per-element fromJson failures; upsertCatalog additionally catches FormatException from RegionEntity.fromCatalogEntry/applyCatalogEntry's bbox guard per-entry
 - [Phase 22-02]: refreshCatalog splits fetch and upsert into two explicit steps so a fetch failure always happens before any store write, guaranteeing local region rows/download status are never corrupted by an offline/failed catalog fetch
 - [Phase 23]: [Phase 23] [23-01] Kept the plan's pre-existing working-tree rename of the upstream fetch path (/api/v1/regions/... to /regions/...) untouched; only edited Range/status/header-forwarding lines
+- [Phase 23]: [Phase 23] [23-02] region_file_path.dart's regionIdPattern is byte-for-byte identical to the backend RegionIdSchema regex, so an id the server accepts is the same id the app accepts
 
 ### Pending Todos
 
@@ -283,6 +285,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-22T09:26:43.127Z
-Stopped at: Completed 23-01-PLAN.md
+Last session: 2026-07-22T09:33:28.043Z
+Stopped at: Completed 23-02-PLAN.md
 Resume file: None
