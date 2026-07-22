@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: verifying
-stopped_at: "Phase 23 code-verified + security-secured (threats_open: 0); on-device UAT deliberately deferred until Phase 24 ships"
-last_updated: "2026-07-22T10:39:53.720Z"
-last_activity: 2026-07-22 -- Phase 23 execution started
+status: executing
+stopped_at: Completed 24-01-PLAN.md
+last_updated: "2026-07-22T11:43:47.293Z"
+last_activity: 2026-07-22 -- Phase 24 execution started
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 12
-  completed_plans: 11
+  total_plans: 14
+  completed_plans: 12
   percent: 29
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 23 — TileRepositoryManager — Download Engine
+**Current focus:** Phase 24 — settings-offline-maps-regions-ui
 
 ## Current Position
 
-Phase: 23 (TileRepositoryManager — Download Engine) — EXECUTING
-Plan: 6 of 6
-Status: Phase complete — ready for verification
-Last activity: 2026-07-22 -- Phase 23 execution started
+Phase: 24 (settings-offline-maps-regions-ui) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-07-22 -- Phase 24 execution started
 
 ## v1.6 Phases
 
@@ -99,6 +99,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 23 P04 | 18min | 2 tasks | 2 files |
 | Phase 23 P05 | 20min | 2 tasks | 7 files |
 | Phase 23 P06 | 15min | 1 tasks | 1 files |
+| Phase 24 P01 | 15min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,7 @@ Recent decisions affecting current work:
 - [Phase 23]: [23-05] deleteRegion also resets region.lastDownloadedVersion to null alongside clearing both package ToOne targets, per the plan's 'reset any relevant status' instruction
 - [Phase 23]: [23-06] Harness drives TileRepositoryManager directly (not via TileRepositoryStatus) to preserve raw received/total byte counts for debugPrint during on-device resume/pause verification
 - [Phase 23]: [23-06] Added Backend base URL + Connect control to the harness (Rule 2) so the isolated ProviderScope actually points Dio at a real server instead of the api_provider.dart placeholder
+- [Phase 24]: [24-01] regionListNotifierProvider named via @Riverpod(name: 'regionListNotifierProvider') because riverpod_generator's default Notifier-suffix stripping would have produced regionListProvider, breaking Plan 02's already-written literal references
 
 ### Pending Todos
 
@@ -297,6 +299,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-22T10:39:53.695Z
-Stopped at: Phase 23 code-verified + security-secured (threats_open: 0); on-device UAT deliberately deferred until Phase 24 ships
-Resume file: .planning/phases/23-tilerepositorymanager-download-engine/23-UAT.md
+Last session: 2026-07-22T11:43:47.279Z
+Stopped at: Completed 24-01-PLAN.md
+Resume file: None

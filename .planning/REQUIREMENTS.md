@@ -37,11 +37,11 @@
 
 ### Settings — Offline Maps/Regions UI
 
-- [ ] **SETUI-01**: Settings → Offline Maps/Regions screen shows a flat, searchable region list (no hierarchical tree)
-- [ ] **SETUI-02**: Each region row shows name, 4-state status, and size breakdown (vector vs DEM) shown before download starts
+- [x] **SETUI-01**: Settings → Offline Maps/Regions screen shows a flat, searchable region list (no hierarchical tree)
+- [x] **SETUI-02**: Each region row shows name, 4-state status, and size breakdown (vector vs DEM) shown before download starts
 - [ ] **SETUI-03**: Download / pause / resume / delete actions available per region
-- [ ] **SETUI-04**: Per-region DEM toggle control, clearly presented as the optional/adds-size choice
-- [ ] **SETUI-05**: Total disk usage summary shown on the region list screen
+- [x] **SETUI-04**: Per-region DEM toggle control, clearly presented as the optional/adds-size choice
+- [x] **SETUI-05**: Total disk usage summary shown on the region list screen
 - [ ] **SETUI-06**: `updateAvailable` regions show a non-blocking badge/label with an optional user-triggered update action — region continues to render/route normally while the badge is shown
 
 ### Trail Download Guard
@@ -112,11 +112,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TILE-05 | Phase 23 | Complete |
 | DEM-01 | Phase 23 | Complete |
 | DEM-02 | Phase 23 | Complete |
-| SETUI-01 | Phase 24 | Pending |
-| SETUI-02 | Phase 24 | Pending |
+| SETUI-01 | Phase 24 | Complete |
+| SETUI-02 | Phase 24 | Complete |
 | SETUI-03 | Phase 24 | Pending |
-| SETUI-04 | Phase 24 | Pending |
-| SETUI-05 | Phase 24 | Pending |
+| SETUI-04 | Phase 24 | Complete |
+| SETUI-05 | Phase 24 | Complete |
 | SETUI-06 | Phase 24 | Pending |
 | GUARD-01 | Phase 26 | Pending |
 | GUARD-02 | Phase 26 | Pending |
