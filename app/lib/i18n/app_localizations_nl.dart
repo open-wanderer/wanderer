@@ -932,4 +932,62 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get library => 'Library';
+
+  @override
+  String get settings_offline_regions_title => 'Offline Maps/Regions';
+
+  @override
+  String get regions_search_hint => 'Search regions';
+
+  @override
+  String get regions_dem_toggle_label => 'Download elevation data (DEM)';
+
+  @override
+  String get regions_dem_toggle_caption =>
+      'Adds hillshading; increases download size';
+
+  @override
+  String get regions_update_available => 'Update available';
+
+  @override
+  String get regions_update_action => 'Update';
+
+  @override
+  String get regions_retry => 'Retry';
+
+  @override
+  String get regions_not_yet_available => 'Not yet available';
+
+  @override
+  String get regions_build_failed => 'Build failed';
+
+  @override
+  String regions_delete_confirm_title(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get regions_delete_confirm_body =>
+      'This removes the downloaded map and elevation data for this region. You\'ll need to download it again to use it offline.';
+
+  @override
+  String get regions_delete_confirm_action => 'Delete';
+
+  @override
+  String regions_disk_usage_summary(String size, num count) {
+    return '$size used across $count downloaded region(s)';
+  }
+
+  @override
+  String get regions_empty_search_title => 'No matching regions';
+
+  @override
+  String get regions_empty_search_body => 'Try a different search term.';
+
+  @override
+  String get regions_empty_catalog_title => 'No offline regions available';
+
+  @override
+  String get regions_empty_catalog_body =>
+      'Ask your Wanderer instance administrator to configure downloadable regions.';
 }

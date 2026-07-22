@@ -1765,6 +1765,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Library'**
   String get library;
+
+  /// No description provided for @settings_offline_regions_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline Maps/Regions'**
+  String get settings_offline_regions_title;
+
+  /// No description provided for @regions_search_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search regions'**
+  String get regions_search_hint;
+
+  /// No description provided for @regions_dem_toggle_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Download elevation data (DEM)'**
+  String get regions_dem_toggle_label;
+
+  /// No description provided for @regions_dem_toggle_caption.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds hillshading; increases download size'**
+  String get regions_dem_toggle_caption;
+
+  /// No description provided for @regions_update_available.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get regions_update_available;
+
+  /// No description provided for @regions_update_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get regions_update_action;
+
+  /// No description provided for @regions_retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get regions_retry;
+
+  /// No description provided for @regions_not_yet_available.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet available'**
+  String get regions_not_yet_available;
+
+  /// No description provided for @regions_build_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Build failed'**
+  String get regions_build_failed;
+
+  /// No description provided for @regions_delete_confirm_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String regions_delete_confirm_title(String name);
+
+  /// No description provided for @regions_delete_confirm_body.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the downloaded map and elevation data for this region. You\'ll need to download it again to use it offline.'**
+  String get regions_delete_confirm_body;
+
+  /// No description provided for @regions_delete_confirm_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get regions_delete_confirm_action;
+
+  /// No description provided for @regions_disk_usage_summary.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} used across {count} downloaded region(s)'**
+  String regions_disk_usage_summary(String size, num count);
+
+  /// No description provided for @regions_empty_search_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching regions'**
+  String get regions_empty_search_title;
+
+  /// No description provided for @regions_empty_search_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a different search term.'**
+  String get regions_empty_search_body;
+
+  /// No description provided for @regions_empty_catalog_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No offline regions available'**
+  String get regions_empty_catalog_title;
+
+  /// No description provided for @regions_empty_catalog_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your Wanderer instance administrator to configure downloadable regions.'**
+  String get regions_empty_catalog_body;
 }
 
 class _AppLocalizationsDelegate
