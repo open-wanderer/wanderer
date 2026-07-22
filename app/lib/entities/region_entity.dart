@@ -115,6 +115,10 @@ class RegionEntity {
         return isStale ? RegionStatus.updateAvailable : RegionStatus.downloaded;
       case PackageStatus.notDownloaded:
         return RegionStatus.notDownloaded;
+      case PackageStatus.paused:
+        return RegionStatus.paused;
+      case PackageStatus.error:
+        return RegionStatus.error;
     }
   }
 

@@ -13,7 +13,7 @@ void main() {
       }
     });
 
-    test('setting dbStatus to 0/1/2 restores the matching member', () {
+    test('setting dbStatus to 0/1/2/3/4 restores the matching member', () {
       final entity = DownloadedTilePackageEntity();
 
       entity.dbStatus = 0;
@@ -24,6 +24,12 @@ void main() {
 
       entity.dbStatus = 2;
       expect(entity.status, PackageStatus.downloaded);
+
+      entity.dbStatus = 3;
+      expect(entity.status, PackageStatus.paused);
+
+      entity.dbStatus = 4;
+      expect(entity.status, PackageStatus.error);
     });
 
     test('an out-of-range dbStatus falls back to notDownloaded', () {
@@ -153,6 +159,24 @@ void main() {
         expect(entity.status, RegionStatus.updateAvailable);
       },
     );
+
+    test('vectorPackage paused -> paused', () {
+      final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
+      entity.vectorPackage.target = DownloadedTilePackageEntity(
+        status: PackageStatus.paused,
+      );
+
+      expect(entity.status, RegionStatus.paused);
+    });
+
+    test('vectorPackage error -> error', () {
+      final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
+      entity.vectorPackage.target = DownloadedTilePackageEntity(
+        status: PackageStatus.error,
+      );
+
+      expect(entity.status, RegionStatus.error);
+    });
   });
 
   group('RegionEntity.fromCatalogEntry', () {

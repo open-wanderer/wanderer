@@ -28,11 +28,17 @@ enum CatalogStatus {
 /// Local on-device download lifecycle for a region (D-10/D-12) — computed
 /// from [DownloadedTilePackageEntity.status] via [RegionEntity.status],
 /// never persisted directly.
+///
+/// [paused] and [error] (Phase 23) are appended AFTER [updateAvailable] —
+/// never renumbered or inserted — matching a paused/errored vector package's
+/// [PackageStatus].
 enum RegionStatus {
   notDownloaded(0),
   downloading(1),
   downloaded(2),
-  updateAvailable(3);
+  updateAvailable(3),
+  paused(4),
+  error(5);
 
   const RegionStatus(this.code);
   final int code;
@@ -40,10 +46,16 @@ enum RegionStatus {
 
 /// Per-package (vector or DEM) stored download status (D-10) — persisted on
 /// [DownloadedTilePackageEntity] via the explicit `.code` shadow property.
+///
+/// [paused] and [error] (Phase 23) are appended AFTER [downloaded] with
+/// brand-new stable codes — never renumbered or inserted — so an on-device
+/// row written before this change still decodes correctly (REGN-02).
 enum PackageStatus {
   notDownloaded(0),
   downloading(1),
-  downloaded(2);
+  downloaded(2),
+  paused(3),
+  error(4);
 
   const PackageStatus(this.code);
   final int code;
