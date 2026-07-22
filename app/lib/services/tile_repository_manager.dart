@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
+import 'package:maplibre/maplibre.dart' show LngLatBounds;
 import 'package:path_provider/path_provider.dart';
 import 'package:pmtiles/pmtiles.dart';
 import 'package:wanderer/entities/downloaded_tile_package_entity.dart';
@@ -40,18 +41,41 @@ resumePlanFor(int existingPartBytes) {
   );
 }
 
-/// Owns the region tile-repository download lifecycle (TILE-01..04,
+/// Pure axis-aligned rectangle-overlap test between a region's bbox and a
+/// query [LngLatBounds] (TILE-05). There is no `intersects()` helper on this
+/// package's `LngLatBounds`, so this is hand-rolled against `RegionEntity`'s
+/// four bbox doubles as the negated-disjoint form: two rectangles overlap
+/// unless one is entirely to one side of the other. Uses strict `</`/`>`
+/// (not `<=`/`>=`) so an edge-touching pair still counts as overlapping.
+@visibleForTesting
+bool bboxOverlaps({
+  required double minLon,
+  required double minLat,
+  required double maxLon,
+  required double maxLat,
+  required LngLatBounds query,
+}) {
+  return !(maxLon < query.longitudeWest ||
+      minLon > query.longitudeEast ||
+      maxLat < query.latitudeSouth ||
+      minLat > query.latitudeNorth);
+}
+
+/// Owns the region tile-repository download lifecycle (TILE-01..05,
 /// DEM-01/02): resumable `.part` downloads (Range + `FileAccessMode.append`)
 /// for a region's vector and (independently) DEM archives, a disk-space
 /// pre-check before every file write, `PmTilesArchive` validation before a
-/// `.part` is promoted to its final path, and an `AppLifecycleListener`-
-/// driven deliberate pause of every in-flight download on backgrounding.
+/// `.part` is promoted to its final path, an `AppLifecycleListener`-driven
+/// deliberate pause of every in-flight download on backgrounding, a
+/// bbox-overlap viewport query (`localTilePathsForBounds`), and a cascade
+/// delete (`deleteRegion`) since ObjectBox does not cascade a `ToOne`
+/// target's removal.
 ///
 /// Mirrors `TrailDownloadService`'s construction-injection
 /// (`Store` + `Dio`) and `CancelToken`-based cancellation shape, but adds
 /// the region-archive-scale concerns that phase's small per-cell files
-/// never needed. `localTilePathsForBounds` and `deleteRegion` are
-/// intentionally deferred to Plan 05, along with the Riverpod wiring.
+/// never needed. The Riverpod wiring lives in `tile_repository_provider.dart`
+/// (Plan 05).
 class TileRepositoryManager {
   final Store _store;
   final Dio _api;
@@ -264,6 +288,81 @@ class TileRepositoryManager {
       futures.add(startDemDownload(id, onProgress: onProgress));
     }
     await Future.wait(futures);
+  }
+
+  /// Returns the local vector/DEM archive file paths for every downloaded
+  /// region whose bbox overlaps [query] (TILE-05) — feeds Phase 25's
+  /// viewport-based tile-reading pipeline. Regions whose vector/DEM package
+  /// target is null (not downloaded) or whose bbox doesn't overlap [query]
+  /// contribute nothing to the result.
+  List<String> localTilePathsForBounds(LngLatBounds query) {
+    final paths = <String>[];
+    for (final region in _store.box<RegionEntity>().getAll()) {
+      if (!bboxOverlaps(
+        minLon: region.minLon,
+        minLat: region.minLat,
+        maxLon: region.maxLon,
+        maxLat: region.maxLat,
+        query: query,
+      )) {
+        continue;
+      }
+
+      final vectorPath = region.vectorPackage.target?.localFilePath;
+      final demPath = region.demPackage.target?.localFilePath;
+      if (vectorPath != null) paths.add(vectorPath);
+      if (demPath != null) paths.add(demPath);
+    }
+    return paths;
+  }
+
+  /// Cancels any in-flight vector/DEM download for [regionId], then removes
+  /// both `DownloadedTilePackageEntity` rows and their on-disk files
+  /// (vector, DEM, and any `.part` siblings) as one logical unit — ObjectBox
+  /// does not cascade a `ToOne` target's deletion (RESEARCH.md Pitfall 5 /
+  /// T-23-07). Deleting an unknown/never-downloaded region is a no-op.
+  Future<void> deleteRegion(String regionId) async {
+    final id = assertValidRegionId(regionId);
+
+    for (final entry in _activeCancelTokens.entries.toList()) {
+      if (entry.key == '$id:vector' || entry.key == '$id:dem') {
+        entry.value.cancel('deleted');
+      }
+    }
+
+    final region = _regionById(id);
+    if (region == null) return;
+
+    final vectorPackage = region.vectorPackage.target;
+    final demPackage = region.demPackage.target;
+
+    _store.runInTransaction(TxMode.write, () {
+      final packageBox = _store.box<DownloadedTilePackageEntity>();
+      if (vectorPackage != null) packageBox.remove(vectorPackage.obxId);
+      if (demPackage != null) packageBox.remove(demPackage.obxId);
+
+      region.vectorPackage.target = null;
+      region.demPackage.target = null;
+      region.lastDownloadedVersion = null;
+      _store.box<RegionEntity>().put(region);
+    });
+
+    // Best-effort, outside the transaction: a missing file is never fatal.
+    final root = (await getApplicationDocumentsDirectory()).path;
+    for (final finalPath in [
+      regionVectorPath(root, id),
+      regionDemPath(root, id),
+    ]) {
+      for (final candidate in [finalPath, '$finalPath.part']) {
+        final file = File(candidate);
+        if (file.existsSync()) file.deleteSync();
+      }
+    }
+
+    final dir = Directory(regionStorageDir(root, id));
+    if (dir.existsSync() && dir.listSync().isEmpty) {
+      dir.deleteSync();
+    }
   }
 
   /// Releases the lifecycle listener and cancels every remaining in-flight
