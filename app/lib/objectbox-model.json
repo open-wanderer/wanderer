@@ -713,10 +713,156 @@
         }
       ],
       "relations": []
+    },
+    {
+      "id": "11:3994262290222200730",
+      "lastPropertyId": "5:6747273162193410297",
+      "name": "DownloadedTilePackageEntity",
+      "properties": [
+        {
+          "id": "1:4374773426317627388",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:4154466746856851188",
+          "name": "dbStatus",
+          "type": 6
+        },
+        {
+          "id": "3:1923335049010027300",
+          "name": "localFilePath",
+          "type": 9
+        },
+        {
+          "id": "4:5314799543154432512",
+          "name": "downloadedAtUtc",
+          "type": 10
+        },
+        {
+          "id": "5:6747273162193410297",
+          "name": "sizeBytesOnDisk",
+          "type": 6
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "12:7228865513396600510",
+      "lastPropertyId": "19:7368931415973576532",
+      "name": "RegionEntity",
+      "properties": [
+        {
+          "id": "1:8961513366638899041",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:4039124996490710874",
+          "name": "id",
+          "indexId": "19:2837718969465956680",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "3:5311151678852809106",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "4:2209570915226870566",
+          "name": "minLon",
+          "type": 8
+        },
+        {
+          "id": "5:161630790384350211",
+          "name": "minLat",
+          "type": 8
+        },
+        {
+          "id": "6:1811641814319407837",
+          "name": "maxLon",
+          "type": 8
+        },
+        {
+          "id": "7:1733392075640969278",
+          "name": "maxLat",
+          "type": 8
+        },
+        {
+          "id": "8:3947505946992521604",
+          "name": "version",
+          "type": 9
+        },
+        {
+          "id": "9:6002601932204643725",
+          "name": "vectorUrl",
+          "type": 9
+        },
+        {
+          "id": "10:6875410086344237922",
+          "name": "vectorSize",
+          "type": 6
+        },
+        {
+          "id": "11:6324962793112723008",
+          "name": "demUrl",
+          "type": 9
+        },
+        {
+          "id": "12:3889641482139647731",
+          "name": "demSize",
+          "type": 6
+        },
+        {
+          "id": "13:6369582494340244517",
+          "name": "error",
+          "type": 9
+        },
+        {
+          "id": "14:2245437139079201970",
+          "name": "inCatalog",
+          "type": 1
+        },
+        {
+          "id": "15:5749850859456718531",
+          "name": "lastDownloadedVersion",
+          "type": 9
+        },
+        {
+          "id": "16:2156400899818498663",
+          "name": "dbCatalogStatus",
+          "type": 6
+        },
+        {
+          "id": "17:4955623694421458024",
+          "name": "dbDemStatus",
+          "type": 6
+        },
+        {
+          "id": "18:8868632539812944634",
+          "name": "vectorPackageId",
+          "indexId": "20:3862938813523067739",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "DownloadedTilePackageEntity"
+        },
+        {
+          "id": "19:7368931415973576532",
+          "name": "demPackageId",
+          "indexId": "21:8934601337546040437",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "DownloadedTilePackageEntity"
+        }
+      ],
+      "relations": []
     }
   ],
-  "lastEntityId": "10:8580051984298238879",
-  "lastIndexId": "18:2115373350521693955",
+  "lastEntityId": "12:7228865513396600510",
+  "lastIndexId": "21:8934601337546040437",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,
