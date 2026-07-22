@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: verifying
-stopped_at: Completed 22-02-PLAN.md
-last_updated: "2026-07-22T07:55:43.867Z"
-last_activity: 2026-07-22 -- Phase 22 execution complete, ready for verification
+status: executing
+stopped_at: Completed 23-01-PLAN.md
+last_updated: "2026-07-22T09:26:43.141Z"
+last_activity: 2026-07-22 -- Phase 23 execution started
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 6
-  completed_plans: 5
+  total_plans: 12
+  completed_plans: 6
   percent: 14
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 22 — region-package-data-model
+**Current focus:** Phase 23 — TileRepositoryManager — Download Engine
 
 ## Current Position
 
-Phase: 22 (region-package-data-model) — COMPLETE
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-07-22 -- Phase 22 execution complete, ready for verification
+Phase: 23 (TileRepositoryManager — Download Engine) — EXECUTING
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-07-22 -- Phase 23 execution started
 
 ## v1.6 Phases
 
@@ -93,6 +93,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 21.5 P03 | 3min | 4 tasks | 8 files |
 | Phase 22 P01 | 6min | 3 tasks | 9 files |
 | Phase 22 P02 | 12min | 2 tasks | 3 files |
+| Phase 23 P01 | 4min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,7 @@ Recent decisions affecting current work:
 - [Phase 22-01]: RegionEntity.status getter's updateAvailable branch checks only vector version/lastDownloadedVersion -- DEM has no staleness concept (no dem_version field), matching D-07
 - [Phase 22-02]: Malformed catalog elements dropped at two independent layers: parseRegionCatalog catches per-element fromJson failures; upsertCatalog additionally catches FormatException from RegionEntity.fromCatalogEntry/applyCatalogEntry's bbox guard per-entry
 - [Phase 22-02]: refreshCatalog splits fetch and upsert into two explicit steps so a fetch failure always happens before any store write, guaranteeing local region rows/download status are never corrupted by an offline/failed catalog fetch
+- [Phase 23]: [Phase 23] [23-01] Kept the plan's pre-existing working-tree rename of the upstream fetch path (/api/v1/regions/... to /regions/...) untouched; only edited Range/status/header-forwarding lines
 
 ### Pending Todos
 
@@ -281,6 +283,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-22T07:54:16.913Z
-Stopped at: Completed 22-02-PLAN.md
+Last session: 2026-07-22T09:26:43.127Z
+Stopped at: Completed 23-01-PLAN.md
 Resume file: None
