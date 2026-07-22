@@ -273,6 +273,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.2"
+  disk_space_2:
+    dependency: "direct main"
+    description:
+      name: disk_space_2
+      sha256: "3d8662a6ed022defb4205bdc453480f5f1ea4b1494fbc6711d564616c1ff8a68"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.12"
   duration:
     dependency: "direct main"
     description:
