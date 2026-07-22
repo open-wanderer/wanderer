@@ -353,7 +353,7 @@ Plans:
 - [x] **Phase 21.5: Region Catalog & Archive Pre-Build (Backend)** - Go backend reads an admin-supplied, Docker-volume-mounted config file defining this instance's regions, a cronjob pre-builds one mosaicked vector PMTiles + one DEM archive per region, and an API endpoint serves the resulting catalog (completed 2026-07-21)
 - [x] **Phase 22: Region & Package Data Model** - App-side region manifest (fetched from Phase 21.5's API, not bundled) and ObjectBox `Region`/`DownloadedTilePackage` entities with an explicit-int status enum (completed 2026-07-22)
 - [x] **Phase 23: TileRepositoryManager — Download Engine** - Resumable, disk-safe, backgrounding-aware region downloads plus a bbox-to-local-paths query, fully decoupled from Trail (completed 2026-07-22)
-- [ ] **Phase 24: Settings — Offline Maps/Regions UI** - Flat searchable region list with download/pause/resume/delete, DEM toggle, and total disk usage
+- [x] **Phase 24: Settings — Offline Maps/Regions UI** - Flat searchable region list with download/pause/resume/delete, DEM toggle, and total disk usage (completed 2026-07-22)
 - [ ] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** - `TrailMap`/`navigation_screen` read region tiles through a viewport-scoped style pipeline, settled by a maplibre 0.3.5 spike
 - [ ] **Phase 26: Trail Download Guard** - Trail downloads check region coverage first, naming missing regions with an inline download CTA
 - [ ] **Phase 27: Legacy Cleanup** - Trail-scoped tile code deleted outright, orphaned legacy files swept on first launch
@@ -463,7 +463,7 @@ Plans:
 Plans:
 
 - [x] 24-01-PLAN.md — DEM-only delete engine method (D-01) + regionListNotifier snapshot provider + byte-format/disk-usage utilities + English l10n keys (SETUI-01/02/04/05)
-- [ ] 24-02-PLAN.md — Offline Maps/Regions screen (6-state rows, combined progress, DEM toggle, delete/retry/update, disk-usage summary) + Settings entry + /settings/regions route (SETUI-01..06)
+- [x] 24-02-PLAN.md — Offline Maps/Regions screen (6-state rows, combined progress, DEM toggle, delete/retry/update, disk-usage summary) + Settings entry + /settings/regions route (SETUI-01..06)
 
 **UI hint**: yes
 
@@ -547,7 +547,7 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 21. Route Planner Handoff & Entry Point | v1.5 | 4/4 | Complete   | 2026-07-17 |
 | 22. Region & Package Data Model | v1.6 | 2/2 | Complete   | 2026-07-22 |
 | 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
-| 24. Settings — Offline Maps/Regions UI | v1.6 | 1/2 | In Progress|  |
+| 24. Settings — Offline Maps/Regions UI | v1.6 | 2/2 | Complete   | 2026-07-22 |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 0/TBD | Not started | - |
 | 26. Trail Download Guard | v1.6 | 0/TBD | Not started | - |
 | 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: executing
-stopped_at: Completed 24-01-PLAN.md
-last_updated: "2026-07-22T11:43:47.293Z"
+status: verifying
+stopped_at: Completed 24-02-PLAN.md
+last_updated: "2026-07-22T12:00:14.766Z"
 last_activity: 2026-07-22 -- Phase 24 execution started
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 14
-  completed_plans: 12
-  percent: 29
+  completed_plans: 13
+  percent: 43
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 Phase: 24 (settings-offline-maps-regions-ui) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-22 -- Phase 24 execution started
 
 ## v1.6 Phases
@@ -100,6 +100,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 23 P05 | 20min | 2 tasks | 7 files |
 | Phase 23 P06 | 15min | 1 tasks | 1 files |
 | Phase 24 P01 | 15min | 3 tasks | 9 files |
+| Phase 24 P02 | 15min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -211,6 +212,10 @@ Recent decisions affecting current work:
 - [Phase 23]: [23-06] Harness drives TileRepositoryManager directly (not via TileRepositoryStatus) to preserve raw received/total byte counts for debugPrint during on-device resume/pause verification
 - [Phase 23]: [23-06] Added Backend base URL + Connect control to the harness (Rule 2) so the isolated ProviderScope actually points Dio at a real server instead of the api_provider.dart placeholder
 - [Phase 24]: [24-01] regionListNotifierProvider named via @Riverpod(name: 'regionListNotifierProvider') because riverpod_generator's default Notifier-suffix stripping would have produced regionListProvider, breaking Plan 02's already-written literal references
+- [Phase 24]: [24-02] Disk-usage FutureBuilder future recreated only on region-list identity change (identical() check), not every rebuild
+- [Phase 24]: [24-02] Region disk-usage count includes downloading/paused packages (partial .part files), not only fully-downloaded ones
+- [Phase 24]: [24-02] DEM toggle value derives purely from demPackage.target?.status == PackageStatus.downloaded; added an inline spinner (Rule 2) for in-flight feedback
+- [Phase 24]: [24-02] Size-breakdown row text (vector/DEM) is a hardcoded English literal per Plan 01's own l10n scope, matching UI-SPEC's example copy verbatim
 
 ### Pending Todos
 
@@ -228,6 +233,7 @@ Recent decisions affecting current work:
 - **[Phase 15 — CORE-05 gap, expected]** `trail_detail_map_screen`'s `MapCompass` (flutter_map-only) was removed rather than crashing against the new `MapLibreMap` — that screen has no compass/rotation-reset control until Phase 17 (CORE-05) wires maplibre's native equivalent.
 - **[v1.5 research flag]** `package:maplibre` 0.3.5's exact `MapGestures`/`MapOptions` pan/rotate-disable API surface is MEDIUM confidence (changelog/GitHub discussion, not a direct source read) — validate with a small spike early in Phase 19 before committing to the full drag-vs-pan gesture-arena solution.
 - **[v1.5 research flag]** The generation-counter/CancelToken race-guard pattern for out-of-order Valhalla responses is MEDIUM confidence against this project's exact pinned `riverpod_annotation` 4.0.2 — confirm the idiom during Phase 19 planning/execution.
+- [Phase 24 — end-of-phase, expected per human_verify_mode: end-of-phase] On-device physical verification of 24-02's Task 2 six-point checklist (download/pause/resume/delete progress bar, DEM toggle immediate delete, disk-usage total live updates, offline resilience showing previously-downloaded regions, building/error disabled rows) not yet performed.
 
 ### Quick Tasks Completed
 
@@ -299,6 +305,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-22T11:43:47.279Z
-Stopped at: Completed 24-01-PLAN.md
+Last session: 2026-07-22T12:00:09.778Z
+Stopped at: Completed 24-02-PLAN.md
 Resume file: None
