@@ -32,8 +32,8 @@
 
 ### DEM Support
 
-- [ ] **DEM-01**: Per-region optional DEM toggle downloads the pre-built region-scoped DEM archive produced by BACK-03, served via BACK-04's catalog endpoint — not the existing per-cell `download-dem` endpoint pointed at a region bbox
-- [ ] **DEM-02**: DEM download/deletion is tracked as its own `DownloadedTilePackage` per region, independent of the vector package's status
+- [x] **DEM-01**: Per-region optional DEM toggle downloads the pre-built region-scoped DEM archive produced by BACK-03, served via BACK-04's catalog endpoint — not the existing per-cell `download-dem` endpoint pointed at a region bbox
+- [x] **DEM-02**: DEM download/deletion is tracked as its own `DownloadedTilePackage` per region, independent of the vector package's status
 
 ### Settings — Offline Maps/Regions UI
 
@@ -110,8 +110,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TILE-03 | Phase 23 | Complete |
 | TILE-04 | Phase 23 | Complete |
 | TILE-05 | Phase 23 | Pending |
-| DEM-01 | Phase 23 | Pending |
-| DEM-02 | Phase 23 | Pending |
+| DEM-01 | Phase 23 | Complete |
+| DEM-02 | Phase 23 | Complete |
 | SETUI-01 | Phase 24 | Pending |
 | SETUI-02 | Phase 24 | Pending |
 | SETUI-03 | Phase 24 | Pending |
