@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: verifying
-stopped_at: Phase 22 context re-gathered (backend-fetched catalog redesign)
-last_updated: "2026-07-21T21:05:51.659Z"
-last_activity: 2026-07-21 -- Phase 21.5 execution started
+status: executing
+stopped_at: Completed 22-01-PLAN.md
+last_updated: "2026-07-22T07:47:04.349Z"
+last_activity: 2026-07-22 -- Phase 22 execution started
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
   percent: 14
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 21.5 — region-catalog-archive-pre-build-backend
+**Current focus:** Phase 22 — region-package-data-model
 
 ## Current Position
 
-Phase: 21.5 (region-catalog-archive-pre-build-backend) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-07-21 -- Phase 21.5 execution started
+Phase: 22 (region-package-data-model) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-07-22 -- Phase 22 execution started
 
 ## v1.6 Phases
 
@@ -91,6 +91,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 21.5 P01 | 4min | 2 tasks | 3 files |
 | Phase 21.5 P02 | 10min | 2 tasks | 3 files |
 | Phase 21.5 P03 | 3min | 4 tasks | 8 files |
+| Phase 22 P01 | 6min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -187,6 +188,8 @@ Recent decisions affecting current work:
 - [Phase 21.5]: [Phase 21.5] [21.5-02] buildRegion wrapped in buildRegionSafely (defer/recover) so a single region panic can never abort BuildAll's loop over remaining regions
 - [Phase 21.5]: [21.5-03] The Go /api/v1/regions route is internal-only (db's port unpublished in prod/dev compose); SvelteKit proxies the same public path for external clients (Phase 22's Flutter app included)
 - [Phase 21.5]: [21.5-03] Download proxy routes reuse event.locals.pb.baseURL + Bearer Authorization header (existing map/cells download precedent) rather than $env/dynamic/public — same outcome, established codebase convention
+- [Phase 22-01]: CatalogStatus gained a 4th entity-only sentinel absent (code 3, no @JsonValue) so RegionEntity.demStatus stays a non-nullable explicit-int-enum shadow instead of a nullable ObjectBox column
+- [Phase 22-01]: RegionEntity.status getter's updateAvailable branch checks only vector version/lastDownloadedVersion -- DEM has no staleness concept (no dem_version field), matching D-07
 
 ### Pending Todos
 
@@ -275,6 +278,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-21T21:05:51.635Z
-Stopped at: Phase 22 context re-gathered (backend-fetched catalog redesign)
-Resume file: .planning/phases/22-region-package-data-model/22-CONTEXT.md
+Last session: 2026-07-22T07:47:04.333Z
+Stopped at: Completed 22-01-PLAN.md
+Resume file: 

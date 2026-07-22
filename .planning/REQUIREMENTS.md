@@ -8,9 +8,9 @@
 
 ### Region Manifest & Data Model
 
-- [ ] **REGN-01**: The app fetches its region catalog from this Wanderer instance's backend API at runtime — id, name, bbox, vector archive URL + size, optional DEM archive URL + size, per region. No bundled `regions.json` asset: the catalog reflects only the regions *this* instance's admin has configured (see BACK-01/BACK-04), so a fresh/default instance with no admin config yet returns an empty catalog rather than a fixed global list.
-- [ ] **REGN-02**: ObjectBox `Region` entity stores fetched-catalog fields plus live status (notDownloaded/downloading/downloaded/updateAvailable), using explicit stable int constants (not index-backed enum persistence)
-- [ ] **REGN-03**: ObjectBox `DownloadedTilePackage` entity tracks vector and DEM as independent packages per region — local file path, timestamp, size on disk, status
+- [x] **REGN-01**: The app fetches its region catalog from this Wanderer instance's backend API at runtime — id, name, bbox, vector archive URL + size, optional DEM archive URL + size, per region. No bundled `regions.json` asset: the catalog reflects only the regions *this* instance's admin has configured (see BACK-01/BACK-04), so a fresh/default instance with no admin config yet returns an empty catalog rather than a fixed global list.
+- [x] **REGN-02**: ObjectBox `Region` entity stores fetched-catalog fields plus live status (notDownloaded/downloading/downloaded/updateAvailable), using explicit stable int constants (not index-backed enum persistence)
+- [x] **REGN-03**: ObjectBox `DownloadedTilePackage` entity tracks vector and DEM as independent packages per region — local file path, timestamp, size on disk, status
 
 ### Backend — Region Catalog & Archive Pre-Build
 
@@ -97,9 +97,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REGN-01 | Phase 22 (replan needed — see todo) | Pending |
-| REGN-02 | Phase 22 | Pending |
-| REGN-03 | Phase 22 | Pending |
+| REGN-01 | Phase 22 (replan needed — see todo) | Complete |
+| REGN-02 | Phase 22 | Complete |
+| REGN-03 | Phase 22 | Complete |
 | BACK-01 | Phase 21.5 | Complete |
 | BACK-02 | Phase 21.5 | Complete |
 | BACK-03 | Phase 21.5 | Complete |

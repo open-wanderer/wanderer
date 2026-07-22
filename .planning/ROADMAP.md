@@ -417,7 +417,7 @@ Plans:
 
 Plans:
 
-- [ ] 22-01-PLAN.md — `RegionCatalogEntry` @freezed parse model for `GET /api/v1/regions` + `CatalogStatus`/`RegionStatus`/`PackageStatus` explicit-`.code` enums + ObjectBox `RegionEntity` (computed status getter, two `ToOne` package links, `fromCatalogEntry`/`applyCatalogEntry`) + `DownloadedTilePackageEntity` (REGN-01/02/03)
+- [x] 22-01-PLAN.md — `RegionCatalogEntry` @freezed parse model for `GET /api/v1/regions` + `CatalogStatus`/`RegionStatus`/`PackageStatus` explicit-`.code` enums + ObjectBox `RegionEntity` (computed status getter, two `ToOne` package links, `fromCatalogEntry`/`applyCatalogEntry`) + `DownloadedTilePackageEntity` (REGN-01/02/03)
 - [ ] 22-02-PLAN.md — `RegionRepository` fetch-and-upsert (`fetchRegionCatalog`, upsert-by-id preserving local state, orphan `inCatalog` flip, typed `RegionCatalogException`) + construction-only `regionRepository` provider seam (REGN-01)
 
 ### Phase 23: TileRepositoryManager — Download Engine
@@ -530,7 +530,7 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 19. Route Planner Core — Waypoint Editing & Routing Engine | v1.5 | 4/4 | Complete   | 2026-07-16 |
 | 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 5/5 | Complete   | 2026-07-16 |
 | 21. Route Planner Handoff & Entry Point | v1.5 | 4/4 | Complete   | 2026-07-17 |
-| 22. Region & Package Data Model | v1.6 | 0/TBD | Not started | - |
+| 22. Region & Package Data Model | v1.6 | 1/2 | In Progress|  |
 | 23. TileRepositoryManager — Download Engine | v1.6 | 0/TBD | Not started | - |
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 0/TBD | Not started | - |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 0/TBD | Not started | - |
