@@ -464,7 +464,7 @@ Plans:
 
 - [x] 24-01-PLAN.md — DEM-only delete engine method (D-01) + regionListNotifier snapshot provider + byte-format/disk-usage utilities + English l10n keys (SETUI-01/02/04/05)
 - [x] 24-02-PLAN.md — Offline Maps/Regions screen (6-state rows, combined progress, DEM toggle, delete/retry/update, disk-usage summary) + Settings entry + /settings/regions route (SETUI-01..06)
-- [ ] 24-03-PLAN.md — Gap closure (UAT tests 2/3): implement the promised device-wide fallback in freeDiskSpaceBytes so a never-downloaded region's disk-space check no longer fails closed on a real device (SETUI-03/04)
+- [x] 24-03-PLAN.md — Gap closure (UAT tests 2/3): implement the promised device-wide fallback in freeDiskSpaceBytes so a never-downloaded region's disk-space check no longer fails closed on a real device (SETUI-03/04)
 
 **UI hint**: yes
 
@@ -548,7 +548,7 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 21. Route Planner Handoff & Entry Point | v1.5 | 4/4 | Complete   | 2026-07-17 |
 | 22. Region & Package Data Model | v1.6 | 2/2 | Complete   | 2026-07-22 |
 | 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
-| 24. Settings — Offline Maps/Regions UI | v1.6 | 2/2 | Complete   | 2026-07-22 |
+| 24. Settings — Offline Maps/Regions UI | v1.6 | 3/3 | Complete   | 2026-07-22 |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 0/TBD | Not started | - |
 | 26. Trail Download Guard | v1.6 | 0/TBD | Not started | - |
 | 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |
