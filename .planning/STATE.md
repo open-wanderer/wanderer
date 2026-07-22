@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: executing
-stopped_at: Completed 23-04-PLAN.md
-last_updated: "2026-07-22T09:48:49.868Z"
+stopped_at: Completed 23-05-PLAN.md
+last_updated: "2026-07-22T09:58:42.591Z"
 last_activity: 2026-07-22 -- Phase 23 execution started
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 10
   percent: 14
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 ## Current Position
 
 Phase: 23 (TileRepositoryManager — Download Engine) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-07-22 -- Phase 23 execution started
 
@@ -97,6 +97,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 23 P02 | 6min | 2 tasks | 6 files |
 | Phase 23 P03 | 12min | 2 tasks | 4 files |
 | Phase 23 P04 | 18min | 2 tasks | 2 files |
+| Phase 23 P05 | 20min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -202,6 +203,9 @@ Recent decisions affecting current work:
 - [Phase 23]: [23-03] disk_space_2 approved after direct pub.dev registry/score API + GitHub native-source (Kotlin StatFs, Swift NSFileManager) legitimacy review — confirmed read-only free/total-space queries only, no network/write/reflection/shell-out
 - [Phase 23]: [23-03] disk_space_util.dart splits an async fail-closed plugin wrapper (freeDiskSpaceBytes) from a pure, unit-tested safety-margin decision (hasEnoughSpace, default 1.75x multiplier) — mirrors map_cache_path.dart's pure/tested-util shape
 - [Phase 23]: [23-04] Combined Task 1 + Task 2 into a single commit — building Task 1 in isolation fails its own flutter analyze acceptance criterion (unused-element lint on private helpers not yet called until Task 2) — Analyzer-level coupling between the two tasks for this new file; no code/behavior difference from the plan
+- [Phase 23]: [23-05] TileRepositoryStatus clears a region's map entry entirely in finally (mirrors DownloadingTrailIds Set membership-clear) rather than settling a final state -- authoritative status lives on RegionEntity/DownloadedTilePackageEntity
+- [Phase 23]: [23-05] deleteRegion silently no-ops on an unknown region id (not a StateError) -- nothing to clean up isn't a caller error
+- [Phase 23]: [23-05] deleteRegion also resets region.lastDownloadedVersion to null alongside clearing both package ToOne targets, per the plan's 'reset any relevant status' instruction
 
 ### Pending Todos
 
@@ -290,6 +294,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-22T09:48:49.851Z
-Stopped at: Completed 23-04-PLAN.md
+Last session: 2026-07-22T09:58:42.577Z
+Stopped at: Completed 23-05-PLAN.md
 Resume file: None
