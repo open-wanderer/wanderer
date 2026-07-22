@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/region_entity.dart';
 import 'package:wanderer/models/region_catalog_entry.dart';
@@ -20,7 +19,8 @@ class RegionCatalogException implements Exception {
   final Object? cause;
 
   @override
-  String toString() => 'RegionCatalogException: $message'
+  String toString() =>
+      'RegionCatalogException: $message'
       '${cause != null ? ' (cause: $cause)' : ''}';
 }
 
@@ -152,4 +152,23 @@ class RegionRepository {
 @Riverpod(keepAlive: true)
 RegionRepository regionRepository(Ref ref) {
   return RegionRepository(ref.watch(apiProvider), ref.watch(objectBoxProvider));
+}
+
+/// Synchronous ObjectBox snapshot of every persisted [RegionEntity], sorted
+/// alphabetically by [RegionEntity.name] (D-09) -- mirrors
+/// `trail_library_provider.dart`'s `TrailLibraryNotifier` structural
+/// precedent verbatim. No mutation methods live here; all region mutations
+/// flow through `TileRepositoryStatus` (`tile_repository_provider.dart`),
+/// whose callers must `ref.invalidate(regionListNotifierProvider)` after
+/// each mutation (RESEARCH.md Pitfall 2 -- ObjectBox `ToOne.target` caches
+/// per-instance after first read).
+@Riverpod(name: 'regionListNotifierProvider')
+class RegionListNotifier extends _$RegionListNotifier {
+  @override
+  List<RegionEntity> build() {
+    final store = ref.watch(objectBoxProvider);
+    final regions = store.box<RegionEntity>().getAll();
+    regions.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return regions;
+  }
 }

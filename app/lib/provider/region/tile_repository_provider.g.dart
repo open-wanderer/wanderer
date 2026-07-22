@@ -122,7 +122,7 @@ final class TileRepositoryStatusProvider
 }
 
 String _$tileRepositoryStatusHash() =>
-    r'a961c29f6a773cbb389339b328dea235a0b20212';
+    r'fa35a1d77d415050264144f87642d45e7b4f8b59';
 
 /// Per-region download state, keyed by region id -- Phase 24's Settings UI
 /// subscribes to this. `keepAlive` so in-progress state survives whichever
