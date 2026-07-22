@@ -1,4 +1,5 @@
 import 'package:disk_space_2/disk_space_2.dart';
+import 'package:meta/meta.dart';
 
 /// Disk free-space query + fail-closed safety-margin decision for the
 /// region download engine (TILE-03).
@@ -19,6 +20,66 @@ import 'package:disk_space_2/disk_space_2.dart';
 /// never throws to callers, and exposes the actual pass/fail decision as the
 /// pure, unit-tested [hasEnoughSpace].
 
+/// A path-specific free-space query: given an absolute path, returns free
+/// mebibytes on that path's volume (or throws — e.g. the path doesn't exist
+/// yet).
+typedef PathSpaceQuery = Future<double?> Function(String path);
+
+/// A device-wide free-space query: returns free mebibytes for the device's
+/// primary storage volume, with no path argument (or throws).
+typedef DeviceSpaceQuery = Future<double?> Function();
+
+/// Injectable orchestrator behind [freeDiskSpaceBytes]: resolves free disk
+/// space, in bytes, using [pathQuery] when [forPath] is given, falling back
+/// to [deviceQuery] when the path-specific query throws (or when [forPath]
+/// is omitted, in which case [deviceQuery] is used directly).
+///
+/// `regionStorageDir(root, id)` — the only real caller argument for
+/// [forPath] — is always a subdirectory of the app documents root, which is
+/// always on the same logical volume as whatever [deviceQuery] targets. So
+/// when the path doesn't exist yet (a region's first-ever download, before
+/// its storage directory is created) the device-wide number is a valid
+/// substitute for the not-yet-existing path's free space.
+///
+/// When BOTH queries throw (or [forPath] is `null` and [deviceQuery]
+/// throws), returns `null` — there is no further fallback, and callers must
+/// fail closed via [hasEnoughSpace]. This preserves TILE-03's genuine
+/// low-disk protection: a real "disk is full" condition still can't be
+/// worked around by this fallback, only the "path doesn't exist yet"
+/// condition can.
+///
+/// Marked `@visibleForTesting` so tests can inject fake `pathQuery`/
+/// `deviceQuery` closures and exercise the fallback ordering deterministically,
+/// with no platform channel involved.
+@visibleForTesting
+Future<int?> resolveFreeDiskSpaceBytes({
+  required String? forPath,
+  required PathSpaceQuery pathQuery,
+  required DeviceSpaceQuery deviceQuery,
+}) async {
+  double? freeMebibytes;
+  try {
+    freeMebibytes = forPath != null
+        ? await pathQuery(forPath)
+        : await deviceQuery();
+  } catch (e) {
+    if (forPath == null) {
+      // No path was queried in the first place, so there's no further
+      // fallback available.
+      return null;
+    }
+    try {
+      freeMebibytes = await deviceQuery();
+    } catch (e) {
+      // Both the path-specific and device-wide queries failed — fail
+      // closed, TILE-03's low-disk protection is preserved.
+      return null;
+    }
+  }
+  if (freeMebibytes == null) return null;
+  return (freeMebibytes * 1024 * 1024).round();
+}
+
 /// Queries free disk space, in bytes, for [forPath] if given (falls back to
 /// the device-wide free space when omitted or when the path-specific query
 /// fails).
@@ -27,21 +88,16 @@ import 'package:disk_space_2/disk_space_2.dart';
 /// (2^20 bytes) as a `double`; this wrapper converts to bytes.
 ///
 /// Never throws — any plugin exception (including the path-specific query's
-/// documented "path does not exist" exception) or a `null` result is
-/// swallowed and reported as `null`, so callers can fail closed via
-/// [hasEnoughSpace] rather than crash mid-download.
-Future<int?> freeDiskSpaceBytes([String? forPath]) async {
-  try {
-    final double? freeMebibytes = forPath != null
-        ? await DiskSpace.getFreeDiskSpaceForPath(forPath)
-        : await DiskSpace.getFreeDiskSpace;
-    if (freeMebibytes == null) return null;
-    return (freeMebibytes * 1024 * 1024).round();
-  } catch (_) {
-    // Fail closed at the query level too — a thrown plugin exception must
-    // never propagate to a download-loop caller.
-    return null;
-  }
+/// documented "path does not exist" exception, which is retried against the
+/// device-wide query before giving up) or a `null` result is swallowed and
+/// reported as `null`, so callers can fail closed via [hasEnoughSpace]
+/// rather than crash mid-download.
+Future<int?> freeDiskSpaceBytes([String? forPath]) {
+  return resolveFreeDiskSpaceBytes(
+    forPath: forPath,
+    pathQuery: DiskSpace.getFreeDiskSpaceForPath,
+    deviceQuery: () => DiskSpace.getFreeDiskSpace,
+  );
 }
 
 /// Pure decision: is there enough free space to safely write a file of
