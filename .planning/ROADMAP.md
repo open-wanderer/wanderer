@@ -458,7 +458,13 @@ Plans:
   5. The screen shows a total disk usage summary across all downloaded regions.
   6. A region with `updateAvailable` status shows a non-blocking badge with an optional user-triggered "update" action, and continues to appear/behave as downloaded while the badge is shown.
 
-**Plans**: TBD
+**Plans**: 2 plans (2 waves)
+
+Plans:
+
+- [ ] 24-01-PLAN.md — DEM-only delete engine method (D-01) + regionListNotifier snapshot provider + byte-format/disk-usage utilities + English l10n keys (SETUI-01/02/04/05)
+- [ ] 24-02-PLAN.md — Offline Maps/Regions screen (6-state rows, combined progress, DEM toggle, delete/retry/update, disk-usage summary) + Settings entry + /settings/regions route (SETUI-01..06)
+
 **UI hint**: yes
 
 ### Phase 25: Map Rendering — Region-Based Viewport Pipeline
