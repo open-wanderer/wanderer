@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: executing
-stopped_at: Completed 23-05-PLAN.md
-last_updated: "2026-07-22T09:58:42.591Z"
+status: verifying
+stopped_at: Completed 23-06-PLAN.md
+last_updated: "2026-07-22T10:04:55.708Z"
 last_activity: 2026-07-22 -- Phase 23 execution started
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 12
-  completed_plans: 10
-  percent: 14
+  completed_plans: 11
+  percent: 29
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 Phase: 23 (TileRepositoryManager — Download Engine) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-22 -- Phase 23 execution started
 
 ## v1.6 Phases
@@ -98,6 +98,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 23 P03 | 12min | 2 tasks | 4 files |
 | Phase 23 P04 | 18min | 2 tasks | 2 files |
 | Phase 23 P05 | 20min | 2 tasks | 7 files |
+| Phase 23 P06 | 15min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -206,6 +207,8 @@ Recent decisions affecting current work:
 - [Phase 23]: [23-05] TileRepositoryStatus clears a region's map entry entirely in finally (mirrors DownloadingTrailIds Set membership-clear) rather than settling a final state -- authoritative status lives on RegionEntity/DownloadedTilePackageEntity
 - [Phase 23]: [23-05] deleteRegion silently no-ops on an unknown region id (not a StateError) -- nothing to clean up isn't a caller error
 - [Phase 23]: [23-05] deleteRegion also resets region.lastDownloadedVersion to null alongside clearing both package ToOne targets, per the plan's 'reset any relevant status' instruction
+- [Phase 23]: [23-06] Harness drives TileRepositoryManager directly (not via TileRepositoryStatus) to preserve raw received/total byte counts for debugPrint during on-device resume/pause verification
+- [Phase 23]: [23-06] Added Backend base URL + Connect control to the harness (Rule 2) so the isolated ProviderScope actually points Dio at a real server instead of the api_provider.dart placeholder
 
 ### Pending Todos
 
@@ -294,6 +297,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-22T09:58:42.577Z
-Stopped at: Completed 23-05-PLAN.md
+Last session: 2026-07-22T10:04:55.692Z
+Stopped at: Completed 23-06-PLAN.md
 Resume file: None

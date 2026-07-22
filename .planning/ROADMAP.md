@@ -352,7 +352,7 @@ Plans:
 
 - [x] **Phase 21.5: Region Catalog & Archive Pre-Build (Backend)** - Go backend reads an admin-supplied, Docker-volume-mounted config file defining this instance's regions, a cronjob pre-builds one mosaicked vector PMTiles + one DEM archive per region, and an API endpoint serves the resulting catalog (completed 2026-07-21)
 - [x] **Phase 22: Region & Package Data Model** - App-side region manifest (fetched from Phase 21.5's API, not bundled) and ObjectBox `Region`/`DownloadedTilePackage` entities with an explicit-int status enum (completed 2026-07-22)
-- [ ] **Phase 23: TileRepositoryManager — Download Engine** - Resumable, disk-safe, backgrounding-aware region downloads plus a bbox-to-local-paths query, fully decoupled from Trail
+- [x] **Phase 23: TileRepositoryManager — Download Engine** - Resumable, disk-safe, backgrounding-aware region downloads plus a bbox-to-local-paths query, fully decoupled from Trail (completed 2026-07-22)
 - [ ] **Phase 24: Settings — Offline Maps/Regions UI** - Flat searchable region list with download/pause/resume/delete, DEM toggle, and total disk usage
 - [ ] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** - `TrailMap`/`navigation_screen` read region tiles through a viewport-scoped style pipeline, settled by a maplibre 0.3.5 spike
 - [ ] **Phase 26: Trail Download Guard** - Trail downloads check region coverage first, naming missing regions with an inline download CTA
@@ -442,7 +442,7 @@ Plans:
 - [x] 23-03-PLAN.md — disk_space_2 legitimacy checkpoint + disk_space_util fail-closed margin check (TILE-03)
 - [x] 23-04-PLAN.md — TileRepositoryManager download engine: resumable .part+Range+append vector/DEM, disk pre-check, PMTiles validation, backgrounding pause (TILE-01/02/03/04, DEM-01/02)
 - [x] 23-05-PLAN.md — localTilePathsForBounds + bboxOverlaps + deleteRegion cascade + tile_repository_provider/RegionDownloadState (TILE-05/01)
-- [ ] 23-06-PLAN.md — On-device checkpoint: resume-from-partial, disk refusal, backgrounding pause, DEM independence, bbox query
+- [x] 23-06-PLAN.md — On-device checkpoint: resume-from-partial, disk refusal, backgrounding pause, DEM independence, bbox query
 
 ### Phase 24: Settings — Offline Maps/Regions UI
 
@@ -540,7 +540,7 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 5/5 | Complete   | 2026-07-16 |
 | 21. Route Planner Handoff & Entry Point | v1.5 | 4/4 | Complete   | 2026-07-17 |
 | 22. Region & Package Data Model | v1.6 | 2/2 | Complete   | 2026-07-22 |
-| 23. TileRepositoryManager — Download Engine | v1.6 | 5/6 | In Progress|  |
+| 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 0/TBD | Not started | - |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 0/TBD | Not started | - |
 | 26. Trail Download Guard | v1.6 | 0/TBD | Not started | - |
