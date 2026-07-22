@@ -6,8 +6,10 @@ import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/entities/region_entity.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/models/region_download_state.dart';
 import 'package:wanderer/models/region_status.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
+import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/byte_format_util.dart';
 import 'package:wanderer/util/region_disk_usage_util.dart';
@@ -135,8 +137,7 @@ class _SettingsOfflineRegionsScreenState
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   child: WandererSearchBar(
                     hintText: l10n.regions_search_hint,
-                    onChanged: (value) =>
-                        setState(() => _searchQuery = value),
+                    onChanged: (value) => setState(() => _searchQuery = value),
                   ),
                 ),
                 Expanded(
@@ -192,10 +193,7 @@ class _SettingsOfflineRegionsScreenState
               ),
               const SizedBox(height: 4),
               Text(
-                l10n.regions_disk_usage_summary(
-                  formatBytes(totalBytes),
-                  count,
-                ),
+                l10n.regions_disk_usage_summary(formatBytes(totalBytes), count),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -292,15 +290,26 @@ class _SettingsOfflineRegionsScreenState
     );
   }
 
-  /// Reached only when `catalogStatus == CatalogStatus.ready`. Task 1's
-  /// stub renders the name + vector/DEM size breakdown only (SETUI-02's
-  /// before-download requirement); Task 2 completes this with the six
-  /// `RegionStatus` states, combined progress, DEM toggle, and
-  /// delete/retry/update actions.
+  /// Reached only when `catalogStatus == CatalogStatus.ready`. Renders the
+  /// name + vector/DEM size breakdown (SETUI-02), then the six
+  /// `RegionStatus` states (D-04) each with their own icon/action, a
+  /// persistent `updateAvailable` banner (D-05), a combined vector+DEM
+  /// progress bar while downloading (D-07), and an independent DEM toggle
+  /// gated on `region.demUrl != null` (SETUI-04, RESEARCH Pattern 3).
   Widget _buildActiveRow(RegionEntity region) {
+    final l10n = AppLocalizations.of(context)!;
+    final downloadState = ref.watch(tileRepositoryStatusProvider)[region.id];
+    final status = region.status;
+    final colorScheme = Theme.of(context).colorScheme;
+    final accentColor = Theme.of(context).brightness == Brightness.dark
+        ? colorScheme.onSurface
+        : colorScheme.primary;
+    final demDownloading = downloadState?.demProgress != null;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Column(
@@ -309,9 +318,9 @@ class _SettingsOfflineRegionsScreenState
                 Text(
                   region.name,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge!.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -321,11 +330,269 @@ class _SettingsOfflineRegionsScreenState
                       : '${formatBytes(region.vectorSize ?? 0)} vector',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                if (status == RegionStatus.updateAvailable) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.regions_update_available,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.orange),
+                  ),
+                ],
+                if (status == RegionStatus.downloading) ...[
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: _combinedProgress(downloadState),
+                    color: accentColor,
+                  ),
+                ],
+                if (region.demUrl != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.regions_dem_toggle_label,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            Text(
+                              l10n.regions_dem_toggle_caption,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (demDownloading)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      Switch(
+                        value:
+                            region.demPackage.target?.status ==
+                            PackageStatus.downloaded,
+                        activeThumbColor: accentColor,
+                        onChanged: (value) => _onDemToggle(region, value),
+                      ),
+                    ],
+                  ),
+                ],
               ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _buildTrailingActions(region, status, l10n, accentColor),
+        ],
+      ),
+    );
+  }
+
+  /// Combines `vectorProgress`/`demProgress` (D-07) into a single value for
+  /// the row's one `LinearProgressIndicator`: the average of whichever
+  /// values are non-null, or `null` (indeterminate) if neither is set yet.
+  double? _combinedProgress(RegionDownloadState? state) {
+    if (state == null) return null;
+    final parts = [state.vectorProgress, state.demProgress].whereType<double>();
+    if (parts.isEmpty) return null;
+    return parts.reduce((a, b) => a + b) / parts.length;
+  }
+
+  /// The row's trailing action(s) — exactly one widget group per
+  /// `RegionStatus` (D-04), each with a distinct icon/action per
+  /// UI-SPEC's Copywriting Contract. Full-region delete (row-level) is
+  /// available in `downloaded`/`updateAvailable`/`error`, always gated
+  /// behind `_onDeleteRegion`'s confirm dialog (D-02).
+  Widget _buildTrailingActions(
+    RegionEntity region,
+    RegionStatus status,
+    AppLocalizations l10n,
+    Color accentColor,
+  ) {
+    switch (status) {
+      case RegionStatus.notDownloaded:
+        return IconButton(
+          icon: const FaIcon(FontAwesomeIcons.download),
+          color: accentColor,
+          tooltip: l10n.download,
+          onPressed: () => _onDownloadVector(region),
+        );
+      case RegionStatus.downloading:
+        return IconButton(
+          icon: const FaIcon(FontAwesomeIcons.pause),
+          tooltip: l10n.regions_retry,
+          onPressed: () => _onPause(region),
+        );
+      case RegionStatus.paused:
+        return IconButton(
+          icon: const FaIcon(FontAwesomeIcons.play),
+          color: accentColor,
+          onPressed: () => _onResume(region),
+        );
+      case RegionStatus.downloaded:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const FaIcon(FontAwesomeIcons.circleCheck, color: Colors.green),
+            IconButton(
+              icon: const FaIcon(FontAwesomeIcons.trash),
+              color: Colors.redAccent,
+              onPressed: () => _onDeleteRegion(region),
+            ),
+          ],
+        );
+      case RegionStatus.updateAvailable:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextButton(
+              onPressed: () => _onDownloadVector(region),
+              child: Text(l10n.regions_update_action),
+            ),
+            IconButton(
+              icon: const FaIcon(FontAwesomeIcons.trash),
+              color: Colors.redAccent,
+              onPressed: () => _onDeleteRegion(region),
+            ),
+          ],
+        );
+      case RegionStatus.error:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const FaIcon(
+              FontAwesomeIcons.circleExclamation,
+              color: Colors.redAccent,
+            ),
+            TextButton(
+              onPressed: () => _onRetry(region),
+              child: Text(l10n.regions_retry),
+            ),
+            IconButton(
+              icon: const FaIcon(FontAwesomeIcons.trash),
+              color: Colors.redAccent,
+              onPressed: () => _onDeleteRegion(region),
+            ),
+          ],
+        );
+    }
+  }
+
+  /// Persists [op] and surfaces only an error toast on failure — mirrors
+  /// `settings_categories_screen.dart`'s `_save` wrapper. Additionally
+  /// ALWAYS invalidates `regionListNotifierProvider` in a `finally` block
+  /// (RESEARCH.md Pitfall 2 — ObjectBox `ToOne.target` caches per-instance
+  /// after first read) so every row reflects the true post-action state
+  /// regardless of success or failure.
+  Future<void> _save(Future<void> Function() op) async {
+    try {
+      await op();
+    } catch (_) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: l10n.error_saving_settings,
+            ),
+          );
+    } finally {
+      if (mounted) ref.invalidate(regionListNotifierProvider);
+    }
+  }
+
+  void _onDownloadVector(RegionEntity region) {
+    _save(
+      () => ref
+          .read(tileRepositoryStatusProvider.notifier)
+          .downloadVector(region.id),
+    );
+  }
+
+  void _onPause(RegionEntity region) {
+    _save(
+      () => ref.read(tileRepositoryStatusProvider.notifier).pause(region.id),
+    );
+  }
+
+  void _onResume(RegionEntity region) {
+    _save(
+      () => ref.read(tileRepositoryStatusProvider.notifier).resume(region.id),
+    );
+  }
+
+  /// D-03: re-invokes `downloadVector`/`downloadDem` from scratch for
+  /// whichever package(s) actually failed — no separate "view detail" step.
+  void _onRetry(RegionEntity region) {
+    _save(() async {
+      final notifier = ref.read(tileRepositoryStatusProvider.notifier);
+      if (region.vectorPackage.target?.status == PackageStatus.error) {
+        await notifier.downloadVector(region.id);
+      }
+      if (region.demPackage.target?.status == PackageStatus.error) {
+        await notifier.downloadDem(region.id);
+      }
+    });
+  }
+
+  /// SETUI-04/D-01: toggle ON downloads the DEM; toggle OFF deletes it
+  /// IMMEDIATELY — deliberately no confirm dialog, asymmetric with D-02's
+  /// full-region delete.
+  void _onDemToggle(RegionEntity region, bool value) {
+    final notifier = ref.read(tileRepositoryStatusProvider.notifier);
+    if (value) {
+      _save(() => notifier.downloadDem(region.id));
+    } else {
+      _save(() => notifier.deleteDemPackage(region.id));
+    }
+  }
+
+  /// D-02: full-region delete requires a confirm dialog before calling
+  /// `delete()` — mirrors `settings_categories_screen.dart`'s confirm-
+  /// before-disable dialog shape (2 actions: Cancel/Delete, no middle
+  /// "view detail" action).
+  Future<void> _onDeleteRegion(RegionEntity region) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.regions_delete_confirm_title(region.name)),
+        content: Text(l10n.regions_delete_confirm_body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              l10n.regions_delete_confirm_action,
+              style: TextStyle(color: Colors.red.shade400),
             ),
           ),
         ],
       ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    await _save(
+      () => ref.read(tileRepositoryStatusProvider.notifier).delete(region.id),
     );
   }
 }
