@@ -433,7 +433,16 @@ Plans:
   4. The app backgrounding mid-download (iOS suspension / Android Doze) leaves the download in a deliberate paused state that resumes cleanly on foreground, not a silently dead transfer.
   5. `localTilePathsForBounds(bbox)` returns the local vector/DEM file paths for every downloaded region intersecting a given bounding box, ready for map rendering to consume.
 
-**Plans**: TBD
+**Plans**: 6 plans (4 waves)
+
+Plans:
+
+- [ ] 23-01-PLAN.md — SvelteKit regions download/DEM proxy: forward Range in, forward 206/Content-Range out (TILE-02 prerequisite)
+- [ ] 23-02-PLAN.md — Append paused/error to PackageStatus/RegionStatus + RegionEntity.status getter + region_file_path.dart id allow-list (TILE-01/04)
+- [ ] 23-03-PLAN.md — disk_space_2 legitimacy checkpoint + disk_space_util fail-closed margin check (TILE-03)
+- [ ] 23-04-PLAN.md — TileRepositoryManager download engine: resumable .part+Range+append vector/DEM, disk pre-check, PMTiles validation, backgrounding pause (TILE-01/02/03/04, DEM-01/02)
+- [ ] 23-05-PLAN.md — localTilePathsForBounds + bboxOverlaps + deleteRegion cascade + tile_repository_provider/RegionDownloadState (TILE-05/01)
+- [ ] 23-06-PLAN.md — On-device checkpoint: resume-from-partial, disk refusal, backgrounding pause, DEM independence, bbox query
 
 ### Phase 24: Settings — Offline Maps/Regions UI
 
@@ -531,7 +540,7 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 5/5 | Complete   | 2026-07-16 |
 | 21. Route Planner Handoff & Entry Point | v1.5 | 4/4 | Complete   | 2026-07-17 |
 | 22. Region & Package Data Model | v1.6 | 2/2 | Complete   | 2026-07-22 |
-| 23. TileRepositoryManager — Download Engine | v1.6 | 0/TBD | Not started | - |
+| 23. TileRepositoryManager — Download Engine | v1.6 | 0/6 | Not started | - |
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 0/TBD | Not started | - |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 0/TBD | Not started | - |
 | 26. Trail Download Guard | v1.6 | 0/TBD | Not started | - |
