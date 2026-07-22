@@ -458,12 +458,13 @@ Plans:
   5. The screen shows a total disk usage summary across all downloaded regions.
   6. A region with `updateAvailable` status shows a non-blocking badge with an optional user-triggered "update" action, and continues to appear/behave as downloaded while the badge is shown.
 
-**Plans**: 2 plans (2 waves)
+**Plans**: 3 plans (3 waves)
 
 Plans:
 
 - [x] 24-01-PLAN.md — DEM-only delete engine method (D-01) + regionListNotifier snapshot provider + byte-format/disk-usage utilities + English l10n keys (SETUI-01/02/04/05)
 - [x] 24-02-PLAN.md — Offline Maps/Regions screen (6-state rows, combined progress, DEM toggle, delete/retry/update, disk-usage summary) + Settings entry + /settings/regions route (SETUI-01..06)
+- [ ] 24-03-PLAN.md — Gap closure (UAT tests 2/3): implement the promised device-wide fallback in freeDiskSpaceBytes so a never-downloaded region's disk-space check no longer fails closed on a real device (SETUI-03/04)
 
 **UI hint**: yes
 
