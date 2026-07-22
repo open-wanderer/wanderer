@@ -139,4 +139,18 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
     await ref.read(tileRepositoryManagerProvider).deleteRegion(regionId);
     state = {...state}..remove(regionId);
   }
+
+  /// Removes [regionId]'s DEM package only (D-01) -- the vector package and
+  /// its lifecycle are untouched. Mirrors [delete]'s ephemeral-state
+  /// clearing but performs no progress tracking (pure removal, not a status
+  /// transition).
+  Future<void> deleteDemPackage(String regionId) async {
+    try {
+      await ref
+          .read(tileRepositoryManagerProvider)
+          .deleteDemPackage(regionId);
+    } finally {
+      state = {...state}..remove(regionId);
+    }
+  }
 }

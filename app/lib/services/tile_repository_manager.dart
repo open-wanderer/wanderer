@@ -365,6 +365,43 @@ class TileRepositoryManager {
     }
   }
 
+  /// DEM-only cascade delete (D-01, T-24-02): removes ONLY [regionId]'s DEM
+  /// package row and its on-disk file(s) — the sibling (non-DEM) package
+  /// row, its file, and [RegionEntity.lastDownloadedVersion] are provably
+  /// untouched, unlike [deleteRegion], which removes both packages together.
+  /// Deleting an unknown/never-downloaded region is a no-op (matches
+  /// [deleteRegion]).
+  Future<void> deleteDemPackage(String regionId) async {
+    final id = assertValidRegionId(regionId);
+
+    for (final entry in _activeCancelTokens.entries.toList()) {
+      if (entry.key == '$id:dem') {
+        entry.value.cancel('deleted');
+      }
+    }
+
+    final region = _regionById(id);
+    if (region == null) return;
+
+    final demPackage = region.demPackage.target;
+
+    _store.runInTransaction(TxMode.write, () {
+      if (demPackage != null) {
+        _store.box<DownloadedTilePackageEntity>().remove(demPackage.obxId);
+      }
+      region.demPackage.target = null;
+      _store.box<RegionEntity>().put(region);
+    });
+
+    // Best-effort, outside the transaction: a missing file is never fatal.
+    final root = (await getApplicationDocumentsDirectory()).path;
+    final finalPath = regionDemPath(root, id);
+    for (final candidate in [finalPath, '$finalPath.part']) {
+      final file = File(candidate);
+      if (file.existsSync()) file.deleteSync();
+    }
+  }
+
   /// Releases the lifecycle listener and cancels every remaining in-flight
   /// download (mirrors `navigation_screen.dart`'s dispose discipline).
   void dispose() {
