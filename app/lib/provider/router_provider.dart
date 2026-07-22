@@ -36,6 +36,7 @@ import 'package:wanderer/routes/settings_appearance_screen.dart';
 import 'package:wanderer/routes/settings_categories_screen.dart';
 import 'package:wanderer/routes/settings_language_screen.dart';
 import 'package:wanderer/routes/settings_notifications_screen.dart';
+import 'package:wanderer/routes/settings_offline_regions_screen.dart';
 import 'package:wanderer/routes/settings_privacy_screen.dart';
 import 'package:wanderer/routes/settings_screen.dart';
 import 'package:wanderer/routes/settings_subcategories_screen.dart';
@@ -230,6 +231,10 @@ class Router extends _$Router {
                 ),
               ],
             ),
+            GoRoute(
+              path: 'regions',
+              builder: (context, state) => const SettingsOfflineRegionsScreen(),
+            ),
           ],
         ),
         GoRoute(
@@ -298,8 +303,9 @@ class Router extends _$Router {
                 // its last known breadcrumb point instead of falling all the
                 // way through to Geographic(0, 0).
                 : (resume?.breadcrumbPolyline != null
-                      ? PolylineUtil.decode(resume!.breadcrumbPolyline!)
-                            .lastOrNull
+                      ? PolylineUtil.decode(
+                          resume!.breadcrumbPolyline!,
+                        ).lastOrNull
                       : null);
             final seedPosition = extra is Map
                 ? extra['position'] as geo.Position?

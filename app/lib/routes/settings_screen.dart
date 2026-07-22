@@ -56,6 +56,12 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.push('/settings/categories'),
           ),
           ListTile(
+            leading: const FaIcon(FontAwesomeIcons.map, size: 18),
+            title: Text(l10n.settings_offline_regions_title),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/regions'),
+          ),
+          ListTile(
             leading: const FaIcon(FontAwesomeIcons.palette, size: 18),
             title: Text(l10n.appearance),
             trailing: const Icon(Icons.chevron_right),
