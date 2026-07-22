@@ -413,12 +413,12 @@ Plans:
   3. An ObjectBox `DownloadedTilePackage` entity tracks the vector and DEM packages for a region independently — separate local file path, timestamp, size on disk, and status per package — so a region can show its vector package downloaded while its DEM package is not.
   4. The app builds and runs unchanged; nothing yet reads from the new entities.
 
-**Plans**: 2 plans (2 waves) — **drafted under the superseded bundled-asset assumption; replan required before execution.** See `.planning/todos/pending/replan-phase-22-region-manifest.md`.
+**Plans**: 2 plans (2 waves) — replanned 2026-07-22 against the Phase 21.5 backend-fetched catalog design (supersedes the earlier bundled-`regions.json` drafts).
 
-Plans (pre-replan, kept for reference):
+Plans:
 
-- [ ] 22-01-PLAN.md — Bundled `regions.json` asset (4 real regions) + `RegionManifest`/`RegionManifestEntry` @freezed parse model (REGN-01) — **superseded, see replan todo**
-- [ ] 22-02-PLAN.md — ObjectBox `RegionEntity` + `DownloadedTilePackageEntity` with `.code` status persistence, computed `Region.status` getter, `fromManifestEntry` (REGN-02, REGN-03) — **likely still valid, re-verify against replanned 22-01 during replan**
+- [ ] 22-01-PLAN.md — `RegionCatalogEntry` @freezed parse model for `GET /api/v1/regions` + `CatalogStatus`/`RegionStatus`/`PackageStatus` explicit-`.code` enums + ObjectBox `RegionEntity` (computed status getter, two `ToOne` package links, `fromCatalogEntry`/`applyCatalogEntry`) + `DownloadedTilePackageEntity` (REGN-01/02/03)
+- [ ] 22-02-PLAN.md — `RegionRepository` fetch-and-upsert (`fetchRegionCatalog`, upsert-by-id preserving local state, orphan `inCatalog` flip, typed `RegionCatalogException`) + construction-only `regionRepository` provider seam (REGN-01)
 
 ### Phase 23: TileRepositoryManager — Download Engine
 
