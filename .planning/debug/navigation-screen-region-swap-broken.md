@@ -81,3 +81,20 @@ root_cause: "_reconcileRegionComposition() (app/lib/routes/navigation_screen.dar
 fix:
 verification:
 files_changed: []
+
+## Considered Alternative: Local HTTP Tile Proxy
+
+While reviewing `_reconcileRegionComposition`, discussed whether its entire viewport-diffing strategy (the source/layer add/remove tracking that this doc's root cause lives in) could be replaced by a local loopback HTTP tile server, so MapLibre's native XYZ tile loading handles viewport tracking instead of hand-rolled Dart reconciliation — eliminating this bug class structurally rather than patching it. Not decided, not implemented; captured here so a future session doesn't have to re-derive the tradeoffs.
+
+**Feasibility confirmed:**
+- `maplibre` 0.3.5's `VectorSource`/`RasterDemSource` already accept a `tiles:` XYZ template field (not just `url:`) — no package change needed.
+- The `pmtiles` 1.2.0 package already supports true per-tile random access (`PmTilesArchive.tile(ZXY(z,x,y).toTileId())`), currently unused in the app (only `fromFile`/`close` for validation, in `tile_repository_manager.dart:456`).
+- `pmtiles://` scheme resolution today happens natively inside MapLibre Native (iOS/Android engine), not Dart — confirmed no Dart-side protocol registration exists.
+- `_sourceFromJson` is duplicated verbatim between `navigation_screen.dart:973-993` and `trail_map.dart:220-237` — a proxy would collapse both call sites to a static source, removing the duplication too.
+
+**New gaps a proxy would introduce:**
+- Regions can overlap (`TileRepositoryManager.localTilePathsForBounds`/`splitRegionTilePaths`, bbox-only matching, no dedup) — today handled by brute-force N-cell/N-layer duplication. A proxy needs genuine per-tile "which archive wins" resolution logic that doesn't exist anywhere yet.
+- Swaps a native-only tile read path (`pmtiles://file://`, resolved inside the native SDK) for one mediated through a Dart-side HTTP round-trip per tile — added overhead on the map-render hot path.
+- Entirely new infrastructure: no `HttpServer`/`shelf` usage anywhere in `app/lib` today (shelf is only a transitive dev dependency, not in `pubspec.yaml`); would need new server lifecycle management (start/stop, port binding, background-state handling).
+
+**Verdict reached in discussion:** technically buildable, not a slam dunk. Recommended only if the current incremental-reconcile approach keeps causing bugs (which, per this doc, it currently is — WR-03/reentrancy). As pure simplification it's roughly a wash: viewport-diffing complexity traded for tile-serving-overlap complexity plus new server lifecycle — but it does eliminate the specific class of bug diagnosed above (the reentrancy race can't happen if there's no reconcile call at all) and removes the cross-file `_sourceFromJson` duplication. Flagged for whoever picks the actual fix to weigh: patch `_reconcileRegionComposition` (reentrancy guard, symmetric tracking-set updates, gate camera-idle during follow) vs. this larger structural replacement.
