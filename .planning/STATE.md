@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: executing
-stopped_at: 25-04 complete (navigation_screen viewport-scoped region composition wired -- RENDER-01/02 done); Phase 25 all 4 plans complete, ready for verification
-last_updated: "2026-07-23T12:52:50.035Z"
-last_activity: 2026-07-23 -- 25-03 complete (Task 1 commit a03d6eec); see 25-03-SUMMARY.md
+stopped_at: Phase 25 UAT diagnosed a reentrancy race in navigation_screen's incremental region-swap reconcile (Test 4); Phase 25.1 inserted to replace it with a local HTTP tile proxy, not yet planned
+last_updated: "2026-07-23T14:50:00.000Z"
+last_activity: 2026-07-23 -- Phase 25.1 (local HTTP tile proxy) inserted after Phase 25; see .planning/debug/navigation-screen-region-swap-broken.md
 progress:
-  total_phases: 7
-  completed_phases: 4
-  total_plans: 20
+  total_phases: 8
+  completed_phases: 3
+  total_plans: 21
   completed_plans: 19
-  percent: 57
+  percent: 38
 ---
 
 # Project State
@@ -21,25 +21,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 25 — map-rendering-region-based-viewport-pipeline
+**Current focus:** Phase 25.1 — local-http-tile-proxy-for-region-based-offline-map-rendering
 
 ## Current Position
 
-Phase: 25 (map-rendering-region-based-viewport-pipeline) — ALL 4 PLANS COMPLETE, ready for verification
-Plan: 4 of 4
-Status: COMPLETE — 25-01 through 25-04 all finished. 25-04 closed out RENDER-01/02 for `navigation_screen.dart`: `_composeStyle`/`_swapStyle` source offline vector/DEM tile paths from `TileRepositoryManager.localTilePathsForBounds(live viewport)` instead of `Trail.pmTiles`/`demPmTiles`, and a new `_reconcileRegionComposition` incrementally swaps region sources/layers in AND out (add+remove, not add-only like `TrailMap`) on `ml.MapEventCameraIdle` — hillshade below the first vector layer (25-01 finding 2), 1ms repaint nudge after any removal (25-01 finding 1), and a third `regionListNotifierProvider` listen for mid-session downloads. END-OF-PHASE on-device human-check (two adjacent regions, airplane mode) still outstanding — see 25-04-SUMMARY.md's Next Phase Readiness.
-Last activity: 2026-07-23 -- 25-04 complete (commits 65407f3b, f4e5ecaa); see 25-04-SUMMARY.md
+Phase: 25.1 (local-http-tile-proxy-for-region-based-offline-map-rendering) — INSERTED, not yet planned
+Status: Phase 25's 4 plans (25-01..25-04) are all executed and code-verified (25-VERIFICATION.md: 11/11 must-haves), but UAT Test 4 found navigation_screen's incremental region-swap reconcile (`_reconcileRegionComposition`) unreliable on-device ("hot swapping does not work... sometimes the map does not load at all, sometimes the trail layer disappears"). Root cause diagnosed: `_reconcileRegionComposition` has no reentrancy guard, and `ml.MapEventCameraIdle` fires far more often on this screen than the "once per settled user gesture" assumption it was built on (D-04), because `navigation_screen.dart` continuously drives the camera itself via `_pushCamera()` during GPS-follow/heading-follow — overlapping reconciles desync the Dart-side tracking sets from the real native style (asymmetric add/remove error handling compounds it). Full diagnosis: `.planning/debug/navigation-screen-region-swap-broken.md`. Decision: rather than patch the reconcile in place, replace it with a local loopback HTTP tile proxy (native XYZ tile loading does viewport tracking instead of hand-rolled Dart diffing) — Phase 25.1. Phase 25 itself is left as-is (not force-completed); its `25-UAT.md` honestly records the Test 4 failure.
+Last activity: 2026-07-23 -- Phase 25.1 inserted after Phase 25; gap-closure patch plan for 25 was discarded in favor of the proxy re-architecture
 
 ## v1.6 Phases
 
 - [ ] **Phase 22: Region & Package Data Model** — REGN-01/02/03
 - [ ] **Phase 23: TileRepositoryManager — Download Engine** — TILE-01..05, DEM-01/02
 - [ ] **Phase 24: Settings — Offline Maps/Regions UI** — SETUI-01..06
-- [ ] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** — RENDER-01..03
+- [ ] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** — RENDER-01..03 (4/4 plans executed; UAT found Test 4 issue, see Phase 25.1)
+- [ ] **Phase 25.1: Local HTTP Tile Proxy** (INSERTED) — replaces navigation_screen's incremental region-swap reconcile after the UAT-diagnosed reentrancy race
 - [ ] **Phase 26: Trail Download Guard** — GUARD-01..04
 - [ ] **Phase 27: Legacy Cleanup** — CLEAN-01/02
 
-Execution order: 22 → 23 → 24 → 25 → 26 → 27 (strictly sequential — data model → download engine → Settings UI → map-screen rewiring/spike → trail guard → legacy ripout; matches research/SUMMARY.md's recommended build order).
+Execution order: 22 → 23 → 24 → 25 → 25.1 → 26 → 27 (strictly sequential — data model → download engine → Settings UI → map-screen rewiring/spike → tile-proxy re-architecture → trail guard → legacy ripout).
 
 v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has not yet been run through `/gsd-complete-milestone`.
 
@@ -229,6 +229,11 @@ Recent decisions affecting current work:
 - [Phase 25-03]: Followed PLAN.md's revised incremental-composition design (RENDER-03 option-b) over the stale full-setStyle-reload description still in 25-PATTERNS.md — PLAN.md's frontmatter/objective explicitly superseded the earlier pattern map after 25-01's on-device spike; PLAN.md is the more specific, authoritative source (exact grep gates, threat model, must_haves)
 - [Phase 25]: [25-04] Split Task 1 (offline data-source rewiring + reconcile method + region-list listen) and Task 2 (camera-idle onEvent branch) into two separate atomic commits despite touching the same file -- Task 1 leaves the file fully analyzer-clean and self-consistent, Task 2 is a clean minimal one-branch addition on top.
 - [Phase 25]: [25-04] Camera-idle onEvent branch kept on one line (wrapped in dart format off/on markers) to satisfy the plan's literal acceptance-criteria grep for the MapEventCameraIdle->_reconcileRegionComposition routing -- same precedent as the 20-05/21-01 deviations.
+- [Phase 25, UAT]: Test 4 (navigation screen region-boundary pan swap) failed on-device: "hot swapping does not work... sometimes the map does not load at all, sometimes the trail layer disappears." Diagnosed root cause: `_reconcileRegionComposition` has no reentrancy guard, and `ml.MapEventCameraIdle` fires far more often on this screen than the "once per settled user gesture" assumption (D-04) it was built on, because `navigation_screen.dart` continuously drives the camera itself (`_pushCamera`, GPS-fix tween + heading-follow ticker) -- overlapping reconciles desync `_addedSourceIds`/`_addedLayerIds` from the real native style (asymmetric add/remove error handling compounds it). Full trace: `.planning/debug/navigation-screen-region-swap-broken.md`.
+
+### Roadmap Evolution
+
+- Phase 25.1 inserted after Phase 25 (2026-07-23, URGENT): Local HTTP tile proxy for region-based offline map rendering. Replaces `navigation_screen.dart`'s incremental `addSource`/`removeSource` region-swap reconcile with a loopback `HttpServer` serving `pmtiles` archives per-tile via a static `tiles:` XYZ source, so MapLibre Native's own viewport tracking takes over instead of hand-rolled Dart diffing -- structurally eliminates the reentrancy bug class (no reconcile call = no race). Considered and rejected: patching `_reconcileRegionComposition` in place (reentrancy guard + symmetric tracking-set mutation + gating camera-idle during GPS-follow) -- viable and lower-risk short-term, but the proxy better fits the genuinely dynamic viewport-tracking requirement and also removes the `_sourceFromJson`/`_layerFromJson` duplication between `trail_map.dart` and `navigation_screen.dart`. New unknowns the proxy introduces: per-tile overlap-resolution logic for regions with overlapping bboxes (none exists today), and unverified MapLibre Native offline+loopback-HTTP behavior (needs its own on-device spike, mirroring RENDER-03's). Phase 25 itself is NOT force-completed -- `25-UAT.md` and `25-VERIFICATION.md` accurately record the Test 4 gap; `25-02`'s `localTilePathsForBounds` split survives unchanged and Phase 25.1 will consume it.
 
 ### Pending Todos
 

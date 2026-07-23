@@ -501,6 +501,19 @@ Plans:
 
 **Risk gate**: RENDER-03's spike is this milestone's highest-risk unknown — research flags maplibre 0.3.5's incremental source/layer API availability and layer-count scaling as LOW/MEDIUM confidence, unconfirmed from docs. Resolve this first, before investing in the rest of the phase's rewiring.
 
+### Phase 25.1: Local HTTP tile proxy for region-based offline map rendering (INSERTED)
+
+**Goal:** Replace `navigation_screen.dart`'s incremental `addSource`/`removeSource` region-swap reconcile (Phase 25's RENDER-02/03 delivery) with a loopback HTTP tile proxy — a static XYZ vector/DEM source served by an in-app `HttpServer` that resolves each tile request against the downloaded region archives via `pmtiles`' per-tile random access — so MapLibre Native's own viewport tracking handles which regions contribute tiles, instead of hand-rolled Dart source/layer diffing.
+**Why:** Phase 25's on-device UAT (Test 4) found the incremental reconcile unreliable — root cause is a reentrancy race (`_reconcileRegionComposition` has no in-flight guard, and `ml.MapEventCameraIdle` fires far more often on this screen than assumed because `navigation_screen.dart` continuously drives the camera itself during GPS-follow). Full diagnosis: `.planning/debug/navigation-screen-region-swap-broken.md`. Patching the reconcile in place was considered and rejected in favor of this structural fix, which eliminates the entire bug class (no reconcile call, no race) and also removes the `_sourceFromJson`/`_layerFromJson` duplication between `trail_map.dart` and `navigation_screen.dart`.
+**Requirements**: TBD — capture via `/gsd-discuss-phase 25.1`
+**Depends on:** Phase 25 (specifically 25-02's `TileRepositoryManager.localTilePathsForBounds` split; consumes it as the per-tile archive lookup source)
+**Risk gate:** Whether MapLibre Native reliably resolves loopback-HTTP tile sources while the device is offline (airplane mode) is unconfirmed and needs an on-device spike before committing to the full build — mirrors RENDER-03's spike in Phase 25. Regions can also overlap (bbox-only, no dedup today), so a per-tile "which archive wins" resolution rule needs to be designed; none exists yet.
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 25.1 to break down)
+
 ### Phase 26: Trail Download Guard
 
 **Goal**: Before a trail downloads, the app makes sure its area is actually covered by a downloaded region, and makes it easy to fix when it isn't.
