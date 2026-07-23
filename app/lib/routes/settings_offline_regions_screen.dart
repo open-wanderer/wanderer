@@ -388,6 +388,7 @@ class _SettingsOfflineRegionsScreenState
     }
 
     return ListTile(
+      dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       leading: _tileLeadingIcon(done: isDone, error: isError),
       title: Text(l10n.regions_vector_tile_title),
@@ -411,20 +412,20 @@ class _SettingsOfflineRegionsScreenState
     switch (status) {
       case RegionStatus.notDownloaded:
         return IconButton(
-          icon: const FaIcon(FontAwesomeIcons.download),
+          icon: const FaIcon(FontAwesomeIcons.download, size: 16),
           color: accentColor,
           tooltip: l10n.download,
           onPressed: () => _onDownloadVector(region),
         );
       case RegionStatus.downloading:
         return IconButton(
-          icon: const FaIcon(FontAwesomeIcons.xmark),
+          icon: const FaIcon(FontAwesomeIcons.xmark, size: 16),
           tooltip: l10n.cancel,
           onPressed: () => _onCancelVector(region),
         );
       case RegionStatus.downloaded:
         return IconButton(
-          icon: const FaIcon(FontAwesomeIcons.trash),
+          icon: const FaIcon(FontAwesomeIcons.trash, size: 16),
           color: Colors.redAccent,
           onPressed: () => _onDeleteRegion(region),
         );
@@ -484,6 +485,8 @@ class _SettingsOfflineRegionsScreenState
         : formatBytes((isDone ? onDiskBytes : null) ?? region.demSize ?? 0);
 
     return ListTile(
+      dense: true,
+
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       leading: _tileLeadingIcon(done: isDone, error: isError),
       title: Text(l10n.regions_dem_tile_title),
@@ -507,20 +510,20 @@ class _SettingsOfflineRegionsScreenState
     switch (status) {
       case PackageStatus.notDownloaded:
         return IconButton(
-          icon: const FaIcon(FontAwesomeIcons.download),
+          icon: const FaIcon(FontAwesomeIcons.download, size: 16),
           color: accentColor,
           tooltip: l10n.download,
           onPressed: () => _onDownloadDem(region),
         );
       case PackageStatus.downloading:
         return IconButton(
-          icon: const FaIcon(FontAwesomeIcons.xmark),
+          icon: const FaIcon(FontAwesomeIcons.xmark, size: 16),
           tooltip: l10n.cancel,
           onPressed: () => _onCancelDem(region),
         );
       case PackageStatus.downloaded:
         return IconButton(
-          icon: const FaIcon(FontAwesomeIcons.trash),
+          icon: const FaIcon(FontAwesomeIcons.trash, size: 16),
           color: Colors.redAccent,
           onPressed: () => _onDeleteDemPackage(region),
         );
@@ -624,10 +627,13 @@ class _SettingsOfflineRegionsScreenState
   }
 
   /// No pause/resume: cancelling deletes the `.part` file, so a later
-  /// download always starts from byte 0.
+  /// download always starts from byte 0. `cancelVector` awaits the
+  /// cancelled download's own status write before returning, so `_save`'s
+  /// `regionListNotifierProvider` invalidate always sees the post-cancel
+  /// state.
   void _onCancelVector(RegionEntity region) {
     _save(
-      () async => ref
+      () => ref
           .read(tileRepositoryStatusProvider.notifier)
           .cancelVector(region.id),
     );
@@ -644,7 +650,7 @@ class _SettingsOfflineRegionsScreenState
   /// See [_onCancelVector] — the DEM-side mirror, fully independent.
   void _onCancelDem(RegionEntity region) {
     _save(
-      () async =>
+      () =>
           ref.read(tileRepositoryStatusProvider.notifier).cancelDem(region.id),
     );
   }
