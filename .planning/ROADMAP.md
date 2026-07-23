@@ -486,11 +486,14 @@ Plans:
   4. A downloaded region's basemap (and hillshade, when its DEM was downloaded) renders correctly offline on both the trail detail map and the navigation screen, reusing `offline_style_rewriter.dart` unchanged.
 
 **Plans**: 4 plans (2 waves)
-
 Plans:
+**Wave 1**
 
 - [ ] 25-01-PLAN.md — RENDER-03 risk-gate spike: standalone on-device harness measuring full-reload vs incremental composition with 10-20 duplicated region source/layer sets; checkpoint:decision settles the strategy (RENDER-03)
 - [ ] 25-02-PLAN.md — Fix the Critical Data-Shape Gap: split `localTilePathsForBounds` into a typed `({vectorPaths, demPaths})` record via a `@visibleForTesting splitRegionTilePaths` helper + unit test + harness call-site update (RENDER-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 25-03-PLAN.md — TrailMap `_composeStyle` sourced from `localTilePathsForBounds(trail.bounds)` (one-time query, both regions when straddling) + regionListNotifier live-swap listen + uncovered-viewport blank basemap (RENDER-01, D-01/D-02/D-05/D-06)
 - [ ] 25-04-PLAN.md — navigation_screen `_composeStyle` sourced from the live viewport query + camera-idle region-swap recompute (no Timer) + regionListNotifier live-swap listen + uncovered-viewport blank basemap (RENDER-01/RENDER-02, D-01/D-02/D-04/D-06)
 
