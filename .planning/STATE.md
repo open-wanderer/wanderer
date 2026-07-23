@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: executing
-stopped_at: "25.1-03 complete (PROXY-03 PROCEED) -- ready to dispatch Wave 3 (25.1-04)"
-last_updated: "2026-07-23T18:45:00.000Z"
-last_activity: 2026-07-23 -- 25.1-03 complete, PROXY-03 settled PROCEED on-device
+status: completed
+stopped_at: 25.1-04 complete -- PROXY-01 earned, Phase 25.1 fully executed
+last_updated: "2026-07-23T17:08:11.869Z"
+last_activity: 2026-07-23 -- 25.1-03 complete (commits d9bec784, 2f181fab); PROXY-03 marked Complete in REQUIREMENTS.md
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 24
-  completed_plans: 21
-  percent: 50
+  completed_plans: 23
+  percent: 63
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 ## Current Position
 
-Phase: 25.1 (local-http-tile-proxy-for-region-based-offline-map-rendering) — EXECUTING
-Plan: 3 of 4 — COMPLETE
-Status: 25.1-03 complete. PROXY-03 risk gate settled PROCEED on a physical Pixel 6 (full airplane mode confirmed load-bearing pass). Wave 3 (25.1-04-PLAN.md — start proxy in main.dart + rewire TrailMap/navigation_screen) is now unblocked and ready to dispatch.
-Last activity: 2026-07-23 -- 25.1-03 complete (commits d9bec784, 2f181fab); PROXY-03 marked Complete in REQUIREMENTS.md
+Phase: 25.1 (local-http-tile-proxy-for-region-based-offline-map-rendering) — COMPLETE
+Plan: 4 of 4 — COMPLETE
+Status: 25.1-04 complete. Both TrailMap and navigation_screen now serve offline vector/DEM tiles through the single static loopback tile proxy source (PROXY-01); the incremental addSource/removeSource reconcile machinery and the MapEventCameraIdle trigger diagnosed as the Phase 25 UAT Test 4 reentrancy race are deleted from both files. Phase 25.1 is fully executed (all 4 plans complete, PROXY-01/02/03 all Complete in REQUIREMENTS.md). On-device UAT re-verification of both screens is recommended ahead of `/gsd-complete-milestone`.
+Last activity: 2026-07-23 -- 25.1-04 complete (commits 37275b4a, 3125bb9e, 172c7455); PROXY-01 marked Complete in REQUIREMENTS.md
 
 ## v1.6 Phases
 
@@ -111,6 +111,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 25.1 P01 | 4min | 2 tasks | 3 files |
 | Phase 25.1 P02 | 12min | 3 tasks | 9 files |
 | Phase 25.1 P03 | ~25min + on-device iteration | 2 tasks | 1 files |
+| Phase 25.1 P04 | 5min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -237,6 +238,7 @@ Recent decisions affecting current work:
 - [Phase 25.1-01]: Doc comments explaining scoped platform network exceptions were reworded to avoid containing the literal forbidden strings their own negative-grep verify gates check for (usesCleartextTraffic, base-config, NSAllowsArbitraryLoads, NSLocalNetworkUsageDescription) -- same intent, adjusted phrasing, no scope change
 - [Phase 25.1]: [Phase 25.1] [25.1-02] resolveRegionForTile stays @visibleForTesting with an explicit ignore-comment at its one production call site in tile_proxy_server.dart — Keeps the pure-function unit-testability the plan's artifact spec asked for while allowing production use, mirroring the pmtiles package's own cross-file @visibleForTesting precedent (archive.dart's fromReadAt)
 - [Phase 25.1-03]: PROXY-03 settled PROCEED on a physical Pixel 6 via the on-device spike harness (`tile_proxy_spike_harness.dart`) — loopback HTTP tiles render reliably online, with radios off, and in full airplane mode (the load-bearing result). Test case (d) confirms Plan 04's mid-session refresh mechanism: reload regions + fly to the newly-covered area, no screen remount needed. Test case (e) confirms Plan 01's Android cleartext exception works correctly on-device (zero blocked errors in adb logcat).
+- [Phase 25.1-04]: Deleted navigation_screen's mid-session region-download refresh listener entirely (not kept as a lightweight refresh) — 25.1-03's spike verdict matched the plan's literal 'no remount needed' criterion for outright deletion. The proxy re-queries RegionEntity fresh per HTTP request, so once the camera reaches newly-covered tiles MapLibre's native fetch succeeds with no Dart-side signal needed.
 
 ### Roadmap Evolution
 
@@ -331,6 +333,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-23T18:45:00.000Z
-Stopped at: 25.1-03 complete (PROXY-03 PROCEED) -- ready to dispatch Wave 3 (25.1-04)
+Last session: 2026-07-23T17:08:11.853Z
+Stopped at: 25.1-04 complete -- PROXY-01 earned, Phase 25.1 fully executed
 Resume file: None
