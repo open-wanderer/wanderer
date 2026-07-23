@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: executing
-stopped_at: Completed 25.1-02-PLAN.md
-last_updated: "2026-07-23T15:49:24.097Z"
+stopped_at: "Task 1 complete (25.1-03), paused at Task 2 checkpoint:decision (PROXY-03 on-device airplane-mode spike)"
+last_updated: "2026-07-23T16:31:51.013Z"
 last_activity: 2026-07-23 -- Phase 25.1 execution started
 progress:
   total_phases: 8
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 Phase: 25.1 (local-http-tile-proxy-for-region-based-offline-map-rendering) — EXECUTING
 Plan: 3 of 4
-Status: Ready to execute
-Last activity: 2026-07-23 -- Phase 25.1 execution started
+Status: Paused at checkpoint:decision — Task 1 (spike harness) complete and committed; Task 2 (PROXY-03 on-device airplane-mode proceed/stop decision) awaits human on-device verification, per D-04 this is NOT auto-approvable
+Last activity: 2026-07-23 -- 25.1-03 Task 1 committed (d9bec784); awaiting Task 2 checkpoint:decision
 
 ## v1.6 Phases
 
@@ -328,6 +328,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-23T15:49:24.081Z
-Stopped at: Completed 25.1-02-PLAN.md
+Last session: 2026-07-23T16:31:50.925Z
+Stopped at: Task 1 complete (25.1-03), paused at Task 2 checkpoint:decision (PROXY-03 on-device airplane-mode spike)
 Resume file: None
