@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$RegionDownloadState {
 
- RegionStatus get status; double? get vectorProgress; double? get demProgress;
+ double? get vectorProgress; double? get demProgress;
 /// Create a copy of RegionDownloadState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $RegionDownloadStateCopyWith<RegionDownloadState> get copyWith => _$RegionDownlo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionDownloadState&&(identical(other.status, status) || other.status == status)&&(identical(other.vectorProgress, vectorProgress) || other.vectorProgress == vectorProgress)&&(identical(other.demProgress, demProgress) || other.demProgress == demProgress));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionDownloadState&&(identical(other.vectorProgress, vectorProgress) || other.vectorProgress == vectorProgress)&&(identical(other.demProgress, demProgress) || other.demProgress == demProgress));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,vectorProgress,demProgress);
+int get hashCode => Object.hash(runtimeType,vectorProgress,demProgress);
 
 @override
 String toString() {
-  return 'RegionDownloadState(status: $status, vectorProgress: $vectorProgress, demProgress: $demProgress)';
+  return 'RegionDownloadState(vectorProgress: $vectorProgress, demProgress: $demProgress)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $RegionDownloadStateCopyWith<$Res>  {
   factory $RegionDownloadStateCopyWith(RegionDownloadState value, $Res Function(RegionDownloadState) _then) = _$RegionDownloadStateCopyWithImpl;
 @useResult
 $Res call({
- RegionStatus status, double? vectorProgress, double? demProgress
+ double? vectorProgress, double? demProgress
 });
 
 
@@ -62,10 +62,9 @@ class _$RegionDownloadStateCopyWithImpl<$Res>
 
 /// Create a copy of RegionDownloadState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? vectorProgress = freezed,Object? demProgress = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? vectorProgress = freezed,Object? demProgress = freezed,}) {
   return _then(_self.copyWith(
-status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
-as RegionStatus,vectorProgress: freezed == vectorProgress ? _self.vectorProgress : vectorProgress // ignore: cast_nullable_to_non_nullable
+vectorProgress: freezed == vectorProgress ? _self.vectorProgress : vectorProgress // ignore: cast_nullable_to_non_nullable
 as double?,demProgress: freezed == demProgress ? _self.demProgress : demProgress // ignore: cast_nullable_to_non_nullable
 as double?,
   ));
@@ -152,10 +151,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( RegionStatus status,  double? vectorProgress,  double? demProgress)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double? vectorProgress,  double? demProgress)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _RegionDownloadState() when $default != null:
-return $default(_that.status,_that.vectorProgress,_that.demProgress);case _:
+return $default(_that.vectorProgress,_that.demProgress);case _:
   return orElse();
 
 }
@@ -173,10 +172,10 @@ return $default(_that.status,_that.vectorProgress,_that.demProgress);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( RegionStatus status,  double? vectorProgress,  double? demProgress)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double? vectorProgress,  double? demProgress)  $default,) {final _that = this;
 switch (_that) {
 case _RegionDownloadState():
-return $default(_that.status,_that.vectorProgress,_that.demProgress);case _:
+return $default(_that.vectorProgress,_that.demProgress);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -193,10 +192,10 @@ return $default(_that.status,_that.vectorProgress,_that.demProgress);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( RegionStatus status,  double? vectorProgress,  double? demProgress)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double? vectorProgress,  double? demProgress)?  $default,) {final _that = this;
 switch (_that) {
 case _RegionDownloadState() when $default != null:
-return $default(_that.status,_that.vectorProgress,_that.demProgress);case _:
+return $default(_that.vectorProgress,_that.demProgress);case _:
   return null;
 
 }
@@ -208,10 +207,9 @@ return $default(_that.status,_that.vectorProgress,_that.demProgress);case _:
 
 
 class _RegionDownloadState implements RegionDownloadState {
-  const _RegionDownloadState({this.status = RegionStatus.notDownloaded, this.vectorProgress, this.demProgress});
+  const _RegionDownloadState({this.vectorProgress, this.demProgress});
   
 
-@override@JsonKey() final  RegionStatus status;
 @override final  double? vectorProgress;
 @override final  double? demProgress;
 
@@ -225,16 +223,16 @@ _$RegionDownloadStateCopyWith<_RegionDownloadState> get copyWith => __$RegionDow
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionDownloadState&&(identical(other.status, status) || other.status == status)&&(identical(other.vectorProgress, vectorProgress) || other.vectorProgress == vectorProgress)&&(identical(other.demProgress, demProgress) || other.demProgress == demProgress));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionDownloadState&&(identical(other.vectorProgress, vectorProgress) || other.vectorProgress == vectorProgress)&&(identical(other.demProgress, demProgress) || other.demProgress == demProgress));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,vectorProgress,demProgress);
+int get hashCode => Object.hash(runtimeType,vectorProgress,demProgress);
 
 @override
 String toString() {
-  return 'RegionDownloadState(status: $status, vectorProgress: $vectorProgress, demProgress: $demProgress)';
+  return 'RegionDownloadState(vectorProgress: $vectorProgress, demProgress: $demProgress)';
 }
 
 
@@ -245,7 +243,7 @@ abstract mixin class _$RegionDownloadStateCopyWith<$Res> implements $RegionDownl
   factory _$RegionDownloadStateCopyWith(_RegionDownloadState value, $Res Function(_RegionDownloadState) _then) = __$RegionDownloadStateCopyWithImpl;
 @override @useResult
 $Res call({
- RegionStatus status, double? vectorProgress, double? demProgress
+ double? vectorProgress, double? demProgress
 });
 
 
@@ -262,10 +260,9 @@ class __$RegionDownloadStateCopyWithImpl<$Res>
 
 /// Create a copy of RegionDownloadState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? vectorProgress = freezed,Object? demProgress = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? vectorProgress = freezed,Object? demProgress = freezed,}) {
   return _then(_RegionDownloadState(
-status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
-as RegionStatus,vectorProgress: freezed == vectorProgress ? _self.vectorProgress : vectorProgress // ignore: cast_nullable_to_non_nullable
+vectorProgress: freezed == vectorProgress ? _self.vectorProgress : vectorProgress // ignore: cast_nullable_to_non_nullable
 as double?,demProgress: freezed == demProgress ? _self.demProgress : demProgress // ignore: cast_nullable_to_non_nullable
 as double?,
   ));

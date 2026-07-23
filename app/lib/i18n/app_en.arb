@@ -423,5 +423,8 @@
   "regions_empty_search_title": "No matching regions",
   "regions_empty_search_body": "Try a different search term.",
   "regions_empty_catalog_title": "No offline regions available",
-  "regions_empty_catalog_body": "Ask your Wanderer instance administrator to configure downloadable regions."
+  "regions_empty_catalog_body": "Ask your Wanderer instance administrator to configure downloadable regions.",
+  "regions_vector_tile_title": "Vector",
+  "regions_dem_tile_title": "Elevation data",
+  "regions_download_failed": "Download failed"
 }

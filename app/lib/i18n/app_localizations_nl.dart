@@ -990,4 +990,13 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get regions_empty_catalog_body =>
       'Ask your Wanderer instance administrator to configure downloadable regions.';
+
+  @override
+  String get regions_vector_tile_title => 'Vector';
+
+  @override
+  String get regions_dem_tile_title => 'Elevation data';
+
+  @override
+  String get regions_download_failed => 'Download failed';
 }

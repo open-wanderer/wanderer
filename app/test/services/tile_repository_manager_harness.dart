@@ -7,12 +7,13 @@
 //   flutter run -t test/services/tile_repository_manager_harness.dart
 //
 // It exercises every public `TileRepositoryManager` method
-// (`startVectorDownload`, `startDemDownload`, `pauseRegion`, `resumeRegion`,
-// `deleteRegion`, `localTilePathsForBounds`) against a real region, a live
-// ObjectBox `Store`, and a real network transfer -- the three things that
-// cannot be exercised by the pure-seam unit tests in Plans 02-05. It is
-// intentionally kept out of `router_provider.dart` / production navigation
-// (its location under `app/test/` keeps it off the shipped app).
+// (`startVectorDownload`, `startDemDownload`, `cancelVectorDownload`,
+// `cancelDemDownload`, `deleteRegion`, `localTilePathsForBounds`) against a
+// real region, a live ObjectBox `Store`, and a real network transfer -- the
+// three things that cannot be exercised by the pure-seam unit tests in
+// Plans 02-05. It is intentionally kept out of `router_provider.dart` /
+// production navigation (its location under `app/test/` keeps it off the
+// shipped app).
 //
 // See this plan's `<verify><human-check>` block for the five on-device
 // behaviors (TILE-02/03/04, DEM-01/02, TILE-05) this harness is built to
@@ -135,9 +136,7 @@ class _TileRepositoryHarnessScreenState
   }
 
   void _onProgress(String regionId, String kind, int received, int total) {
-    final pct = total > 0
-        ? (received / total * 100).toStringAsFixed(1)
-        : '?';
+    final pct = total > 0 ? (received / total * 100).toStringAsFixed(1) : '?';
     debugPrint(
       '[harness] $regionId:$kind received=$received total=$total ($pct%)',
     );
@@ -171,21 +170,14 @@ class _TileRepositoryHarnessScreenState
     );
   }
 
-  Future<void> _pause(RegionEntity region) async {
-    await ref.read(tileRepositoryManagerProvider).pauseRegion(region.id);
-    _reloadRegions();
-    debugPrint('[harness] ${region.id} paused, RegionStatus=${region.status}');
+  void _cancelVector(RegionEntity region) {
+    ref.read(tileRepositoryManagerProvider).cancelVectorDownload(region.id);
+    debugPrint('[harness] ${region.id} vector cancelled');
   }
 
-  Future<void> _resume(RegionEntity region) async {
-    final manager = ref.read(tileRepositoryManagerProvider);
-    await manager.resumeRegion(
-      region.id,
-      onProgress: (received, total) =>
-          _onProgress(region.id, 'resume', received, total),
-    );
-    _reloadRegions();
-    debugPrint('[harness] ${region.id} resumed, RegionStatus=${region.status}');
+  void _cancelDem(RegionEntity region) {
+    ref.read(tileRepositoryManagerProvider).cancelDemDownload(region.id);
+    debugPrint('[harness] ${region.id} dem cancelled');
   }
 
   Future<void> _delete(RegionEntity region) async {
@@ -246,10 +238,7 @@ class _TileRepositoryHarnessScreenState
                 ),
               ),
               const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _connect,
-                child: const Text('Connect'),
-              ),
+              ElevatedButton(onPressed: _connect, child: const Text('Connect')),
             ],
           ),
           const SizedBox(height: 8),
@@ -283,12 +272,12 @@ class _TileRepositoryHarnessScreenState
                           child: const Text('Download DEM'),
                         ),
                         ElevatedButton(
-                          onPressed: () => _pause(region),
-                          child: const Text('Pause'),
+                          onPressed: () => _cancelVector(region),
+                          child: const Text('Cancel vector'),
                         ),
                         ElevatedButton(
-                          onPressed: () => _resume(region),
-                          child: const Text('Resume'),
+                          onPressed: () => _cancelDem(region),
+                          child: const Text('Cancel DEM'),
                         ),
                         ElevatedButton(
                           onPressed: () => _delete(region),

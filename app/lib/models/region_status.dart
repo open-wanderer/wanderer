@@ -29,15 +29,19 @@ enum CatalogStatus {
 /// from [DownloadedTilePackageEntity.status] via [RegionEntity.status],
 /// never persisted directly.
 ///
-/// [paused] and [error] (Phase 23) are appended AFTER [updateAvailable] —
-/// never renumbered or inserted — matching a paused/errored vector package's
-/// [PackageStatus].
+/// [error] (Phase 23) is appended AFTER [updateAvailable] — never renumbered
+/// or inserted — matching an errored vector package's [PackageStatus].
+/// `paused(4)` existed briefly (Phase 23/24) and was removed once pause/
+/// resume was replaced by cancel-deletes-the-part-file semantics; `4` is
+/// deliberately left unused rather than reassigned, so an on-device row
+/// still carrying that stale code falls back to [notDownloaded] via
+/// [PackageStatus]'s own `orElse` decode instead of misreading as something
+/// else (REGN-02).
 enum RegionStatus {
   notDownloaded(0),
   downloading(1),
   downloaded(2),
   updateAvailable(3),
-  paused(4),
   error(5);
 
   const RegionStatus(this.code);
@@ -47,14 +51,15 @@ enum RegionStatus {
 /// Per-package (vector or DEM) stored download status (D-10) — persisted on
 /// [DownloadedTilePackageEntity] via the explicit `.code` shadow property.
 ///
-/// [paused] and [error] (Phase 23) are appended AFTER [downloaded] with
-/// brand-new stable codes — never renumbered or inserted — so an on-device
-/// row written before this change still decodes correctly (REGN-02).
+/// [error] (Phase 23) is appended AFTER [downloaded] with a brand-new stable
+/// code — never renumbered or inserted — so an on-device row written before
+/// that change still decodes correctly (REGN-02). `paused(3)` existed
+/// briefly and was removed for the same reason described on [RegionStatus];
+/// `3` is deliberately left unused.
 enum PackageStatus {
   notDownloaded(0),
   downloading(1),
   downloaded(2),
-  paused(3),
   error(4);
 
   const PackageStatus(this.code);

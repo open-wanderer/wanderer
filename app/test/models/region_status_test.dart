@@ -36,7 +36,6 @@ void main() {
       expect(RegionStatus.downloading.code, 1);
       expect(RegionStatus.downloaded.code, 2);
       expect(RegionStatus.updateAvailable.code, 3);
-      expect(RegionStatus.paused.code, 4);
       expect(RegionStatus.error.code, 5);
     });
 
@@ -50,21 +49,24 @@ void main() {
         RegionStatus.updateAvailable,
       );
       expect(
-        RegionStatus.values.firstWhere((s) => s.code == 4),
-        RegionStatus.paused,
-      );
-      expect(
         RegionStatus.values.firstWhere((s) => s.code == 5),
         RegionStatus.error,
       );
     });
 
-    test('paused/error are appended after updateAvailable, codes unchanged', () {
-      expect(RegionStatus.notDownloaded.code, 0);
-      expect(RegionStatus.downloading.code, 1);
-      expect(RegionStatus.downloaded.code, 2);
-      expect(RegionStatus.updateAvailable.code, 3);
+    test('the retired paused code (4) has no matching member', () {
+      expect(RegionStatus.values.where((s) => s.code == 4), isEmpty);
     });
+
+    test(
+      'error is appended after updateAvailable, existing codes unchanged',
+      () {
+        expect(RegionStatus.notDownloaded.code, 0);
+        expect(RegionStatus.downloading.code, 1);
+        expect(RegionStatus.downloaded.code, 2);
+        expect(RegionStatus.updateAvailable.code, 3);
+      },
+    );
   });
 
   group('PackageStatus.code', () {
@@ -72,7 +74,6 @@ void main() {
       expect(PackageStatus.notDownloaded.code, 0);
       expect(PackageStatus.downloading.code, 1);
       expect(PackageStatus.downloaded.code, 2);
-      expect(PackageStatus.paused.code, 3);
       expect(PackageStatus.error.code, 4);
     });
 
@@ -82,16 +83,16 @@ void main() {
         PackageStatus.downloading,
       );
       expect(
-        PackageStatus.values.firstWhere((s) => s.code == 3),
-        PackageStatus.paused,
-      );
-      expect(
         PackageStatus.values.firstWhere((s) => s.code == 4),
         PackageStatus.error,
       );
     });
 
-    test('paused/error appended after downloaded, existing codes unchanged', () {
+    test('the retired paused code (3) has no matching member', () {
+      expect(PackageStatus.values.where((s) => s.code == 3), isEmpty);
+    });
+
+    test('error appended after downloaded, existing codes unchanged', () {
       expect(PackageStatus.notDownloaded.code, 0);
       expect(PackageStatus.downloading.code, 1);
       expect(PackageStatus.downloaded.code, 2);

@@ -6,21 +6,20 @@ import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/entities/region_entity.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
-import 'package:wanderer/models/region_download_state.dart';
 import 'package:wanderer/models/region_status.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/byte_format_util.dart';
 import 'package:wanderer/util/region_disk_usage_util.dart';
-import 'package:wanderer/util/region_row_status_util.dart';
+import 'package:wanderer/util/region_tile_status_util.dart';
 
 /// SETUI-01..06: the "Offline Maps/Regions" Settings screen — a flat,
-/// name-searchable, A-Z region list backed by Plan 01's synchronous
-/// `regionListNotifierProvider`, with a live disk-usage summary and
-/// correctly-disabled `building`/`error` catalog rows (D-09). Per-region
-/// download/pause/resume/delete/DEM-toggle actions are completed in Task 2's
-/// `_buildActiveRow`.
+/// name-searchable, A-Z region list backed by `regionListNotifierProvider`,
+/// with a live disk-usage summary and correctly-disabled `building`/`error`
+/// catalog rows (D-09). Each ready region renders as two independent
+/// list tiles — Vector and Elevation data (DEM) — each with its own
+/// download/cancel/delete action; see `_buildActiveRow`.
 ///
 /// A `ConsumerStatefulWidget` because it holds the local search-query state
 /// and the disk-usage `FutureBuilder`'s future (recreated only when the
@@ -216,13 +215,12 @@ class _SettingsOfflineRegionsScreenState
 
   /// A region contributes to the disk-usage region COUNT (distinct from the
   /// byte sum itself) when it has at least one package that is downloaded
-  /// or mid-flight (downloading/paused — a partial `.part` file still
-  /// occupies real disk space, D-06).
+  /// or mid-flight (downloading) — a partial `.part` file still occupies
+  /// real disk space, D-06.
   bool _hasAnyDiskUsage(RegionEntity region) {
     bool packageOccupiesDisk(PackageStatus? status) =>
         status == PackageStatus.downloaded ||
-        status == PackageStatus.downloading ||
-        status == PackageStatus.paused;
+        status == PackageStatus.downloading;
     return packageOccupiesDisk(region.vectorPackage.target?.status) ||
         packageOccupiesDisk(region.demPackage.target?.status);
   }
@@ -302,136 +300,109 @@ class _SettingsOfflineRegionsScreenState
   }
 
   /// Reached only when `catalogStatus == CatalogStatus.ready`. Renders the
-  /// name + vector/DEM size breakdown (SETUI-02), then the six
-  /// `RegionStatus` states (D-04) each with their own icon/action, a
-  /// persistent `updateAvailable` banner (D-05), a combined vector+DEM
-  /// progress bar while downloading (D-07), and an independent DEM toggle
-  /// gated on `region.demUrl != null` (SETUI-04, RESEARCH Pattern 3).
+  /// region name, then a Vector tile and (when `region.demUrl != null`) an
+  /// Elevation data tile — each independently downloadable/cancellable/
+  /// deletable (SETUI-04). Deleting the Vector tile cascades to delete DEM
+  /// too (D-02); deleting the DEM tile removes only the DEM package (D-01).
   Widget _buildActiveRow(RegionEntity region) {
     final l10n = AppLocalizations.of(context)!;
     final downloadState = ref.watch(tileRepositoryStatusProvider)[region.id];
-    final status = resolveRowStatus(region.status, downloadState);
     final colorScheme = Theme.of(context).colorScheme;
     final accentColor = Theme.of(context).brightness == Brightness.dark
         ? colorScheme.onSurface
         : colorScheme.primary;
-    final demDownloading = downloadState?.demProgress != null;
+
+    final vectorStatus = resolveVectorTileStatus(
+      region.status,
+      downloadState?.vectorProgress,
+    );
 
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Theme.of(context).colorScheme.outline),
-        borderRadius: BorderRadius.all(Radius.circular(8)),
+        borderRadius: const BorderRadius.all(Radius.circular(8)),
       ),
       margin: const EdgeInsets.symmetric(horizontal: 16.0),
-      padding: const EdgeInsets.all(16.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      region.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      region.demSize != null
-                          ? '${formatBytes(region.vectorSize ?? 0)} vector | '
-                                '${formatBytes(region.demSize!)} DEM'
-                          : '${formatBytes(region.vectorSize ?? 0)} vector',
-                      style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    if (status == RegionStatus.updateAvailable) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        l10n.regions_update_available,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: Colors.orange),
-                      ),
-                    ],
-                    if (status == RegionStatus.downloading) ...[
-                      const SizedBox(height: 8),
-                      LinearProgressIndicator(
-                        value: _combinedProgress(downloadState),
-                        color: accentColor,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              _buildTrailingActions(region, status, l10n, accentColor),
-            ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Text(
+              region.name,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge!.copyWith(fontWeight: FontWeight.bold),
+            ),
+          ),
+          _buildVectorTile(
+            region,
+            vectorStatus,
+            downloadState?.vectorProgress,
+            l10n,
+            accentColor,
           ),
           if (region.demUrl != null)
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.regions_dem_toggle_label,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                if (demDownloading)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        value: downloadState?.demProgress,
-                      ),
-                    ),
-                  ),
-                Switch(
-                  value:
-                      region.demPackage.target?.status ==
-                      PackageStatus.downloaded,
-
-                  activeThumbColor: accentColor,
-                  onChanged: (value) => _onDemToggle(region, value),
-                ),
-              ],
+            _buildDemTile(
+              region,
+              downloadState?.demProgress,
+              l10n,
+              accentColor,
             ),
+          const SizedBox(height: 4),
         ],
       ),
     );
   }
 
-  /// Combines `vectorProgress`/`demProgress` (D-07) into a single value for
-  /// the row's one `LinearProgressIndicator`: the average of whichever
-  /// values are non-null, or `null` (indeterminate) if neither is set yet.
-  double? _combinedProgress(RegionDownloadState? state) {
-    if (state == null) return null;
-    final parts = [state.vectorProgress, state.demProgress].whereType<double>();
-    if (parts.isEmpty) return null;
-    return parts.reduce((a, b) => a + b) / parts.length;
+  Widget _buildVectorTile(
+    RegionEntity region,
+    RegionStatus status,
+    double? liveProgress,
+    AppLocalizations l10n,
+    Color accentColor,
+  ) {
+    final isDownloading = status == RegionStatus.downloading;
+    final isDone =
+        status == RegionStatus.downloaded ||
+        status == RegionStatus.updateAvailable;
+    final isError = status == RegionStatus.error;
+    final onDiskBytes = region.vectorPackage.target?.sizeBytesOnDisk;
+
+    final String subtitleText;
+    final Color? subtitleColor;
+    if (isError) {
+      subtitleText = l10n.regions_download_failed;
+      subtitleColor = Colors.redAccent;
+    } else if (status == RegionStatus.updateAvailable) {
+      subtitleText = l10n.regions_update_available;
+      subtitleColor = Colors.orange;
+    } else {
+      subtitleText = formatBytes(
+        (status == RegionStatus.downloaded ? onDiskBytes : null) ??
+            region.vectorSize ??
+            0,
+      );
+      subtitleColor = null;
+    }
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      leading: _tileLeadingIcon(done: isDone, error: isError),
+      title: Text(l10n.regions_vector_tile_title),
+      subtitle: _tileSubtitle(
+        downloading: isDownloading,
+        progress: liveProgress,
+        text: subtitleText,
+        textColor: subtitleColor,
+        accentColor: accentColor,
+      ),
+      trailing: _buildVectorTrailing(region, status, l10n, accentColor),
+    );
   }
 
-  /// The row's trailing action(s) — exactly one widget group per
-  /// `RegionStatus` (D-04), each with a distinct icon/action per
-  /// UI-SPEC's Copywriting Contract. Full-region delete (row-level) is
-  /// available in `downloaded`/`updateAvailable`/`error`, always gated
-  /// behind `_onDeleteRegion`'s confirm dialog (D-02).
-  Widget _buildTrailingActions(
+  Widget _buildVectorTrailing(
     RegionEntity region,
     RegionStatus status,
     AppLocalizations l10n,
@@ -447,35 +418,25 @@ class _SettingsOfflineRegionsScreenState
         );
       case RegionStatus.downloading:
         return IconButton(
-          icon: const FaIcon(FontAwesomeIcons.pause),
-          tooltip: l10n.regions_retry,
-          onPressed: () => _onPause(region),
-        );
-      case RegionStatus.paused:
-        return IconButton(
-          icon: const FaIcon(FontAwesomeIcons.play),
-          color: accentColor,
-          onPressed: () => _onResume(region),
+          icon: const FaIcon(FontAwesomeIcons.xmark),
+          tooltip: l10n.cancel,
+          onPressed: () => _onCancelVector(region),
         );
       case RegionStatus.downloaded:
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const FaIcon(FontAwesomeIcons.circleCheck, color: Colors.green),
-            IconButton(
-              icon: const FaIcon(FontAwesomeIcons.trash),
-              color: Colors.redAccent,
-              onPressed: () => _onDeleteRegion(region),
-            ),
-          ],
+        return IconButton(
+          icon: const FaIcon(FontAwesomeIcons.trash),
+          color: Colors.redAccent,
+          onPressed: () => _onDeleteRegion(region),
         );
       case RegionStatus.updateAvailable:
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextButton(
+            IconButton(
+              icon: const FaIcon(FontAwesomeIcons.arrowsRotate),
+              color: accentColor,
+              tooltip: l10n.regions_update_action,
               onPressed: () => _onDownloadVector(region),
-              child: Text(l10n.regions_update_action),
             ),
             IconButton(
               icon: const FaIcon(FontAwesomeIcons.trash),
@@ -488,13 +449,11 @@ class _SettingsOfflineRegionsScreenState
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const FaIcon(
-              FontAwesomeIcons.circleExclamation,
-              color: Colors.redAccent,
-            ),
-            TextButton(
-              onPressed: () => _onRetry(region),
-              child: Text(l10n.regions_retry),
+            IconButton(
+              icon: const FaIcon(FontAwesomeIcons.arrowsRotate),
+              color: accentColor,
+              tooltip: l10n.regions_retry,
+              onPressed: () => _onDownloadVector(region),
             ),
             IconButton(
               icon: const FaIcon(FontAwesomeIcons.trash),
@@ -506,11 +465,135 @@ class _SettingsOfflineRegionsScreenState
     }
   }
 
+  Widget _buildDemTile(
+    RegionEntity region,
+    double? liveProgress,
+    AppLocalizations l10n,
+    Color accentColor,
+  ) {
+    final persisted =
+        region.demPackage.target?.status ?? PackageStatus.notDownloaded;
+    final status = resolveDemTileStatus(persisted, liveProgress);
+    final isDownloading = status == PackageStatus.downloading;
+    final isDone = status == PackageStatus.downloaded;
+    final isError = status == PackageStatus.error;
+    final onDiskBytes = region.demPackage.target?.sizeBytesOnDisk;
+
+    final subtitleText = isError
+        ? l10n.regions_download_failed
+        : formatBytes((isDone ? onDiskBytes : null) ?? region.demSize ?? 0);
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      leading: _tileLeadingIcon(done: isDone, error: isError),
+      title: Text(l10n.regions_dem_tile_title),
+      subtitle: _tileSubtitle(
+        downloading: isDownloading,
+        progress: liveProgress,
+        text: subtitleText,
+        textColor: isError ? Colors.redAccent : null,
+        accentColor: accentColor,
+      ),
+      trailing: _buildDemTrailing(region, status, l10n, accentColor),
+    );
+  }
+
+  Widget _buildDemTrailing(
+    RegionEntity region,
+    PackageStatus status,
+    AppLocalizations l10n,
+    Color accentColor,
+  ) {
+    switch (status) {
+      case PackageStatus.notDownloaded:
+        return IconButton(
+          icon: const FaIcon(FontAwesomeIcons.download),
+          color: accentColor,
+          tooltip: l10n.download,
+          onPressed: () => _onDownloadDem(region),
+        );
+      case PackageStatus.downloading:
+        return IconButton(
+          icon: const FaIcon(FontAwesomeIcons.xmark),
+          tooltip: l10n.cancel,
+          onPressed: () => _onCancelDem(region),
+        );
+      case PackageStatus.downloaded:
+        return IconButton(
+          icon: const FaIcon(FontAwesomeIcons.trash),
+          color: Colors.redAccent,
+          onPressed: () => _onDeleteDemPackage(region),
+        );
+      case PackageStatus.error:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const FaIcon(FontAwesomeIcons.arrowsRotate),
+              color: accentColor,
+              tooltip: l10n.regions_retry,
+              onPressed: () => _onDownloadDem(region),
+            ),
+            IconButton(
+              icon: const FaIcon(FontAwesomeIcons.trash),
+              color: Colors.redAccent,
+              onPressed: () => _onDeleteDemPackage(region),
+            ),
+          ],
+        );
+    }
+  }
+
+  /// Shared leading status glyph for both tiles: a green check once that
+  /// package is downloaded (or stale-but-downloaded, for Vector), a red
+  /// exclamation on error, otherwise nothing (the notDownloaded/downloading
+  /// states read entirely from the subtitle + trailing action).
+  Widget? _tileLeadingIcon({required bool done, required bool error}) {
+    if (error) {
+      return const FaIcon(
+        FontAwesomeIcons.circleExclamation,
+        color: Colors.redAccent,
+      );
+    }
+    if (done) {
+      return const FaIcon(FontAwesomeIcons.circleCheck, color: Colors.green);
+    }
+    return null;
+  }
+
+  /// Shared subtitle for both tiles: a progress bar while that specific
+  /// package is downloading (D-07 — now per-tile, not a combined average,
+  /// since vector/DEM downloads are fully independent), otherwise [text]
+  /// (byte size, "Update available", or "Download failed").
+  Widget _tileSubtitle({
+    required bool downloading,
+    required double? progress,
+    required String text,
+    required Color? textColor,
+    required Color accentColor,
+  }) {
+    if (downloading) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: LinearProgressIndicator(value: progress, color: accentColor),
+      );
+    }
+    final mutedColor = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.5);
+    return Text(
+      text,
+      style: Theme.of(
+        context,
+      ).textTheme.bodySmall?.copyWith(color: textColor ?? mutedColor),
+    );
+  }
+
   /// Persists [op] and surfaces only an error toast on failure — mirrors
   /// `settings_categories_screen.dart`'s `_save` wrapper. Additionally
   /// ALWAYS invalidates `regionListNotifierProvider` in a `finally` block
   /// (RESEARCH.md Pitfall 2 — ObjectBox `ToOne.target` caches per-instance
-  /// after first read) so every row reflects the true post-action state
+  /// after first read) so every tile reflects the true post-action state
   /// regardless of success or failure.
   Future<void> _save(Future<void> Function() op) async {
     try {
@@ -540,48 +623,48 @@ class _SettingsOfflineRegionsScreenState
     );
   }
 
-  void _onPause(RegionEntity region) {
+  /// No pause/resume: cancelling deletes the `.part` file, so a later
+  /// download always starts from byte 0.
+  void _onCancelVector(RegionEntity region) {
     _save(
-      () => ref.read(tileRepositoryStatusProvider.notifier).pause(region.id),
+      () async => ref
+          .read(tileRepositoryStatusProvider.notifier)
+          .cancelVector(region.id),
     );
   }
 
-  void _onResume(RegionEntity region) {
+  void _onDownloadDem(RegionEntity region) {
     _save(
-      () => ref.read(tileRepositoryStatusProvider.notifier).resume(region.id),
+      () => ref
+          .read(tileRepositoryStatusProvider.notifier)
+          .downloadDem(region.id),
     );
   }
 
-  /// D-03: re-invokes `downloadVector`/`downloadDem` from scratch for
-  /// whichever package(s) actually failed — no separate "view detail" step.
-  void _onRetry(RegionEntity region) {
-    _save(() async {
-      final notifier = ref.read(tileRepositoryStatusProvider.notifier);
-      if (region.vectorPackage.target?.status == PackageStatus.error) {
-        await notifier.downloadVector(region.id);
-      }
-      if (region.demPackage.target?.status == PackageStatus.error) {
-        await notifier.downloadDem(region.id);
-      }
-    });
+  /// See [_onCancelVector] — the DEM-side mirror, fully independent.
+  void _onCancelDem(RegionEntity region) {
+    _save(
+      () async =>
+          ref.read(tileRepositoryStatusProvider.notifier).cancelDem(region.id),
+    );
   }
 
-  /// SETUI-04/D-01: toggle ON downloads the DEM; toggle OFF deletes it
-  /// IMMEDIATELY — deliberately no confirm dialog, asymmetric with D-02's
-  /// full-region delete.
-  void _onDemToggle(RegionEntity region, bool value) {
-    final notifier = ref.read(tileRepositoryStatusProvider.notifier);
-    if (value) {
-      _save(() => notifier.downloadDem(region.id));
-    } else {
-      _save(() => notifier.deleteDemPackage(region.id));
-    }
+  /// SETUI-04/D-01: the DEM tile's own delete action — removes ONLY the DEM
+  /// package, IMMEDIATELY — deliberately no confirm dialog, asymmetric with
+  /// the Vector tile's cascading [_onDeleteRegion].
+  void _onDeleteDemPackage(RegionEntity region) {
+    _save(
+      () => ref
+          .read(tileRepositoryStatusProvider.notifier)
+          .deleteDemPackage(region.id),
+    );
   }
 
-  /// D-02: full-region delete requires a confirm dialog before calling
-  /// `delete()` — mirrors `settings_categories_screen.dart`'s confirm-
-  /// before-disable dialog shape (2 actions: Cancel/Delete, no middle
-  /// "view detail" action).
+  /// D-02: the Vector tile's delete action cascades to remove the DEM
+  /// package too (one on-device region has one storage directory), so it
+  /// requires a confirm dialog first — mirrors
+  /// `settings_categories_screen.dart`'s confirm-before-disable dialog shape
+  /// (2 actions: Cancel/Delete, no middle "view detail" action).
   Future<void> _onDeleteRegion(RegionEntity region) async {
     final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(

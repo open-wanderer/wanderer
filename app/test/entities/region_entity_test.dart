@@ -13,7 +13,7 @@ void main() {
       }
     });
 
-    test('setting dbStatus to 0/1/2/3/4 restores the matching member', () {
+    test('setting dbStatus to 0/1/2/4 restores the matching member', () {
       final entity = DownloadedTilePackageEntity();
 
       entity.dbStatus = 0;
@@ -25,12 +25,18 @@ void main() {
       entity.dbStatus = 2;
       expect(entity.status, PackageStatus.downloaded);
 
-      entity.dbStatus = 3;
-      expect(entity.status, PackageStatus.paused);
-
       entity.dbStatus = 4;
       expect(entity.status, PackageStatus.error);
     });
+
+    test(
+      'the retired paused code (3) falls back to notDownloaded (REGN-02)',
+      () {
+        final entity = DownloadedTilePackageEntity();
+        entity.dbStatus = 3;
+        expect(entity.status, PackageStatus.notDownloaded);
+      },
+    );
 
     test('an out-of-range dbStatus falls back to notDownloaded', () {
       final entity = DownloadedTilePackageEntity();
@@ -106,23 +112,20 @@ void main() {
       expect(entity.status, RegionStatus.downloading);
     });
 
-    test(
-      'vectorPackage downloaded, catalogStatus != ready -> downloaded',
-      () {
-        final entity = RegionEntity(
-          id: 'de-nrw',
-          name: 'NRW',
-          catalogStatus: CatalogStatus.building,
-          version: '2026-07-01',
-        );
-        entity.lastDownloadedVersion = '2026-06-01';
-        entity.vectorPackage.target = DownloadedTilePackageEntity(
-          status: PackageStatus.downloaded,
-        );
+    test('vectorPackage downloaded, catalogStatus != ready -> downloaded', () {
+      final entity = RegionEntity(
+        id: 'de-nrw',
+        name: 'NRW',
+        catalogStatus: CatalogStatus.building,
+        version: '2026-07-01',
+      );
+      entity.lastDownloadedVersion = '2026-06-01';
+      entity.vectorPackage.target = DownloadedTilePackageEntity(
+        status: PackageStatus.downloaded,
+      );
 
-        expect(entity.status, RegionStatus.downloaded);
-      },
-    );
+      expect(entity.status, RegionStatus.downloaded);
+    });
 
     test(
       'vectorPackage downloaded, version == lastDownloadedVersion -> downloaded',
@@ -159,15 +162,6 @@ void main() {
         expect(entity.status, RegionStatus.updateAvailable);
       },
     );
-
-    test('vectorPackage paused -> paused', () {
-      final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
-      entity.vectorPackage.target = DownloadedTilePackageEntity(
-        status: PackageStatus.paused,
-      );
-
-      expect(entity.status, RegionStatus.paused);
-    });
 
     test('vectorPackage error -> error', () {
       final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
@@ -236,10 +230,7 @@ void main() {
         status: CatalogStatus.building,
       );
 
-      expect(
-        () => RegionEntity.fromCatalogEntry(entry),
-        throwsFormatException,
-      );
+      expect(() => RegionEntity.fromCatalogEntry(entry), throwsFormatException);
     });
   });
 
@@ -283,10 +274,7 @@ void main() {
         status: CatalogStatus.building,
       );
 
-      expect(
-        () => entity.applyCatalogEntry(entry),
-        throwsFormatException,
-      );
+      expect(() => entity.applyCatalogEntry(entry), throwsFormatException);
     });
   });
 }

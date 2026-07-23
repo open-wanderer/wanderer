@@ -13,38 +13,6 @@ import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/util/disk_space_util.dart';
 import 'package:wanderer/util/region_file_path.dart';
 
-/// Pure decision for how a `.part` download should be (re)started, given the
-/// number of bytes already present on disk.
-///
-/// - `0` bytes: a fresh download — write from scratch, no `Range` header.
-/// - `>0` bytes: a resumed download — append starting at the existing byte
-///   offset via `Range: bytes=<offset>-`.
-///
-/// `deleteOnError` here documents manager-level delete intent only — it is
-/// NOT forwarded to Dio (see `_downloadResumable`). Dio's own `deleteOnError`
-/// deletes on ANY cancellation, including a deliberate pause, which would
-/// destroy resume progress on the very first pause of a fresh download.
-/// `startVectorDownload`/`startDemDownload`'s `catch (DioException e)`
-/// blocks make the real delete/keep decision via `wasResuming` instead.
-@visibleForTesting
-({int offset, FileAccessMode mode, bool sendRange, bool deleteOnError})
-resumePlanFor(int existingPartBytes) {
-  if (existingPartBytes <= 0) {
-    return (
-      offset: 0,
-      mode: FileAccessMode.write,
-      sendRange: false,
-      deleteOnError: true,
-    );
-  }
-  return (
-    offset: existingPartBytes,
-    mode: FileAccessMode.append,
-    sendRange: true,
-    deleteOnError: false,
-  );
-}
-
 /// Pure axis-aligned rectangle-overlap test between a region's bbox and a
 /// query [LngLatBounds] (TILE-05). There is no `intersects()` helper on this
 /// package's `LngLatBounds`, so this is hand-rolled against `RegionEntity`'s
@@ -66,14 +34,20 @@ bool bboxOverlaps({
 }
 
 /// Owns the region tile-repository download lifecycle (TILE-01..05,
-/// DEM-01/02): resumable `.part` downloads (Range + `FileAccessMode.append`)
-/// for a region's vector and (independently) DEM archives, a disk-space
-/// pre-check before every file write, `PmTilesArchive` validation before a
-/// `.part` is promoted to its final path, an `AppLifecycleListener`-driven
-/// deliberate pause of every in-flight download on backgrounding, a
-/// bbox-overlap viewport query (`localTilePathsForBounds`), and a cascade
-/// delete (`deleteRegion`) since ObjectBox does not cascade a `ToOne`
-/// target's removal.
+/// DEM-01/02): a fresh (never resumed) `.part` download for a region's
+/// vector and (independently) DEM archives, a disk-space pre-check before
+/// every file write, `PmTilesArchive` validation before a `.part` is
+/// promoted to its final path, a bbox-overlap viewport query
+/// (`localTilePathsForBounds`), and a cascade delete (`deleteRegion`) since
+/// ObjectBox does not cascade a `ToOne` target's removal.
+///
+/// There is no pause/resume: cancelling an in-flight download (deliberately,
+/// via [cancelVectorDownload]/[cancelDemDownload], or the transfer erroring
+/// out) always deletes the `.part` file and returns the package to
+/// `notDownloaded`/`error`. A later download attempt always starts from
+/// byte 0. Downloads keep running while the app is backgrounded — there is
+/// no lifecycle-driven auto-cancel — since cancelling would now mean losing
+/// progress rather than merely pausing it.
 ///
 /// Mirrors `TrailDownloadService`'s construction-injection
 /// (`Store` + `Dio`) and `CancelToken`-based cancellation shape, but adds
@@ -90,16 +64,11 @@ class TileRepositoryManager {
   /// other's token.
   final Map<String, CancelToken> _activeCancelTokens = {};
 
-  late final AppLifecycleListener _lifecycleListener;
+  TileRepositoryManager(this._store, this._api);
 
-  TileRepositoryManager(this._store, this._api) {
-    _lifecycleListener = AppLifecycleListener(onPause: _pauseAllActiveDownloads);
-  }
-
-  /// Starts (or resumes, if a `.part` file already exists on disk) the
-  /// region's vector archive download. Refuses to write any bytes — marking
-  /// the vector package `error` instead — when disk space is tight
-  /// (TILE-03).
+  /// Starts a fresh vector archive download for [regionId]. Refuses to
+  /// write any bytes — marking the vector package `error` instead — when
+  /// disk space is tight (TILE-03).
   Future<void> startVectorDownload(
     String regionId, {
     void Function(int received, int total)? onProgress,
@@ -137,10 +106,9 @@ class TileRepositoryManager {
     _activeCancelTokens[tokenKey] = token;
 
     final partFile = File(partPath);
-    final wasResuming = partFile.existsSync() && partFile.lengthSync() > 0;
 
     try {
-      await _downloadResumable(
+      await _download(
         requestPath: _requestPathFor(id, dem: false),
         partPath: partPath,
         cancelToken: token,
@@ -167,14 +135,13 @@ class TileRepositoryManager {
         _store.box<RegionEntity>().put(region);
       });
     } on DioException catch (e) {
-      if (CancelToken.isCancel(e)) {
-        _updatePackageStatus(package, status: PackageStatus.paused);
-        return;
-      }
-      if (!wasResuming && partFile.existsSync()) {
-        partFile.deleteSync();
-      }
-      _updatePackageStatus(package, status: PackageStatus.error);
+      if (partFile.existsSync()) partFile.deleteSync();
+      _updatePackageStatus(
+        package,
+        status: CancelToken.isCancel(e)
+            ? PackageStatus.notDownloaded
+            : PackageStatus.error,
+      );
     } finally {
       _activeCancelTokens.remove(tokenKey);
     }
@@ -222,10 +189,9 @@ class TileRepositoryManager {
     _activeCancelTokens[tokenKey] = token;
 
     final partFile = File(partPath);
-    final wasResuming = partFile.existsSync() && partFile.lengthSync() > 0;
 
     try {
-      await _downloadResumable(
+      await _download(
         requestPath: _requestPathFor(id, dem: true),
         partPath: partPath,
         cancelToken: token,
@@ -247,51 +213,32 @@ class TileRepositoryManager {
         downloadedAtUtc: DateTime.now().toUtc(),
       );
     } on DioException catch (e) {
-      if (CancelToken.isCancel(e)) {
-        _updatePackageStatus(package, status: PackageStatus.paused);
-        return;
-      }
-      if (!wasResuming && partFile.existsSync()) {
-        partFile.deleteSync();
-      }
-      _updatePackageStatus(package, status: PackageStatus.error);
+      if (partFile.existsSync()) partFile.deleteSync();
+      _updatePackageStatus(
+        package,
+        status: CancelToken.isCancel(e)
+            ? PackageStatus.notDownloaded
+            : PackageStatus.error,
+      );
     } finally {
       _activeCancelTokens.remove(tokenKey);
     }
   }
 
-  /// Cancels every active vector/DEM download for [regionId] with a
-  /// deliberate `'paused'` reason — the `CancelToken.isCancel` branch in
-  /// [startVectorDownload]/[startDemDownload] preserves the `.part` file and
-  /// marks the package `paused` rather than `error`.
-  Future<void> pauseRegion(String regionId) async {
+  /// Cancels [regionId]'s in-flight vector download, if any — a no-op when
+  /// nothing is currently downloading. The `.part` file is deleted (no
+  /// resume support): a later download tap always starts fresh from byte 0.
+  /// Independent of [cancelDemDownload] (separate `CancelToken`).
+  void cancelVectorDownload(String regionId) {
     final id = assertValidRegionId(regionId);
-    for (final entry in _activeCancelTokens.entries.toList()) {
-      if (entry.key == '$id:vector' || entry.key == '$id:dem') {
-        entry.value.cancel('paused');
-      }
-    }
+    _activeCancelTokens['$id:vector']?.cancel('cancelled');
   }
 
-  /// Re-invokes [startVectorDownload]/[startDemDownload] for whichever
-  /// package(s) of [regionId] are currently `paused` — the resumable
-  /// primitive's `.part`-length detection resumes automatically via Range.
-  Future<void> resumeRegion(
-    String regionId, {
-    void Function(int received, int total)? onProgress,
-  }) async {
+  /// Cancels [regionId]'s in-flight DEM download, if any. See
+  /// [cancelVectorDownload].
+  void cancelDemDownload(String regionId) {
     final id = assertValidRegionId(regionId);
-    final region = _regionById(id);
-    if (region == null) return;
-
-    final futures = <Future<void>>[];
-    if (region.vectorPackage.target?.status == PackageStatus.paused) {
-      futures.add(startVectorDownload(id, onProgress: onProgress));
-    }
-    if (region.demPackage.target?.status == PackageStatus.paused) {
-      futures.add(startDemDownload(id, onProgress: onProgress));
-    }
-    await Future.wait(futures);
+    _activeCancelTokens['$id:dem']?.cancel('cancelled');
   }
 
   /// Returns the local vector/DEM archive file paths for every downloaded
@@ -406,10 +353,9 @@ class TileRepositoryManager {
     }
   }
 
-  /// Releases the lifecycle listener and cancels every remaining in-flight
-  /// download (mirrors `navigation_screen.dart`'s dispose discipline).
+  /// Cancels every remaining in-flight download (mirrors
+  /// `navigation_screen.dart`'s dispose discipline).
   void dispose() {
-    _lifecycleListener.dispose();
     for (final token in _activeCancelTokens.values) {
       token.cancel('disposed');
     }
@@ -439,41 +385,27 @@ class TileRepositoryManager {
         : '/regions/$validatedId/download';
   }
 
-  /// Downloads [requestPath] to [partPath], resuming from the `.part`
-  /// file's existing byte length via `resumePlanFor` (RESEARCH.md Pattern
-  /// 1). Never trusts the response's `Content-Length` header for anything
-  /// beyond progress reporting — completion is validated separately by
+  /// Downloads [requestPath] to [partPath] from scratch, always overwriting
+  /// any existing bytes at [partPath] (no resume). `deleteOnError: true`
+  /// means Dio deletes the `.part` file on ANY termination that isn't a
+  /// clean completion — including a deliberate [cancelVectorDownload]/
+  /// [cancelDemDownload] cancellation — which is exactly the desired
+  /// cancel-means-delete semantics now that there is no resume path. Never
+  /// trusts the response's `Content-Length` header for anything beyond
+  /// progress reporting — completion is validated separately by
   /// [_isValidPmTiles] before the caller promotes `.part` to its final path.
-  Future<void> _downloadResumable({
+  Future<void> _download({
     required String requestPath,
     required String partPath,
     required CancelToken cancelToken,
     void Function(int received, int total)? onProgress,
   }) async {
-    final partFile = File(partPath);
-    final alreadyDownloaded = partFile.existsSync() ? partFile.lengthSync() : 0;
-    final plan = resumePlanFor(alreadyDownloaded);
-
     await _api.download(
       requestPath,
       partPath,
       cancelToken: cancelToken,
-      fileAccessMode: plan.mode,
-      // Never let Dio auto-delete: its cancelToken.whenCancel handler runs
-      // closeAndDelete() for BOTH a deliberate pause and a genuine stream
-      // error, so plan.deleteOnError:true would wipe a fresh .part file the
-      // instant pauseRegion() cancels it — before startVectorDownload's own
-      // catch(DioException) block ever sees CancelToken.isCancel(e). That
-      // catch block already makes the correct delete/keep decision itself
-      // (via `wasResuming`), so Dio must never delete on its own.
-      deleteOnError: false,
-      options: plan.sendRange
-          ? Options(headers: {'range': 'bytes=${plan.offset}-'})
-          : null,
-      onReceiveProgress: (received, total) => onProgress?.call(
-        plan.offset + received,
-        total < 0 ? -1 : plan.offset + total,
-      ),
+      deleteOnError: true,
+      onReceiveProgress: onProgress,
     );
   }
 
@@ -527,17 +459,5 @@ class TileRepositoryManager {
       if (downloadedAtUtc != null) package.downloadedAtUtc = downloadedAtUtc;
       _store.box<DownloadedTilePackageEntity>().put(package);
     });
-  }
-
-  /// TILE-04: cancels every active download's `CancelToken` with a
-  /// deliberate `'app-backgrounded'` reason — distinct from a user-
-  /// initiated `pauseRegion`'s `'paused'` reason, in case status writes
-  /// ever need to distinguish the two. The `.part` file is preserved (see
-  /// the `CancelToken.isCancel` branch in `startVectorDownload`/
-  /// `startDemDownload`).
-  void _pauseAllActiveDownloads() {
-    for (final token in _activeCancelTokens.values) {
-      token.cancel('app-backgrounded');
-    }
   }
 }

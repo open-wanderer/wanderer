@@ -1867,6 +1867,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ask your Wanderer instance administrator to configure downloadable regions.'**
   String get regions_empty_catalog_body;
+
+  /// No description provided for @regions_vector_tile_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Vector'**
+  String get regions_vector_tile_title;
+
+  /// No description provided for @regions_dem_tile_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Elevation data'**
+  String get regions_dem_tile_title;
+
+  /// No description provided for @regions_download_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed'**
+  String get regions_download_failed;
 }
 
 class _AppLocalizationsDelegate
