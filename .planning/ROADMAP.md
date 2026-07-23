@@ -508,11 +508,21 @@ Plans:
 **Requirements**: PROXY-01, PROXY-02, PROXY-03
 **Depends on:** Phase 25 (specifically 25-02's `TileRepositoryManager.localTilePathsForBounds` split; consumes it as the per-tile archive lookup source)
 **Risk gate:** Whether MapLibre Native reliably resolves loopback-HTTP tile sources while the device is offline (airplane mode) is unconfirmed and needs an on-device spike before committing to the full build — mirrors RENDER-03's spike in Phase 25. Regions can also overlap (bbox-only, no dedup today), so a per-tile "which archive wins" resolution rule needs to be designed; none exists yet.
-**Plans:** 0 plans
+**Plans:** 4 plans (3 waves)
 
 Plans:
+**Wave 1**
 
-- [ ] TBD (run /gsd-plan-phase 25.1 to break down)
+- [ ] 25.1-01-PLAN.md — Android cleartext + iOS ATS loopback network exceptions (proxy/spike prerequisite) (PROXY-03)
+- [ ] 25.1-02-PLAN.md — Proxy core: xyz_tile_bounds + resolveRegionForTile (smallest-bbox/most-recent, D-02/D-03) + loopback TileProxyServer + base-URL provider + rewriteStyleForProxy (PROXY-01/02)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 25.1-03-PLAN.md — On-device airplane-mode spike harness + blocking checkpoint:decision risk gate; no pre-scripted fallback per D-04 (PROXY-03)
+
+**Wave 3** *(blocked on the spike passing)*
+
+- [ ] 25.1-04-PLAN.md — Start proxy in main.dart + rewire TrailMap & navigation_screen onto the static proxy source, deleting reconcile/tracking machinery + the camera-idle trigger from both (PROXY-01)
 
 ### Phase 26: Trail Download Guard
 
