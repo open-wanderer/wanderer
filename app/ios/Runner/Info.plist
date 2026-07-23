@@ -16,6 +16,32 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- PROXY-03: narrowly-scoped ATS exception so MapLibre Native's
+	     NSURLSession tile fetches can reach the in-app loopback tile proxy
+	     over http://127.0.0.1:<port>. Both mechanisms below are added
+	     deliberately (community evidence on which single key is strictly
+	     required is mixed); the exception stays loopback-only and never
+	     becomes an app-wide insecure-loads allowance (threat T-25.1-01).
+	     No local-network permission prompt is introduced since loopback
+	     traffic never reaches the LAN. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>127.0.0.1</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
