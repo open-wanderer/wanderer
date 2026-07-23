@@ -16,12 +16,16 @@ import 'package:wanderer/util/region_file_path.dart';
 /// Pure decision for how a `.part` download should be (re)started, given the
 /// number of bytes already present on disk.
 ///
-/// - `0` bytes: a fresh download — write from scratch, no `Range` header,
-///   and it's safe to let Dio delete the (empty/partial) file on error.
+/// - `0` bytes: a fresh download — write from scratch, no `Range` header.
 /// - `>0` bytes: a resumed download — append starting at the existing byte
-///   offset via `Range: bytes=<offset>-`, and `deleteOnError` MUST be
-///   `false`, or a second failure on the resumed request would destroy the
-///   resume progress Dio just appended to (RESEARCH.md Pitfall 2).
+///   offset via `Range: bytes=<offset>-`.
+///
+/// `deleteOnError` here documents manager-level delete intent only — it is
+/// NOT forwarded to Dio (see `_downloadResumable`). Dio's own `deleteOnError`
+/// deletes on ANY cancellation, including a deliberate pause, which would
+/// destroy resume progress on the very first pause of a fresh download.
+/// `startVectorDownload`/`startDemDownload`'s `catch (DioException e)`
+/// blocks make the real delete/keep decision via `wasResuming` instead.
 @visibleForTesting
 ({int offset, FileAccessMode mode, bool sendRange, bool deleteOnError})
 resumePlanFor(int existingPartBytes) {
@@ -455,7 +459,14 @@ class TileRepositoryManager {
       partPath,
       cancelToken: cancelToken,
       fileAccessMode: plan.mode,
-      deleteOnError: plan.deleteOnError,
+      // Never let Dio auto-delete: its cancelToken.whenCancel handler runs
+      // closeAndDelete() for BOTH a deliberate pause and a genuine stream
+      // error, so plan.deleteOnError:true would wipe a fresh .part file the
+      // instant pauseRegion() cancels it — before startVectorDownload's own
+      // catch(DioException) block ever sees CancelToken.isCancel(e). That
+      // catch block already makes the correct delete/keep decision itself
+      // (via `wasResuming`), so Dio must never delete on its own.
+      deleteOnError: false,
       options: plan.sendRange
           ? Options(headers: {'range': 'bytes=${plan.offset}-'})
           : null,
