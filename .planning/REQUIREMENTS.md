@@ -61,6 +61,14 @@
 - [x] **RENDER-02**: Style composition is viewport-scoped — only regions intersecting the current viewport contribute style sources, not every downloaded region unconditionally
 - [x] **RENDER-03**: Before finalizing the rendering approach, verify maplibre 0.3.5's incremental source add/remove behavior (vs. full style reload) and layer-count scaling with a spike against the pinned package version
 
+### Local Tile Proxy (Phase 25.1 — urgent insertion)
+
+**Why this exists:** Phase 25's UAT found the incremental `addSource`/`removeSource` region-swap reconcile in `navigation_screen.dart` unreliable on-device — a reentrancy race (no in-flight guard, `ml.MapEventCameraIdle` over-firing during GPS-follow) diagnosed in `.planning/debug/navigation-screen-region-swap-broken.md`. This replaces the reconcile with a local loopback HTTP tile proxy so MapLibre Native's own viewport tracking handles region selection instead of hand-rolled Dart diffing, closing RENDER-02/RENDER-03's delivery gap with a different mechanism (RENDER-01/02/03 remain satisfied — this doesn't reopen them).
+
+- [ ] **PROXY-01**: `TrailMap` and `navigation_screen` both serve offline vector/DEM tiles through a single static XYZ source backed by a local loopback `HttpServer`, replacing the incremental `addSource`/`removeSource`/`_reconcileRegionComposition`/`_addRegionComposition` reconcile entirely — eliminates the reentrancy bug class structurally (no reconcile call, no race)
+- [ ] **PROXY-02**: When a requested tile falls inside two overlapping downloaded regions' bboxes, the proxy deterministically resolves to the region with the smallest bbox; equal-size bboxes resolve to the most-recently-downloaded region
+- [ ] **PROXY-03**: An on-device spike confirms MapLibre Native reliably loads loopback-HTTP tile sources while the device is offline (airplane mode) before the full build is committed — this phase's risk gate, mirroring RENDER-03's spike in Phase 25
+
 ### Legacy Cleanup
 
 - [ ] **CLEAN-01**: Trail-scoped tile download code is removed outright — `trail_download_service.dart` tile-download methods, `TrailEntity.pmTiles`/`demPmTiles` fields, and related UI — no dual-run, no migration path (app is pre-production)
@@ -129,6 +137,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RENDER-01 | Phase 25 | Complete |
 | RENDER-02 | Phase 25 | Complete |
 | RENDER-03 | Phase 25 | Complete |
+| PROXY-01 | Phase 25.1 | Pending |
+| PROXY-02 | Phase 25.1 | Pending |
+| PROXY-03 | Phase 25.1 | Pending |
 | CLEAN-01 | Phase 27 | Pending |
 | CLEAN-02 | Phase 27 | Pending |
 
