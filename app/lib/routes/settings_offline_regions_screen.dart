@@ -13,6 +13,7 @@ import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/byte_format_util.dart';
 import 'package:wanderer/util/region_disk_usage_util.dart';
+import 'package:wanderer/util/region_row_status_util.dart';
 
 /// SETUI-01..06: the "Offline Maps/Regions" Settings screen — a flat,
 /// name-searchable, A-Z region list backed by Plan 01's synchronous
@@ -309,7 +310,7 @@ class _SettingsOfflineRegionsScreenState
   Widget _buildActiveRow(RegionEntity region) {
     final l10n = AppLocalizations.of(context)!;
     final downloadState = ref.watch(tileRepositoryStatusProvider)[region.id];
-    final status = region.status;
+    final status = resolveRowStatus(region.status, downloadState);
     final colorScheme = Theme.of(context).colorScheme;
     final accentColor = Theme.of(context).brightness == Brightness.dark
         ? colorScheme.onSurface
