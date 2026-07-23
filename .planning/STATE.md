@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: verifying
-stopped_at: Phase 25 planning complete (4 plans, verified)
-last_updated: "2026-07-23T10:53:21.096Z"
-last_activity: "2026-07-23 -- Completed 24-04-PLAN.md (gap-closure: stale ToOne region row status)"
+status: executing
+stopped_at: 25-01 Task 1 complete (spike harness built); paused at Task 2 checkpoint:decision (RENDER-03 composition strategy) awaiting on-device measurement
+last_updated: "2026-07-23T11:15:57.889Z"
+last_activity: 2026-07-23 -- 25-01 Task 1 committed (f202e2de); blocked on human on-device RENDER-03 checkpoint
 progress:
   total_phases: 7
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 24 — settings-offline-maps-regions-ui
+**Current focus:** Phase 25 — map-rendering-region-based-viewport-pipeline
 
 ## Current Position
 
-Phase: 24 (settings-offline-maps-regions-ui) — EXECUTING
-Plan: 4 of 4
-Status: All plans (01-04) complete; pending end-of-phase on-device UAT re-verification
-Last activity: 2026-07-23 -- Completed 24-04-PLAN.md (gap-closure: stale ToOne region row status)
+Phase: 25 (map-rendering-region-based-viewport-pipeline) — EXECUTING
+Plan: 1 of 4
+Status: 25-01 Task 1/2 complete; PAUSED at Task 2 `checkpoint:decision` (gate="blocking") — requires human on-device RENDER-03 measurement (N=10 and N=20 on a physical mid-tier Android phone) via `app/test/services/region_render_spike_harness.dart`. Not eligible for auto-approval.
+Last activity: 2026-07-23 -- Committed 25-01 Task 1 (region_render_spike_harness.dart, f202e2de); awaiting checkpoint resume
 
 ## v1.6 Phases
 
@@ -309,6 +309,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-23T10:53:21.080Z
-Stopped at: Phase 25 planning complete (4 plans, verified)
+Last session: 2026-07-23T11:15:57.889Z
+Stopped at: 25-01 Task 1 complete (spike harness built, commit f202e2de); paused at Task 2 `checkpoint:decision` (gate="blocking") -- RENDER-03 composition strategy requires human on-device measurement (N=10 and N=20 on a physical mid-tier Android phone) via `app/test/services/region_render_spike_harness.dart`, per this plan's `<important_note>` this cannot be auto-approved
 Resume file: .planning/phases/25-map-rendering-region-based-viewport-pipeline/25-01-PLAN.md
