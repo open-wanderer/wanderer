@@ -34,6 +34,8 @@ import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/provider/region/region_provider.dart';
+import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
@@ -271,6 +273,14 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   String? _lastStyleJson;
 
   bool _cacheWarmed = false;
+
+  /// Region source/layer ids currently materialized in the mounted style —
+  /// seeded from the baked style on every full load ([_seedRegionTracking])
+  /// and diffed by [_reconcileRegionComposition]'s incremental add/remove
+  /// swap (mirrors `TrailMap`'s tracking sets, plus the remove branch unique
+  /// to this screen's freely-moving viewport).
+  final Set<String> _addedSourceIds = {};
+  final Set<String> _addedLayerIds = {};
 
   /// Active pointer count on the map surface. `CameraChangeReason.apiGesture`
   /// fires identically for pan/pinch/rotate (no native sub-classification
@@ -860,28 +870,41 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  /// Composes the style JSON to hand to the map from the two resolved inputs.
+  /// Composes the style JSON to hand to the map from the three resolved
+  /// inputs.
   ///
   /// Online: [baseJson] as-is. Offline: [baseJson] rewritten via
-  /// [rewriteStyleForOffline] so `glyphs`/`sprite` resolve from [cache] and the
-  /// protomaps tiles resolve from the trail's `.pmtiles` cells
-  /// (`pmtiles://file://`). Returns null while a required input is still
-  /// resolving or if the rewrite rejects an input — the caller then shows the
-  /// loading passthrough.
-  String? _composeStyle(String? baseJson, GlyphSpriteCachePaths? cache) {
+  /// [rewriteStyleForOffline] so `glyphs`/`sprite` resolve from [cache] and
+  /// the protomaps tiles resolve from the region registry's LIVE [viewportBounds]
+  /// query (`TileRepositoryManager.localTilePathsForBounds`, RENDER-01)
+  /// rather than the trail's own legacy `pmTiles`/`demPmTiles` fields — this
+  /// screen's camera moves freely across a session, unlike `TrailMap`'s fixed
+  /// trail bounds. Returns null while a required input is still resolving,
+  /// [viewportBounds] hasn't been seeded yet, or the viewport has no
+  /// downloaded region coverage (D-01 blank-basemap guard — also prevents
+  /// [rewriteStyleForOffline] throwing on empty `cellPaths`) — the caller
+  /// then shows the loading passthrough (initStyle path) or leaves the
+  /// mounted style unchanged (`_swapStyle` path).
+  String? _composeStyle(
+    String? baseJson,
+    GlyphSpriteCachePaths? cache,
+    ml.LngLatBounds? viewportBounds,
+  ) {
     if (baseJson == null) return null;
     if (!widget.isOffline) return baseJson;
     if (cache == null) return null;
-    final pmTiles = ref.read(trailProvider(widget.id)).value?.pmTiles;
-    if (pmTiles == null || pmTiles.isEmpty) return null;
+    if (viewportBounds == null) return null;
+    final tiles = ref
+        .read(tileRepositoryManagerProvider)
+        .localTilePathsForBounds(viewportBounds);
+    if (tiles.vectorPaths.isEmpty) return null;
     try {
       final decoded = jsonDecode(baseJson) as Map<String, dynamic>;
       final offlineStyle = rewriteStyleForOffline(
         decoded,
         cacheRoot: cache.root,
-        cellPaths: pmTiles,
-        demCellPaths:
-            ref.read(trailProvider(widget.id)).value?.demPmTiles ?? const [],
+        cellPaths: tiles.vectorPaths,
+        demCellPaths: tiles.demPaths,
         dark:
             effectiveBrightness(ref.read(themeModeProvider)) == Brightness.dark,
       );
@@ -893,7 +916,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   }
 
   /// Recomposes the (possibly offline-rewritten) style from current provider
-  /// state and swaps it onto the mounted controller in place.
+  /// state and swaps it onto the mounted controller in place. Theme/glyph
+  /// path only (unchanged mechanism) — region swaps are never routed through
+  /// here, see [_reconcileRegionComposition].
   void _swapStyle() {
     final controller = _controller;
     if (controller == null) return;
@@ -901,10 +926,294 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final cache = widget.isOffline
         ? ref.read(glyphSpriteCacheProvider).value
         : null;
-    final json = _composeStyle(baseJson, cache);
+    final bounds = widget.isOffline ? controller.getVisibleRegion() : null;
+    final json = _composeStyle(baseJson, cache, bounds);
     if (json != null && json != _lastStyleJson) {
       _lastStyleJson = json;
       controller.setStyle(json);
+    }
+  }
+
+  /// (Re)seeds [_addedSourceIds]/[_addedLayerIds] from a just-loaded composed
+  /// style JSON's `sources` map and the layer ids that reference them —
+  /// excludes the source-less `background` chrome layer, which is never a
+  /// region layer and must never be reconciled. Called after every full
+  /// style load (initial mount or a theme-toggle `setStyle`) so the tracking
+  /// sets stay consistent with whatever region ids are actually baked in.
+  void _seedRegionTracking(String? composedJson) {
+    if (composedJson == null) return;
+    final decoded = jsonDecode(composedJson) as Map<String, dynamic>;
+    final sources = decoded['sources'];
+    final sourceIds = sources is Map<String, dynamic>
+        ? sources.keys.toSet()
+        : const <String>{};
+
+    _addedSourceIds
+      ..clear()
+      ..addAll(sourceIds);
+    _addedLayerIds.clear();
+
+    final layers = decoded['layers'];
+    if (layers is! List) return;
+    for (final layer in layers) {
+      if (layer is! Map) continue;
+      final source = layer['source'];
+      final id = layer['id'];
+      if (source is String && id is String && sourceIds.contains(source)) {
+        _addedLayerIds.add(id);
+      }
+    }
+  }
+
+  /// Builds a typed [ml.Source] from a composed style's raw JSON source
+  /// entry. `raster-dem` entries (hillshade) become [ml.RasterDemSource]
+  /// with the Terrarium encoding [rewriteStyleForOffline] already assumes;
+  /// everything else becomes an [ml.VectorSource]. Returns null (and logs)
+  /// if the entry is missing its `url`.
+  ml.Source? _sourceFromJson(String id, Map source) {
+    final url = source['url'] as String?;
+    if (url == null) {
+      debugPrint('NavigationScreen: region source "$id" missing url — skipped');
+      return null;
+    }
+    if (source['type'] == 'raster-dem') {
+      return ml.RasterDemSource(
+        id: id,
+        url: url,
+        maxZoom: (source['maxzoom'] as num).toDouble(),
+        tileSize: (source['tileSize'] as num?)?.toInt() ?? 512,
+        encoding: const ml.RasterDemTerrariumEncoding(),
+      );
+    }
+    return ml.VectorSource(
+      id: id,
+      url: url,
+      maxZoom: (source['maxzoom'] as num?)?.toDouble() ?? 14,
+    );
+  }
+
+  /// Builds a typed [ml.StyleLayer] from a composed style's raw JSON layer
+  /// entry. Source-less `background` layers (never a region layer) and any
+  /// unsupported layer type return null so a future style-layer type
+  /// degrades gracefully instead of crashing.
+  ml.StyleLayer? _layerFromJson(Map layer) {
+    final type = layer['type'];
+    if (type == 'background') return null;
+
+    final id = layer['id'] as String;
+    final sourceId = layer['source'] as String;
+    final sourceLayerId = layer['source-layer'] as String?;
+    final paint = (layer['paint'] as Map?)?.cast<String, Object>() ?? const {};
+    final layout =
+        (layer['layout'] as Map?)?.cast<String, Object>() ?? const {};
+    final filter = (layer['filter'] as List?)?.cast<Object>();
+    final minZoom = (layer['minzoom'] as num?)?.toDouble() ?? 0;
+    final maxZoom = (layer['maxzoom'] as num?)?.toDouble() ?? 24;
+
+    switch (type) {
+      case 'fill':
+        return ml.FillStyleLayer(
+          id: id,
+          sourceId: sourceId,
+          sourceLayerId: sourceLayerId,
+          paint: paint,
+          layout: layout,
+          filter: filter,
+          minZoom: minZoom,
+          maxZoom: maxZoom,
+        );
+      case 'line':
+        return ml.LineStyleLayer(
+          id: id,
+          sourceId: sourceId,
+          sourceLayerId: sourceLayerId,
+          paint: paint,
+          layout: layout,
+          filter: filter,
+          minZoom: minZoom,
+          maxZoom: maxZoom,
+        );
+      case 'symbol':
+        return ml.SymbolStyleLayer(
+          id: id,
+          sourceId: sourceId,
+          sourceLayerId: sourceLayerId,
+          paint: paint,
+          layout: layout,
+          filter: filter,
+          minZoom: minZoom,
+          maxZoom: maxZoom,
+        );
+      case 'hillshade':
+        return ml.HillshadeStyleLayer(
+          id: id,
+          sourceId: sourceId,
+          paint: paint,
+          layout: layout,
+          minZoom: minZoom,
+          maxZoom: maxZoom,
+        );
+      default:
+        debugPrint(
+          'NavigationScreen: unsupported region layer type "$type" — skipped',
+        );
+        return null;
+    }
+  }
+
+  /// Incremental region swap (RENDER-02/RENDER-03 option-b, D-04/D-06):
+  /// recomputes the composed style for the LIVE `controller.getVisibleRegion()`
+  /// and diffs its source/layer ids against [_addedSourceIds]/[_addedLayerIds],
+  /// `addSource`/`addLayer`ing the newly-relevant ids and `removeLayer`/
+  /// `removeSource`ing the stale ones — never a full [ml.MapController.
+  /// setStyle] reload. Unlike `TrailMap`'s add-only reconcile (fixed trail
+  /// bounds), this screen's camera moves freely across a session, so a region
+  /// that scrolls off-viewport must be swapped OUT, not merely accumulated.
+  /// Hillshade layers are inserted below the first vector layer (25-01
+  /// finding 2). After any removal, force-repaints via a 1ms no-op camera
+  /// nudge (25-01 finding 1 — maplibre 0.3.5 does not auto-repaint after
+  /// removeSource/removeLayer).
+  Future<void> _reconcileRegionComposition() async {
+    final controller = _controller;
+    final style = controller?.style;
+    if (controller == null || style == null) return;
+
+    final bounds = controller.getVisibleRegion();
+    final tiles = ref
+        .read(tileRepositoryManagerProvider)
+        .localTilePathsForBounds(bounds);
+
+    Set<String> desiredSourceIds = const {};
+    Set<String> desiredLayerIds = const {};
+    Map<String, dynamic>? sources;
+    List<Map>? desiredRegionLayers;
+    String? firstVectorLayerId;
+
+    // Uncovered viewport: desired sets stay empty (blank basemap) — never
+    // call rewriteStyleForOffline with empty cellPaths (it throws). Skip
+    // straight to the removal pass below.
+    final uncoveredViewport = tiles.vectorPaths.isEmpty;
+    if (!uncoveredViewport) {
+      final baseJson = ref.read(mapStyleJsonProvider).value;
+      final cache = ref.read(glyphSpriteCacheProvider).value;
+      if (baseJson == null || cache == null) return;
+
+      Map<String, dynamic> composed;
+      try {
+        final decoded = jsonDecode(baseJson) as Map<String, dynamic>;
+        composed = rewriteStyleForOffline(
+          decoded,
+          cacheRoot: cache.root,
+          cellPaths: tiles.vectorPaths,
+          demCellPaths: tiles.demPaths,
+          dark:
+              effectiveBrightness(ref.read(themeModeProvider)) ==
+              Brightness.dark,
+        );
+      } catch (e) {
+        debugPrint('NavigationScreen: incremental region compose failed — $e');
+        return;
+      }
+
+      final composedSources = composed['sources'];
+      final composedLayers = composed['layers'];
+      if (composedSources is! Map<String, dynamic> || composedLayers is! List) {
+        return;
+      }
+      sources = composedSources;
+      desiredSourceIds = composedSources.keys.toSet();
+
+      desiredRegionLayers = [
+        for (final layer in composedLayers.whereType<Map>())
+          if (layer['source'] is String &&
+              desiredSourceIds.contains(layer['source']))
+            layer,
+      ];
+      desiredLayerIds = {
+        for (final layer in desiredRegionLayers) layer['id'] as String,
+      };
+
+      final firstVectorLayer = composedLayers.whereType<Map>().firstWhere(
+        (layer) => const {'fill', 'line', 'symbol'}.contains(layer['type']),
+        orElse: () => const {},
+      );
+      firstVectorLayerId = firstVectorLayer['id'] as String?;
+    }
+    // Else: uncovered viewport — desired sets stay empty (blank basemap);
+    // never call rewriteStyleForOffline with empty cellPaths (it throws).
+
+    // REMOVE stale first (Pitfall 3 — layers before sources).
+    var removedAny = false;
+    for (final id in _addedLayerIds.difference(desiredLayerIds).toList()) {
+      try {
+        await style.removeLayer(id);
+      } catch (e) {
+        debugPrint('NavigationScreen: removeLayer failed for "$id" — $e');
+      }
+      _addedLayerIds.remove(id);
+      removedAny = true;
+    }
+    for (final id in _addedSourceIds.difference(desiredSourceIds).toList()) {
+      try {
+        await style.removeSource(id);
+      } catch (e) {
+        debugPrint('NavigationScreen: removeSource failed for "$id" — $e');
+      }
+      _addedSourceIds.remove(id);
+      removedAny = true;
+    }
+
+    // ADD new (only relevant when the viewport is covered).
+    if (sources != null && desiredRegionLayers != null) {
+      for (final entry in sources.entries) {
+        final id = entry.key;
+        if (_addedSourceIds.contains(id)) continue;
+        final source = entry.value;
+        if (source is! Map) continue;
+        try {
+          final src = _sourceFromJson(id, source);
+          if (src != null) {
+            await style.addSource(src);
+            _addedSourceIds.add(id);
+          }
+        } catch (e) {
+          debugPrint('NavigationScreen: addSource failed for "$id" — $e');
+        }
+      }
+
+      for (final layer in desiredRegionLayers) {
+        final id = layer['id'] as String;
+        if (_addedLayerIds.contains(id)) continue;
+        final layerObj = _layerFromJson(layer);
+        if (layerObj == null) continue;
+        try {
+          if (layer['type'] == 'hillshade') {
+            await style.addLayer(layerObj, belowLayerId: firstVectorLayerId);
+          } else {
+            await style.addLayer(layerObj);
+          }
+          _addedLayerIds.add(id);
+        } catch (e) {
+          debugPrint('NavigationScreen: addLayer failed for "$id" — $e');
+        }
+      }
+    }
+
+    // 25-01 finding 1: maplibre 0.3.5 exposes no invalidate/redraw method —
+    // a removed layer otherwise stays visible on screen until the user's
+    // next tap/pan. Force a native repaint with a 1ms no-op camera nudge
+    // (identical camera, so nothing visibly moves). Duration(milliseconds: 1)
+    // is used deliberately, NEVER Duration.zero — the Android binding passes
+    // a zero duration to animateCamera as null, which throws.
+    if (removedAny) {
+      final cam = controller.getCamera();
+      await controller.animateCamera(
+        center: cam.center,
+        zoom: cam.zoom,
+        bearing: cam.bearing,
+        pitch: cam.pitch,
+        nativeDuration: const Duration(milliseconds: 1),
+      );
     }
   }
 
@@ -979,6 +1288,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     } catch (e) {
       debugPrint('NavigationScreen: onStyleLoaded failed — $e');
     }
+    // Reseed the region tracking sets from whatever's baked into the
+    // freshly-loaded style (initial mount or a theme-toggle setStyle) — the
+    // incremental region reconcile never calls setStyle itself, so this
+    // never drops the breadcrumb/track re-added above.
+    _seedRegionTracking(_lastStyleJson);
   }
 
   @override
@@ -995,6 +1309,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
     if (widget.isOffline) {
       ref.listen(glyphSpriteCacheProvider, (_, _) => _swapStyle());
+      // A region finishing download mid-navigation is applied incrementally
+      // (RESEARCH.md Pattern 1) — never a setStyle reload (D-06).
+      ref.listen(
+        regionListNotifierProvider,
+        (_, _) => _reconcileRegionComposition(),
+      );
     }
 
     // Breadcrumb in-place update: swap the native source's data on every new
@@ -1046,7 +1366,15 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       error ??= cacheAsync.error;
     }
 
-    final composed = _composeStyle(baseJson, cache);
+    // Seeds the viewport before the controller exists (first build,
+    // `_controller` is null): falls back to the trail's own bounds (where
+    // navigation starts). Once mounted, camera-idle reconciles from the live
+    // viewport instead (`_reconcileRegionComposition`).
+    final composed = _composeStyle(
+      baseJson,
+      cache,
+      _controller?.getVisibleRegion() ?? trailAsync.value?.bounds,
+    );
     if (composed != null) _lastStyleJson = composed;
     final styleJson = _lastStyleJson;
 
