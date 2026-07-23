@@ -16,6 +16,8 @@ import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/provider/region/tile_proxy_provider.dart';
+import 'package:wanderer/services/tile_proxy_server.dart';
 import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/util/navigation_launch_util.dart';
 
@@ -33,6 +35,7 @@ void main() async {
 
   final dbPath = p.join(appDocDir.path, "objectbox");
   final store = await openStore(directory: dbPath);
+  final proxyServer = await TileProxyServer.start(store);
 
   // store.box<TrailEntity>().removeAll();
 
@@ -51,6 +54,7 @@ void main() async {
     ProviderScope(
       overrides: [
         objectBoxProvider.overrideWithValue(store),
+        tileProxyBaseUrlProvider.overrideWithValue(proxyServer.baseUrl),
         cookieJarProvider.overrideWithValue(jar),
       ],
       child: MainApp(),
