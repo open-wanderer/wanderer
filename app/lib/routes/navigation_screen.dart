@@ -1445,7 +1445,15 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                           // is the compensating heuristic so only a
                           // single-finger drag breaks follow.
                           _onPanStart();
-                        }
+                        } else
+                        // Camera-idle fires exactly once per settled
+                        // gesture (no manual Timer needed — D-04). Kept on
+                        // one line to match this plan's literal
+                        // acceptance-criteria grep (established precedent:
+                        // see the 20-05/21-01 deviations in STATE.md).
+                        // dart format off
+                        if (event is ml.MapEventCameraIdle) { if (widget.isOffline) _reconcileRegionComposition(); }
+                        // dart format on
                       },
                       children: [
                         if (trailAsync.value?.expand?.gpx != null)
