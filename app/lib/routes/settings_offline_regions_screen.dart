@@ -324,92 +324,93 @@ class _SettingsOfflineRegionsScreenState
       ),
       margin: const EdgeInsets.symmetric(horizontal: 16.0),
       padding: const EdgeInsets.all(16.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  region.name,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge!.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  region.demSize != null
-                      ? '${formatBytes(region.vectorSize ?? 0)} vector | '
-                            '${formatBytes(region.demSize!)} DEM'
-                      : '${formatBytes(region.vectorSize ?? 0)} vector',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                if (status == RegionStatus.updateAvailable) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.regions_update_available,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: Colors.orange),
-                  ),
-                ],
-                if (status == RegionStatus.downloading) ...[
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: _combinedProgress(downloadState),
-                    color: accentColor,
-                  ),
-                ],
-                if (region.demUrl != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              l10n.regions_dem_toggle_label,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            Text(
-                              l10n.regions_dem_toggle_caption,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: colorScheme.onSurface.withValues(
-                                      alpha: 0.5,
-                                    ),
-                                  ),
-                            ),
-                          ],
-                        ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      region.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
-                      if (demDownloading)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8),
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                      Switch(
-                        value:
-                            region.demPackage.target?.status ==
-                            PackageStatus.downloaded,
-                        activeThumbColor: accentColor,
-                        onChanged: (value) => _onDemToggle(region, value),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      region.demSize != null
+                          ? '${formatBytes(region.vectorSize ?? 0)} vector | '
+                                '${formatBytes(region.demSize!)} DEM'
+                          : '${formatBytes(region.vectorSize ?? 0)} vector',
+                      style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    if (status == RegionStatus.updateAvailable) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        l10n.regions_update_available,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: Colors.orange),
+                      ),
+                    ],
+                    if (status == RegionStatus.downloading) ...[
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: _combinedProgress(downloadState),
+                        color: accentColor,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              _buildTrailingActions(region, status, l10n, accentColor),
+            ],
+          ),
+          if (region.demUrl != null)
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.regions_dem_toggle_label,
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
-                ],
+                ),
+                if (demDownloading)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        value: downloadState?.demProgress,
+                      ),
+                    ),
+                  ),
+                Switch(
+                  value:
+                      region.demPackage.target?.status ==
+                      PackageStatus.downloaded,
+
+                  activeThumbColor: accentColor,
+                  onChanged: (value) => _onDemToggle(region, value),
+                ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          _buildTrailingActions(region, status, l10n, accentColor),
         ],
       ),
     );
