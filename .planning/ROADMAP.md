@@ -508,7 +508,7 @@ Plans:
 **Requirements**: PROXY-01, PROXY-02, PROXY-03
 **Depends on:** Phase 25 (specifically 25-02's `TileRepositoryManager.localTilePathsForBounds` split; consumes it as the per-tile archive lookup source)
 **Risk gate:** Whether MapLibre Native reliably resolves loopback-HTTP tile sources while the device is offline (airplane mode) is unconfirmed and needs an on-device spike before committing to the full build — mirrors RENDER-03's spike in Phase 25. Regions can also overlap (bbox-only, no dedup today), so a per-tile "which archive wins" resolution rule needs to be designed; none exists yet.
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 **Wave 1**
@@ -518,7 +518,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 25.1-03-PLAN.md — On-device airplane-mode spike harness + blocking checkpoint:decision risk gate; no pre-scripted fallback per D-04 (PROXY-03)
+- [x] 25.1-03-PLAN.md — On-device airplane-mode spike harness + blocking checkpoint:decision risk gate; no pre-scripted fallback per D-04 (PROXY-03) — settled PROCEED on a physical Pixel 6
 
 **Wave 3** *(blocked on the spike passing)*
 

@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: executing
-stopped_at: "Task 1 complete (25.1-03), paused at Task 2 checkpoint:decision (PROXY-03 on-device airplane-mode spike)"
-last_updated: "2026-07-23T16:31:51.013Z"
-last_activity: 2026-07-23 -- Phase 25.1 execution started
+stopped_at: "25.1-03 complete (PROXY-03 PROCEED) -- ready to dispatch Wave 3 (25.1-04)"
+last_updated: "2026-07-23T18:45:00.000Z"
+last_activity: 2026-07-23 -- 25.1-03 complete, PROXY-03 settled PROCEED on-device
 progress:
   total_phases: 8
   completed_phases: 4
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 ## Current Position
 
 Phase: 25.1 (local-http-tile-proxy-for-region-based-offline-map-rendering) — EXECUTING
-Plan: 3 of 4
-Status: Paused at checkpoint:decision — Task 1 (spike harness) complete and committed; Task 2 (PROXY-03 on-device airplane-mode proceed/stop decision) awaits human on-device verification, per D-04 this is NOT auto-approvable
-Last activity: 2026-07-23 -- 25.1-03 Task 1 committed (d9bec784); awaiting Task 2 checkpoint:decision
+Plan: 3 of 4 — COMPLETE
+Status: 25.1-03 complete. PROXY-03 risk gate settled PROCEED on a physical Pixel 6 (full airplane mode confirmed load-bearing pass). Wave 3 (25.1-04-PLAN.md — start proxy in main.dart + rewire TrailMap/navigation_screen) is now unblocked and ready to dispatch.
+Last activity: 2026-07-23 -- 25.1-03 complete (commits d9bec784, 2f181fab); PROXY-03 marked Complete in REQUIREMENTS.md
 
 ## v1.6 Phases
 
@@ -110,6 +110,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 25 P04 | ~20min | 2 tasks | 1 files |
 | Phase 25.1 P01 | 4min | 2 tasks | 3 files |
 | Phase 25.1 P02 | 12min | 3 tasks | 9 files |
+| Phase 25.1 P03 | ~25min + on-device iteration | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -235,6 +236,7 @@ Recent decisions affecting current work:
 - [Phase 25, UAT]: Test 4 (navigation screen region-boundary pan swap) failed on-device: "hot swapping does not work... sometimes the map does not load at all, sometimes the trail layer disappears." Diagnosed root cause: `_reconcileRegionComposition` has no reentrancy guard, and `ml.MapEventCameraIdle` fires far more often on this screen than the "once per settled user gesture" assumption (D-04) it was built on, because `navigation_screen.dart` continuously drives the camera itself (`_pushCamera`, GPS-fix tween + heading-follow ticker) -- overlapping reconciles desync `_addedSourceIds`/`_addedLayerIds` from the real native style (asymmetric add/remove error handling compounds it). Full trace: `.planning/debug/navigation-screen-region-swap-broken.md`.
 - [Phase 25.1-01]: Doc comments explaining scoped platform network exceptions were reworded to avoid containing the literal forbidden strings their own negative-grep verify gates check for (usesCleartextTraffic, base-config, NSAllowsArbitraryLoads, NSLocalNetworkUsageDescription) -- same intent, adjusted phrasing, no scope change
 - [Phase 25.1]: [Phase 25.1] [25.1-02] resolveRegionForTile stays @visibleForTesting with an explicit ignore-comment at its one production call site in tile_proxy_server.dart — Keeps the pure-function unit-testability the plan's artifact spec asked for while allowing production use, mirroring the pmtiles package's own cross-file @visibleForTesting precedent (archive.dart's fromReadAt)
+- [Phase 25.1-03]: PROXY-03 settled PROCEED on a physical Pixel 6 via the on-device spike harness (`tile_proxy_spike_harness.dart`) — loopback HTTP tiles render reliably online, with radios off, and in full airplane mode (the load-bearing result). Test case (d) confirms Plan 04's mid-session refresh mechanism: reload regions + fly to the newly-covered area, no screen remount needed. Test case (e) confirms Plan 01's Android cleartext exception works correctly on-device (zero blocked errors in adb logcat).
 
 ### Roadmap Evolution
 
@@ -257,6 +259,7 @@ Recent decisions affecting current work:
 - **[v1.5 research flag]** `package:maplibre` 0.3.5's exact `MapGestures`/`MapOptions` pan/rotate-disable API surface is MEDIUM confidence (changelog/GitHub discussion, not a direct source read) — validate with a small spike early in Phase 19 before committing to the full drag-vs-pan gesture-arena solution.
 - **[v1.5 research flag]** The generation-counter/CancelToken race-guard pattern for out-of-order Valhalla responses is MEDIUM confidence against this project's exact pinned `riverpod_annotation` 4.0.2 — confirm the idiom during Phase 19 planning/execution.
 - [Phase 24 — RESOLVED 2026-07-23, user-verified] On-device physical verification of the Offline Maps/Regions screen is complete: user confirmed all tests pass and the phase is verified. Note the checklist itself changed post-completion (see REQUIREMENTS.md's SETUI-03/04 amendment and ROADMAP.md's Phase 24 amendment, commits `4732d20e`/`663f049a`/`5b06feed`): pause/resume was replaced by cancel-and-restart-from-0, and the DEM toggle was replaced by an independent, Vector-gated DEM tile. A later phase should verify against the amended criteria, not the original six-point checklist.
+- **[Phase 25.1-03 — found during PROXY-03 on-device spike, pre-existing, out of scope, NOT fixed]** `MapStyleSourcesNotifier` (`app/lib/provider/map_style_sources_provider.dart`, dates to Phase 15) makes an unconditional `GET /map/style-sources` call on every fresh `build()` with zero offline fallback or local cache, even when the glyph/sprite files it needs are already cached on disk. It's `@Riverpod(keepAlive: true)`, so once resolved successfully in a running session it stays cached for that session's lifetime — but a genuinely cold app launch/restart directly into an offline state can never resolve it, so `_composeStyle`/`_loadStyle` in both `trail_map.dart` and `navigation_screen.dart` fails at the glyph-cache step before any style composition happens. Equally affects current production code today; not introduced or worsened by Phase 25.1. Needs a future phase to add an offline/disk-cache fallback path to `MapStyleSourcesNotifier`.
 
 ### Quick Tasks Completed
 
@@ -328,6 +331,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-23T16:31:50.925Z
-Stopped at: Task 1 complete (25.1-03), paused at Task 2 checkpoint:decision (PROXY-03 on-device airplane-mode spike)
+Last session: 2026-07-23T18:45:00.000Z
+Stopped at: 25.1-03 complete (PROXY-03 PROCEED) -- ready to dispatch Wave 3 (25.1-04)
 Resume file: None
