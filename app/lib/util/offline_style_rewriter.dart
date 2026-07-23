@@ -235,6 +235,79 @@ const int _offlinePmtilesMaxZoom = 14;
 /// than the vector basemap's z14 — hillshading doesn't need that much detail.
 const int _offlineDemMaxZoom = 12;
 
+/// Rewrites the online base [style] into a static-loopback-XYZ offline style
+/// (PROXY-01) backed by the client-local tile proxy (`tile_proxy_server.dart`)
+/// instead of per-cell `pmtiles://file://` archives.
+///
+/// Unlike [rewriteStyleForOffline]'s N-cell duplication (see that function's
+/// doc comment), this transform emits exactly ONE vector source and ONE
+/// `raster-dem` source, each pointed at the proxy's fixed
+/// `<proxyBaseUrl>/vector/{z}/{x}/{y}.pbf` / `.../dem/{z}/{x}/{y}.png` XYZ
+/// template — the literal `{z}`/`{x}`/`{y}` tokens survive verbatim for
+/// native runtime substitution. No `__cellN` source/layer cloning is
+/// produced, because the proxy resolves per-tile coverage server-side
+/// ([resolveRegionForTile], `PROXY-02`) rather than the style needing to
+/// enumerate every downloaded region's archive up front.
+///
+/// `glyphs`/`sprite` are rewritten to `file://<cacheRoot>/...` identically to
+/// [rewriteStyleForOffline] (light vs dark honored via [dark]), and
+/// [cacheRoot] is validated via the same [_assertSafePath] used there.
+/// [proxyBaseUrl] must start with `http://127.0.0.1:` — any other base is
+/// rejected (defense in depth: this style must never point at a non-loopback
+/// host).
+///
+/// The input [style] is deep-copied before any mutation, matching
+/// [rewriteStyleForOffline]'s "never mutate the shared base style" invariant.
+///
+/// This legacy `rewriteStyleForOffline(cellPaths:...)` path is left intact —
+/// its deletion belongs to Phase 27 legacy cleanup, not this plan.
+Map<String, dynamic> rewriteStyleForProxy(
+  Map<String, dynamic> style, {
+  required String cacheRoot,
+  required String proxyBaseUrl,
+  bool dark = false,
+}) {
+  _assertSafePath(cacheRoot, 'cacheRoot');
+  if (!proxyBaseUrl.startsWith('http://127.0.0.1:')) {
+    throw ArgumentError.value(
+      proxyBaseUrl,
+      'proxyBaseUrl',
+      'must start with "http://127.0.0.1:" (loopback-only)',
+    );
+  }
+
+  // Deep copy so the shared online base style is never mutated in place.
+  final out = jsonDecode(jsonEncode(style)) as Map<String, dynamic>;
+
+  out['glyphs'] =
+      'file://${p.join(cacheRoot, 'glyphs', '{fontstack}', '{range}.pbf')}';
+  out['sprite'] = 'file://${spriteCacheBasePath(cacheRoot, dark: dark)}';
+
+  final sources = out['sources'];
+  if (sources is Map<String, dynamic>) {
+    for (final key in sources.keys.toList()) {
+      final source = sources[key];
+      if (source is! Map) continue;
+      final isTiled = source.containsKey('tiles') || source.containsKey('url');
+      if (!isTiled) continue;
+
+      final sourceMap = source as Map<String, dynamic>;
+      sourceMap.remove('url');
+      if (sourceMap['type'] == 'raster-dem') {
+        sourceMap['tiles'] = ['$proxyBaseUrl/dem/{z}/{x}/{y}.png'];
+        sourceMap['encoding'] = 'terrarium';
+        sourceMap['tileSize'] = 512;
+        sourceMap['maxzoom'] = _offlineDemMaxZoom;
+      } else {
+        sourceMap['tiles'] = ['$proxyBaseUrl/vector/{z}/{x}/{y}.pbf'];
+        sourceMap['maxzoom'] = _offlinePmtilesMaxZoom;
+      }
+    }
+  }
+
+  return out;
+}
+
 /// Repoints a single source [source] at the pmtiles archive at [cellPath]:
 /// drops any remote `tiles` template, sets `url` to `pmtiles://file://…`, and
 /// clamps `maxzoom` to the archive's actual depth (see
