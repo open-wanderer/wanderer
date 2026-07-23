@@ -33,6 +33,49 @@ bool bboxOverlaps({
       minLat > query.latitudeNorth);
 }
 
+/// Pure per-region split of local vector/DEM archive paths for every
+/// [regions] entry whose bbox overlaps [query] (RENDER-01) — the fix for
+/// `localTilePathsForBounds` previously returning ONE flat, untyped
+/// `List<String>` with vector and DEM paths interleaved and no
+/// discriminator. Returning two SEPARATE lists makes it structurally
+/// impossible for a DEM `.pmtiles` archive to be mis-fed into
+/// `rewriteStyleForOffline`'s vector `cellPaths` param (which would route it
+/// through the vector cell-duplication path instead of the DEM one —
+/// reproducing the bug class already found and fixed once in commit
+/// `3f67cf37`, quick-260711-lzb: "hillshadeSource swept into the vector-cell
+/// repoint path").
+///
+/// Takes an `Iterable<RegionEntity>` (not `_store`) so this "which list does
+/// a path land in" logic is unit-testable without a live ObjectBox store —
+/// mirrors the [bboxOverlaps] precedent. Regions whose vector/DEM package
+/// target is null (not downloaded) or whose bbox doesn't overlap [query]
+/// contribute nothing to either list.
+@visibleForTesting
+({List<String> vectorPaths, List<String> demPaths}) splitRegionTilePaths(
+  Iterable<RegionEntity> regions,
+  LngLatBounds query,
+) {
+  final vectorPaths = <String>[];
+  final demPaths = <String>[];
+  for (final region in regions) {
+    if (!bboxOverlaps(
+      minLon: region.minLon,
+      minLat: region.minLat,
+      maxLon: region.maxLon,
+      maxLat: region.maxLat,
+      query: query,
+    )) {
+      continue;
+    }
+
+    final vectorPath = region.vectorPackage.target?.localFilePath;
+    final demPath = region.demPackage.target?.localFilePath;
+    if (vectorPath != null) vectorPaths.add(vectorPath);
+    if (demPath != null) demPaths.add(demPath);
+  }
+  return (vectorPaths: vectorPaths, demPaths: demPaths);
+}
+
 /// Owns the region tile-repository download lifecycle (TILE-01..05,
 /// DEM-01/02): a fresh (never resumed) `.part` download for a region's
 /// vector and (independently) DEM archives, a disk-space pre-check before
@@ -249,29 +292,18 @@ class TileRepositoryManager {
   }
 
   /// Returns the local vector/DEM archive file paths for every downloaded
-  /// region whose bbox overlaps [query] (TILE-05) — feeds Phase 25's
-  /// viewport-based tile-reading pipeline. Regions whose vector/DEM package
-  /// target is null (not downloaded) or whose bbox doesn't overlap [query]
-  /// contribute nothing to the result.
-  List<String> localTilePathsForBounds(LngLatBounds query) {
-    final paths = <String>[];
-    for (final region in _store.box<RegionEntity>().getAll()) {
-      if (!bboxOverlaps(
-        minLon: region.minLon,
-        minLat: region.minLat,
-        maxLon: region.maxLon,
-        maxLat: region.maxLat,
-        query: query,
-      )) {
-        continue;
-      }
-
-      final vectorPath = region.vectorPackage.target?.localFilePath;
-      final demPath = region.demPackage.target?.localFilePath;
-      if (vectorPath != null) paths.add(vectorPath);
-      if (demPath != null) paths.add(demPath);
-    }
-    return paths;
+  /// region whose bbox overlaps [query] (TILE-05, RENDER-01) — feeds Phase
+  /// 25's viewport-based tile-reading pipeline. Vector and DEM paths are
+  /// returned as two SEPARATE lists (never merged into one), so they can
+  /// never be conflated when fed to `rewriteStyleForOffline`'s
+  /// `cellPaths`/`demCellPaths` params — see [splitRegionTilePaths]'s doc
+  /// comment for the exact bug class this prevents. Regions whose vector/DEM
+  /// package target is null (not downloaded) or whose bbox doesn't overlap
+  /// [query] contribute nothing to the result.
+  ({List<String> vectorPaths, List<String> demPaths}) localTilePathsForBounds(
+    LngLatBounds query,
+  ) {
+    return splitRegionTilePaths(_store.box<RegionEntity>().getAll(), query);
   }
 
   /// Cancels any in-flight vector/DEM download for [regionId], then removes
