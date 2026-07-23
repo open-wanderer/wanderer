@@ -59,7 +59,7 @@
 
 - [ ] **RENDER-01**: `TrailMap` and `navigation_screen` read offline tiles from the region registry via `TileRepositoryManager`, replacing trail-bound cache reads
 - [ ] **RENDER-02**: Style composition is viewport-scoped — only regions intersecting the current viewport contribute style sources, not every downloaded region unconditionally
-- [ ] **RENDER-03**: Before finalizing the rendering approach, verify maplibre 0.3.5's incremental source add/remove behavior (vs. full style reload) and layer-count scaling with a spike against the pinned package version
+- [x] **RENDER-03**: Before finalizing the rendering approach, verify maplibre 0.3.5's incremental source add/remove behavior (vs. full style reload) and layer-count scaling with a spike against the pinned package version
 
 ### Legacy Cleanup
 
@@ -128,7 +128,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUARD-04 | Phase 26 | Pending |
 | RENDER-01 | Phase 25 | Pending |
 | RENDER-02 | Phase 25 | Pending |
-| RENDER-03 | Phase 25 | Pending |
+| RENDER-03 | Phase 25 | Complete |
 | CLEAN-01 | Phase 27 | Pending |
 | CLEAN-02 | Phase 27 | Pending |
 

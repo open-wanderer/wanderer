@@ -489,7 +489,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 25-01-PLAN.md — RENDER-03 risk-gate spike: standalone on-device harness measuring full-reload vs incremental composition with 10-20 duplicated region source/layer sets; checkpoint:decision settles the strategy (RENDER-03)
+- [x] 25-01-PLAN.md — RENDER-03 risk-gate spike: standalone on-device harness measuring full-reload vs incremental composition with 10-20 duplicated region source/layer sets; checkpoint:decision settles the strategy (RENDER-03)
 - [ ] 25-02-PLAN.md — Fix the Critical Data-Shape Gap: split `localTilePathsForBounds` into a typed `({vectorPaths, demPaths})` record via a `@visibleForTesting splitRegionTilePaths` helper + unit test + harness call-site update (RENDER-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -565,6 +565,6 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 22. Region & Package Data Model | v1.6 | 2/2 | Complete   | 2026-07-22 |
 | 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
-| 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 0/4 | Not started | - |
+| 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 1/4 | In Progress|  |
 | 26. Trail Download Guard | v1.6 | 0/TBD | Not started | - |
 | 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |

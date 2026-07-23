@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: executing
-stopped_at: 25-01 Task 1 complete (spike harness built); paused at Task 2 checkpoint:decision (RENDER-03 composition strategy) awaiting on-device measurement
-last_updated: "2026-07-23T11:15:57.889Z"
-last_activity: 2026-07-23 -- 25-01 Task 1 committed (f202e2de); blocked on human on-device RENDER-03 checkpoint
+stopped_at: "25-01 complete (RENDER-03 settled: incremental strategy selected); Wave 2 (25-03/25-04) needs revision before execution per two on-device findings"
+last_updated: "2026-07-23T12:03:09.124Z"
+last_activity: 2026-07-23 -- 25-01 complete (Task 1 commit f202e2de; Task 2 decision recorded, RENDER-03 settled on incremental strategy); see 25-01-SUMMARY.md
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 20
-  completed_plans: 15
+  completed_plans: 16
   percent: 43
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 ## Current Position
 
 Phase: 25 (map-rendering-region-based-viewport-pipeline) — EXECUTING
-Plan: 1 of 4
-Status: 25-01 Task 1/2 complete; PAUSED at Task 2 `checkpoint:decision` (gate="blocking") — requires human on-device RENDER-03 measurement (N=10 and N=20 on a physical mid-tier Android phone) via `app/test/services/region_render_spike_harness.dart`. Not eligible for auto-approval.
-Last activity: 2026-07-23 -- Committed 25-01 Task 1 (region_render_spike_harness.dart, f202e2de); awaiting checkpoint resume
+Plan: 2 of 4
+Status: EXECUTING — 25-01 finished (both tasks done; RENDER-03 settled, incremental composition strategy selected). 25-02 not yet started. Wave 2 (25-03/25-04) needs revision before execution — two on-device findings from 25-01 (repaint-on-remove gap, hillshade z-order gap) require design changes, to be handled as a separate follow-up step.
+Last activity: 2026-07-23 -- 25-01 complete (Task 1 commit f202e2de; Task 2 decision recorded, RENDER-03 settled on incremental strategy); see 25-01-SUMMARY.md
 
 ## v1.6 Phases
 
@@ -103,6 +103,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 24 P02 | 15min | 3 tasks | 4 files |
 | Phase 24 P03 | 6min | 1 tasks | 4 files |
 | Phase 24 P04 | 10min | 2 tasks | 3 files |
+| Phase 25 P01 | 25min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -220,6 +221,7 @@ Recent decisions affecting current work:
 - [Phase 24]: [24-02] Size-breakdown row text (vector/DEM) is a hardcoded English literal per Plan 01's own l10n scope, matching UI-SPEC's example copy verbatim
 - [Phase 24]: [24-03] meta promoted from dependency_overrides-only to a direct pubspec dependency — @visibleForTesting on the new resolveFreeDiskSpaceBytes orchestrator imports package:meta/meta.dart directly, and flutter analyze flagged the override-only state
 - [Phase 24]: [24-04] resolveRowStatus falls back to persisted region.status for DEM-only downloads so region.status keeps tracking only the vector package lifecycle and UAT test 2 (SETUI-04) isn't regressed
+- [Phase 25-01]: RENDER-03 settled: incremental addSource/removeSource/addLayer/removeLayer selected over full-style-reload after on-device testing showed it avoids full-reload flicker; two Wave 2 follow-ups flagged (explicit repaint after removeSource/removeLayer; hillshade z-order insertion position needed)
 
 ### Pending Todos
 
@@ -309,6 +311,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-23T11:15:57.889Z
-Stopped at: 25-01 Task 1 complete (spike harness built, commit f202e2de); paused at Task 2 `checkpoint:decision` (gate="blocking") -- RENDER-03 composition strategy requires human on-device measurement (N=10 and N=20 on a physical mid-tier Android phone) via `app/test/services/region_render_spike_harness.dart`, per this plan's `<important_note>` this cannot be auto-approved
-Resume file: .planning/phases/25-map-rendering-region-based-viewport-pipeline/25-01-PLAN.md
+Last session: 2026-07-23T12:02:11.157Z
+Stopped at: 25-01 complete (RENDER-03 settled: incremental strategy selected); Wave 2 (25-03/25-04) needs revision before execution per two on-device findings
+Resume file: None
