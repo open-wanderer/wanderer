@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 25-map-rendering-region-based-viewport-pipeline
 source: [25-VERIFICATION.md]
 started: 2026-07-23T13:15:00Z
@@ -54,7 +54,12 @@ blocked: 0
   reason: "User reported: The hot swapping does not work in navigation screen. Sometimes the map does not load at all, sometimes the trail layer disappears."
   severity: major
   test: 4
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "_reconcileRegionComposition() has no reentrancy guard. ml.MapEventCameraIdle was wired assuming it fires once per settled user gesture (the map_screen.dart precedent), but navigation_screen.dart also drives the camera continuously and programmatically via _pushCamera() (called from the 200ms GPS-fix position tween in _applyAnimatedFrame and from _onBearingFollowTick while heading-up follow is active), each of which re-fires MapEventCameraIdle and re-triggers the reconcile fire-and-forget with no coalescing. The REMOVE loop unconditionally advances _addedSourceIds/_addedLayerIds even when removeLayer/removeSource throws, while the ADD loop only advances tracking state on success -- this asymmetry lets overlapping reconciles desync the Dart-side tracking sets from the real native style, producing either a silently-failed/never-retried add (map does not load) or a race against a concurrent _swapStyle() setStyle call that wipes and re-adds trail/breadcrumb layers (trail layer disappears). Independently predicted by 25-REVIEW.md's WR-03 finding. A region/trail layer-id naming collision was investigated and ruled out."
+  artifacts:
+    - path: "app/lib/routes/navigation_screen.dart"
+      issue: "_reconcileRegionComposition has no in-flight/reentrancy guard; onEvent's MapEventCameraIdle branch over-triggers due to continuous _pushCamera calls during active navigation follow; REMOVE loop mutates tracking sets unconditionally while ADD loop only mutates on success (asymmetric, self-desyncing error handling)"
+  missing:
+    - "In-flight guard so overlapping _reconcileRegionComposition calls coalesce/no-op instead of interleaving"
+    - "Symmetric tracking-set mutation (only advance on verified success, or re-derive from native truth via style.getLayerIds() instead of an optimistic diff)"
+    - "Gate/suppress camera-idle-triggered reconcile while navigation's own continuous camera-follow (_followEnabled) is active, since raw MapEventCameraIdle is not a valid debounce signal on this screen"
+  debug_session: ".planning/debug/navigation-screen-region-swap-broken.md"
