@@ -352,8 +352,8 @@ Plans:
 
 - [x] **Phase 21.5: Region Catalog & Archive Pre-Build (Backend)** - Go backend reads an admin-supplied, Docker-volume-mounted config file defining this instance's regions, a cronjob pre-builds one mosaicked vector PMTiles + one DEM archive per region, and an API endpoint serves the resulting catalog (completed 2026-07-21)
 - [x] **Phase 22: Region & Package Data Model** - App-side region manifest (fetched from Phase 21.5's API, not bundled) and ObjectBox `Region`/`DownloadedTilePackage` entities with an explicit-int status enum (completed 2026-07-22)
-- [x] **Phase 23: TileRepositoryManager — Download Engine** - Resumable, disk-safe, backgrounding-aware region downloads plus a bbox-to-local-paths query, fully decoupled from Trail (completed 2026-07-22)
-- [x] **Phase 24: Settings — Offline Maps/Regions UI** - Flat searchable region list with download/pause/resume/delete, DEM toggle, and total disk usage (completed 2026-07-22)
+- [x] **Phase 23: TileRepositoryManager — Download Engine** - Disk-safe region downloads plus a bbox-to-local-paths query, fully decoupled from Trail (completed 2026-07-22; amended 2026-07-23 — pause/resume/backgrounding-pause replaced by cancel-and-restart-from-0, see Phase 23 note)
+- [x] **Phase 24: Settings — Offline Maps/Regions UI** - Flat searchable region list, independent Vector/DEM tiles with download/cancel/delete and total disk usage (completed 2026-07-22; amended 2026-07-23 — DEM toggle replaced by a gated DEM tile, see Phase 24 note)
 - [ ] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** - `TrailMap`/`navigation_screen` read region tiles through a viewport-scoped style pipeline, settled by a maplibre 0.3.5 spike
 - [ ] **Phase 26: Trail Download Guard** - Trail downloads check region coverage first, naming missing regions with an inline download CTA
 - [ ] **Phase 27: Legacy Cleanup** - Trail-scoped tile code deleted outright, orphaned legacy files swept on first launch
@@ -422,15 +422,17 @@ Plans:
 
 ### Phase 23: TileRepositoryManager — Download Engine
 
-**Goal**: A region's vector and DEM tile packages can be downloaded, paused, resumed, and deleted through one app-wide manager, safely and independent of any Trail.
+> **Amended 2026-07-23** (post-completion, no new phase): pause/resume was removed entirely — Dio's `deleteOnError` deletes the `.part` file on ANY cancellation (deliberate pause included, not just genuine errors), so the first pause of a fresh download destroyed its own resume progress. Replaced with cancel-deletes-and-restarts-from-0 (commits `3adeb11c`, `4732d20e`). Criteria 1/2/4 below are historical (what Phase 23 originally shipped) — see TILE-01/02/04 in REQUIREMENTS.md for current behavior. Do not treat this as an unresolved gap in a later phase.
+
+**Goal**: A region's vector and DEM tile packages can be downloaded and deleted through one app-wide manager, safely and independent of any Trail. ~~paused, resumed,~~ (superseded, see amendment above)
 **Depends on**: Phase 22
 **Requirements**: TILE-01, TILE-02, TILE-03, TILE-04, TILE-05, DEM-01, DEM-02
 **Success Criteria** (what must be TRUE):
 
-  1. `TileRepositoryManager` starts, pauses, resumes, and deletes a region's vector download (fetching the pre-built archive from Phase 21.5's catalog API); the DEM download fetches that region's pre-built DEM archive from the same catalog, toggled independently of the vector package.
-  2. Interrupting an in-progress region download and resuming it continues from a partial file via HTTP Range + `FileAccessMode.append`, not from byte 0, within the same app session (no cross-restart resume).
+  1. ~~`TileRepositoryManager` starts, pauses, resumes, and deletes a region's vector download~~ — superseded: starts, cancels, and deletes. The DEM download fetches that region's pre-built DEM archive from the same catalog, independently of the vector package.
+  2. ~~Interrupting an in-progress region download and resuming it continues from a partial file via HTTP Range + `FileAccessMode.append`, not from byte 0, within the same app session (no cross-restart resume).~~ — superseded: there is no resume, at any level. Cancelling always deletes the `.part` file; a later download always restarts from byte 0.
   3. Before each file write, available disk space is checked with a safety margin; a download that would exceed it is refused with a specific state rather than partially writing a corrupt file.
-  4. The app backgrounding mid-download (iOS suspension / Android Doze) leaves the download in a deliberate paused state that resumes cleanly on foreground, not a silently dead transfer.
+  4. ~~The app backgrounding mid-download... leaves the download in a deliberate paused state that resumes cleanly on foreground~~ — superseded: there is no pause state. Downloads keep running in the background as long as the OS allows; if the OS kills the transfer, it ends in `error`, retryable by the user.
   5. `localTilePathsForBounds(bbox)` returns the local vector/DEM file paths for every downloaded region intersecting a given bounding box, ready for map rendering to consume.
 
 **Plans**: 6 plans (4 waves)
@@ -446,6 +448,8 @@ Plans:
 
 ### Phase 24: Settings — Offline Maps/Regions UI
 
+> **Amended 2026-07-23** (post-completion, no new phase): the single-row-with-DEM-toggle design was replaced by two independent list tiles per region — Vector and Elevation data — each with its own download/cancel/delete action and progress bar (commit `4732d20e`). The DEM tile is additionally gated on Vector being `downloaded`/`updateAvailable` — hillshading without a basemap underneath it doesn't make sense — showing a disabled download button + explanatory subtitle until then (commit `663f049a`). Criteria 3/4 below are historical; see SETUI-03/04 in REQUIREMENTS.md for current behavior. Do not treat this as an unresolved gap in a later phase.
+
 **Goal**: A user can discover, download, manage, and monitor offline regions entirely from Settings.
 **Depends on**: Phase 23
 **Requirements**: SETUI-01, SETUI-02, SETUI-03, SETUI-04, SETUI-05, SETUI-06
@@ -453,8 +457,8 @@ Plans:
 
   1. From Settings, a user opens "Offline Maps/Regions" and sees a flat, searchable list of every bundled region (no hierarchical tree).
   2. Each region row shows its name, current 4-state status, and a size breakdown (vector vs DEM) visible before any download starts.
-  3. A user can download, pause, resume, or delete a region directly from its row, with visible progress while downloading.
-  4. Each region row has its own DEM toggle, presented as the optional/adds-size choice, independent of the vector download.
+  3. ~~A user can download, pause, resume, or delete a region directly from its row, with visible progress while downloading.~~ — superseded: a user can download, cancel, or delete Vector and DEM independently, each with its own visible progress bar. No pause/resume (see amendment above).
+  4. ~~Each region row has its own DEM toggle, presented as the optional/adds-size choice, independent of the vector download.~~ — superseded: DEM is its own tile with its own download/cancel/delete action, disabled until Vector is downloaded (see amendment above). Deleting Vector still cascades to delete DEM.
   5. The screen shows a total disk usage summary across all downloaded regions.
   6. A region with `updateAvailable` status shows a non-blocking badge with an optional user-triggered "update" action, and continues to appear/behave as downloaded while the badge is shown.
 

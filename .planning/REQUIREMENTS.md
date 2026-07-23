@@ -24,10 +24,12 @@
 
 ### Tile Repository (Download Engine)
 
-- [x] **TILE-01**: `TileRepositoryManager` service owns region download lifecycle (start/pause/resume/delete), fully decoupled from `Trail`
-- [x] **TILE-02**: Region downloads are resumable within a session via HTTP Range requests + Dio `FileAccessMode.append` (no cross-restart resume)
+> **Amended 2026-07-23** (post-Phase-24, no new phase): pause/resume was removed from the download engine entirely and replaced with cancel-deletes-and-restarts-from-0. Root cause: Dio's native `deleteOnError` handler deletes the `.part` file on ANY cancellation — including a deliberate pause — not just genuine errors, so the very first pause of a fresh download silently destroyed its own resume progress (see commit `3adeb11c`). Rather than work around that footgun, pause/resume/Range-resume/backgrounding-auto-pause were dropped in favor of the simpler cancel semantics below (commit `4732d20e`). TILE-01/02/04 below reflect the current, amended behavior — do NOT flag pause/resume as missing in a later phase.
+
+- [x] **TILE-01**: `TileRepositoryManager` service owns region download lifecycle (start/cancel/delete), fully decoupled from `Trail` — no pause/resume (amended 2026-07-23, see note above)
+- [x] **TILE-02**: ~~Region downloads are resumable within a session via HTTP Range requests + Dio `FileAccessMode.append` (no cross-restart resume)~~ — **superseded 2026-07-23**: downloads are never resumable now, at any level. Cancelling (deliberate or a genuine transfer error) always deletes the `.part` file via `deleteOnError: true`; a later download attempt always restarts from byte 0. See amendment note above.
 - [x] **TILE-03**: Disk-space is checked with a safety margin before each file download in a region, before writing begins
-- [x] **TILE-04**: App backgrounding mid-download (iOS suspension / Android Doze) is treated as a deliberate pause, not a silent failure
+- [x] **TILE-04**: ~~App backgrounding mid-download (iOS suspension / Android Doze) is treated as a deliberate pause, not a silent failure~~ — **superseded 2026-07-23**: there is no pause state to enter. The `AppLifecycleListener`-driven auto-pause-on-background was removed; downloads keep running in the background as long as the OS allows the transfer to continue, and if the OS kills it, it simply ends in an `error` state the user can retry. See amendment note above.
 - [x] **TILE-05**: A bbox-based query (`localTilePathsForBounds`) returns local vector/DEM file paths covering a given area, for use by map rendering
 
 ### DEM Support
@@ -37,10 +39,12 @@
 
 ### Settings — Offline Maps/Regions UI
 
+> **Amended 2026-07-23** (post-Phase-24, no new phase): the single-row-with-DEM-toggle design was replaced by two independent list tiles per region — Vector and Elevation data — each with its own download/cancel/delete action and progress bar (commit `4732d20e`). The DEM tile's download action is additionally gated on the Vector tile being `downloaded`/`updateAvailable`: hillshading without a basemap underneath it is meaningless, so DEM can no longer be downloaded before Vector (commit `663f049a`). SETUI-03/04 below reflect the current, amended behavior — do NOT flag "no DEM toggle" or "no pause/resume" as gaps in a later phase.
+
 - [x] **SETUI-01**: Settings → Offline Maps/Regions screen shows a flat, searchable region list (no hierarchical tree)
 - [x] **SETUI-02**: Each region row shows name, 4-state status, and size breakdown (vector vs DEM) shown before download starts
-- [x] **SETUI-03**: Download / pause / resume / delete actions available per region
-- [x] **SETUI-04**: Per-region DEM toggle control, clearly presented as the optional/adds-size choice
+- [x] **SETUI-03**: ~~Download / pause / resume / delete actions available per region~~ — **superseded 2026-07-23**: Download / cancel / delete actions available per region, independently for Vector and DEM (no pause/resume — see TILE-01/02/04 amendment). Cancelling always deletes progress; a later download restarts from byte 0.
+- [x] **SETUI-04**: ~~Per-region DEM toggle control, clearly presented as the optional/adds-size choice~~ — **superseded 2026-07-23**: DEM is its own list tile (not a toggle), with its own download/cancel/delete action, disabled with an explanatory subtitle ("Download map data first") until the Vector tile is downloaded. Deleting Vector still cascades to delete DEM.
 - [x] **SETUI-05**: Total disk usage summary shown on the region list screen
 - [x] **SETUI-06**: `updateAvailable` regions show a non-blocking badge/label with an optional user-triggered update action — region continues to render/route normally while the badge is shown
 
@@ -85,7 +89,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | Admin UI/API for region catalog CRUD | v1.6 region definition is a config file mounted via Docker volume, edited by redeploying; a settings/admin screen for live editing is deferred |
 | Polygon region geometries | v1.6 regions are bounding-box only; arbitrary polygon boundaries add geometry-processing complexity with no functional download benefit |
 | 3D terrain/hillshade rendering redesign | v1.6 only relocates the existing DEM download/storage pipeline to be region-based; `offline_style_rewriter.dart`'s hillshade rendering is reused as-is |
-| Background/resumable downloads across app restarts | Session-scoped pause/resume only — cross-restart resume is a documented source of bugs even in mature apps (OsmAnd) |
+| Resumable downloads, of any kind | Originally session-scoped pause/resume only (cross-restart resume excluded as a documented OsmAnd bug source); amended 2026-07-23 to drop resume entirely — Dio's `deleteOnError` treats a deliberate pause identically to a genuine transfer error and deletes the `.part` file either way (see TILE-01/02/04 amendment note), so cancel-and-restart-from-0 replaced pause/resume outright |
 | Hierarchical region tree navigation | Manifest is tens of entries, not thousands — a flat searchable list is the right complexity |
 | Granular per-layer toggles beyond vector/DEM | No reviewed hiking app exposes finer-grained toggles (roads/POIs/water) at the region-download level |
 | Map boundary highlight overlay | Nice differentiator, deferred to v1.x (REGN-F01) |
