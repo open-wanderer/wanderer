@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: executing
-stopped_at: "25-01 complete (RENDER-03 settled: incremental strategy selected); Wave 2 (25-03/25-04) needs revision before execution per two on-device findings"
-last_updated: "2026-07-23T12:03:09.124Z"
+stopped_at: "25-02 complete (RENDER-01 closed: typed vector/DEM split); Wave 2 (25-03/25-04) still needs revision before execution per two on-device findings from 25-01"
+last_updated: "2026-07-23T12:09:16.135Z"
 last_activity: 2026-07-23 -- 25-01 complete (Task 1 commit f202e2de; Task 2 decision recorded, RENDER-03 settled on incremental strategy); see 25-01-SUMMARY.md
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 20
-  completed_plans: 16
+  completed_plans: 17
   percent: 43
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 ## Current Position
 
 Phase: 25 (map-rendering-region-based-viewport-pipeline) — EXECUTING
-Plan: 2 of 4
-Status: EXECUTING — 25-01 finished (both tasks done; RENDER-03 settled, incremental composition strategy selected). 25-02 not yet started. Wave 2 (25-03/25-04) needs revision before execution — two on-device findings from 25-01 (repaint-on-remove gap, hillshade z-order gap) require design changes, to be handled as a separate follow-up step.
-Last activity: 2026-07-23 -- 25-01 complete (Task 1 commit f202e2de; Task 2 decision recorded, RENDER-03 settled on incremental strategy); see 25-01-SUMMARY.md
+Plan: 3 of 4
+Status: EXECUTING — 25-01 and 25-02 finished. 25-02 closed the RENDER-01 blocker: localTilePathsForBounds now returns a typed ({vectorPaths, demPaths}) record via a unit-tested splitRegionTilePaths helper. Wave 2 (25-03/25-04) still needs revision before execution — two on-device findings from 25-01 (repaint-on-remove gap, hillshade z-order gap) require design changes, to be handled as a separate follow-up step.
+Last activity: 2026-07-23 -- 25-02 complete (Task 1 TDD: test 4b3368bf -> feat 5d639a5c; Task 2 fix 92bd26af); see 25-02-SUMMARY.md
 
 ## v1.6 Phases
 
@@ -104,6 +104,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 24 P03 | 6min | 1 tasks | 4 files |
 | Phase 24 P04 | 10min | 2 tasks | 3 files |
 | Phase 25 P01 | 25min | 2 tasks | 1 files |
+| Phase 25 P02 | 10min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -222,6 +223,7 @@ Recent decisions affecting current work:
 - [Phase 24]: [24-03] meta promoted from dependency_overrides-only to a direct pubspec dependency — @visibleForTesting on the new resolveFreeDiskSpaceBytes orchestrator imports package:meta/meta.dart directly, and flutter analyze flagged the override-only state
 - [Phase 24]: [24-04] resolveRowStatus falls back to persisted region.status for DEM-only downloads so region.status keeps tracking only the vector package lifecycle and UAT test 2 (SETUI-04) isn't regressed
 - [Phase 25-01]: RENDER-03 settled: incremental addSource/removeSource/addLayer/removeLayer selected over full-style-reload after on-device testing showed it avoids full-reload flicker; two Wave 2 follow-ups flagged (explicit repaint after removeSource/removeLayer; hillshade z-order insertion position needed)
+- [Phase 25-02]: Split localTilePathsForBounds into a typed ({vectorPaths, demPaths}) record via a new @visibleForTesting splitRegionTilePaths pure helper, closing the RENDER-01 conflation gap before Wave 2 wiring — Makes DEM-into-vector-cell conflation structurally impossible at the type level, unit-tested without a live ObjectBox store
 
 ### Pending Todos
 
@@ -311,6 +313,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-23T12:02:11.157Z
-Stopped at: 25-01 complete (RENDER-03 settled: incremental strategy selected); Wave 2 (25-03/25-04) needs revision before execution per two on-device findings
+Last session: 2026-07-23T12:09:16.120Z
+Stopped at: 25-02 complete (RENDER-01 closed: typed vector/DEM split); Wave 2 (25-03/25-04) still needs revision before execution per two on-device findings from 25-01
 Resume file: None
