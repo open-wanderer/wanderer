@@ -182,4 +182,137 @@ void main() {
       expect(result.demPaths, ['/abs/d2.pmtiles']);
     });
   });
+
+  group('resolveRegionForTile', () {
+    // A tile bbox inside every region built below.
+    const tileBounds = LngLatBounds(
+      longitudeWest: 4,
+      longitudeEast: 6,
+      latitudeSouth: 4,
+      latitudeNorth: 6,
+    );
+    // Disjoint from every region built below.
+    const outsideTileBounds = LngLatBounds(
+      longitudeWest: 50,
+      longitudeEast: 51,
+      latitudeSouth: 50,
+      latitudeNorth: 51,
+    );
+
+    RegionEntity region({
+      required String id,
+      double minLon = 0,
+      double minLat = 0,
+      double maxLon = 10,
+      double maxLat = 10,
+    }) => RegionEntity(
+      id: id,
+      name: id,
+      minLon: minLon,
+      minLat: minLat,
+      maxLon: maxLon,
+      maxLat: maxLat,
+    );
+
+    test('smallest-bbox-area overlapping region wins (D-02)', () {
+      final big = region(id: 'big', minLon: -50, minLat: -50, maxLon: 50, maxLat: 50)
+        ..vectorPackage.target = DownloadedTilePackageEntity(
+          localFilePath: '/abs/big.pmtiles',
+        );
+      final small = region(id: 'small', minLon: 0, minLat: 0, maxLon: 10, maxLat: 10)
+        ..vectorPackage.target = DownloadedTilePackageEntity(
+          localFilePath: '/abs/small.pmtiles',
+        );
+
+      final winner = resolveRegionForTile([big, small], tileBounds, dem: false);
+
+      expect(winner?.id, 'small');
+    });
+
+    test('a region overlapping the tile with a null package target is not a candidate', () {
+      final noPackage = region(id: 'no-package'); // vectorPackage.target stays null
+      final withPackage =
+          region(id: 'with-package', minLon: -50, minLat: -50, maxLon: 50, maxLat: 50)
+            ..vectorPackage.target = DownloadedTilePackageEntity(
+              localFilePath: '/abs/with-package.pmtiles',
+            );
+
+      final winner =
+          resolveRegionForTile([noPackage, withPackage], tileBounds, dem: false);
+
+      expect(winner?.id, 'with-package');
+    });
+
+    test('equal-area overlapping candidates: most-recent downloadedAtUtc wins (D-03)', () {
+      final older = region(id: 'older')
+        ..vectorPackage.target = DownloadedTilePackageEntity(
+          localFilePath: '/abs/older.pmtiles',
+          downloadedAtUtc: DateTime.utc(2026, 1, 1),
+        );
+      final newer = region(id: 'newer')
+        ..vectorPackage.target = DownloadedTilePackageEntity(
+          localFilePath: '/abs/newer.pmtiles',
+          downloadedAtUtc: DateTime.utc(2026, 6, 1),
+        );
+
+      final winner = resolveRegionForTile([older, newer], tileBounds, dem: false);
+
+      expect(winner?.id, 'newer');
+    });
+
+    test('equal-area tie: a null downloadedAtUtc sorts as epoch-zero and loses', () {
+      final undated = region(id: 'undated')
+        ..vectorPackage.target = DownloadedTilePackageEntity(
+          localFilePath: '/abs/undated.pmtiles',
+        );
+      final dated = region(id: 'dated')
+        ..vectorPackage.target = DownloadedTilePackageEntity(
+          localFilePath: '/abs/dated.pmtiles',
+          downloadedAtUtc: DateTime.utc(2020, 1, 1),
+        );
+
+      final winner = resolveRegionForTile([undated, dated], tileBounds, dem: false);
+
+      expect(winner?.id, 'dated');
+    });
+
+    test('dem:true resolves against demPackage; a vector-only region is not a DEM candidate', () {
+      final vectorOnly = region(id: 'vector-only')
+        ..vectorPackage.target = DownloadedTilePackageEntity(
+          localFilePath: '/abs/vector-only.pmtiles',
+        );
+      final demRegion = region(id: 'dem-region', minLon: -50, minLat: -50, maxLon: 50, maxLat: 50)
+        ..demPackage.target = DownloadedTilePackageEntity(
+          localFilePath: '/abs/dem-region.pmtiles',
+        );
+
+      final winner =
+          resolveRegionForTile([vectorOnly, demRegion], tileBounds, dem: true);
+
+      expect(winner?.id, 'dem-region');
+    });
+
+    test('dem:false resolves against vectorPackage; a DEM-only region is not a vector candidate', () {
+      final demOnly = region(id: 'dem-only')
+        ..demPackage.target = DownloadedTilePackageEntity(
+          localFilePath: '/abs/dem-only.pmtiles',
+        );
+
+      final winner = resolveRegionForTile([demOnly], tileBounds, dem: false);
+
+      expect(winner, isNull);
+    });
+
+    test('no overlapping downloaded region -> returns null', () {
+      final r = region(id: 'r')
+        ..vectorPackage.target = DownloadedTilePackageEntity(
+          localFilePath: '/abs/r.pmtiles',
+        );
+
+      final winner =
+          resolveRegionForTile([r], outsideTileBounds, dem: false);
+
+      expect(winner, isNull);
+    });
+  });
 }

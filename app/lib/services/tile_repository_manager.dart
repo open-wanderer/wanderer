@@ -76,6 +76,67 @@ bool bboxOverlaps({
   return (vectorPaths: vectorPaths, demPaths: demPaths);
 }
 
+/// Pure per-tile winner resolution among overlapping downloaded regions
+/// (PROXY-02, D-02/D-03) — sibling to [bboxOverlaps]/[splitRegionTilePaths],
+/// called once per incoming tile-proxy HTTP request (`tile_proxy_server.dart`)
+/// rather than per viewport, so it must stay cheap.
+///
+/// Filters [regions] to those whose requested-kind package ([dem] selects
+/// [RegionEntity.demPackage] vs [RegionEntity.vectorPackage]) has a non-null
+/// `localFilePath` AND whose bbox overlaps [tileBounds] (via [bboxOverlaps]).
+/// A region overlapping the tile but whose requested package target is null
+/// (not downloaded) is NOT a candidate. Returns `null` when no candidate
+/// remains.
+///
+/// Among overlapping candidates, the winner is the SMALLEST planar bbox area
+/// (`(maxLon-minLon)*(maxLat-minLat)`) — the most specific/local region wins
+/// over a broader one that happens to also cover the same spot (D-02). Plain
+/// planar degree² area is deliberate, not a great-circle/projected area:
+/// regions are hand-curated, admin-defined bboxes, not user-drawn shapes, so
+/// latitude-dependent distortion is irrelevant to the "which region feels
+/// more local" UX intent (RESEARCH.md Assumption A1). Ties in area are broken
+/// by the requested package's `downloadedAtUtc` descending — most-recently-
+/// downloaded wins (D-03); a candidate whose package `downloadedAtUtc` is
+/// null sorts as epoch-zero (loses to any dated one).
+@visibleForTesting
+RegionEntity? resolveRegionForTile(
+  Iterable<RegionEntity> regions,
+  LngLatBounds tileBounds, {
+  required bool dem,
+}) {
+  final candidates = regions.where((region) {
+    final target = dem ? region.demPackage.target : region.vectorPackage.target;
+    if (target?.localFilePath == null) return false;
+    return bboxOverlaps(
+      minLon: region.minLon,
+      minLat: region.minLat,
+      maxLon: region.maxLon,
+      maxLat: region.maxLat,
+      query: tileBounds,
+    );
+  }).toList();
+
+  if (candidates.isEmpty) return null;
+
+  candidates.sort((a, b) {
+    final areaA = (a.maxLon - a.minLon) * (a.maxLat - a.minLat);
+    final areaB = (b.maxLon - b.minLon) * (b.maxLat - b.minLat);
+    final areaCompare = areaA.compareTo(areaB);
+    if (areaCompare != 0) return areaCompare;
+
+    // Tie-break: most-recently-downloaded wins (D-03).
+    final aTarget = dem ? a.demPackage.target : a.vectorPackage.target;
+    final bTarget = dem ? b.demPackage.target : b.vectorPackage.target;
+    final aTime =
+        aTarget?.downloadedAtUtc ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final bTime =
+        bTarget?.downloadedAtUtc ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return bTime.compareTo(aTime); // descending — most recent first
+  });
+
+  return candidates.first;
+}
+
 /// Owns the region tile-repository download lifecycle (TILE-01..05,
 /// DEM-01/02): a fresh (never resumed) `.part` download for a region's
 /// vector and (independently) DEM archives, a disk-space pre-check before
