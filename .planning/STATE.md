@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: verifying
-stopped_at: Phase 25 context gathered
-last_updated: "2026-07-23T10:22:18.041Z"
+stopped_at: Phase 25 planning complete (4 plans, verified)
+last_updated: "2026-07-23T10:53:21.096Z"
 last_activity: "2026-07-23 -- Completed 24-04-PLAN.md (gap-closure: stale ToOne region row status)"
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 16
+  total_plans: 20
   completed_plans: 15
   percent: 43
 ---
@@ -309,6 +309,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-23T10:22:18.017Z
-Stopped at: Phase 25 context gathered
-Resume file: .planning/phases/25-map-rendering-region-based-viewport-pipeline/25-CONTEXT.md
+Last session: 2026-07-23T10:53:21.080Z
+Stopped at: Phase 25 planning complete (4 plans, verified)
+Resume file: .planning/phases/25-map-rendering-region-based-viewport-pipeline/25-01-PLAN.md
