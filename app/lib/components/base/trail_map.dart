@@ -12,6 +12,8 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
+import 'package:wanderer/provider/region/region_provider.dart';
+import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 
 /// Native MapLibre GL map host for a single [Trail]. Swaps light/dark styles
@@ -78,6 +80,12 @@ class _TrailMapState extends ConsumerState<TrailMap> {
 
   bool _cacheWarmed = false;
 
+  /// Region source/layer ids currently materialized in the mounted style —
+  /// seeded from the baked style on every full load ([_seedRegionTracking])
+  /// and grown by [_addRegionComposition]'s incremental add-only reconcile.
+  final Set<String> _addedSourceIds = {};
+  final Set<String> _addedLayerIds = {};
+
   @override
   Widget build(BuildContext context) {
     // Warms the shared glyph/sprite cache on first open; idempotent
@@ -88,10 +96,13 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     }
 
     // Swap the style in place on theme toggle, or once the offline
-    // glyph/sprite cache finishes warming — no remount, no flash.
+    // glyph/sprite cache finishes warming — no remount, no flash. A region
+    // finishing download mid-session is applied incrementally instead
+    // (RENDER-03 option-b) — never a setStyle reload (D-06).
     ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
     if (widget.offline) {
       ref.listen(glyphSpriteCacheProvider, (_, _) => _swapStyle());
+      ref.listen(regionListNotifierProvider, (_, _) => _addRegionComposition());
     }
 
     final baseAsync = ref.watch(mapStyleJsonProvider);
@@ -124,17 +135,30 @@ class _TrailMapState extends ConsumerState<TrailMap> {
   /// Composes the style JSON: [baseJson] as-is when online, or rewritten via
   /// [rewriteStyleForOffline] when offline. Returns null while an input is
   /// still resolving or the rewrite rejects it.
+  ///
+  /// Offline tiles are sourced from the region registry
+  /// (`TileRepositoryManager.localTilePathsForBounds`, RENDER-01) rather than
+  /// the trail's own legacy tile-path fields — re-queried fresh on every call
+  /// against the trail's fixed bounds (D-05), so this always reflects
+  /// whichever regions are downloaded right now. An uncovered viewport (no
+  /// vector paths) returns null → the existing `build()` passthrough renders
+  /// a blank basemap with no banner (D-01/D-02) instead of
+  /// [rewriteStyleForOffline] throwing on empty `cellPaths`.
   String? _composeStyle(String? baseJson, GlyphSpriteCachePaths? cache) {
     if (baseJson == null) return null;
     if (!widget.offline) return baseJson;
     if (cache == null) return null;
     try {
       final decoded = jsonDecode(baseJson) as Map<String, dynamic>;
+      final tiles = ref
+          .read(tileRepositoryManagerProvider)
+          .localTilePathsForBounds(widget.trail.bounds);
+      if (tiles.vectorPaths.isEmpty) return null;
       final offlineStyle = rewriteStyleForOffline(
         decoded,
         cacheRoot: cache.root,
-        cellPaths: widget.trail.pmTiles,
-        demCellPaths: widget.trail.demPmTiles,
+        cellPaths: tiles.vectorPaths,
+        demCellPaths: tiles.demPaths,
         dark:
             effectiveBrightness(ref.read(themeModeProvider)) == Brightness.dark,
       );
@@ -154,6 +178,217 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     if (json != null && json != _lastStyleJson) {
       _lastStyleJson = json;
       controller.setStyle(json);
+    }
+  }
+
+  /// (Re)seeds [_addedSourceIds]/[_addedLayerIds] from a just-loaded composed
+  /// style JSON's `sources` map and the layer ids that reference them —
+  /// excludes the source-less `background` chrome layer, which is never a
+  /// region layer and must never be reconciled. Called after every full
+  /// style load (initial mount or a theme-toggle `setStyle`) so the tracking
+  /// sets stay consistent with whatever region ids are actually baked in.
+  void _seedRegionTracking(String? composedJson) {
+    if (composedJson == null) return;
+    final decoded = jsonDecode(composedJson) as Map<String, dynamic>;
+    final sources = decoded['sources'];
+    final sourceIds = sources is Map<String, dynamic>
+        ? sources.keys.toSet()
+        : const <String>{};
+
+    _addedSourceIds
+      ..clear()
+      ..addAll(sourceIds);
+    _addedLayerIds.clear();
+
+    final layers = decoded['layers'];
+    if (layers is! List) return;
+    for (final layer in layers) {
+      if (layer is! Map) continue;
+      final source = layer['source'];
+      final id = layer['id'];
+      if (source is String && id is String && sourceIds.contains(source)) {
+        _addedLayerIds.add(id);
+      }
+    }
+  }
+
+  /// Builds a typed [ml.Source] from a composed style's raw JSON source
+  /// entry. `raster-dem` entries (hillshade) become [ml.RasterDemSource]
+  /// with the Terrarium encoding [rewriteStyleForOffline] already assumes;
+  /// everything else becomes an [ml.VectorSource]. Returns null (and logs)
+  /// if the entry is missing its `url`.
+  ml.Source? _sourceFromJson(String id, Map source) {
+    final url = source['url'] as String?;
+    if (url == null) {
+      debugPrint('TrailMap: region source "$id" missing url — skipped');
+      return null;
+    }
+    if (source['type'] == 'raster-dem') {
+      return ml.RasterDemSource(
+        id: id,
+        url: url,
+        maxZoom: (source['maxzoom'] as num).toDouble(),
+        tileSize: (source['tileSize'] as num?)?.toInt() ?? 512,
+        encoding: const ml.RasterDemTerrariumEncoding(),
+      );
+    }
+    return ml.VectorSource(
+      id: id,
+      url: url,
+      maxZoom: (source['maxzoom'] as num?)?.toDouble() ?? 14,
+    );
+  }
+
+  /// Builds a typed [ml.StyleLayer] from a composed style's raw JSON layer
+  /// entry. Source-less `background` layers (never a region layer) and any
+  /// unsupported layer type return null so a future style-layer type
+  /// degrades gracefully instead of crashing.
+  ml.StyleLayer? _layerFromJson(Map layer) {
+    final type = layer['type'];
+    if (type == 'background') return null;
+
+    final id = layer['id'] as String;
+    final sourceId = layer['source'] as String;
+    final sourceLayerId = layer['source-layer'] as String?;
+    final paint = (layer['paint'] as Map?)?.cast<String, Object>() ?? const {};
+    final layout =
+        (layer['layout'] as Map?)?.cast<String, Object>() ?? const {};
+    final filter = (layer['filter'] as List?)?.cast<Object>();
+    final minZoom = (layer['minzoom'] as num?)?.toDouble() ?? 0;
+    final maxZoom = (layer['maxzoom'] as num?)?.toDouble() ?? 24;
+
+    switch (type) {
+      case 'fill':
+        return ml.FillStyleLayer(
+          id: id,
+          sourceId: sourceId,
+          sourceLayerId: sourceLayerId,
+          paint: paint,
+          layout: layout,
+          filter: filter,
+          minZoom: minZoom,
+          maxZoom: maxZoom,
+        );
+      case 'line':
+        return ml.LineStyleLayer(
+          id: id,
+          sourceId: sourceId,
+          sourceLayerId: sourceLayerId,
+          paint: paint,
+          layout: layout,
+          filter: filter,
+          minZoom: minZoom,
+          maxZoom: maxZoom,
+        );
+      case 'symbol':
+        return ml.SymbolStyleLayer(
+          id: id,
+          sourceId: sourceId,
+          sourceLayerId: sourceLayerId,
+          paint: paint,
+          layout: layout,
+          filter: filter,
+          minZoom: minZoom,
+          maxZoom: maxZoom,
+        );
+      case 'hillshade':
+        return ml.HillshadeStyleLayer(
+          id: id,
+          sourceId: sourceId,
+          paint: paint,
+          layout: layout,
+          minZoom: minZoom,
+          maxZoom: maxZoom,
+        );
+      default:
+        debugPrint('TrailMap: unsupported region layer type "$type" — skipped');
+        return null;
+    }
+  }
+
+  /// Incremental ADD-ONLY reconcile (RENDER-03 option-b, D-06): recomputes
+  /// the composed style for [widget.trail.bounds] and adds any
+  /// newly-relevant region source/layer via [ml.StyleController.addSource]/
+  /// [ml.StyleController.addLayer] — never a full-style [ml.MapController.
+  /// setStyle] reload, and never a remove (TrailMap's bounds never change,
+  /// so a region only ever adds coverage). Hillshade layers are inserted
+  /// below the first vector layer so relief renders underneath the basemap
+  /// (25-01 finding 2).
+  Future<void> _addRegionComposition() async {
+    final style = _controller?.style;
+    if (style == null) return;
+
+    final tiles = ref
+        .read(tileRepositoryManagerProvider)
+        .localTilePathsForBounds(widget.trail.bounds);
+    if (tiles.vectorPaths.isEmpty) return;
+
+    final baseJson = ref.read(mapStyleJsonProvider).value;
+    final cache = ref.read(glyphSpriteCacheProvider).value;
+    if (baseJson == null || cache == null) return;
+
+    Map<String, dynamic> composed;
+    try {
+      final decoded = jsonDecode(baseJson) as Map<String, dynamic>;
+      composed = rewriteStyleForOffline(
+        decoded,
+        cacheRoot: cache.root,
+        cellPaths: tiles.vectorPaths,
+        demCellPaths: tiles.demPaths,
+        dark:
+            effectiveBrightness(ref.read(themeModeProvider)) == Brightness.dark,
+      );
+    } catch (e) {
+      debugPrint('TrailMap: incremental region compose failed — $e');
+      return;
+    }
+
+    final sources = composed['sources'];
+    final layers = composed['layers'];
+    if (sources is! Map<String, dynamic> || layers is! List) return;
+
+    final firstVectorLayer = layers.whereType<Map>().firstWhere(
+      (layer) => const {'fill', 'line', 'symbol'}.contains(layer['type']),
+      orElse: () => const {},
+    );
+    final firstVectorLayerId = firstVectorLayer['id'] as String?;
+
+    for (final entry in sources.entries) {
+      final id = entry.key;
+      if (_addedSourceIds.contains(id)) continue;
+      final source = entry.value;
+      if (source is! Map) continue;
+      try {
+        final src = _sourceFromJson(id, source);
+        if (src != null) {
+          await style.addSource(src);
+          _addedSourceIds.add(id);
+        }
+      } catch (e) {
+        debugPrint('TrailMap: incremental addSource failed for "$id" — $e');
+      }
+    }
+
+    for (final layer in layers) {
+      if (layer is! Map) continue;
+      final source = layer['source'];
+      final id = layer['id'];
+      if (source is! String || id is! String) continue;
+      if (!sources.containsKey(source)) continue;
+      if (_addedLayerIds.contains(id)) continue;
+
+      final layerObj = _layerFromJson(layer);
+      if (layerObj == null) continue;
+      try {
+        if (layer['type'] == 'hillshade') {
+          await style.addLayer(layerObj, belowLayerId: firstVectorLayerId);
+        } else {
+          await style.addLayer(layerObj);
+        }
+        _addedLayerIds.add(id);
+      } catch (e) {
+        debugPrint('TrailMap: incremental addLayer failed for "$id" — $e');
+      }
     }
   }
 
@@ -235,6 +470,9 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     if (widget.showTrail && widget.trail.expand?.gpx != null) {
       _trailLayer.add(style, widget.trail).ignore();
     }
+    // Reseed the region tracking sets from whatever's baked into the
+    // freshly-loaded style (initial mount or a theme-toggle setStyle).
+    _seedRegionTracking(_lastStyleJson);
   }
 
   /// Reacts to [TrailMap.showTrail] flipping and to the trail's track being
@@ -260,14 +498,11 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     // unrelated trail edits keep the same gpx reference via copyWith.
     if (widget.showTrail &&
         !identical(oldWidget.trail.expand?.gpx, widget.trail.expand?.gpx)) {
-      _trailLayer
-          .remove(style)
-          .then((_) {
-            if (widget.trail.expand?.gpx != null) {
-              _trailLayer.add(style, widget.trail).ignore();
-            }
-          })
-          .ignore();
+      _trailLayer.remove(style).then((_) {
+        if (widget.trail.expand?.gpx != null) {
+          _trailLayer.add(style, widget.trail).ignore();
+        }
+      }).ignore();
       _fitInitialCamera().ignore();
     }
   }
@@ -327,5 +562,4 @@ class _TrailMapState extends ConsumerState<TrailMap> {
       ],
     );
   }
-
 }
