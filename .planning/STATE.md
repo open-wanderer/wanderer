@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: executing
-stopped_at: 25-03 complete (RENDER-01 offline composition wired into TrailMap); 25-04 (navigation_screen rewiring) remains
-last_updated: "2026-07-23T12:43:45.303Z"
-last_activity: "2026-07-23 -- 25-03 complete (Task 1 commit a03d6eec: TrailMap sourced from region registry, incremental add-only region composition); see 25-03-SUMMARY.md"
+stopped_at: 25-04 complete (navigation_screen viewport-scoped region composition wired -- RENDER-01/02 done); Phase 25 all 4 plans complete, ready for verification
+last_updated: "2026-07-23T12:52:50.035Z"
+last_activity: 2026-07-23 -- 25-03 complete (Task 1 commit a03d6eec); see 25-03-SUMMARY.md
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 20
-  completed_plans: 18
-  percent: 43
+  completed_plans: 19
+  percent: 57
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 ## Current Position
 
-Phase: 25 (map-rendering-region-based-viewport-pipeline) — EXECUTING
+Phase: 25 (map-rendering-region-based-viewport-pipeline) — ALL 4 PLANS COMPLETE, ready for verification
 Plan: 4 of 4
-Status: EXECUTING — 25-01, 25-02, and 25-03 finished. 25-03 closed out RENDER-01 for `TrailMap`: `_composeStyle` sources offline vector/DEM tile paths from `TileRepositoryManager.localTilePathsForBounds(trail.bounds)` instead of `Trail.pmTiles`/`demPmTiles`, and a mid-session region download is applied incrementally via `addSource`/`addLayer` (RENDER-03 option-b), hillshade below the first vector layer. Only 25-04 (the equivalent rewiring for `navigation_screen.dart`, driven by the live viewport + camera-idle recompute) remains in Wave 2.
-Last activity: 2026-07-23 -- 25-03 complete (Task 1 commit a03d6eec); see 25-03-SUMMARY.md
+Status: COMPLETE — 25-01 through 25-04 all finished. 25-04 closed out RENDER-01/02 for `navigation_screen.dart`: `_composeStyle`/`_swapStyle` source offline vector/DEM tile paths from `TileRepositoryManager.localTilePathsForBounds(live viewport)` instead of `Trail.pmTiles`/`demPmTiles`, and a new `_reconcileRegionComposition` incrementally swaps region sources/layers in AND out (add+remove, not add-only like `TrailMap`) on `ml.MapEventCameraIdle` — hillshade below the first vector layer (25-01 finding 2), 1ms repaint nudge after any removal (25-01 finding 1), and a third `regionListNotifierProvider` listen for mid-session downloads. END-OF-PHASE on-device human-check (two adjacent regions, airplane mode) still outstanding — see 25-04-SUMMARY.md's Next Phase Readiness.
+Last activity: 2026-07-23 -- 25-04 complete (commits 65407f3b, f4e5ecaa); see 25-04-SUMMARY.md
 
 ## v1.6 Phases
 
@@ -106,6 +106,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 25 P01 | 25min | 2 tasks | 1 files |
 | Phase 25 P02 | 10min | 2 tasks | 3 files |
 | Phase 25 P03 | ~20min | 1 tasks | 1 files |
+| Phase 25 P04 | ~20min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -226,6 +227,8 @@ Recent decisions affecting current work:
 - [Phase 25-01]: RENDER-03 settled: incremental addSource/removeSource/addLayer/removeLayer selected over full-style-reload after on-device testing showed it avoids full-reload flicker; two Wave 2 follow-ups flagged (explicit repaint after removeSource/removeLayer; hillshade z-order insertion position needed)
 - [Phase 25-02]: Split localTilePathsForBounds into a typed ({vectorPaths, demPaths}) record via a new @visibleForTesting splitRegionTilePaths pure helper, closing the RENDER-01 conflation gap before Wave 2 wiring — Makes DEM-into-vector-cell conflation structurally impossible at the type level, unit-tested without a live ObjectBox store
 - [Phase 25-03]: Followed PLAN.md's revised incremental-composition design (RENDER-03 option-b) over the stale full-setStyle-reload description still in 25-PATTERNS.md — PLAN.md's frontmatter/objective explicitly superseded the earlier pattern map after 25-01's on-device spike; PLAN.md is the more specific, authoritative source (exact grep gates, threat model, must_haves)
+- [Phase 25]: [25-04] Split Task 1 (offline data-source rewiring + reconcile method + region-list listen) and Task 2 (camera-idle onEvent branch) into two separate atomic commits despite touching the same file -- Task 1 leaves the file fully analyzer-clean and self-consistent, Task 2 is a clean minimal one-branch addition on top.
+- [Phase 25]: [25-04] Camera-idle onEvent branch kept on one line (wrapped in dart format off/on markers) to satisfy the plan's literal acceptance-criteria grep for the MapEventCameraIdle->_reconcileRegionComposition routing -- same precedent as the 20-05/21-01 deviations.
 
 ### Pending Todos
 
@@ -315,6 +318,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-23T12:43:45.285Z
-Stopped at: 25-03 complete (RENDER-01 offline composition wired into TrailMap); 25-04 (navigation_screen rewiring) remains
+Last session: 2026-07-23T12:52:50.016Z
+Stopped at: 25-04 complete (navigation_screen viewport-scoped region composition wired -- RENDER-01/02 done); Phase 25 all 4 plans complete, ready for verification
 Resume file: None

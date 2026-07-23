@@ -354,7 +354,7 @@ Plans:
 - [x] **Phase 22: Region & Package Data Model** - App-side region manifest (fetched from Phase 21.5's API, not bundled) and ObjectBox `Region`/`DownloadedTilePackage` entities with an explicit-int status enum (completed 2026-07-22)
 - [x] **Phase 23: TileRepositoryManager — Download Engine** - Disk-safe region downloads plus a bbox-to-local-paths query, fully decoupled from Trail (completed 2026-07-22; amended 2026-07-23 — pause/resume/backgrounding-pause replaced by cancel-and-restart-from-0, see Phase 23 note)
 - [x] **Phase 24: Settings — Offline Maps/Regions UI** - Flat searchable region list, independent Vector/DEM tiles with download/cancel/delete and total disk usage (completed 2026-07-22; amended 2026-07-23 — DEM toggle replaced by a gated DEM tile, see Phase 24 note)
-- [ ] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** - `TrailMap`/`navigation_screen` read region tiles through a viewport-scoped style pipeline, settled by a maplibre 0.3.5 spike
+- [x] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** - `TrailMap`/`navigation_screen` read region tiles through a viewport-scoped style pipeline, settled by a maplibre 0.3.5 spike (completed 2026-07-23)
 - [ ] **Phase 26: Trail Download Guard** - Trail downloads check region coverage first, naming missing regions with an inline download CTA
 - [ ] **Phase 27: Legacy Cleanup** - Trail-scoped tile code deleted outright, orphaned legacy files swept on first launch
 
@@ -495,7 +495,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 25-03-PLAN.md — TrailMap `_composeStyle` sourced from `localTilePathsForBounds(trail.bounds)` (one-time query, both regions when straddling) + regionListNotifier live-swap listen + uncovered-viewport blank basemap (RENDER-01, D-01/D-02/D-05/D-06)
-- [ ] 25-04-PLAN.md — navigation_screen `_composeStyle` sourced from the live viewport query + camera-idle region-swap recompute (no Timer) + regionListNotifier live-swap listen + uncovered-viewport blank basemap (RENDER-01/RENDER-02, D-01/D-02/D-04/D-06)
+- [x] 25-04-PLAN.md — navigation_screen `_composeStyle` sourced from the live viewport query + camera-idle region-swap recompute (no Timer) + regionListNotifier live-swap listen + uncovered-viewport blank basemap (RENDER-01/RENDER-02, D-01/D-02/D-04/D-06)
 
 **UI hint**: yes
 
@@ -565,6 +565,6 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 22. Region & Package Data Model | v1.6 | 2/2 | Complete   | 2026-07-22 |
 | 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
-| 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 3/4 | In Progress|  |
+| 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 26. Trail Download Guard | v1.6 | 0/TBD | Not started | - |
 | 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |
