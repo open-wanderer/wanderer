@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: executing
-stopped_at: Phase 25 UAT diagnosed a reentrancy race in navigation_screen's incremental region-swap reconcile (Test 4); Phase 25.1 inserted to replace it with a local HTTP tile proxy, not yet planned
-last_updated: "2026-07-23T14:50:00.000Z"
-last_activity: 2026-07-23 -- Phase 25.1 (local HTTP tile proxy) inserted after Phase 25; see .planning/debug/navigation-screen-region-swap-broken.md
+status: planning
+stopped_at: Phase 25.1 context gathered
+last_updated: "2026-07-23T14:42:00.823Z"
+last_activity: 2026-07-23 -- Phase 25.1 inserted after Phase 25; gap-closure patch plan for 25 was discarded in favor of the proxy re-architecture
 progress:
   total_phases: 8
-  completed_phases: 3
-  total_plans: 21
+  completed_phases: 4
+  total_plans: 20
   completed_plans: 19
-  percent: 38
+  percent: 50
 ---
 
 # Project State
@@ -323,6 +323,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-23T12:52:50.016Z
-Stopped at: 25-04 complete (navigation_screen viewport-scoped region composition wired -- RENDER-01/02 done); Phase 25 all 4 plans complete, ready for verification
-Resume file: None
+Last session: 2026-07-23T14:42:00.807Z
+Stopped at: Phase 25.1 context gathered
+Resume file: .planning/phases/25.1-local-http-tile-proxy-for-region-based-offline-map-rendering/25.1-CONTEXT.md
