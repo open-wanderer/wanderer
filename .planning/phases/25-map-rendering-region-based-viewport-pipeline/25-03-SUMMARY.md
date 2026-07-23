@@ -97,3 +97,9 @@ None - no external service configuration required.
 ---
 *Phase: 25-map-rendering-region-based-viewport-pipeline*
 *Completed: 2026-07-23*
+
+## Self-Check: PASSED
+
+- FOUND: app/lib/components/base/trail_map.dart
+- FOUND: a03d6eec (Task 1 commit)
+- FOUND: 14c415fb (summary commit)

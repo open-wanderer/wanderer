@@ -494,7 +494,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 25-03-PLAN.md — TrailMap `_composeStyle` sourced from `localTilePathsForBounds(trail.bounds)` (one-time query, both regions when straddling) + regionListNotifier live-swap listen + uncovered-viewport blank basemap (RENDER-01, D-01/D-02/D-05/D-06)
+- [x] 25-03-PLAN.md — TrailMap `_composeStyle` sourced from `localTilePathsForBounds(trail.bounds)` (one-time query, both regions when straddling) + regionListNotifier live-swap listen + uncovered-viewport blank basemap (RENDER-01, D-01/D-02/D-05/D-06)
 - [ ] 25-04-PLAN.md — navigation_screen `_composeStyle` sourced from the live viewport query + camera-idle region-swap recompute (no Timer) + regionListNotifier live-swap listen + uncovered-viewport blank basemap (RENDER-01/RENDER-02, D-01/D-02/D-04/D-06)
 
 **UI hint**: yes
@@ -565,6 +565,6 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 22. Region & Package Data Model | v1.6 | 2/2 | Complete   | 2026-07-22 |
 | 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
-| 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 2/4 | In Progress|  |
+| 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 3/4 | In Progress|  |
 | 26. Trail Download Guard | v1.6 | 0/TBD | Not started | - |
 | 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |
