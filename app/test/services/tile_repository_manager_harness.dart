@@ -205,13 +205,16 @@ class _TileRepositoryHarnessScreenState
             latitudeSouth: region.maxLat + 10,
             latitudeNorth: region.maxLat + 11,
           );
-    final paths = manager.localTilePathsForBounds(bounds);
+    final result = manager.localTilePathsForBounds(bounds);
     final label = inside ? 'inside' : 'outside';
     debugPrint(
-      '[harness] localTilePathsForBounds($label ${region.id}) -> $paths',
+      '[harness] localTilePathsForBounds($label ${region.id}) -> '
+      'vector=${result.vectorPaths} dem=${result.demPaths}',
     );
     setState(() {
-      _lastQueryResult = '$label(${region.id}): $paths';
+      _lastQueryResult =
+          '$label(${region.id}): vector=${result.vectorPaths} '
+          'dem=${result.demPaths}';
     });
   }
 
