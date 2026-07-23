@@ -1885,6 +1885,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download failed'**
   String get regions_download_failed;
+
+  /// No description provided for @regions_dem_locked_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download map data first'**
+  String get regions_dem_locked_subtitle;
 }
 
 class _AppLocalizationsDelegate

@@ -1001,4 +1001,7 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get regions_download_failed => 'Download failed';
+
+  @override
+  String get regions_dem_locked_subtitle => 'Download map data first';
 }

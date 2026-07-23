@@ -349,6 +349,9 @@ class _SettingsOfflineRegionsScreenState
               downloadState?.demProgress,
               l10n,
               accentColor,
+              vectorAvailable:
+                  vectorStatus == RegionStatus.downloaded ||
+                  vectorStatus == RegionStatus.updateAvailable,
             ),
           const SizedBox(height: 4),
         ],
@@ -466,27 +469,43 @@ class _SettingsOfflineRegionsScreenState
     }
   }
 
+  /// [vectorAvailable] gates the DEM tile on the Vector package being
+  /// `downloaded`/`updateAvailable` — hillshading over a basemap that
+  /// doesn't exist yet is meaningless, so the DEM download action stays
+  /// disabled (with an explanatory subtitle) until Vector is present.
   Widget _buildDemTile(
     RegionEntity region,
     double? liveProgress,
     AppLocalizations l10n,
-    Color accentColor,
-  ) {
+    Color accentColor, {
+    required bool vectorAvailable,
+  }) {
     final persisted =
         region.demPackage.target?.status ?? PackageStatus.notDownloaded;
     final status = resolveDemTileStatus(persisted, liveProgress);
     final isDownloading = status == PackageStatus.downloading;
     final isDone = status == PackageStatus.downloaded;
     final isError = status == PackageStatus.error;
+    final isLocked = !vectorAvailable && !isDownloading && !isDone;
     final onDiskBytes = region.demPackage.target?.sizeBytesOnDisk;
 
-    final subtitleText = isError
-        ? l10n.regions_download_failed
-        : formatBytes((isDone ? onDiskBytes : null) ?? region.demSize ?? 0);
+    final String subtitleText;
+    final Color? subtitleColor;
+    if (isLocked) {
+      subtitleText = l10n.regions_dem_locked_subtitle;
+      subtitleColor = null;
+    } else if (isError) {
+      subtitleText = l10n.regions_download_failed;
+      subtitleColor = Colors.redAccent;
+    } else {
+      subtitleText = formatBytes(
+        (isDone ? onDiskBytes : null) ?? region.demSize ?? 0,
+      );
+      subtitleColor = null;
+    }
 
     return ListTile(
       dense: true,
-
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       leading: _tileLeadingIcon(done: isDone, error: isError),
       title: Text(l10n.regions_dem_tile_title),
@@ -494,10 +513,15 @@ class _SettingsOfflineRegionsScreenState
         downloading: isDownloading,
         progress: liveProgress,
         text: subtitleText,
-        textColor: isError ? Colors.redAccent : null,
+        textColor: subtitleColor,
         accentColor: accentColor,
       ),
-      trailing: _buildDemTrailing(region, status, l10n, accentColor),
+      trailing: isLocked
+          ? IconButton(
+              icon: const FaIcon(FontAwesomeIcons.download, size: 16),
+              onPressed: null,
+            )
+          : _buildDemTrailing(region, status, l10n, accentColor),
     );
   }
 

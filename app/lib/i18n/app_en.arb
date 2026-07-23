@@ -426,5 +426,6 @@
   "regions_empty_catalog_body": "Ask your Wanderer instance administrator to configure downloadable regions.",
   "regions_vector_tile_title": "Vector",
   "regions_dem_tile_title": "Elevation data",
-  "regions_download_failed": "Download failed"
+  "regions_download_failed": "Download failed",
+  "regions_dem_locked_subtitle": "Download map data first"
 }
