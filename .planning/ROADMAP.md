@@ -485,7 +485,15 @@ Plans:
   3. Only regions intersecting the current map viewport contribute style sources — panning to an area covered by a different downloaded region swaps sources in rather than accumulating every downloaded region's sources unconditionally.
   4. A downloaded region's basemap (and hillshade, when its DEM was downloaded) renders correctly offline on both the trail detail map and the navigation screen, reusing `offline_style_rewriter.dart` unchanged.
 
-**Plans**: TBD
+**Plans**: 4 plans (2 waves)
+
+Plans:
+
+- [ ] 25-01-PLAN.md — RENDER-03 risk-gate spike: standalone on-device harness measuring full-reload vs incremental composition with 10-20 duplicated region source/layer sets; checkpoint:decision settles the strategy (RENDER-03)
+- [ ] 25-02-PLAN.md — Fix the Critical Data-Shape Gap: split `localTilePathsForBounds` into a typed `({vectorPaths, demPaths})` record via a `@visibleForTesting splitRegionTilePaths` helper + unit test + harness call-site update (RENDER-01)
+- [ ] 25-03-PLAN.md — TrailMap `_composeStyle` sourced from `localTilePathsForBounds(trail.bounds)` (one-time query, both regions when straddling) + regionListNotifier live-swap listen + uncovered-viewport blank basemap (RENDER-01, D-01/D-02/D-05/D-06)
+- [ ] 25-04-PLAN.md — navigation_screen `_composeStyle` sourced from the live viewport query + camera-idle region-swap recompute (no Timer) + regionListNotifier live-swap listen + uncovered-viewport blank basemap (RENDER-01/RENDER-02, D-01/D-02/D-04/D-06)
+
 **UI hint**: yes
 
 **Risk gate**: RENDER-03's spike is this milestone's highest-risk unknown — research flags maplibre 0.3.5's incremental source/layer API availability and layer-count scaling as LOW/MEDIUM confidence, unconfirmed from docs. Resolve this first, before investing in the rest of the phase's rewiring.
@@ -554,6 +562,6 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 22. Region & Package Data Model | v1.6 | 2/2 | Complete   | 2026-07-22 |
 | 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
-| 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 0/TBD | Not started | - |
+| 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 0/4 | Not started | - |
 | 26. Trail Download Guard | v1.6 | 0/TBD | Not started | - |
 | 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |
