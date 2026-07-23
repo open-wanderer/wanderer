@@ -9,7 +9,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *     description: >
  *       Returns the merged config-plus-build-state catalog for every region
  *       configured in this instance's admin-supplied region catalog file.
- *       Proxies to the internal Go backend's /api/v1/regions route (not
+ *       Proxies to the internal Go backend's /regions route (not
  *       publicly reachable on its own — see the routing decision in
  *       21.5-03-PLAN.md).
  *     tags:
@@ -56,7 +56,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  */
 export async function GET(event: RequestEvent) {
   try {
-    const data = await event.locals.pb.send('/api/v1/regions', {
+    const data = await event.locals.pb.send('/regions', {
       method: 'GET',
       fetch: event.fetch,
     });

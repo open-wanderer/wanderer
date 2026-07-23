@@ -132,14 +132,18 @@ class _SettingsOfflineRegionsScreenState
             )
           : Column(
               children: [
-                _buildDiskUsageSummary(l10n, regions),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: WandererSearchBar(
                     hintText: l10n.regions_search_hint,
                     onChanged: (value) => setState(() => _searchQuery = value),
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  child: _buildDiskUsageSummary(l10n, regions),
+                ),
+
                 Expanded(
                   child: regions.isEmpty
                       ? _buildEmptyState(
@@ -175,8 +179,14 @@ class _SettingsOfflineRegionsScreenState
     AppLocalizations l10n,
     List<RegionEntity> regions,
   ) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        color: Colors.grey.shade100,
+      ),
+      padding: const EdgeInsets.all(16),
       child: FutureBuilder<int>(
         future: _diskUsageFuture,
         builder: (context, snapshot) {
@@ -306,7 +316,12 @@ class _SettingsOfflineRegionsScreenState
         : colorScheme.primary;
     final demDownloading = downloadState?.demProgress != null;
 
-    return Padding(
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16.0),
       padding: const EdgeInsets.all(16.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +340,7 @@ class _SettingsOfflineRegionsScreenState
                 const SizedBox(height: 4),
                 Text(
                   region.demSize != null
-                      ? '${formatBytes(region.vectorSize ?? 0)} vector · '
+                      ? '${formatBytes(region.vectorSize ?? 0)} vector | '
                             '${formatBytes(region.demSize!)} DEM'
                       : '${formatBytes(region.vectorSize ?? 0)} vector',
                   style: Theme.of(context).textTheme.bodySmall,
