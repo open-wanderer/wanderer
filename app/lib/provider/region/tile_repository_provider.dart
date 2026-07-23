@@ -30,11 +30,9 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
   Map<String, RegionDownloadState> build() => {};
 
   /// The in-flight [startVectorDownload]/[startDemDownload] `Future`s,
-  /// keyed by region id -- lets [cancelVector]/[cancelDem] await the
-  /// cancelled download's own catch/finally handling (ObjectBox status
-  /// write + ephemeral progress clear) before returning, instead of racing
-  /// ahead of it. See [cancelVector]'s doc comment for why that ordering
-  /// matters.
+  /// keyed by region id. Used only to identity-guard each download's
+  /// terminal progress-clear so a rapid cancel-then-redownload can't let the
+  /// OLD download's `finally` wipe the NEW download's freshly-set progress.
   final Map<String, Future<void>> _activeVectorDownloads = {};
   final Map<String, Future<void>> _activeDemDownloads = {};
 
@@ -57,6 +55,9 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
           regionId,
           onProgress: (received, total) {
             if (total <= 0) return;
+            // A cancel clears the entry synchronously; never let a late
+            // in-flight progress callback resurrect it into `downloading`.
+            if (state[regionId]?.vectorProgress == null) return;
             state = {
               ...state,
               regionId: (state[regionId] ?? const RegionDownloadState())
@@ -69,8 +70,13 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
     try {
       await future;
     } finally {
-      _activeVectorDownloads.remove(regionId);
-      _clearVectorProgress(regionId);
+      // Only THIS download owns the clear — a superseding download (started
+      // after a cancel) has already replaced the map entry and its own
+      // progress, which must survive.
+      if (identical(_activeVectorDownloads[regionId], future)) {
+        _activeVectorDownloads.remove(regionId);
+        _clearVectorProgress(regionId);
+      }
     }
   }
 
@@ -93,6 +99,7 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
           regionId,
           onProgress: (received, total) {
             if (total <= 0) return;
+            if (state[regionId]?.demProgress == null) return;
             state = {
               ...state,
               regionId: (state[regionId] ?? const RegionDownloadState())
@@ -105,33 +112,36 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
     try {
       await future;
     } finally {
-      _activeDemDownloads.remove(regionId);
-      _clearDemProgress(regionId);
+      if (identical(_activeDemDownloads[regionId], future)) {
+        _activeDemDownloads.remove(regionId);
+        _clearDemProgress(regionId);
+      }
     }
   }
 
-  /// Cancels [regionId]'s in-flight vector download, if any, and awaits its
-  /// resulting `DioException` unwinding all the way through
-  /// [downloadVector]'s catch/finally -- ObjectBox status write to
-  /// `notDownloaded` AND the ephemeral progress-clear -- before returning.
-  /// Without this, the screen's `_save` wrapper would invalidate
-  /// `regionListNotifierProvider` (forcing a fresh read of the region's
-  /// `ToOne`) before the manager finished writing `notDownloaded`, so the
-  /// newly-fetched `RegionEntity` would still read the pre-cancel
-  /// `downloading` status and the tile would appear stuck. No pause/resume:
-  /// the `.part` file is deleted (`TileRepositoryManager`'s
-  /// `deleteOnError: true`), so a later [downloadVector] call always starts
-  /// from byte 0.
-  Future<void> cancelVector(String regionId) async {
+  /// Cancels [regionId]'s in-flight vector download and resets the UI
+  /// SYNCHRONOUSLY by clearing the ephemeral progress entry — deliberately
+  /// NOT awaiting the download future.
+  ///
+  /// `downloading` is derived purely from this ephemeral progress
+  /// (`resolveVectorTileStatus`), so clearing it here flips the tile back to
+  /// a Download button immediately, no matter how long Dio takes to unwind
+  /// the cancelled request or when the manager's `notDownloaded` write lands.
+  /// An earlier version awaited the download future so the manager's write
+  /// would precede `_save`'s `regionListNotifierProvider` invalidate — but a
+  /// stalled/hung transfer meant that await never returned, so Cancel did
+  /// nothing and the tile stayed frozen. No pause/resume: the manager's
+  /// `deleteOnError: true` deletes the `.part` file, so a later
+  /// [downloadVector] always restarts from byte 0.
+  void cancelVector(String regionId) {
     ref.read(tileRepositoryManagerProvider).cancelVectorDownload(regionId);
-    await _activeVectorDownloads[regionId];
+    _clearVectorProgress(regionId);
   }
 
-  /// Cancels [regionId]'s in-flight DEM download, if any. See
-  /// [cancelVector].
-  Future<void> cancelDem(String regionId) async {
+  /// Cancels [regionId]'s in-flight DEM download. See [cancelVector].
+  void cancelDem(String regionId) {
     ref.read(tileRepositoryManagerProvider).cancelDemDownload(regionId);
-    await _activeDemDownloads[regionId];
+    _clearDemProgress(regionId);
   }
 
   /// Deletes [regionId]'s downloaded packages (vector AND DEM) + on-disk

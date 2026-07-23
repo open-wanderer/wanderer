@@ -143,7 +143,12 @@ class TileRepositoryManager {
             : PackageStatus.error,
       );
     } finally {
-      _activeCancelTokens.remove(tokenKey);
+      // Only remove OUR token — a cancel-then-redownload may have already
+      // replaced this key with the new download's token, which must stay
+      // cancellable.
+      if (identical(_activeCancelTokens[tokenKey], token)) {
+        _activeCancelTokens.remove(tokenKey);
+      }
     }
   }
 
@@ -221,7 +226,9 @@ class TileRepositoryManager {
             : PackageStatus.error,
       );
     } finally {
-      _activeCancelTokens.remove(tokenKey);
+      if (identical(_activeCancelTokens[tokenKey], token)) {
+        _activeCancelTokens.remove(tokenKey);
+      }
     }
   }
 

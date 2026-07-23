@@ -31,6 +31,17 @@ void main() {
         RegionStatus.downloading,
       );
     });
+
+    test(
+      'persisted downloading with no live progress is treated as notDownloaded '
+      '(post-cancel / killed-session staleness — the stuck-tile bug)',
+      () {
+        expect(
+          resolveVectorTileStatus(RegionStatus.downloading, null),
+          RegionStatus.notDownloaded,
+        );
+      },
+    );
   });
 
   group('resolveDemTileStatus', () {
@@ -63,5 +74,16 @@ void main() {
         PackageStatus.downloaded,
       );
     });
+
+    test(
+      'persisted downloading with no live progress is treated as notDownloaded '
+      '(post-cancel / killed-session staleness — the stuck-tile bug)',
+      () {
+        expect(
+          resolveDemTileStatus(PackageStatus.downloading, null),
+          PackageStatus.notDownloaded,
+        );
+      },
+    );
   });
 }

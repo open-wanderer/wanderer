@@ -626,17 +626,15 @@ class _SettingsOfflineRegionsScreenState
     );
   }
 
-  /// No pause/resume: cancelling deletes the `.part` file, so a later
-  /// download always starts from byte 0. `cancelVector` awaits the
-  /// cancelled download's own status write before returning, so `_save`'s
-  /// `regionListNotifierProvider` invalidate always sees the post-cancel
-  /// state.
+  /// Cancel is synchronous: `cancelVector` clears the ephemeral progress
+  /// (which Riverpod immediately re-renders from — the tile flips back to a
+  /// Download button at once), then we invalidate the region list so the
+  /// disk-usage summary and persisted reads refresh too. No pause/resume:
+  /// the manager deletes the `.part` file, so a later download restarts from
+  /// byte 0.
   void _onCancelVector(RegionEntity region) {
-    _save(
-      () => ref
-          .read(tileRepositoryStatusProvider.notifier)
-          .cancelVector(region.id),
-    );
+    ref.read(tileRepositoryStatusProvider.notifier).cancelVector(region.id);
+    ref.invalidate(regionListNotifierProvider);
   }
 
   void _onDownloadDem(RegionEntity region) {
@@ -649,10 +647,8 @@ class _SettingsOfflineRegionsScreenState
 
   /// See [_onCancelVector] — the DEM-side mirror, fully independent.
   void _onCancelDem(RegionEntity region) {
-    _save(
-      () =>
-          ref.read(tileRepositoryStatusProvider.notifier).cancelDem(region.id),
-    );
+    ref.read(tileRepositoryStatusProvider.notifier).cancelDem(region.id);
+    ref.invalidate(regionListNotifierProvider);
   }
 
   /// SETUI-04/D-01: the DEM tile's own delete action — removes ONLY the DEM

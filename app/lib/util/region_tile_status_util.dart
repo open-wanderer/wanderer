@@ -19,16 +19,28 @@ import 'package:wanderer/models/region_status.dart';
 /// `liveProgress` is the ephemeral per-package progress fraction from
 /// `tileRepositoryStatusProvider`'s `RegionDownloadState` — an in-memory
 /// Riverpod value immune to the ObjectBox `ToOne` cache, present exactly
-/// while that package's download is in flight. Non-null always overrides
-/// `persisted` with `downloading`, since vector and DEM downloads are fully
-/// independent (each tile owns its own `CancelToken` and progress stream).
+/// while that package's download is in flight. It is the SINGLE source of
+/// truth for the `downloading` state, since a download is inherently a live,
+/// in-memory activity — vector and DEM downloads are fully independent (each
+/// tile owns its own `CancelToken` and progress stream).
+///
+/// A persisted `downloading` with NO live progress is therefore treated as
+/// stale, not as a live download: it means the package was mid-download when
+/// the in-memory tracker was lost (a cancel whose ObjectBox `notDownloaded`
+/// write hasn't landed yet, or a download killed by an app kill/crash). The
+/// resolver presents it as not-downloaded so the tile shows a Download
+/// button rather than a frozen, never-advancing progress bar. Relying on the
+/// persisted `downloading` value here is exactly what left the tile stuck
+/// after Cancel.
 
 /// Resolves the Vector tile's status.
 RegionStatus resolveVectorTileStatus(
   RegionStatus persisted,
   double? liveVectorProgress,
 ) {
-  return liveVectorProgress != null ? RegionStatus.downloading : persisted;
+  if (liveVectorProgress != null) return RegionStatus.downloading;
+  if (persisted == RegionStatus.downloading) return RegionStatus.notDownloaded;
+  return persisted;
 }
 
 /// Resolves the Elevation data (DEM) tile's status.
@@ -36,5 +48,9 @@ PackageStatus resolveDemTileStatus(
   PackageStatus persisted,
   double? liveDemProgress,
 ) {
-  return liveDemProgress != null ? PackageStatus.downloading : persisted;
+  if (liveDemProgress != null) return PackageStatus.downloading;
+  if (persisted == PackageStatus.downloading) {
+    return PackageStatus.notDownloaded;
+  }
+  return persisted;
 }
