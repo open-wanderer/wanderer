@@ -537,7 +537,7 @@ Plans:
   3. A trail spanning multiple regions lists every missing region with individual and combined size, lets the user download any subset, and never forces full coverage before letting the trail download proceed.
   4. A region with `updateAvailable` status satisfies the coverage check the same as `downloaded` — the guard never re-fires for a region that is merely stale.
 
-**Plans**: 3 plans (2 waves)
+**Plans**: 4 plans (3 waves)
 
 Plans:
 **Wave 1**
@@ -548,6 +548,10 @@ Plans:
 **Wave 2** *(blocked on Wave 1)*
 
 - [x] 26-03-PLAN.md — Guard wiring in DownloadingTrailIds.download: local coverage check, conditional sheet via navigatorKey, D-04 no-region warning, parallel region+trail downloads, unified aggregate notification (GUARD-01/02/03/04)
+
+**Wave 3** *(gap closure — from 26-VERIFICATION.md / 26-REVIEW.md)*
+
+- [x] 26-04-PLAN.md — Close CR-02 (invalidate regionListNotifierProvider after guard-triggered region downloads) + CR-01 (always-clear trail.id) + WR-01/WR-02 (notification robustness) in trail_download_state_provider.dart (GUARD-01/03/04)
 
 ### Phase 27: Legacy Cleanup
 
@@ -616,5 +620,5 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
-| 26. Trail Download Guard | v1.6 | 3/3 | Complete   | 2026-07-24 |
+| 26. Trail Download Guard | v1.6 | 4/4 | Complete   | 2026-07-24 |
 | 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |
