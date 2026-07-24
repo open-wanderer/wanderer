@@ -389,5 +389,43 @@
   "bullet_list": "Bullet list",
   "ordered_list": "Ordered list",
   "blockquote": "Blockquote",
-  "library": "Library"
+  "library": "Library",
+  "settings_offline_regions_title": "Offline Maps/Regions",
+  "regions_search_hint": "Search regions",
+  "regions_dem_toggle_label": "Download elevation data (DEM)",
+  "regions_dem_toggle_caption": "Adds hillshading; increases download size",
+  "regions_update_available": "Update available",
+  "regions_update_action": "Update",
+  "regions_retry": "Retry",
+  "regions_not_yet_available": "Not yet available",
+  "regions_build_failed": "Build failed",
+  "regions_delete_confirm_title": "Delete {name}?",
+  "@regions_delete_confirm_title": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "regions_delete_confirm_body": "This removes the downloaded map and elevation data for this region. You'll need to download it again to use it offline.",
+  "regions_delete_confirm_action": "Delete",
+  "regions_disk_usage_summary": "{size} used across {count} downloaded region(s)",
+  "@regions_disk_usage_summary": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "regions_empty_search_title": "No matching regions",
+  "regions_empty_search_body": "Try a different search term.",
+  "regions_empty_catalog_title": "No offline regions available",
+  "regions_empty_catalog_body": "Ask your Wanderer instance administrator to configure downloadable regions.",
+  "regions_vector_tile_title": "Vector",
+  "regions_dem_tile_title": "Elevation data",
+  "regions_download_failed": "Download failed",
+  "regions_dem_locked_subtitle": "Download map data first"
 }
