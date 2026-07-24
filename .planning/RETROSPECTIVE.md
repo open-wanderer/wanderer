@@ -112,6 +112,44 @@
 
 ---
 
+## Milestone: v1.6 — Offline Region Tile Repository
+
+**Shipped:** 2026-07-24
+**Phases:** 8 (Phases 21.5, 22-27, incl. inserted 25.1) | **Plans:** 30 | **Timeline:** 2026-07-21 → 2026-07-24 (4 days active)
+**Requirements:** 40/41 v1.6 requirements complete (CLEAN-02 explicitly descoped, not failed)
+
+### What Was Built
+- **Phase 21.5:** Go backend region catalog loaded from an admin-supplied, Docker-volume-mounted config file; a cronjob pre-builds one mosaicked vector + one DEM PMTiles archive per region; an auth-gated API endpoint (proxied through SvelteKit) serves the catalog
+- **Phase 22:** App-side region manifest fetched at runtime (no bundled asset) plus ObjectBox `Region`/`DownloadedTilePackage` entities with explicit-int status persistence
+- **Phase 23:** `TileRepositoryManager` — disk-safe, resumable region downloads (later amended to cancel-and-restart), bbox-to-local-paths query, fully decoupled from Trail
+- **Phase 24:** Settings → Offline Maps/Regions: searchable region list, independent Vector/DEM download rows, total disk usage (amended mid-milestone: DEM toggle → gated DEM tile)
+- **Phase 25:** `TrailMap`/`navigation_screen` read region tiles through a viewport-scoped style pipeline, settled by an on-device maplibre 0.3.5 spike
+- **Phase 25.1 (inserted):** Local loopback HTTP tile proxy replacing incremental `addSource`/`removeSource` region-swap reconciliation, closing a UAT-diagnosed reentrancy race structurally
+- **Phase 26:** Trail download guard checks region coverage first, naming missing regions with an inline per-region download CTA, supporting partial-coverage subset downloads
+- **Phase 27:** Legacy trail-scoped tile system (3 service methods, `map_cell.dart`, `TrailEntity.pmTiles`/`demPmTiles`) deleted outright; CLEAN-02's cleanup sweep descoped as unnecessary for a pre-production app
+
+### What Worked
+- **A backend-first phase (21.5) inserted after Phase 22 was already planned, before any client work landed** — discussion surfaced that "region" couldn't be a purely client-side bundled-manifest concept (self-hostable app, per-instance admin decision) before real work compounded on the wrong assumption
+- **Mid-milestone amendments landed as ROADMAP/REQUIREMENTS notes, not silent drift** — both the pause/resume removal (Phase 23) and the DEM-toggle→DEM-tile change (Phase 24) were explicitly documented with dates and commit hashes at the point of change, so later phases and this retrospective could cite them precisely
+- **An urgent phase insertion (25.1) replaced a broken mechanism structurally instead of patching it** — Phase 25's reentrancy race in hand-rolled Dart source diffing was eliminated by moving region selection to MapLibre Native's own viewport tracking via a tile proxy, not by adding more guards around the old reconcile loop
+- **Sequential dependency chain with explicit sequencing rationale in ROADMAP.md** — each phase's "why this order" was written down before execution (data model → engine → UI → rendering spike → guard → ripout), so a phase 27 ripout only happened once every upstream consumer was proven
+
+### What Was Inefficient
+- **A background planner agent stalled twice during Phase 27 planning** (laptop standby interrupted the agent stream) before a third attempt completed — cost extra wall-clock time but no data loss, since each retry re-read the same RESEARCH.md/PATTERNS.md rather than diverging
+- **The milestone was executed to completion (all 8 phases) before `/gsd-complete-milestone` was ever run** — same pattern as v1.5: formal closure lagged actual completion by the length of the whole milestone, only triggered when the *next* milestone close was requested
+
+### Patterns Established
+- **Local loopback `dart:io HttpServer` as a tile-proxy pattern** for handing region selection off to the native map engine's own viewport tracking, applicable to any future "which of N downloaded assets covers this viewport" problem
+- **Explicit-int status enum persistence** (`.code` constants, never `.index`) for ObjectBox — avoids silent status corruption if enum ordering ever changes, now the house style for all new status enums
+- **Amendment notes with commit hashes directly in ROADMAP.md/REQUIREMENTS.md**, not just in phase CONTEXT.md — keeps the top-level planning docs honest without requiring readers to dig into per-phase archives for "does this still match what shipped"
+
+### Key Lessons
+1. **Formally close a milestone the moment its last phase verifies passed** — don't let the next milestone's planning start first; both v1.5 and v1.6 in this project sat "done but unclosed" for their entire successor milestone's duration
+2. **A structural fix (change the mechanism) beats a defensive fix (guard the old mechanism) for race conditions found in UAT** — Phase 25.1's tile-proxy insertion cost one extra phase but eliminated the reentrancy bug class entirely, versus patching `MapEventCameraIdle` handling indefinitely
+3. **Descoping a requirement (CLEAN-02) is not the same as failing it** — recording the descope rationale (D-05, pre-production app) in CONTEXT.md, REQUIREMENTS.md, ROADMAP.md, and PROJECT.md all at once meant no downstream verification or audit step mistook "cut deliberately" for "missed"
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -124,6 +162,7 @@
 | v1.3 Category Redesign | 3 | 12 | Category/subcategory model + preference providers; subcategory-aware filters |
 | v1.4 MapLibre Migration | 6 | 17 | Full native-GL map migration; risk-gate spike pattern; both-stacks-coexist screen-by-screen cutover |
 | v1.5 Route Planner | 3 | 13 | Editable route-anchor map layers; fetch-at-handoff pattern for derived data; scope changes resolved pre-plan via discuss-phase |
+| v1.6 Offline Region Tile Repository | 8 | 30 | Backend-first phase insertion when a client-only assumption broke; structural fix (tile proxy) over defensive patching for a UAT-found race; documented mid-milestone amendments with commit hashes |
 
 ### Cumulative Quality
 
