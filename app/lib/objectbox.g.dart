@@ -519,12 +519,6 @@ final _entities = <obx_int.ModelEntity>[
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(16, 1531949722887503626),
-        name: 'pmTiles',
-        type: 30,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
         id: const obx_int.IdUid(17, 8096833450792418458),
         name: 'dbDifficulty',
         type: 6,
@@ -588,12 +582,6 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(26, 4841945116984417903),
         name: 'navCacheJson',
         type: 9,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(27, 1385314773466755533),
-        name: 'demPmTiles',
-        type: 30,
         flags: 0,
       ),
     ],
@@ -1128,6 +1116,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
       3987020287664329095,
       3442859084048240220,
       1802378494213556929,
+      1531949722887503626,
+      1385314773466755533,
     ],
     retiredRelationUids: const [],
     modelVersion: 5,
@@ -1621,15 +1611,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final photosOffset = fbb.writeList(
           object.photos.map(fbb.writeString).toList(growable: false),
         );
-        final pmTilesOffset = fbb.writeList(
-          object.pmTiles.map(fbb.writeString).toList(growable: false),
-        );
         final navCacheJsonOffset = object.navCacheJson == null
             ? null
             : fbb.writeString(object.navCacheJson!);
-        final demPmTilesOffset = fbb.writeList(
-          object.demPmTiles.map(fbb.writeString).toList(growable: false),
-        );
         fbb.startTable(28);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
@@ -1646,7 +1630,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(12, gpxDataOffset);
         fbb.addOffset(13, descriptionOffset);
         fbb.addOffset(14, photosOffset);
-        fbb.addOffset(15, pmTilesOffset);
         fbb.addInt64(16, object.dbDifficulty);
         fbb.addInt64(17, object.author.targetId);
         fbb.addInt64(18, object.category.targetId);
@@ -1657,7 +1640,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addFloat64(23, object.minLat);
         fbb.addFloat64(24, object.minLon);
         fbb.addOffset(25, navCacheJsonOffset);
-        fbb.addOffset(26, demPmTilesOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1791,20 +1773,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 fb.StringReader(asciiOptimization: true),
                 lazy: false,
               ).vTableGet(buffer, rootOffset, 32, [])
-              ..pmTiles = const fb.ListReader<String>(
-                fb.StringReader(asciiOptimization: true),
-                lazy: false,
-              ).vTableGet(buffer, rootOffset, 34, [])
               ..dbDifficulty = const fb.Int64Reader().vTableGet(
                 buffer,
                 rootOffset,
                 36,
                 0,
-              )
-              ..demPmTiles = const fb.ListReader<String>(
-                fb.StringReader(asciiOptimization: true),
-                lazy: false,
-              ).vTableGet(buffer, rootOffset, 56, []);
+              );
         object.author.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -2778,64 +2752,54 @@ class TrailEntity_ {
     _entities[4].properties[14],
   );
 
-  /// See [TrailEntity.pmTiles].
-  static final pmTiles = obx.QueryStringVectorProperty<TrailEntity>(
-    _entities[4].properties[15],
-  );
-
   /// See [TrailEntity.dbDifficulty].
   static final dbDifficulty = obx.QueryIntegerProperty<TrailEntity>(
-    _entities[4].properties[16],
+    _entities[4].properties[15],
   );
 
   /// See [TrailEntity.author].
   static final author = obx.QueryRelationToOne<TrailEntity, ActorEntity>(
-    _entities[4].properties[17],
+    _entities[4].properties[16],
   );
 
   /// See [TrailEntity.category].
   static final category = obx.QueryRelationToOne<TrailEntity, CategoryEntity>(
-    _entities[4].properties[18],
+    _entities[4].properties[17],
   );
 
   /// See [TrailEntity.created].
   static final created = obx.QueryDateProperty<TrailEntity>(
-    _entities[4].properties[19],
+    _entities[4].properties[18],
   );
 
   /// See [TrailEntity.updated].
   static final updated = obx.QueryDateProperty<TrailEntity>(
-    _entities[4].properties[20],
+    _entities[4].properties[19],
   );
 
   /// See [TrailEntity.maxLat].
   static final maxLat = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[4].properties[21],
+    _entities[4].properties[20],
   );
 
   /// See [TrailEntity.maxLon].
   static final maxLon = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[4].properties[22],
+    _entities[4].properties[21],
   );
 
   /// See [TrailEntity.minLat].
   static final minLat = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[4].properties[23],
+    _entities[4].properties[22],
   );
 
   /// See [TrailEntity.minLon].
   static final minLon = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[4].properties[24],
+    _entities[4].properties[23],
   );
 
   /// See [TrailEntity.navCacheJson].
   static final navCacheJson = obx.QueryStringProperty<TrailEntity>(
-    _entities[4].properties[25],
-  );
-
-  /// See [TrailEntity.demPmTiles].
-  static final demPmTiles = obx.QueryStringVectorProperty<TrailEntity>(
-    _entities[4].properties[26],
+    _entities[4].properties[24],
   );
 
   /// see [TrailEntity.waypoints]

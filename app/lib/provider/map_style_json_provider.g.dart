@@ -137,4 +137,4 @@ final class OfflineMapStyleJsonProvider
 }
 
 String _$offlineMapStyleJsonHash() =>
-    r'5ac8e5cbaafeb42e035bb190eaf2f33e80875b95';
+    r'ac89f1f239a141494836a20217d74379bdeafa9f';
