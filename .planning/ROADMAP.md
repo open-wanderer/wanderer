@@ -562,6 +562,22 @@ Plans:
 
 **Plans**: TBD
 
+### Phase 28: Admin Region Picker — Curated Catalog + Hierarchy
+
+**Goal**: A server owner defines downloadable regions by toggling entries in a curated, seeded catalog — picking from real, known-size extracts on a nested tree with a live bbox map — instead of hand-authoring `region_config.json`; the app's settings screen presents the same hierarchy.
+**Depends on**: Phase 27 (region system is the only tile path; safe to replace the admin-facing definition mechanism)
+**Requirements**: TBD (new REGN-* requirements to be added; un-defers the admin region UI parked as Out of Scope in the v1.6 config-file decision)
+**Design**: `.planning/notes/streamlined-region-definition.md`
+**Open research**: `.planning/research/questions.md` (region catalog source) — blocks the seed migration
+**Success Criteria** (what must be TRUE):
+
+  1. A new seeded `regions` table (nested parent/child, canonical bbox per row, `enabled` flag) exists; the archive-generation cron reads `enabled = true` and no longer parses `region_config.json`.
+  2. A custom PocketBase admin page (AlpineJS bundle, reusing the `feature/ap-instance-actors` pattern) lets the admin toggle regions on a collapsible tree while a live map renders the bboxes of enabled regions.
+  3. Enabling/disabling a region is the only admin action required — no bbox authoring, no config file edit; the toggle takes effect on the cron's next run.
+  4. The Flutter settings screen presents downloadable regions as the same hierarchy (collapsible tree), not a flat list, with no download-UX regression.
+
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
