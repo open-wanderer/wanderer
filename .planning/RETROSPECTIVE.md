@@ -83,6 +83,35 @@
 
 ---
 
+## Milestone: v1.5 — Route Planner
+
+**Shipped:** 2026-07-17
+**Phases:** 3 (Phases 19-21) | **Plans:** 13 | **Timeline:** 2026-07-16 → 2026-07-17 (2 days active)
+**Requirements:** 15/15 v1.5 requirements complete
+
+### What Was Built
+- **Phase 19:** From-scratch route building directly on the map — tap/drag/insert waypoints, an auto-routing toggle (Valhalla-routed vs straight-line, fixed foot/bike profile), undo/redo — backed by a class-based `RouteAnchors` `@riverpod` notifier with a CancelToken + generation-counter race guard and an immutable-snapshot undo/redo stack
+- **Phase 20:** Route anchor list (delete/reorder) and a live elevation profile as two tabs of one docked, draggable sheet; a dedicated locations-only `LocationSearchScreen` for search-to-focus
+- **Phase 21:** Real hike/bike entry-point dialog wired into the trail-source-select flow, an app-bar "Finish" action, and `finishPlanning` handoff to `trail_create_screen` as a draft Trail (GPX track only, one-time elevation merge at handoff)
+
+### What Worked
+- **Two deliberate scope changes caught during discuss-phase, not after building**: PLANUI-01 (tabs-of-one-sheet instead of two toggled views) and HANDOFF-01 (GPX-only handoff, no synthesized Waypoint records) were both resolved in CONTEXT.md before planning started, avoiding a rebuild
+- **A single fetch-at-handoff for elevation, not a continuous background fetch** — `plannedGpxProvider` deliberately stayed pre-elevation through Phase 20; Phase 21 added one `/api/v1/valhalla/height` call at the moment of handoff instead of re-firing Valhalla on every anchor edit
+- **Reusing existing infrastructure aggressively**: `GlobalSearchScreen`'s debounced search provider, the `pendingImportedTrail` handoff mechanism, and `ElevationProfile`'s existing null-Trail path were all extended rather than rebuilt
+
+### What Was Inefficient
+- **Milestone was never formally closed at the time** — v1.6 requirements-gathering silently overwrote `REQUIREMENTS.md` and phase directories 19-21 were deleted from disk (commit `fcd63d17`, "update planning") before `/gsd-complete-milestone` ever ran. This archive was reconstructed from git history a week later, during v1.6's own close. Always run `/gsd-complete-milestone` immediately after a milestone's last phase lands, before starting the next milestone's requirements pass
+
+### Patterns Established
+- **Segment-split-on-tap + adjacency-diff-on-reorder** for route topology mutations — avoids full route reconstruction on every edit
+- **`RouteAnchorLayer`/`RouteSegmentLayer`** as the native-map rendering pair for editable, numbered, draggable route geometry (vs. the read-only `TrailLayer` pattern used elsewhere)
+
+### Key Lessons
+1. **Close milestones before starting the next one's requirements pass** — skipping `/gsd-complete-milestone` let the next milestone's fresh `REQUIREMENTS.md` silently destroy the previous one's traceability table, with no error or warning
+2. **Deleting phase directories outside the GSD archival flow loses recoverable-but-inconvenient history** — the 46-file bulk deletion (`fcd63d17`) wasn't malicious, just informal cleanup; formal archival (`milestones/vX.Y-phases/`) exists precisely so this kind of cleanup doesn't require git archaeology later
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -94,6 +123,7 @@
 | v1.2 Settings | 4 | 9 | Shared `settingsProvider` pattern; live locale/unit switching; wave parallelism |
 | v1.3 Category Redesign | 3 | 12 | Category/subcategory model + preference providers; subcategory-aware filters |
 | v1.4 MapLibre Migration | 6 | 17 | Full native-GL map migration; risk-gate spike pattern; both-stacks-coexist screen-by-screen cutover |
+| v1.5 Route Planner | 3 | 13 | Editable route-anchor map layers; fetch-at-handoff pattern for derived data; scope changes resolved pre-plan via discuss-phase |
 
 ### Cumulative Quality
 
