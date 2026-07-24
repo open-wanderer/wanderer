@@ -565,14 +565,12 @@ Plans:
 **Success Criteria** (what must be TRUE):
 
   1. `trail_download_service.dart`'s tile-download methods, `TrailEntity.pmTiles`/`demPmTiles` fields, and any trail-scoped tile-download UI are deleted outright — no dual-run, no migration path; the app builds and runs with zero remaining references.
-  2. On first launch after the update, a one-time sweep deletes orphaned legacy tile files from existing dev/test installs, and the Settings disk-usage total reflects only region-based storage afterward.
+  2. On first launch after the update, a one-time sweep deletes orphaned legacy tile files from existing dev/test installs, and the Settings disk-usage total reflects only region-based storage afterward. **[DESCOPED for Phase 27 per CONTEXT.md D-05 — pre-production app, no real install base to sweep; CLEAN-02 cut, not deferred. Requirements/roadmap to be reconciled in a future editing pass.]**
   3. A hiker can still download and use a trail fully offline (basemap + navigation) end-to-end purely through the region system, with no functional regression from removing the legacy path.
 
 **Plans**: 2 plans (2 waves)
-
-Plans:
-- [ ] 27-01-PLAN.md — Remove trail-scoped tile-download methods + wiring from trail_download_service.dart and delete the orphaned map_cell.dart family
-- [ ] 27-02-PLAN.md — Rewire the Phase 26 guard, conditionally delete showGenerating(), remove pmTiles/demPmTiles from TrailEntity + Trail, and regenerate codegen
+- [ ] 27-01-PLAN.md — Remove trail-tile logic from the guard, notification service, and download service; delete map_cell.dart (Wave 1)
+- [ ] 27-02-PLAN.md — Remove pmTiles/demPmTiles fields from TrailEntity/Trail and regenerate generated code (Wave 2)
 
 ### Phase 28: Admin Region Picker — Curated Catalog + Hierarchy
 
