@@ -568,7 +568,11 @@ Plans:
   2. On first launch after the update, a one-time sweep deletes orphaned legacy tile files from existing dev/test installs, and the Settings disk-usage total reflects only region-based storage afterward.
   3. A hiker can still download and use a trail fully offline (basemap + navigation) end-to-end purely through the region system, with no functional regression from removing the legacy path.
 
-**Plans**: TBD
+**Plans**: 2 plans (2 waves)
+
+Plans:
+- [ ] 27-01-PLAN.md — Remove trail-scoped tile-download methods + wiring from trail_download_service.dart and delete the orphaned map_cell.dart family
+- [ ] 27-02-PLAN.md — Rewire the Phase 26 guard, conditionally delete showGenerating(), remove pmTiles/demPmTiles from TrailEntity + Trail, and regenerate codegen
 
 ### Phase 28: Admin Region Picker — Curated Catalog + Hierarchy
 
