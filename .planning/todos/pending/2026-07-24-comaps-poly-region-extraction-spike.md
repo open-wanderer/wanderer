@@ -2,6 +2,7 @@
 created: 2026-07-24T17:41:31.000Z
 title: Prototype pmtiles extract --region with a CoMaps .poly-derived polygon
 area: backend
+resolves_phase: 29
 files:
   - db/services/tiles/generator.go
   - .planning/notes/streamlined-region-definition.md
