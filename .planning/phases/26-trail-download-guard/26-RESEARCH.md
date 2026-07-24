@@ -312,17 +312,19 @@ No claims in this research are tagged `[ASSUMED]` — every factual claim about 
 
 **This table is empty:** All claims in this research were verified directly against the codebase — no user confirmation needed before planning.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the D-10 unified notification's title/body extension be a new method or an optional-parameter extension of `showProgress`?**
    - What we know: `showProgress(trailName, done, total)` is called from exactly one place today (`DownloadingTrailIds.download`), so changing its signature is low-risk (single call site) — verified via `grep` showing no other callers.
    - What's unclear: Whether the planner prefers a clean second method (`showAggregateProgress`) to keep `showProgress`'s existing contract frozen, vs. adding nullable `title`/`body` params to `showProgress` itself (fewer methods, slightly busier signature).
    - Recommendation: Either is safe; a new method is marginally cleaner since `showProgress`'s existing 0-region call path must remain byte-for-byte unchanged (GUARD-01), and a separate method makes that invariant visually obvious in a diff.
+   - RESOLVED: Planner adopted the new-method approach — `showAggregateProgress` implemented as a sibling method in `26-02-PLAN.md`, `showProgress` left untouched.
 
 2. **Exact combined-size math when a region's DEM checkbox is checked but the region has no `demUrl`**
    - What we know: `settings_offline_regions_screen.dart`'s precedent already gates the DEM row's existence entirely on `region.demUrl != null` (a region with no DEM archive simply has no DEM row/checkbox at all) — verified in this session.
    - What's unclear: Nothing outstanding — this fully resolves the question the task brief raised about DEM-checkbox-without-DEM-archive; the row simply doesn't render (matches UI-SPEC's Component Inventory: "only if the region has a DEM archive").
    - Recommendation: Reuse the identical `region.demUrl != null` gate verbatim in the new sheet; no new decision needed.
+   - RESOLVED: `26-02-PLAN.md` reuses the `region.demUrl != null` gate verbatim; no new decision required.
 
 ## Environment Availability
 
