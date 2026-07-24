@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: executing
-stopped_at: Phase 27 context gathered
-last_updated: "2026-07-24T14:22:19.970Z"
-last_activity: 2026-07-24 -- Completed 26-05-PLAN.md (Gap 1 aggregate-progress latch + Gap 2 fresh-row region write)
+stopped_at: Completed 27-01-PLAN.md
+last_updated: "2026-07-24T15:39:07.519Z"
+last_activity: 2026-07-24 -- Phase 27 execution started
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 29
-  completed_plans: 28
+  total_plans: 31
+  completed_plans: 29
   percent: 67
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 26 — trail-download-guard
+**Current focus:** Phase 27 — legacy-cleanup
 
 ## Current Position
 
-Phase: 26 (trail-download-guard) — EXECUTING
-Plan: 5 of 5
-Status: Executing Phase 26 -- 26-05-PLAN.md (gap-closure) done; phase awaiting end-of-phase UAT re-run before Phase 27
-Last activity: 2026-07-24 -- Completed 26-05-PLAN.md (Gap 1 aggregate-progress latch + Gap 2 fresh-row region write)
+Phase: 27 (legacy-cleanup) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-07-24 -- Phase 27 execution started
 
 ## v1.6 Phases
 
@@ -117,6 +117,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 26 P03 | 9min | 2 tasks | 1 files |
 | Phase 26 P04 | 5min | 2 tasks | 1 files |
 | Phase 26 P05 | ~10min | 2 tasks | 2 files |
+| Phase 27 P01 | 12min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -252,6 +253,7 @@ Recent decisions affecting current work:
 - [Phase 26]: [26-04] Added package:flutter_riverpod/flutter_riverpod.dart import to trail_download_state_provider.dart for the ProviderSubscription type -- riverpod_annotation alone didn't reliably expose it to the analyzer, which also produced misleading KeepAliveLink false-positive warnings until the import was added
 - [Phase 26]: [26-05] Re-read downloadNotificationServiceProvider via ref.read() for the deferred aggregate-success call rather than hoisting notificationService out of the outer try block -- it's a plain synchronous Provider, so re-reading after the try/finally is safe and keeps the hoisted-variable surface unchanged
 - [Phase 26]: [26-05] TileRepositoryManager._getOrCreatePackage takes {required bool dem} and re-fetches the current RegionEntity row inside its write transaction before linking a package (fresh-row read-modify-write), preventing a concurrent Vector/DEM download's stale full-row snapshot from clobbering the sibling package FK
+- [Phase 27]: [27-01] totalPoints computed up front from photoTotal instead of the deleted tile future's onCellTotal callback — downloadTrail() no longer downloads tiles; onProgress reporting for photo/waypoint-photo downloads must not silently break
 
 ### Roadmap Evolution
 
@@ -346,6 +348,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-24T14:22:19.949Z
-Stopped at: Phase 27 context gathered
-Resume file: .planning/phases/27-legacy-cleanup/27-CONTEXT.md
+Last session: 2026-07-24T15:39:03.704Z
+Stopped at: Completed 27-01-PLAN.md
+Resume file: None

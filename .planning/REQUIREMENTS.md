@@ -140,7 +140,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROXY-01 | Phase 25.1 | Complete |
 | PROXY-02 | Phase 25.1 | Complete |
 | PROXY-03 | Phase 25.1 | Complete |
-| CLEAN-01 | Phase 27 | Pending |
+| CLEAN-01 | Phase 27 | Pending (27-01 runtime portion done; 27-02 removes pmTiles/demPmTiles fields) |
 | CLEAN-02 | Phase 27 | Pending |
 
 **Coverage:**

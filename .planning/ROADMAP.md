@@ -569,7 +569,8 @@ Plans:
   3. A hiker can still download and use a trail fully offline (basemap + navigation) end-to-end purely through the region system, with no functional regression from removing the legacy path.
 
 **Plans**: 2 plans (2 waves)
-- [ ] 27-01-PLAN.md — Remove trail-tile logic from the guard, notification service, and download service; delete map_cell.dart (Wave 1)
+
+- [x] 27-01-PLAN.md — Remove trail-tile logic from the guard, notification service, and download service; delete map_cell.dart (Wave 1)
 - [ ] 27-02-PLAN.md — Remove pmTiles/demPmTiles fields from TrailEntity/Trail and regenerate generated code (Wave 2)
 
 ### Phase 28: Admin Region Picker — Curated Catalog + Hierarchy
@@ -627,4 +628,4 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
-| 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |
+| 27. Legacy Cleanup | v1.6 | 1/2 | In Progress|  |
