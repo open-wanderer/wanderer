@@ -50,10 +50,10 @@
 
 ### Trail Download Guard
 
-- [ ] **GUARD-01**: On trail download tap, the app checks the trail's bbox coverage against downloaded (or updateAvailable) regions before proceeding
+- [x] **GUARD-01**: On trail download tap, the app checks the trail's bbox coverage against downloaded (or updateAvailable) regions before proceeding
 - [ ] **GUARD-02**: If coverage is missing, a dialog names the specific missing region(s) and their size, with a direct in-dialog "Download region" CTA per region
 - [ ] **GUARD-03**: Partial-coverage handling: a trail spanning multiple regions lists all missing regions with individual + combined size, lets the user download any subset, and does not force full coverage before allowing the trail download to proceed
-- [ ] **GUARD-04**: `updateAvailable` regions satisfy the coverage check identically to `downloaded` — the guard never re-fires for a region that's merely stale
+- [x] **GUARD-04**: `updateAvailable` regions satisfy the coverage check identically to `downloaded` — the guard never re-fires for a region that's merely stale
 
 ### Map Rendering Integration
 
@@ -130,10 +130,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SETUI-04 | Phase 24 | Complete |
 | SETUI-05 | Phase 24 | Complete |
 | SETUI-06 | Phase 24 | Complete |
-| GUARD-01 | Phase 26 | Pending |
+| GUARD-01 | Phase 26 | Complete |
 | GUARD-02 | Phase 26 | Pending |
 | GUARD-03 | Phase 26 | Pending |
-| GUARD-04 | Phase 26 | Pending |
+| GUARD-04 | Phase 26 | Complete |
 | RENDER-01 | Phase 25 | Complete |
 | RENDER-02 | Phase 25 | Complete |
 | RENDER-03 | Phase 25 | Complete |
