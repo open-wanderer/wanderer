@@ -2,9 +2,9 @@
 
 ## Current State
 
-**Shipped:** v1.4 MapLibre Migration (2026-07-10) — the Flutter app's map stack is now `maplibre` end-to-end. All 6 map screens render via native GL, both `flomp/*` forks are retired, `flutter_map` and its 4 plugins are gone from `pubspec.yaml`, and offline trails still render basemap + place labels with no network.
+**Shipped:** v1.5 Route Planner (2026-07-17) — from-scratch route building in a dedicated `RoutePlannerScreen`: tap/drag/insert/delete/reorder waypoints with undo/redo, an auto-routing toggle (Valhalla-routed vs straight-line segments, fixed foot/bike profile per session), a docked tabbed sheet (route anchor list + live elevation profile), location-search-to-focus, and handoff to `trail_create_screen` as a draft Trail with a one-time elevation merge.
 
-**Also complete (not yet formally closed):** v1.5 Route Planner — all 3 phases (19, 20, 21) executed; Route Planner screen, auto-routing, waypoint list/elevation views, search-to-focus, and handoff to trail_create_screen all shipped. Not run through `/gsd-complete-milestone` yet, but treated as done for scoping v1.6.
+**Also complete (not yet formally closed):** v1.6 Offline Region Tile Repository — all phases (21.5, 22-27) executed, including Phase 27's removal of the legacy trail-scoped tile system. Not yet run through `/gsd-complete-milestone`.
 
 ## Current Milestone: v1.6 Offline Region Tile Repository
 
@@ -127,7 +127,7 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - Background navigation via tracelet package (from quick tasks)
 - Along-track projection for waypoint advancement (from quick tasks)
 - Open item: dark mode (quick task 260612-gmg) was planned but never executed — the app has no Appearance/theme-mode setting yet
-- Shipped v1.5: Route Planner — from-scratch route building with waypoint editing, Valhalla auto-routing, elevation profile, and handoff to trail create/edit (not yet formally closed via `/gsd-complete-milestone`)
+- Shipped v1.5 (2026-07-17): Route Planner — from-scratch route building with waypoint editing, Valhalla auto-routing, elevation profile, and handoff to trail create/edit. See `.planning/milestones/v1.5-ROADMAP.md` / `v1.5-REQUIREMENTS.md`
 - Offline tiles today are **trail-scoped, not region-scoped**: `app/lib/services/trail_download_service.dart` downloads vector + optional DEM `.pmtiles` per grid cell keyed to a specific trail's bounding box; `app/lib/entities/trail_entity.dart` stores `demPmTiles` per trail. v1.6 replaces this with an app-wide region model
 - Mapterhorn DEM pipeline already exists server-side: `db/services/tiles/generator.go` extracts per-cell DEM archives from `https://download.mapterhorn.com/planet.pmtiles` (const `mapterhornSource`) at `demMaxZoom = 12` (vs vector `maxZoom = 14`), stored at `pb_data/pmtiles_cache/<cellKey>_dem.pmtiles`; `db/routes/map_cells_id.go` exposes `dem_download_url`/`MapCellsDownloadDem`; `web/.../map/cells/[cellKey]/download-dem/+server.ts` proxies it. DEM generation is best-effort — failures never block the vector basemap. v1.6 reuses this pipeline keyed to regions instead of trail cells
 - DEM tiles are raster hillshade only — no numeric elevation is sourced from them. Elevation gain/loss/profile comes exclusively from GPX `<ele>` track points (`gpx_util.dart`); this milestone does not change that
@@ -171,6 +171,10 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 | [v1.4] Incremental screen-by-screen migration, forks deleted last | Keeps the app runnable at every phase boundary; the `LatLng`→`Geographic` churn touches GPX parsing, so a big-bang landing risks trail data, not just maps | ✓ Good — app stayed buildable at every phase boundary |
 | [v1.4] `file://` sprite resolution unreliable on-device; self-register trail arrow instead of relying on sprite atlas | 15-01 spike found glyph `file://` works but sprite `file://` failed on a physical Android device despite valid cached files | ✓ Good — `addImageFromIconData` sidesteps the gap; other sprite-atlas icons (route shields) remain a pre-existing non-regression |
 | [v1.4] OFFL-06 (`pm_tile_provider.dart` deletion) deferred from Phase 15 to Phase 17/18 | `navigation_screen` was the last flutter_map holdout still consuming `MultiPmTilesVectorTileProvider`; deleting the file in Phase 15 would have broken the screen the criterion required to keep building | ✓ Good — deleted in Phase 17 once navigation_screen migrated |
+| [v1.5] Route anchor list + elevation profile as tabs of one docked sheet, not separate map-control-toggled views (PLANUI-01 scope change) | Simpler mental model — one persistent sheet instead of two mutually-exclusive overlay states | ✓ Good — shipped Phase 20 |
+| [v1.5] Handoff synthesizes a GPX track only, no Waypoint records (HANDOFF-01 scope change) | Route anchors are planner-only; converting them to named Waypoints would conflate two different concepts on the receiving trail_create_screen | ✓ Good — shipped Phase 21 |
+| [v1.5] Travel profile (hike/bike) fixed at planner entry, no mid-session switch (ROUTE-03 cut, tracked as PLANNER-07) | Avoids re-resolving every existing segment on profile change; simplifies the auto-routing engine | ✓ Good — deferred to v2 backlog |
+| [v1.5] Dedicated `LocationSearchScreen` instead of reusing `GlobalSearchScreen` | `GlobalSearchScreen` also returns trails/lists/accounts; the planner only needs location results | ✓ Good — shipped Phase 20 |
 
 ## Evolution
 
@@ -190,4 +194,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-21 — Milestone v1.6 Offline Region Tile Repository started.*
+*Last updated: 2026-07-24 — Milestone v1.5 Route Planner archived.*
