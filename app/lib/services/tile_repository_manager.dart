@@ -195,12 +195,12 @@ class TileRepositoryManager {
       freeBytes: free,
       declaredSizeBytes: region.vectorSize ?? 0,
     )) {
-      final package = _getOrCreatePackage(region, region.vectorPackage);
+      final package = _getOrCreatePackage(region, dem: false);
       _updatePackageStatus(package, status: PackageStatus.error);
       return;
     }
 
-    final package = _getOrCreatePackage(region, region.vectorPackage);
+    final package = _getOrCreatePackage(region, dem: false);
     _updatePackageStatus(package, status: PackageStatus.downloading);
 
     Directory(regionStorageDir(root, id)).createSync(recursive: true);
@@ -234,9 +234,20 @@ class TileRepositoryManager {
         downloadedAtUtc: DateTime.now().toUtc(),
       );
 
-      region.lastDownloadedVersion = region.version;
+      // Gap 2 (26-05): re-fetch the current row inside the write
+      // transaction instead of writing this function's stale entry-time
+      // `region` snapshot. `startDemDownload` may have concurrently linked
+      // `demPackage` on the real row since this function's own snapshot was
+      // taken (vector's archive is the slower download, so its completion
+      // -- and this write -- reliably lands after DEM's early link write).
+      // Writing only `lastDownloadedVersion` onto the FRESH row means that
+      // sibling FK is carried through, never clobbered back to unset.
       _store.runInTransaction(TxMode.write, () {
-        _store.box<RegionEntity>().put(region);
+        final freshRegion = _regionById(id);
+        if (freshRegion != null) {
+          freshRegion.lastDownloadedVersion = freshRegion.version;
+          _store.box<RegionEntity>().put(freshRegion);
+        }
       });
     } on DioException catch (e) {
       if (partFile.existsSync()) partFile.deleteSync();
@@ -283,12 +294,12 @@ class TileRepositoryManager {
       freeBytes: free,
       declaredSizeBytes: region.demSize ?? 0,
     )) {
-      final package = _getOrCreatePackage(region, region.demPackage);
+      final package = _getOrCreatePackage(region, dem: true);
       _updatePackageStatus(package, status: PackageStatus.error);
       return;
     }
 
-    final package = _getOrCreatePackage(region, region.demPackage);
+    final package = _getOrCreatePackage(region, dem: true);
     _updatePackageStatus(package, status: PackageStatus.downloading);
 
     Directory(regionStorageDir(root, id)).createSync(recursive: true);
@@ -524,21 +535,36 @@ class TileRepositoryManager {
     }
   }
 
-  /// Returns the existing package target on [toOne] if present, otherwise
-  /// creates one and persists it (via `RegionEntity`'s own box — a `ToOne`
-  /// with a new, unstored target is cascaded on `put`, which also stores
-  /// the relation's foreign key on `region`).
+  /// Returns the existing package target for [region]'s vector ([dem] false)
+  /// or DEM ([dem] true) relation if present, otherwise creates one and
+  /// persists it.
+  ///
+  /// Gap 2 (26-05): `startVectorDownload` and `startDemDownload` each hold
+  /// their own independent `RegionEntity` snapshot, so when both run
+  /// concurrently for the same region, one's stale snapshot can silently
+  /// clobber the OTHER's already-linked package relation the moment either
+  /// side calls `box.put()` — ObjectBox's generated `put()` always
+  /// re-serializes every field on the row (no dirty-tracking), including
+  /// both `vectorPackage.targetId` and `demPackage.targetId`. To prevent
+  /// that, the link `put()` re-fetches the CURRENT row from the store
+  /// (`freshRegion`) inside the write transaction and sets ONLY this
+  /// caller's own relation on it, so a concurrently-linked sibling package
+  /// FK already persisted by the other download is carried through instead
+  /// of being overwritten with a stale, unset value.
   DownloadedTilePackageEntity _getOrCreatePackage(
-    RegionEntity region,
-    ToOne<DownloadedTilePackageEntity> toOne,
-  ) {
+    RegionEntity region, {
+    required bool dem,
+  }) {
+    final toOne = dem ? region.demPackage : region.vectorPackage;
     final existing = toOne.target;
     if (existing != null) return existing;
 
     final created = DownloadedTilePackageEntity();
-    toOne.target = created;
     _store.runInTransaction(TxMode.write, () {
-      _store.box<RegionEntity>().put(region);
+      final freshRegion = _regionById(region.id) ?? region;
+      (dem ? freshRegion.demPackage : freshRegion.vectorPackage).target =
+          created;
+      _store.box<RegionEntity>().put(freshRegion);
     });
     return created;
   }
