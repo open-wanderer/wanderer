@@ -628,4 +628,4 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
-| 27. Legacy Cleanup | v1.6 | 2/2 | Complete   | 2026-07-24 |
+| 27. Legacy Cleanup | v1.6 | 2/2 | Complete    | 2026-07-24 |

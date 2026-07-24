@@ -4,8 +4,8 @@ milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: verifying
 stopped_at: Completed 27-02-PLAN.md
-last_updated: "2026-07-24T15:48:38.206Z"
-last_activity: 2026-07-24 -- Phase 27 execution started
+last_updated: "2026-07-24T15:54:10.577Z"
+last_activity: 2026-07-24
 progress:
   total_phases: 9
   completed_phases: 7
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 ## Current Position
 
-Phase: 27 (legacy-cleanup) — EXECUTING
-Plan: 2 of 2
+Phase: 28
+Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-07-24 -- Phase 27 execution started
+Last activity: 2026-07-24
 
 ## v1.6 Phases
 
@@ -48,7 +48,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 
 **Velocity (v1.0–v1.3):**
 
-- Total plans completed: 35
+- Total plans completed: 37
 - Average duration: — min
 - Total execution time: — hours
 
@@ -62,6 +62,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | 13 | 1 | - | - |
 | 14 | 1 | - | - |
 | 15 | 6 | ~90 min + on-device iteration | ~15 min |
+| 27 | 2 | - | - |
 
 *Updated after each plan completion*
 | Phase 16 P01 | 9min | 3 tasks | 3 files |

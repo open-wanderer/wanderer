@@ -72,7 +72,7 @@
 ### Legacy Cleanup
 
 - [x] **CLEAN-01**: Trail-scoped tile download code is removed outright — `trail_download_service.dart` tile-download methods, `TrailEntity.pmTiles`/`demPmTiles` fields, and related UI — no dual-run, no migration path (app is pre-production)
-- [ ] **CLEAN-02**: A one-time on-device cleanup sweep deletes orphaned legacy tile files left on existing dev/test installs, so the new disk-usage figure is accurate
+- [ ] **CLEAN-02** (descoped): A one-time on-device cleanup sweep deletes orphaned legacy tile files left on existing dev/test installs, so the new disk-usage figure is accurate — cut per 27-CONTEXT.md D-05 (pre-production app, no real install base to sweep), not implemented
 
 ## v2 Requirements
 
