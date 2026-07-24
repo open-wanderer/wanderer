@@ -537,7 +537,7 @@ Plans:
   3. A trail spanning multiple regions lists every missing region with individual and combined size, lets the user download any subset, and never forces full coverage before letting the trail download proceed.
   4. A region with `updateAvailable` status satisfies the coverage check the same as `downloaded` — the guard never re-fires for a region that is merely stale.
 
-**Plans**: 4 plans (3 waves)
+**Plans**: 5 plans (4 waves)
 
 Plans:
 **Wave 1**
@@ -552,6 +552,10 @@ Plans:
 **Wave 3** *(gap closure — from 26-VERIFICATION.md / 26-REVIEW.md)*
 
 - [x] 26-04-PLAN.md — Close CR-02 (invalidate regionListNotifierProvider after guard-triggered region downloads) + CR-01 (always-clear trail.id) + WR-01/WR-02 (notification robustness) in trail_download_state_provider.dart (GUARD-01/03/04)
+
+**Wave 4** *(gap closure — from 26-UAT.md)*
+
+- [ ] 26-05-PLAN.md — Close 2 UAT gaps: aggregate progress bar resets (monotonic per-package latch in updateAggregate + region-futures-gated id-42 success) in trail_download_state_provider.dart, and DEM-shows-not-downloaded concurrency race (fresh-row read-modify-write for every region-row put) in tile_repository_manager.dart (GUARD-02/03)
 
 ### Phase 27: Legacy Cleanup
 
