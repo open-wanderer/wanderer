@@ -98,3 +98,7 @@ None - no external service configuration required.
 ---
 *Phase: 26-trail-download-guard*
 *Completed: 2026-07-24*
+
+## Self-Check: PASSED
+
+All created/modified files exist on disk; all task commits (`1a0e1553`, `455d3f79`) and the summary commit (`5d69452d`) are present in `git log`.
