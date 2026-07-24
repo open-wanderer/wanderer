@@ -509,6 +509,7 @@ Plans:
 **Depends on:** Phase 25 (specifically 25-02's `TileRepositoryManager.localTilePathsForBounds` split; consumes it as the per-tile archive lookup source)
 **Risk gate:** Whether MapLibre Native reliably resolves loopback-HTTP tile sources while the device is offline (airplane mode) is unconfirmed and needs an on-device spike before committing to the full build — mirrors RENDER-03's spike in Phase 25. Regions can also overlap (bbox-only, no dedup today), so a per-tile "which archive wins" resolution rule needs to be designed; none exists yet.
 **Plans:** 4/4 plans complete
+**Status:** ✅ VERIFIED (2026-07-24) — on-device UAT passed on Android (basemap, hillshade, glyphs, sprite icons render offline via the loopback proxy on both TrailMap and navigation_screen). Required a post-UAT fix (commit 9e164aab): `MapLibre.setConnected(true)` defeats MapLibre Native's airplane-mode connectivity gate, plus a network-free offline style path and the sprite `@2x.json` cache fix. **iOS deferred** — same gate applies, needs a `maplibre_ios` fork (see 25.1 deferred-items.md).
 
 Plans:
 **Wave 1**
