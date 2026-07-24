@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: none
-milestone_name: Awaiting next milestone
-status: Awaiting next milestone
-stopped_at: v1.6 milestone archived
-last_updated: "2026-07-24T16:14:43.201Z"
-last_activity: 2026-07-24 — Milestones v1.5 and v1.6 both completed and archived
+milestone: v1.7
+milestone_name: Admin Region Picker
+status: planning
+last_updated: "2026-07-24T17:44:33.268Z"
+last_activity: 2026-07-24
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 31
-  completed_plans: 31
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: Both v1.5 and v1.6 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-07-24 — Milestones v1.5 and v1.6 both completed and archived
+Status: Defining requirements
+Last activity: 2026-07-24 — Milestone v1.7 started
 
 ## v1.6 Phases
 

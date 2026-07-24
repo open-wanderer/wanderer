@@ -6,9 +6,19 @@
 
 **Also complete (not yet formally closed):** none — v1.5 and v1.6 are both archived as of 2026-07-24.
 
-## Current Milestone: none — planning next milestone
+## Current Milestone: v1.7 Admin Region Picker
 
-v1.6 was the last milestone executed. Run `/gsd-new-milestone` to scope the next one.
+**Goal:** A server owner defines downloadable regions by toggling entries in a curated, seeded catalog — sourced from CoMaps' extract hierarchy, with real known boundaries — instead of hand-authoring `region_config.json`; the app's settings screen presents the same hierarchy.
+
+**Target features:**
+- Seeded `regions` table (PocketBase): hierarchical (group/leaf), canonical polygon boundary per leaf region, derived bbox for client use
+- CoMaps-sourced data pipeline: `db/commands/seed_regions.go` maintainer tool → committed JSON seed → auto-run migration
+- Polygon-based `pmtiles extract --region` replacing bbox-based extraction
+- Custom PocketBase admin page (AlpineJS bundle, reusing the `feature/ap-instance-actors` pattern): collapsible region tree + live map showing enabled leaf boundaries
+- Archive-generation cron reads `kind = 'leaf' AND enabled = true` — `region_config.json` parsing retired
+- Flutter Settings screen: region list becomes a collapsible hierarchy matching the admin tree, no download-UX regression
+
+Full design settled via `/gsd-explore` — see `.planning/notes/streamlined-region-definition.md`.
 
 ## What This Is
 
@@ -67,7 +77,12 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 
 ### Active
 
-(None yet — ship the next milestone to populate this section.)
+- [ ] Seeded `regions` table (PocketBase), hierarchical group/leaf, canonical polygon per leaf, CoMaps-sourced (v1.7)
+- [ ] `seed_regions.go` maintainer tool + auto-run migration for zero-admin-action seeding (v1.7)
+- [ ] Polygon-based `pmtiles extract --region` replacing bbox extraction (v1.7)
+- [ ] Custom PocketBase admin page: collapsible region tree + live map, toggle `enabled` (v1.7)
+- [ ] Archive-generation cron reads `kind = 'leaf' AND enabled = true`, retiring `region_config.json` (v1.7)
+- [ ] Flutter Settings screen: flat region list → collapsible hierarchy matching admin tree (v1.7)
 
 ### Out of Scope
 
@@ -202,4 +217,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-24 — Milestones v1.5 Route Planner and v1.6 Offline Region Tile Repository archived.*
+*Last updated: 2026-07-24 — Milestone v1.7 Admin Region Picker started.*
