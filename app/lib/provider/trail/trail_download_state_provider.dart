@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/components/trail/missing_coverage_sheet.dart';
@@ -29,160 +30,183 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
     if (state.contains(trail.id)) return;
     state = {...state, trail.id};
 
-    // Coverage guard (GUARD-01/02/03/04): a local-only, synchronous check
-    // against the region catalog snapshot, run BEFORE any download starts.
-    // D-11: read the already-persisted local snapshot only -- never trigger
-    // a network catalog fetch on the download tap.
-    final regions = ref.read(regionListNotifierProvider);
-    final overlapping = overlappingRegions(trail, regions);
-    final missing = missingCoverageRegions(trail, regions);
-
-    MissingCoverageSelection? selection;
-
-    if (overlapping.isEmpty) {
-      // D-04: the trail's bbox falls inside no catalog region at all -- a
-      // genuine no-region gap. Non-blocking warning; the download still
-      // proceeds below, unchanged, no sheet.
-      ref
-          .read(toastProvider.notifier)
-          .add(
-            ToastMessage(
-              type: ToastType.info,
-              icon: FontAwesomeIcons.triangleExclamation,
-              text: "Part of this trail isn't covered by any offered region.",
-            ),
-          );
-    } else if (missing.isNotEmpty) {
-      // One or more overlapping regions aren't downloaded/updateAvailable --
-      // surface the missing-coverage sheet (GUARD-02/GUARD-03).
-      final ctx = navigatorKey.currentContext;
-      if (ctx != null) {
-        selection = await showMissingCoverageSheet(ctx, trail, missing);
-        if (selection == null) {
-          // Dismissed (swipe/tap-outside) -- abort the whole download.
-          // Nothing starts at all, matching the RESEARCH architecture
-          // diagram's "dismiss -> download() ABORTS".
-          state = {...state}..remove(trail.id);
-          return;
-        }
-      }
-      // ctx == null: never strand the user -- fall through to a trail-only
-      // download exactly as the fully-covered path below.
-    }
-    // else: overlapping.isNotEmpty && missing.isEmpty -- fully covered
-    // (GUARD-01): fall straight through to the existing download body below,
-    // no sheet, no extra toast, byte-for-byte unchanged from today.
-
-    final trailDownloadService = ref.read(trailDownloadServiceProvider);
-    final notificationService = ref.read(downloadNotificationServiceProvider);
-    final toastNotifier = ref.read(toastProvider.notifier);
-
-    // Trail download is a second, independent trigger for the shared
-    // app-wide glyph/sprite cache warm. Fire it concurrently with the trail
-    // download and await it separately (below) so a glyph-cache failure never
-    // fails or corrupts the trail entity write. Idempotent + keepAlive → a
-    // no-op if the map was already opened first.
-    final glyphCacheWarm = ref.read(glyphSpriteCacheProvider.future);
-
-    toastNotifier.add(
-      ToastMessage(
-        type: ToastType.info,
-        icon: FontAwesomeIcons.download,
-        text: 'Downloading ${trail.name}...',
-      ),
-    );
-
-    // D-08/D-09: start every checked region package alongside the trail, all
-    // fire-and-forget -- never awaited before the trail download starts.
-    // downloadVector/downloadDem are already idempotent/re-entry-guarded, so
-    // no second guard is added here.
-    final vectorRegions = selection?.vectorRegions ?? const <RegionEntity>[];
-    final demRegions = selection?.demRegions ?? const <RegionEntity>[];
-    final hasSelectedPackages =
-        vectorRegions.isNotEmpty || demRegions.isNotEmpty;
-    final tileRepoNotifier = ref.read(tileRepositoryStatusProvider.notifier);
-    final regionFutures = <Future<void>>[
-      for (final region in vectorRegions)
-        tileRepoNotifier.downloadVector(region.id),
-      for (final region in demRegions) tileRepoNotifier.downloadDem(region.id),
-    ];
-
-    // D-10: unified id-42 notification aggregating the trail's onProgress
-    // callback with every selected package's live progress -- only when at
-    // least one package was selected. The 0-region path below keeps calling
-    // showProgress(trail.name, ...) completely unchanged (GUARD-01).
-    var lastTrailFraction = 0.0;
-    final itemCount = 1 + vectorRegions.length + demRegions.length;
-
-    void updateAggregate() {
-      final packageStates = ref.read(tileRepositoryStatusProvider);
-      var sum = lastTrailFraction;
-      for (final region in vectorRegions) {
-        sum += packageStates[region.id]?.vectorProgress ?? 0.0;
-      }
-      for (final region in demRegions) {
-        sum += packageStates[region.id]?.demProgress ?? 0.0;
-      }
-      final combined = (sum / itemCount).clamp(0.0, 1.0);
-      notificationService.showAggregateProgress(
-        'Downloading offline content',
-        'Downloading… ${(combined * 100).round()}% · $itemCount items',
-        (combined * 100).round(),
-        100,
-      );
-    }
-
-    // `Ref.listenManual` (WidgetRef-only) isn't available on a Notifier's
-    // plain `Ref`; `ref.container.listen` is the equivalent manually-closed
-    // subscription API for provider/notifier code (same underlying
-    // ProviderContainer.listen that WidgetRef.listenManual wraps).
-    final aggregateSub = hasSelectedPackages
-        ? ref.container.listen(
-            tileRepositoryStatusProvider,
-            (_, _) => updateAggregate(),
-          )
-        : null;
-
-    if (hasSelectedPackages) {
-      updateAggregate();
-    } else {
-      await notificationService.showProgress(trail.name, 0, 0);
-    }
+    // CR-01: hoisted above the outer try/finally below so the post-try
+    // region-futures wait, aggregate-subscription close, and glyph-cache
+    // await (all of which must run AFTER the trail download settles, exactly
+    // as before) can still reference them. Populated inside the try; the
+    // only ways to reach the code below the try are (a) normal completion,
+    // where all three are assigned, since (b) the dismiss-abort `return` and
+    // any exception both exit via the outer `finally` first.
+    final regionFutures = <Future<void>>[];
+    ProviderSubscription? aggregateSub;
+    Future<void>? glyphCacheWarm;
 
     try {
-      await trailDownloadService.downloadTrail(
-        trail,
-        onGeneratingChanged: (isGenerating) {
-          if (isGenerating) notificationService.showGenerating(trail.name);
-        },
-        onProgress: (done, total) {
-          if (hasSelectedPackages) {
-            lastTrailFraction = total > 0 ? (done / total).clamp(0, 1) : 0;
-            updateAggregate();
-          } else {
-            notificationService.showProgress(trail.name, done, total);
+      // Coverage guard (GUARD-01/02/03/04): a local-only, synchronous check
+      // against the region catalog snapshot, run BEFORE any download starts.
+      // D-11: read the already-persisted local snapshot only -- never trigger
+      // a network catalog fetch on the download tap.
+      final regions = ref.read(regionListNotifierProvider);
+      final overlapping = overlappingRegions(trail, regions);
+      final missing = missingCoverageRegions(trail, regions);
+
+      MissingCoverageSelection? selection;
+
+      if (overlapping.isEmpty) {
+        // D-04: the trail's bbox falls inside no catalog region at all -- a
+        // genuine no-region gap. Non-blocking warning; the download still
+        // proceeds below, unchanged, no sheet.
+        ref
+            .read(toastProvider.notifier)
+            .add(
+              ToastMessage(
+                type: ToastType.info,
+                icon: FontAwesomeIcons.triangleExclamation,
+                text:
+                    "Part of this trail isn't covered by any offered region.",
+              ),
+            );
+      } else if (missing.isNotEmpty) {
+        // One or more overlapping regions aren't downloaded/updateAvailable --
+        // surface the missing-coverage sheet (GUARD-02/GUARD-03).
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null) {
+          selection = await showMissingCoverageSheet(ctx, trail, missing);
+          if (selection == null) {
+            // Dismissed (swipe/tap-outside) -- abort the whole download.
+            // Nothing starts at all, matching the RESEARCH architecture
+            // diagram's "dismiss -> download() ABORTS". The outer `finally`
+            // below clears trail.id from state (CR-01).
+            return;
           }
-        },
+        }
+        // ctx == null: never strand the user -- fall through to a trail-only
+        // download exactly as the fully-covered path below.
+      }
+      // else: overlapping.isNotEmpty && missing.isEmpty -- fully covered
+      // (GUARD-01): fall straight through to the existing download body below,
+      // no sheet, no extra toast, byte-for-byte unchanged from today.
+
+      final trailDownloadService = ref.read(trailDownloadServiceProvider);
+      final notificationService = ref.read(
+        downloadNotificationServiceProvider,
       );
-      await notificationService.showSuccess(trail.name);
-      ref.invalidate(trailLibraryProvider);
+      final toastNotifier = ref.read(toastProvider.notifier);
+
+      // Trail download is a second, independent trigger for the shared
+      // app-wide glyph/sprite cache warm. Fire it concurrently with the trail
+      // download and await it separately (below) so a glyph-cache failure never
+      // fails or corrupts the trail entity write. Idempotent + keepAlive → a
+      // no-op if the map was already opened first.
+      glyphCacheWarm = ref.read(glyphSpriteCacheProvider.future);
+
       toastNotifier.add(
         ToastMessage(
-          type: ToastType.success,
-          icon: FontAwesomeIcons.circleCheck,
-          text: 'Trail saved for offline use',
+          type: ToastType.info,
+          icon: FontAwesomeIcons.download,
+          text: 'Downloading ${trail.name}...',
         ),
       );
-    } catch (e) {
-      await notificationService.showError(trail.name);
-      toastNotifier.add(
-        ToastMessage(
-          type: ToastType.error,
-          icon: FontAwesomeIcons.xmark,
-          text: 'Error saving trail',
-        ),
-      );
+
+      // D-08/D-09: start every checked region package alongside the trail, all
+      // fire-and-forget -- never awaited before the trail download starts.
+      // downloadVector/downloadDem are already idempotent/re-entry-guarded, so
+      // no second guard is added here.
+      final vectorRegions = selection?.vectorRegions ?? const <RegionEntity>[];
+      final demRegions = selection?.demRegions ?? const <RegionEntity>[];
+      final hasSelectedPackages =
+          vectorRegions.isNotEmpty || demRegions.isNotEmpty;
+      final tileRepoNotifier = ref.read(tileRepositoryStatusProvider.notifier);
+      regionFutures.addAll([
+        for (final region in vectorRegions)
+          tileRepoNotifier.downloadVector(region.id),
+        for (final region in demRegions)
+          tileRepoNotifier.downloadDem(region.id),
+      ]);
+
+      // D-10: unified id-42 notification aggregating the trail's onProgress
+      // callback with every selected package's live progress -- only when at
+      // least one package was selected. The 0-region path below keeps calling
+      // showProgress(trail.name, ...) completely unchanged (GUARD-01).
+      var lastTrailFraction = 0.0;
+      final itemCount = 1 + vectorRegions.length + demRegions.length;
+
+      void updateAggregate() {
+        final packageStates = ref.read(tileRepositoryStatusProvider);
+        var sum = lastTrailFraction;
+        for (final region in vectorRegions) {
+          sum += packageStates[region.id]?.vectorProgress ?? 0.0;
+        }
+        for (final region in demRegions) {
+          sum += packageStates[region.id]?.demProgress ?? 0.0;
+        }
+        final combined = (sum / itemCount).clamp(0.0, 1.0);
+        notificationService.showAggregateProgress(
+          'Downloading offline content',
+          'Downloading… ${(combined * 100).round()}% · $itemCount items',
+          (combined * 100).round(),
+          100,
+        );
+      }
+
+      // `Ref.listenManual` (WidgetRef-only) isn't available on a Notifier's
+      // plain `Ref`; `ref.container.listen` is the equivalent manually-closed
+      // subscription API for provider/notifier code (same underlying
+      // ProviderContainer.listen that WidgetRef.listenManual wraps).
+      aggregateSub = hasSelectedPackages
+          ? ref.container.listen(
+              tileRepositoryStatusProvider,
+              (_, _) => updateAggregate(),
+            )
+          : null;
+
+      if (hasSelectedPackages) {
+        updateAggregate();
+      } else {
+        await notificationService.showProgress(trail.name, 0, 0);
+      }
+
+      try {
+        await trailDownloadService.downloadTrail(
+          trail,
+          onGeneratingChanged: (isGenerating) {
+            if (isGenerating) notificationService.showGenerating(trail.name);
+          },
+          onProgress: (done, total) {
+            if (hasSelectedPackages) {
+              lastTrailFraction = total > 0 ? (done / total).clamp(0, 1) : 0;
+              updateAggregate();
+            } else {
+              notificationService.showProgress(trail.name, done, total);
+            }
+          },
+        );
+        await notificationService.showSuccess(trail.name);
+        ref.invalidate(trailLibraryProvider);
+        toastNotifier.add(
+          ToastMessage(
+            type: ToastType.success,
+            icon: FontAwesomeIcons.circleCheck,
+            text: 'Trail saved for offline use',
+          ),
+        );
+      } catch (e) {
+        await notificationService.showError(trail.name);
+        toastNotifier.add(
+          ToastMessage(
+            type: ToastType.error,
+            icon: FontAwesomeIcons.xmark,
+            text: 'Error saving trail',
+          ),
+        );
+      }
     } finally {
+      // CR-01: the single, sole cleanup of trail.id -- always runs, whether
+      // the method above completed normally, dismissed via the missing-
+      // coverage sheet, or threw anywhere in between. The download button is
+      // never permanently stranded/disabled. Unlock timing is unchanged: this
+      // still fires the instant the trail download settles, NOT delayed until
+      // the region packages below finish.
       state = {...state}..remove(trail.id);
     }
 
@@ -194,6 +218,15 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
         await Future.wait(regionFutures);
       } catch (_) {
         // Isolated from the trail download above; nothing to do here.
+      } finally {
+        // CR-02/GUARD-04: once the guard's own region packages settle (success
+        // or failure), invalidate regionListNotifierProvider so a still-alive
+        // RegionListNotifier (e.g. Settings/Offline Regions mounted) re-reads
+        // the now-current status from ObjectBox instead of a stale cached
+        // ToOne.target -- mirrors settings_offline_regions_screen.dart's
+        // _save/_onCancelVector pattern. Only fires when a region mutation
+        // actually happened (inside the isNotEmpty guard).
+        ref.invalidate(regionListNotifierProvider);
       }
     }
     aggregateSub?.close();
