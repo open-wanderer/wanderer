@@ -543,7 +543,7 @@ Plans:
 **Wave 1**
 
 - [x] 26-01-PLAN.md — Pure trail-coverage util (bboxesOverlap/overlappingRegions/missingCoverageRegions) + table-driven tests (GUARD-01/04)
-- [ ] 26-02-PLAN.md — Missing-coverage bottom sheet (Vector/DEM checkboxes, sizes, always-on Download) + MissingCoverageSelection contract + showAggregateProgress notification method (GUARD-02/03)
+- [x] 26-02-PLAN.md — Missing-coverage bottom sheet (Vector/DEM checkboxes, sizes, always-on Download) + MissingCoverageSelection contract + showAggregateProgress notification method (GUARD-02/03)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -600,5 +600,5 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
-| 26. Trail Download Guard | v1.6 | 1/3 | In Progress|  |
+| 26. Trail Download Guard | v1.6 | 2/3 | In Progress|  |
 | 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |
