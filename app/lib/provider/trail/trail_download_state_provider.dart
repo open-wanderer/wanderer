@@ -1,11 +1,15 @@
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:wanderer/components/trail/missing_coverage_sheet.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/download_notification_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
+import 'package:wanderer/provider/region/region_provider.dart';
+import 'package:wanderer/provider/router_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
+import 'package:wanderer/util/trail_coverage_util.dart';
 
 part 'trail_download_state_provider.g.dart';
 
@@ -22,6 +26,46 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
   Future<void> download(Trail trail) async {
     if (state.contains(trail.id)) return;
     state = {...state, trail.id};
+
+    // Coverage guard (GUARD-01/02/03/04): a local-only, synchronous check
+    // against the region catalog snapshot, run BEFORE any download starts.
+    // D-11: read the already-persisted local snapshot only -- never trigger
+    // a network catalog fetch on the download tap.
+    final regions = ref.read(regionListNotifierProvider);
+    final overlapping = overlappingRegions(trail, regions);
+    final missing = missingCoverageRegions(trail, regions);
+
+    if (overlapping.isEmpty) {
+      // D-04: the trail's bbox falls inside no catalog region at all -- a
+      // genuine no-region gap. Non-blocking warning; the download still
+      // proceeds below, unchanged, no sheet.
+      ref.read(toastProvider.notifier).add(
+        ToastMessage(
+          type: ToastType.info,
+          icon: FontAwesomeIcons.triangleExclamation,
+          text: "Part of this trail isn't covered by any offered region.",
+        ),
+      );
+    } else if (missing.isNotEmpty) {
+      // One or more overlapping regions aren't downloaded/updateAvailable --
+      // surface the missing-coverage sheet (GUARD-02/GUARD-03).
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null) {
+        final selection = await showMissingCoverageSheet(ctx, trail, missing);
+        if (selection == null) {
+          // Dismissed (swipe/tap-outside) -- abort the whole download.
+          // Nothing starts at all, matching the RESEARCH architecture
+          // diagram's "dismiss -> download() ABORTS".
+          state = {...state}..remove(trail.id);
+          return;
+        }
+      }
+      // ctx == null: never strand the user -- fall through to a trail-only
+      // download exactly as the fully-covered path below.
+    }
+    // else: overlapping.isNotEmpty && missing.isEmpty -- fully covered
+    // (GUARD-01): fall straight through to the existing download body below,
+    // no sheet, no extra toast, byte-for-byte unchanged from today.
 
     final trailDownloadService = ref.read(trailDownloadServiceProvider);
     final notificationService = ref.read(downloadNotificationServiceProvider);
