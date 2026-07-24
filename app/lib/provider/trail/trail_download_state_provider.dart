@@ -206,18 +206,6 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
       try {
         await trailDownloadService.downloadTrail(
           trail,
-          onGeneratingChanged: (isGenerating) {
-            // WR-01: when packages are selected, keep the unified id-42
-            // aggregate notification stable through tile generation instead
-            // of reverting to showGenerating's plain trail-name copy
-            // (GUARD-03 / D-10). The 0-region path below is unchanged.
-            if (!isGenerating) return;
-            if (hasSelectedPackages) {
-              updateAggregate();
-            } else {
-              notificationService.showGenerating(trail.name).catchError((_) {});
-            }
-          },
           onProgress: (done, total) {
             if (hasSelectedPackages) {
               lastTrailFraction = total > 0 ? (done / total).clamp(0, 1) : 0;

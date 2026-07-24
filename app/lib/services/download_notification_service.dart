@@ -34,38 +34,6 @@ class DownloadNotificationService {
     _initialized = true;
   }
 
-  /// Indeterminate state shown while a trail's map tiles are still being
-  /// generated on the server — there's no measurable percentage for this
-  /// phase, so it's a distinct spinner rather than a fake progress value.
-  Future<void> showGenerating(String trailName) async {
-    await _ensureInitialized();
-
-    final androidDetails = AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: 'Trail tile download progress',
-      importance: Importance.low,
-      priority: Priority.low,
-      showProgress: true,
-      indeterminate: true,
-      ongoing: true,
-      autoCancel: false,
-      onlyAlertOnce: true,
-    );
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: false,
-      presentBadge: false,
-      presentSound: false,
-    );
-
-    await _plugin.show(
-      _notificationId,
-      trailName,
-      'Generating map tiles...',
-      NotificationDetails(android: androidDetails, iOS: iosDetails),
-    );
-  }
-
   Future<void> showProgress(String trailName, int done, int total) async {
     await _ensureInitialized();
 
