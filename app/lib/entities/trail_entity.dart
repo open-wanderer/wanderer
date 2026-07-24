@@ -38,8 +38,6 @@ class TrailEntity {
   @Property(type: PropertyType.dateUtc)
   DateTime updated;
   List<String> photos = [];
-  List<String> pmTiles = [];
-  List<String> demPmTiles = [];
 
   @Transient()
   TrailDifficulty difficulty = TrailDifficulty.easy;
@@ -155,8 +153,6 @@ extension TrailEntityMapping on TrailEntity {
       description: description ?? "",
       isOffline: true,
       localPhotos: photos,
-      pmTiles: pmTiles,
-      demPmTiles: demPmTiles,
       updated: updated,
       created: created,
       expand: TrailExpand(
