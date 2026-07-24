@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: verifying
-stopped_at: Completed 26-03-PLAN.md
-last_updated: "2026-07-24T12:39:26.559Z"
-last_activity: "2026-07-24 -- Completed 26-04-PLAN.md (gap-closure: CR-01/CR-02/WR-01/WR-02)"
+status: executing
+stopped_at: Completed 26-05-PLAN.md
+last_updated: "2026-07-24T13:53:56.676Z"
+last_activity: 2026-07-24 -- Completed 26-05-PLAN.md (Gap 1 aggregate-progress latch + Gap 2 fresh-row region write)
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 28
-  completed_plans: 27
+  total_plans: 29
+  completed_plans: 28
   percent: 67
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-16)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 26 — trail-download-guard (complete, pending end-of-phase UAT)
+**Current focus:** Phase 26 — trail-download-guard
 
 ## Current Position
 
-Phase: 26 (trail-download-guard) — COMPLETE (4/4 plans)
-Plan: 4 of 4
-Status: Phase 26 plans complete; end-of-phase on-device UAT outstanding (see 26-VERIFICATION.md Human Verification #5); next up is Phase 27 (Legacy Cleanup)
-Last activity: 2026-07-24 -- Completed 26-04-PLAN.md (gap-closure: CR-01/CR-02/WR-01/WR-02)
+Phase: 26 (trail-download-guard) — EXECUTING
+Plan: 5 of 5
+Status: Executing Phase 26 -- 26-05-PLAN.md (gap-closure) done; phase awaiting end-of-phase UAT re-run before Phase 27
+Last activity: 2026-07-24 -- Completed 26-05-PLAN.md (Gap 1 aggregate-progress latch + Gap 2 fresh-row region write)
 
 ## v1.6 Phases
 
@@ -116,6 +116,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 26 P02 | 19min | 2 tasks | 2 files |
 | Phase 26 P03 | 9min | 2 tasks | 1 files |
 | Phase 26 P04 | 5min | 2 tasks | 1 files |
+| Phase 26 P05 | ~10min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -249,6 +250,8 @@ Recent decisions affecting current work:
 - [Phase 26]: [26-03] Ref.listenManual does not exist on a Notifier's plain Ref; used ref.container.listen(...) instead — flutter_riverpod only declares listenManual on BaseWidgetRef (widget-tree consumers); a Notifier's Ref only implements BaseRef. Ref.container is a public ProviderContainer getter whose .listen() returns the same closeable ProviderSubscription, so it is the correct non-widget-code equivalent for the D-10 aggregate-notification subscription.
 - [Phase 26]: [26-04] Restructured DownloadingTrailIds.download() into a single outer try/finally (CR-01) with regionFutures/aggregateSub/glyphCacheWarm hoisted above it, plus a regionListNotifierProvider invalidation in the region-futures finally (CR-02) and an aggregate-aware onGeneratingChanged (WR-01/D-10)
 - [Phase 26]: [26-04] Added package:flutter_riverpod/flutter_riverpod.dart import to trail_download_state_provider.dart for the ProviderSubscription type -- riverpod_annotation alone didn't reliably expose it to the analyzer, which also produced misleading KeepAliveLink false-positive warnings until the import was added
+- [Phase 26]: [26-05] Re-read downloadNotificationServiceProvider via ref.read() for the deferred aggregate-success call rather than hoisting notificationService out of the outer try block -- it's a plain synchronous Provider, so re-reading after the try/finally is safe and keeps the hoisted-variable surface unchanged
+- [Phase 26]: [26-05] TileRepositoryManager._getOrCreatePackage takes {required bool dem} and re-fetches the current RegionEntity row inside its write transaction before linking a package (fresh-row read-modify-write), preventing a concurrent Vector/DEM download's stale full-row snapshot from clobbering the sibling package FK
 
 ### Roadmap Evolution
 
@@ -343,6 +346,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-24T12:39:26.542Z
-Stopped at: Completed 26-03-PLAN.md
+Last session: 2026-07-24T13:53:14.180Z
+Stopped at: Completed 26-05-PLAN.md
 Resume file: None

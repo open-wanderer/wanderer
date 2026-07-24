@@ -555,7 +555,7 @@ Plans:
 
 **Wave 4** *(gap closure — from 26-UAT.md)*
 
-- [ ] 26-05-PLAN.md — Close 2 UAT gaps: aggregate progress bar resets (monotonic per-package latch in updateAggregate + region-futures-gated id-42 success) in trail_download_state_provider.dart, and DEM-shows-not-downloaded concurrency race (fresh-row read-modify-write for every region-row put) in tile_repository_manager.dart (GUARD-02/03)
+- [x] 26-05-PLAN.md — Close 2 UAT gaps: aggregate progress bar resets (monotonic per-package latch in updateAggregate + region-futures-gated id-42 success) in trail_download_state_provider.dart, and DEM-shows-not-downloaded concurrency race (fresh-row read-modify-write for every region-row put) in tile_repository_manager.dart (GUARD-02/03)
 
 ### Phase 27: Legacy Cleanup
 
@@ -624,5 +624,5 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
-| 26. Trail Download Guard | v1.6 | 4/4 | Complete   | 2026-07-24 |
+| 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
 | 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |
