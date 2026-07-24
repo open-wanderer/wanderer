@@ -356,7 +356,7 @@ Plans:
 - [x] **Phase 24: Settings — Offline Maps/Regions UI** - Flat searchable region list, independent Vector/DEM tiles with download/cancel/delete and total disk usage (completed 2026-07-22; amended 2026-07-23 — DEM toggle replaced by a gated DEM tile, see Phase 24 note)
 - [x] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** - `TrailMap`/`navigation_screen` read region tiles through a viewport-scoped style pipeline, settled by a maplibre 0.3.5 spike (completed 2026-07-23)
 - [x] **Phase 26: Trail Download Guard** - Trail downloads check region coverage first, naming missing regions with an inline download CTA (completed 2026-07-24)
-- [ ] **Phase 27: Legacy Cleanup** - Trail-scoped tile code deleted outright, orphaned legacy files swept on first launch
+- [x] **Phase 27: Legacy Cleanup** - Trail-scoped tile code deleted outright, orphaned legacy files swept on first launch (completed 2026-07-24)
 
 #### Sequencing Rationale
 
@@ -571,7 +571,7 @@ Plans:
 **Plans**: 2 plans (2 waves)
 
 - [x] 27-01-PLAN.md — Remove trail-tile logic from the guard, notification service, and download service; delete map_cell.dart (Wave 1)
-- [ ] 27-02-PLAN.md — Remove pmTiles/demPmTiles fields from TrailEntity/Trail and regenerate generated code (Wave 2)
+- [x] 27-02-PLAN.md — Remove pmTiles/demPmTiles fields from TrailEntity/Trail and regenerate generated code (Wave 2)
 
 ### Phase 28: Admin Region Picker — Curated Catalog + Hierarchy
 
@@ -628,4 +628,4 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
-| 27. Legacy Cleanup | v1.6 | 1/2 | In Progress|  |
+| 27. Legacy Cleanup | v1.6 | 2/2 | Complete   | 2026-07-24 |

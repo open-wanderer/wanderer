@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: executing
-stopped_at: Completed 27-01-PLAN.md
-last_updated: "2026-07-24T15:39:07.519Z"
+status: verifying
+stopped_at: Completed 27-02-PLAN.md
+last_updated: "2026-07-24T15:48:38.206Z"
 last_activity: 2026-07-24 -- Phase 27 execution started
 progress:
   total_phases: 9
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 31
-  completed_plans: 29
-  percent: 67
+  completed_plans: 30
+  percent: 78
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 Phase: 27 (legacy-cleanup) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-24 -- Phase 27 execution started
 
 ## v1.6 Phases
@@ -118,6 +118,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 26 P04 | 5min | 2 tasks | 1 files |
 | Phase 26 P05 | ~10min | 2 tasks | 2 files |
 | Phase 27 P01 | 12min | 2 tasks | 6 files |
+| Phase 27 P02 | 4min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -254,6 +255,8 @@ Recent decisions affecting current work:
 - [Phase 26]: [26-05] Re-read downloadNotificationServiceProvider via ref.read() for the deferred aggregate-success call rather than hoisting notificationService out of the outer try block -- it's a plain synchronous Provider, so re-reading after the try/finally is safe and keeps the hoisted-variable surface unchanged
 - [Phase 26]: [26-05] TileRepositoryManager._getOrCreatePackage takes {required bool dem} and re-fetches the current RegionEntity row inside its write transaction before linking a package (fresh-row read-modify-write), preventing a concurrent Vector/DEM download's stale full-row snapshot from clobbering the sibling package FK
 - [Phase 27]: [27-01] totalPoints computed up front from photoTotal instead of the deleted tile future's onCellTotal callback — downloadTrail() no longer downloads tiles; onProgress reporting for photo/waypoint-photo downloads must not silently break
+- [Phase 27]: [27-02] Regeneration touched two riverpod provider hash files (map_style_json_provider.g.dart, trail_download_state_provider.g.dart) as a side effect of the single project-wide build_runner pass — Logic in those files is unchanged; only the compile-time source hash used for provider identity shifted because it hashes the whole dependency graph including the Trail model
+- [Phase 27]: [27-02] No ObjectBox migration step performed for pmTiles/demPmTiles removal — Field removal is a supported regeneration for a pre-production app (D-06); build_runner's own log confirmed both properties were cleanly retired from the model
 
 ### Roadmap Evolution
 
@@ -348,6 +351,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-24T15:39:03.704Z
-Stopped at: Completed 27-01-PLAN.md
+Last session: 2026-07-24T15:48:38.191Z
+Stopped at: Completed 27-02-PLAN.md
 Resume file: None
