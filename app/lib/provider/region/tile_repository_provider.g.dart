@@ -70,28 +70,34 @@ final class TileRepositoryManagerProvider
 String _$tileRepositoryManagerHash() =>
     r'64c5e2fb8758d08be2dcc4154282b30efea8b9c6';
 
-/// Per-region download state, keyed by region id -- Phase 24's Settings UI
-/// subscribes to this. `keepAlive` so in-progress state survives whichever
-/// widget happens to rebuild or unmount mid-download (mirrors
-/// `DownloadingTrailIds`).
+/// Per-region download state, keyed by region id -- the Settings/Regions
+/// screen subscribes to this. `keepAlive` so in-progress state survives
+/// whichever widget happens to rebuild or unmount mid-download (mirrors
+/// `DownloadingTrailIds`). Vector and DEM downloads are fully independent:
+/// each has its own start/cancel method and its own progress field on
+/// [RegionDownloadState].
 
 @ProviderFor(TileRepositoryStatus)
 final tileRepositoryStatusProvider = TileRepositoryStatusProvider._();
 
-/// Per-region download state, keyed by region id -- Phase 24's Settings UI
-/// subscribes to this. `keepAlive` so in-progress state survives whichever
-/// widget happens to rebuild or unmount mid-download (mirrors
-/// `DownloadingTrailIds`).
+/// Per-region download state, keyed by region id -- the Settings/Regions
+/// screen subscribes to this. `keepAlive` so in-progress state survives
+/// whichever widget happens to rebuild or unmount mid-download (mirrors
+/// `DownloadingTrailIds`). Vector and DEM downloads are fully independent:
+/// each has its own start/cancel method and its own progress field on
+/// [RegionDownloadState].
 final class TileRepositoryStatusProvider
     extends
         $NotifierProvider<
           TileRepositoryStatus,
           Map<String, RegionDownloadState>
         > {
-  /// Per-region download state, keyed by region id -- Phase 24's Settings UI
-  /// subscribes to this. `keepAlive` so in-progress state survives whichever
-  /// widget happens to rebuild or unmount mid-download (mirrors
-  /// `DownloadingTrailIds`).
+  /// Per-region download state, keyed by region id -- the Settings/Regions
+  /// screen subscribes to this. `keepAlive` so in-progress state survives
+  /// whichever widget happens to rebuild or unmount mid-download (mirrors
+  /// `DownloadingTrailIds`). Vector and DEM downloads are fully independent:
+  /// each has its own start/cancel method and its own progress field on
+  /// [RegionDownloadState].
   TileRepositoryStatusProvider._()
     : super(
         from: null,
@@ -122,12 +128,14 @@ final class TileRepositoryStatusProvider
 }
 
 String _$tileRepositoryStatusHash() =>
-    r'fa35a1d77d415050264144f87642d45e7b4f8b59';
+    r'6c4955d47fc8ac04d49d0cac30a131bbb8086bfd';
 
-/// Per-region download state, keyed by region id -- Phase 24's Settings UI
-/// subscribes to this. `keepAlive` so in-progress state survives whichever
-/// widget happens to rebuild or unmount mid-download (mirrors
-/// `DownloadingTrailIds`).
+/// Per-region download state, keyed by region id -- the Settings/Regions
+/// screen subscribes to this. `keepAlive` so in-progress state survives
+/// whichever widget happens to rebuild or unmount mid-download (mirrors
+/// `DownloadingTrailIds`). Vector and DEM downloads are fully independent:
+/// each has its own start/cancel method and its own progress field on
+/// [RegionDownloadState].
 
 abstract class _$TileRepositoryStatus
     extends $Notifier<Map<String, RegionDownloadState>> {

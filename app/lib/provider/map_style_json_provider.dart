@@ -41,6 +41,44 @@ Future<String> mapStyleJson(Ref ref) async {
       .replaceAll('__SPRITE_URL__', '${sources.spriteUrl}/$spriteVariant');
 }
 
+/// Inert placeholder substituted for the operator tile/glyph/sprite sentinels
+/// on the offline path. Every one of these is overwritten by
+/// `rewriteStyleForProxy` (tiles → loopback proxy, glyphs/sprite → `file://`)
+/// before the style reaches MapLibre, so the value is never used at render
+/// time — it exists only to keep the style JSON syntactically valid.
+const String offlineSentinelPlaceholder = 'about:blank';
+
+/// Fills the three operator-endpoint sentinels in a raw style asset with
+/// [offlineSentinelPlaceholder]. Pure counterpart to [mapStyleJson]'s
+/// network-sourced substitution — used by [offlineMapStyleJson] so the offline
+/// path never depends on `/map/style-sources`. The placeholders are safe
+/// because the offline render path overwrites every one via
+/// `rewriteStyleForProxy`.
+String fillOfflineStyleSentinels(String raw) {
+  return raw
+      .replaceAll('__TILE_URL__', offlineSentinelPlaceholder)
+      .replaceAll('__GLYPH_URL__', offlineSentinelPlaceholder)
+      .replaceAll('__SPRITE_URL__', offlineSentinelPlaceholder);
+}
+
+/// The network-free offline counterpart to [mapStyleJson]: loads the same
+/// theme-appropriate style asset but fills the three endpoint sentinels with an
+/// inert placeholder instead of awaiting [mapStyleSourcesProvider]. Safe because
+/// the offline render path rewrites every one of those sentinels via
+/// `rewriteStyleForProxy` before the style is used. Watches only
+/// [themeModeProvider] so a theme toggle still triggers a live style swap.
+@Riverpod(keepAlive: true)
+Future<String> offlineMapStyleJson(Ref ref) async {
+  final mode = ref.watch(themeModeProvider);
+  final brightness = effectiveBrightness(mode);
+  final assetPath = brightness == Brightness.dark
+      ? 'assets/map/wanderer_dark.json'
+      : 'assets/map/wanderer_light.json';
+
+  final raw = await rootBundle.loadString(assetPath);
+  return fillOfflineStyleSentinels(raw);
+}
+
 /// Resolves the effective [Brightness] for a given [ThemeMode], falling back
 /// to the platform's current brightness when the mode is [ThemeMode.system].
 Brightness effectiveBrightness(ThemeMode mode) {

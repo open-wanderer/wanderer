@@ -84,3 +84,57 @@ final class MapStyleJsonProvider
 }
 
 String _$mapStyleJsonHash() => r'153afd3e727c8270d857c1d1ec0d874cbb8a6bab';
+
+/// The network-free offline counterpart to [mapStyleJson]: loads the same
+/// theme-appropriate style asset but fills the three endpoint sentinels with an
+/// inert placeholder instead of awaiting [mapStyleSourcesProvider]. Safe because
+/// the offline render path rewrites every one of those sentinels via
+/// `rewriteStyleForProxy` before the style is used. Watches only
+/// [themeModeProvider] so a theme toggle still triggers a live style swap.
+
+@ProviderFor(offlineMapStyleJson)
+final offlineMapStyleJsonProvider = OfflineMapStyleJsonProvider._();
+
+/// The network-free offline counterpart to [mapStyleJson]: loads the same
+/// theme-appropriate style asset but fills the three endpoint sentinels with an
+/// inert placeholder instead of awaiting [mapStyleSourcesProvider]. Safe because
+/// the offline render path rewrites every one of those sentinels via
+/// `rewriteStyleForProxy` before the style is used. Watches only
+/// [themeModeProvider] so a theme toggle still triggers a live style swap.
+
+final class OfflineMapStyleJsonProvider
+    extends $FunctionalProvider<AsyncValue<String>, String, FutureOr<String>>
+    with $FutureModifier<String>, $FutureProvider<String> {
+  /// The network-free offline counterpart to [mapStyleJson]: loads the same
+  /// theme-appropriate style asset but fills the three endpoint sentinels with an
+  /// inert placeholder instead of awaiting [mapStyleSourcesProvider]. Safe because
+  /// the offline render path rewrites every one of those sentinels via
+  /// `rewriteStyleForProxy` before the style is used. Watches only
+  /// [themeModeProvider] so a theme toggle still triggers a live style swap.
+  OfflineMapStyleJsonProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'offlineMapStyleJsonProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$offlineMapStyleJsonHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<String> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<String> create(Ref ref) {
+    return offlineMapStyleJson(ref);
+  }
+}
+
+String _$offlineMapStyleJsonHash() =>
+    r'5ac8e5cbaafeb42e035bb190eaf2f33e80875b95';

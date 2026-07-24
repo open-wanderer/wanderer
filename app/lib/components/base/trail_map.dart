@@ -81,9 +81,11 @@ class _TrailMapState extends ConsumerState<TrailMap> {
 
   @override
   Widget build(BuildContext context) {
-    // Warms the shared glyph/sprite cache on first open; idempotent
-    // against the trail-download trigger.
-    if (!_cacheWarmed) {
+    // Warms the shared glyph/sprite cache on first open (online only) so a
+    // later offline open renders from disk; idempotent against the
+    // trail-download trigger. Skipped when offline — the warm is a network
+    // download and the cache is already populated by the time it is needed.
+    if (!_cacheWarmed && !widget.offline) {
       _cacheWarmed = true;
       ref.read(glyphSpriteCacheProvider.future).ignore();
     }
@@ -91,13 +93,18 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     // Swap the style in place on theme toggle, or once the offline
     // glyph/sprite cache finishes warming — no remount, no flash. Region
     // coverage is resolved by the loopback tile proxy per-tile (PROXY-01),
-    // so no separate region-change listener is needed here.
-    ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
+    // so no separate region-change listener is needed here. Offline reads the
+    // network-free providers so no `/map/style-sources` call is ever made.
     if (widget.offline) {
-      ref.listen(glyphSpriteCacheProvider, (_, _) => _swapStyle());
+      ref.listen(offlineMapStyleJsonProvider, (_, _) => _swapStyle());
+      ref.listen(offlineGlyphSpritePathsProvider, (_, _) => _swapStyle());
+    } else {
+      ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
     }
 
-    final baseAsync = ref.watch(mapStyleJsonProvider);
+    final baseAsync = widget.offline
+        ? ref.watch(offlineMapStyleJsonProvider)
+        : ref.watch(mapStyleJsonProvider);
     final baseJson = baseAsync.value;
     Object? error = baseAsync.error;
 
@@ -105,7 +112,7 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     // file:// / .pmtiles caches instead of the network.
     GlyphSpriteCachePaths? cache;
     if (widget.offline) {
-      final cacheAsync = ref.watch(glyphSpriteCacheProvider);
+      final cacheAsync = ref.watch(offlineGlyphSpritePathsProvider);
       cache = cacheAsync.value;
       error ??= cacheAsync.error;
     }
@@ -161,8 +168,12 @@ class _TrailMapState extends ConsumerState<TrailMap> {
   void _swapStyle() {
     final controller = _controller;
     if (controller == null) return;
-    final baseJson = ref.read(mapStyleJsonProvider).value;
-    final cache = ref.read(glyphSpriteCacheProvider).value;
+    final baseJson = widget.offline
+        ? ref.read(offlineMapStyleJsonProvider).value
+        : ref.read(mapStyleJsonProvider).value;
+    final cache = widget.offline
+        ? ref.read(offlineGlyphSpritePathsProvider).value
+        : null;
     final json = _composeStyle(baseJson, cache);
     if (json != null && json != _lastStyleJson) {
       _lastStyleJson = json;

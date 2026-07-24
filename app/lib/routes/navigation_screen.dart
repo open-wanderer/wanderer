@@ -905,9 +905,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   void _swapStyle() {
     final controller = _controller;
     if (controller == null) return;
-    final baseJson = ref.read(mapStyleJsonProvider).value;
+    final baseJson = widget.isOffline
+        ? ref.read(offlineMapStyleJsonProvider).value
+        : ref.read(mapStyleJsonProvider).value;
     final cache = widget.isOffline
-        ? ref.read(glyphSpriteCacheProvider).value
+        ? ref.read(offlineGlyphSpritePathsProvider).value
         : null;
     final json = _composeStyle(baseJson, cache);
     if (json != null && json != _lastStyleJson) {
@@ -992,8 +994,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   @override
   Widget build(BuildContext context) {
     // Cache warm on first open (mirrors TrailMap's caching pattern) —
-    // idempotent against the trail-download trigger.
-    if (!_cacheWarmed) {
+    // idempotent against the trail-download trigger. Skipped when offline:
+    // the warm is a network download, and the cache is already populated by
+    // the time an offline navigation session renders from it.
+    if (!_cacheWarmed && !widget.isOffline) {
       _cacheWarmed = true;
       ref.read(glyphSpriteCacheProvider.future).ignore();
     }
@@ -1004,9 +1008,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     // a newly-downloaded region's tiles resolve the next time MapLibre
     // requests them (confirmed on-device, 25.1-03-SUMMARY.md test case d,
     // no remount needed) — no separate region-change listener is required.
-    ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
+    // Offline reads the network-free providers so no `/map/style-sources`
+    // call is ever made.
     if (widget.isOffline) {
-      ref.listen(glyphSpriteCacheProvider, (_, _) => _swapStyle());
+      ref.listen(offlineMapStyleJsonProvider, (_, _) => _swapStyle());
+      ref.listen(offlineGlyphSpritePathsProvider, (_, _) => _swapStyle());
+    } else {
+      ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
     }
 
     // Breadcrumb in-place update: swap the native source's data on every new
@@ -1047,13 +1055,15 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final localizations = AppLocalizations.of(context)!;
     final unit = ref.watch(unitProvider);
 
-    final baseAsync = ref.watch(mapStyleJsonProvider);
+    final baseAsync = widget.isOffline
+        ? ref.watch(offlineMapStyleJsonProvider)
+        : ref.watch(mapStyleJsonProvider);
     final baseJson = baseAsync.value;
     Object? error = baseAsync.error;
 
     GlyphSpriteCachePaths? cache;
     if (widget.isOffline) {
-      final cacheAsync = ref.watch(glyphSpriteCacheProvider);
+      final cacheAsync = ref.watch(offlineGlyphSpritePathsProvider);
       cache = cacheAsync.value;
       error ??= cacheAsync.error;
     }

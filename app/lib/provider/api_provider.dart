@@ -13,7 +13,17 @@ class Api extends _$Api {
 
     final baseUrl = "https://unknown-server.local";
 
-    final dio = Dio(BaseOptions(baseUrl: "$baseUrl/api/v1"));
+    // Bound the connect phase so an offline call fails fast instead of hanging
+    // on the OS socket timeout — this is what lets the trail-load fallback in
+    // TrailNotifier reach its local-entity path quickly when offline. Only
+    // connectTimeout is set: a receiveTimeout would fire on inter-chunk gaps
+    // and could abort legitimate large region/tile downloads.
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: "$baseUrl/api/v1",
+        connectTimeout: const Duration(seconds: 8),
+      ),
+    );
     dio.interceptors.add(CookieManager(cookieJar));
 
     return dio;
