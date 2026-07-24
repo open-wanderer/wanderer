@@ -212,22 +212,13 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 	se.Router.GET("/remote/profile/{handle}/follows", routes.RemoteProfileFollowsList)
 
-	g := se.Router.Group("/map/cells")
-	// g.Bind(apis.RequireAuth())
-
-	g.GET("", routes.MapCellsList)
-	g.GET("/{cellKey}", routes.MapCellsGet)
-	g.GET("/{cellKey}/status", routes.MapCellsStatus)
-	g.GET("/{cellKey}/download", routes.MapCellsDownload)
-	g.GET("/{cellKey}/download-dem", routes.MapCellsDownloadDem)
-
 	// /regions is an internal-only contract (D-06/D-07): the literal
 	// /api/v1 prefix deviates from every other unprefixed custom Go route in
 	// this file, per the routing resolution recorded in
 	// 21.5-03-PLAN.md's <assumptions>. It is reachable only from inside the
 	// docker network — a SvelteKit proxy under the same public path forwards
 	// external requests to it (web/src/routes/regions/**). Auth is
-	// ENABLED (not dormant like /map/cells above) — D-07 requires any
+	// ENABLED — D-07 requires any
 	// logged-in user for both the catalog listing and the archive downloads.
 	regionsGroup := se.Router.Group("/regions")
 	regionsGroup.Bind(apis.RequireAuth())
