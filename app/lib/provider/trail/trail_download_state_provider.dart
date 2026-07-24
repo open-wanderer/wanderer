@@ -40,6 +40,10 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
     final regionFutures = <Future<void>>[];
     ProviderSubscription? aggregateSub;
     Future<void>? glyphCacheWarm;
+    // Gap 1 (26-05, Part B): set once the trail's own download resolves so
+    // the deferred aggregate success below (fired after all region futures
+    // settle) knows whether the trail side actually succeeded.
+    var trailSucceeded = false;
 
     try {
       // Coverage guard (GUARD-01/02/03/04): a local-only, synchronous check
@@ -114,12 +118,6 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
       final hasSelectedPackages =
           vectorRegions.isNotEmpty || demRegions.isNotEmpty;
       final tileRepoNotifier = ref.read(tileRepositoryStatusProvider.notifier);
-      regionFutures.addAll([
-        for (final region in vectorRegions)
-          tileRepoNotifier.downloadVector(region.id),
-        for (final region in demRegions)
-          tileRepoNotifier.downloadDem(region.id),
-      ]);
 
       // D-10: unified id-42 notification aggregating the trail's onProgress
       // callback with every selected package's live progress -- only when at
@@ -128,14 +126,41 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
       var lastTrailFraction = 0.0;
       final itemCount = 1 + vectorRegions.length + demRegions.length;
 
+      // Gap 1 (26-05, Part A): per-package monotonic completion latches.
+      // tileRepositoryStatusProvider's vectorProgress/demProgress fields are
+      // an EPHEMERAL "currently downloading" signal that
+      // tile_repository_provider.dart deliberately clears back to null the
+      // instant a package finishes (its documented per-region Settings/
+      // Regions "downloading" signal -- untouched, NOT modified here). A raw
+      // `?? 0.0` read of that field cannot distinguish "not started" from
+      // "just finished" -- both read null -- so a finished package's
+      // contribution would snap from 1.0 back to 0.0 the moment it
+      // completes. These latch maps fix that: live progress only ever RAISES
+      // a package's latched contribution (see updateAggregate below), and
+      // each package's own future forces its latch to a full 1.0 on
+      // completion (see the whenComplete callbacks below), so the
+      // contribution can never move backwards once set. Two separate maps
+      // (never one keyed solely by region.id) so a region checked for BOTH
+      // Vector and DEM doesn't collide on a single key.
+      final vectorLatched = {for (final region in vectorRegions) region.id: 0.0};
+      final demLatched = {for (final region in demRegions) region.id: 0.0};
+
       void updateAggregate() {
         final packageStates = ref.read(tileRepositoryStatusProvider);
         var sum = lastTrailFraction;
         for (final region in vectorRegions) {
-          sum += packageStates[region.id]?.vectorProgress ?? 0.0;
+          final live = packageStates[region.id]?.vectorProgress;
+          if (live != null && live > vectorLatched[region.id]!) {
+            vectorLatched[region.id] = live;
+          }
+          sum += vectorLatched[region.id]!;
         }
         for (final region in demRegions) {
-          sum += packageStates[region.id]?.demProgress ?? 0.0;
+          final live = packageStates[region.id]?.demProgress;
+          if (live != null && live > demLatched[region.id]!) {
+            demLatched[region.id] = live;
+          }
+          sum += demLatched[region.id]!;
         }
         final combined = (sum / itemCount).clamp(0.0, 1.0);
         notificationService
@@ -147,6 +172,19 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
             )
             .catchError((_) {});
       }
+
+      regionFutures.addAll([
+        for (final region in vectorRegions)
+          tileRepoNotifier.downloadVector(region.id).whenComplete(() {
+            vectorLatched[region.id] = 1.0;
+            updateAggregate();
+          }),
+        for (final region in demRegions)
+          tileRepoNotifier.downloadDem(region.id).whenComplete(() {
+            demLatched[region.id] = 1.0;
+            updateAggregate();
+          }),
+      ]);
 
       // `Ref.listenManual` (WidgetRef-only) isn't available on a Notifier's
       // plain `Ref`; `ref.container.listen` is the equivalent manually-closed
@@ -191,7 +229,23 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
             }
           },
         );
-        await notificationService.showSuccess(trail.name);
+        // Gap 1 (26-05, Part B): the trail's own contribution is driven to a
+        // full 1.0 the instant downloadTrail() resolves -- guarantees its
+        // term reaches full in the aggregate even if the final onProgress
+        // tick never fired (e.g. the download ended in the generating
+        // phase) -- and trailSucceeded records that the trail side is done,
+        // consumed by the deferred aggregate-success call after the region
+        // futures below settle.
+        lastTrailFraction = 1.0;
+        trailSucceeded = true;
+        // Gap 1 (26-05, Part B): only fire the immediate id-42 success on
+        // the trail-only path (no packages selected). When packages ARE
+        // selected, the id-42 notification must keep advancing until they
+        // settle too -- see the deferred success call below, after
+        // aggregateSub?.close().
+        if (regionFutures.isEmpty) {
+          await notificationService.showSuccess(trail.name);
+        }
         ref.invalidate(trailLibraryProvider);
         toastNotifier.add(
           ToastMessage(
@@ -240,6 +294,22 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
       }
     }
     aggregateSub?.close();
+
+    // Gap 1 (26-05, Part B): the deferred id-42 success. By the time
+    // Future.wait(regionFutures) above has returned, every selected
+    // package's whenComplete has already latched its contribution to 1.0
+    // (Part A), so the final updateAggregate() call shows 100% -- only THEN
+    // does this call replace it with the success state, instead of firing
+    // the instant the trail alone resolved. Only fires when packages were
+    // selected AND the trail side actually succeeded (trailSucceeded) --
+    // matches the trail-only-path guard above, so a failed trail download
+    // never gets a false success notification here.
+    if (regionFutures.isNotEmpty && trailSucceeded) {
+      await ref
+          .read(downloadNotificationServiceProvider)
+          .showSuccess(trail.name)
+          .catchError((_) {});
+    }
 
     // Await the shared cache warm separately: its failure is isolated from
     // the trail download's success/failure above so a glyph/sprite miss
