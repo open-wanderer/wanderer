@@ -62,8 +62,7 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
               ToastMessage(
                 type: ToastType.info,
                 icon: FontAwesomeIcons.triangleExclamation,
-                text:
-                    "Part of this trail isn't covered by any offered region.",
+                text: "Part of this trail isn't covered by any offered region.",
               ),
             );
       } else if (missing.isNotEmpty) {
@@ -88,9 +87,7 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
       // no sheet, no extra toast, byte-for-byte unchanged from today.
 
       final trailDownloadService = ref.read(trailDownloadServiceProvider);
-      final notificationService = ref.read(
-        downloadNotificationServiceProvider,
-      );
+      final notificationService = ref.read(downloadNotificationServiceProvider);
       final toastNotifier = ref.read(toastProvider.notifier);
 
       // Trail download is a second, independent trigger for the shared
@@ -141,12 +138,14 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
           sum += packageStates[region.id]?.demProgress ?? 0.0;
         }
         final combined = (sum / itemCount).clamp(0.0, 1.0);
-        notificationService.showAggregateProgress(
-          'Downloading offline content',
-          'Downloading… ${(combined * 100).round()}% · $itemCount items',
-          (combined * 100).round(),
-          100,
-        );
+        notificationService
+            .showAggregateProgress(
+              'Downloading offline content',
+              'Downloading… ${(combined * 100).round()}% · $itemCount items',
+              (combined * 100).round(),
+              100,
+            )
+            .catchError((_) {});
       }
 
       // `Ref.listenManual` (WidgetRef-only) isn't available on a Notifier's
@@ -170,14 +169,25 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
         await trailDownloadService.downloadTrail(
           trail,
           onGeneratingChanged: (isGenerating) {
-            if (isGenerating) notificationService.showGenerating(trail.name);
+            // WR-01: when packages are selected, keep the unified id-42
+            // aggregate notification stable through tile generation instead
+            // of reverting to showGenerating's plain trail-name copy
+            // (GUARD-03 / D-10). The 0-region path below is unchanged.
+            if (!isGenerating) return;
+            if (hasSelectedPackages) {
+              updateAggregate();
+            } else {
+              notificationService.showGenerating(trail.name).catchError((_) {});
+            }
           },
           onProgress: (done, total) {
             if (hasSelectedPackages) {
               lastTrailFraction = total > 0 ? (done / total).clamp(0, 1) : 0;
               updateAggregate();
             } else {
-              notificationService.showProgress(trail.name, done, total);
+              notificationService
+                  .showProgress(trail.name, done, total)
+                  .catchError((_) {});
             }
           },
         );
