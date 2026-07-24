@@ -356,7 +356,7 @@ Plans:
 - [x] **Phase 24: Settings — Offline Maps/Regions UI** - Flat searchable region list, independent Vector/DEM tiles with download/cancel/delete and total disk usage (completed 2026-07-22; amended 2026-07-23 — DEM toggle replaced by a gated DEM tile, see Phase 24 note)
 - [x] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** - `TrailMap`/`navigation_screen` read region tiles through a viewport-scoped style pipeline, settled by a maplibre 0.3.5 spike (completed 2026-07-23)
 - [x] **Phase 26: Trail Download Guard** - Trail downloads check region coverage first, naming missing regions with an inline download CTA (completed 2026-07-24)
-- [x] **Phase 27: Legacy Cleanup** - Trail-scoped tile code deleted outright, orphaned legacy files swept on first launch (completed 2026-07-24)
+- [x] **Phase 27: Legacy Cleanup** - Trail-scoped tile code deleted outright; the orphaned-file sweep was descoped per D-05 (pre-production app, no install base to sweep) (completed 2026-07-24)
 
 #### Sequencing Rationale
 
