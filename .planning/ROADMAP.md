@@ -355,7 +355,7 @@ Plans:
 - [x] **Phase 23: TileRepositoryManager — Download Engine** - Disk-safe region downloads plus a bbox-to-local-paths query, fully decoupled from Trail (completed 2026-07-22; amended 2026-07-23 — pause/resume/backgrounding-pause replaced by cancel-and-restart-from-0, see Phase 23 note)
 - [x] **Phase 24: Settings — Offline Maps/Regions UI** - Flat searchable region list, independent Vector/DEM tiles with download/cancel/delete and total disk usage (completed 2026-07-22; amended 2026-07-23 — DEM toggle replaced by a gated DEM tile, see Phase 24 note)
 - [x] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** - `TrailMap`/`navigation_screen` read region tiles through a viewport-scoped style pipeline, settled by a maplibre 0.3.5 spike (completed 2026-07-23)
-- [ ] **Phase 26: Trail Download Guard** - Trail downloads check region coverage first, naming missing regions with an inline download CTA
+- [x] **Phase 26: Trail Download Guard** - Trail downloads check region coverage first, naming missing regions with an inline download CTA (completed 2026-07-24)
 - [ ] **Phase 27: Legacy Cleanup** - Trail-scoped tile code deleted outright, orphaned legacy files swept on first launch
 
 #### Sequencing Rationale
@@ -547,7 +547,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 26-03-PLAN.md — Guard wiring in DownloadingTrailIds.download: local coverage check, conditional sheet via navigatorKey, D-04 no-region warning, parallel region+trail downloads, unified aggregate notification (GUARD-01/02/03/04)
+- [x] 26-03-PLAN.md — Guard wiring in DownloadingTrailIds.download: local coverage check, conditional sheet via navigatorKey, D-04 no-region warning, parallel region+trail downloads, unified aggregate notification (GUARD-01/02/03/04)
 
 ### Phase 27: Legacy Cleanup
 
@@ -600,5 +600,5 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
 | 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
-| 26. Trail Download Guard | v1.6 | 2/3 | In Progress|  |
+| 26. Trail Download Guard | v1.6 | 3/3 | Complete   | 2026-07-24 |
 | 27. Legacy Cleanup | v1.6 | 0/TBD | Not started | - |

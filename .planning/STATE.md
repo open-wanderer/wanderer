@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
-status: executing
-stopped_at: Completed 26-01-PLAN.md
-last_updated: "2026-07-24T11:45:25.581Z"
+status: verifying
+stopped_at: Completed 26-03-PLAN.md
+last_updated: "2026-07-24T11:55:40.397Z"
 last_activity: 2026-07-24 -- Phase 26 execution started
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 27
-  completed_plans: 25
-  percent: 63
+  completed_plans: 26
+  percent: 75
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-16)
 
 Phase: 26 (trail-download-guard) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-24 -- Phase 26 execution started
 
 ## v1.6 Phases
@@ -114,6 +114,7 @@ v1.5 (Phases 19-21) shipped in full (all plans complete 2026-07-16/17) but has n
 | Phase 25.1 P04 | 5min | 3 tasks | 3 files |
 | Phase 26 P01 | 12min | 1 tasks | 2 files |
 | Phase 26 P02 | 19min | 2 tasks | 2 files |
+| Phase 26 P03 | 9min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -244,6 +245,7 @@ Recent decisions affecting current work:
 - [Phase 26]: [26-01] missingCoverageRegions/overlappingRegions kept as two distinct pure functions so callers distinguish fully-covered from no-region-overlap-at-all (D-04) — Enables Plan 03 to surface the D-04 non-blocking warning without conflating it with the fully-covered silent-proceed path
 - [Phase 26]: [26-02] showAggregateProgress kept on one physical line (dart format off/on) to satisfy the plan's literal single-line grep acceptance criterion, matching the 20-05/21-01/25-04 precedent.
 - [Phase 26]: [26-02] Missing-coverage sheet's doc comment reworded away from literal 'downloadVector'/'downloadDem' substrings so the plan's own negative grep (no download-engine calls) passes on comment text too, not just code.
+- [Phase 26]: [26-03] Ref.listenManual does not exist on a Notifier's plain Ref; used ref.container.listen(...) instead — flutter_riverpod only declares listenManual on BaseWidgetRef (widget-tree consumers); a Notifier's Ref only implements BaseRef. Ref.container is a public ProviderContainer getter whose .listen() returns the same closeable ProviderSubscription, so it is the correct non-widget-code equivalent for the D-10 aggregate-notification subscription.
 
 ### Roadmap Evolution
 
@@ -338,6 +340,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-24T11:44:55.642Z
-Stopped at: Completed 26-01-PLAN.md
+Last session: 2026-07-24T11:55:40.379Z
+Stopped at: Completed 26-03-PLAN.md
 Resume file: None
