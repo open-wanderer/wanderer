@@ -184,7 +184,7 @@ class _MissingCoverageSheetContentState
             'regions yet. Select any regions below to download them '
             'together with the trail — or tap Download to get the '
             'trail without them.',
-            style: theme.textTheme.bodyLarge,
+            style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 16),
           for (final row in rows) ...[
@@ -279,10 +279,7 @@ class _MissingCoverageSheetContentState
             const SizedBox(height: 4),
             const LinearProgressIndicator(),
             const SizedBox(height: 4),
-            Text(
-              'Downloading…',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text('Downloading…', style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       );
@@ -321,10 +318,7 @@ class _MissingCoverageSheetContentState
             const SizedBox(height: 4),
             const LinearProgressIndicator(),
             const SizedBox(height: 4),
-            Text(
-              'Downloading…',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text('Downloading…', style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       );

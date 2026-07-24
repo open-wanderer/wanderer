@@ -158,10 +158,8 @@ class _SettingsOfflineRegionsScreenState
                       : ListView.separated(
                           padding: const EdgeInsets.only(bottom: 16),
                           itemCount: filtered.length,
-                          separatorBuilder: (_, _) => Divider(
-                            height: 1,
-                            color: Theme.of(context).colorScheme.outline,
-                          ),
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 16),
                           itemBuilder: (context, index) =>
                               _buildRegionRow(filtered[index]),
                         ),
