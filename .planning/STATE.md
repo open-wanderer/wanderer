@@ -1,34 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.6
-milestone_name: Offline Region Tile Repository
+milestone: none
+milestone_name: Awaiting next milestone
 status: Awaiting next milestone
-stopped_at: Completed 27-02-PLAN.md
-last_updated: "2026-07-24T16:06:55.758Z"
-last_activity: 2026-07-24 — Milestone v1.5 completed and archived
+stopped_at: v1.6 milestone archived
+last_updated: "2026-07-24T16:14:43.201Z"
+last_activity: 2026-07-24 — Milestones v1.5 and v1.6 both completed and archived
 progress:
   total_phases: 9
-  completed_phases: 7
+  completed_phases: 9
   total_plans: 31
-  completed_plans: 30
-  percent: 78
+  completed_plans: 31
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-16)
+See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** v1.6 fully executed (Phases 21.5, 22-27 all complete) — awaiting its own `/gsd-complete-milestone`
+**Current focus:** Planning next milestone. Phase 28 (Admin Region Picker) is drafted in ROADMAP.md but not yet scoped via `/gsd-new-milestone`.
 
 ## Current Position
 
-Phase: v1.6 fully executed, milestone completion pending
+Phase: Both v1.5 and v1.6 complete
 Plan: —
-Status: Awaiting v1.6 milestone completion
-Last activity: 2026-07-24 — Milestone v1.5 completed and archived; v1.6 Phase 27 (final phase) completed and verified
+Status: Awaiting next milestone
+Last activity: 2026-07-24 — Milestones v1.5 and v1.6 both completed and archived
 
 ## v1.6 Phases
 
@@ -42,57 +42,6 @@ Last activity: 2026-07-24 — Milestone v1.5 completed and archived; v1.6 Phase 
 - [x] **Phase 27: Legacy Cleanup** — CLEAN-01 (CLEAN-02 descoped per D-05)
 
 Execution order: 21.5 → 22 → 23 → 24 → 25 → 25.1 → 26 → 27 (strictly sequential — backend catalog → data model → download engine → Settings UI → map-screen rewiring/spike → tile-proxy re-architecture → trail guard → legacy ripout). All phases complete; milestone not yet formally closed.
-
-## Deferred Items
-
-Items acknowledged and deferred at v1.5 milestone close on 2026-07-24. Most of these belong to v1.6 (Phases 23-26) or general backlog, not v1.5 (Phases 19-21) itself — surfaced by the pre-close audit, not specific to this milestone's scope.
-
-| Category | Item | Status |
-|----------|------|--------|
-| debug | 26-04-dem-status-not-reflected | diagnosed |
-| debug | 26-04-progress-bar-resets | diagnosed |
-| debug | navigation-screen-region-swap-broken | diagnosed |
-| debug | region-download-diskspace | diagnosed |
-| debug | region-download-stale-toone | diagnosed |
-| uat_gap | 23-UAT.md | partial |
-| uat_gap | 24-UAT.md | diagnosed |
-| uat_gap | 25-UAT.md | diagnosed (1 pending scenario) |
-| verification_gap | 23-VERIFICATION.md | human_needed |
-| verification_gap | 24-VERIFICATION.md | human_needed |
-| verification_gap | 25-VERIFICATION.md | human_needed |
-| verification_gap | 26-VERIFICATION.md | human_needed |
-| todo | 2026-07-18-way-types-and-surfaces-breakdown.md | pending |
-| quick_task | 260610-kdc-fix-trail-pmtiles-download-add-missing-g | unknown |
-| quick_task | 260611-whq-support-multiple-pmtiles-sources-in-offl | unknown |
-| quick_task | 260612-gmg-add-proper-dark-mode-to-the-flutter-app- | missing |
-| quick_task | 260615-k0w-implement-along-track-projection-for-way | unknown |
-| quick_task | 260615-ktn-research-flutter-background-geolocation- | unknown |
-| quick_task | 260615-mxk-implement-background-navigation-so-locat | unknown |
-| quick_task | 260616-h99-create-wandereractorsearch-component-for | unknown |
-| quick_task | 260616-j2n-implement-the-like-feature-from-the-web- | unknown |
-| quick_task | 260702-e3g-fix-non-optimistic-reorder-animation-in- | unknown |
-| quick_task | 260702-ek7-fix-white-flash-on-sub-category-toggle-r | unknown |
-| quick_task | 260702-ere-cascade-category-visibility-to-settingss | unknown |
-| quick_task | 260702-gib-add-subcategory-chips-under-each-categor | unknown |
-| quick_task | 260702-m4u-make-auth-provider-dart-build-optimistic | unknown |
-| quick_task | 260710-kpd-fix-the-6-small-ui-gaps-that-i-found-aft | unknown |
-| quick_task | 260710-lem-fix-2-issues-found-during-manual-verific | unknown |
-| quick_task | 260710-ptb-clean-up-comments-across-all-files-added | missing |
-| quick_task | 260711-d37-shrink-the-navigation-screen-location-pu | unknown |
-| quick_task | 260711-lzb-make-hillshading-work-offline-in-the-flu | unknown |
-| quick_task | 260712-m9v-resume-navigation-after-manual-app-termi | unknown |
-| quick_task | 260712-pac-fix-nosuchmethoderror-in-main-dart-type- | unknown |
-| quick_task | 260713-nes-fix-500-errors-on-app-launch-by-gating-n | missing |
-| quick_task | 260714-qma-revert-speculative-persisted-500-counter | unknown |
-| quick_task | 260714-qtl-fix-meilisearch-token-cookie-never-valid | unknown |
-| quick_task | 260715-q01-update-the-ios-bundle-id-and-android-app | unknown |
-| quick_task | 260717-seb-reverse-geocode-route-planner-anchors-on | unknown |
-| quick_task | 260718-e9j-a-user-should-be-able-to-edit-an-existin | unknown |
-| quick_task | 260719-d6a-the-navigation-timer-should-show-time-in | unknown |
-| quick_task | 260719-fjw-save-track-recorded-during-navigation-cr | unknown |
-| quick_task | 260719-n8g-implement-the-missing-route-recorder-mos | unknown |
-| quick_task | 260720-s7m-clean-up-arb-translation-files-remove-un | unknown |
-| quick_task | 260721-eob-add-a-bottom-modal-sheet-on-track-save-f | unknown |
 
 ## Performance Metrics
 
@@ -399,6 +348,54 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 | quick_task | 260702-m4u-make-auth-provider-dart-build-optimistic | unknown (has SUMMARY.md; logged in Quick Tasks Completed) |
 | quick_task | 260710-kpd-fix-the-6-small-ui-gaps-that-i-found-aft | unknown (has SUMMARY.md; logged in Quick Tasks Completed) |
 | quick_task | 260710-lem-fix-2-issues-found-during-manual-verific | unknown (has SUMMARY.md; likely complete) |
+
+Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded also, unchanged, at v1.6 close the same day — the v1.6 re-audit surfaced the same set plus Phase 20/21 verification gaps that resurfaced when the v1.5 phase directories were restored from git history for archival):
+
+| Category | Item | Status |
+|----------|------|--------|
+| debug | 26-04-dem-status-not-reflected | diagnosed |
+| debug | 26-04-progress-bar-resets | diagnosed |
+| debug | navigation-screen-region-swap-broken | diagnosed |
+| debug | region-download-diskspace | diagnosed |
+| debug | region-download-stale-toone | diagnosed |
+| uat_gap | 23-UAT.md | partial |
+| uat_gap | 24-UAT.md | diagnosed |
+| uat_gap | 25-UAT.md | diagnosed (1 pending scenario) |
+| verification_gap | 20-VERIFICATION.md | human_needed (v1.5, resurfaced by archival restore) |
+| verification_gap | 21-VERIFICATION.md | human_needed (v1.5, resurfaced by archival restore) |
+| verification_gap | 23-VERIFICATION.md | human_needed |
+| verification_gap | 24-VERIFICATION.md | human_needed |
+| verification_gap | 25-VERIFICATION.md | human_needed |
+| verification_gap | 26-VERIFICATION.md | human_needed |
+| todo | 2026-07-18-way-types-and-surfaces-breakdown.md | pending |
+| quick_task | 260611-whq-support-multiple-pmtiles-sources-in-offl | unknown |
+| quick_task | 260615-k0w-implement-along-track-projection-for-way | unknown |
+| quick_task | 260615-ktn-research-flutter-background-geolocation- | unknown |
+| quick_task | 260615-mxk-implement-background-navigation-so-locat | unknown |
+| quick_task | 260616-h99-create-wandereractorsearch-component-for | unknown |
+| quick_task | 260616-j2n-implement-the-like-feature-from-the-web- | unknown |
+| quick_task | 260702-e3g-fix-non-optimistic-reorder-animation-in- | unknown |
+| quick_task | 260702-ek7-fix-white-flash-on-sub-category-toggle-r | unknown |
+| quick_task | 260702-ere-cascade-category-visibility-to-settingss | unknown |
+| quick_task | 260702-gib-add-subcategory-chips-under-each-categor | unknown |
+| quick_task | 260702-m4u-make-auth-provider-dart-build-optimistic | unknown |
+| quick_task | 260710-kpd-fix-the-6-small-ui-gaps-that-i-found-aft | unknown |
+| quick_task | 260710-ptb-clean-up-comments-across-all-files-added | missing |
+| quick_task | 260711-d37-shrink-the-navigation-screen-location-pu | unknown |
+| quick_task | 260711-lzb-make-hillshading-work-offline-in-the-flu | unknown |
+| quick_task | 260712-m9v-resume-navigation-after-manual-app-termi | unknown |
+| quick_task | 260712-pac-fix-nosuchmethoderror-in-main-dart-type- | unknown |
+| quick_task | 260713-nes-fix-500-errors-on-app-launch-by-gating-n | missing |
+| quick_task | 260714-qma-revert-speculative-persisted-500-counter | unknown |
+| quick_task | 260714-qtl-fix-meilisearch-token-cookie-never-valid | unknown |
+| quick_task | 260715-q01-update-the-ios-bundle-id-and-android-app | unknown |
+| quick_task | 260717-seb-reverse-geocode-route-planner-anchors-on | unknown |
+| quick_task | 260718-e9j-a-user-should-be-able-to-edit-an-existin | unknown |
+| quick_task | 260719-d6a-the-navigation-timer-should-show-time-in | unknown |
+| quick_task | 260719-fjw-save-track-recorded-during-navigation-cr | unknown |
+| quick_task | 260719-n8g-implement-the-missing-route-recorder-mos | unknown |
+| quick_task | 260720-s7m-clean-up-arb-translation-files-remove-un | unknown |
+| quick_task | 260721-eob-add-a-bottom-modal-sheet-on-track-save-f | unknown |
 
 ## Session Continuity
 

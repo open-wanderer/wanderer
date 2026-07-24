@@ -1,5 +1,44 @@
 # Milestones
 
+## v1.6 Offline Region Tile Repository (Shipped: 2026-07-24)
+
+**Phases completed:** 8 phases, 30 plans, 63 tasks
+
+**Key accomplishments:**
+
+- JSON region-catalog loader (tolerant of missing/empty config) plus path-traversal-safe id validation and the `region_archives` PocketBase collection tracking per-region vector/DEM build state.
+- `BuildAll(app)` cron entrypoint pre-builds one mosaicked vector PMTiles archive (Protomaps, z14) and one DEM archive (Mapterhorn, z12) per configured region, with atomic-rename availability, date-gated vector rebuilds, build-once DEM, and a region-id in-flight guard — a parallel, independent build path that never touches the existing per-cell `generator.go`.
+- `GET /api/v1/regions` (auth-gated, reachable at the app's public origin via a SvelteKit proxy) returns the merged config-plus-build-state region catalog; archive downloads are auth-gated and id-validated; the daily `region-archive-build` cron now runs `regions.BuildAll`; docker-compose wires the admin config path in all three deployment files.
+- Typed freezed parse model for GET /api/v1/regions plus ObjectBox RegionEntity/DownloadedTilePackageEntity, all status enums persisted via explicit `.code` int constants (never `.index`)
+- RegionRepository.refreshCatalog() GETs /api/v1/regions through the cookie-authenticated Dio client, parses the bare JSON array while dropping malformed elements, and upserts by business id inside a single write transaction -- preserving every region's ToOne package links and local download status, with orphaned regions flipped inCatalog=false rather than deleted
+- Both region-archive SvelteKit proxy routes (vector and DEM) now forward the client's Range header inbound and the backend's actual status (200/206) plus Content-Range/Accept-Ranges outbound, proven by 4 new vitest assertions — unblocking Plan 04's Flutter resumable-download work (TILE-02).
+- Appended paused/error to PackageStatus and RegionStatus with stable new codes, wired RegionEntity.status to map them, and shipped region_file_path.dart validating catalog region ids against the backend's exact allow-list before building vector/dem archive paths.
+- Added `disk_space_2` (post-legitimacy-review) and wrapped it in `disk_space_util.dart`, whose pure `hasEnoughSpace` margin decision is unit-tested independently of the plugin.
+- TileRepositoryManager downloads a region's vector and DEM `.pmtiles` archives to a `.part` file, resuming from the existing byte offset via HTTP Range + `FileAccessMode.append`, refusing to write when disk space is tight, validating with `PmTilesArchive.fromFile` before promoting `.part` to its final path, and treating app backgrounding as a deliberate `AppLifecycleListener`-driven pause.
+- Added `localTilePathsForBounds`/`bboxOverlaps`/`deleteRegion` to `TileRepositoryManager` and wired it into Riverpod via a construction-only `tileRepositoryManagerProvider` seam plus a `keepAlive` `TileRepositoryStatus` notifier exposing per-region `RegionDownloadState`.
+- Standalone `flutter run -t`-launched debug driver exercising every public `TileRepositoryManager` method against a real region, plus the recorded 5-behavior end-of-phase human-check for TILE-02/03/04, DEM-01/02, and TILE-05.
+- DEM-only cascade delete, an A-Z synchronous region-list provider, real-on-disk byte formatting/aggregation utilities (incl. `.part` partial files), and all 18 Phase 24 English l10n keys — the full symbol contract Plan 02's screen is written against.
+- SettingsOfflineRegionsScreen — a searchable A-Z region list with a live disk-usage summary, six-state download rows (download/pause/resume/delete/retry/update), an independent DEM toggle, and a Settings entry wired via `/settings/regions` — the single user-facing deliverable of the v1.6 milestone's UI phase.
+- Implemented the device-wide disk-space fallback `freeDiskSpaceBytes`'s own doc comment already promised but never delivered, fixing the Phase 24 UAT blocker where every first-ever region download (vector or DEM) was refused on a real device because the path-specific disk-space query throws on a `regions/<id>/` directory that doesn't exist yet.
+- Fixed the stale ObjectBox ToOne-cached `region.status` render bug by adding a pure `resolveRowStatus` resolver that prefers the live ephemeral download state during an in-flight vector download, restoring the progress bar/pause-button UI and unblocking the paused mid-transfer disk-usage check.
+- Built a throwaway on-device spike harness that materializes 10-20 duplicated region vector/DEM sources via the production `rewriteStyleForOffline` helper, and settled RENDER-03 in favor of incremental `addSource`/`removeSource` over full-style-reload after physical-device testing surfaced two implementation gaps (missing repaint-on-remove, wrong hillshade z-order) that Wave 2 must now design around.
+- `TileRepositoryManager.localTilePathsForBounds` now returns `({List<String> vectorPaths, List<String> demPaths})` via a unit-tested `@visibleForTesting splitRegionTilePaths` pure helper, closing the RENDER-01 data-shape gap before any Wave 2 rendering code can conflate a DEM archive with a vector cell.
+- TrailMap's offline basemap/hillshade now sources vector+DEM tile paths from the app-wide region registry (`localTilePathsForBounds(trail.bounds)`) instead of the trail's own `pmTiles`/`demPmTiles` fields, and applies a mid-session region download incrementally via `addSource`/`addLayer` (hillshade below the first vector layer) instead of a full `setStyle` reload.
+- navigation_screen's offline basemap now sources tiles from the region registry via the live camera viewport, incrementally swapping region sources/layers in and out on camera-idle (never a full setStyle reload) with a hillshade z-order fix and a post-removal repaint nudge.
+- Android network_security_config.xml scoped to 127.0.0.1 + iOS Info.plist NSAppTransportSecurity loopback exception, both narrowly bounded with negative greps proving no blanket cleartext/insecure-loads allowance was introduced
+- Loopback-only `dart:io HttpServer` serving vector/DEM map tiles from region `.pmtiles` archives via a per-request smallest-bbox winner resolver, paired with a static-XYZ offline style rewriter that replaces per-cell `pmtiles://` source duplication with one fixed proxy URL template.
+- PROXY-03 confirmed PROCEED on a physical Pixel 6: the loopback HTTP tile proxy reliably serves vector tiles to MapLibre Native in full airplane mode, clearing the phase's risk gate for Plan 04's TrailMap/navigation_screen rewiring.
+- Both `TrailMap` and `navigation_screen` now compose their offline style through one static loopback-proxy XYZ source (`rewriteStyleForProxy`), with the entire incremental `addSource`/`removeSource` region-reconcile machinery — and the `MapEventCameraIdle` trigger that raced it — deleted from both files, closing Phase 25's UAT Test 4 gap structurally.
+- Pure bboxesOverlap/overlappingRegions/missingCoverageRegions functions deciding which trail-overlapping regions still need downloading, with updateAvailable treated as covered (GUARD-04)
+- Bottom modal sheet listing missing regions with Vector/DEM checkboxes (Vector-on/DEM-off default) and an always-enabled Download button, plus a sibling DownloadNotificationService method for D-10's unified progress copy
+- Coverage guard + parallel region-package downloads + unified aggregate notification wired into `DownloadingTrailIds.download()`, the single shared entry point both trail-download call sites already use
+- Closed the one blocking gap (missing `regionListNotifierProvider` invalidation) and three robustness findings from Phase 26 verification/code-review in `DownloadingTrailIds.download()`, without changing any already-verified guard behavior or button-unlock timing.
+- Monotonic per-package progress latch stops the id-42 aggregate bar from resetting on each package completion, and a fresh-row read-modify-write in TileRepositoryManager stops a concurrent Vector download from clobbering a concurrently-linked DEM package relation.
+- Deleted the three trail-scoped tile-download methods, all generating-state wiring, the showGenerating() spinner, and the orphaned map_cell.dart model from the Flutter app, leaving downloadTrail() to handle only photos/waypoint-photos/nav-cache with a fixed up-front progress total.
+- Deleted the persisted `pmTiles`/`demPmTiles` fields from `TrailEntity` (ObjectBox) and `Trail` (freezed) together, then ran a single `build_runner build --delete-conflicting-outputs` pass to regenerate `trail.freezed.dart`, `trail.g.dart`, `objectbox-model.json`, and `objectbox.g.dart` with both property UIDs cleanly retired.
+
+---
+
 ## v1.5 Route Planner (Shipped: 2026-07-24)
 
 **Phases completed:** 3 phases, 13 plans, 23 tasks

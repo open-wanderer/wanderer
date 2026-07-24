@@ -2,22 +2,13 @@
 
 ## Current State
 
-**Shipped:** v1.5 Route Planner (2026-07-17) — from-scratch route building in a dedicated `RoutePlannerScreen`: tap/drag/insert/delete/reorder waypoints with undo/redo, an auto-routing toggle (Valhalla-routed vs straight-line segments, fixed foot/bike profile per session), a docked tabbed sheet (route anchor list + live elevation profile), location-search-to-focus, and handoff to `trail_create_screen` as a draft Trail with a one-time elevation merge.
+**Shipped:** v1.6 Offline Region Tile Repository (2026-07-24) — trail-scoped PMTiles downloads are replaced app-wide by a region-based offline tile repository (vector + optional Mapterhorn DEM) managed in Settings: an admin-configured, cron-pre-built region catalog served by the backend; `TileRepositoryManager` owning app-wide download lifecycle; map rendering through a local loopback HTTP tile proxy (not incremental source diffing); a trail-download guard that checks region coverage first; and the legacy trail-scoped tile system deleted outright.
 
-**Also complete (not yet formally closed):** v1.6 Offline Region Tile Repository — all phases (21.5, 22-27) executed, including Phase 27's removal of the legacy trail-scoped tile system. Not yet run through `/gsd-complete-milestone`.
+**Also complete (not yet formally closed):** none — v1.5 and v1.6 are both archived as of 2026-07-24.
 
-## Current Milestone: v1.6 Offline Region Tile Repository
+## Current Milestone: none — planning next milestone
 
-**Goal:** Replace trail-scoped PMTiles downloads with an app-wide, region-based offline tile repository (vector + optional Mapterhorn DEM), managed in Settings, so map rendering and offline trail recording work anywhere within a downloaded region instead of only within a specific trail's cached cells.
-
-**Target features:**
-- Bundled `regions.json` manifest (id, name, bbox, vector PMTiles URL/size, optional DEM URL/size)
-- ObjectBox `Region` + `DownloadedTilePackage` entities tracking status (notDownloaded/downloading/downloaded/updateAvailable), local paths, timestamps, disk usage
-- `TileRepositoryManager`: app-wide tile lifecycle manager and global viewport-based tile-reading pipeline, fully decoupled from `Trail`
-- Region downloads reuse the existing Mapterhorn DEM pipeline (`generator.go` / download-dem endpoint), now keyed to regions instead of trail cells, with an optional per-region DEM toggle
-- Trail download guard: checks region coverage before a trail download, prompts to download the covering region if missing
-- Settings → Offline Maps/Regions page: list regions, size breakdown (vector vs DEM), download/pause/resume/delete, DEM toggle, total disk usage
-- Refactor map rendering to read from the global region registry; delete legacy trail-scoped tile download/cache code outright (no migration — app is pre-production)
+v1.6 was the last milestone executed. Run `/gsd-new-milestone` to scope the next one.
 
 ## What This Is
 
@@ -65,16 +56,18 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - [x] Search-to-focus map panning via existing GlobalSearchScreen flow (v1.5 — Phase 20)
 - [x] Handoff to trail_create_screen as a draft Trail (synthesized GPX + waypoints) (v1.5 — Phase 21)
 - [x] Hike/bike selection dialog on "Open trail planner" tap, before the planner screen opens, sets initial travel profile (v1.5 — Phase 21)
+- [x] Backend region catalog loaded from an admin-supplied config file (Docker-volume mounted); cronjob pre-builds one mosaicked vector + one DEM PMTiles archive per region ahead of any user request; API endpoint serves the catalog (v1.6 — Phase 21.5)
+- [x] App fetches its region catalog from the instance's backend API at runtime — no bundled asset, empty catalog on a fresh instance with no admin config (v1.6 — Phase 22)
+- [x] ObjectBox `Region` + `DownloadedTilePackage` entities tracking download status (explicit int constants, not index-backed enum), paths, timestamps, disk usage (v1.6 — Phase 22)
+- [x] App-wide `TileRepositoryManager`: region download/cancel/delete lifecycle, fully decoupled from Trail — no pause/resume (removed 2026-07-23; Dio's `deleteOnError` deletes `.part` files on any cancellation including a deliberate pause, so cancel-and-restart-from-0 replaced it) (v1.6 — Phase 23)
+- [x] Region downloads with an independent per-region Mapterhorn DEM package (own list tile, own download/cancel/delete, gated on Vector being downloaded first), reusing the existing DEM pipeline keyed to regions (v1.6 — Phase 23/24)
+- [x] Trail download guard: region coverage check before trail download; dialog names missing region(s) with per-region "Download region" CTA, supports partial-coverage subset downloads (v1.6 — Phase 26)
+- [x] Settings → Offline Maps/Regions page: flat searchable region list, size breakdown, independent Vector/DEM download/cancel/delete + progress bars, total disk usage, non-blocking `updateAvailable` badge (v1.6 — Phase 24)
+- [x] Map rendering reads offline tiles through a local loopback HTTP tile proxy (MapLibre Native's own viewport tracking selects regions, not hand-rolled incremental source diffing — Phase 25's reconcile approach had a reentrancy race, replaced in Phase 25.1); legacy trail-scoped tile download/cache code removed outright, no migration path (v1.6 — Phases 25, 25.1, 27)
 
 ### Active
 
-- [ ] Bundled region manifest (id, name, bbox, vector PMTiles URL/size, optional DEM URL/size) (v1.6)
-- [ ] ObjectBox `Region` + `DownloadedTilePackage` entities tracking download status, paths, timestamps, disk usage (v1.6)
-- [ ] App-wide `TileRepositoryManager`: tile lifecycle + global viewport-based tile-reading pipeline, decoupled from Trail (v1.6)
-- [ ] Region downloads with optional per-region Mapterhorn DEM toggle, reusing the existing DEM pipeline keyed to regions (v1.6)
-- [ ] Trail download guard: region coverage check before trail download, prompt to download covering region if missing (v1.6)
-- [ ] Settings → Offline Maps/Regions page: region list, size breakdown, download/pause/resume/delete, DEM toggle, disk usage total (v1.6)
-- [ ] Map rendering reads from global region registry; legacy trail-scoped tile download/cache code removed (v1.6)
+(None yet — ship the next milestone to populate this section.)
 
 ### Out of Scope
 
@@ -99,11 +92,16 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - Per-segment travel profiles in the Route Planner — a single profile applies to the whole route
 - Switching travel profile mid-session in the Route Planner (ROUTE-03 cut) — profile is fixed once set via the entry hike/bike dialog
 - Offline route caching for in-progress route plans
-- Legacy trail-cache migration — app is pre-production; old trail-scoped tile/DEM cache code and files are deleted outright, no conversion path (v1.6)
-- Remote/server-fetched region manifest — v1.6 ships a bundled `regions.json` app asset only; remote manifest updates deferred (v1.6)
+- Legacy trail-cache migration — app is pre-production; old trail-scoped tile/DEM cache code and files are deleted outright, no conversion path (v1.6, shipped)
+- One-time on-device sweep for orphaned legacy tile files (CLEAN-02) — descoped, not deferred: app is pre-production, no real install base to sweep (27-CONTEXT.md D-05)
+- Admin UI/API for region catalog CRUD — region definition is a config file mounted via Docker volume, edited by redeploying; a live-editing settings/admin screen is deferred (v1.6)
 - Polygon region geometries — v1.6 regions are bounding-box only; arbitrary polygon boundaries deferred (v1.6)
-- 3D terrain/hillshade rendering changes — v1.6 only relocates the existing DEM download/storage pipeline to be region-based; the offline hillshade rendering path (`offline_style_rewriter.dart`) is reused as-is, not redesigned (v1.6)
-- Background/resumable downloads across app restarts — pause/resume applies within a single app session only (v1.6)
+- 3D terrain/hillshade rendering redesign — v1.6 only relocates the existing DEM download/storage pipeline to be region-based; `offline_style_rewriter.dart`'s hillshade rendering is reused as-is (v1.6, shipped)
+- Resumable downloads, of any kind — originally scoped as session-only pause/resume, amended 2026-07-23 to drop resume entirely (Dio's `deleteOnError` treats a deliberate pause identically to a genuine transfer error); cancel always restarts a download from byte 0 (v1.6, shipped)
+- Hierarchical region tree navigation — manifest is tens of entries, not thousands; a flat searchable list is the right complexity (v1.6)
+- Granular per-layer toggles beyond vector/DEM (roads/POIs/water) at the region-download level — no reviewed hiking app exposes this (v1.6)
+- Map boundary highlight overlay showing downloaded region coverage on the map — nice differentiator, deferred (REGN-F01)
+- Region entitlement/paywall model — no paywall exists in Wanderer; the guard dialog borrows Komoot's messaging pattern only, not its unlock/purchase logic (v1.6)
 
 ## Context
 
@@ -128,10 +126,14 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - Along-track projection for waypoint advancement (from quick tasks)
 - Open item: dark mode (quick task 260612-gmg) was planned but never executed — the app has no Appearance/theme-mode setting yet
 - Shipped v1.5 (2026-07-17): Route Planner — from-scratch route building with waypoint editing, Valhalla auto-routing, elevation profile, and handoff to trail create/edit. See `.planning/milestones/v1.5-ROADMAP.md` / `v1.5-REQUIREMENTS.md`
-- Offline tiles today are **trail-scoped, not region-scoped**: `app/lib/services/trail_download_service.dart` downloads vector + optional DEM `.pmtiles` per grid cell keyed to a specific trail's bounding box; `app/lib/entities/trail_entity.dart` stores `demPmTiles` per trail. v1.6 replaces this with an app-wide region model
-- Mapterhorn DEM pipeline already exists server-side: `db/services/tiles/generator.go` extracts per-cell DEM archives from `https://download.mapterhorn.com/planet.pmtiles` (const `mapterhornSource`) at `demMaxZoom = 12` (vs vector `maxZoom = 14`), stored at `pb_data/pmtiles_cache/<cellKey>_dem.pmtiles`; `db/routes/map_cells_id.go` exposes `dem_download_url`/`MapCellsDownloadDem`; `web/.../map/cells/[cellKey]/download-dem/+server.ts` proxies it. DEM generation is best-effort — failures never block the vector basemap. v1.6 reuses this pipeline keyed to regions instead of trail cells
-- DEM tiles are raster hillshade only — no numeric elevation is sourced from them. Elevation gain/loss/profile comes exclusively from GPX `<ele>` track points (`gpx_util.dart`); this milestone does not change that
-- `app/lib/util/offline_style_rewriter.dart` already special-cases `raster-dem` style sources (encoding `terrarium`, tileSize 512, max zoom locked to 12) and drops hillshade layers cleanly when no DEM was downloaded — this rewriting logic is reused, just needs to source from region-based files instead of trail-based ones
+- Shipped v1.6 (2026-07-24): Offline Region Tile Repository — app-wide, region-based offline tile system fully replaces the old trail-scoped one; admin-configured backend catalog, `TileRepositoryManager`, local loopback HTTP tile proxy for map rendering, trail-download coverage guard, and legacy tile code deleted outright. See `.planning/milestones/v1.6-ROADMAP.md` / `v1.6-REQUIREMENTS.md`
+- Offline tiles are now **region-scoped, not trail-scoped**: `TileRepositoryManager` (`app/lib/services/tile_repository_manager.dart`) owns download lifecycle for `regions/<id>/{vector,dem}.pmtiles`, independent of any Trail. The old `trail_download_service.dart` tile methods, `TrailEntity.pmTiles`/`demPmTiles` fields, and `app/lib/models/map_cell.dart` no longer exist (removed Phase 27)
+- Map rendering (`TrailMap`/`navigation_screen`) reads tiles through a local loopback `HttpServer` tile proxy (`app/lib/services/local_tile_proxy_service.dart` or similar, Phase 25.1) — MapLibre Native's own viewport tracking selects which downloaded regions to render, not hand-rolled Dart source diffing
+- Mapterhorn DEM pipeline: `db/services/tiles/generator.go` extracts region-mosaicked DEM archives from `https://download.mapterhorn.com/planet.pmtiles` (const `mapterhornSource`) at `demMaxZoom = 12` (vs vector `maxZoom = 14`), pre-built by a cronjob per configured region (BACK-02/03), served via the region catalog API (BACK-04). DEM generation is best-effort — failures never block the vector basemap
+- DEM tiles are raster hillshade only — no numeric elevation is sourced from them. Elevation gain/loss/profile comes exclusively from GPX `<ele>` track points (`gpx_util.dart`); v1.6 does not change that
+- `app/lib/util/offline_style_rewriter.dart` special-cases `raster-dem` style sources (encoding `terrarium`, tileSize 512, max zoom locked to 12) and drops hillshade layers cleanly when no DEM was downloaded — reused as-is, now sourcing from region-based files
+- Downloads are never resumable, at any level (amended 2026-07-23) — cancelling (deliberate or a genuine transfer error) always deletes the `.part` file via Dio's `deleteOnError: true`; a later attempt always restarts from byte 0
+- Region catalog is admin-defined per instance via a config file mounted through Docker volume (`db/` backend), not a bundled Flutter asset — a fresh/default instance with no admin config returns an empty catalog
 
 ## Constraints
 
@@ -175,6 +177,12 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 | [v1.5] Handoff synthesizes a GPX track only, no Waypoint records (HANDOFF-01 scope change) | Route anchors are planner-only; converting them to named Waypoints would conflate two different concepts on the receiving trail_create_screen | ✓ Good — shipped Phase 21 |
 | [v1.5] Travel profile (hike/bike) fixed at planner entry, no mid-session switch (ROUTE-03 cut, tracked as PLANNER-07) | Avoids re-resolving every existing segment on profile change; simplifies the auto-routing engine | ✓ Good — deferred to v2 backlog |
 | [v1.5] Dedicated `LocationSearchScreen` instead of reusing `GlobalSearchScreen` | `GlobalSearchScreen` also returns trails/lists/accounts; the planner only needs location results | ✓ Good — shipped Phase 20 |
+| [v1.6] Region catalog is an admin-supplied Docker-volume-mounted config file + cron-pre-built archives + API endpoint, not a bundled `regions.json` app asset | For a self-hostable app, offline-downloadable regions are a per-instance admin decision, not fixed at Flutter build time; pre-building ahead of request makes downloads instant instead of orchestrating N per-cell requests client-side | ✓ Good — shipped Phase 21.5, corrected an earlier bundled-asset assumption made during Phase 22 planning |
+| [v1.6] Pause/resume dropped entirely from region downloads, replaced with cancel-and-restart-from-0 | Dio's native `deleteOnError` handler deletes the `.part` file on ANY cancellation, including a deliberate pause — the very first pause of a fresh download silently destroyed its own resume progress | ✓ Good — amended 2026-07-23 (commit `4732d20e`), simpler than working around the footgun |
+| [v1.6] DEM is its own independent list tile (not a toggle on the Vector row), download gated on Vector being downloaded first | Hillshading without a basemap underneath it is meaningless; two independent packages with clearer per-item progress/state beat one row with a hidden sub-toggle | ✓ Good — amended 2026-07-23 (commit `663f049a`) |
+| [v1.6] Local loopback HTTP tile proxy for map rendering, not incremental `addSource`/`removeSource` region-swap reconciliation | Phase 25's hand-rolled Dart diffing had a reentrancy race (no in-flight guard, `MapEventCameraIdle` over-firing during GPS-follow) found in UAT; a proxy lets MapLibre Native's own viewport tracking pick regions, eliminating the race structurally instead of patching it | ✓ Good — shipped as urgent Phase 25.1 insertion |
+| [v1.6] CLEAN-02 (one-time orphaned-legacy-tile sweep) cut outright, not deferred | App is pre-production — no real install base with orphaned legacy tile files exists to clean up; any dev/test device can be wiped/reinstalled manually | ✓ Good — descoped per 27-CONTEXT.md D-05, ROADMAP success criterion #2 annotated accordingly |
+| [v1.6] Legacy trail-scoped tile code deleted outright in Phase 27, no dual-run or migration path | App is pre-production; `pmTiles`/`demPmTiles` had zero readers left once Phase 25 moved map rendering to the region pipeline | ✓ Good — zero remaining references confirmed by goal-backward verification |
 
 ## Evolution
 
@@ -194,4 +202,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-24 — Milestone v1.5 Route Planner archived.*
+*Last updated: 2026-07-24 — Milestones v1.5 Route Planner and v1.6 Offline Region Tile Repository archived.*
