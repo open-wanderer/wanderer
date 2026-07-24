@@ -1,18 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 26-trail-download-guard
 source: [26-VERIFICATION.md]
 started: 2026-07-24T12:44:19Z
-updated: 2026-07-24T15:15:00Z
+updated: 2026-07-24T15:30:00Z
 ---
 
 ## Current Test
 
-number: 4
-name: Multi-region parallel download + unified notification (26-05 re-run)
-expected: |
-  On a multi-region trail, check Vector for two regions and DEM for one, tap Download once. The id-42 notification shows one combined progress bar that never jumps downward as each package completes, reaches 100%, and only then finalizes to success.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -30,8 +26,8 @@ result: pass
 
 ### 4. Multi-region parallel download + unified notification (26-05 re-run)
 expected: On a multi-region trail, check Vector for two regions and DEM for one, tap Download once. The id-42 notification shows one combined progress bar that never jumps downward as each package completes, reaches 100%, and only then finalizes to success.
-result: [pending]
-note: "Original issue (bar resets 3x, finishes <100%) root-caused and fixed in 26-05 (monotonic latch + deferred gated showSuccess). Statically re-verified in 26-VERIFICATION.md; awaiting on-device re-confirmation."
+result: pass
+note: "Original issue (bar resets 3x, finishes <100%) root-caused and fixed in 26-05 (monotonic latch + deferred gated showSuccess). User confirmed on-device re-test passes."
 
 ### 5. Guard does not re-fire after a just-completed region download (CR-02 live regression check)
 expected: Trigger the sheet, download a region's Vector package, wait for it to finish, then re-tap download on the same/overlapping trail without navigating away (keep Settings/Offline Regions mounted) — the guard recognizes the region as now covered and does not re-show it in the sheet.
@@ -47,15 +43,15 @@ result: pass
 
 ### 8. Downloaded DEM package reflects as downloaded in Settings → Offline Regions (26-05 re-run)
 expected: Trigger the missing-coverage sheet for a trail with a missing region, check both Vector and DEM, tap Download. After both finish, Settings → Offline Regions shows the DEM package as "downloaded" (matching Vector), with no orphaned/severed relation, and the region's totals are consistent.
-result: [pending]
-note: "Original issue (DEM downloads but shows not-downloaded in Settings) root-caused to a concurrent-write race and fixed in 26-05 (fresh-row read-modify-write in tile_repository_manager.dart). Statically re-verified in 26-VERIFICATION.md; awaiting on-device re-confirmation."
+result: pass
+note: "Original issue (DEM downloads but shows not-downloaded in Settings) root-caused to a concurrent-write race and fixed in 26-05 (fresh-row read-modify-write in tile_repository_manager.dart). User confirmed on-device re-test passes."
 
 ## Summary
 
 total: 8
-passed: 6
+passed: 8
 issues: 0
-pending: 2
+pending: 0
 skipped: 0
 blocked: 0
 
