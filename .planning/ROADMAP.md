@@ -9,7 +9,7 @@
 - ✅ **v1.4 MapLibre Migration** — Phases 13-18 (shipped 2026-07-10)
 - ✅ **v1.5 Route Planner** — Phases 19-21 (shipped 2026-07-17)
 - ✅ **v1.6 Offline Region Tile Repository** — Phases 21.5, 22-27 (shipped 2026-07-24)
-- 📋 **v1.7 (unnamed)** — Phase 28 drafted, not yet scoped via `/gsd-new-milestone`
+- 🚧 **v1.7 Admin Region Picker** — Phases 28-31 (in progress)
 
 ## Phases
 
@@ -298,25 +298,88 @@ See `.planning/milestones/v1.6-ROADMAP.md` for full details.
 
 </details>
 
-### v1.7 (unnamed — not yet scoped via `/gsd-new-milestone`)
+### 🚧 v1.7 Admin Region Picker (Phases 28-31, in progress)
 
-Phase 28 was drafted ahead of formal milestone scoping. Run `/gsd-new-milestone` to name and scope this milestone before planning Phase 28.
+**Milestone Goal:** A server owner defines downloadable regions by toggling entries in a curated, seeded catalog — sourced from CoMaps' extract hierarchy, with real known boundaries — instead of hand-authoring `region_config.json`; the app's settings screen presents the same hierarchy.
 
-### Phase 28: Admin Region Picker — Curated Catalog + Hierarchy
+Full design settled via `/gsd-explore` — see `.planning/notes/streamlined-region-definition.md`. Provider-source research resolved — see `.planning/research/questions.md`. Automated catalog refresh explicitly deferred — see seed `.planning/seeds/region-list-refresh-mechanism.md`.
 
-**Goal**: A server owner defines downloadable regions by toggling entries in a curated, seeded catalog — picking from real, known-size extracts on a nested tree with a live bbox map — instead of hand-authoring `region_config.json`; the app's settings screen presents the same hierarchy.
-**Depends on**: Phase 27 (region system is the only tile path; safe to replace the admin-facing definition mechanism)
-**Requirements**: TBD (new REGN-* requirements to be added; un-defers the admin region UI parked as Out of Scope in the v1.6 config-file decision)
-**Design**: `.planning/notes/streamlined-region-definition.md`
-**Open research**: `.planning/research/questions.md` (region catalog source) — blocks the seed migration
+- [ ] **Phase 28: Region Catalog Data Model & Seeding** — the seeded `regions` table exists and a fresh instance boots with it fully populated
+- [ ] **Phase 29: Polygon-Based Extraction & Region API** — the archive cron and the client-facing catalog endpoint both read from the new table
+- [ ] **Phase 30: Admin Region Picker UI** — a server owner toggles regions on a collapsible tree with a live coverage map
+- [ ] **Phase 31: Flutter Settings Hierarchy** — the app's region list becomes a hierarchy matching the admin tree
+
+#### Sequencing Rationale
+
+The milestone spans two backend subsystems and two independent UIs (a PocketBase admin page and a Flutter screen), and the real constraint is data dependency, not code-layer boundaries:
+
+1. **The table must exist and be populated before anything else can read it.** Phase 28 delivers the `regions` schema, the maintainer-run seeding tool, and the auto-run migration that bulk-inserts the CoMaps hierarchy on every fresh instance startup. Nothing in Phases 29-31 is meaningful until this lands.
+
+2. **Phase 29 (cron + API) and Phase 30 (admin UI) are siblings, not a chain.** Both need only the seeded table from Phase 28 — the cron reads `kind = 'leaf' AND enabled = true` to pick build targets, and the admin page reads/writes the same rows directly. Neither depends on the other's output, so they may be planned and executed in either order (or in parallel, per `config.json`'s `parallelization: true`).
+
+3. **Phase 31 (Flutter) depends specifically on Phase 29, not Phase 30.** The app's Settings hierarchy is built from `GET /api/v1/regions`, which only gains `parent`/`path`/`depth` fields in Phase 29 (EXTRACT-03). The admin page is a separate PocketBase-only surface the app never talks to — Phase 30 can land before, after, or alongside Phase 31 without blocking it.
+
+```
+28 ─┬─→ 29 → 31
+    └─→ 30
+```
+
+A pre-planning validation spike (not itself a phase deliverable) should confirm `pmtiles extract --region <polygon>` performs true polygon clipping against a real CoMaps `.poly`-derived boundary before Phase 29 planning commits to that extraction approach — see `.planning/todos/pending/2026-07-24-comaps-poly-region-extraction-spike.md`.
+
+### Phase 28: Region Catalog Data Model & Seeding
+
+**Goal**: A fresh, self-hosted Wanderer instance boots with a fully populated, hierarchical, toggleable region catalog — sourced from CoMaps' extract hierarchy — with zero admin action required.
+**Depends on**: Phase 27 (the region download/archive system is fully shipped; this milestone only replaces the admin-facing region-*definition* mechanism, not the download pipeline)
+**Requirements**: CATALOG-01, CATALOG-02, CATALOG-03, SEED-01, SEED-02
 **Success Criteria** (what must be TRUE):
 
-  1. A new seeded `regions` table (nested parent/child, canonical bbox per row, `enabled` flag) exists; the archive-generation cron reads `enabled = true` and no longer parses `region_config.json`.
-  2. A custom PocketBase admin page (AlpineJS bundle, reusing the `feature/ap-instance-actors` pattern) lets the admin toggle regions on a collapsible tree while a live map renders the bboxes of enabled regions.
-  3. Enabling/disabling a region is the only admin action required — no bbox authoring, no config file edit; the toggle takes effect on the cron's next run.
-  4. The Flutter settings screen presents downloadable regions as the same hierarchy (collapsible tree), not a flat list, with no download-UX regression.
+  1. The `regions` PocketBase collection exists with `comaps_id`, a self-referencing `parent`, materialized `path`, `depth`, `sort_order`, `name`, and `kind` (`group`|`leaf`) on every row; leaf rows additionally carry `polygon` (GeoJSON) and a derived `bbox`, while group rows carry neither.
+  2. A maintainer can run `db/commands/seed_regions.go` against vendored CoMaps `hierarchy.txt` + `.poly` files and produce a flattened JSON seed file matching the `regions` schema.
+  3. A fresh instance boots (auto-run migration, zero admin action) with the `regions` collection created and bulk-inserted from the committed JSON seed — querying the collection shows the full CoMaps group/leaf hierarchy with correct parent/path/depth relationships.
+  4. Every leaf row's `enabled` defaults to `false` on first seed — no region is pre-selected for archive building on a fresh install.
 
 **Plans**: TBD
+
+### Phase 29: Polygon-Based Extraction & Region API
+
+**Goal**: The archive-generation cron builds precisely-clipped region archives directly from the seeded catalog, and the region API exposes the hierarchy so clients can render a tree.
+**Depends on**: Phase 28
+**Requirements**: EXTRACT-01, EXTRACT-02, EXTRACT-03
+**Success Criteria** (what must be TRUE):
+
+  1. The archive-generation cron determines its build targets strictly by querying `regions` where `kind = 'leaf' AND enabled = true` — no code path parses `region_config.json` anymore.
+  2. Each enabled leaf region's PMTiles archive is produced via `pmtiles extract --region <polygon>` using that region's canonical polygon (not its bounding box) — the resulting archive's tile coverage follows the polygon boundary, not the bbox.
+  3. `GET /api/v1/regions` returns each region's `parent`, `path`, and `depth` alongside its existing bbox/status/size fields, so a client can reconstruct the tree from a flat response.
+
+**Plans**: TBD
+
+### Phase 30: Admin Region Picker UI
+
+**Goal**: A server owner manages the region catalog visually — toggling regions on a tree with a live coverage map — instead of hand-authoring a config file.
+**Depends on**: Phase 28 (parallel-safe with Phase 29 — neither depends on the other)
+**Requirements**: ADMINUI-01, ADMINUI-02, ADMINUI-03
+**Success Criteria** (what must be TRUE):
+
+  1. An admin navigates to a custom PocketBase admin page (AlpineJS bundle, reusing the `feature/ap-instance-actors` pattern) and sees the full CoMaps region catalog rendered as a collapsible tree, with group nodes expanding to reveal their child groups and leaf regions.
+  2. The admin toggles a leaf region's `enabled` state directly on the tree, and the change persists immediately with no other admin action required — the cron's next run acts on it.
+  3. A live map on the same page renders the boundary polygon of every currently-enabled leaf region, so the admin can see coverage before and after toggling with no separate save/publish step.
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 31: Flutter Settings Hierarchy
+
+**Goal**: The app's Settings → Offline Maps/Regions screen mirrors the admin-defined hierarchy, with every existing per-region action unregressed.
+**Depends on**: Phase 29 (`GET /api/v1/regions` must expose hierarchy fields before the app can render a tree)
+**Requirements**: APPUI-01, APPUI-02
+**Success Criteria** (what must be TRUE):
+
+  1. Settings → Offline Maps/Regions renders the region catalog as a collapsible hierarchy — tapping a group node expands/collapses to reveal its child groups and leaf regions — matching the shape of the admin-defined tree, replacing today's flat list.
+  2. Each leaf region row still exposes its existing independent Vector and DEM download/cancel/delete controls exactly as before, now nested inside the hierarchy.
+  3. The disk-usage summary (total space used, per-region breakdown) continues to work unchanged within the new hierarchical presentation.
+
+**Plans**: TBD
+**UI hint**: yes
 
 ## Progress
 
@@ -327,6 +390,13 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 13 ─┐
     ├─→ 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23 → 24 → 25 → 26 → 27
 14 ─┘
+```
+
+v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28 and may execute in parallel; Phase 31 depends specifically on Phase 29:
+
+```
+28 ─┬─→ 29 → 31
+    └─→ 30
 ```
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -358,3 +428,7 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
 | 27. Legacy Cleanup | v1.6 | 2/2 | Complete    | 2026-07-24 |
+| 28. Region Catalog Data Model & Seeding | v1.7 | 0/TBD | Not started | - |
+| 29. Polygon-Based Extraction & Region API | v1.7 | 0/TBD | Not started | - |
+| 30. Admin Region Picker UI | v1.7 | 0/TBD | Not started | - |
+| 31. Flutter Settings Hierarchy | v1.7 | 0/TBD | Not started | - |

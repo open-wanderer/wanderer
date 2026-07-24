@@ -67,20 +67,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CATALOG-03 | Phase 28 | Pending |
 | SEED-01 | Phase 28 | Pending |
 | SEED-02 | Phase 28 | Pending |
-| EXTRACT-01 | Phase 28 | Pending |
-| EXTRACT-02 | Phase 28 | Pending |
-| EXTRACT-03 | Phase 28 | Pending |
-| ADMINUI-01 | Phase 28 | Pending |
-| ADMINUI-02 | Phase 28 | Pending |
-| ADMINUI-03 | Phase 28 | Pending |
-| APPUI-01 | Phase 28 | Pending |
-| APPUI-02 | Phase 28 | Pending |
+| EXTRACT-01 | Phase 29 | Pending |
+| EXTRACT-02 | Phase 29 | Pending |
+| EXTRACT-03 | Phase 29 | Pending |
+| ADMINUI-01 | Phase 30 | Pending |
+| ADMINUI-02 | Phase 30 | Pending |
+| ADMINUI-03 | Phase 30 | Pending |
+| APPUI-01 | Phase 31 | Pending |
+| APPUI-02 | Phase 31 | Pending |
 
 **Coverage:**
 - v1 requirements: 13 total
-- Mapped to phases: 13 (provisional — roadmapper may split across multiple phases)
+- Mapped to phases: 13 (Phase 28: Region Catalog Data Model & Seeding, Phase 29: Polygon-Based Extraction & Region API, Phase 30: Admin Region Picker UI, Phase 31: Flutter Settings Hierarchy)
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-24*
-*Last updated: 2026-07-24 after initial definition*
+*Last updated: 2026-07-24 after roadmap creation (Phases 28-31 assigned)*

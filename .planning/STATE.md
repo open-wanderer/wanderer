@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: planning
-last_updated: "2026-07-24T17:44:33.268Z"
+last_updated: "2026-07-24T18:10:00.000Z"
 last_activity: 2026-07-24
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,27 +20,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Planning next milestone. Phase 28 (Admin Region Picker) is drafted in ROADMAP.md but not yet scoped via `/gsd-new-milestone`.
+**Current focus:** v1.7 Admin Region Picker — ROADMAP.md defined (Phases 28-31), ready for `/gsd-plan-phase 28`.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-07-24 — Milestone v1.7 started
+Phase: 28 of 31 (Region Catalog Data Model & Seeding)
+Plan: — (not yet planned)
+Status: Roadmap complete — ready to plan
+Last activity: 2026-07-24 — v1.7 ROADMAP.md created (Phases 28-31); REQUIREMENTS.md traceability updated
 
-## v1.6 Phases
+## v1.7 Phases
 
-- [x] **Phase 21.5: Region Catalog & Archive Pre-Build (Backend)** — BACK-01..05
-- [x] **Phase 22: Region & Package Data Model** — REGN-01/02/03
-- [x] **Phase 23: TileRepositoryManager — Download Engine** — TILE-01..05, DEM-01/02
-- [x] **Phase 24: Settings — Offline Maps/Regions UI** — SETUI-01..06
-- [x] **Phase 25: Map Rendering — Region-Based Viewport Pipeline** — RENDER-01..03
-- [x] **Phase 25.1: Local HTTP Tile Proxy** (INSERTED) — replaces navigation_screen's incremental region-swap reconcile after the UAT-diagnosed reentrancy race
-- [x] **Phase 26: Trail Download Guard** — GUARD-01..04
-- [x] **Phase 27: Legacy Cleanup** — CLEAN-01 (CLEAN-02 descoped per D-05)
+- [ ] **Phase 28: Region Catalog Data Model & Seeding** — CATALOG-01/02/03, SEED-01/02
+- [ ] **Phase 29: Polygon-Based Extraction & Region API** — EXTRACT-01/02/03
+- [ ] **Phase 30: Admin Region Picker UI** — ADMINUI-01/02/03
+- [ ] **Phase 31: Flutter Settings Hierarchy** — APPUI-01/02
 
-Execution order: 21.5 → 22 → 23 → 24 → 25 → 25.1 → 26 → 27 (strictly sequential — backend catalog → data model → download engine → Settings UI → map-screen rewiring/spike → tile-proxy re-architecture → trail guard → legacy ripout). All phases complete; milestone not yet formally closed.
+Execution order: 28 → {29, 30 in parallel} → 31. Phase 29 (cron/API) and Phase 30 (admin UI) both depend only on Phase 28's seeded table and don't depend on each other. Phase 31 (Flutter) depends specifically on Phase 29 — it needs `GET /api/v1/regions` to expose hierarchy fields (`parent`/`path`/`depth`), not on Phase 30's admin page.
+
+v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1.6-ROADMAP.md` / MILESTONES.md.
 
 ## Performance Metrics
 
@@ -169,7 +167,7 @@ Recent decisions affecting current work:
 - [Phase quick-260712-pac]: In this Riverpod 3.x codebase, AsyncValue.isLoading/isRefreshing/isReloading/retrying/isFromCache are extension methods, not real instance members -- an untyped ref.listen/listenManual closure param can get inferred as dynamic, which skips extension resolution and throws NoSuchMethodError at runtime instead of a compile error. Always explicitly type listener closure params (and the listen/listenManual generic argument) as AsyncValue<T> when calling these getters.
 - [v1.5 roadmap] 3 phases (19-21), matching config.json's `coarse` granularity (2-4 target). Phase 19 merges research/SUMMARY.md's suggested Phase 1 (Provider Architecture) + Phase 2 (Map Interaction) into one vertical slice — tap/drag/insert waypoints, auto-routing toggle, profile switch, undo/redo — because neither half alone is user-observable without the other. Phase 20 merges the suggested Phase 3 (Screen Shell) + Phase 4 (Search-to-Focus): PLANUI-03 turned out to be a dedicated location-only search screen (not a `GlobalSearchScreen` modification as SUMMARY.md assumed), making it a natural map-control-button sibling of the waypoint-list/elevation toggle rather than a separate phase. Phase 21 (Handoff) matches the research's Phase 5, plus HANDOFF-03 (hike/bike entry dialog, since it's part of the entry-point flow into the planner).
 - [v1.5 roadmap] WAYP-04/05 (delete/reorder) assigned to Phase 20, not Phase 19, because both requirements are explicitly scoped to "the waypoint list sheet" — a Phase 20 artifact. WAYP-01/02/03 (tap/drag/insert) stay in Phase 19 because they're direct map-gesture interactions, not list-sheet actions.
-- [v1.5 roadmap] ROUTE-01..05 assigned to Phase 19 (not split across the toggle-button UI in Phase 20) because the routing engine — debounce, generation-guard, undo/redo snapshot stack — is the load-bearing state architecture every later phase depends on; research flagged this as the pitfall most expensive to retrofit if built after the UI.
+- [v1.5 roadmap] ROUTE-01..05 assigned to Phase 19 (not split across the toggle-button UI in Phase 20) because the routing engine — debounce, generation-guard, undo/redo snapshot stack — is the load-bearing state architecture every later phase depends on; research flagged this as the piece most expensive to retrofit if built after the UI.
 - [Phase 19]: [19-01] Divergence test asserts on longitude, not latitude — Geographic clamps latitude to [-90, 90], masking the intended 10x-scale assertion at the chosen fixture coordinates
 - [Phase 19]: [19-01] D-01's no-'waypoint'-string constraint on route_anchor.dart applies to comments too, not just identifiers — reworded a doc comment referencing the sibling persisted-route-point model by name
 - [Phase 19]: [19-02] toggleAutoRouting() OFF leaves existing segments untouched (corrected mid-execution from the plan's stale Task 1 prose to match its own must_haves truth); only new segments created afterward become straight
@@ -256,10 +254,12 @@ Recent decisions affecting current work:
 - [Phase 27]: [27-01] totalPoints computed up front from photoTotal instead of the deleted tile future's onCellTotal callback — downloadTrail() no longer downloads tiles; onProgress reporting for photo/waypoint-photo downloads must not silently break
 - [Phase 27]: [27-02] Regeneration touched two riverpod provider hash files (map_style_json_provider.g.dart, trail_download_state_provider.g.dart) as a side effect of the single project-wide build_runner pass — Logic in those files is unchanged; only the compile-time source hash used for provider identity shifted because it hashes the whole dependency graph including the Trail model
 - [Phase 27]: [27-02] No ObjectBox migration step performed for pmTiles/demPmTiles removal — Field removal is a supported regeneration for a pre-production app (D-06); build_runner's own log confirmed both properties were cleanly retired from the model
+- [v1.7 roadmap] 4 phases (28-31), split from the single draft "Phase 28" sketch that predated `/gsd-explore`. Coarse granularity targets 2-4 phases; the milestone's own dependency chain (table before seeding, seeding before extraction, admin UI needs the table) maps directly onto Data Model + Seeding (28) → {Extraction + Region API (29), Admin UI (30) — both depend only on 28, independent of each other} → Flutter Settings Hierarchy (31, needs 29's hierarchy-aware `GET /api/v1/regions`, not 30's admin page). All 13 v1.7 requirements (CATALOG/SEED/EXTRACT/ADMINUI/APPUI) map 1:1 to exactly one phase, no orphans.
 
 ### Roadmap Evolution
 
 - Phase 25.1 inserted after Phase 25 (2026-07-23, URGENT): Local HTTP tile proxy for region-based offline map rendering. Replaces `navigation_screen.dart`'s incremental `addSource`/`removeSource` region-swap reconcile with a loopback `HttpServer` serving `pmtiles` archives per-tile via a static `tiles:` XYZ source, so MapLibre Native's own viewport tracking takes over instead of hand-rolled Dart diffing -- structurally eliminates the reentrancy bug class (no reconcile call = no race). Considered and rejected: patching `_reconcileRegionComposition` in place (reentrancy guard + symmetric tracking-set mutation + gating camera-idle during GPS-follow) -- viable and lower-risk short-term, but the proxy better fits the genuinely dynamic viewport-tracking requirement and also removes the `_sourceFromJson`/`_layerFromJson` duplication between `trail_map.dart` and `navigation_screen.dart`. New unknowns the proxy introduces: per-tile overlap-resolution logic for regions with overlapping bboxes (none exists today), and unverified MapLibre Native offline+loopback-HTTP behavior (needs its own on-device spike, mirroring RENDER-03's). Phase 25 itself is NOT force-completed -- `25-UAT.md` and `25-VERIFICATION.md` accurately record the Test 4 gap; `25-02`'s `localTilePathsForBounds` split survives unchanged and Phase 25.1 will consume it.
+- v1.7 ROADMAP.md created 2026-07-24: 4 phases (28-31) superseding the single-phase "Phase 28" draft sketched ahead of formal milestone scoping. See Decisions above for the phase-split rationale.
 
 ### Pending Todos
 
@@ -268,6 +268,7 @@ Recent decisions affecting current work:
 - Way Types & Surfaces breakdown feature (mobile-first) — komoot-style stacked bar/legend of OSM way types + surfaces per trail via Valhalla `trace_attributes` (`max_hiking_difficulty: 6` fixes off-road hiking-trail match dropout, verified). Web API computes + persists `way_type_surface` on trail save (no Go/PocketBase hook needed — all writes go through the web API); Flutter renders first, SvelteKit UI deferred. Full plan: `.planning/todos/pending/2026-07-18-way-types-and-surfaces-breakdown.md`.
 - Manual on-device verification for quick task 260719-d6a (time-in-motion navigation timer): start navigation, walk → timer/distance advance; stand still ~10s → timer stops, distance stops, GPS drops to periodic low-power fixes; resume walking → timer/GPS/stats all resume automatically. Also confirm the manual pause button and route-following/maneuver/waypoint behavior are unaffected.
 - Manual on-device verification for quick task 260719-n8g (route recorder): tap "Record trail" → grant permission → recording session opens (map centers on first fix, no maneuver banner, bottom row [pause, stop, elevation]); walk → stats/timer advance, pause/resume works; tap red Stop → "Stop recording?" dialog → Save hands off to trail_create_screen with the recorded track prefilled; start a recording, swipe-kill the app, relaunch → "Resume recording?" prompt → accept continues breadcrumb/stats, decline shows no prompt on next launch.
+- Pre-planning spike (not a phase deliverable): validate `pmtiles extract --region <polygon>` against a real CoMaps `.poly`-derived polygon before Phase 29 planning commits to the polygon-extraction approach — confirm true polygon clipping (not just a bbox pre-filter) and measure the archive-size win for an irregular region. See `.planning/todos/pending/2026-07-24-comaps-poly-region-extraction-spike.md`.
 
 ### Blockers/Concerns
 
@@ -300,7 +301,7 @@ Recent decisions affecting current work:
 | 260715-q01 | Rename iOS bundle id / App Group ids and Android applicationId from com.example.wanderer to com.openwanderer.wanderer | 2026-07-15 | 40cf3a69,8022ae97 | Complete | [260715-q01-…](./quick/260715-q01-update-the-ios-bundle-id-and-android-app/) |
 | 260717-seb | Reverse-geocode route planner anchors on street name, matching web client behavior | 2026-07-17 | aefa55fb,f56d31e7,90cbaa37 | Complete | [260717-seb-…](./quick/260717-seb-reverse-geocode-route-planner-anchors-on/) |
 | 260717-t7q | Add a Settings tab to the Route Planner sheet: consolidated Valhalla travel-profile picker, relocated auto-routing toggle | 2026-07-17 | 53b6b712,c9ec6e45,13f220eb,497803f0,cae4e55c,345e3e53 | Needs Review | [260717-t7q-…](./quick/260717-t7q-add-a-settings-tab-to-the-route-planner-/) |
-| 260718-e9j | Edit an existing route in the trail planner: entry point on trail_create_screen, web-parity anchor prepopulation, pop-with-result return | 2026-07-18 | ee3bbe1d,e93c0ed2,9c171b27,38210d8f | Needs Review | [260718-e9j-…](./quick/260718-e9j-a-user-should-be-able-to-edit-an-existin/) |
+| 260718-e9j | Edit an existing trail's route in the trail planner: entry point on trail_create_screen, web-parity anchor prepopulation, pop-with-result return | 2026-07-18 | ee3bbe1d,e93c0ed2,9c171b27,38210d8f | Needs Review | [260718-e9j-…](./quick/260718-e9j-a-user-should-be-able-to-edit-an-existin/) |
 | 260719-d6a | Navigation timer shows time-in-motion: tracelet native speed-motion engine drives auto-pause of timer/GPS/stats when stationary | 2026-07-19 | 0a914220,b1fb530c,461ad44a,e4012bcd | Needs Review | [260719-d6a-…](./quick/260719-d6a-the-navigation-timer-should-show-time-in/) |
 | 260719-fjw | Save track recorded during navigation: stub Trail from breadcrumb, offered on completion banner and premature-exit dialog, hands off to trail_create_screen | 2026-07-19 | 2bd575f0,61497acd,2b2aa687 | Needs Review | [260719-fjw-…](./quick/260719-fjw-save-track-recorded-during-navigation-cr/) |
 | 260719-n8g | Implement the missing route recorder: isRecording flag reuses NavigationScreen for trail-less GPS recording, wired Record trail card + /record route, ActiveSessionType.rec resume-after-kill; post-review fix gates breadcrumb capture on pause/stationary | 2026-07-19 | 20316c47,c41b757d,602be822 | Needs Review | [260719-n8g-…](./quick/260719-n8g-implement-the-missing-route-recorder-mos/) |
@@ -327,6 +328,9 @@ Recent decisions affecting current work:
 | Route Planner | Offline caching of in-progress route plans (PLANNER-04) | v2 | v1.5 requirements |
 | Route Planner | Confirm-placement drag affordance (PLANNER-05) | v2 (if mis-drops prove common) | v1.5 requirements |
 | Route Planner | Offline-aware graceful degradation banner for auto-routing (PLANNER-06) | v2 | v1.5 requirements |
+| Region catalog | Automated refresh from CoMaps upstream (CATALOG-F01) | v2 | v1.7 requirements |
+| Region catalog | Group-level/cascading enable toggle (CATALOG-F02) | v2 | v1.7 requirements |
+| Region catalog | Map preview boundary for collapsed group nodes (CATALOG-F03) | v2 | v1.7 requirements |
 
 Items acknowledged and deferred at milestone close on 2026-07-10:
 
@@ -398,10 +402,10 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-24T15:48:38.191Z
-Stopped at: Completed 27-02-PLAN.md
+Last session: 2026-07-24T18:10:00.000Z
+Stopped at: v1.7 ROADMAP.md created (Phases 28-31), REQUIREMENTS.md traceability updated
 Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `/gsd-plan-phase 28` to begin planning "Region Catalog Data Model & Seeding", the first phase of v1.7.
