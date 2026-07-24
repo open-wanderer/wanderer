@@ -106,3 +106,14 @@ None - no external service configuration required.
 ---
 *Phase: 27-legacy-cleanup*
 *Completed: 2026-07-24*
+
+## Self-Check: PASSED
+
+- FOUND: app/lib/provider/trail/trail_download_state_provider.dart
+- FOUND: app/lib/services/download_notification_service.dart
+- FOUND: app/lib/services/trail_download_service.dart
+- CONFIRMED DELETED: app/lib/models/map_cell.dart
+- CONFIRMED DELETED: app/lib/models/map_cell.freezed.dart
+- CONFIRMED DELETED: app/lib/models/map_cell.g.dart
+- FOUND commit: e6dc8d50
+- FOUND commit: 62c700a7
