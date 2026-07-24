@@ -1,14 +1,18 @@
 ---
-status: diagnosed
+status: testing
 phase: 26-trail-download-guard
 source: [26-VERIFICATION.md]
 started: 2026-07-24T12:44:19Z
-updated: 2026-07-24T13:20:00Z
+updated: 2026-07-24T15:15:00Z
 ---
 
 ## Current Test
 
-[testing complete]
+number: 4
+name: Multi-region parallel download + unified notification (26-05 re-run)
+expected: |
+  On a multi-region trail, check Vector for two regions and DEM for one, tap Download once. The id-42 notification shows one combined progress bar that never jumps downward as each package completes, reaches 100%, and only then finalizes to success.
+awaiting: user response
 
 ## Tests
 
@@ -24,11 +28,10 @@ result: pass
 expected: An info/warning toast appears for a trail outside every configured region, and the trail download still proceeds.
 result: pass
 
-### 4. Multi-region parallel download + unified notification
-expected: Trail + all selected packages download in parallel; one id-42 notification shows a single combined, advancing progress bar (not one notification per download).
-result: issue
-reported: "The download bar resets 3 times to different values during download and finally finishes before 100%. The trail is successfully downloaded."
-severity: major
+### 4. Multi-region parallel download + unified notification (26-05 re-run)
+expected: On a multi-region trail, check Vector for two regions and DEM for one, tap Download once. The id-42 notification shows one combined progress bar that never jumps downward as each package completes, reaches 100%, and only then finalizes to success.
+result: [pending]
+note: "Original issue (bar resets 3x, finishes <100%) root-caused and fixed in 26-05 (monotonic latch + deferred gated showSuccess). Statically re-verified in 26-VERIFICATION.md; awaiting on-device re-confirmation."
 
 ### 5. Guard does not re-fire after a just-completed region download (CR-02 live regression check)
 expected: Trigger the sheet, download a region's Vector package, wait for it to finish, then re-tap download on the same/overlapping trail without navigating away (keep Settings/Offline Regions mounted) — the guard recognizes the region as now covered and does not re-show it in the sheet.
@@ -42,18 +45,17 @@ result: pass
 expected: After any download attempt (including one that errors early), the trail's download button re-enables; it never stays permanently disabled for the app session.
 result: pass
 
-### 8. Downloaded DEM package reflects as downloaded in Settings → Offline Regions
-expected: After selecting DEM for a region in the missing-coverage sheet and it downloads successfully, the Settings → Offline Regions screen shows that region's DEM package as downloaded (matching the Vector package's correctly-updated status), and the region's totals are consistent with what's actually downloaded.
-result: issue
-reported: "Eventhough I select dem data in the sheet and it downloads properly, the dem data shows as \"not downloaded\" in the settings screen. The total at the top includes it. The vector data shows up correctly as \"downloaded\"."
-severity: major
+### 8. Downloaded DEM package reflects as downloaded in Settings → Offline Regions (26-05 re-run)
+expected: Trigger the missing-coverage sheet for a trail with a missing region, check both Vector and DEM, tap Download. After both finish, Settings → Offline Regions shows the DEM package as "downloaded" (matching Vector), with no orphaned/severed relation, and the region's totals are consistent.
+result: [pending]
+note: "Original issue (DEM downloads but shows not-downloaded in Settings) root-caused to a concurrent-write race and fixed in 26-05 (fresh-row read-modify-write in tile_repository_manager.dart). Statically re-verified in 26-VERIFICATION.md; awaiting on-device re-confirmation."
 
 ## Summary
 
 total: 8
 passed: 6
-issues: 2
-pending: 0
+issues: 0
+pending: 2
 skipped: 0
 blocked: 0
 
