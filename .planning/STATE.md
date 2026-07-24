@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Offline Region Tile Repository
 status: executing
-stopped_at: Completed 26-05-PLAN.md
-last_updated: "2026-07-24T13:53:56.676Z"
+stopped_at: Phase 27 context gathered
+last_updated: "2026-07-24T14:22:19.970Z"
 last_activity: 2026-07-24 -- Completed 26-05-PLAN.md (Gap 1 aggregate-progress latch + Gap 2 fresh-row region write)
 progress:
   total_phases: 9
@@ -346,6 +346,6 @@ Items acknowledged and deferred at milestone close on 2026-07-10:
 
 ## Session Continuity
 
-Last session: 2026-07-24T13:53:14.180Z
-Stopped at: Completed 26-05-PLAN.md
-Resume file: None
+Last session: 2026-07-24T14:22:19.949Z
+Stopped at: Phase 27 context gathered
+Resume file: .planning/phases/27-legacy-cleanup/27-CONTEXT.md
