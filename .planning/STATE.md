@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: executing
-stopped_at: Completed 28-01-PLAN.md
-last_updated: "2026-07-25T10:39:06.130Z"
-last_activity: 2026-07-25 -- Phase 28 execution started
+stopped_at: Completed 28-02-PLAN.md
+last_updated: "2026-07-25T18:45:00.000Z"
+last_activity: 2026-07-25 -- Phase 28 execution continued
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 28 (region-catalog-data-model-seeding) — EXECUTING
-Plan: 2 of 3
-Status: Ready to execute
-Last activity: 2026-07-25 -- Phase 28 execution started
+Plan: 3 of 3
+Status: Executing 28-03-PLAN.md next
+Last activity: 2026-07-25 -- Phase 28 execution continued
 
 ## v1.7 Phases
 
@@ -259,6 +259,7 @@ Recent decisions affecting current work:
 - [v1.7 roadmap] 4 phases (28-31), split from the single draft "Phase 28" sketch that predated `/gsd-explore`. Coarse granularity targets 2-4 phases; the milestone's own dependency chain (table before seeding, seeding before extraction, admin UI needs the table) maps directly onto Data Model + Seeding (28) → {Extraction + Region API (29), Admin UI (30) — both depend only on 28, independent of each other} → Flutter Settings Hierarchy (31, needs 29's hierarchy-aware `GET /api/v1/regions`, not 30's admin page). All 13 v1.7 requirements (CATALOG/SEED/EXTRACT/ADMINUI/APPUI) map 1:1 to exactly one phase, no orphans.
 - [Phase 28]: [28-01] GeoJSON coordinates emitted as plain nested []float64 slices (not fixed-size [2]float64 arrays) in the public map[string]any so output round-trips through encoding/json and is trivially type-assertable — Keeps the parser's public API simple for downstream consumers (seed_regions.go in 28-02) and test assertions
 - [Phase 28]: [28-01] ParseHierarchy does not fetch or cross-check countries.txt — hierarchy.txt indentation alone determines group/leaf — Per 28-RESEARCH.md's resolved Open Question 2: a second fetched file adds network surface to a maintainer-run tool for marginal benefit
+- [Phase 28]: [28-02] seed_regions.go fetches from comaps/comaps's GitHub mirror (raw.githubusercontent.com) instead of Codeberg directly, same pinned commit — Codeberg's raw-file endpoint enforces a ~250 req/600s quota that a full ~1,150-leaf run routinely exhausted (one run lost entirely to an unrelated machine restart mid rate-limit-wait, since the tool only writes output once at the end); GitHub's mirror served identical content with zero rate limiting across the full run
 
 ### Roadmap Evolution
 
@@ -406,8 +407,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-25T10:39:06.115Z
-Stopped at: Completed 28-01-PLAN.md
+Last session: 2026-07-25T18:45:00.000Z
+Stopped at: Completed 28-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
