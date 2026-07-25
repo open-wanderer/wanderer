@@ -313,10 +313,19 @@ class Router extends _$Router {
             final recordingCosting = extra is Map
                 ? extra['costing'] as String?
                 : null;
+            // A fresh recording carries the reachability probe result from
+            // _openRecorder; a resumed one reuses its persisted flag (parity
+            // with the .nav resume branch in main.dart). Either way this keeps
+            // NavigationScreen off the online `/map/style-sources` fetch when
+            // offline, so the recorder never hangs on its loading spinner.
+            final isOffline = extra is Map
+                ? (extra['isOffline'] as bool? ?? false)
+                : (resume?.isOffline ?? false);
             return NavigationScreen(
               id: '',
               response: const NavigateResponse(maneuvers: [], shape: []),
               isRecording: true,
+              isOffline: isOffline,
               resumeSession: resume,
               initialCenter: center,
               initialPosition: seedPosition,

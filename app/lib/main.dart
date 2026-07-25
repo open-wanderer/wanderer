@@ -19,6 +19,7 @@ import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
 import 'package:wanderer/services/tile_proxy_server.dart';
 import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
+import 'package:wanderer/util/connectivity_util.dart';
 import 'package:wanderer/util/navigation_launch_util.dart';
 
 import 'i18n/app_localizations.dart';
@@ -227,13 +228,21 @@ class _MainAppState extends ConsumerState<MainApp> {
           ),
         ],
       ),
-    ).then((accepted) {
+    ).then((accepted) async {
       if (accepted == true) {
+        // Re-probe rather than trusting the persisted flag: connectivity may
+        // have changed since the session was last saved (e.g. saved online,
+        // relaunched in airplane mode). A stale `isOffline=false` here would
+        // send NavigationScreen down the online style path, whose
+        // `/map/style-sources` fetch hangs offline and freezes the map on its
+        // loading spinner. The cached response already makes navigation itself
+        // work offline; this flag only selects the map style path.
+        final isOffline = !await isBackendReachable(ref);
         navigatorKey.currentContext?.push(
           '/trail/${row.trailId}/navigate',
           // No fresh fix to seed on resume — same as a brand-new session
           // pending its first tracelet fix.
-          extra: (response, row.isOffline ?? false, row, null),
+          extra: (response, isOffline, row, null),
         );
       } else {
         active_nav.clear(store);
@@ -268,8 +277,14 @@ class _MainAppState extends ConsumerState<MainApp> {
           ),
         ],
       ),
-    ).then((accepted) {
+    ).then((accepted) async {
       if (accepted == true) {
+        // Re-probe rather than trusting the persisted flag (see the .nav
+        // resume branch): a recording saved online then resumed in airplane
+        // mode must open NavigationScreen's offline style path, or its
+        // `/map/style-sources` fetch hangs the map on its loading spinner.
+        // The router reads this back off `resume.isOffline`.
+        row.isOffline = !await isBackendReachable(ref);
         navigatorKey.currentContext?.push('/record', extra: row);
       } else {
         active_nav.clear(store);

@@ -14,6 +14,7 @@ import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/map_camera_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/util/connectivity_util.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/trail_import_util.dart';
@@ -88,6 +89,14 @@ class _TrailSourceSelectScreenState
     if (!mounted) return;
     setState(() => _recorderLoading = true);
     try {
+      // Probe backend reachability concurrently with the GPS wait — running
+      // both under one spinner instead of serializing their timeouts — to
+      // decide whether `NavigationScreen` renders from the online style or the
+      // network-free offline style path. A recording session itself never
+      // needs the network; without this flag the recorder opens the online
+      // map, whose `/map/style-sources` fetch never resolves offline and
+      // leaves the screen stuck on its loading spinner.
+      final offlineFuture = isBackendReachable(ref).then((online) => !online);
       LocationMarkerPosition? pos;
       try {
         pos = await ref
@@ -102,6 +111,8 @@ class _TrailSourceSelectScreenState
         showError(l10n.location_unavailable);
         return;
       }
+      final isOffline = await offlineFuture;
+      if (!mounted) return;
       context.push(
         '/record',
         extra: {
@@ -109,6 +120,7 @@ class _TrailSourceSelectScreenState
           'lon': pos.longitude,
           'position': seedPositionFrom(pos),
           'costing': bucket.costing,
+          'isOffline': isOffline,
         },
       );
     } finally {
