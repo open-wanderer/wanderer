@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
-status: planning
-stopped_at: Phase 28 context gathered
-last_updated: "2026-07-24T18:04:17.110Z"
-last_activity: 2026-07-24 — v1.7 ROADMAP.md created (Phases 28-31); REQUIREMENTS.md traceability updated
+status: executing
+stopped_at: Completed 28-01-PLAN.md
+last_updated: "2026-07-25T10:39:06.130Z"
+last_activity: 2026-07-25 -- Phase 28 execution started
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** v1.7 Admin Region Picker — ROADMAP.md defined (Phases 28-31), ready for `/gsd-plan-phase 28`.
+**Current focus:** Phase 28 — region-catalog-data-model-seeding
 
 ## Current Position
 
-Phase: 28 of 31 (Region Catalog Data Model & Seeding)
-Plan: — (not yet planned)
-Status: Roadmap complete — ready to plan
-Last activity: 2026-07-24 — v1.7 ROADMAP.md created (Phases 28-31); REQUIREMENTS.md traceability updated
+Phase: 28 (region-catalog-data-model-seeding) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-07-25 -- Phase 28 execution started
 
 ## v1.7 Phases
 
@@ -117,6 +117,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 26 P05 | ~10min | 2 tasks | 2 files |
 | Phase 27 P01 | 12min | 2 tasks | 6 files |
 | Phase 27 P02 | 4min | 2 tasks | 8 files |
+| Phase 28 P01 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -256,6 +257,8 @@ Recent decisions affecting current work:
 - [Phase 27]: [27-02] Regeneration touched two riverpod provider hash files (map_style_json_provider.g.dart, trail_download_state_provider.g.dart) as a side effect of the single project-wide build_runner pass — Logic in those files is unchanged; only the compile-time source hash used for provider identity shifted because it hashes the whole dependency graph including the Trail model
 - [Phase 27]: [27-02] No ObjectBox migration step performed for pmTiles/demPmTiles removal — Field removal is a supported regeneration for a pre-production app (D-06); build_runner's own log confirmed both properties were cleanly retired from the model
 - [v1.7 roadmap] 4 phases (28-31), split from the single draft "Phase 28" sketch that predated `/gsd-explore`. Coarse granularity targets 2-4 phases; the milestone's own dependency chain (table before seeding, seeding before extraction, admin UI needs the table) maps directly onto Data Model + Seeding (28) → {Extraction + Region API (29), Admin UI (30) — both depend only on 28, independent of each other} → Flutter Settings Hierarchy (31, needs 29's hierarchy-aware `GET /api/v1/regions`, not 30's admin page). All 13 v1.7 requirements (CATALOG/SEED/EXTRACT/ADMINUI/APPUI) map 1:1 to exactly one phase, no orphans.
+- [Phase 28]: [28-01] GeoJSON coordinates emitted as plain nested []float64 slices (not fixed-size [2]float64 arrays) in the public map[string]any so output round-trips through encoding/json and is trivially type-assertable — Keeps the parser's public API simple for downstream consumers (seed_regions.go in 28-02) and test assertions
+- [Phase 28]: [28-01] ParseHierarchy does not fetch or cross-check countries.txt — hierarchy.txt indentation alone determines group/leaf — Per 28-RESEARCH.md's resolved Open Question 2: a second fetched file adds network surface to a maintainer-run tool for marginal benefit
 
 ### Roadmap Evolution
 
@@ -403,9 +406,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-24T18:04:17.090Z
-Stopped at: Phase 28 context gathered
-Resume file: .planning/phases/28-region-catalog-data-model-seeding/28-CONTEXT.md
+Last session: 2026-07-25T10:39:06.115Z
+Stopped at: Completed 28-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
