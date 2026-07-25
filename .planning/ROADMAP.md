@@ -338,7 +338,11 @@ A pre-planning validation spike (not itself a phase deliverable) should confirm 
   3. A fresh instance boots (auto-run migration, zero admin action) with the `regions` collection created and bulk-inserted from the committed JSON seed — querying the collection shows the full CoMaps group/leaf hierarchy with correct parent/path/depth relationships.
   4. Every leaf row's `enabled` defaults to `false` on first seed — no region is pre-selected for archive building on a fresh install.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+- [ ] 28-01-PLAN.md — Hand-rolled Osmosis .poly -> GeoJSON parser + hierarchy.txt indentation-tree parser (pure, unit-tested)
+- [ ] 28-02-PLAN.md — seed_regions.go Cobra command: fetch CoMaps hierarchy/.poly from Codeberg, flatten to committed regions_seed.json
+- [ ] 28-03-PLAN.md — Auto-run migration: create the regions collection (Go SDK, self-relation) + idempotent two-pass bulk-insert from the seed
 
 ### Phase 29: Polygon-Based Extraction & Region API
 
