@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -141,26 +143,79 @@ func SeedRegions() *cobra.Command {
 	return cmd
 }
 
+// maxFetchRetries bounds how many times fetch retries a single URL after a
+// 429 (rate limited) response before giving up. Codeberg's raw-file
+// endpoint enforces a tight per-window quota (observed: 250 requests /
+// 600s) that a maintainer run against ~1,150 leaf .poly files routinely
+// exhausts — this is a transient upstream condition, not malformed data,
+// so it is retried rather than treated as a fatal parse/fetch error.
+const maxFetchRetries = 10
+
 // fetch performs an HTTP GET against rawURL and reads at most maxBytes of
 // the response body, bounding memory use against an unexpectedly large
-// upstream response (Threat T-28-04). A non-200 status or a read error is
-// returned as a descriptive error, never surfaced as a process abort by
-// this function itself — callers decide whether a failure is fatal.
+// upstream response (Threat T-28-04). A 429 response is retried up to
+// maxFetchRetries times, sleeping for the duration named by the response's
+// Retry-After header (or a conservative default if absent) between
+// attempts. A non-200/429 status or a read error is returned as a
+// descriptive error, never surfaced as a process abort by this function
+// itself — callers decide whether a failure is fatal.
 func fetch(rawURL string, maxBytes int64) ([]byte, error) {
+	var lastErr error
+
+	for attempt := 0; attempt <= maxFetchRetries; attempt++ {
+		data, retryAfter, err := doFetch(rawURL, maxBytes)
+		if err == nil {
+			return data, nil
+		}
+		if retryAfter <= 0 {
+			return nil, err
+		}
+		lastErr = err
+		if attempt == maxFetchRetries {
+			break
+		}
+		fmt.Printf("seed-regions: rate limited fetching %s, waiting %s before retry %d/%d\n", rawURL, retryAfter, attempt+1, maxFetchRetries)
+		time.Sleep(retryAfter)
+	}
+
+	return nil, fmt.Errorf("GET %s: exceeded %d retries: %w", rawURL, maxFetchRetries, lastErr)
+}
+
+// doFetch is fetch's single-attempt HTTP GET. It returns a non-zero
+// retryAfter duration only when the response was a 429, signaling to fetch
+// that this attempt is retryable.
+func doFetch(rawURL string, maxBytes int64) ([]byte, time.Duration, error) {
 	resp, err := http.Get(rawURL)
 	if err != nil {
-		return nil, fmt.Errorf("GET %s: %w", rawURL, err)
+		return nil, 0, fmt.Errorf("GET %s: %w", rawURL, err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, parseRetryAfter(resp.Header.Get("Retry-After")), fmt.Errorf("GET %s: rate limited (429)", rawURL)
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GET %s: unexpected status %d", rawURL, resp.StatusCode)
+		return nil, 0, fmt.Errorf("GET %s: unexpected status %d", rawURL, resp.StatusCode)
 	}
 
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBytes))
 	if err != nil {
-		return nil, fmt.Errorf("GET %s: read body: %w", rawURL, err)
+		return nil, 0, fmt.Errorf("GET %s: read body: %w", rawURL, err)
 	}
 
-	return data, nil
+	return data, 0, nil
+}
+
+// parseRetryAfter interprets a Retry-After header value (seconds, per RFC
+// 9110) with a conservative fallback when the header is missing or
+// unparseable.
+func parseRetryAfter(v string) time.Duration {
+	if v == "" {
+		return 30 * time.Second
+	}
+	if secs, err := strconv.Atoi(v); err == nil && secs > 0 {
+		return time.Duration(secs) * time.Second
+	}
+	return 30 * time.Second
 }
