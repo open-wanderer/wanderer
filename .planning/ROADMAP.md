@@ -304,7 +304,7 @@ See `.planning/milestones/v1.6-ROADMAP.md` for full details.
 
 Full design settled via `/gsd-explore` — see `.planning/notes/streamlined-region-definition.md`. Provider-source research resolved — see `.planning/research/questions.md`. Automated catalog refresh explicitly deferred — see seed `.planning/seeds/region-list-refresh-mechanism.md`.
 
-- [ ] **Phase 28: Region Catalog Data Model & Seeding** — the seeded `regions` table exists and a fresh instance boots with it fully populated
+- [x] **Phase 28: Region Catalog Data Model & Seeding** — the seeded `regions` table exists and a fresh instance boots with it fully populated (completed 2026-07-25)
 - [ ] **Phase 29: Polygon-Based Extraction & Region API** — the archive cron and the client-facing catalog endpoint both read from the new table
 - [ ] **Phase 30: Admin Region Picker UI** — a server owner toggles regions on a collapsible tree with a live coverage map
 - [ ] **Phase 31: Flutter Settings Hierarchy** — the app's region list becomes a hierarchy matching the admin tree
@@ -342,7 +342,7 @@ A pre-planning validation spike (not itself a phase deliverable) should confirm 
 
 - [x] 28-01-PLAN.md — Hand-rolled Osmosis .poly -> GeoJSON parser + hierarchy.txt indentation-tree parser (pure, unit-tested)
 - [x] 28-02-PLAN.md — seed_regions.go Cobra command: fetch CoMaps hierarchy/.poly from Codeberg, flatten to committed regions_seed.json
-- [ ] 28-03-PLAN.md — Auto-run migration: create the regions collection (Go SDK, self-relation) + idempotent two-pass bulk-insert from the seed
+- [x] 28-03-PLAN.md — Auto-run migration: create the regions collection (Go SDK, self-relation) + idempotent two-pass bulk-insert from the seed
 
 ### Phase 29: Polygon-Based Extraction & Region API
 
@@ -432,7 +432,7 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
 | 27. Legacy Cleanup | v1.6 | 2/2 | Complete    | 2026-07-24 |
-| 28. Region Catalog Data Model & Seeding | v1.7 | 2/3 | In Progress|  |
+| 28. Region Catalog Data Model & Seeding | v1.7 | 3/3 | Complete   | 2026-07-25 |
 | 29. Polygon-Based Extraction & Region API | v1.7 | 0/TBD | Not started | - |
 | 30. Admin Region Picker UI | v1.7 | 0/TBD | Not started | - |
 | 31. Flutter Settings Hierarchy | v1.7 | 0/TBD | Not started | - |

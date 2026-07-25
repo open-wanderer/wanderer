@@ -10,12 +10,12 @@
 
 - [x] **CATALOG-01**: Backend `regions` PocketBase collection stores each CoMaps hierarchy node with `comaps_id`, self-referencing `parent`, materialized `path`, `depth`, `sort_order`, `name`, and `kind` (`group`|`leaf`)
 - [x] **CATALOG-02**: Leaf rows additionally store a canonical `polygon` (GeoJSON, converted from CoMaps `.poly`) and a derived `bbox`
-- [ ] **CATALOG-03**: Leaf rows carry an `enabled` boolean (default false); group rows carry no `enabled`/`polygon`/`bbox` semantics
+- [x] **CATALOG-03**: Leaf rows carry an `enabled` boolean (default false); group rows carry no `enabled`/`polygon`/`bbox` semantics
 
 ### Region Catalog Seeding
 
 - [x] **SEED-01**: A maintainer-run `db/commands/seed_regions.go` command parses vendored CoMaps `hierarchy.txt` + `.poly` files and writes a flattened JSON seed file matching the `regions` schema
-- [ ] **SEED-02**: A standard PocketBase migration creates the `regions` collection and bulk-inserts from the committed JSON seed automatically on every instance startup — a fresh self-hosted instance ships with a populated, toggleable catalog, zero admin action required
+- [x] **SEED-02**: A standard PocketBase migration creates the `regions` collection and bulk-inserts from the committed JSON seed automatically on every instance startup — a fresh self-hosted instance ships with a populated, toggleable catalog, zero admin action required
 
 ### Polygon-Based Extraction
 
@@ -64,9 +64,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | CATALOG-01 | Phase 28 | Complete |
 | CATALOG-02 | Phase 28 | Complete |
-| CATALOG-03 | Phase 28 | Pending |
+| CATALOG-03 | Phase 28 | Complete |
 | SEED-01 | Phase 28 | Complete |
-| SEED-02 | Phase 28 | Pending |
+| SEED-02 | Phase 28 | Complete |
 | EXTRACT-01 | Phase 29 | Pending |
 | EXTRACT-02 | Phase 29 | Pending |
 | EXTRACT-03 | Phase 29 | Pending |

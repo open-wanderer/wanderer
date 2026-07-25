@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: executing
-stopped_at: Completed 28-02-PLAN.md
-last_updated: "2026-07-25T18:45:00.000Z"
+stopped_at: Completed 28-03-PLAN.md (Phase 28 complete, ready for verification)
+last_updated: "2026-07-25T19:27:55.430Z"
 last_activity: 2026-07-25 -- Phase 28 execution continued
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 0
+  completed_plans: 3
+  percent: 25
 ---
 
 # Project State
@@ -118,6 +118,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 27 P01 | 12min | 2 tasks | 6 files |
 | Phase 27 P02 | 4min | 2 tasks | 8 files |
 | Phase 28 P01 | 15min | 2 tasks | 4 files |
+| Phase 28 P03 | ~55min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -260,6 +261,8 @@ Recent decisions affecting current work:
 - [Phase 28]: [28-01] GeoJSON coordinates emitted as plain nested []float64 slices (not fixed-size [2]float64 arrays) in the public map[string]any so output round-trips through encoding/json and is trivially type-assertable — Keeps the parser's public API simple for downstream consumers (seed_regions.go in 28-02) and test assertions
 - [Phase 28]: [28-01] ParseHierarchy does not fetch or cross-check countries.txt — hierarchy.txt indentation alone determines group/leaf — Per 28-RESEARCH.md's resolved Open Question 2: a second fetched file adds network surface to a maintainer-run tool for marginal benefit
 - [Phase 28]: [28-02] seed_regions.go fetches from comaps/comaps's GitHub mirror (raw.githubusercontent.com) instead of Codeberg directly, same pinned commit — Codeberg's raw-file endpoint enforces a ~250 req/600s quota that a full ~1,150-leaf run routinely exhausted (one run lost entirely to an unrelated machine restart mid rate-limit-wait, since the tool only writes output once at the end); GitHub's mirror served identical content with zero rate limiting across the full run
+- [Phase 28]: [28-03] idx_regions_comaps_id changed from unique to non-unique, idx_regions_path made unique instead -- comaps_id collides for 5 real disputed-territory leaves in CoMaps data (Abkhazia, South Ossetia, Jerusalem, Crimea, Campo de Hielo Sur each appear under two different disputing parents); path is provably unique across all 1306 seed rows and is the correct join key
+- [Phase 28]: [28-03] Self-referencing PocketBase RelationField requires two Save() passes (create without the self-relation, then add it) -- RelationField validation resolves CollectionId via FindCachedCollectionByNameOrId, which can't see a collection still being created in the same Save() call, even for a self-reference
 
 ### Roadmap Evolution
 
@@ -407,8 +410,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-25T18:45:00.000Z
-Stopped at: Completed 28-02-PLAN.md
+Last session: 2026-07-25T19:27:55.382Z
+Stopped at: Completed 28-03-PLAN.md (Phase 28 complete, ready for verification)
 Resume file: None
 
 ## Operator Next Steps
