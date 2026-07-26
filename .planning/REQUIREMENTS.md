@@ -21,7 +21,7 @@
 
 - [x] **EXTRACT-01**: The archive-generation cron extracts each enabled leaf region via `pmtiles extract --region <polygon>` using its canonical polygon, replacing bbox-based extraction
 - [x] **EXTRACT-02**: The cron reads `kind = 'leaf' AND enabled = true` from the `regions` table to determine build targets; `region_config.json` parsing is retired entirely
-- [ ] **EXTRACT-03**: `GET /api/v1/regions` includes hierarchy fields (`parent`, `path`, `depth`) alongside existing bbox/status/size fields, so the client can render a tree
+- [x] **EXTRACT-03**: `GET /api/v1/regions` includes hierarchy fields (`parent`, `path`, `depth`) alongside existing bbox/status/size fields, so the client can render a tree
 
 ### Admin Region Picker UI
 
@@ -69,7 +69,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEED-02 | Phase 28 | Complete |
 | EXTRACT-01 | Phase 29 | Complete |
 | EXTRACT-02 | Phase 29 | Complete |
-| EXTRACT-03 | Phase 29 | Pending |
+| EXTRACT-03 | Phase 29 | Complete |
 | ADMINUI-01 | Phase 30 | Pending |
 | ADMINUI-02 | Phase 30 | Pending |
 | ADMINUI-03 | Phase 30 | Pending |
