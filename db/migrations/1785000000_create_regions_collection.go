@@ -2,14 +2,17 @@
 // (CATALOG-01: hierarchy fields comaps_id/parent/path/depth/sort_order/
 // name/kind; CATALOG-02: leaf-only polygon+bbox; CATALOG-03: leaf-only
 // enabled, default false) and, on a fresh instance, bulk-inserts every row
-// from the committed db/migrations/initial_data/regions_seed.json inside
-// one transaction (SEED-02). See .planning/phases/28-region-catalog-data-model-seeding/28-RESEARCH.md
+// from the committed db/migrations/initial_data/regions_seed.json.gz
+// (gzip-compressed compact JSON, 28-04) inside one transaction (SEED-02).
+// See .planning/phases/28-region-catalog-data-model-seeding/28-RESEARCH.md
 // Pattern 1/2 and 28-PATTERNS.md for the exact construction this follows.
 package migrations
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -97,10 +100,28 @@ func init() {
 			return err
 		}
 
-		// bulk insert — plan 28-03 Task 2
-		data, err := os.ReadFile("migrations/initial_data/regions_seed.json")
+		// bulk insert — plan 28-03 Task 2 (28-04: seed is now gzip-
+		// compressed compact JSON — the uncompressed 730 MB artifact
+		// exceeded GitHub's 100 MB per-file push limit).
+		seedFile, err := os.Open("migrations/initial_data/regions_seed.json.gz")
 		if err != nil {
-			return fmt.Errorf("read regions seed: %w", err)
+			return fmt.Errorf("open regions seed: %w", err)
+		}
+		defer seedFile.Close()
+
+		gzReader, err := gzip.NewReader(seedFile)
+		if err != nil {
+			return fmt.Errorf("open gzip reader for regions seed: %w", err)
+		}
+		defer gzReader.Close()
+
+		// T-28-09: the seed is a trusted in-repo artifact of known ~216 MB
+		// decompressed size, read exactly once behind the CountRecords
+		// idempotency guard above; bound the read against a pathological/
+		// corrupt stream rather than trusting an unbounded decompression.
+		data, err := io.ReadAll(io.LimitReader(gzReader, 512<<20))
+		if err != nil {
+			return fmt.Errorf("decompress regions seed: %w", err)
 		}
 
 		var seed []SeedRow

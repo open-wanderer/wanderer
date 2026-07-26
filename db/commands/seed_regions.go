@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -60,6 +61,13 @@ type SeedRow struct {
 // --out. The commit to fetch is a CLI flag with a baked-in default (D-02)
 // so a maintainer can refresh the catalog ad hoc without editing source.
 //
+// The output is a gzip-compressed compact JSON seed (not pretty-printed):
+// indenting the marshaled output inflates the full ~1,150-leaf catalog to
+// ~730 MB, roughly 7x over GitHub's 100 MB hard per-file push limit —
+// compact encoding alone still leaves ~216 MB, so the write path also
+// gzip-compresses (default level 6) down to ~57 MB, comfortably
+// distributable via a normal git push (28-04 gap closure, SEED-02).
+//
 // Unlike Dedup, this command's constructor takes no *pocketbase.PocketBase —
 // it never touches a live database, only fetches, transforms, and writes a
 // file.
@@ -70,7 +78,7 @@ func SeedRegions() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "seed-regions",
-		Short: "Fetch CoMaps hierarchy.txt + .poly files from comaps/comaps's GitHub mirror and write a flattened regions JSON seed",
+		Short: "Fetch CoMaps hierarchy.txt + .poly files from comaps/comaps's GitHub mirror and write a gzip-compressed flattened regions JSON seed",
 		Run: func(cmd *cobra.Command, args []string) {
 			if !commitHashPattern.MatchString(commit) {
 				log.Fatalf("seed-regions: --commit %q is not a valid git commit hash (expected 7-40 hex characters)", commit)
@@ -129,22 +137,32 @@ func SeedRegions() *cobra.Command {
 				fetchedLeaves++
 			}
 
-			data, err := json.MarshalIndent(rows, "", "  ")
+			data, err := json.Marshal(rows)
 			if err != nil {
 				log.Fatalf("seed-regions: failed to marshal seed JSON: %v", err)
 			}
 
-			if err := os.WriteFile(out, data, 0o644); err != nil {
-				log.Fatalf("seed-regions: failed to write %s: %v", out, err)
+			outFile, err := os.OpenFile(out, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+			if err != nil {
+				log.Fatalf("seed-regions: failed to create %s: %v", out, err)
+			}
+			defer outFile.Close()
+
+			gzWriter := gzip.NewWriter(outFile) // DefaultCompression (level 6) — the measured ~57MB point; do not drop below it
+			if _, err := gzWriter.Write(data); err != nil {
+				log.Fatalf("seed-regions: failed to write gzip data to %s: %v", out, err)
+			}
+			if err := gzWriter.Close(); err != nil {
+				log.Fatalf("seed-regions: failed to flush gzip trailer to %s: %v", out, err)
 			}
 
-			fmt.Printf("seed-regions: wrote %d rows (%d groups, %d leaves, %d leaf .poly files fetched) to %s\n",
+			fmt.Printf("seed-regions: wrote %d rows (%d groups, %d leaves, %d leaf .poly files fetched) to %s (gzip-compressed compact JSON)\n",
 				len(rows), groupCount, leafCount, fetchedLeaves, out)
 		},
 	}
 
 	cmd.Flags().StringVar(&commit, "commit", defaultCommitHash, "CoMaps (comaps/comaps) commit hash to fetch hierarchy.txt/.poly data from")
-	cmd.Flags().StringVar(&out, "out", "migrations/initial_data/regions_seed.json", "output path for the flattened regions JSON seed")
+	cmd.Flags().StringVar(&out, "out", "migrations/initial_data/regions_seed.json.gz", "output path for the gzip-compressed flattened regions JSON seed")
 	cmd.Flags().IntVar(&limit, "limit", 0, "limit the number of leaf .poly files fetched (0 = all leaves); a dev smoke-test aid")
 
 	return cmd
