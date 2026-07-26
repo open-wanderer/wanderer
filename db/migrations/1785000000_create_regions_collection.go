@@ -1,9 +1,13 @@
 // Package migrations: this file creates the `regions` PocketBase collection
 // (CATALOG-01: hierarchy fields comaps_id/parent/path/depth/sort_order/
-// name/kind; CATALOG-02: leaf-only polygon+bbox; CATALOG-03: leaf-only
-// enabled, default false) and, on a fresh instance, bulk-inserts every row
-// from the committed db/migrations/initial_data/regions_seed.json.gz
-// (gzip-compressed compact JSON, 28-04) inside one transaction (SEED-02).
+// name/kind; CATALOG-02: leaf-only bbox; CATALOG-03: leaf-only enabled,
+// default false) and the `region_polygons` collection (leaf polygon
+// geometry, keyed by `path` — kept out of `regions` from the start so
+// hierarchy/listing queries never load ~165KB/row of boundary geometry;
+// see region_polygons' own field comments below), then, on a fresh
+// instance, bulk-inserts every row from the committed
+// db/migrations/initial_data/regions_seed.json.gz (gzip-compressed compact
+// JSON, 28-04) into both collections inside one transaction (SEED-02).
 // See .planning/phases/28-region-catalog-data-model-seeding/28-RESEARCH.md
 // Pattern 1/2 and 28-PATTERNS.md for the exact construction this follows.
 package migrations
@@ -68,7 +72,6 @@ func init() {
 				MaxSelect: 1,
 				Required:  true,
 			},
-			&core.JSONField{Name: "polygon", MaxSize: 8 << 20}, // Pitfall 1: default 1MB cap is too small for some high-vertex coastlines
 			&core.JSONField{Name: "bbox", MaxSize: 1 << 10},
 			&core.BoolField{Name: "enabled"},
 		)
@@ -97,6 +100,27 @@ func init() {
 		collection.AddIndex("idx_regions_parent", false, "parent", "")
 
 		if err := app.Save(collection); err != nil {
+			return err
+		}
+
+		// region_polygons: leaf boundary geometry, kept out of `regions`
+		// entirely. Keyed by `path` (plain TextField, not a relation) —
+		// matches region_archives.region_id's existing path-keyed join
+		// pattern (A2), avoiding relation-resolution overhead for a side
+		// table that only services/regions/builder.go's buildRegion ever
+		// reads (at archive-build time, only for currently-enabled
+		// leaves). Every other reader of `regions` (GET /api/v1/regions,
+		// the admin region picker) only needs hierarchy/bbox/enabled, so
+		// this keeps every listing query's SELECT free of ~165KB/row of
+		// full-precision boundary data.
+		polyCollection := core.NewBaseCollection("region_polygons")
+		polyCollection.Fields.Add(
+			&core.TextField{Name: "path", Required: true},
+			&core.JSONField{Name: "polygon", MaxSize: 8 << 20}, // Pitfall 1: default 1MB cap is too small for some high-vertex coastlines
+		)
+		polyCollection.AddIndex("idx_region_polygons_path", true, "path", "")
+
+		if err := app.Save(polyCollection); err != nil {
 			return err
 		}
 
@@ -147,7 +171,6 @@ func init() {
 				record.Set("name", row.Name)
 				record.Set("kind", row.Kind)
 				if row.Kind == "leaf" {
-					record.Set("polygon", row.Polygon)
 					record.Set("bbox", row.Bbox)
 					record.Set("enabled", false) // CATALOG-03: leaf-only, never pre-enabled
 				}
@@ -155,6 +178,15 @@ func init() {
 					return fmt.Errorf("insert region %s (%s): %w", row.ComapsID, row.Path, err)
 				}
 				idByPath[row.Path] = record.Id
+
+				if row.Kind == "leaf" && len(row.Polygon) > 0 {
+					polyRecord := core.NewRecord(polyCollection)
+					polyRecord.Set("path", row.Path)
+					polyRecord.Set("polygon", row.Polygon)
+					if err := txApp.Save(polyRecord); err != nil {
+						return fmt.Errorf("insert region_polygons %s (%s): %w", row.ComapsID, row.Path, err)
+					}
+				}
 			}
 
 			// Pass 2: resolve parent links now that every id is known
@@ -188,6 +220,11 @@ func init() {
 			return nil
 		})
 	}, func(app core.App) error {
+		if collection, err := app.FindCollectionByNameOrId("region_polygons"); err == nil {
+			if err := app.Delete(collection); err != nil { // records cascade
+				return err
+			}
+		}
 		collection, err := app.FindCollectionByNameOrId("regions")
 		if err != nil {
 			return nil
