@@ -356,7 +356,14 @@ A pre-planning validation spike (not itself a phase deliverable) should confirm 
   2. Each enabled leaf region's PMTiles archive is produced via `pmtiles extract --region <polygon>` using that region's canonical polygon (not its bounding box) — the resulting archive's tile coverage follows the polygon boundary, not the bbox.
   3. `GET /api/v1/regions` returns each region's `parent`, `path`, and `depth` alongside its existing bbox/status/size fields, so a client can reconstruct the tree from a flat response.
 
-**Plans**: TBD
+**Plans**: 4 plans (3 waves)
+
+Plans:
+
+- [ ] 29-01-PLAN.md — Table-driven cron + polygon-based `pmtiles extract --region` + relaxed region-id allow-list (EXTRACT-01, EXTRACT-02)
+- [ ] 29-02-PLAN.md — Hierarchy-aware `GET /api/v1/regions` (parent/path/depth/kind) + retire the `region_config.json` loader (EXTRACT-03, EXTRACT-02)
+- [ ] 29-03-PLAN.md — SvelteKit region-id regex lockstep + hierarchy OpenAPI docs (EXTRACT-03)
+- [ ] 29-04-PLAN.md — End-to-end human-verify checkpoint: real polygon-clipped build + hierarchy API + `.`-path download (EXTRACT-01/02/03)
 
 ### Phase 30: Admin Region Picker UI
 
@@ -434,6 +441,6 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
 | 27. Legacy Cleanup | v1.6 | 2/2 | Complete    | 2026-07-24 |
 | 28. Region Catalog Data Model & Seeding | v1.7 | 4/4 | Complete    | 2026-07-26 |
-| 29. Polygon-Based Extraction & Region API | v1.7 | 0/TBD | Not started | - |
+| 29. Polygon-Based Extraction & Region API | v1.7 | 0/4 | Not started | - |
 | 30. Admin Region Picker UI | v1.7 | 0/TBD | Not started | - |
 | 31. Flutter Settings Hierarchy | v1.7 | 0/TBD | Not started | - |
