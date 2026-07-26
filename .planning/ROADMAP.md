@@ -365,7 +365,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 29-02-PLAN.md — Hierarchy-aware `GET /api/v1/regions` (parent/path/depth/kind) + retire the `region_config.json` loader (EXTRACT-03, EXTRACT-02)
-- [ ] 29-03-PLAN.md — SvelteKit region-id regex lockstep + hierarchy OpenAPI docs (EXTRACT-03)
+- [x] 29-03-PLAN.md — SvelteKit region-id regex lockstep + hierarchy OpenAPI docs (EXTRACT-03)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -447,6 +447,6 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
 | 27. Legacy Cleanup | v1.6 | 2/2 | Complete    | 2026-07-24 |
 | 28. Region Catalog Data Model & Seeding | v1.7 | 4/4 | Complete    | 2026-07-26 |
-| 29. Polygon-Based Extraction & Region API | v1.7 | 2/4 | In Progress|  |
+| 29. Polygon-Based Extraction & Region API | v1.7 | 3/4 | In Progress|  |
 | 30. Admin Region Picker UI | v1.7 | 0/TBD | Not started | - |
 | 31. Flutter Settings Hierarchy | v1.7 | 0/TBD | Not started | - |

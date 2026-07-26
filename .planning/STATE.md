@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: executing
-stopped_at: Completed 29-02-PLAN.md (hierarchy-aware region API, config loader retired)
-last_updated: "2026-07-26T17:56:45.289Z"
+stopped_at: Completed 29-03-PLAN.md (SvelteKit region-id lockstep + region API OpenAPI doc)
+last_updated: "2026-07-26T18:01:16.583Z"
 last_activity: 2026-07-26 -- Phase 29 execution started
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
   percent: 25
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 29 (Polygon-Based Extraction & Region API) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-07-26 -- Phase 29 execution started
 
@@ -123,6 +123,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 28 P04 | ~100min | 2 tasks | 3 files |
 | Phase 29 P01 | 25min | 3 tasks | 5 files |
 | Phase 29 P02 | ~15min | 2 tasks | 3 files |
+| Phase 29 P03 | 15min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -271,6 +272,7 @@ Recent decisions affecting current work:
 - [Phase 28]: [28-04] gzip DefaultCompression (level 6) selected for the seed writer/reader -- matches the ~57MB measured point, comfortably under GitHub's 100MB per-file push limit; migration reader bounds decompression with a 512MB io.LimitReader as defense-in-depth (T-28-09)
 - [Phase 29]: [Phase 29] [29-02] Group rows emit only {id, name, kind, parent, path, depth} (no bbox/status/build-state) — matches the pre-Phase-31 Flutter parser's required-field drop behavior, safe and additive — Lets Phase 31's Flutter tree get group labels without regressing the shipped offline-regions feature, which silently ignores entries missing bbox/status
 - [Phase 29]: [Phase 29] [29-02] Leaf entry id stays the PocketBase record id (not path) so parent (relation raw value) can be matched against sibling id fields to reconstruct the tree client-side — path remains a separate field used for the region_archives join and download URL construction
+- [Phase 29]: [29-03] RegionIdSchema regex relaxed to ^[a-z0-9][a-z0-9_.'-]*$ plus a .refine((v) => !v.includes('..')) guard in both download proxies, kept byte-identical to each other and to 29-01's Go regionIDPattern
 
 ### Roadmap Evolution
 
@@ -418,8 +420,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-26T17:56:45.272Z
-Stopped at: Completed 29-02-PLAN.md (hierarchy-aware region API, config loader retired)
+Last session: 2026-07-26T18:01:16.566Z
+Stopped at: Completed 29-03-PLAN.md (SvelteKit region-id lockstep + region API OpenAPI doc)
 Resume file: None
 
 ## Operator Next Steps
