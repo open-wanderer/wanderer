@@ -31,3 +31,11 @@ The provider source was settled as CoMaps (`data/hierarchy.txt` + `data/borders/
 4. Commit the updated seed file and ship a new PocketBase migration bulk-inserting/upserting from it, same as any other schema change — a normal release, not a live-database side effect.
 
 This procedure never touches a running production database automatically — exactly the deliberate-patch model this seed's "why deferred" section describes, just made concrete now that the provider and tool shape are both known.
+
+## Step 4 is harder than "bulk-insert again" — added 2026-07-26
+
+Confirmed while investigating a separate performance fix (splitting `regions.polygon` into its own `region_polygons` collection, migration `1785092688`): the *initial* seeding migration (`1785000000_create_regions_collection.go`) is guarded by `if count, _ := app.CountRecords("regions"); count > 0 { return nil }`. On every real instance (already seeded after first boot), simply regenerating `regions_seed.json.gz` and shipping it does **nothing** — that migration no-ops. Step 4 above ("ship a new migration bulk-inserting/upserting from it") is doing a lot of work in one sentence; a real refresh migration cannot just replay `1785000000`'s bulk-insert logic. It needs to **reconcile**, keyed by `path` (the provably-unique key used throughout this catalog):
+
+- **Existing leaf, still in the new seed** → update hierarchy/name/bbox, but **preserve `enabled`** (an admin's toggle must survive a refresh) and preserve its `region_archives` row (build state) and `region_polygons` row (now a 4th thing to reconcile, alongside `regions`/`region_archives` — upsert its polygon rather than re-insert).
+- **New leaf, not previously seen** → insert fresh, `enabled=false` (CATALOG-03 default).
+- **Leaf that disappeared upstream** (CoMaps renamed/merged/split it) → no policy decided yet: leave it orphaned (same shape as the `munich` test-archive orphan Phase 29 already left in place) or explicitly prune it plus its `region_archives`/`region_polygons` rows. Still open — matches "handle removed/renamed/re-parented regions" above, just now concretely a 3-collection reconciliation problem instead of a 2-collection one.
