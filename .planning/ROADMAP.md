@@ -305,7 +305,7 @@ See `.planning/milestones/v1.6-ROADMAP.md` for full details.
 Full design settled via `/gsd-explore` — see `.planning/notes/streamlined-region-definition.md`. Provider-source research resolved — see `.planning/research/questions.md`. Automated catalog refresh explicitly deferred — see seed `.planning/seeds/region-list-refresh-mechanism.md`.
 
 - [x] **Phase 28: Region Catalog Data Model & Seeding** — the seeded `regions` table exists and a fresh instance boots with it fully populated (completed 2026-07-25)
-- [ ] **Phase 29: Polygon-Based Extraction & Region API** — the archive cron and the client-facing catalog endpoint both read from the new table
+- [x] **Phase 29: Polygon-Based Extraction & Region API** — the archive cron and the client-facing catalog endpoint both read from the new table (completed 2026-07-26)
 - [ ] **Phase 30: Admin Region Picker UI** — a server owner toggles regions on a collapsible tree with a live coverage map
 - [ ] **Phase 31: Flutter Settings Hierarchy** — the app's region list becomes a hierarchy matching the admin tree
 
@@ -369,7 +369,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 29-04-PLAN.md — End-to-end human-verify checkpoint: real polygon-clipped build + hierarchy API + `.`-path download (EXTRACT-01/02/03)
+- [x] 29-04-PLAN.md — End-to-end human-verify checkpoint: real polygon-clipped build + hierarchy API + `.`-path download (EXTRACT-01/02/03)
 
 ### Phase 30: Admin Region Picker UI
 
@@ -447,6 +447,6 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
 | 27. Legacy Cleanup | v1.6 | 2/2 | Complete    | 2026-07-24 |
 | 28. Region Catalog Data Model & Seeding | v1.7 | 4/4 | Complete    | 2026-07-26 |
-| 29. Polygon-Based Extraction & Region API | v1.7 | 3/4 | In Progress|  |
+| 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
 | 30. Admin Region Picker UI | v1.7 | 0/TBD | Not started | - |
 | 31. Flutter Settings Hierarchy | v1.7 | 0/TBD | Not started | - |
