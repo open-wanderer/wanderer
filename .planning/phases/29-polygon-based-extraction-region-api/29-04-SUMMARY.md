@@ -72,4 +72,11 @@ Region verified: `germany.germany_free_state_of_bavaria.germany_free_state_of_ba
 
 All six steps pass. EXTRACT-01, EXTRACT-02, and EXTRACT-03 are confirmed end-to-end against real data, closing Phase 29.
 
-No source files were modified by this plan (verification-only, as declared in frontmatter). The one stateful action taken — toggling the verified leaf's `enabled` flag to `false` and back to `true` to prove the zero-target cron behavior — was reverted; the dev database is in the same state it was in before this checkpoint, aside from the pre-existing built archive from the operator's own earlier run.
+The one stateful action taken against dev data — toggling the verified leaf's `enabled` flag to `false` and back to `true` to prove the zero-target cron behavior — was reverted; the dev database is in the same state it was in before this checkpoint, aside from the pre-existing built archive from the operator's own earlier run.
+
+### Real bug found by this checkpoint (fixed)
+
+While reconciling the operator's already-running dev instance, two uncommitted working-tree diffs were found against 29-01/29-02's committed code:
+
+1. **`db/services/regions/builder.go` — genuine bug, fixed and committed.** `BuildAll`'s `dbx.NewExp` predicate was committed as `"kind = {:kind} && enabled = {:enabled}"` — the Go logical operator `&&`, not SQL's `AND`, which SQLite does not accept as a boolean operator in a `WHERE` clause. No `builder_test.go` exists, so this predicate was never exercised against real SQLite by any unit test in 29-01/29-02 — it went undetected until the operator ran the actual cron for real during this checkpoint, hit the broken query, and corrected it locally to `AND` before archive-building actually worked. This is precisely the class of gap a per-plan `go build`/`go vet`/mocked-unit-test gate cannot catch, and precisely why this plan exists. Committed as a standalone fix (`dbe1dd20`).
+2. **`db/main.go` — local test convenience, reverted, not committed.** `regionsGroup.Bind(apis.RequireAuth())` was commented out in the working tree, contradicting the locked D-07 decision ("Auth is ENABLED... for both the catalog listing and the archive downloads") that the adjacent comment still documents. This was almost certainly a temporary local change to make unauthenticated `curl` testing easier during manual verification, not an intended change — reverted back to the committed (auth-enabled) state, not committed.
