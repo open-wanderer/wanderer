@@ -346,22 +346,25 @@ leafRecords, err := app.FindAllRecords("regions",
 
 **If this table is empty:** N/A — see entries above; none are locked decisions from a CONTEXT.md since none exists for this phase yet.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `GET /api/v1/regions` return every `regions` row, or only `enabled` leaves (plus their ancestor groups)?**
    - What we know: EXTRACT-03's literal wording ("returns each region's `parent`, `path`, and `depth`... so a client can reconstruct the tree") is satisfied by any superset that includes enough rows to build a connected tree. Phase 30 (admin UI) reads the `regions` table directly, not through this API, so it doesn't force an answer here. Phase 31 (Flutter) is the only consumer that needs this resolved, and it's a later phase.
    - What's unclear: Whether the app's Settings hierarchy (Phase 31) should show every catalog region (including ones the admin hasn't enabled — greyed out?) or only what's actually downloadable today.
    - Recommendation: Return everything (both kinds, `enabled` or not) in this phase — it's the maximal, most-flexible response shape and doesn't foreclose either future Phase 31 design. Filtering down is a trivial client-side or later-server-side change; adding fields back in later (if under-scoped now) is not.
+   - **RESOLVED: Return every row (both `group` and `leaf`, regardless of `enabled`) — adopted in 29-02 Task 1.**
 
 2. **Exact temp-file cleanup discipline on early-return error paths in `buildVector`/`buildDem`**
    - What we know: The existing functions have several early `return` points on error (`setError`, DEM error paths) before reaching the end of the function.
    - What's unclear: Whether every one of those early returns needs an explicit `os.Remove(tmpPolyPath)` or whether a single `defer` at the top of the function (before any error path) suffices.
    - Recommendation: A single `defer os.Remove(tmpFile.Name())` immediately after successful temp-file creation, before any error-prone step, covers every subsequent early return — no per-branch cleanup needed.
+   - **RESOLVED: Single top-level `defer os.Remove(tmpFile.Name())` after temp-file creation — adopted in 29-01 Task 3.**
 
 3. **Whether the orphaned `munich` `region_archives` row/files (Pitfall 2) need an explicit cleanup task**
    - What we know: Nothing in the new catalog will ever reference "munich" again; it's inert, not actively harmful.
    - What's unclear: Whether a verification step or future admin-UI listing would be confused by a `region_archives` row with no matching `regions.path`.
    - Recommendation: Leave it — cleaning it up is optional polish, not a requirement. Flag it in the plan's verification notes so a "stale test data" surprise doesn't get misdiagnosed as a bug later.
+   - **RESOLVED: Leave `munich` orphaned, no cleanup task — documented in 29-01's `<notes>` for verification awareness.**
 
 ## Environment Availability
 
