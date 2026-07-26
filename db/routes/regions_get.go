@@ -11,11 +11,22 @@ import (
 	"pocketbase/services/regions"
 )
 
-// RegionsList returns the merged config-plus-build-state catalog for every
-// region configured in the admin's region catalog file (BACK-04). The admin
-// config (regions.LoadRegionCatalog) is the source of truth for which
-// regions exist — a region removed from config disappears from the response
-// even if a stale region_archives record lingers.
+// RegionsList returns the full group+leaf region catalog from the seeded
+// `regions` table (CATALOG-01/02/03, EXTRACT-03), joined with each leaf's
+// build state from `region_archives`. The `regions` table (not an
+// admin-supplied config file) is the source of truth for which regions
+// exist — the old region_config.json / REGION_CATALOG_CONFIG_PATH loader is
+// fully retired (EXTRACT-02).
+//
+// Every row (both kind=group and kind=leaf) is returned, regardless of
+// `enabled`, so a client can render group node names/labels for the whole
+// tree (29-RESEARCH.md Assumption A1) — trimming is a trivial later filter,
+// but omitting group rows now would mean re-adding data later. Each entry
+// always carries the hierarchy fields id/name/kind/parent/path/depth; leaf
+// rows additionally carry bbox/enabled and the existing build-state shape
+// (status/version/vector_url/vector_size/dem_status/dem_url/dem_size/error),
+// joined to region_archives on region_id == the leaf's path (A2 — path is
+// the provably-unique seeded key, not the record's own opaque id).
 //
 // Auth is enforced at the route-group level in main.go (apis.RequireAuth()),
 // so — unlike map_cells_id.go's unauthenticated /map/cells routes — every
@@ -24,24 +35,44 @@ import (
 // would defeat that requirement, so the download handlers below enforce the
 // same posture at the group level too.
 func RegionsList(e *core.RequestEvent) error {
-	catalog, err := regions.LoadRegionCatalog()
+	records, err := e.App.FindAllRecords("regions")
 	if err != nil {
 		return e.InternalServerError("failed to load region catalog", err)
 	}
 
-	entries := make([]map[string]any, 0, len(catalog))
-	for _, r := range catalog {
-		records, _ := e.App.FindAllRecords("region_archives",
-			dbx.NewExp("region_id = {:id}", dbx.Params{"id": r.ID}),
-		)
-
+	entries := make([]map[string]any, 0, len(records))
+	for _, r := range records {
 		entry := map[string]any{
-			"id":   r.ID,
-			"name": r.Name,
-			"bbox": []float64{r.Bbox[0], r.Bbox[1], r.Bbox[2], r.Bbox[3]},
+			"id":     r.Id,
+			"name":   r.GetString("name"),
+			"kind":   r.GetString("kind"),
+			"parent": r.GetString("parent"), // relation field's raw value = parent record id, "" for roots (A3)
+			"path":   r.GetString("path"),
+			"depth":  r.GetInt("depth"),
 		}
 
-		if len(records) == 0 {
+		if r.GetString("kind") != "leaf" {
+			// Group rows are hierarchy-only — no bbox/build-state. The
+			// existing Flutter parser (RegionCatalogEntry.fromJson) drops
+			// entries missing its required bbox/status fields, so group
+			// rows are ignored by the pre-Phase-31 app rather than crashing
+			// it.
+			entries = append(entries, entry)
+			continue
+		}
+
+		path := r.GetString("path")
+
+		var bbox []float64
+		_ = r.UnmarshalJSONField("bbox", &bbox)
+		entry["bbox"] = bbox
+		entry["enabled"] = r.GetBool("enabled")
+
+		archiveRecords, _ := e.App.FindAllRecords("region_archives",
+			dbx.NewExp("region_id = {:id}", dbx.Params{"id": path}),
+		)
+
+		if len(archiveRecords) == 0 {
 			// No build has ever started for this region yet — first build
 			// pending, per D-08.
 			entry["status"] = "building"
@@ -49,33 +80,33 @@ func RegionsList(e *core.RequestEvent) error {
 			continue
 		}
 
-		record := records[0]
-		status := record.GetString("status")
+		archive := archiveRecords[0]
+		status := archive.GetString("status")
 		entry["status"] = status
 
-		if version := record.GetString("vector_built_date"); version != "" {
+		if version := archive.GetString("vector_built_date"); version != "" {
 			entry["version"] = version
 		}
 
 		if status == "ready" {
-			if _, err := os.Stat(regions.RegionArchivePath(r.ID)); err == nil {
-				entry["vector_url"] = "/api/v1/regions/" + r.ID + "/download"
-				entry["vector_size"] = int64(record.GetFloat("vector_size_bytes"))
+			if _, err := os.Stat(regions.RegionArchivePath(path)); err == nil {
+				entry["vector_url"] = "/api/v1/regions/" + path + "/download"
+				entry["vector_size"] = int64(archive.GetFloat("vector_size_bytes"))
 			}
 		}
 
 		if status == "error" {
-			entry["error"] = record.GetString("error_message")
+			entry["error"] = archive.GetString("error_message")
 		}
 
-		demStatus := record.GetString("dem_status")
+		demStatus := archive.GetString("dem_status")
 		if demStatus != "" {
 			entry["dem_status"] = demStatus
 		}
 		if demStatus == "ready" {
-			if _, err := os.Stat(regions.RegionDemPath(r.ID)); err == nil {
-				entry["dem_url"] = "/api/v1/regions/" + r.ID + "/download-dem"
-				entry["dem_size"] = int64(record.GetFloat("dem_size_bytes"))
+			if _, err := os.Stat(regions.RegionDemPath(path)); err == nil {
+				entry["dem_url"] = "/api/v1/regions/" + path + "/download-dem"
+				entry["dem_size"] = int64(archive.GetFloat("dem_size_bytes"))
 			}
 		}
 
