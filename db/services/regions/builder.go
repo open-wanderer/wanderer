@@ -127,12 +127,6 @@ func buildRegion(app core.App, record *core.Record) {
 	}
 	bbox := [4]float64{bboxSlice[0], bboxSlice[1], bboxSlice[2], bboxSlice[3]}
 
-	var polygon map[string]any
-	if err := record.UnmarshalJSONField("polygon", &polygon); err != nil || len(polygon) == 0 {
-		log.Printf("[regions] region %s has an invalid or missing polygon (err=%v)", regionID, err)
-		return
-	}
-
 	archive, err := findOrCreateRegionRecord(app, regionID, name, bbox)
 	if err != nil {
 		log.Printf("[regions] failed to find/create region_archives record for %s: %v", regionID, err)
@@ -171,8 +165,22 @@ func buildRegion(app core.App, record *core.Record) {
 		return
 	}
 
-	// Lazy: only write the polygon temp file when a build actually needs it,
-	// avoiding an unnecessary temp write when nothing needs building.
+	// Lazy: only look up and write the polygon when a build actually needs
+	// it, avoiding an unnecessary region_polygons query + temp write when
+	// nothing needs building. polygon now lives in its own collection (not
+	// on the regions record) so listing/hierarchy queries never load it.
+	polyRecord, err := app.FindFirstRecordByFilter("region_polygons",
+		"path = {:path}", dbx.Params{"path": regionID})
+	if err != nil {
+		log.Printf("[regions] region %s has no region_polygons entry: %v", regionID, err)
+		return
+	}
+	var polygon map[string]any
+	if err := polyRecord.UnmarshalJSONField("polygon", &polygon); err != nil || len(polygon) == 0 {
+		log.Printf("[regions] region %s has an invalid or missing polygon (err=%v)", regionID, err)
+		return
+	}
+
 	polyPath, err := writePolygonTempFile(polygon)
 	if err != nil {
 		log.Printf("[regions] failed to write polygon temp file for region %s: %v", regionID, err)
