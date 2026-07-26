@@ -2,15 +2,15 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { describe, expect, it, vi } from 'vitest';
 import { GET } from './+server';
 
-function buildEvent(range?: string): RequestEvent {
-  const url = 'http://localhost/api/v1/regions/de-nrw/download';
+function buildEvent(range?: string, id = 'de-nrw'): RequestEvent {
+  const url = `http://localhost/api/v1/regions/${id}/download`;
   const request = new Request(url, {
     headers: range ? { Range: range } : undefined,
   });
 
   return {
     request,
-    params: { id: 'de-nrw' },
+    params: { id },
     locals: {
       pb: {
         baseURL: 'http://internal',
@@ -57,5 +57,32 @@ describe('GET /api/v1/regions/[id]/download', () => {
     const response = await GET(event);
 
     expect(response.status).toBe(200);
+  });
+
+  it('accepts a seeded materialized-path id containing a dot', async () => {
+    const event = buildEvent(undefined, 'algeria.algeria_central');
+    event.fetch = vi.fn(
+      async () =>
+        new Response('full', {
+          status: 200,
+          headers: { 'Content-Length': '200' },
+        })
+    );
+
+    const response = await GET(event);
+
+    expect(response.status).toBe(200);
+    const fetchMock = event.fetch as unknown as ReturnType<typeof vi.fn>;
+    expect(fetchMock.mock.calls[0][0]).toContain('algeria.algeria_central');
+  });
+
+  it('rejects a region id containing a path-traversal sequence with a 400', async () => {
+    const event = buildEvent(undefined, 'algeria..central');
+    event.fetch = vi.fn();
+
+    const response = await GET(event);
+
+    expect(response.status).toBe(400);
+    expect(event.fetch).not.toHaveBeenCalled();
   });
 });

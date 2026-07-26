@@ -2,15 +2,15 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { describe, expect, it, vi } from 'vitest';
 import { GET } from './+server';
 
-function buildEvent(range?: string): RequestEvent {
-  const url = 'http://localhost/api/v1/regions/de-nrw/download-dem';
+function buildEvent(range?: string, id = 'de-nrw'): RequestEvent {
+  const url = `http://localhost/api/v1/regions/${id}/download-dem`;
   const request = new Request(url, {
     headers: range ? { Range: range } : undefined,
   });
 
   return {
     request,
-    params: { id: 'de-nrw' },
+    params: { id },
     locals: {
       pb: {
         baseURL: 'http://internal',
@@ -57,5 +57,22 @@ describe('GET /api/v1/regions/[id]/download-dem', () => {
     const response = await GET(event);
 
     expect(response.status).toBe(200);
+  });
+
+  it('accepts a seeded materialized-path id containing a dot', async () => {
+    const event = buildEvent(undefined, 'algeria.algeria_central');
+    event.fetch = vi.fn(
+      async () =>
+        new Response('full', {
+          status: 200,
+          headers: { 'Content-Length': '200' },
+        })
+    );
+
+    const response = await GET(event);
+
+    expect(response.status).toBe(200);
+    const fetchMock = event.fetch as unknown as ReturnType<typeof vi.fn>;
+    expect(fetchMock.mock.calls[0][0]).toContain('algeria.algeria_central');
   });
 });

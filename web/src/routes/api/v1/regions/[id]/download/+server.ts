@@ -3,7 +3,10 @@ import { type RequestEvent } from '@sveltejs/kit';
 import { z } from 'zod';
 
 const RegionIdSchema = z.object({
-  id: z.string().regex(/^[a-z0-9][a-z0-9_-]*$/, 'Invalid region id'),
+  id: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9_.'-]*$/, 'Invalid region id')
+    .refine((v) => !v.includes('..'), 'Invalid region id'),
 });
 
 /**
