@@ -148,6 +148,14 @@ func TestIsValidRegionID(t *testing.T) {
 		{"", false},
 		{"A", false},
 		{"a/b", false},
+		{"algeria.algeria_central", true},
+		{"people's_republic_of_china", true},
+		{"a1_b-2.c'd", true},
+		{"de-nrw", true},
+		{"..", false},
+		{"algeria..central", false},
+		{"a\\b", false},
+		{".hidden", false},
 	}
 
 	for _, c := range cases {
@@ -160,7 +168,7 @@ func TestIsValidRegionID(t *testing.T) {
 // TestRegionIDCannotProduceTraversalPath asserts a malicious region id can
 // never reach filepath.Join because IsValidRegionID rejects it first.
 func TestRegionIDCannotProduceTraversalPath(t *testing.T) {
-	maliciousIDs := []string{"../etc", "a/b", "../../pb_data"}
+	maliciousIDs := []string{"../etc", "a/b", "../../pb_data", "..", "a\\b", "algeria..central", ".hidden"}
 
 	for _, id := range maliciousIDs {
 		if IsValidRegionID(id) {

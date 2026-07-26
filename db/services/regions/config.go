@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 // RegionCacheDir is the on-disk root under which every region's pre-built
@@ -21,11 +22,16 @@ import (
 const RegionCacheDir = "./pb_data/region_archives"
 
 // regionIDPattern is the allow-list a region id must satisfy before it is
-// ever used to build a filesystem path. This mirrors pluginsystem's
-// pluginIDPattern exactly (db/pluginsystem/manifest.go) per D-03/Pitfall 7 —
-// defense in depth against a path-traversal id in the admin-supplied config
-// file (e.g. "../etc") ever reaching filepath.Join.
-var regionIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+// ever used to build a filesystem path. It now guards a seeded materialized
+// `path` value from the `regions` table (per EXTRACT-02), not only an
+// admin-typed slug — the trailing character class allows `.` (the
+// materialized-path separator, e.g. "algeria.algeria_central") and `'`
+// (e.g. "people's_republic_of_china"). The leading character stays
+// [a-z0-9] so a leading dot/hyphen/apostrophe is still rejected. Defense in
+// depth against a path-traversal id (e.g. "../etc") ever reaching
+// filepath.Join is additionally enforced by the explicit ".." substring
+// guard in IsValidRegionID below.
+var regionIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_.'-]*$`)
 
 // Region is one admin-configured entry from the region catalog config file.
 //
@@ -120,7 +126,7 @@ func ValidateRegion(r Region) error {
 // in a later plan) can re-validate an untrusted URL path param before using
 // it to build a filesystem path.
 func IsValidRegionID(id string) bool {
-	return regionIDPattern.MatchString(id)
+	return regionIDPattern.MatchString(id) && !strings.Contains(id, "..")
 }
 
 // RegionArchivePath returns the on-disk path to a region's pre-built vector
