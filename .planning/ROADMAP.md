@@ -338,11 +338,12 @@ A pre-planning validation spike (not itself a phase deliverable) should confirm 
   3. A fresh instance boots (auto-run migration, zero admin action) with the `regions` collection created and bulk-inserted from the committed JSON seed — querying the collection shows the full CoMaps group/leaf hierarchy with correct parent/path/depth relationships.
   4. Every leaf row's `enabled` defaults to `false` on first seed — no region is pre-selected for archive building on a fresh install.
 
-**Plans**: 3 plans
+**Plans**: 3 plans + 1 gap-closure plan
 
 - [x] 28-01-PLAN.md — Hand-rolled Osmosis .poly -> GeoJSON parser + hierarchy.txt indentation-tree parser (pure, unit-tested)
 - [x] 28-02-PLAN.md — seed_regions.go Cobra command: fetch CoMaps hierarchy/.poly from Codeberg, flatten to committed regions_seed.json
 - [x] 28-03-PLAN.md — Auto-run migration: create the regions collection (Go SDK, self-relation) + idempotent two-pass bulk-insert from the seed
+- [x] 28-04-PLAN.md — Gap closure: gzip-compress the committed regions_seed.json (730MB -> 57MB), closing SEED-02's GitHub 100MB push-limit gap found by 28-VERIFICATION.md
 
 ### Phase 29: Polygon-Based Extraction & Region API
 
@@ -432,7 +433,7 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
 | 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
 | 27. Legacy Cleanup | v1.6 | 2/2 | Complete    | 2026-07-24 |
-| 28. Region Catalog Data Model & Seeding | v1.7 | 3/3 | Complete   | 2026-07-25 |
+| 28. Region Catalog Data Model & Seeding | v1.7 | 4/4 | Complete   | 2026-07-26 |
 | 29. Polygon-Based Extraction & Region API | v1.7 | 0/TBD | Not started | - |
 | 30. Admin Region Picker UI | v1.7 | 0/TBD | Not started | - |
 | 31. Flutter Settings Hierarchy | v1.7 | 0/TBD | Not started | - |

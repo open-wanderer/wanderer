@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: executing
-stopped_at: Completed 28-03-PLAN.md (Phase 28 complete, ready for verification)
-last_updated: "2026-07-25T19:27:55.430Z"
-last_activity: 2026-07-25 -- Phase 28 execution continued
+stopped_at: "Completed 28-04-PLAN.md (gap closure: regions seed gzip-compressed, 730MB blob removed; phase 28 ready for re-verification)"
+last_updated: "2026-07-26T02:14:52.575Z"
+last_activity: 2026-07-26 -- 28-04 gap-closure plan executed (regions seed gzip-compressed, 730MB blob removed)
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 25
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 28 (region-catalog-data-model-seeding) — EXECUTING
-Plan: 3 of 3
-Status: Executing 28-03-PLAN.md next
-Last activity: 2026-07-25 -- Phase 28 execution continued
+Phase: 28 (region-catalog-data-model-seeding) — COMPLETE (gap closure 28-04 applied)
+Plan: 4 of 4
+Status: Phase complete — ready for re-verification
+Last activity: 2026-07-26 -- 28-04 gap-closure plan executed (regions seed gzip-compressed, 730MB blob removed)
 
 ## v1.7 Phases
 
@@ -119,6 +119,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 27 P02 | 4min | 2 tasks | 8 files |
 | Phase 28 P01 | 15min | 2 tasks | 4 files |
 | Phase 28 P03 | ~55min | 2 tasks | 1 files |
+| Phase 28 P04 | ~100min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -263,6 +264,8 @@ Recent decisions affecting current work:
 - [Phase 28]: [28-02] seed_regions.go fetches from comaps/comaps's GitHub mirror (raw.githubusercontent.com) instead of Codeberg directly, same pinned commit — Codeberg's raw-file endpoint enforces a ~250 req/600s quota that a full ~1,150-leaf run routinely exhausted (one run lost entirely to an unrelated machine restart mid rate-limit-wait, since the tool only writes output once at the end); GitHub's mirror served identical content with zero rate limiting across the full run
 - [Phase 28]: [28-03] idx_regions_comaps_id changed from unique to non-unique, idx_regions_path made unique instead -- comaps_id collides for 5 real disputed-territory leaves in CoMaps data (Abkhazia, South Ossetia, Jerusalem, Crimea, Campo de Hielo Sur each appear under two different disputing parents); path is provably unique across all 1306 seed rows and is the correct join key
 - [Phase 28]: [28-03] Self-referencing PocketBase RelationField requires two Save() passes (create without the self-relation, then add it) -- RelationField validation resolves CollectionId via FindCachedCollectionByNameOrId, which can't see a collection still being created in the same Save() call, even for a self-reference
+- [Phase 28]: [28-04] Re-encoded the existing 730MB regions_seed.json into compact+gzip (level 6, ~57MB) rather than re-fetching from CoMaps -- data was already byte-verified by 28-03's live migrate-up test, so re-encoding was faster/lower-risk than a ~1150-file network refetch
+- [Phase 28]: [28-04] gzip DefaultCompression (level 6) selected for the seed writer/reader -- matches the ~57MB measured point, comfortably under GitHub's 100MB per-file push limit; migration reader bounds decompression with a 512MB io.LimitReader as defense-in-depth (T-28-09)
 
 ### Roadmap Evolution
 
@@ -410,8 +413,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-25T19:27:55.382Z
-Stopped at: Completed 28-03-PLAN.md (Phase 28 complete, ready for verification)
+Last session: 2026-07-26T02:14:52.526Z
+Stopped at: Completed 28-04-PLAN.md (gap closure: regions seed gzip-compressed, phase 28 fully verified)
 Resume file: None
 
 ## Operator Next Steps
