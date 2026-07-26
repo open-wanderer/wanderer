@@ -357,12 +357,18 @@ A pre-planning validation spike (not itself a phase deliverable) should confirm 
   3. `GET /api/v1/regions` returns each region's `parent`, `path`, and `depth` alongside its existing bbox/status/size fields, so a client can reconstruct the tree from a flat response.
 
 **Plans**: 4 plans (3 waves)
-
 Plans:
+**Wave 1**
 
 - [ ] 29-01-PLAN.md — Table-driven cron + polygon-based `pmtiles extract --region` + relaxed region-id allow-list (EXTRACT-01, EXTRACT-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 29-02-PLAN.md — Hierarchy-aware `GET /api/v1/regions` (parent/path/depth/kind) + retire the `region_config.json` loader (EXTRACT-03, EXTRACT-02)
 - [ ] 29-03-PLAN.md — SvelteKit region-id regex lockstep + hierarchy OpenAPI docs (EXTRACT-03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 29-04-PLAN.md — End-to-end human-verify checkpoint: real polygon-clipped build + hierarchy API + `.`-path download (EXTRACT-01/02/03)
 
 ### Phase 30: Admin Region Picker UI
