@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
-status: executing
-stopped_at: "Completed 28-04-PLAN.md (gap closure: regions seed gzip-compressed, 730MB blob removed; phase 28 ready for re-verification)"
-last_updated: "2026-07-26T02:14:52.575Z"
-last_activity: 2026-07-26 -- 28-04 gap-closure plan executed (regions seed gzip-compressed, 730MB blob removed)
+status: verifying
+stopped_at: "Completed 28-04-PLAN.md (gap closure: regions seed gzip-compressed, phase 28 fully verified)"
+last_updated: "2026-07-26T04:56:05.321Z"
+last_activity: 2026-07-26
 progress:
   total_phases: 4
   completed_phases: 1
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 28 (region-catalog-data-model-seeding) — COMPLETE (gap closure 28-04 applied)
-Plan: 4 of 4
+Phase: 29
+Plan: Not started
 Status: Phase complete — ready for re-verification
-Last activity: 2026-07-26 -- 28-04 gap-closure plan executed (regions seed gzip-compressed, 730MB blob removed)
+Last activity: 2026-07-26
 
 ## v1.7 Phases
 
@@ -45,7 +45,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 
 **Velocity (v1.0–v1.3):**
 
-- Total plans completed: 37
+- Total plans completed: 41
 - Average duration: — min
 - Total execution time: — hours
 
@@ -60,6 +60,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | 14 | 1 | - | - |
 | 15 | 6 | ~90 min + on-device iteration | ~15 min |
 | 27 | 2 | - | - |
+| 28 | 4 | - | - |
 
 *Updated after each plan completion*
 | Phase 16 P01 | 9min | 3 tasks | 3 files |
