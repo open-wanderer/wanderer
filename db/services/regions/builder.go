@@ -62,7 +62,7 @@ func regionExtractTimeout() time.Duration {
 // or block the cron.
 func BuildAll(app core.App) {
 	leafRecords, err := app.FindAllRecords("regions",
-		dbx.NewExp("kind = {:kind} && enabled = {:enabled}",
+		dbx.NewExp("kind = {:kind} AND enabled = {:enabled}",
 			dbx.Params{"kind": "leaf", "enabled": true}),
 	)
 	if err != nil {
