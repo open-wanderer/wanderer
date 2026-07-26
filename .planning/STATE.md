@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: executing
-stopped_at: "Completed 28-04-PLAN.md (gap closure: regions seed gzip-compressed, phase 28 fully verified)"
-last_updated: "2026-07-26T17:41:27.680Z"
-last_activity: 2026-07-26 -- Phase 29 planning complete
+stopped_at: Completed 29-01-PLAN.md (polygon-based extraction, table-driven cron build)
+last_updated: "2026-07-26T17:51:23.016Z"
+last_activity: 2026-07-26 -- Phase 29 execution started
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 8
+  completed_plans: 5
   percent: 25
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 28 — region-catalog-data-model-seeding
+**Current focus:** Phase 29 — Polygon-Based Extraction & Region API
 
 ## Current Position
 
-Phase: 29
-Plan: Not started
+Phase: 29 (Polygon-Based Extraction & Region API) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-07-26 -- Phase 29 planning complete
+Last activity: 2026-07-26 -- Phase 29 execution started
 
 ## v1.7 Phases
 
@@ -121,6 +121,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 28 P01 | 15min | 2 tasks | 4 files |
 | Phase 28 P03 | ~55min | 2 tasks | 1 files |
 | Phase 28 P04 | ~100min | 2 tasks | 3 files |
+| Phase 29 P01 | 25min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -414,8 +415,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-26T02:14:52.526Z
-Stopped at: Completed 28-04-PLAN.md (gap closure: regions seed gzip-compressed, phase 28 fully verified)
+Last session: 2026-07-26T17:51:23.000Z
+Stopped at: Completed 29-01-PLAN.md (polygon-based extraction, table-driven cron build)
 Resume file: None
 
 ## Operator Next Steps

@@ -360,7 +360,7 @@ A pre-planning validation spike (not itself a phase deliverable) should confirm 
 Plans:
 **Wave 1**
 
-- [ ] 29-01-PLAN.md — Table-driven cron + polygon-based `pmtiles extract --region` + relaxed region-id allow-list (EXTRACT-01, EXTRACT-02)
+- [x] 29-01-PLAN.md — Table-driven cron + polygon-based `pmtiles extract --region` + relaxed region-id allow-list (EXTRACT-01, EXTRACT-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -447,6 +447,6 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
 | 27. Legacy Cleanup | v1.6 | 2/2 | Complete    | 2026-07-24 |
 | 28. Region Catalog Data Model & Seeding | v1.7 | 4/4 | Complete    | 2026-07-26 |
-| 29. Polygon-Based Extraction & Region API | v1.7 | 0/4 | Not started | - |
+| 29. Polygon-Based Extraction & Region API | v1.7 | 1/4 | In Progress|  |
 | 30. Admin Region Picker UI | v1.7 | 0/TBD | Not started | - |
 | 31. Flutter Settings Hierarchy | v1.7 | 0/TBD | Not started | - |
