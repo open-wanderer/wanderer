@@ -514,17 +514,19 @@ No other "old vs. new" migration applies within this phase's own scope — it's 
 
 **Assumptions carried over from CONTEXT.md/UI-SPEC that this research corrected (not left as open assumptions, but flagged for planner awareness):** the `perPage=1500` figure (D-02, corrected to a 2-page 1000-cap loop, HIGH confidence/verified), the `maplibre-gl@4.7.1` pin (UI-SPEC, corrected to `5.24.0`, HIGH confidence/verified), and the "Tailwind Play CDN" claim (UI-SPEC Registry Safety, corrected to hand-rolled CSS only, HIGH confidence/verified) — these are not marked `[ASSUMED]` above because they were independently verified against the actual codebase/registry, not left as unverified claims.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the admin page's route be nested under `/_/` (PocketBase's own SPA) or standalone like `/federation/`?**
    - What we know: `federation_ui.html` is a fully standalone page at `/federation/`, reached via a `core.UIExtension` header link from `/_/`, not embedded inside PocketBase's own Vue app.
    - What's unclear: Whether the discuss-phase/planner wants the exact same standalone-page pattern (very likely, given D-01 explicitly cites `federation_ui.html` as "the pattern") or something tighter.
    - Recommendation: Follow the standalone-page pattern verbatim (Pattern 1/2 above) — it's the explicitly named precedent and requires no PocketBase core-UI modification.
+   - RESOLVED: Plan 30-01 implements the standalone-page pattern verbatim, matching `federation_ui.html`.
 
 2. **Exact final route path string (`/region-catalog/` vs. alternatives).**
    - What we know: It must not collide with the existing `/regions` API group (Pitfall 6).
    - What's unclear: No explicit naming decision was made in CONTEXT.md.
    - Recommendation: Planner picks a short, distinct, human-readable path (e.g. `/region-catalog/`); low-stakes, easily changed later since it's admin-only tooling with no external consumers.
+   - RESOLVED: Plan 30-01 registers `/region-catalog/` as the route.
 
 ## Environment Availability
 
