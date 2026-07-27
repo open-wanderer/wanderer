@@ -126,3 +126,7 @@ None - no external service configuration required. The page is reachable immedia
 ---
 *Phase: 30-admin-region-picker-ui*
 *Completed: 2026-07-27*
+
+## Self-Check: PASSED
+
+All created files (`db/routes/regions_ext/regions_ui.html`, `db/routes/regions_ui.go`, `db/routes/regions_ext/main.js`, this SUMMARY) confirmed present on disk. All commit hashes (`8414564b`, `de084af6`, `8c97055e`, `f7112643`) confirmed present in `git log --oneline --all`.
