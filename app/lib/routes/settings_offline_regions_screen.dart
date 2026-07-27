@@ -6,13 +6,16 @@ import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/entities/region_entity.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/models/region_hierarchy_row.dart';
 import 'package:wanderer/models/region_status.dart';
+import 'package:wanderer/models/region_tree_node.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/byte_format_util.dart';
 import 'package:wanderer/util/region_disk_usage_util.dart';
 import 'package:wanderer/util/region_tile_status_util.dart';
+import 'package:wanderer/util/region_tree_util.dart';
 
 /// SETUI-01..06: the "Offline Maps/Regions" Settings screen — a flat,
 /// name-searchable, A-Z region list backed by `regionListNotifierProvider`,
@@ -46,6 +49,19 @@ class _SettingsOfflineRegionsScreenState
   Object? _freshInstallError;
   StackTrace? _freshInstallStackTrace;
 
+  /// Tree shape, built once per genuine hierarchy fetch inside
+  /// `_refreshCatalog` — NEVER rebuilt inside `build()` (Pitfall 1). `null`
+  /// means no successful hierarchy fetch has completed this session, which
+  /// drives the D-04 offline empty state.
+  List<RegionTreeNode>? _treeRoots;
+
+  /// Expand state, keyed by group node id. Reseeded (via
+  /// `computeDefaultExpanded`) only when `_expandedSeeded` is false — i.e.
+  /// right after a fresh `_treeRoots` assignment — so a user's manual
+  /// expand/collapse survives unrelated rebuilds (download/progress ticks).
+  Set<String> _expandedIds = {};
+  bool _expandedSeeded = false;
+
   @override
   void initState() {
     super.initState();
@@ -66,6 +82,16 @@ class _SettingsOfflineRegionsScreenState
       await ref.read(regionRepositoryProvider).refreshCatalog();
       if (!mounted) return;
       ref.invalidate(regionListNotifierProvider);
+
+      final hierarchyRows = await ref
+          .read(regionRepositoryProvider)
+          .fetchHierarchyRows();
+      if (!mounted) return;
+      setState(() {
+        _treeRoots = buildRegionTree(hierarchyRows);
+        // Reseed default-expand against the new tree shape on the next build.
+        _expandedSeeded = false;
+      });
     } catch (e, st) {
       if (!mounted) return;
       final cached = ref.read(regionListNotifierProvider);
@@ -102,10 +128,36 @@ class _SettingsOfflineRegionsScreenState
       _diskUsageFuture = totalRegionDiskUsageBytes(regions);
     }
 
-    final query = _searchQuery.trim().toLowerCase();
-    final filtered = query.isEmpty
-        ? regions
-        : regions.where((r) => r.name.toLowerCase().contains(query)).toList();
+    // Render-time join (RESEARCH.md Pitfall 1) — cheap on every build; the
+    // tree shape itself (`_treeRoots`) is NEVER rebuilt here, only in
+    // `_refreshCatalog` after a genuine fetch.
+    final byId = {for (final r in regions) r.id: r};
+
+    if (_treeRoots != null && !_expandedSeeded) {
+      _expandedIds = computeDefaultExpanded(_treeRoots!, (leafId) {
+        final entity = byId[leafId];
+        if (entity == null) return false;
+        final vectorStatus = entity.status;
+        final hasVectorDownloadOrInProgress =
+            vectorStatus == RegionStatus.downloaded ||
+            vectorStatus == RegionStatus.downloading ||
+            vectorStatus == RegionStatus.updateAvailable;
+        final demStatus = entity.demPackage.target?.status;
+        final hasDemDownloadOrInProgress =
+            demStatus == PackageStatus.downloaded ||
+            demStatus == PackageStatus.downloading;
+        return hasVectorDownloadOrInProgress || hasDemDownloadOrInProgress;
+      });
+      _expandedSeeded = true;
+    }
+
+    final trimmedQuery = _searchQuery.trim();
+    final filterMatches = trimmedQuery.isEmpty || _treeRoots == null
+        ? null
+        : computeFilterMatches(_treeRoots!, trimmedQuery);
+    final visibleRows = _treeRoots == null
+        ? const <({RegionTreeNode node, int depth})>[]
+        : flattenVisible(_treeRoots!, _expandedIds, filterMatches);
 
     // Fresh-install edge case only: zero cached regions AND the initial
     // catalog fetch failed. Reuse AsyncLoader/WandererError verbatim per
@@ -145,27 +197,127 @@ class _SettingsOfflineRegionsScreenState
                 ),
 
                 Expanded(
-                  child: regions.isEmpty
+                  child: _treeRoots == null
                       ? _buildEmptyState(
-                          title: l10n.regions_empty_catalog_title,
-                          body: l10n.regions_empty_catalog_body,
+                          title: l10n.regions_offline_unavailable_title,
+                          body: l10n.regions_offline_unavailable_body,
+                          // font_awesome_flutter's free icon set has no
+                          // `wifiSlash` glyph (Pro-only in upstream Font
+                          // Awesome 6) — `linkSlash` ("broken link") is the
+                          // closest already-vetted disconnected/offline
+                          // glyph in this dependency (Rule 1 fix).
+                          icon: FontAwesomeIcons.linkSlash,
                         )
-                      : filtered.isEmpty
-                      ? _buildEmptyState(
-                          title: l10n.regions_empty_search_title,
-                          body: l10n.regions_empty_search_body,
-                        )
-                      : ListView.separated(
+                      : visibleRows.isEmpty
+                      ? (trimmedQuery.isEmpty
+                            ? _buildEmptyState(
+                                title: l10n.regions_empty_catalog_title,
+                                body: l10n.regions_empty_catalog_body,
+                              )
+                            : _buildEmptyState(
+                                title: l10n.regions_empty_search_title,
+                                body: l10n.regions_empty_search_body,
+                              ))
+                      : ListView.builder(
                           padding: const EdgeInsets.only(bottom: 16),
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: 16),
-                          itemBuilder: (context, index) =>
-                              _buildRegionRow(filtered[index]),
+                          itemCount: visibleRows.length,
+                          itemBuilder: (context, index) {
+                            final row = visibleRows[index];
+                            if (row.node.kind == RegionNodeKind.leaf) {
+                              final entity = byId[row.node.id];
+                              if (entity == null) {
+                                // Pitfall 6: a hierarchy row with no matching
+                                // RegionEntity (e.g. a mid-refresh race) must
+                                // never crash the render.
+                                return SizedBox.shrink(
+                                  key: ValueKey(row.node.id),
+                                );
+                              }
+                              return Padding(
+                                key: ValueKey(row.node.id),
+                                padding: EdgeInsets.only(
+                                  left: _indentFor(row.depth),
+                                  bottom: 16,
+                                ),
+                                child: _buildRegionRow(entity),
+                              );
+                            }
+                            return KeyedSubtree(
+                              key: ValueKey(row.node.id),
+                              child: _buildGroupRow(row.node, row.depth),
+                            );
+                          },
                         ),
                 ),
               ],
             ),
+    );
+  }
+
+  /// Depth-based left indent for a tree row (UI-SPEC Spacing): 16px base,
+  /// +16px per level, capped at depth 4 (80px total) — CoMaps hierarchy can
+  /// nest several levels deep, and uncapped indentation would eventually
+  /// leave no room for the row label on a narrow phone.
+  double _indentFor(int depth) => 16.0 + (depth.clamp(0, 4) * 16.0);
+
+  /// A group row (D-01/D-02): the entire row width toggles expand/collapse
+  /// on tap (UI-SPEC Interaction Contract), with a chevron that swaps
+  /// instantly (no rotation animation) and a `Semantics` label for screen
+  /// readers. Unlike a leaf's bordered card, a group row has NO card/border —
+  /// it sits directly on the screen background so it reads as structural
+  /// chrome, not a peer of the download-action leaf cards.
+  Widget _buildGroupRow(RegionTreeNode node, int depth) {
+    final l10n = AppLocalizations.of(context)!;
+    final isExpanded = _expandedIds.contains(node.id);
+    final mutedColor = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.6);
+
+    return Semantics(
+      button: true,
+      label: isExpanded
+          ? l10n.regions_group_collapse_label(node.name)
+          : l10n.regions_group_expand_label(node.name),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            final next = {..._expandedIds};
+            if (isExpanded) {
+              next.remove(node.id);
+            } else {
+              next.add(node.id);
+            }
+            _expandedIds = next;
+          });
+        },
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: EdgeInsets.only(left: _indentFor(depth), right: 16),
+            child: Row(
+              children: [
+                FaIcon(
+                  isExpanded
+                      ? FontAwesomeIcons.angleDown
+                      : FontAwesomeIcons.angleRight,
+                  size: 16,
+                  color: mutedColor,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    node.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -223,13 +375,27 @@ class _SettingsOfflineRegionsScreenState
         packageOccupiesDisk(region.demPackage.target?.status);
   }
 
-  Widget _buildEmptyState({required String title, required String body}) {
+  Widget _buildEmptyState({
+    required String title,
+    required String body,
+    FaIconData? icon,
+  }) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (icon != null) ...[
+              FaIcon(
+                icon,
+                size: 32,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 16),
+            ],
             Text(
               title,
               style: Theme.of(context).textTheme.bodyLarge,
