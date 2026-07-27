@@ -548,23 +548,28 @@
       pointer-events: none;
     }
 
+    /* Backdrop is a fixed translucent white scrim regardless of app theme
+       (legible over the MapLibre basemap's own varied tile colors, which
+       don't follow light/dark mode) — text/icon colors here must stay
+       fixed-dark too, not var(--text), which flips light in dark mode and
+       disappears against this backdrop. */
     .map-empty-state {
       flex-direction: column;
       text-align: center;
-      color: var(--text);
+      color: #16181a;
       background-color: #ffffff96;
       gap: 4px;
     }
 
     .map-empty-state i {
       font-size: 28px;
-      color: var(--text);
+      color: #16181a;
     }
 
     .map-empty-state .state-title {
       font-size: 14px;
       font-weight: 600;
-      color: var(--text);
+      color: #16181a;
     }
   </style>
 
