@@ -21,6 +21,7 @@ List<RegionTreeNode> buildRegionTree(List<RegionHierarchyRow> rows) {
         path: row.path,
         depth: row.depth,
         sortOrder: row.sortOrder,
+        enabled: row.enabled,
       ),
   };
 
@@ -43,6 +44,38 @@ List<RegionTreeNode> buildRegionTree(List<RegionHierarchyRow> rows) {
   roots.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
   return roots;
+}
+
+/// Prunes [roots] down to only downloadable leaves plus the ancestor group
+/// chain needed to reach them (31-UAT Test 1 / APPUI-01 gap closure).
+///
+/// A leaf survives iff `node.enabled == true` — a `false` or `null` (group
+/// row shape / missing flag / legacy row) leaf is dropped. A group survives
+/// iff it still has at least one surviving child after its own descendants
+/// are pruned (post-order); a group left with zero children is dropped
+/// entirely, including any group whose only leaves were all disabled.
+///
+/// Per the resolved product decision, pruning inspects `enabled` ONLY —
+/// never any build/status field, so an `enabled == true` leaf that is
+/// still `status == "building"` continues to survive and render (matching
+/// the screen's existing disabled-row treatment for a still-building
+/// region).
+///
+/// Mutates each surviving group's `children` list in place via
+/// `retainWhere`. This is safe because `RegionTreeNode` is an ephemeral
+/// tree rebuilt from scratch on every fetch (D-03) — pruning never touches
+/// a cached or shared structure, only the freshly-built graph about to be
+/// rendered once.
+List<RegionTreeNode> pruneToDownloadable(List<RegionTreeNode> roots) {
+  bool keep(RegionTreeNode node) {
+    if (node.kind == RegionNodeKind.leaf) {
+      return node.enabled == true;
+    }
+    node.children.retainWhere(keep);
+    return node.children.isNotEmpty;
+  }
+
+  return roots.where(keep).toList();
 }
 
 /// Given a predicate over leaf ids, returns the set of group node ids that

@@ -141,6 +141,23 @@ void main() {
       );
     });
 
+    test(
+      'enabled round-trips: leaf true/false parse correctly, group (no key) parses null',
+      () {
+        final enabledLeaf = parseRegionHierarchyRows([
+          {...leafJson(), 'enabled': true},
+        ]);
+        final disabledLeaf = parseRegionHierarchyRows([
+          {...leafJson(), 'enabled': false},
+        ]);
+        final group = parseRegionHierarchyRows([groupJson()]);
+
+        expect(enabledLeaf.single.enabled, true);
+        expect(disabledLeaf.single.enabled, false);
+        expect(group.single.enabled, isNull);
+      },
+    );
+
     // fetchHierarchyRows itself is not covered by a repository-instantiation
     // round-trip test here: RegionRepository's constructor also requires an
     // ObjectBox Store, and this test harness has no established pattern for
