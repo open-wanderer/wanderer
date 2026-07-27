@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: executing
-stopped_at: Phase 30 context gathered
-last_updated: "2026-07-27T09:18:55.414Z"
+stopped_at: Phase 30 UI-SPEC approved
+last_updated: "2026-07-27T09:31:40.355Z"
 last_activity: 2026-07-26 -- Phase 29 execution started
 progress:
   total_phases: 4
@@ -420,9 +420,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-27T09:18:55.391Z
-Stopped at: Phase 30 context gathered
-Resume file: .planning/phases/30-admin-region-picker-ui/30-CONTEXT.md
+Last session: 2026-07-27T09:31:40.330Z
+Stopped at: Phase 30 UI-SPEC approved
+Resume file: .planning/phases/30-admin-region-picker-ui/30-UI-SPEC.md
 
 ## Operator Next Steps
 
