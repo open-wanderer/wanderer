@@ -1,14 +1,22 @@
 ---
-status: diagnosed
+status: testing
 phase: 31-flutter-settings-hierarchy
 source: [31-VERIFICATION.md]
 started: 2026-07-27T00:00:00Z
-updated: 2026-07-27T00:00:00Z
+updated: 2026-07-27T16:12:55Z
 ---
 
 ## Current Test
 
-[testing complete]
+number: 2
+name: On-device pruned-hierarchy walkthrough
+expected: |
+  Collapsible hierarchy renders only admin-enabled downloadable regions plus ancestors, exactly per the
+  resolved gap-closure product decision (filter on enabled == true only; keep enabled-but-still-building
+  leaves); nested leaf actions and disk-usage summary visually correct on a real device; offline empty
+  state fires only when genuinely offline, and a pruned-to-empty tree shows the ordinary empty-catalog
+  state instead.
+awaiting: user response
 
 ## Tests
 
@@ -18,20 +26,24 @@ result: issue
 reported: "It works but is unnecessary. Only show the regions (and their parents) that are actually downloadable."
 severity: minor
 
+### 2. On-device pruned-hierarchy walkthrough
+expected: Collapsible hierarchy renders only admin-enabled downloadable regions plus ancestors; confirm an enabled-but-still-building region still appears (disabled row); confirm expand/collapse, per-region Vector/DEM controls, search/filter, and disk-usage total all still work; confirm the offline empty state appears only when genuinely offline, not merely because pruning yielded an empty tree.
+result: pending
+
 ## Summary
 
-total: 1
+total: 2
 passed: 0
 issues: 1
-pending: 0
+pending: 1
 skipped: 0
 blocked: 0
 
 ## Gaps
 
 - truth: "Settings → Offline Maps/Regions shows the collapsible hierarchy with group and leaf rows matching the admin-defined tree"
-  status: failed
-  reason: "User reported: It works but is unnecessary. Only show the regions (and their parents) that are actually downloadable."
+  status: resolved
+  reason: "User reported: It works but is unnecessary. Only show the regions (and their parents) that are actually downloadable. Fixed by 31-03-PLAN.md: RegionHierarchyRow/RegionTreeNode now parse the backend enabled flag and pruneToDownloadable removes non-enabled leaves and childless group ancestors before flattenVisible runs. Verified against actual code/tests in 31-VERIFICATION.md (re-verification, 2026-07-27)."
   severity: minor
   test: 1
   root_cause: |
