@@ -400,10 +400,11 @@ Plans:
   2. Each leaf region row still exposes its existing independent Vector and DEM download/cancel/delete controls exactly as before, now nested inside the hierarchy.
   3. The disk-usage summary (total space used, per-region breakdown) continues to work unchanged within the new hierarchical presentation.
 
-**Plans**: 2 plans (2 waves)
+**Plans**: 3 plans (3 waves)
 
 - [x] 31-01-PLAN.md — sort_order backend field + RegionHierarchyRow/RegionTreeNode models + ported tree algorithm + provider hierarchy fetch (APPUI-01)
 - [x] 31-02-PLAN.md — Collapsible hierarchy render on the Settings regions screen + ARB keys + widget tests (APPUI-01, APPUI-02)
+- [ ] 31-03-PLAN.md — Gap closure: prune the hierarchy to downloadable (enabled) regions plus ancestors (APPUI-01)
 
 **UI hint**: yes
 
