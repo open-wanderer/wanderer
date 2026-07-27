@@ -418,6 +418,12 @@
       border-color: var(--accent);
     }
 
+    /* Group toggle, some but not all leaves enabled (D-06 branch toggle) */
+    .toggle-switch[aria-checked="mixed"] {
+      background: var(--accent-fade);
+      border-color: var(--accent);
+    }
+
     .toggle-switch .toggle-thumb {
       position: absolute;
       top: 1px;
@@ -431,6 +437,11 @@
 
     .toggle-switch[aria-checked="true"] .toggle-thumb {
       transform: translateX(16px);
+    }
+
+    .toggle-switch[aria-checked="mixed"] .toggle-thumb {
+      transform: translateX(8px);
+      background: var(--accent);
     }
 
     .map-pane {
@@ -515,6 +526,18 @@
       });
       roots.sort(function (a, b) { return a.sort_order - b.sort_order; });
       return roots;
+    }
+
+    // All leaf tree nodes under `node` (node itself if it's already a leaf).
+    // Used by the group toggle to find every region a branch-level flip
+    // must touch, and by groupState() to derive the tri-state indicator.
+    function leafDescendants(node) {
+      var leaves = [];
+      (function walk(n) {
+        if (n.kind === 'leaf') { leaves.push(n); return; }
+        n.children.forEach(walk);
+      })(node);
+      return leaves;
     }
 
     function computeDefaultExpanded(roots) {
@@ -730,6 +753,72 @@
             var data = await res.json().catch(function () { return {}; });
             this.rowErrors = Object.assign({}, this.rowErrors, {
               [row.id]: "Couldn't update" + (data.message ? ': ' + data.message : '') + ' — try again.'
+            });
+          }
+        },
+
+        // Tri-state indicator for a group row's toggle switch: 'all' (every
+        // leaf beneath it enabled), 'none' (none enabled), or 'partial'
+        // (some but not all — rendered as aria-checked="mixed").
+        groupState(row) {
+          var leaves = leafDescendants(row);
+          if (leaves.length === 0) return 'none';
+          var enabledCount = leaves.filter(function (l) { return l.enabled; }).length;
+          if (enabledCount === 0) return 'none';
+          if (enabledCount === leaves.length) return 'all';
+          return 'partial';
+        },
+
+        // Branch-level toggle: flips every leaf under `row` in the same
+        // direction (all-on if not already all-on, otherwise all-off).
+        // Same optimistic-flip / revert-on-failure shape as toggleRegion,
+        // but PATCHes each affected leaf individually (chunked, not a
+        // single bulk call — PocketBase's /api/batch endpoint is opt-in
+        // per-instance via Settings().Batch.Enabled, so relying on it here
+        // would silently break on instances that haven't turned it on).
+        // Only leaves whose failed PATCH we can't confirm get reverted, so
+        // a partial failure on a large branch doesn't discard successful
+        // toggles alongside it.
+        async toggleGroup(row) {
+          var leaves = leafDescendants(row);
+          if (leaves.length === 0) return;
+          var target = this.groupState(row) !== 'all';
+          var toToggle = leaves.filter(function (l) { return l.enabled !== target; });
+          if (toToggle.length === 0) return;
+
+          var prevStates = {};
+          toToggle.forEach((leaf) => {
+            prevStates[leaf.id] = leaf.enabled;
+            leaf.enabled = target;
+            this.setRegionEnabled(leaf.id, target);
+            if (target) { this.addPolygonForRow(leaf); } else { this.removePolygonForRow(leaf); }
+          });
+          this.rowErrors = Object.assign({}, this.rowErrors, { [row.id]: undefined });
+
+          var failed = [];
+          var CHUNK = 20;
+          for (var i = 0; i < toToggle.length; i += CHUNK) {
+            var chunk = toToggle.slice(i, i + CHUNK);
+            var results = await Promise.all(chunk.map((leaf) => {
+              return this.apiFetch('/api/collections/regions/records/' + leaf.id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: target }),
+              }).then(function (res) { return { leaf: leaf, res: res }; });
+            }));
+            if (results.some(function (r) { return !r.res; })) return; // apiFetch already handled 401 -> logged-out state
+            results.forEach(function (r) { if (!r.res.ok) failed.push(r.leaf); });
+          }
+
+          if (failed.length > 0) {
+            failed.forEach((leaf) => {
+              var prev = prevStates[leaf.id];
+              leaf.enabled = prev;
+              this.setRegionEnabled(leaf.id, prev);
+              if (prev) { this.addPolygonForRow(leaf); } else { this.removePolygonForRow(leaf); }
+            });
+            this.rowErrors = Object.assign({}, this.rowErrors, {
+              [row.id]: failed.length + ' of ' + toToggle.length + " couldn't update — try again."
             });
           }
         },
@@ -977,20 +1066,25 @@
                 <span class="chevron" aria-hidden="true"></span>
               </template>
               <span class="row-name" x-text="row.name"></span>
-              <!-- Leaf toggle switch (ADMINUI-02, D-06): role=switch, keyboard-operable -->
-              <template x-if="row.kind === 'leaf'">
-                <button type="button" class="toggle-switch" role="switch"
-                        :aria-checked="row.enabled ? 'true' : 'false'"
-                        :aria-label="(row.enabled ? 'Disable ' : 'Enable ') + row.name"
-                        @click="toggleRegion(row)"
-                        @keydown.space.prevent="toggleRegion(row)"
-                        @keydown.enter.prevent="toggleRegion(row)">
-                  <span class="toggle-thumb"></span>
-                </button>
-              </template>
+              <!-- Toggle switch (ADMINUI-02, D-06): role=switch, keyboard-operable.
+                   Leaves flip their own `enabled`; groups flip every leaf beneath
+                   them and show a tri-state aria-checked="mixed" when only some
+                   are enabled. -->
+              <button type="button" class="toggle-switch" role="switch"
+                      :aria-checked="row.kind === 'leaf'
+                        ? (row.enabled ? 'true' : 'false')
+                        : (groupState(row) === 'all' ? 'true' : (groupState(row) === 'none' ? 'false' : 'mixed'))"
+                      :aria-label="row.kind === 'leaf'
+                        ? ((row.enabled ? 'Disable ' : 'Enable ') + row.name)
+                        : ((groupState(row) === 'all' ? 'Disable all in ' : 'Enable all in ') + row.name)"
+                      @click="row.kind === 'leaf' ? toggleRegion(row) : toggleGroup(row)"
+                      @keydown.space.prevent="row.kind === 'leaf' ? toggleRegion(row) : toggleGroup(row)"
+                      @keydown.enter.prevent="row.kind === 'leaf' ? toggleRegion(row) : toggleGroup(row)">
+                <span class="toggle-thumb"></span>
+              </button>
             </div>
             <!-- Inline per-row error on PATCH failure (D-06) — x-text auto-escapes -->
-            <template x-if="row.kind === 'leaf' && rowErrors[row.id]">
+            <template x-if="rowErrors[row.id]">
               <div class="row-error" :style="'padding-left:' + (8 + row.depth * 16 + 24) + 'px'" x-text="rowErrors[row.id]"></div>
             </template>
           </div>
