@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
-status: executing
-stopped_at: Completed 31-01-PLAN.md
-last_updated: "2026-07-27T12:55:39.290Z"
+status: verifying
+stopped_at: Completed 31-02-PLAN.md
+last_updated: "2026-07-27T13:17:36.977Z"
 last_activity: 2026-07-27 -- Phase 31 execution started
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 12
-  completed_plans: 11
-  percent: 75
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 Phase: 31 (flutter-settings-hierarchy) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-27 -- Phase 31 execution started
 
 ## v1.7 Phases
@@ -127,6 +127,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase Phase 30 P01 P01 | 20min | 3 tasks | 4 files |
 | Phase 30 P02 | 10min | 2 tasks | 1 files |
 | Phase 31 P01 | 20min | 3 tasks | 9 files |
+| Phase 31 P02 | 20min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -285,6 +286,8 @@ Recent decisions affecting current work:
 - [Phase 31]: [31-01] RegionHierarchyRow.parent kept as a required non-null String (never nullable), matching Go's r.GetString semantics exactly — Avoids introducing a null-vs-empty-string distinction that doesn't exist on the wire
 - [Phase 31]: [31-01] flattenVisible returns a record type List<({RegionTreeNode node, int depth})> instead of mutating node.depth — Matches tile_repository_manager.dart's splitRegionTilePaths precedent for a zero-codegen render-time tuple
 - [Phase 31]: [31-01] fetchHierarchyRows has no repository-instantiation round-trip test — No ObjectBox Store-construction pattern exists in this test harness for plain flutter test suites; covered by proxy via parseRegionHierarchyRows
+- [Phase 31]: [31-02] Substituted FontAwesomeIcons.linkSlash for the plan's wifiSlash (doesn't exist in font_awesome_flutter's free set) — wifi-slash is a Font Awesome Pro-only glyph; linkSlash is the closest already-vetted disconnected icon, no new dependency added
+- [Phase 31]: [31-02] Widget test harness for a Notifier-backed screen with no real ObjectBox Store uses a noSuchMethod-based fake Store — Satisfies RegionRepository's constructor Store parameter without ever dereferencing it, avoiding a new mocking library dependency
 
 ### Roadmap Evolution
 
@@ -432,8 +435,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-27T12:55:39.273Z
-Stopped at: Completed 31-01-PLAN.md
+Last session: 2026-07-27T13:17:36.961Z
+Stopped at: Completed 31-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

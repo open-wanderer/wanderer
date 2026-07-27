@@ -307,7 +307,7 @@ Full design settled via `/gsd-explore` — see `.planning/notes/streamlined-regi
 - [x] **Phase 28: Region Catalog Data Model & Seeding** — the seeded `regions` table exists and a fresh instance boots with it fully populated (completed 2026-07-25)
 - [x] **Phase 29: Polygon-Based Extraction & Region API** — the archive cron and the client-facing catalog endpoint both read from the new table (completed 2026-07-26)
 - [x] **Phase 30: Admin Region Picker UI** — a server owner toggles regions on a collapsible tree with a live coverage map (completed 2026-07-27)
-- [ ] **Phase 31: Flutter Settings Hierarchy** — the app's region list becomes a hierarchy matching the admin tree
+- [x] **Phase 31: Flutter Settings Hierarchy** — the app's region list becomes a hierarchy matching the admin tree (completed 2026-07-27)
 
 #### Sequencing Rationale
 
@@ -403,7 +403,7 @@ Plans:
 **Plans**: 2 plans (2 waves)
 
 - [x] 31-01-PLAN.md — sort_order backend field + RegionHierarchyRow/RegionTreeNode models + ported tree algorithm + provider hierarchy fetch (APPUI-01)
-- [ ] 31-02-PLAN.md — Collapsible hierarchy render on the Settings regions screen + ARB keys + widget tests (APPUI-01, APPUI-02)
+- [x] 31-02-PLAN.md — Collapsible hierarchy render on the Settings regions screen + ARB keys + widget tests (APPUI-01, APPUI-02)
 
 **UI hint**: yes
 
@@ -457,4 +457,4 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 28. Region Catalog Data Model & Seeding | v1.7 | 4/4 | Complete    | 2026-07-26 |
 | 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
-| 31. Flutter Settings Hierarchy | v1.7 | 1/2 | In Progress|  |
+| 31. Flutter Settings Hierarchy | v1.7 | 2/2 | Complete   | 2026-07-27 |

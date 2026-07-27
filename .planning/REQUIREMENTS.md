@@ -31,8 +31,8 @@
 
 ### Flutter Settings Hierarchy
 
-- [ ] **APPUI-01**: Settings → Offline Maps/Regions presents downloadable regions as a collapsible hierarchy matching the admin-defined tree, instead of a flat list
-- [ ] **APPUI-02**: Existing per-region download/cancel/delete actions and disk-usage summary continue working unchanged within the new hierarchical presentation — no download-UX regression
+- [x] **APPUI-01**: Settings → Offline Maps/Regions presents downloadable regions as a collapsible hierarchy matching the admin-defined tree, instead of a flat list
+- [x] **APPUI-02**: Existing per-region download/cancel/delete actions and disk-usage summary continue working unchanged within the new hierarchical presentation — no download-UX regression
 
 ## v2 Requirements
 
@@ -73,8 +73,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADMINUI-01 | Phase 30 | Complete |
 | ADMINUI-02 | Phase 30 | Complete |
 | ADMINUI-03 | Phase 30 | Complete |
-| APPUI-01 | Phase 31 | Pending |
-| APPUI-02 | Phase 31 | Pending |
+| APPUI-01 | Phase 31 | Complete |
+| APPUI-02 | Phase 31 | Complete |
 
 **Coverage:**
 
