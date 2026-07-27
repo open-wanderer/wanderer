@@ -455,6 +455,37 @@
       border-radius: 20px;
       white-space: nowrap;
     }
+
+    /* ── Live map overlays (loading spinner / empty state, ADMINUI-03) ── */
+    .map-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .map-empty-state {
+      flex-direction: column;
+      text-align: center;
+      color: var(--text2);
+      gap: 4px;
+    }
+
+    .map-empty-state i {
+      font-size: 28px;
+      color: var(--text2);
+    }
+
+    .map-empty-state .state-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
   </style>
 
   <!-- Alpine app — MUST be defined before the defer'd Alpine CDN tag -->
@@ -552,9 +583,11 @@
         filterMatches: null,
         rowErrors: {},
         map: null,
+        mapLoaded: false,
         enabledPolygons: [],
         loading: false,
         _filterDebounceTimer: null,
+        _accentColor: '#1055c9',
 
         init() {
           var stored = localStorage.getItem('__pb_superusers__/_');
@@ -570,7 +603,7 @@
           if (!this.token) { return; }
           if (this.isTokenExpired(this.token)) { return; }
           this.authenticated = true;
-          this.loadRegions();
+          this.loadRegions().then(() => { this.initMap(); });
 
           this.$watch('filterQuery', () => {
             clearTimeout(this._filterDebounceTimer);
@@ -669,13 +702,110 @@
           }
         },
 
-        // Task 2 (30-02) replaces these stub bodies with real
-        // addRegionLayer/removeRegionLayer calls against this.map.
-        addPolygonForRow(row) {
-          if (!this.map) return;
+        // ── Live MapLibre coverage map (ADMINUI-03) ─────────────────────
+
+        enabledLeafRows() {
+          return this.regions.filter(function (r) { return r.kind === 'leaf' && r.enabled; });
         },
+
+        // Init after auth + tree load (D-04): OpenFreeMap Liberty style, no
+        // local copy. Shows .spinner-accent over the pane until 'load' fires.
+        initMap() {
+          var accentRaw = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+          this._accentColor = accentRaw || '#1055c9';
+          this.map = new maplibregl.Map({
+            container: 'region-map',
+            style: 'https://tiles.openfreemap.org/styles/liberty',
+            center: [10, 45],
+            zoom: 3,
+          });
+          this.map.on('load', () => {
+            this.mapLoaded = true;
+            var enabledRows = this.enabledLeafRows();
+            this.loadEnabledPolygons(enabledRows).then((items) => {
+              var byPath = {};
+              items.forEach(function (it) { byPath[it.path] = it; });
+              enabledRows.forEach((row) => {
+                var item = byPath[row.path];
+                if (item && item.polygon) this.addRegionLayer(this.map, row.path, item.polygon);
+              });
+              // D-05: initial-load-only fit; individual toggles never re-fit (D-06).
+              this.fitToEnabled(this.map, enabledRows);
+            });
+          });
+        },
+
+        // D-03/Pattern 5: chunked OR-filter over already-fetched, server-
+        // validated `path` values (never the free-text filter box, T-30-08).
+        // Chunk size derived from the actual max path length so the built
+        // filter string stays comfortably under PocketBase's 3500-char cap
+        // (A2/Pitfall 7), defaulting to ~60 when the set is small/empty.
+        async loadEnabledPolygons(rows) {
+          var out = [];
+          if (!rows || rows.length === 0) return out;
+          var paths = rows.map(function (r) { return r.path; });
+          var maxPathLen = paths.reduce(function (m, p) { return Math.max(m, p.length); }, 0);
+          var chunkSize = Math.max(1, Math.floor(3400 / (maxPathLen + 10))) || 60;
+          for (var i = 0; i < paths.length; i += chunkSize) {
+            var chunk = paths.slice(i, i + chunkSize);
+            var filter = chunk.map(function (p) { return "path='" + p.replace(/'/g, "\\'") + "'"; }).join('||');
+            var res = await this.apiFetch('/api/collections/region_polygons/records?perPage=' + chunkSize + '&filter=' + encodeURIComponent(filter));
+            if (!res) return out; // apiFetch already handled 401 -> logged-out state
+            var data = await res.json();
+            out = out.concat(data.items);
+          }
+          return out;
+        },
+
+        // Pattern 6: one geojson source + fill(18% accent)/line(2px accent)
+        // layer pair per region, keyed by `path`.
+        addRegionLayer(map, path, geojsonPolygon) {
+          var srcId = 'region-' + path;
+          if (map.getSource(srcId)) return;
+          map.addSource(srcId, { type: 'geojson', data: { type: 'Feature', geometry: geojsonPolygon, properties: {} } });
+          map.addLayer({ id: 'region-fill-' + path, type: 'fill', source: srcId, paint: { 'fill-color': this._accentColor, 'fill-opacity': 0.18 } });
+          map.addLayer({ id: 'region-line-' + path, type: 'line', source: srcId, paint: { 'line-color': this._accentColor, 'line-width': 2 } });
+        },
+
+        removeRegionLayer(map, path) {
+          var lineId = 'region-line-' + path, fillId = 'region-fill-' + path, srcId = 'region-' + path;
+          if (map.getLayer(lineId)) map.removeLayer(lineId);
+          if (map.getLayer(fillId)) map.removeLayer(fillId);
+          if (map.getSource(srcId)) map.removeSource(srcId);
+        },
+
+        // D-05: union bbox (regions.bbox already [minLon,minLat,maxLon,maxLat])
+        // + 48px padding; Europe-centered fallback when nothing is enabled.
+        fitToEnabled(map, enabledLeafRows) {
+          if (!enabledLeafRows || enabledLeafRows.length === 0) {
+            map.jumpTo({ center: [10, 45], zoom: 3 });
+            return;
+          }
+          var union = enabledLeafRows.reduce(function (acc, r) {
+            return [
+              Math.min(acc[0], r.bbox[0]), Math.min(acc[1], r.bbox[1]),
+              Math.max(acc[2], r.bbox[2]), Math.max(acc[3], r.bbox[3]),
+            ];
+          }, [Infinity, Infinity, -Infinity, -Infinity]);
+          map.fitBounds([[union[0], union[1]], [union[2], union[3]]], { padding: 48 });
+        },
+
+        // Real implementations replacing Task 1's `if (!this.map) return;`
+        // stubs — fetch/drop this single region's polygon per D-03 ("again
+        // for the single region whenever a toggle flips").
+        async addPolygonForRow(row) {
+          if (!this.map) return;
+          var filter = "path='" + row.path.replace(/'/g, "\\'") + "'";
+          var res = await this.apiFetch('/api/collections/region_polygons/records?perPage=1&filter=' + encodeURIComponent(filter));
+          if (!res || !res.ok) return;
+          var data = await res.json();
+          var item = data.items && data.items[0];
+          if (item && item.polygon) this.addRegionLayer(this.map, row.path, item.polygon);
+        },
+
         removePolygonForRow(row) {
           if (!this.map) return;
+          this.removeRegionLayer(this.map, row.path);
         },
       };
     }
@@ -837,8 +967,19 @@
     </aside>
 
     <main class="map-pane">
-      <!-- 30-02 mounts the MapLibre GL JS coverage map here -->
       <div id="region-map" style="width:100%;height:100%;"></div>
+
+      <!-- Loading spinner until the MapLibre style finishes loading -->
+      <div class="map-overlay" x-show="!mapLoaded" x-cloak>
+        <span class="spinner spinner-accent" style="width:28px;height:28px;border-width:3px" aria-label="Loading map"></span>
+      </div>
+
+      <!-- Zero-enabled empty state (Copywriting Contract), never shown during initial load -->
+      <div class="map-overlay map-empty-state" x-show="mapLoaded && enabledCount === 0" x-cloak>
+        <i class="ri-map-pin-line"></i>
+        <p class="state-title">No regions enabled</p>
+        <p>Toggle a region in the tree to see its boundary here.</p>
+      </div>
     </main>
 
   </div>
