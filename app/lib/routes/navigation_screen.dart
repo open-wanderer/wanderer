@@ -777,11 +777,27 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           );
         }
 
+        // Real recorded start/end times survive the transform (snap/height
+        // merge builds a fresh trackless Gpx from lat/lon/ele only) so the
+        // server can still derive an accurate duration instead of 0.
+        final startTime = navState.breadcrumb.firstOrNull?.time;
+        final endTime = navState.breadcrumb.lastOrNull?.time;
+
         if (recalcHeights && workingShape.length >= 2) {
           final heights = await fetchHeightsForShape(ref, workingShape);
-          gpx = mergeHeightsIntoGpx(workingShape, heights);
+          gpx = mergeHeightsIntoGpx(
+            workingShape,
+            heights,
+            startTime: startTime,
+            endTime: endTime,
+          );
         } else {
-          gpx = mergeHeightsIntoGpx(workingShape, const []);
+          gpx = mergeHeightsIntoGpx(
+            workingShape,
+            const [],
+            startTime: startTime,
+            endTime: endTime,
+          );
         }
       } else {
         gpx = buildGpxFromPoints(navState.breadcrumb);

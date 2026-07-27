@@ -21,10 +21,23 @@ import 'package:wanderer/util/valhalla_util.dart';
 /// points, so indices stay aligned once a route exceeds Valhalla's 500-point
 /// shape cap.
 ///
+/// [startTime]/[endTime], when given, are stamped onto the first/last
+/// trackpoint only (interior points have no real time once [shape] has been
+/// downsampled/snapped). The server's duration calc
+/// (`gpx.ts`'s `getTotals`) only reads a segment's first and last point time,
+/// so this is sufficient to recover a real recorded duration — pass `null`
+/// for a planned (never-traversed) route, where no such times exist.
+///
 /// Returns a bare (trackless) [Gpx] when [shape] is empty.
-Gpx mergeHeightsIntoGpx(List<Map<String, double>> shape, List<num> heights) {
+Gpx mergeHeightsIntoGpx(
+  List<Map<String, double>> shape,
+  List<num> heights, {
+  DateTime? startTime,
+  DateTime? endTime,
+}) {
   final gpx = Gpx();
   if (shape.isEmpty) return gpx;
+  final lastIndex = shape.length - 1;
   gpx.trks = [
     Trk(
       trksegs: [
@@ -35,6 +48,9 @@ Gpx mergeHeightsIntoGpx(List<Map<String, double>> shape, List<num> heights) {
                 lat: shape[i]['lat'],
                 lon: shape[i]['lon'],
                 ele: i < heights.length ? heights[i].toDouble() : null,
+                time: i == 0
+                    ? startTime
+                    : (i == lastIndex ? endTime : null),
               ),
           ],
         ),
@@ -169,6 +185,7 @@ Future<Trail> buildDraftTrail(
   WidgetRef ref,
   Gpx finalGpx, {
   String? category,
+  double? durationSeconds,
 }) async {
   final xml = GpxWriter().asString(finalGpx);
   final formData = FormData.fromMap({
@@ -184,6 +201,15 @@ Future<Trail> buildDraftTrail(
     category: category,
     expand: (trail.expand ?? const TrailExpand()).copyWith(gpx: finalGpx),
   );
+
+  // A timeless GPX (planner output, or a recording saved through the
+  // height/snap transforms) yields `duration == 0` from the server's
+  // timestamp-based `gpx2trail`. Fall back to the caller's known-good value
+  // only in that case, so a GPX that carried real timestamps keeps the
+  // server-derived duration.
+  if (durationSeconds != null && durationSeconds > 0 && trail.duration <= 0) {
+    trail = trail.copyWith(duration: durationSeconds);
+  }
 
   return trail;
 }
@@ -236,7 +262,12 @@ Future<void> finishPlanning({
   final categories = ref.read(categoryProvider).value ?? const [];
   final categoryId = categoryForTravelProfile(travelProfile, categories);
 
-  final draftTrail = await buildDraftTrail(ref, finalGpx, category: categoryId);
+  final draftTrail = await buildDraftTrail(
+    ref,
+    finalGpx,
+    category: categoryId,
+    durationSeconds: anchorsState.estimatedDurationSeconds,
+  );
 
   pendingImportedTrail = draftTrail;
   if (!navContext.mounted) return;
