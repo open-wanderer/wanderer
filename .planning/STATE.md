@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: verifying
-stopped_at: Completed 30-02-PLAN.md
-last_updated: "2026-07-27T10:30:12.208Z"
+stopped_at: Phase 31 context gathered
+last_updated: "2026-07-27T12:04:25.233Z"
 last_activity: 2026-07-27 -- Phase 30 execution started
 progress:
   total_phases: 4
@@ -428,9 +428,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-27T10:30:12.192Z
-Stopped at: Completed 30-02-PLAN.md
-Resume file: None
+Last session: 2026-07-27T12:04:25.205Z
+Stopped at: Phase 31 context gathered
+Resume file: .planning/phases/31-flutter-settings-hierarchy/31-CONTEXT.md
 
 ## Operator Next Steps
 
