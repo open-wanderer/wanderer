@@ -556,13 +556,26 @@
       if (!query) return null;
       var q = query.toLowerCase();
       var matchSet = new Set();
+      // A node whose own name matches pulls in its whole subtree (e.g.
+      // searching "Alberta" should surface every leaf under it, not just
+      // the "Alberta" row itself) — a node that only matches via a
+      // descendant stays narrow (ancestors + that one path).
+      function addSubtree(node) {
+        matchSet.add(node.id);
+        node.children.forEach(addSubtree);
+      }
       function walk(node, ancestors) {
         var selfMatch = node.name.toLowerCase().indexOf(q) !== -1;
+        if (selfMatch) {
+          addSubtree(node);
+          ancestors.forEach(function (a) { matchSet.add(a); });
+          return true;
+        }
         var childMatch = false;
         node.children.forEach(function (child) {
           if (walk(child, ancestors.concat([node.id]))) childMatch = true;
         });
-        if (selfMatch || childMatch) {
+        if (childMatch) {
           matchSet.add(node.id);
           ancestors.forEach(function (a) { matchSet.add(a); });
           return true;
