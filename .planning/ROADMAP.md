@@ -400,7 +400,11 @@ Plans:
   2. Each leaf region row still exposes its existing independent Vector and DEM download/cancel/delete controls exactly as before, now nested inside the hierarchy.
   3. The disk-usage summary (total space used, per-region breakdown) continues to work unchanged within the new hierarchical presentation.
 
-**Plans**: TBD
+**Plans**: 2 plans (2 waves)
+
+- [ ] 31-01-PLAN.md — sort_order backend field + RegionHierarchyRow/RegionTreeNode models + ported tree algorithm + provider hierarchy fetch (APPUI-01)
+- [ ] 31-02-PLAN.md — Collapsible hierarchy render on the Settings regions screen + ARB keys + widget tests (APPUI-01, APPUI-02)
+
 **UI hint**: yes
 
 ## Progress
@@ -453,4 +457,4 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 28. Region Catalog Data Model & Seeding | v1.7 | 4/4 | Complete    | 2026-07-26 |
 | 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
-| 31. Flutter Settings Hierarchy | v1.7 | 0/TBD | Not started | - |
+| 31. Flutter Settings Hierarchy | v1.7 | 0/2 | Planned | - |
