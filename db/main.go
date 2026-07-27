@@ -213,6 +213,21 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 	se.Router.GET("/remote/profile/{handle}/follows", routes.RemoteProfileFollowsList)
 
+	// Custom PocketBase admin extension (ADMINUI-01/02/03): a standalone,
+	// superuser-gated page at a distinct top-level path (NOT nested under
+	// /regions below, which is bound to apis.RequireAuth() for any
+	// logged-in user — see Pitfall 6 in 30-RESEARCH.md). Auth is enforced
+	// entirely by the page's own content: it reads the PocketBase
+	// dashboard's own superuser JWT from localStorage and talks directly
+	// to PocketBase's built-in collection REST API, which is superuser-
+	// only by default on regions/region_polygons (T-30-01).
+	se.Router.GET("/region-catalog/", routes.RegionsDashboard)
+
+	se.UIExtensions = append(se.UIExtensions, core.UIExtension{
+		Name: "wanderer-region-catalog",
+		FS:   routes.RegionsExtFS(),
+	})
+
 	// /regions is an internal-only contract (D-06/D-07): the literal
 	// /api/v1 prefix deviates from every other unprefixed custom Go route in
 	// this file, per the routing resolution recorded in
