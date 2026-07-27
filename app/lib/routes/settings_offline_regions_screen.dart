@@ -88,7 +88,7 @@ class _SettingsOfflineRegionsScreenState
           .fetchHierarchyRows();
       if (!mounted) return;
       setState(() {
-        _treeRoots = buildRegionTree(hierarchyRows);
+        _treeRoots = pruneToDownloadable(buildRegionTree(hierarchyRows));
         // Reseed default-expand against the new tree shape on the next build.
         _expandedSeeded = false;
       });
