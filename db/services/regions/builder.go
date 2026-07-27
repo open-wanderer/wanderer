@@ -37,7 +37,48 @@ var (
 	// in-flight guard (Pitfall 5), re-keyed for region-scale builds.
 	inFlightMu sync.Mutex
 	inFlight   = map[string]*sync.WaitGroup{}
+
+	// syncMu / syncRunning guard against two full BuildAll passes running
+	// at once — whether cron-vs-cron (a slow prior run still going when the
+	// next scheduled tick fires), cron-vs-manual, or manual-vs-manual (an
+	// admin double-clicking "Sync now"). This is a coarser guard than
+	// inFlight above: inFlight already dedupes concurrent work on any single
+	// region, but two overlapping BuildAll loops would otherwise still both
+	// iterate the full leaf list and contend/wait on every in-flight region
+	// for no benefit, and there'd be no single "is a sync running" signal
+	// for the admin UI to poll.
+	syncMu      sync.Mutex
+	syncRunning bool
 )
+
+// TryStartSync atomically claims the single global "a BuildAll pass is
+// running" slot, returning false (claiming nothing) if one is already
+// running. Callers that get true MUST call FinishSync when done (typically
+// via defer), including on the goroutine driving a BuildAllLocked call.
+func TryStartSync() bool {
+	syncMu.Lock()
+	defer syncMu.Unlock()
+	if syncRunning {
+		return false
+	}
+	syncRunning = true
+	return true
+}
+
+// FinishSync releases the slot claimed by a prior successful TryStartSync.
+func FinishSync() {
+	syncMu.Lock()
+	syncRunning = false
+	syncMu.Unlock()
+}
+
+// SyncRunning reports whether a BuildAll pass (cron-triggered or manually
+// triggered via the admin "Sync now" button) is currently in progress.
+func SyncRunning() bool {
+	syncMu.Lock()
+	defer syncMu.Unlock()
+	return syncRunning
+}
 
 // regionExtractTimeout bounds each region-scale pmtiles extract subprocess.
 // It is intentionally distinct from (and longer than) the per-cell
@@ -54,13 +95,31 @@ func regionExtractTimeout() time.Duration {
 	return 30 * time.Minute
 }
 
-// BuildAll is the cron entrypoint: it queries the seeded `regions` table for
-// every enabled leaf (EXTRACT-02) and pre-builds each region's vector + DEM
-// archives, one region fully completing before the next starts (bounds
-// subprocess concurrency to 1). A query error or a single region's build
-// failure is logged and never aborts the whole pass — this must never panic
-// or block the cron.
+// BuildAll is the cron entrypoint: it claims the sync slot (skipping this
+// invocation entirely, logged, if one is already running — see syncRunning)
+// and runs BuildAllLocked. This must never panic or block the cron.
 func BuildAll(app core.App) {
+	if !TryStartSync() {
+		log.Printf("[regions] BuildAll already in progress, skipping this invocation")
+		return
+	}
+	defer FinishSync()
+	BuildAllLocked(app)
+}
+
+// BuildAllLocked queries the seeded `regions` table for every enabled leaf
+// (EXTRACT-02) and pre-builds each region's vector + DEM archives, one
+// region fully completing before the next starts (bounds subprocess
+// concurrency to 1). A query error or a single region's build failure is
+// logged and never aborts the whole pass.
+//
+// Callers MUST already hold the sync slot (via a successful TryStartSync,
+// released with FinishSync) — this function does not claim it itself, so
+// that a caller driving it from a goroutine (the manual "Sync now" HTTP
+// route) can claim the slot synchronously and answer its request
+// immediately with whether a sync actually started, before the goroutine
+// (and thus this function) has even begun running.
+func BuildAllLocked(app core.App) {
 	leafRecords, err := app.FindAllRecords("regions",
 		dbx.NewExp("kind = {:kind} AND enabled = {:enabled}",
 			dbx.Params{"kind": "leaf", "enabled": true}),

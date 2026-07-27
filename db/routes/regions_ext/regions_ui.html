@@ -321,6 +321,12 @@
       font-size: 22px;
     }
 
+    .sync-btn {
+      margin-top: 10px;
+      width: 100%;
+      justify-content: center;
+    }
+
     .tree-filter-wrap {
       position: relative;
       padding: 12px 16px;
@@ -691,6 +697,9 @@
         rowErrors: {},
         archiveSizes: {}, // region path -> already-downloaded archive bytes on disk
         deleteDialog: null, // { row, sizeLabel } while the disable-with-archive confirm is open
+        buildingPaths: new Set(), // region paths currently building, per region_archives.status/dem_status
+        syncing: false, // true from the moment "Sync now" is clicked (or discovered already running on load) until nothing is building
+        _syncPollTimer: null,
         map: null,
         mapLoaded: false,
         enabledPolygons: [],
@@ -717,6 +726,7 @@
           this.authenticated = true;
           this.loadRegions().then(() => { this.initMap(); });
           this.loadArchiveSizes();
+          this.checkSyncStatus();
 
           this.$watch('filterQuery', () => {
             clearTimeout(this._filterDebounceTimer);
@@ -798,10 +808,66 @@
           } while (page <= totalPages);
 
           var sizes = {};
+          var building = new Set();
           all.forEach(function (a) {
             sizes[a.region_id] = (a.vector_size_bytes || 0) + (a.dem_size_bytes || 0);
+            if (a.status === 'building' || a.dem_status === 'building') building.add(a.region_id);
           });
           this.archiveSizes = sizes;
+          this.buildingPaths = building;
+        },
+
+        // "Sync now" (manually triggers the same BuildAll pass the nightly
+        // cron runs — regions_sync.go). The authoritative "is a sync still
+        // running" signal is always the server's /region-catalog/sync GET
+        // (regions.SyncRunning()), never a derived guess from
+        // buildingPaths — right after the pass starts there's a real window
+        // where the flag is already true but no region_archives row has
+        // flipped to "building" yet, so treating an empty buildingPaths as
+        // "finished" would falsely end the poll seconds too early.
+        async fetchSyncRunning() {
+          var res = await this.apiFetch('/region-catalog/sync');
+          if (!res || !res.ok) return null; // unknown — caller must not change state on this
+          var data = await res.json();
+          return !!data.running;
+        },
+
+        // Catches a sync already running from the cron or another admin's
+        // tab so a fresh page load still shows the correct disabled/syncing
+        // state, not just "syncing" started by this tab's own click.
+        async checkSyncStatus() {
+          var running = await this.fetchSyncRunning();
+          if (running) {
+            this.syncing = true;
+            this.startSyncPolling();
+          }
+        },
+
+        async startSync() {
+          if (this.syncing) return;
+          var res = await this.apiFetch('/region-catalog/sync', { method: 'POST' });
+          if (!res) return; // apiFetch already handled 401 -> logged-out state
+          // 202 = just started this pass; 409 = one was already running
+          // (another tab/cron) — either way there's now a sync in progress
+          // to reflect and poll.
+          if (res.status !== 202 && res.status !== 409) return;
+          this.syncing = true;
+          this.startSyncPolling();
+        },
+
+        startSyncPolling() {
+          if (this._syncPollTimer) return;
+          this._syncPollTimer = setInterval(() => this._syncPollTick(), 3000);
+        },
+
+        async _syncPollTick() {
+          var running = await this.fetchSyncRunning();
+          await this.loadArchiveSizes(); // refresh per-leaf spinners + sizes as builds complete
+          if (running === false) {
+            this.syncing = false;
+            clearInterval(this._syncPollTimer);
+            this._syncPollTimer = null;
+          }
         },
 
         toggleExpand(id) {
@@ -1211,6 +1277,11 @@
           Region Catalog
           <span class="count-badge" x-text="enabledCount + ' enabled'"></span>
         </h1>
+        <button type="button" class="btn btn-sm btn-outline sync-btn" :disabled="syncing" @click="startSync()">
+          <span class="spinner spinner-accent" x-show="syncing" x-cloak></span>
+          <i class="ri-refresh-line" x-show="!syncing"></i>
+          <span x-text="syncing ? 'Syncing…' : 'Sync now'"></span>
+        </button>
       </div>
 
       <div class="tree-filter-wrap">
@@ -1254,9 +1325,16 @@
                 <span class="chevron" aria-hidden="true"></span>
               </template>
               <span class="row-name" x-text="row.name"></span>
+              <!-- "Sync now": a leaf currently building shows a spinner
+                   instead of its (possibly stale, possibly absent-if-first-
+                   build) size badge; the poll driving `buildingPaths`/
+                   `archiveSizes` swaps the spinner for the real size once done. -->
+              <template x-if="row.kind === 'leaf' && buildingPaths.has(row.path)">
+                <span class="spinner spinner-accent" aria-label="Building"></span>
+              </template>
               <!-- Actual on-disk size of an already-built archive (not an
                    estimate) — omitted entirely until that leaf's build exists. -->
-              <template x-if="row.kind === 'leaf' && formatBytes(archiveSizes[row.path])">
+              <template x-if="row.kind === 'leaf' && !buildingPaths.has(row.path) && formatBytes(archiveSizes[row.path])">
                 <span class="archive-size" x-text="formatBytes(archiveSizes[row.path])"></span>
               </template>
               <!-- Toggle switch (ADMINUI-02, D-06): role=switch, keyboard-operable.

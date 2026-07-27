@@ -229,6 +229,13 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	// enforce superuser auth explicitly.
 	se.Router.DELETE("/region-catalog/{id}/archive", routes.RegionArchiveDelete).Bind(apis.RequireSuperuserAuth())
 
+	// "Sync now": manually trigger the same BuildAll pass the nightly cron
+	// runs, plus a status check the admin page polls. Same superuser-only
+	// posture as the delete route above, and for the same reason (custom Go
+	// routes with no collection rules of their own).
+	se.Router.POST("/region-catalog/sync", routes.RegionSyncStart).Bind(apis.RequireSuperuserAuth())
+	se.Router.GET("/region-catalog/sync", routes.RegionSyncStatus).Bind(apis.RequireSuperuserAuth())
+
 	se.UIExtensions = append(se.UIExtensions, core.UIExtension{
 		Name: "wanderer-region-catalog",
 		FS:   routes.RegionsExtFS(),
