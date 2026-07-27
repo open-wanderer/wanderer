@@ -374,6 +374,10 @@
       transition: background 0.1s;
     }
 
+    .tree-row-clickable {
+      cursor: pointer;
+    }
+
     .tree-row:hover {
       background: var(--surface2);
     }
@@ -1105,10 +1109,12 @@
             <div class="tree-row" role="treeitem"
                  :style="'padding-left:' + (8 + row.depth * 16) + 'px'"
                  :aria-expanded="row.kind === 'group' ? expanded.has(row.id) : null"
+                 :class="row.kind === 'group' ? 'tree-row-clickable' : ''"
+                 @click="row.kind === 'group' && toggleExpand(row.id)"
                  @mouseenter="onLeafHoverStart(row)"
                  @mouseleave="onLeafHoverEnd()">
               <template x-if="row.kind === 'group'">
-                <i class="chevron" @click="toggleExpand(row.id)"
+                <i class="chevron"
                    :class="expanded.has(row.id)
                      ? 'ri-arrow-down-s-line'
                      : 'ri-arrow-right-s-line'"></i>
@@ -1128,7 +1134,7 @@
                       :aria-label="row.kind === 'leaf'
                         ? ((row.enabled ? 'Disable ' : 'Enable ') + row.name)
                         : ((groupState(row) === 'all' ? 'Disable all in ' : 'Enable all in ') + row.name)"
-                      @click="row.kind === 'leaf' ? toggleRegion(row) : toggleGroup(row)"
+                      @click.stop="row.kind === 'leaf' ? toggleRegion(row) : toggleGroup(row)"
                       @keydown.space.prevent="row.kind === 'leaf' ? toggleRegion(row) : toggleGroup(row)"
                       @keydown.enter.prevent="row.kind === 'leaf' ? toggleRegion(row) : toggleGroup(row)">
                 <span class="toggle-thumb"></span>
