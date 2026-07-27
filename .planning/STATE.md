@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
-status: verifying
-stopped_at: Phase 31 context gathered
-last_updated: "2026-07-27T12:04:25.233Z"
-last_activity: 2026-07-27 -- Phase 30 execution started
+status: executing
+stopped_at: Completed 31-01-PLAN.md
+last_updated: "2026-07-27T12:55:39.290Z"
+last_activity: 2026-07-27 -- Phase 31 execution started
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 12
+  completed_plans: 11
   percent: 75
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 30 — admin-region-picker-ui
+**Current focus:** Phase 31 — flutter-settings-hierarchy
 
 ## Current Position
 
-Phase: 30 (admin-region-picker-ui) — EXECUTING
+Phase: 31 (flutter-settings-hierarchy) — EXECUTING
 Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-07-27 -- Phase 30 execution started
+Status: Ready to execute
+Last activity: 2026-07-27 -- Phase 31 execution started
 
 ## v1.7 Phases
 
@@ -126,6 +126,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 29 P03 | 15min | 2 tasks | 5 files |
 | Phase Phase 30 P01 P01 | 20min | 3 tasks | 4 files |
 | Phase 30 P02 | 10min | 2 tasks | 1 files |
+| Phase 31 P01 | 20min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -281,6 +282,9 @@ Recent decisions affecting current work:
 - [Phase 30-02]: addPolygonForRow/removePolygonForRow guard internally on this.map rather than at each toggleRegion call site, keeping toggleRegion's body identical to the RESEARCH.md reference pattern
 - [Phase 30-02]: Map empty-state overlay binds directly to the existing enabledCount getter instead of a separately-tracked flag, since D-06 only restricts re-fitBounds on toggle, not general map-pane reactivity
 - [Phase 30-02]: region_polygons OR-filter chunk size computed per-request from the actual max path length in the enabled set (floor(3400/(maxPathLen+10)), fallback 60), per Research A2, rather than a hardcoded constant
+- [Phase 31]: [31-01] RegionHierarchyRow.parent kept as a required non-null String (never nullable), matching Go's r.GetString semantics exactly — Avoids introducing a null-vs-empty-string distinction that doesn't exist on the wire
+- [Phase 31]: [31-01] flattenVisible returns a record type List<({RegionTreeNode node, int depth})> instead of mutating node.depth — Matches tile_repository_manager.dart's splitRegionTilePaths precedent for a zero-codegen render-time tuple
+- [Phase 31]: [31-01] fetchHierarchyRows has no repository-instantiation round-trip test — No ObjectBox Store-construction pattern exists in this test harness for plain flutter test suites; covered by proxy via parseRegionHierarchyRows
 
 ### Roadmap Evolution
 
@@ -428,9 +432,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-27T12:04:25.205Z
-Stopped at: Phase 31 context gathered
-Resume file: .planning/phases/31-flutter-settings-hierarchy/31-CONTEXT.md
+Last session: 2026-07-27T12:55:39.273Z
+Stopped at: Completed 31-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
