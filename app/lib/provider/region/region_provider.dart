@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/region_entity.dart';
 import 'package:wanderer/models/region_catalog_entry.dart';
+import 'package:wanderer/models/region_hierarchy_row.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
@@ -45,6 +46,34 @@ List<RegionCatalogEntry> parseRegionCatalog(dynamic data) {
     }
   }
   return entries;
+}
+
+/// Parses a bare `GET /api/v1/regions` JSON array into
+/// [RegionHierarchyRow] values (D-05) — a separate path from
+/// [parseRegionCatalog], not a replacement for it (Pitfall 2): the existing
+/// group-row-drop behavior of [parseRegionCatalog] is by design and stays
+/// untouched, since `RegionCatalogEntry`'s ObjectBox-backed pipeline has no
+/// use for hierarchy-only group rows.
+///
+/// A non-`List` payload throws [RegionCatalogException] (unexpected
+/// shape). Individual malformed elements are caught and skipped rather than
+/// aborting the whole parse (T-31-01, extending the [parseRegionCatalog]/
+/// T-22-05 per-element posture) -- one hostile array element cannot corrupt
+/// or block the rest of the hierarchy.
+List<RegionHierarchyRow> parseRegionHierarchyRows(dynamic data) {
+  if (data is! List) {
+    throw const RegionCatalogException('unexpected catalog response shape');
+  }
+
+  final rows = <RegionHierarchyRow>[];
+  for (final element in data) {
+    try {
+      rows.add(RegionHierarchyRow.fromJson(element as Map<String, dynamic>));
+    } catch (_) {
+      // Skip this malformed element; do not abort the whole parse.
+    }
+  }
+  return rows;
 }
 
 /// GETs `/regions` (resolves to the SvelteKit-proxied `/api/v1/regions`) via
@@ -92,6 +121,23 @@ class RegionRepository {
   /// Fetches the catalog only; throws [RegionCatalogException] on failure
   /// without touching any persisted row.
   Future<List<RegionCatalogEntry>> fetchCatalog() => fetchRegionCatalog(_api);
+
+  /// Fetches the SAME `/regions` endpoint as [fetchCatalog] and parses it
+  /// into the full group+leaf hierarchy (D-05) via
+  /// [parseRegionHierarchyRows], reusing [_api] rather than a second HTTP
+  /// client (Assumption A3). Wraps any [DioException] or parse failure in
+  /// [RegionCatalogException], matching [fetchCatalog]'s error-handling
+  /// shape exactly -- no new exception type.
+  Future<List<RegionHierarchyRow>> fetchHierarchyRows() async {
+    try {
+      final response = await _api.get('/regions');
+      return parseRegionHierarchyRows(response.data);
+    } on RegionCatalogException {
+      rethrow;
+    } catch (e) {
+      throw RegionCatalogException('failed to fetch region hierarchy', e);
+    }
+  }
 
   /// Upserts [entries] into ObjectBox by business id inside a single write
   /// transaction: an existing row is merged in place via

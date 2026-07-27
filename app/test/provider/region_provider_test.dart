@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/entities/region_entity.dart';
+import 'package:wanderer/models/region_hierarchy_row.dart';
 import 'package:wanderer/models/region_status.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 
@@ -59,6 +60,94 @@ void main() {
         throwsA(isA<RegionCatalogException>()),
       );
     });
+  });
+
+  group('parseRegionHierarchyRows', () {
+    Map<String, dynamic> groupJson({String id = 'ca-ab'}) => {
+      'id': id,
+      'name': 'Alberta',
+      'kind': 'group',
+      'parent': '',
+      'path': id,
+      'depth': 0,
+      'sort_order': 1,
+    };
+
+    Map<String, dynamic> leafJson({String id = 'ca-ab-banff'}) => {
+      'id': id,
+      'name': 'Banff',
+      'kind': 'leaf',
+      'parent': 'ca-ab',
+      'path': id,
+      'depth': 1,
+      'sort_order': 0,
+    };
+
+    test(
+      'a group-kind fixture (no bbox/status) parses successfully -- the row the leaf parser drops',
+      () {
+        final rows = parseRegionHierarchyRows([groupJson()]);
+
+        expect(rows, hasLength(1));
+        expect(rows.single.kind, RegionNodeKind.group);
+        expect(rows.single.id, 'ca-ab');
+      },
+    );
+
+    test('a leaf-kind fixture also parses', () {
+      final rows = parseRegionHierarchyRows([leafJson()]);
+
+      expect(rows, hasLength(1));
+      expect(rows.single.kind, RegionNodeKind.leaf);
+      expect(rows.single.parent, 'ca-ab');
+    });
+
+    test('a malformed element (missing required id) is skipped, not fatal', () {
+      final rows = parseRegionHierarchyRows([
+        groupJson(),
+        {'name': 'no id here'},
+      ]);
+
+      expect(rows, hasLength(1));
+      expect(rows.single.id, 'ca-ab');
+    });
+
+    test(
+      'sort_order maps from the sort_order JSON key, defaulting to 0 when absent (Pitfall 4)',
+      () {
+        final withSortOrder = parseRegionHierarchyRows([groupJson()]);
+        final withoutSortOrder = parseRegionHierarchyRows([
+          {
+            'id': 'ca-bc',
+            'name': 'British Columbia',
+            'kind': 'group',
+            'parent': '',
+            'path': 'ca-bc',
+            'depth': 0,
+          },
+        ]);
+
+        expect(withSortOrder.single.sortOrder, 1);
+        expect(withoutSortOrder.single.sortOrder, 0);
+      },
+    );
+
+    test('a non-List payload throws RegionCatalogException', () {
+      expect(
+        () => parseRegionHierarchyRows({'items': []}),
+        throwsA(isA<RegionCatalogException>()),
+      );
+    });
+
+    // fetchHierarchyRows itself is not covered by a repository-instantiation
+    // round-trip test here: RegionRepository's constructor also requires an
+    // ObjectBox Store, and this test harness has no established pattern for
+    // opening one in a plain `flutter test` unit test (the only Store-using
+    // files under test/ are on-device spike harnesses, not _test.dart
+    // suites). fetchHierarchyRows delegates its entire response-handling
+    // behavior to parseRegionHierarchyRows (covered above) plus the same
+    // try/catch/rethrow shape already proven by the fetchRegionCatalog
+    // group below, so its behavior is fully exercised by proxy.
   });
 
   group('fetchRegionCatalog', () {
