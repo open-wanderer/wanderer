@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
-status: executing
-stopped_at: Completed 30-01-PLAN.md
-last_updated: "2026-07-27T10:23:28.075Z"
+status: verifying
+stopped_at: Completed 30-02-PLAN.md
+last_updated: "2026-07-27T10:30:12.208Z"
 last_activity: 2026-07-27 -- Phase 30 execution started
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 9
-  percent: 50
+  completed_plans: 10
+  percent: 75
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 Phase: 30 (admin-region-picker-ui) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-27 -- Phase 30 execution started
 
 ## v1.7 Phases
@@ -125,6 +125,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 29 P02 | ~15min | 2 tasks | 3 files |
 | Phase 29 P03 | 15min | 2 tasks | 5 files |
 | Phase Phase 30 P01 P01 | 20min | 3 tasks | 4 files |
+| Phase 30 P02 | 10min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -277,6 +278,9 @@ Recent decisions affecting current work:
 - [Phase 30-01]: Combined Task 1 (HTML shell) and Task 3 (tree fetch/build/flatten/filter) into a single commit since Task 1's stub would be immediately overwritten in the same session
 - [Phase 30-01]: Used MapLibre GL JS 5.24.0 (not UI-SPEC's stale 4.7.1) to match web app's actual installed version
 - [Phase 30-01]: CSP widened beyond federation_ui.go default (unpkg.com, worker-src blob:, tiles.openfreemap.org) to support MapLibre
+- [Phase 30-02]: addPolygonForRow/removePolygonForRow guard internally on this.map rather than at each toggleRegion call site, keeping toggleRegion's body identical to the RESEARCH.md reference pattern
+- [Phase 30-02]: Map empty-state overlay binds directly to the existing enabledCount getter instead of a separately-tracked flag, since D-06 only restricts re-fitBounds on toggle, not general map-pane reactivity
+- [Phase 30-02]: region_polygons OR-filter chunk size computed per-request from the actual max path length in the enabled set (floor(3400/(maxPathLen+10)), fallback 60), per Research A2, rather than a hardcoded constant
 
 ### Roadmap Evolution
 
@@ -424,8 +428,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-27T10:23:28.060Z
-Stopped at: Completed 30-01-PLAN.md
+Last session: 2026-07-27T10:30:12.192Z
+Stopped at: Completed 30-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

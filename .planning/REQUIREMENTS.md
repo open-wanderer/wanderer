@@ -26,8 +26,8 @@
 ### Admin Region Picker UI
 
 - [x] **ADMINUI-01**: A custom PocketBase admin page (AlpineJS bundle, `feature/ap-instance-actors` pattern) renders the region catalog as a collapsible tree
-- [ ] **ADMINUI-02**: The admin toggles a leaf region's `enabled` flag directly from the tree; takes effect on the cron's next run — no other admin action required
-- [ ] **ADMINUI-03**: A live map on the same page renders boundary polygons of all currently-enabled leaf regions, so coverage is visible before committing
+- [x] **ADMINUI-02**: The admin toggles a leaf region's `enabled` flag directly from the tree; takes effect on the cron's next run — no other admin action required
+- [x] **ADMINUI-03**: A live map on the same page renders boundary polygons of all currently-enabled leaf regions, so coverage is visible before committing
 
 ### Flutter Settings Hierarchy
 
@@ -71,8 +71,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXTRACT-02 | Phase 29 | Complete |
 | EXTRACT-03 | Phase 29 | Complete |
 | ADMINUI-01 | Phase 30 | Complete |
-| ADMINUI-02 | Phase 30 | Pending |
-| ADMINUI-03 | Phase 30 | Pending |
+| ADMINUI-02 | Phase 30 | Complete |
+| ADMINUI-03 | Phase 30 | Complete |
 | APPUI-01 | Phase 31 | Pending |
 | APPUI-02 | Phase 31 | Pending |
 

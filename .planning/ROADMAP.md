@@ -306,7 +306,7 @@ Full design settled via `/gsd-explore` — see `.planning/notes/streamlined-regi
 
 - [x] **Phase 28: Region Catalog Data Model & Seeding** — the seeded `regions` table exists and a fresh instance boots with it fully populated (completed 2026-07-25)
 - [x] **Phase 29: Polygon-Based Extraction & Region API** — the archive cron and the client-facing catalog endpoint both read from the new table (completed 2026-07-26)
-- [ ] **Phase 30: Admin Region Picker UI** — a server owner toggles regions on a collapsible tree with a live coverage map
+- [x] **Phase 30: Admin Region Picker UI** — a server owner toggles regions on a collapsible tree with a live coverage map (completed 2026-07-27)
 - [ ] **Phase 31: Flutter Settings Hierarchy** — the app's region list becomes a hierarchy matching the admin tree
 
 #### Sequencing Rationale
@@ -385,7 +385,7 @@ Plans:
 **Plans**: 2 plans (2 waves)
 
 - [x] 30-01-PLAN.md — Custom PocketBase admin page shell + collapsible filterable region tree (ADMINUI-01)
-- [ ] 30-02-PLAN.md — Optimistic leaf toggle + live MapLibre coverage map of enabled polygons (ADMINUI-02, ADMINUI-03)
+- [x] 30-02-PLAN.md — Optimistic leaf toggle + live MapLibre coverage map of enabled polygons (ADMINUI-02, ADMINUI-03)
 
 **UI hint**: yes
 
@@ -452,5 +452,5 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 27. Legacy Cleanup | v1.6 | 2/2 | Complete    | 2026-07-24 |
 | 28. Region Catalog Data Model & Seeding | v1.7 | 4/4 | Complete    | 2026-07-26 |
 | 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
-| 30. Admin Region Picker UI | v1.7 | 1/2 | In Progress|  |
+| 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 0/TBD | Not started | - |
