@@ -25,8 +25,8 @@ import (
 // always carries the hierarchy fields id/name/kind/parent/path/depth; leaf
 // rows additionally carry bbox/enabled and the existing build-state shape
 // (status/version/vector_url/vector_size/dem_status/dem_url/dem_size/error),
-// joined to region_archives on region_id == the leaf's path (A2 — path is
-// the provably-unique seeded key, not the record's own opaque id).
+// joined to region_archives on region_archives.path == the leaf's path (A2 —
+// path is the provably-unique seeded key, not the record's own opaque id).
 //
 // Auth is enforced at the route-group level in main.go (apis.RequireAuth()),
 // so — unlike map_cells_id.go's unauthenticated /map/cells routes — every
@@ -70,7 +70,7 @@ func RegionsList(e *core.RequestEvent) error {
 		entry["enabled"] = r.GetBool("enabled")
 
 		archiveRecords, _ := e.App.FindAllRecords("region_archives",
-			dbx.NewExp("region_id = {:id}", dbx.Params{"id": path}),
+			dbx.NewExp("path = {:path}", dbx.Params{"path": path}),
 		)
 
 		if len(archiveRecords) == 0 {

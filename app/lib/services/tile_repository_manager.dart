@@ -213,7 +213,7 @@ class TileRepositoryManager {
 
     try {
       await _download(
-        requestPath: _requestPathFor(id, dem: false),
+        requestPath: _requestPathFor(region.path, dem: false),
         partPath: partPath,
         cancelToken: token,
         onProgress: onProgress,
@@ -312,7 +312,7 @@ class TileRepositoryManager {
 
     try {
       await _download(
-        requestPath: _requestPathFor(id, dem: true),
+        requestPath: _requestPathFor(region.path, dem: true),
         partPath: partPath,
         cancelToken: token,
         onProgress: onProgress,
@@ -481,19 +481,24 @@ class TileRepositoryManager {
     return region;
   }
 
-  /// Builds `/regions/<validatedId>/download[-dem]` from the validated
-  /// region id — NEVER from `region.vectorUrl`/`region.demUrl`. Those
-  /// catalog-declared strings are `/api/v1/regions/<id>/download` (the
-  /// backend prefixes them), but the Dio client's `baseUrl` already ends in
-  /// `/api/v1`, so passing them verbatim would double-prefix to
-  /// `/api/v1/api/v1/...` and 404. Building from the validated id also keeps
-  /// the request path off any catalog-sourced string (defense in depth,
-  /// T-23-01) — `vectorUrl`/`demUrl` are only used as an "archive is ready"
-  /// availability gate, never as the request URL.
-  String _requestPathFor(String validatedId, {required bool dem}) {
+  /// Builds `/regions/<path>/download[-dem]` from the region's materialized
+  /// `path` (e.g. `canada.alberta.south`) — the key the backend names every
+  /// archive dir and download URL after (`RegionsList` in
+  /// `db/routes/regions_get.go`). NOT the region's `id`: that is the opaque
+  /// PocketBase record id, used only for local storage dir names, and sending
+  /// it here 404s because no archive dir is named after it.
+  ///
+  /// The Dio client's `baseUrl` already ends in `/api/v1`, so this returns a
+  /// `/regions/...` path (no `/api/v1` prefix) — the catalog's
+  /// `vector_url`/`demUrl` carry that prefix and are used only as an
+  /// "archive is ready" availability gate, never as the request URL. The
+  /// `path` is validated via [assertValidRegionPath] before it reaches the
+  /// URL (defense in depth, T-23-01).
+  String _requestPathFor(String path, {required bool dem}) {
+    final validated = assertValidRegionPath(path);
     return dem
-        ? '/regions/$validatedId/download-dem'
-        : '/regions/$validatedId/download';
+        ? '/regions/$validated/download-dem'
+        : '/regions/$validated/download';
   }
 
   /// Downloads [requestPath] to [partPath] from scratch, always overwriting

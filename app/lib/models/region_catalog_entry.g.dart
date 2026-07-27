@@ -9,6 +9,7 @@ part of 'region_catalog_entry.dart';
 _RegionCatalogEntry _$RegionCatalogEntryFromJson(Map<String, dynamic> json) =>
     _RegionCatalogEntry(
       id: json['id'] as String,
+      path: json['path'] as String,
       name: json['name'] as String,
       bbox: (json['bbox'] as List<dynamic>)
           .map((e) => (e as num).toDouble())
@@ -29,6 +30,7 @@ _RegionCatalogEntry _$RegionCatalogEntryFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$RegionCatalogEntryToJson(_RegionCatalogEntry instance) =>
     <String, dynamic>{
       'id': instance.id,
+      'path': instance.path,
       'name': instance.name,
       'bbox': instance.bbox,
       'status': _$CatalogStatusEnumMap[instance.status]!,

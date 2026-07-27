@@ -177,20 +177,22 @@ void main() {
     test('maps bbox/catalog fields and leaves local-only fields unset', () {
       final entry = RegionCatalogEntry(
         id: 'de-nrw',
+        path: 'germany.north_rhine_westphalia',
         name: 'North Rhine-Westphalia',
         bbox: [5.9, 50.3, 9.5, 52.5],
         status: CatalogStatus.ready,
         version: '2026-07-01',
-        vectorUrl: '/api/v1/regions/de-nrw/download',
+        vectorUrl: '/api/v1/regions/germany.north_rhine_westphalia/download',
         vectorSize: 123,
         demStatus: CatalogStatus.ready,
-        demUrl: '/api/v1/regions/de-nrw/download-dem',
+        demUrl: '/api/v1/regions/germany.north_rhine_westphalia/download-dem',
         demSize: 456,
       );
 
       final entity = RegionEntity.fromCatalogEntry(entry);
 
       expect(entity.id, 'de-nrw');
+      expect(entity.path, 'germany.north_rhine_westphalia');
       expect(entity.name, 'North Rhine-Westphalia');
       expect(entity.minLon, 5.9);
       expect(entity.minLat, 50.3);
@@ -199,9 +201,15 @@ void main() {
       expect(entity.catalogStatus, CatalogStatus.ready);
       expect(entity.demStatus, CatalogStatus.ready);
       expect(entity.version, '2026-07-01');
-      expect(entity.vectorUrl, '/api/v1/regions/de-nrw/download');
+      expect(
+        entity.vectorUrl,
+        '/api/v1/regions/germany.north_rhine_westphalia/download',
+      );
       expect(entity.vectorSize, 123);
-      expect(entity.demUrl, '/api/v1/regions/de-nrw/download-dem');
+      expect(
+        entity.demUrl,
+        '/api/v1/regions/germany.north_rhine_westphalia/download-dem',
+      );
       expect(entity.demSize, 456);
       expect(entity.inCatalog, isTrue);
       expect(entity.lastDownloadedVersion, isNull);
@@ -212,6 +220,7 @@ void main() {
     test('missing demStatus maps to CatalogStatus.absent', () {
       final entry = RegionCatalogEntry(
         id: 'de-bay',
+        path: 'germany.bavaria',
         name: 'Bavaria',
         bbox: [8.9, 47.2, 13.9, 50.6],
         status: CatalogStatus.building,
@@ -225,6 +234,7 @@ void main() {
     test('throws FormatException on a malformed bbox', () {
       final entry = RegionCatalogEntry(
         id: 'de-bad',
+        path: 'germany.bad',
         name: 'Bad',
         bbox: [1.0, 2.0, 3.0],
         status: CatalogStatus.building,
@@ -238,7 +248,11 @@ void main() {
     test(
       'overwrites only catalog-owned fields, preserves obxId/links/lastDownloadedVersion',
       () {
-        final entity = RegionEntity(id: 'de-nrw', name: 'Old Name');
+        final entity = RegionEntity(
+          id: 'de-nrw',
+          path: 'germany.old_path',
+          name: 'Old Name',
+        );
         entity.obxId = 7;
         final vectorPkg = DownloadedTilePackageEntity(
           status: PackageStatus.downloaded,
@@ -248,6 +262,7 @@ void main() {
 
         final entry = RegionCatalogEntry(
           id: 'de-nrw',
+          path: 'germany.north_rhine_westphalia',
           name: 'New Name',
           bbox: [5.9, 50.3, 9.5, 52.5],
           status: CatalogStatus.ready,
@@ -257,6 +272,7 @@ void main() {
         entity.applyCatalogEntry(entry);
 
         expect(entity.name, 'New Name');
+        expect(entity.path, 'germany.north_rhine_westphalia');
         expect(entity.version, '2026-07-01');
         expect(entity.catalogStatus, CatalogStatus.ready);
         expect(entity.obxId, 7);
@@ -269,6 +285,7 @@ void main() {
       final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
       final entry = RegionCatalogEntry(
         id: 'de-nrw',
+        path: 'germany.north_rhine_westphalia',
         name: 'NRW',
         bbox: [1.0, 2.0],
         status: CatalogStatus.building,

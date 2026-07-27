@@ -15,7 +15,11 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$RegionCatalogEntry {
 
- String get id; String get name;/// `[minLon, minLat, maxLon, maxLat]` — matches `generator.go`'s pmtiles
+ String get id;/// The region's materialized `path` (e.g. `canada.alberta.south`) — the
+/// key the backend names every on-disk archive dir and download URL after
+/// (`RegionsList` in `db/routes/regions_get.go`). Distinct from [id],
+/// which is the opaque PocketBase record id used only for local storage.
+ String get path; String get name;/// `[minLon, minLat, maxLon, maxLat]` — matches `generator.go`'s pmtiles
 /// extract argument order and the region archive path builders.
  List<double> get bbox; CatalogStatus get status; String? get version;@JsonKey(name: 'vector_url') String? get vectorUrl;@JsonKey(name: 'vector_size') int? get vectorSize;@JsonKey(name: 'dem_status') CatalogStatus? get demStatus;@JsonKey(name: 'dem_url') String? get demUrl;@JsonKey(name: 'dem_size') int? get demSize; String? get error;
 /// Create a copy of RegionCatalogEntry
@@ -30,16 +34,16 @@ $RegionCatalogEntryCopyWith<RegionCatalogEntry> get copyWith => _$RegionCatalogE
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionCatalogEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other.bbox, bbox)&&(identical(other.status, status) || other.status == status)&&(identical(other.version, version) || other.version == version)&&(identical(other.vectorUrl, vectorUrl) || other.vectorUrl == vectorUrl)&&(identical(other.vectorSize, vectorSize) || other.vectorSize == vectorSize)&&(identical(other.demStatus, demStatus) || other.demStatus == demStatus)&&(identical(other.demUrl, demUrl) || other.demUrl == demUrl)&&(identical(other.demSize, demSize) || other.demSize == demSize)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionCatalogEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.path, path) || other.path == path)&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other.bbox, bbox)&&(identical(other.status, status) || other.status == status)&&(identical(other.version, version) || other.version == version)&&(identical(other.vectorUrl, vectorUrl) || other.vectorUrl == vectorUrl)&&(identical(other.vectorSize, vectorSize) || other.vectorSize == vectorSize)&&(identical(other.demStatus, demStatus) || other.demStatus == demStatus)&&(identical(other.demUrl, demUrl) || other.demUrl == demUrl)&&(identical(other.demSize, demSize) || other.demSize == demSize)&&(identical(other.error, error) || other.error == error));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,const DeepCollectionEquality().hash(bbox),status,version,vectorUrl,vectorSize,demStatus,demUrl,demSize,error);
+int get hashCode => Object.hash(runtimeType,id,path,name,const DeepCollectionEquality().hash(bbox),status,version,vectorUrl,vectorSize,demStatus,demUrl,demSize,error);
 
 @override
 String toString() {
-  return 'RegionCatalogEntry(id: $id, name: $name, bbox: $bbox, status: $status, version: $version, vectorUrl: $vectorUrl, vectorSize: $vectorSize, demStatus: $demStatus, demUrl: $demUrl, demSize: $demSize, error: $error)';
+  return 'RegionCatalogEntry(id: $id, path: $path, name: $name, bbox: $bbox, status: $status, version: $version, vectorUrl: $vectorUrl, vectorSize: $vectorSize, demStatus: $demStatus, demUrl: $demUrl, demSize: $demSize, error: $error)';
 }
 
 
@@ -50,7 +54,7 @@ abstract mixin class $RegionCatalogEntryCopyWith<$Res>  {
   factory $RegionCatalogEntryCopyWith(RegionCatalogEntry value, $Res Function(RegionCatalogEntry) _then) = _$RegionCatalogEntryCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, List<double> bbox, CatalogStatus status, String? version,@JsonKey(name: 'vector_url') String? vectorUrl,@JsonKey(name: 'vector_size') int? vectorSize,@JsonKey(name: 'dem_status') CatalogStatus? demStatus,@JsonKey(name: 'dem_url') String? demUrl,@JsonKey(name: 'dem_size') int? demSize, String? error
+ String id, String path, String name, List<double> bbox, CatalogStatus status, String? version,@JsonKey(name: 'vector_url') String? vectorUrl,@JsonKey(name: 'vector_size') int? vectorSize,@JsonKey(name: 'dem_status') CatalogStatus? demStatus,@JsonKey(name: 'dem_url') String? demUrl,@JsonKey(name: 'dem_size') int? demSize, String? error
 });
 
 
@@ -67,9 +71,10 @@ class _$RegionCatalogEntryCopyWithImpl<$Res>
 
 /// Create a copy of RegionCatalogEntry
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? bbox = null,Object? status = null,Object? version = freezed,Object? vectorUrl = freezed,Object? vectorSize = freezed,Object? demStatus = freezed,Object? demUrl = freezed,Object? demSize = freezed,Object? error = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? path = null,Object? name = null,Object? bbox = null,Object? status = null,Object? version = freezed,Object? vectorUrl = freezed,Object? vectorSize = freezed,Object? demStatus = freezed,Object? demUrl = freezed,Object? demSize = freezed,Object? error = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,bbox: null == bbox ? _self.bbox : bbox // ignore: cast_nullable_to_non_nullable
 as List<double>,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
@@ -165,10 +170,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  List<double> bbox,  CatalogStatus status,  String? version, @JsonKey(name: 'vector_url')  String? vectorUrl, @JsonKey(name: 'vector_size')  int? vectorSize, @JsonKey(name: 'dem_status')  CatalogStatus? demStatus, @JsonKey(name: 'dem_url')  String? demUrl, @JsonKey(name: 'dem_size')  int? demSize,  String? error)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String path,  String name,  List<double> bbox,  CatalogStatus status,  String? version, @JsonKey(name: 'vector_url')  String? vectorUrl, @JsonKey(name: 'vector_size')  int? vectorSize, @JsonKey(name: 'dem_status')  CatalogStatus? demStatus, @JsonKey(name: 'dem_url')  String? demUrl, @JsonKey(name: 'dem_size')  int? demSize,  String? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _RegionCatalogEntry() when $default != null:
-return $default(_that.id,_that.name,_that.bbox,_that.status,_that.version,_that.vectorUrl,_that.vectorSize,_that.demStatus,_that.demUrl,_that.demSize,_that.error);case _:
+return $default(_that.id,_that.path,_that.name,_that.bbox,_that.status,_that.version,_that.vectorUrl,_that.vectorSize,_that.demStatus,_that.demUrl,_that.demSize,_that.error);case _:
   return orElse();
 
 }
@@ -186,10 +191,10 @@ return $default(_that.id,_that.name,_that.bbox,_that.status,_that.version,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  List<double> bbox,  CatalogStatus status,  String? version, @JsonKey(name: 'vector_url')  String? vectorUrl, @JsonKey(name: 'vector_size')  int? vectorSize, @JsonKey(name: 'dem_status')  CatalogStatus? demStatus, @JsonKey(name: 'dem_url')  String? demUrl, @JsonKey(name: 'dem_size')  int? demSize,  String? error)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String path,  String name,  List<double> bbox,  CatalogStatus status,  String? version, @JsonKey(name: 'vector_url')  String? vectorUrl, @JsonKey(name: 'vector_size')  int? vectorSize, @JsonKey(name: 'dem_status')  CatalogStatus? demStatus, @JsonKey(name: 'dem_url')  String? demUrl, @JsonKey(name: 'dem_size')  int? demSize,  String? error)  $default,) {final _that = this;
 switch (_that) {
 case _RegionCatalogEntry():
-return $default(_that.id,_that.name,_that.bbox,_that.status,_that.version,_that.vectorUrl,_that.vectorSize,_that.demStatus,_that.demUrl,_that.demSize,_that.error);case _:
+return $default(_that.id,_that.path,_that.name,_that.bbox,_that.status,_that.version,_that.vectorUrl,_that.vectorSize,_that.demStatus,_that.demUrl,_that.demSize,_that.error);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -206,10 +211,10 @@ return $default(_that.id,_that.name,_that.bbox,_that.status,_that.version,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  List<double> bbox,  CatalogStatus status,  String? version, @JsonKey(name: 'vector_url')  String? vectorUrl, @JsonKey(name: 'vector_size')  int? vectorSize, @JsonKey(name: 'dem_status')  CatalogStatus? demStatus, @JsonKey(name: 'dem_url')  String? demUrl, @JsonKey(name: 'dem_size')  int? demSize,  String? error)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String path,  String name,  List<double> bbox,  CatalogStatus status,  String? version, @JsonKey(name: 'vector_url')  String? vectorUrl, @JsonKey(name: 'vector_size')  int? vectorSize, @JsonKey(name: 'dem_status')  CatalogStatus? demStatus, @JsonKey(name: 'dem_url')  String? demUrl, @JsonKey(name: 'dem_size')  int? demSize,  String? error)?  $default,) {final _that = this;
 switch (_that) {
 case _RegionCatalogEntry() when $default != null:
-return $default(_that.id,_that.name,_that.bbox,_that.status,_that.version,_that.vectorUrl,_that.vectorSize,_that.demStatus,_that.demUrl,_that.demSize,_that.error);case _:
+return $default(_that.id,_that.path,_that.name,_that.bbox,_that.status,_that.version,_that.vectorUrl,_that.vectorSize,_that.demStatus,_that.demUrl,_that.demSize,_that.error);case _:
   return null;
 
 }
@@ -221,10 +226,15 @@ return $default(_that.id,_that.name,_that.bbox,_that.status,_that.version,_that.
 @JsonSerializable()
 
 class _RegionCatalogEntry implements RegionCatalogEntry {
-  const _RegionCatalogEntry({required this.id, required this.name, required final  List<double> bbox, required this.status, this.version, @JsonKey(name: 'vector_url') this.vectorUrl, @JsonKey(name: 'vector_size') this.vectorSize, @JsonKey(name: 'dem_status') this.demStatus, @JsonKey(name: 'dem_url') this.demUrl, @JsonKey(name: 'dem_size') this.demSize, this.error}): _bbox = bbox;
+  const _RegionCatalogEntry({required this.id, required this.path, required this.name, required final  List<double> bbox, required this.status, this.version, @JsonKey(name: 'vector_url') this.vectorUrl, @JsonKey(name: 'vector_size') this.vectorSize, @JsonKey(name: 'dem_status') this.demStatus, @JsonKey(name: 'dem_url') this.demUrl, @JsonKey(name: 'dem_size') this.demSize, this.error}): _bbox = bbox;
   factory _RegionCatalogEntry.fromJson(Map<String, dynamic> json) => _$RegionCatalogEntryFromJson(json);
 
 @override final  String id;
+/// The region's materialized `path` (e.g. `canada.alberta.south`) — the
+/// key the backend names every on-disk archive dir and download URL after
+/// (`RegionsList` in `db/routes/regions_get.go`). Distinct from [id],
+/// which is the opaque PocketBase record id used only for local storage.
+@override final  String path;
 @override final  String name;
 /// `[minLon, minLat, maxLon, maxLat]` — matches `generator.go`'s pmtiles
 /// extract argument order and the region archive path builders.
@@ -259,16 +269,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionCatalogEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other._bbox, _bbox)&&(identical(other.status, status) || other.status == status)&&(identical(other.version, version) || other.version == version)&&(identical(other.vectorUrl, vectorUrl) || other.vectorUrl == vectorUrl)&&(identical(other.vectorSize, vectorSize) || other.vectorSize == vectorSize)&&(identical(other.demStatus, demStatus) || other.demStatus == demStatus)&&(identical(other.demUrl, demUrl) || other.demUrl == demUrl)&&(identical(other.demSize, demSize) || other.demSize == demSize)&&(identical(other.error, error) || other.error == error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionCatalogEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.path, path) || other.path == path)&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other._bbox, _bbox)&&(identical(other.status, status) || other.status == status)&&(identical(other.version, version) || other.version == version)&&(identical(other.vectorUrl, vectorUrl) || other.vectorUrl == vectorUrl)&&(identical(other.vectorSize, vectorSize) || other.vectorSize == vectorSize)&&(identical(other.demStatus, demStatus) || other.demStatus == demStatus)&&(identical(other.demUrl, demUrl) || other.demUrl == demUrl)&&(identical(other.demSize, demSize) || other.demSize == demSize)&&(identical(other.error, error) || other.error == error));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,const DeepCollectionEquality().hash(_bbox),status,version,vectorUrl,vectorSize,demStatus,demUrl,demSize,error);
+int get hashCode => Object.hash(runtimeType,id,path,name,const DeepCollectionEquality().hash(_bbox),status,version,vectorUrl,vectorSize,demStatus,demUrl,demSize,error);
 
 @override
 String toString() {
-  return 'RegionCatalogEntry(id: $id, name: $name, bbox: $bbox, status: $status, version: $version, vectorUrl: $vectorUrl, vectorSize: $vectorSize, demStatus: $demStatus, demUrl: $demUrl, demSize: $demSize, error: $error)';
+  return 'RegionCatalogEntry(id: $id, path: $path, name: $name, bbox: $bbox, status: $status, version: $version, vectorUrl: $vectorUrl, vectorSize: $vectorSize, demStatus: $demStatus, demUrl: $demUrl, demSize: $demSize, error: $error)';
 }
 
 
@@ -279,7 +289,7 @@ abstract mixin class _$RegionCatalogEntryCopyWith<$Res> implements $RegionCatalo
   factory _$RegionCatalogEntryCopyWith(_RegionCatalogEntry value, $Res Function(_RegionCatalogEntry) _then) = __$RegionCatalogEntryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, List<double> bbox, CatalogStatus status, String? version,@JsonKey(name: 'vector_url') String? vectorUrl,@JsonKey(name: 'vector_size') int? vectorSize,@JsonKey(name: 'dem_status') CatalogStatus? demStatus,@JsonKey(name: 'dem_url') String? demUrl,@JsonKey(name: 'dem_size') int? demSize, String? error
+ String id, String path, String name, List<double> bbox, CatalogStatus status, String? version,@JsonKey(name: 'vector_url') String? vectorUrl,@JsonKey(name: 'vector_size') int? vectorSize,@JsonKey(name: 'dem_status') CatalogStatus? demStatus,@JsonKey(name: 'dem_url') String? demUrl,@JsonKey(name: 'dem_size') int? demSize, String? error
 });
 
 
@@ -296,9 +306,10 @@ class __$RegionCatalogEntryCopyWithImpl<$Res>
 
 /// Create a copy of RegionCatalogEntry
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? bbox = null,Object? status = null,Object? version = freezed,Object? vectorUrl = freezed,Object? vectorSize = freezed,Object? demStatus = freezed,Object? demUrl = freezed,Object? demSize = freezed,Object? error = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? path = null,Object? name = null,Object? bbox = null,Object? status = null,Object? version = freezed,Object? vectorUrl = freezed,Object? vectorSize = freezed,Object? demStatus = freezed,Object? demUrl = freezed,Object? demSize = freezed,Object? error = freezed,}) {
   return _then(_RegionCatalogEntry(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as String,path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,bbox: null == bbox ? _self._bbox : bbox // ignore: cast_nullable_to_non_nullable
 as List<double>,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable

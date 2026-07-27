@@ -45,6 +45,46 @@ void main() {
     });
   });
 
+  group('isValidRegionPath', () {
+    test('accepts dotted materialized paths the id validator rejects', () {
+      expect(isValidRegionPath('canada.alberta.south'), isTrue);
+      expect(isValidRegionPath('germany.north_rhine_westphalia'), isTrue);
+      expect(isValidRegionPath("people's_republic_of_china"), isTrue);
+      expect(isValidRegionPath('a'), isTrue);
+      // A plain record-id-shaped value is still a valid path.
+      expect(isValidRegionPath('de-nrw'), isTrue);
+    });
+
+    test('rejects traversal, uppercase, empty, and leading-separator paths', () {
+      expect(isValidRegionPath('../etc'), isFalse);
+      expect(isValidRegionPath('a..b'), isFalse);
+      expect(isValidRegionPath('..'), isFalse);
+      expect(isValidRegionPath(''), isFalse);
+      expect(isValidRegionPath('Canada.Alberta'), isFalse);
+      expect(isValidRegionPath('a/b'), isFalse);
+      expect(isValidRegionPath('.canada'), isFalse);
+    });
+  });
+
+  group('assertValidRegionPath', () {
+    test('returns the path unchanged when valid', () {
+      expect(
+        assertValidRegionPath('canada.alberta.south'),
+        'canada.alberta.south',
+      );
+    });
+
+    test('throws ArgumentError for an invalid path', () {
+      expect(() => assertValidRegionPath('../evil'), throwsArgumentError);
+      expect(() => assertValidRegionPath('a..b'), throwsArgumentError);
+      expect(() => assertValidRegionPath(''), throwsArgumentError);
+      expect(
+        () => assertValidRegionPath('Canada.Alberta'),
+        throwsArgumentError,
+      );
+    });
+  });
+
   group('regionStorageDir', () {
     test('builds a root-rooted region directory', () {
       final dir = regionStorageDir(root, 'de-nrw');

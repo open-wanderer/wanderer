@@ -153,6 +153,13 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordCreate("api_tokens").BindFunc(hooks.CreateAPITokenHandler())
 
+	// Path-based referential integrity: region_archives/region_polygons rows
+	// must reference an existing regions.path (there is no PocketBase relation
+	// between them — the join is on the stable path natural key). Model hooks
+	// (not *Request) so internal builder/seed writes are covered too.
+	app.OnRecordCreate("region_archives", "region_polygons").BindFunc(hooks.ValidateRegionPathReferenceHandler())
+	app.OnRecordUpdate("region_archives", "region_polygons").BindFunc(hooks.ValidateRegionPathReferenceHandler())
+
 	app.OnRecordCreateRequest().BindFunc(util.SanitizeHTML())
 	app.OnRecordUpdateRequest().BindFunc(util.SanitizeHTML())
 
@@ -171,6 +178,13 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 		registerRoutes(se, client)
 		registerCronJobs(se.App, client)
 		initData(se.App, client)
+
+		// Startup GC: drop region_archives rows whose backing pmtiles files
+		// have vanished from disk (manual deletion / wiped cache volume). Never
+		// fatal — a failure here must not block serving.
+		if err := regions.ReconcileArchives(se.App); err != nil {
+			se.App.Logger().Warn("failed to reconcile region archives on startup", "error", err)
+		}
 
 		return se.Next()
 	}

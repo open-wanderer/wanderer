@@ -257,8 +257,8 @@ func buildRegion(app core.App, record *core.Record) {
 
 // findOrCreateRegionRecord finds the region_archives record for regionID,
 // creating one (status/dem_status "building") if none exists yet. Mirrors
-// the per-cell generator's findOrCreateRecord shape. region_id now stores
-// regions.path (A2), not an admin-typed slug.
+// the per-cell generator's findOrCreateRecord shape. regionID is a
+// regions.path value (A2), stored in the region_archives.path field.
 func findOrCreateRegionRecord(app core.App, regionID, name string, bbox [4]float64) (*core.Record, error) {
 	collection, err := app.FindCollectionByNameOrId("region_archives")
 	if err != nil {
@@ -266,7 +266,7 @@ func findOrCreateRegionRecord(app core.App, regionID, name string, bbox [4]float
 	}
 
 	records, err := app.FindAllRecords("region_archives",
-		dbx.NewExp("region_id = {:id}", dbx.Params{"id": regionID}),
+		dbx.NewExp("path = {:path}", dbx.Params{"path": regionID}),
 	)
 	if err != nil {
 		return nil, err
@@ -277,7 +277,7 @@ func findOrCreateRegionRecord(app core.App, regionID, name string, bbox [4]float
 	}
 
 	record := core.NewRecord(collection)
-	record.Set("region_id", regionID)
+	record.Set("path", regionID)
 	record.Set("name", name)
 	record.Set("min_lon", bbox[0])
 	record.Set("min_lat", bbox[1])

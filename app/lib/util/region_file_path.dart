@@ -35,6 +35,32 @@ String assertValidRegionId(String id) {
   return id;
 }
 
+/// Byte-for-byte the same shape as the backend's region-`path` allow-list
+/// (`regionIDPattern` in `db/services/regions/config.go`): lowercase
+/// alphanumerics plus `_`, `.`, `'`, `-`; must start with an alphanumeric.
+/// Unlike [regionIdPattern] this permits the `.` separator that a
+/// materialized region path carries (e.g. `canada.alberta.south`). A path
+/// containing `..` is additionally rejected as a path-traversal guard,
+/// mirroring the backend's `IsValidRegionID`.
+final RegExp regionPathPattern = RegExp(r"^[a-z0-9][a-z0-9_.'-]*$");
+
+/// Whether [path] matches the region-path allow-list and carries no `..`.
+bool isValidRegionPath(String path) =>
+    regionPathPattern.hasMatch(path) && !path.contains('..');
+
+/// Returns [path] unchanged if valid; otherwise throws [ArgumentError] — no
+/// download URL may be built from a path that fails this check (T-23-01).
+String assertValidRegionPath(String path) {
+  if (!isValidRegionPath(path)) {
+    throw ArgumentError.value(
+      path,
+      'regionPath',
+      r"must match ^[a-z0-9][a-z0-9_.'-]*$ and contain no '..'",
+    );
+  }
+  return path;
+}
+
 /// Build the on-disk storage directory for a region under [root]:
 /// `<root>/regions/<id>/`. Throws [ArgumentError] if [id] is invalid.
 String regionStorageDir(String root, String id) {

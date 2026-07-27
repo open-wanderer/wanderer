@@ -5,21 +5,23 @@ import 'package:wanderer/models/region_hierarchy_row.dart';
 import 'package:wanderer/models/region_status.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 
-Map<String, dynamic> _fullReadyJson({String id = 'de-nrw'}) => {
+Map<String, dynamic> _fullReadyJson({String id = 'de-nrw', String? path}) => {
   'id': id,
+  'path': path ?? id,
   'name': 'North Rhine-Westphalia',
   'bbox': [5.9, 50.3, 9.5, 52.5],
   'status': 'ready',
   'version': '2026-07-01',
-  'vector_url': '/api/v1/regions/$id/download',
+  'vector_url': '/api/v1/regions/${path ?? id}/download',
   'vector_size': 123456,
   'dem_status': 'ready',
-  'dem_url': '/api/v1/regions/$id/download-dem',
+  'dem_url': '/api/v1/regions/${path ?? id}/download-dem',
   'dem_size': 654321,
 };
 
-Map<String, dynamic> _minimalBuildingJson({String id = 'de-bay'}) => {
+Map<String, dynamic> _minimalBuildingJson({String id = 'de-bay', String? path}) => {
   'id': id,
+  'path': path ?? id,
   'name': 'Bavaria',
   'bbox': [8.9, 47.2, 13.9, 50.6],
   'status': 'building',

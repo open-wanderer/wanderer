@@ -897,7 +897,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(12, 7228865513396600510),
     name: 'RegionEntity',
-    lastPropertyId: const obx_int.IdUid(19, 7368931415973576532),
+    lastPropertyId: const obx_int.IdUid(20, 4586267527719177846),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1020,6 +1020,12 @@ final _entities = <obx_int.ModelEntity>[
         indexId: const obx_int.IdUid(21, 8934601337546040437),
         relationField: 'demPackage',
         relationTarget: 'DownloadedTilePackageEntity',
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(20, 4586267527719177846),
+        name: 'path',
+        type: 9,
+        flags: 0,
       ),
     ],
     relations: <obx_int.ModelRelation>[],
@@ -2234,7 +2240,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final lastDownloadedVersionOffset = object.lastDownloadedVersion == null
             ? null
             : fbb.writeString(object.lastDownloadedVersion!);
-        fbb.startTable(20);
+        final pathOffset = fbb.writeString(object.path);
+        fbb.startTable(21);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -2254,6 +2261,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addInt64(16, object.dbDemStatus);
         fbb.addInt64(17, object.vectorPackage.targetId);
         fbb.addInt64(18, object.demPackage.targetId);
+        fbb.addOffset(19, pathOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -2263,6 +2271,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final idParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 6, '');
+        final pathParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 42, '');
         final nameParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 8, '');
@@ -2324,6 +2335,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final object =
             RegionEntity(
                 id: idParam,
+                path: pathParam,
                 name: nameParam,
                 minLon: minLonParam,
                 minLat: minLatParam,
@@ -3138,4 +3150,9 @@ class RegionEntity_ {
       obx.QueryRelationToOne<RegionEntity, DownloadedTilePackageEntity>(
         _entities[10].properties[18],
       );
+
+  /// See [RegionEntity.path].
+  static final path = obx.QueryStringProperty<RegionEntity>(
+    _entities[10].properties[19],
+  );
 }

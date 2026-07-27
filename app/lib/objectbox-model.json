@@ -740,7 +740,7 @@
     },
     {
       "id": "12:7228865513396600510",
-      "lastPropertyId": "19:7368931415973576532",
+      "lastPropertyId": "20:4586267527719177846",
       "name": "RegionEntity",
       "properties": [
         {
@@ -846,6 +846,11 @@
           "type": 11,
           "flags": 520,
           "relationTarget": "DownloadedTilePackageEntity"
+        },
+        {
+          "id": "20:4586267527719177846",
+          "name": "path",
+          "type": 9
         }
       ],
       "relations": []

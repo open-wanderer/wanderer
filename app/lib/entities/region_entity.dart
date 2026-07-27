@@ -24,6 +24,15 @@ class RegionEntity {
   // applyCatalogEntry) ---
   String name;
 
+  /// The region's materialized `path` (e.g. `canada.alberta.south`) — the key
+  /// the backend names every archive dir and download URL after. Distinct
+  /// from [id] (the opaque record id used only for local storage dirs). The
+  /// download request URL is built from this, not [id] (see
+  /// `TileRepositoryManager._requestPathFor`). Defaults `''` so ObjectBox's
+  /// add-column migration leaves pre-existing rows valid; a catalog refresh
+  /// repopulates it via [applyCatalogEntry].
+  String path = '';
+
   /// bbox stored as four discrete fields (not a List) — ObjectBox has no
   /// native `List<double>` column support for this shape; matches
   /// `db/routes/regions_get.go`'s `[minLon, minLat, maxLon, maxLat]` order.
@@ -122,6 +131,7 @@ class RegionEntity {
 
   RegionEntity({
     required this.id,
+    this.path = '',
     required this.name,
     this.minLon = 0,
     this.minLat = 0,
@@ -154,6 +164,7 @@ class RegionEntity {
 
     return RegionEntity(
       id: entry.id,
+      path: entry.path,
       name: entry.name,
       minLon: entry.bbox[0],
       minLat: entry.bbox[1],
@@ -184,6 +195,7 @@ class RegionEntity {
     }
 
     name = entry.name;
+    path = entry.path;
     minLon = entry.bbox[0];
     minLat = entry.bbox[1];
     maxLon = entry.bbox[2];

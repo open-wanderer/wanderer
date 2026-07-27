@@ -45,7 +45,7 @@ func RegionArchiveDelete(e *core.RequestEvent) error {
 	_ = os.Remove(filepath.Join(regions.RegionCacheDir, id))
 
 	records, err := e.App.FindAllRecords("region_archives",
-		dbx.NewExp("region_id = {:id}", dbx.Params{"id": id}),
+		dbx.NewExp("path = {:path}", dbx.Params{"path": id}),
 	)
 	if err != nil {
 		return e.InternalServerError("failed to load region_archives record", err)
