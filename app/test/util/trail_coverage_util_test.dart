@@ -223,25 +223,64 @@ void main() {
       },
     );
 
-    test('notDownloaded overlapping region is included in missing', () {
-      final trail = trailWithBbox(
-        minLon: 0,
-        minLat: 0,
-        maxLon: 10,
-        maxLat: 10,
-      );
-      final notDownloaded = regionWithBbox(
-        id: 'not-downloaded',
-        minLon: 5,
-        minLat: 5,
-        maxLon: 15,
-        maxLat: 15,
-      );
+    test(
+      'notDownloaded but downloadable overlapping region is included in '
+      'missing',
+      () {
+        final trail = trailWithBbox(
+          minLon: 0,
+          minLat: 0,
+          maxLon: 10,
+          maxLat: 10,
+        );
+        final notDownloaded = regionWithBbox(
+          id: 'not-downloaded',
+          minLon: 5,
+          minLat: 5,
+          maxLon: 15,
+          maxLat: 15,
+        )..vectorUrl = '/api/v1/regions/not-downloaded/download';
 
-      final result = missingCoverageRegions(trail, [notDownloaded]);
+        final result = missingCoverageRegions(trail, [notDownloaded]);
 
-      expect(result.map((r) => r.id), ['not-downloaded']);
-    });
+        expect(result.map((r) => r.id), ['not-downloaded']);
+      },
+    );
+
+    test(
+      'not-downloadable overlapping regions (building / removed from server) '
+      'are EXCLUDED from missing — they must never be offered',
+      () {
+        final trail = trailWithBbox(
+          minLon: 0,
+          minLat: 0,
+          maxLon: 10,
+          maxLat: 10,
+        );
+        // Still building on the server: overlaps, but has no ready vector
+        // archive (vectorUrl == null), so it isn't downloadable.
+        final building = regionWithBbox(
+          id: 'building',
+          minLon: 5,
+          minLat: 5,
+          maxLon: 15,
+          maxLat: 15,
+        );
+        // Removed from the server (orphaned): keeps a stale vectorUrl but
+        // inCatalog is false, so it no longer exists to download.
+        final orphaned = regionWithBbox(
+          id: 'orphaned',
+          minLon: 5,
+          minLat: 5,
+          maxLon: 15,
+          maxLat: 15,
+        )
+          ..vectorUrl = '/api/v1/regions/orphaned/download'
+          ..inCatalog = false;
+
+        expect(missingCoverageRegions(trail, [building, orphaned]), isEmpty);
+      },
+    );
 
     test(
       'updateAvailable region is EXCLUDED from missingCoverageRegions '
@@ -284,6 +323,57 @@ void main() {
       );
 
       expect(missingCoverageRegions(trail, []), isEmpty);
+    });
+  });
+
+  group('usableCoverageRegions', () {
+    final trail = trailWithBbox(minLon: 0, minLat: 0, maxLon: 10, maxLat: 10);
+
+    RegionEntity overlappingRegion(String id) => regionWithBbox(
+      id: id,
+      minLon: 5,
+      minLat: 5,
+      maxLon: 15,
+      maxLat: 15,
+    );
+
+    test('a downloaded region counts as usable coverage', () {
+      final downloaded = downloadedRegion(overlappingRegion('downloaded'));
+
+      expect(usableCoverageRegions(trail, [downloaded]).map((r) => r.id), [
+        'downloaded',
+      ]);
+    });
+
+    test('a downloadable (ready, not-downloaded) region counts as usable', () {
+      final downloadable = overlappingRegion('downloadable')
+        ..vectorUrl = '/api/v1/regions/downloadable/download';
+
+      expect(usableCoverageRegions(trail, [downloadable]).map((r) => r.id), [
+        'downloadable',
+      ]);
+    });
+
+    test(
+      'building / orphaned overlapping regions are NOT usable coverage, so a '
+      'trail covered only by them yields an empty result (warn, not silent)',
+      () {
+        final building = overlappingRegion('building');
+        final orphaned = overlappingRegion('orphaned')
+          ..vectorUrl = '/api/v1/regions/orphaned/download'
+          ..inCatalog = false;
+
+        expect(usableCoverageRegions(trail, [building, orphaned]), isEmpty);
+      },
+    );
+
+    test('a downloaded region stays usable even after removal from the server', () {
+      final downloadedOrphan = downloadedRegion(overlappingRegion('kept'))
+        ..inCatalog = false;
+
+      expect(usableCoverageRegions(trail, [downloadedOrphan]).map((r) => r.id), [
+        'kept',
+      ]);
     });
   });
 }

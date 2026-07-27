@@ -51,14 +51,21 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
       // D-11: read the already-persisted local snapshot only -- never trigger
       // a network catalog fetch on the download tap.
       final regions = ref.read(regionListNotifierProvider);
-      final overlapping = overlappingRegions(trail, regions);
+      // Usable coverage = overlapping regions that either already cover offline
+      // or are downloadable from the server right now. A region that overlaps
+      // but is still building/errored or was removed from the server is NOT
+      // usable coverage, so a trail covered only by such regions correctly
+      // warns "not covered by any offered region" instead of silently
+      // downloading with no offline map — and never gets offered a Download
+      // action that can only fail.
+      final usable = usableCoverageRegions(trail, regions);
       final missing = missingCoverageRegions(trail, regions);
 
       MissingCoverageSelection? selection;
 
-      if (overlapping.isEmpty) {
-        // D-04: the trail's bbox falls inside no catalog region at all -- a
-        // genuine no-region gap. Non-blocking warning; the download still
+      if (usable.isEmpty) {
+        // D-04: the trail's bbox falls inside no usable catalog region at all
+        // -- a genuine no-region gap. Non-blocking warning; the download still
         // proceeds below, unchanged, no sheet.
         ref
             .read(toastProvider.notifier)
