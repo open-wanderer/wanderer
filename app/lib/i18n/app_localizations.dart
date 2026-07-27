@@ -1891,6 +1891,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download map data first'**
   String get regions_dem_locked_subtitle;
+
+  /// No description provided for @regions_offline_unavailable_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t load regions'**
+  String get regions_offline_unavailable_title;
+
+  /// No description provided for @regions_offline_unavailable_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to browse and manage downloadable regions.'**
+  String get regions_offline_unavailable_body;
+
+  /// No description provided for @regions_group_expand_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand {name}'**
+  String regions_group_expand_label(String name);
+
+  /// No description provided for @regions_group_collapse_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse {name}'**
+  String regions_group_collapse_label(String name);
 }
 
 class _AppLocalizationsDelegate

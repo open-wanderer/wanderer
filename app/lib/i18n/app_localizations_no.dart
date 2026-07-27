@@ -997,4 +997,21 @@ class AppLocalizationsNo extends AppLocalizations {
 
   @override
   String get regions_dem_locked_subtitle => 'Download map data first';
+
+  @override
+  String get regions_offline_unavailable_title => 'Can\'t load regions';
+
+  @override
+  String get regions_offline_unavailable_body =>
+      'Connect to the internet to browse and manage downloadable regions.';
+
+  @override
+  String regions_group_expand_label(String name) {
+    return 'Expand $name';
+  }
+
+  @override
+  String regions_group_collapse_label(String name) {
+    return 'Collapse $name';
+  }
 }
