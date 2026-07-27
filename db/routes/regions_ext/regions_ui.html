@@ -642,6 +642,41 @@
         recomputeVisibleRows() {
           this.visibleRows = flattenVisible(this.roots, this.expanded, this.filterMatches);
         },
+
+        // Optimistic leaf toggle with revert-on-failure + inline per-row error
+        // (D-06, ADMINUI-02). Map hooks below are stubbed here (guarded by
+        // `if (!this.map) return;`) so this task is independently testable;
+        // 30-02 Task 2 replaces the stub bodies with real MapLibre layer calls.
+        async toggleRegion(row) {
+          var prevEnabled = row.enabled;
+          row.enabled = !prevEnabled; // 1. optimistic flip, instant feedback
+          if (row.enabled) { this.addPolygonForRow(row); } else { this.removePolygonForRow(row); }
+          this.rowErrors = Object.assign({}, this.rowErrors, { [row.id]: undefined });
+
+          var res = await this.apiFetch('/api/collections/regions/records/' + row.id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: row.enabled }),
+          });
+          if (!res) return; // apiFetch already handled 401 -> logged-out state
+          if (!res.ok) {
+            row.enabled = prevEnabled; // 3. revert on failure
+            if (prevEnabled) { this.addPolygonForRow(row); } else { this.removePolygonForRow(row); }
+            var data = await res.json().catch(function () { return {}; });
+            this.rowErrors = Object.assign({}, this.rowErrors, {
+              [row.id]: "Couldn't update" + (data.message ? ': ' + data.message : '') + ' — try again.'
+            });
+          }
+        },
+
+        // Task 2 (30-02) replaces these stub bodies with real
+        // addRegionLayer/removeRegionLayer calls against this.map.
+        addPolygonForRow(row) {
+          if (!this.map) return;
+        },
+        removePolygonForRow(row) {
+          if (!this.map) return;
+        },
       };
     }
   </script>
@@ -766,22 +801,35 @@
 
         <!-- Flattened, non-recursive tree render (D-02/D-07/D-08) -->
         <template x-for="row in visibleRows" :key="row.id">
-          <div class="tree-row" role="treeitem"
-               :style="'padding-left:' + (8 + row.depth * 16) + 'px'"
-               :aria-expanded="row.kind === 'group' ? expanded.has(row.id) : null">
-            <template x-if="row.kind === 'group'">
-              <i class="chevron" @click="toggleExpand(row.id)"
-                 :class="expanded.has(row.id)
-                   ? 'ri-arrow-down-s-line'
-                   : 'ri-arrow-right-s-line'"></i>
-            </template>
-            <template x-if="row.kind === 'leaf'">
-              <span class="chevron" aria-hidden="true"></span>
-            </template>
-            <span class="row-name" x-text="row.name"></span>
-            <!-- 30-02 mounts the enabled/disabled toggle switch (role="switch") here -->
-            <template x-if="row.kind === 'leaf'">
-              <div class="toggle-slot" :data-region-id="row.id"></div>
+          <div>
+            <div class="tree-row" role="treeitem"
+                 :style="'padding-left:' + (8 + row.depth * 16) + 'px'"
+                 :aria-expanded="row.kind === 'group' ? expanded.has(row.id) : null">
+              <template x-if="row.kind === 'group'">
+                <i class="chevron" @click="toggleExpand(row.id)"
+                   :class="expanded.has(row.id)
+                     ? 'ri-arrow-down-s-line'
+                     : 'ri-arrow-right-s-line'"></i>
+              </template>
+              <template x-if="row.kind === 'leaf'">
+                <span class="chevron" aria-hidden="true"></span>
+              </template>
+              <span class="row-name" x-text="row.name"></span>
+              <!-- Leaf toggle switch (ADMINUI-02, D-06): role=switch, keyboard-operable -->
+              <template x-if="row.kind === 'leaf'">
+                <button type="button" class="toggle-switch" role="switch"
+                        :aria-checked="row.enabled ? 'true' : 'false'"
+                        :aria-label="(row.enabled ? 'Disable ' : 'Enable ') + row.name"
+                        @click="toggleRegion(row)"
+                        @keydown.space.prevent="toggleRegion(row)"
+                        @keydown.enter.prevent="toggleRegion(row)">
+                  <span class="toggle-thumb"></span>
+                </button>
+              </template>
+            </div>
+            <!-- Inline per-row error on PATCH failure (D-06) — x-text auto-escapes -->
+            <template x-if="row.kind === 'leaf' && rowErrors[row.id]">
+              <div class="row-error" :style="'padding-left:' + (8 + row.depth * 16 + 24) + 'px'" x-text="rowErrors[row.id]"></div>
             </template>
           </div>
         </template>
