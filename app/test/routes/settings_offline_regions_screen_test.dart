@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -14,6 +16,7 @@ import 'package:wanderer/models/region_status.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/routes/settings_offline_regions_screen.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 // ---------------------------------------------------------------------------
 // Widget tests for the flat->tree conversion (31-02). This screen has no
@@ -27,10 +30,9 @@ import 'package:wanderer/routes/settings_offline_regions_screen.dart';
 // - `tileRepositoryStatusProvider` is overridden with an empty download-state
 //   map.
 // - `regionRepositoryProvider` is overridden with a stub `RegionRepository`
-//   whose `fetchHierarchyRows()` returns a fixed group+leaf fixture and whose
-//   `refreshCatalog()` is a no-op -- both avoid ever touching a real Store,
-//   so a bare (never-called) `_FakeStore` is a safe stand-in for its
-//   constructor's `Store` parameter.
+//   whose `refreshCatalogAndFetchHierarchy()` returns a fixed group+leaf
+//   fixture without touching a real Store, so a bare (never-called)
+//   `_FakeStore` is a safe stand-in for its constructor's `Store` parameter.
 // ---------------------------------------------------------------------------
 
 /// Never invoked -- `_StubRegionRepository` overrides every method the
@@ -48,11 +50,22 @@ class _StubRegionRepository extends RegionRepository {
   final List<RegionHierarchyRow> _hierarchyRows;
 
   @override
-  Future<void> refreshCatalog() async {}
+  Future<List<RegionHierarchyRow>> refreshCatalogAndFetchHierarchy() async =>
+      _hierarchyRows;
+}
+
+/// Like `_StubRegionRepository` but leaves `refreshCatalogAndFetchHierarchy()`
+/// pending on an external `Completer`, so a test can observe the screen
+/// mid-load (before the initial fetch resolves) and drive resolution
+/// deterministically.
+class _DeferredRegionRepository extends RegionRepository {
+  _DeferredRegionRepository(this._completer) : super(Dio(), _FakeStore());
+
+  final Completer<List<RegionHierarchyRow>> _completer;
 
   @override
-  Future<List<RegionHierarchyRow>> fetchHierarchyRows() async =>
-      _hierarchyRows;
+  Future<List<RegionHierarchyRow>> refreshCatalogAndFetchHierarchy() =>
+      _completer.future;
 }
 
 class _StubRegionListNotifier extends RegionListNotifier {
@@ -246,6 +259,65 @@ void main() {
       // are pruned before flattenVisible runs, so neither ever renders.
       expect(find.text('Asia'), findsNothing);
       expect(find.text('Kyoto'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'while the initial fetch is in flight the tree area shows a loading '
+    'skeleton, not the offline empty state',
+    (tester) async {
+      tester.view.physicalSize = const Size(1080, 4000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      // Leave the hierarchy fetch pending so we can observe the load state.
+      final completer = Completer<List<RegionHierarchyRow>>();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            regionRepositoryProvider.overrideWithValue(
+              _DeferredRegionRepository(completer),
+            ),
+            // Fresh-install shape: zero cached regions. Before the fix this is
+            // exactly when the offline "Can't load regions" state flashed
+            // during load (regions empty AND _treeRoots still null).
+            regionListNotifierProvider.overrideWith(
+              () => _StubRegionListNotifier(const []),
+            ),
+            tileRepositoryStatusProvider.overrideWith(
+              _StubTileRepositoryStatus.new,
+            ),
+          ],
+          child: const MaterialApp(
+            localizationsDelegates: [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: Locale('en'),
+            home: SettingsOfflineRegionsScreen(),
+          ),
+        ),
+      );
+
+      // One frame after initState fired the (still-pending) fetch: the loading
+      // skeleton renders and the offline empty state does NOT. `Skeletonizer`
+      // is an abstract factory (concrete type `_Skeletonizer`), so match its
+      // always-present public `SkeletonizerScope` instead of the factory type.
+      await tester.pump();
+      expect(find.byType(SkeletonizerScope), findsOneWidget);
+      expect(find.text("Can't load regions"), findsNothing);
+      expect(find.text('Europe'), findsNothing);
+
+      // Resolving the fetch swaps the skeleton for the real tree.
+      completer.complete(_fixtureHierarchyRows());
+      await tester.pumpAndSettle();
+      expect(find.byType(SkeletonizerScope), findsNothing);
+      expect(find.text('Europe'), findsOneWidget);
     },
   );
 }

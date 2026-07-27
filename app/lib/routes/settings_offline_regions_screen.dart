@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/entities/region_entity.dart';
@@ -16,6 +17,10 @@ import 'package:wanderer/util/byte_format_util.dart';
 import 'package:wanderer/util/region_disk_usage_util.dart';
 import 'package:wanderer/util/region_tile_status_util.dart';
 import 'package:wanderer/util/region_tree_util.dart';
+
+/// One flattened, visible tree row: a node plus its indentation depth. Emitted
+/// by `flattenVisible` and consumed by the region ListView.
+typedef _RegionRow = ({RegionTreeNode node, int depth});
 
 /// SETUI-01..06: the "Offline Maps/Regions" Settings screen — a flat,
 /// name-searchable, A-Z region list backed by `regionListNotifierProvider`,
@@ -51,9 +56,20 @@ class _SettingsOfflineRegionsScreenState
 
   /// Tree shape, built once per genuine hierarchy fetch inside
   /// `_refreshCatalog` — NEVER rebuilt inside `build()` (Pitfall 1). `null`
-  /// means no successful hierarchy fetch has completed this session, which
-  /// drives the D-04 offline empty state.
+  /// means no successful hierarchy fetch has completed this session. Combined
+  /// with `_hierarchyLoadInFlight` it distinguishes "still loading" (skeleton)
+  /// from "fetch resolved with no tree" (the D-04 offline empty state).
   List<RegionTreeNode>? _treeRoots;
+
+  /// True while the initial `_refreshCatalog` round-trip is in flight. Seeded
+  /// `true` because `initState` always fires the fetch — seeding here (rather
+  /// than a `setState` at the top of `_refreshCatalog`) avoids calling
+  /// `setState` during `initState`. Cleared at every resolution point of the
+  /// fetch (success or either failure branch). While true AND `_treeRoots` is
+  /// still `null`, `build()` renders a skeletonized tree instead of the
+  /// offline empty state, so the "no connection" message no longer flashes on
+  /// every screen open before the fetch resolves.
+  bool _hierarchyLoadInFlight = true;
 
   /// Expand state, keyed by group node id. Reseeded (via
   /// `computeDefaultExpanded`) only when `_expandedSeeded` is false — i.e.
@@ -79,18 +95,16 @@ class _SettingsOfflineRegionsScreenState
   /// full-screen error treatment for the one case with nothing to show.
   Future<void> _refreshCatalog() async {
     try {
-      await ref.read(regionRepositoryProvider).refreshCatalog();
-      if (!mounted) return;
-      ref.invalidate(regionListNotifierProvider);
-
       final hierarchyRows = await ref
           .read(regionRepositoryProvider)
-          .fetchHierarchyRows();
+          .refreshCatalogAndFetchHierarchy();
       if (!mounted) return;
+      ref.invalidate(regionListNotifierProvider);
       setState(() {
         _treeRoots = pruneToDownloadable(buildRegionTree(hierarchyRows));
         // Reseed default-expand against the new tree shape on the next build.
         _expandedSeeded = false;
+        _hierarchyLoadInFlight = false;
       });
     } catch (e, st) {
       if (!mounted) return;
@@ -106,11 +120,13 @@ class _SettingsOfflineRegionsScreenState
                 text: l10n.error_saving_settings,
               ),
             );
+        setState(() => _hierarchyLoadInFlight = false);
         return;
       }
       setState(() {
         _freshInstallError = e;
         _freshInstallStackTrace = st;
+        _hierarchyLoadInFlight = false;
       });
     }
   }
@@ -156,7 +172,7 @@ class _SettingsOfflineRegionsScreenState
         ? null
         : computeFilterMatches(_treeRoots!, trimmedQuery);
     final visibleRows = _treeRoots == null
-        ? const <({RegionTreeNode node, int depth})>[]
+        ? const <_RegionRow>[]
         : flattenVisible(_treeRoots!, _expandedIds, filterMatches);
 
     // Fresh-install edge case only: zero cached regions AND the initial
@@ -171,86 +187,114 @@ class _SettingsOfflineRegionsScreenState
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: Text(l10n.settings_offline_regions_title),
+        title: WandererSearchBar(
+          hintText: l10n.regions_search_hint,
+          onChanged: (value) => setState(() => _searchQuery = value),
+        ),
       ),
       body: showFullScreenError
-          ? AsyncLoader<List<RegionEntity>>(
-              asyncValue: AsyncValue<List<RegionEntity>>.error(
-                _freshInstallError!,
-                _freshInstallStackTrace ?? StackTrace.current,
-              ),
-              mockData: const [],
-              builder: (_) => const SizedBox.shrink(),
-            )
+          ? _buildFreshInstallError()
           : Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: WandererSearchBar(
-                    hintText: l10n.regions_search_hint,
-                    onChanged: (value) => setState(() => _searchQuery = value),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
                   child: _buildDiskUsageSummary(l10n, regions),
                 ),
-
                 Expanded(
-                  child: _treeRoots == null
-                      ? _buildEmptyState(
-                          title: l10n.regions_offline_unavailable_title,
-                          body: l10n.regions_offline_unavailable_body,
-                          // font_awesome_flutter's free icon set has no
-                          // `wifiSlash` glyph (Pro-only in upstream Font
-                          // Awesome 6) — `linkSlash` ("broken link") is the
-                          // closest already-vetted disconnected/offline
-                          // glyph in this dependency (Rule 1 fix).
-                          icon: FontAwesomeIcons.linkSlash,
-                        )
-                      : visibleRows.isEmpty
-                      ? (trimmedQuery.isEmpty
-                            ? _buildEmptyState(
-                                title: l10n.regions_empty_catalog_title,
-                                body: l10n.regions_empty_catalog_body,
-                              )
-                            : _buildEmptyState(
-                                title: l10n.regions_empty_search_title,
-                                body: l10n.regions_empty_search_body,
-                              ))
-                      : ListView.builder(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          itemCount: visibleRows.length,
-                          itemBuilder: (context, index) {
-                            final row = visibleRows[index];
-                            if (row.node.kind == RegionNodeKind.leaf) {
-                              final entity = byId[row.node.id];
-                              if (entity == null) {
-                                // Pitfall 6: a hierarchy row with no matching
-                                // RegionEntity (e.g. a mid-refresh race) must
-                                // never crash the render.
-                                return SizedBox.shrink(
-                                  key: ValueKey(row.node.id),
-                                );
-                              }
-                              return Padding(
-                                key: ValueKey(row.node.id),
-                                padding: EdgeInsets.only(
-                                  left: _indentFor(row.depth),
-                                  bottom: 16,
-                                ),
-                                child: _buildRegionRow(entity),
-                              );
-                            }
-                            return KeyedSubtree(
-                              key: ValueKey(row.node.id),
-                              child: _buildGroupRow(row.node, row.depth),
-                            );
-                          },
-                        ),
+                  child: _buildRegionArea(
+                    l10n,
+                    visibleRows,
+                    byId,
+                    hasSearchQuery: trimmedQuery.isNotEmpty,
+                  ),
                 ),
               ],
             ),
+    );
+  }
+
+  /// Fresh-install edge case only (see `showFullScreenError` in `build`): zero
+  /// cached regions AND the initial catalog fetch failed. Reuses
+  /// AsyncLoader/WandererError verbatim per UI-SPEC's copy table.
+  Widget _buildFreshInstallError() {
+    return AsyncLoader<List<RegionEntity>>(
+      asyncValue: AsyncValue<List<RegionEntity>>.error(
+        _freshInstallError!,
+        _freshInstallStackTrace ?? StackTrace.current,
+      ),
+      mockData: const [],
+      builder: (_) => const SizedBox.shrink(),
+    );
+  }
+
+  /// The scrollable area below the disk-usage summary. Resolves, in order, the
+  /// three non-list states before falling through to the region list:
+  ///   1. No hierarchy fetched yet (`_treeRoots == null`) — still loading
+  ///      (skeleton) vs. resolved with no tree (D-04 offline empty state).
+  ///   2. Tree fetched but nothing visible — empty catalog vs. no search match.
+  ///   3. Otherwise, the region list itself.
+  Widget _buildRegionArea(
+    AppLocalizations l10n,
+    List<_RegionRow> visibleRows,
+    Map<String, RegionEntity> byId, {
+    required bool hasSearchQuery,
+  }) {
+    if (_treeRoots == null) {
+      // `_hierarchyLoadInFlight` disambiguates "still loading" from "fetch
+      // resolved with no tree": both share the `_treeRoots == null` condition,
+      // so without this gate the offline "no connection" message flashed on
+      // every screen open before the initial load resolved.
+      if (_hierarchyLoadInFlight) return _buildSkeleton();
+      return _buildEmptyState(
+        title: l10n.regions_offline_unavailable_title,
+        body: l10n.regions_offline_unavailable_body,
+        // font_awesome_flutter's free icon set has no `wifiSlash` glyph
+        // (Pro-only in upstream Font Awesome 6) — `linkSlash` ("broken link")
+        // is the closest already-vetted disconnected/offline glyph in this
+        // dependency (Rule 1 fix).
+        icon: FontAwesomeIcons.linkSlash,
+      );
+    }
+
+    if (visibleRows.isEmpty) {
+      if (hasSearchQuery) {
+        return _buildEmptyState(
+          title: l10n.regions_empty_search_title,
+          body: l10n.regions_empty_search_body,
+        );
+      }
+      return _buildEmptyState(
+        title: l10n.regions_empty_catalog_title,
+        body: l10n.regions_empty_catalog_body,
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 16),
+      itemCount: visibleRows.length,
+      itemBuilder: (context, index) => _buildTreeRow(visibleRows[index], byId),
+    );
+  }
+
+  /// A single flattened tree row: either a group header or a leaf region card.
+  Widget _buildTreeRow(_RegionRow row, Map<String, RegionEntity> byId) {
+    if (row.node.kind != RegionNodeKind.leaf) {
+      return KeyedSubtree(
+        key: ValueKey(row.node.id),
+        child: _buildGroupRow(row.node, row.depth),
+      );
+    }
+
+    final entity = byId[row.node.id];
+    if (entity == null) {
+      // Pitfall 6: a hierarchy row with no matching RegionEntity (e.g. a
+      // mid-refresh race) must never crash the render.
+      return SizedBox.shrink(key: ValueKey(row.node.id));
+    }
+    return Padding(
+      key: ValueKey(row.node.id),
+      padding: EdgeInsets.only(left: _indentFor(row.depth), bottom: 16),
+      child: _buildRegionRow(entity),
     );
   }
 
@@ -334,7 +378,9 @@ class _SettingsOfflineRegionsScreenState
       decoration: BoxDecoration(
         border: Border.all(color: Theme.of(context).colorScheme.outline),
         borderRadius: BorderRadius.all(Radius.circular(8)),
-        color: Colors.grey.shade100,
+        color: Theme.of(context).brightness == Brightness.light
+            ? Colors.grey.shade100
+            : Theme.of(context).colorScheme.secondaryContainer,
       ),
       padding: const EdgeInsets.all(16),
       child: FutureBuilder<int>(
@@ -409,6 +455,97 @@ class _SettingsOfflineRegionsScreenState
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Shimmer placeholder shown while the initial catalog + hierarchy fetch is
+  /// in flight (`_hierarchyLoadInFlight`). `skeletonizer` paints these fake
+  /// group headers and leaf cards as animated "bones", so the screen reads as
+  /// loading rather than flashing the offline empty state (both share the
+  /// `_treeRoots == null` condition). The fake rows deliberately mirror the
+  /// real `_buildGroupRow` / `_buildActiveRow` shapes so the bones land where
+  /// the real content will — the literal placeholder strings are never visible
+  /// (Skeletonizer replaces them), they only size the bones.
+  Widget _buildSkeleton() {
+    final outline = Theme.of(context).colorScheme.outline;
+    return Skeletonizer(
+      enabled: true,
+      child: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 16),
+        itemCount: 4,
+        itemBuilder: (context, groupIndex) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Group header placeholder — mirrors `_buildGroupRow` (depth 0).
+              Padding(
+                padding: EdgeInsets.only(left: _indentFor(0), right: 16),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  child: Row(
+                    children: [
+                      const FaIcon(FontAwesomeIcons.angleDown, size: 16),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Region group placeholder',
+                          style: Theme.of(context).textTheme.bodyLarge!
+                              .copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Two leaf-card placeholders — mirror `_buildActiveRow` (depth 1).
+              for (var i = 0; i < 2; i++)
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: _indentFor(1),
+                    right: 16,
+                    bottom: 16,
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: outline),
+                      borderRadius: const BorderRadius.all(Radius.circular(8)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                          child: Text(
+                            'Region name placeholder',
+                            style: Theme.of(context).textTheme.bodyLarge!
+                                .copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const ListTile(
+                          dense: true,
+                          minTileHeight: 12,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                          title: Text('Vector'),
+                          subtitle: Text('00.0 MB'),
+                          trailing: FaIcon(FontAwesomeIcons.download, size: 16),
+                        ),
+                        const ListTile(
+                          dense: true,
+                          minTileHeight: 12,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                          title: Text('Elevation data'),
+                          subtitle: Text('00.0 MB'),
+                          trailing: FaIcon(FontAwesomeIcons.download, size: 16),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -556,6 +693,7 @@ class _SettingsOfflineRegionsScreenState
 
     return ListTile(
       dense: true,
+      minTileHeight: 12,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       leading: _tileLeadingIcon(done: isDone, error: isError),
       title: Text(l10n.regions_vector_tile_title),
@@ -601,13 +739,13 @@ class _SettingsOfflineRegionsScreenState
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const FaIcon(FontAwesomeIcons.arrowsRotate),
+              icon: const FaIcon(FontAwesomeIcons.arrowsRotate, size: 16),
               color: accentColor,
               tooltip: l10n.regions_update_action,
               onPressed: () => _onDownloadVector(region),
             ),
             IconButton(
-              icon: const FaIcon(FontAwesomeIcons.trash),
+              icon: const FaIcon(FontAwesomeIcons.trash, size: 16),
               color: Colors.redAccent,
               onPressed: () => _onDeleteRegion(region),
             ),
@@ -618,13 +756,13 @@ class _SettingsOfflineRegionsScreenState
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const FaIcon(FontAwesomeIcons.arrowsRotate),
+              icon: const FaIcon(FontAwesomeIcons.arrowsRotate, size: 16),
               color: accentColor,
               tooltip: l10n.regions_retry,
               onPressed: () => _onDownloadVector(region),
             ),
             IconButton(
-              icon: const FaIcon(FontAwesomeIcons.trash),
+              icon: const FaIcon(FontAwesomeIcons.trash, size: 16),
               color: Colors.redAccent,
               onPressed: () => _onDeleteRegion(region),
             ),
@@ -670,6 +808,7 @@ class _SettingsOfflineRegionsScreenState
 
     return ListTile(
       dense: true,
+      minTileHeight: 12,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       leading: _tileLeadingIcon(done: isDone, error: isError),
       title: Text(l10n.regions_dem_tile_title),

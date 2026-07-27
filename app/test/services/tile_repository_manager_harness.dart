@@ -120,7 +120,7 @@ class _TileRepositoryHarnessScreenState
 
   Future<void> _refreshCatalog() async {
     try {
-      await ref.read(regionRepositoryProvider).refreshCatalog();
+      await ref.read(regionRepositoryProvider).refreshCatalogAndFetchHierarchy();
       debugPrint('[harness] refreshCatalog succeeded');
     } catch (e) {
       debugPrint('[harness] refreshCatalog failed: $e');

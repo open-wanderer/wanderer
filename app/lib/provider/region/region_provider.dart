@@ -9,7 +9,7 @@ import 'package:wanderer/provider/objectbox_store_provider.dart';
 
 part 'region_provider.g.dart';
 
-/// Typed error thrown by [fetchRegionCatalog]/[RegionRepository.fetchCatalog]
+/// Typed error thrown by [RegionRepository.refreshCatalogAndFetchHierarchy]
 /// on any network or parse failure (D-03). Callers must not silently swallow
 /// a catalog fetch failure the way `subcategory_provider.dart` does — Phase
 /// 24's Settings/Regions screen decides how to surface this to the user.
@@ -76,25 +76,6 @@ List<RegionHierarchyRow> parseRegionHierarchyRows(dynamic data) {
   return rows;
 }
 
-/// GETs `/regions` (resolves to the SvelteKit-proxied `/api/v1/regions`) via
-/// the cookie-authenticated [api] client and parses the response.
-///
-/// Wraps any [DioException] or parse failure in [RegionCatalogException]
-/// (preserving the original error as [RegionCatalogException.cause]) rather
-/// than swallowing it -- because this fetch fully completes (or fails)
-/// before any store write happens, a failure here always leaves every
-/// persisted [RegionEntity] row untouched (D-03).
-Future<List<RegionCatalogEntry>> fetchRegionCatalog(Dio api) async {
-  try {
-    final response = await api.get('/regions');
-    return parseRegionCatalog(response.data);
-  } on RegionCatalogException {
-    rethrow;
-  } catch (e) {
-    throw RegionCatalogException('failed to fetch region catalog', e);
-  }
-}
-
 /// The persisted [existing] region ids that are absent from [fetchedIds] --
 /// i.e. regions dropped from the latest catalog fetch (D-08).
 Set<String> orphanedRegionIds(
@@ -117,27 +98,6 @@ class RegionRepository {
 
   final Dio _api;
   final Store _store;
-
-  /// Fetches the catalog only; throws [RegionCatalogException] on failure
-  /// without touching any persisted row.
-  Future<List<RegionCatalogEntry>> fetchCatalog() => fetchRegionCatalog(_api);
-
-  /// Fetches the SAME `/regions` endpoint as [fetchCatalog] and parses it
-  /// into the full group+leaf hierarchy (D-05) via
-  /// [parseRegionHierarchyRows], reusing [_api] rather than a second HTTP
-  /// client (Assumption A3). Wraps any [DioException] or parse failure in
-  /// [RegionCatalogException], matching [fetchCatalog]'s error-handling
-  /// shape exactly -- no new exception type.
-  Future<List<RegionHierarchyRow>> fetchHierarchyRows() async {
-    try {
-      final response = await _api.get('/regions');
-      return parseRegionHierarchyRows(response.data);
-    } on RegionCatalogException {
-      rethrow;
-    } catch (e) {
-      throw RegionCatalogException('failed to fetch region hierarchy', e);
-    }
-  }
 
   /// Upserts [entries] into ObjectBox by business id inside a single write
   /// transaction: an existing row is merged in place via
@@ -184,17 +144,31 @@ class RegionRepository {
     });
   }
 
-  /// Fetches the catalog then upserts it. A fetch failure (thrown before any
-  /// write) leaves all persisted rows untouched.
-  Future<void> refreshCatalog() async {
-    upsertCatalog(await fetchCatalog());
+  /// The sole catalog-refresh entry point: GETs `/regions` ONCE, upserts the
+  /// catalog into ObjectBox, and returns the parsed group+leaf hierarchy --
+  /// both derived from the same response, so the Settings screen no longer
+  /// pays for two round trips of the identical payload per open.
+  ///
+  /// A network failure is wrapped as [RegionCatalogException]; a malformed
+  /// (non-`List`) shape throws it out of [parseRegionCatalog] BEFORE any
+  /// store write, so a bad response always leaves every persisted row
+  /// untouched (D-03).
+  Future<List<RegionHierarchyRow>> refreshCatalogAndFetchHierarchy() async {
+    final dynamic data;
+    try {
+      data = (await _api.get('/regions')).data;
+    } catch (e) {
+      throw RegionCatalogException('failed to fetch region catalog', e);
+    }
+    upsertCatalog(parseRegionCatalog(data));
+    return parseRegionHierarchyRows(data);
   }
 }
 
 /// Construction-only provider seam (D-02) -- builds a [RegionRepository]
 /// from the existing [apiProvider]/[objectBoxProvider] without performing
-/// any fetch on build. Not wired to any screen lifecycle yet; Phase 24
-/// decides when [RegionRepository.refreshCatalog] is actually invoked.
+/// any fetch on build; the Settings/Regions screen drives
+/// [RegionRepository.refreshCatalogAndFetchHierarchy] on open.
 @Riverpod(keepAlive: true)
 RegionRepository regionRepository(Ref ref) {
   return RegionRepository(ref.watch(apiProvider), ref.watch(objectBoxProvider));

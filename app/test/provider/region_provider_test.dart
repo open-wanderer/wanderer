@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/entities/region_entity.dart';
 import 'package:wanderer/models/region_hierarchy_row.dart';
@@ -158,66 +157,13 @@ void main() {
       },
     );
 
-    // fetchHierarchyRows itself is not covered by a repository-instantiation
-    // round-trip test here: RegionRepository's constructor also requires an
-    // ObjectBox Store, and this test harness has no established pattern for
-    // opening one in a plain `flutter test` unit test (the only Store-using
-    // files under test/ are on-device spike harnesses, not _test.dart
-    // suites). fetchHierarchyRows delegates its entire response-handling
-    // behavior to parseRegionHierarchyRows (covered above) plus the same
-    // try/catch/rethrow shape already proven by the fetchRegionCatalog
-    // group below, so its behavior is fully exercised by proxy.
-  });
-
-  group('fetchRegionCatalog', () {
-    Dio buildDio(Future<Response<dynamic>> Function(RequestOptions) handler) {
-      final dio = Dio(BaseOptions(baseUrl: 'https://test.local/api/v1'));
-      dio.interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (options, requestHandler) async {
-            try {
-              final response = await handler(options);
-              requestHandler.resolve(response);
-            } on DioException catch (e) {
-              requestHandler.reject(e);
-            }
-          },
-        ),
-      );
-      return dio;
-    }
-
-    test('a successful response resolves to the parsed list', () async {
-      final dio = buildDio(
-        (options) async => Response(
-          requestOptions: options,
-          statusCode: 200,
-          data: [_fullReadyJson(), _minimalBuildingJson()],
-        ),
-      );
-
-      final entries = await fetchRegionCatalog(dio);
-
-      expect(entries, hasLength(2));
-    });
-
-    test(
-      'a DioException (offline/500) throws RegionCatalogException, not '
-      'DioException, and never swallows into an empty list',
-      () async {
-        final dio = buildDio(
-          (options) async => throw DioException(
-            requestOptions: options,
-            type: DioExceptionType.connectionError,
-          ),
-        );
-
-        await expectLater(
-          fetchRegionCatalog(dio),
-          throwsA(isA<RegionCatalogException>()),
-        );
-      },
-    );
+    // The repository's `refreshCatalogAndFetchHierarchy` round trip is not
+    // unit-tested here: its constructor requires an ObjectBox Store, and this
+    // suite has no established pattern for opening one in a plain
+    // `flutter test` (the only Store-using files under test/ are on-device
+    // spike harnesses, not _test.dart suites). Its behavior is exercised by
+    // proxy through the pure parse functions it delegates to
+    // (parseRegionCatalog/parseRegionHierarchyRows, both covered above).
   });
 
   group('orphanedRegionIds', () {
