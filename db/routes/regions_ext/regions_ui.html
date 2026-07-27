@@ -533,7 +533,13 @@
       (function walk(nodes, depth) {
         nodes.forEach(function (n) {
           if (filterMatchSet && !filterMatchSet.has(n.id)) return;
-          out.push({ id: n.id, name: n.name, kind: n.kind, depth: depth, enabled: n.enabled });
+          // Push the tree node itself (not a stripped-down copy) so it keeps
+          // path/bbox and stays the same reference as the canonical roots
+          // tree — toggling `enabled` on a visible row must persist across
+          // re-flattens (expand/collapse, filter changes), not just render
+          // once and silently revert.
+          n.depth = depth;
+          out.push(n);
           if (n.kind === 'group') {
             // D-08: while a filter is active, matched groups are treated as
             // expanded (non-matching children were already excluded above);
