@@ -86,3 +86,7 @@ None - no external service configuration required. `/region-catalog/` is immedia
 ---
 *Phase: 30-admin-region-picker-ui*
 *Completed: 2026-07-27*
+
+## Self-Check: PASSED
+
+All modified/created files (`db/routes/regions_ext/regions_ui.html`, this SUMMARY) confirmed present on disk. All commit hashes (`7cc71446`, `b0f91521`, `f4f304a2`) confirmed present in `git log --oneline --all`.
