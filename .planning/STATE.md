@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: executing
-stopped_at: Phase 30 UI-SPEC approved
-last_updated: "2026-07-27T09:31:40.355Z"
-last_activity: 2026-07-26 -- Phase 29 execution started
+stopped_at: Completed 30-01-PLAN.md
+last_updated: "2026-07-27T10:23:28.075Z"
+last_activity: 2026-07-27 -- Phase 30 execution started
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 10
+  completed_plans: 9
   percent: 50
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 29 — Polygon-Based Extraction & Region API
+**Current focus:** Phase 30 — admin-region-picker-ui
 
 ## Current Position
 
-Phase: 29 (Polygon-Based Extraction & Region API) — EXECUTING
-Plan: 4 of 4
+Phase: 30 (admin-region-picker-ui) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-07-26 -- Phase 29 execution started
+Last activity: 2026-07-27 -- Phase 30 execution started
 
 ## v1.7 Phases
 
@@ -124,6 +124,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 29 P01 | 25min | 3 tasks | 5 files |
 | Phase 29 P02 | ~15min | 2 tasks | 3 files |
 | Phase 29 P03 | 15min | 2 tasks | 5 files |
+| Phase Phase 30 P01 P01 | 20min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -273,6 +274,9 @@ Recent decisions affecting current work:
 - [Phase 29]: [Phase 29] [29-02] Group rows emit only {id, name, kind, parent, path, depth} (no bbox/status/build-state) — matches the pre-Phase-31 Flutter parser's required-field drop behavior, safe and additive — Lets Phase 31's Flutter tree get group labels without regressing the shipped offline-regions feature, which silently ignores entries missing bbox/status
 - [Phase 29]: [Phase 29] [29-02] Leaf entry id stays the PocketBase record id (not path) so parent (relation raw value) can be matched against sibling id fields to reconstruct the tree client-side — path remains a separate field used for the region_archives join and download URL construction
 - [Phase 29]: [29-03] RegionIdSchema regex relaxed to ^[a-z0-9][a-z0-9_.'-]*$ plus a .refine((v) => !v.includes('..')) guard in both download proxies, kept byte-identical to each other and to 29-01's Go regionIDPattern
+- [Phase 30-01]: Combined Task 1 (HTML shell) and Task 3 (tree fetch/build/flatten/filter) into a single commit since Task 1's stub would be immediately overwritten in the same session
+- [Phase 30-01]: Used MapLibre GL JS 5.24.0 (not UI-SPEC's stale 4.7.1) to match web app's actual installed version
+- [Phase 30-01]: CSP widened beyond federation_ui.go default (unpkg.com, worker-src blob:, tiles.openfreemap.org) to support MapLibre
 
 ### Roadmap Evolution
 
@@ -420,9 +424,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-27T09:31:40.330Z
-Stopped at: Phase 30 UI-SPEC approved
-Resume file: .planning/phases/30-admin-region-picker-ui/30-UI-SPEC.md
+Last session: 2026-07-27T10:23:28.060Z
+Stopped at: Completed 30-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

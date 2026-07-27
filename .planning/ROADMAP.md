@@ -384,7 +384,7 @@ Plans:
 
 **Plans**: 2 plans (2 waves)
 
-- [ ] 30-01-PLAN.md — Custom PocketBase admin page shell + collapsible filterable region tree (ADMINUI-01)
+- [x] 30-01-PLAN.md — Custom PocketBase admin page shell + collapsible filterable region tree (ADMINUI-01)
 - [ ] 30-02-PLAN.md — Optimistic leaf toggle + live MapLibre coverage map of enabled polygons (ADMINUI-02, ADMINUI-03)
 
 **UI hint**: yes
@@ -452,5 +452,5 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 27. Legacy Cleanup | v1.6 | 2/2 | Complete    | 2026-07-24 |
 | 28. Region Catalog Data Model & Seeding | v1.7 | 4/4 | Complete    | 2026-07-26 |
 | 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
-| 30. Admin Region Picker UI | v1.7 | 0/2 | Planned | - |
+| 30. Admin Region Picker UI | v1.7 | 1/2 | In Progress|  |
 | 31. Flutter Settings Hierarchy | v1.7 | 0/TBD | Not started | - |
