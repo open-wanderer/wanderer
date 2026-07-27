@@ -398,6 +398,13 @@
       white-space: nowrap;
     }
 
+    .archive-size {
+      font-size: 11px;
+      color: var(--text2);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
     .toggle-slot {
       flex-shrink: 0;
       width: 36px;
@@ -614,6 +621,14 @@
       return matchSet;
     }
 
+    function formatBytes(n) {
+      if (!n || n <= 0) return null;
+      var units = ['B', 'KB', 'MB', 'GB'];
+      var i = 0;
+      while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+      return (i === 0 ? n : n.toFixed(1)) + ' ' + units[i];
+    }
+
     function regionsApp() {
       return {
         // ── reused auth state (verbatim from federation_ui.html) ────
@@ -629,6 +644,7 @@
         filterQuery: '',
         filterMatches: null,
         rowErrors: {},
+        archiveSizes: {}, // region path -> already-downloaded archive bytes on disk
         map: null,
         mapLoaded: false,
         enabledPolygons: [],
@@ -654,6 +670,7 @@
           if (this.isTokenExpired(this.token)) { return; }
           this.authenticated = true;
           this.loadRegions().then(() => { this.initMap(); });
+          this.loadArchiveSizes();
 
           this.$watch('filterQuery', () => {
             clearTimeout(this._filterDebounceTimer);
@@ -714,6 +731,31 @@
             page++;
           } while (page <= totalPages);
           return all;
+        },
+
+        // Actual on-disk size of already-built archives (not an estimate —
+        // vector_size_bytes/dem_size_bytes are recorded by the builder once
+        // a region's vector.pmtiles/dem.pmtiles are written to
+        // pb_data/region_archives/, see db/routes/regions_get.go). Loaded
+        // independently of loadRegions/loadAllRegions — it's decorative
+        // info, not part of the tree structure, so a slow/failed fetch here
+        // shouldn't block the tree or map from rendering.
+        async loadArchiveSizes() {
+          var page = 1, all = [], totalPages = 1;
+          do {
+            var res = await this.apiFetch('/api/collections/region_archives/records?perPage=1000&page=' + page);
+            if (!res || !res.ok) return;
+            var data = await res.json();
+            all = all.concat(data.items);
+            totalPages = data.totalPages;
+            page++;
+          } while (page <= totalPages);
+
+          var sizes = {};
+          all.forEach(function (a) {
+            sizes[a.region_id] = (a.vector_size_bytes || 0) + (a.dem_size_bytes || 0);
+          });
+          this.archiveSizes = sizes;
         },
 
         toggleExpand(id) {
@@ -1123,6 +1165,11 @@
                 <span class="chevron" aria-hidden="true"></span>
               </template>
               <span class="row-name" x-text="row.name"></span>
+              <!-- Actual on-disk size of an already-built archive (not an
+                   estimate) — omitted entirely until that leaf's build exists. -->
+              <template x-if="row.kind === 'leaf' && formatBytes(archiveSizes[row.path])">
+                <span class="archive-size" x-text="formatBytes(archiveSizes[row.path])"></span>
+              </template>
               <!-- Toggle switch (ADMINUI-02, D-06): role=switch, keyboard-operable.
                    Leaves flip their own `enabled`; groups flip every leaf beneath
                    them and show a tri-state aria-checked="mixed" when only some
