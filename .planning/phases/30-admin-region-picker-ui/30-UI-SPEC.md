@@ -1,10 +1,11 @@
 ---
 phase: 30
 slug: admin-region-picker-ui
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-27
+reviewed_at: 2026-07-27
 ---
 
 # Phase 30 — UI Design Contract
