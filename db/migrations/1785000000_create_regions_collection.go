@@ -143,14 +143,24 @@ func init() {
 		// decompressed size, read exactly once behind the CountRecords
 		// idempotency guard above; bound the read against a pathological/
 		// corrupt stream rather than trusting an unbounded decompression.
-		data, err := io.ReadAll(io.LimitReader(gzReader, 512<<20))
-		if err != nil {
-			return fmt.Errorf("decompress regions seed: %w", err)
+		//
+		// Decoded token-by-token (not io.ReadAll + json.Unmarshal into one
+		// []SeedRow) so peak heap holds one row at a time instead of the
+		// full decompressed seed plus its parsed Go representation
+		// (map[string]any polygons balloon several times over raw JSON
+		// size) — the earlier all-at-once approach could exceed 512 MB on
+		// memory-constrained hosts. Only path→id and the small
+		// (comaps_id, path, parent_comaps_id) tuples needed for parent
+		// linking survive past each row's processing.
+		dec := json.NewDecoder(io.LimitReader(gzReader, 512<<20))
+		if _, err := dec.Token(); err != nil { // consume opening '['
+			return fmt.Errorf("parse regions seed: %w", err)
 		}
 
-		var seed []SeedRow
-		if err := json.Unmarshal(data, &seed); err != nil {
-			return fmt.Errorf("parse regions seed: %w", err)
+		type parentLink struct {
+			ComapsID       string
+			Path           string
+			ParentComapsID string
 		}
 
 		return app.RunInTransaction(func(txApp core.App) error {
@@ -159,10 +169,16 @@ func init() {
 			// but `path` (parent-slug-prefixed) is provably unique across
 			// the whole seed, so it's the safe join key for parent
 			// resolution below.
-			idByPath := make(map[string]string, len(seed))
+			idByPath := make(map[string]string, 1536)
+			links := make([]parentLink, 0, 1536)
 
 			// Pass 1: create every record, capturing generated ids.
-			for _, row := range seed {
+			for dec.More() {
+				var row SeedRow
+				if err := dec.Decode(&row); err != nil {
+					return fmt.Errorf("parse regions seed: %w", err)
+				}
+
 				record := core.NewRecord(collection)
 				record.Set("comaps_id", row.ComapsID)
 				record.Set("path", row.Path)
@@ -187,6 +203,13 @@ func init() {
 						return fmt.Errorf("insert region_polygons %s (%s): %w", row.ComapsID, row.Path, err)
 					}
 				}
+
+				if row.ParentComapsID != "" {
+					links = append(links, parentLink{ComapsID: row.ComapsID, Path: row.Path, ParentComapsID: row.ParentComapsID})
+				}
+			}
+			if _, err := dec.Token(); err != nil { // consume closing ']'
+				return fmt.Errorf("parse regions seed: %w", err)
 			}
 
 			// Pass 2: resolve parent links now that every id is known
@@ -195,25 +218,22 @@ func init() {
 			// parent is looked up by its own path's parent segment
 			// (path minus its last "."-delimited component), not by
 			// parent_comaps_id — see the idByPath comment above.
-			for _, row := range seed {
-				if row.ParentComapsID == "" {
-					continue
-				}
-				sep := strings.LastIndex(row.Path, ".")
+			for _, link := range links {
+				sep := strings.LastIndex(link.Path, ".")
 				if sep < 0 {
-					return fmt.Errorf("region %s: has parent_comaps_id %q but path %q has no parent segment", row.ComapsID, row.ParentComapsID, row.Path)
+					return fmt.Errorf("region %s: has parent_comaps_id %q but path %q has no parent segment", link.ComapsID, link.ParentComapsID, link.Path)
 				}
-				parentID, ok := idByPath[row.Path[:sep]]
+				parentID, ok := idByPath[link.Path[:sep]]
 				if !ok {
-					return fmt.Errorf("region %s: parent path %q not found", row.ComapsID, row.Path[:sep])
+					return fmt.Errorf("region %s: parent path %q not found", link.ComapsID, link.Path[:sep])
 				}
-				record, err := txApp.FindRecordById("regions", idByPath[row.Path])
+				record, err := txApp.FindRecordById("regions", idByPath[link.Path])
 				if err != nil {
 					return err
 				}
 				record.Set("parent", parentID)
 				if err := txApp.Save(record); err != nil {
-					return fmt.Errorf("link parent for %s: %w", row.ComapsID, err)
+					return fmt.Errorf("link parent for %s: %w", link.ComapsID, err)
 				}
 			}
 
