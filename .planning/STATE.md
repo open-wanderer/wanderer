@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: verifying
-stopped_at: Completed 31-02-PLAN.md
-last_updated: "2026-07-27T13:17:36.977Z"
-last_activity: 2026-07-27 -- Phase 31 execution started
+stopped_at: Completed 31-03-PLAN.md
+last_updated: "2026-07-27T16:10:02.192Z"
+last_activity: 2026-07-27 -- Completed 31-03-PLAN.md (prune Settings hierarchy to downloadable regions)
 progress:
   total_phases: 4
   completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 13
+  completed_plans: 13
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 31 (flutter-settings-hierarchy) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-07-27 -- Phase 31 execution started
+Plan: 3 of 3
+Status: Phase complete — gap closure (31-03) executed, ready for re-verification
+Last activity: 2026-07-27 -- Completed 31-03-PLAN.md (prune Settings hierarchy to downloadable regions)
 
 ## v1.7 Phases
 
@@ -128,6 +128,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 30 P02 | 10min | 2 tasks | 1 files |
 | Phase 31 P01 | 20min | 3 tasks | 9 files |
 | Phase 31 P02 | 20min | 3 tasks | 17 files |
+| Phase 31 P03 | ~12min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -288,6 +289,8 @@ Recent decisions affecting current work:
 - [Phase 31]: [31-01] fetchHierarchyRows has no repository-instantiation round-trip test — No ObjectBox Store-construction pattern exists in this test harness for plain flutter test suites; covered by proxy via parseRegionHierarchyRows
 - [Phase 31]: [31-02] Substituted FontAwesomeIcons.linkSlash for the plan's wifiSlash (doesn't exist in font_awesome_flutter's free set) — wifi-slash is a Font Awesome Pro-only glyph; linkSlash is the closest already-vetted disconnected icon, no new dependency added
 - [Phase 31]: [31-02] Widget test harness for a Notifier-backed screen with no real ObjectBox Store uses a noSuchMethod-based fake Store — Satisfies RegionRepository's constructor Store parameter without ever dereferencing it, avoiding a new mocking library dependency
+- [Phase 31]: [31-03] enabled parses as nullable bool? with no @Default -- absent key (group/legacy rows) reads as null, treated identically to false by pruneToDownloadable; only explicit true survives
+- [Phase 31]: [31-03] pruneToDownloadable ignores build/status entirely -- an enabled==true leaf still status=='building' continues to render, per resolved product decision
 
 ### Roadmap Evolution
 
@@ -435,8 +438,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-27T13:17:36.961Z
-Stopped at: Completed 31-02-PLAN.md
+Last session: 2026-07-27T16:09:37.095Z
+Stopped at: Completed 31-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
