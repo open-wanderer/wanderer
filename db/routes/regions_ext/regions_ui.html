@@ -631,6 +631,9 @@
         loading: false,
         _filterDebounceTimer: null,
         _accentColor: '#1055c9',
+        _hoverDebounceTimer: null,
+        _hoverToken: 0,
+        _polygonCache: {},
 
         init() {
           var stored = localStorage.getItem('__pb_superusers__/_');
@@ -928,6 +931,52 @@
           if (!this.map) return;
           this.removeRegionLayer(this.map, row.path);
         },
+
+        // Hover outline: fetch (and cache) the leaf's polygon after a short
+        // dwell so fast mouse traversal across many rows doesn't fire a
+        // fetch per row, then draw it as a single non-persistent highlight
+        // layer separate from the enabled-region layers (region-fill-*/
+        // region-line-*), so hovering a disabled region never mutates its
+        // actual enabled state or the persistent map layers.
+        onLeafHoverStart(row) {
+          if (row.kind !== 'leaf' || !this.map) return;
+          if (this._hoverDebounceTimer) clearTimeout(this._hoverDebounceTimer);
+          var token = ++this._hoverToken;
+          this._hoverDebounceTimer = setTimeout(async () => {
+            var polygon = this._polygonCache[row.path];
+            if (!polygon) {
+              var filter = "path='" + row.path.replace(/'/g, "\\'") + "'";
+              var res = await this.apiFetch('/api/collections/region_polygons/records?perPage=1&filter=' + encodeURIComponent(filter));
+              if (!res || !res.ok) return;
+              var data = await res.json();
+              var item = data.items && data.items[0];
+              if (!item || !item.polygon) return;
+              polygon = item.polygon;
+              this._polygonCache[row.path] = polygon;
+            }
+            if (token !== this._hoverToken) return; // hover moved on before fetch resolved
+            this.showHoverOutline(polygon);
+          }, 120);
+        },
+
+        onLeafHoverEnd() {
+          this._hoverToken++; // invalidate any in-flight fetch from a just-ended hover
+          if (this._hoverDebounceTimer) { clearTimeout(this._hoverDebounceTimer); this._hoverDebounceTimer = null; }
+          this.hideHoverOutline();
+        },
+
+        showHoverOutline(geojsonPolygon) {
+          if (!this.map) return;
+          this.hideHoverOutline();
+          this.map.addSource('region-hover', { type: 'geojson', data: { type: 'Feature', geometry: geojsonPolygon, properties: {} } });
+          this.map.addLayer({ id: 'region-hover-line', type: 'line', source: 'region-hover', paint: { 'line-color': this._accentColor, 'line-width': 3 } });
+        },
+
+        hideHoverOutline() {
+          if (!this.map) return;
+          if (this.map.getLayer('region-hover-line')) this.map.removeLayer('region-hover-line');
+          if (this.map.getSource('region-hover')) this.map.removeSource('region-hover');
+        },
       };
     }
   </script>
@@ -1055,7 +1104,9 @@
           <div>
             <div class="tree-row" role="treeitem"
                  :style="'padding-left:' + (8 + row.depth * 16) + 'px'"
-                 :aria-expanded="row.kind === 'group' ? expanded.has(row.id) : null">
+                 :aria-expanded="row.kind === 'group' ? expanded.has(row.id) : null"
+                 @mouseenter="onLeafHoverStart(row)"
+                 @mouseleave="onLeafHoverEnd()">
               <template x-if="row.kind === 'group'">
                 <i class="chevron" @click="toggleExpand(row.id)"
                    :class="expanded.has(row.id)
