@@ -43,12 +43,13 @@ func RegionsList(e *core.RequestEvent) error {
 	entries := make([]map[string]any, 0, len(records))
 	for _, r := range records {
 		entry := map[string]any{
-			"id":     r.Id,
-			"name":   r.GetString("name"),
-			"kind":   r.GetString("kind"),
-			"parent": r.GetString("parent"), // relation field's raw value = parent record id, "" for roots (A3)
-			"path":   r.GetString("path"),
-			"depth":  r.GetInt("depth"),
+			"id":         r.Id,
+			"name":       r.GetString("name"),
+			"kind":       r.GetString("kind"),
+			"parent":     r.GetString("parent"), // relation field's raw value = parent record id, "" for roots (A3)
+			"path":       r.GetString("path"),
+			"depth":      r.GetInt("depth"),
+			"sort_order": r.GetInt("sort_order"), // D-07: sibling ordering hint, on every row (group and leaf)
 		}
 
 		if r.GetString("kind") != "leaf" {
