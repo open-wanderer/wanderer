@@ -405,6 +405,51 @@
       flex-shrink: 0;
     }
 
+    /* ── Disable-with-archive confirm dialog (net new) ──────── */
+    .dialog-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 24px;
+    }
+
+    .dialog-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      max-width: 420px;
+      width: 100%;
+    }
+
+    .dialog-card h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .dialog-card p {
+      color: var(--text2);
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .dialog-card p strong {
+      color: var(--text);
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .toggle-slot {
       flex-shrink: 0;
       width: 36px;
@@ -645,6 +690,7 @@
         filterMatches: null,
         rowErrors: {},
         archiveSizes: {}, // region path -> already-downloaded archive bytes on disk
+        deleteDialog: null, // { row, sizeLabel } while the disable-with-archive confirm is open
         map: null,
         mapLoaded: false,
         enabledPolygons: [],
@@ -782,7 +828,19 @@
           if (region) region.enabled = enabled;
         },
 
+        // Turning a leaf OFF when it already has a downloaded archive asks
+        // first whether to also delete the files (deleteDialog gate below)
+        // — enabling, and disabling a leaf with nothing built yet, proceed
+        // immediately with no prompt.
         async toggleRegion(row) {
+          if (row.enabled && this.archiveSizes[row.path]) {
+            this.deleteDialog = { row: row, sizeLabel: formatBytes(this.archiveSizes[row.path]) };
+            return;
+          }
+          await this.applyToggleRegion(row, false);
+        },
+
+        async applyToggleRegion(row, alsoDeleteFiles) {
           var prevEnabled = row.enabled;
           row.enabled = !prevEnabled; // 1. optimistic flip, instant feedback
           this.setRegionEnabled(row.id, row.enabled);
@@ -803,7 +861,38 @@
             this.rowErrors = Object.assign({}, this.rowErrors, {
               [row.id]: "Couldn't update" + (data.message ? ': ' + data.message : '') + ' — try again.'
             });
+            return;
           }
+
+          if (alsoDeleteFiles) await this.deleteArchiveFiles(row);
+        },
+
+        // Deletes both pmtiles files (if present) and the region_archives
+        // record in one server-side call (regions_delete.go) — the toggle
+        // itself already succeeded by the time this runs, so a failure here
+        // only means the files/record linger, not that the region is stuck
+        // disabled; surfaced via the existing per-row error slot.
+        async deleteArchiveFiles(row) {
+          var res = await this.apiFetch('/region-catalog/' + encodeURIComponent(row.path) + '/archive', { method: 'DELETE' });
+          if (!res || !res.ok) {
+            this.rowErrors = Object.assign({}, this.rowErrors, {
+              [row.id]: "Disabled, but couldn't delete the downloaded files — try again from this row."
+            });
+            return;
+          }
+          var sizes = Object.assign({}, this.archiveSizes);
+          delete sizes[row.path];
+          this.archiveSizes = sizes;
+        },
+
+        confirmDeleteDialog(alsoDeleteFiles) {
+          var row = this.deleteDialog.row;
+          this.deleteDialog = null;
+          this.applyToggleRegion(row, alsoDeleteFiles);
+        },
+
+        cancelDeleteDialog() {
+          this.deleteDialog = null; // no toggle happens at all
         },
 
         // Tri-state indicator for a group row's toggle switch: 'all' (every
@@ -1212,6 +1301,24 @@
       </div>
     </main>
 
+  </div>
+
+  <!-- Disable-a-leaf-with-downloaded-archive confirm dialog -->
+  <div x-show="deleteDialog" x-cloak class="dialog-backdrop" @click.self="cancelDeleteDialog()">
+    <div class="dialog-card" role="alertdialog" aria-modal="true"
+         :aria-label="deleteDialog ? ('Disable ' + deleteDialog.row.name) : ''">
+      <h2>Disable <span x-text="deleteDialog ? deleteDialog.row.name : ''"></span>?</h2>
+      <p>
+        This region has <strong x-text="deleteDialog ? deleteDialog.sizeLabel : ''"></strong>
+        of downloaded map data. Delete the downloaded files too, or just disable it and keep
+        them for later?
+      </p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-outline" @click="cancelDeleteDialog()">Cancel</button>
+        <button type="button" class="btn btn-outline" @click="confirmDeleteDialog(false)">Just disable</button>
+        <button type="button" class="btn btn-danger" @click="confirmDeleteDialog(true)">Disable &amp; delete files</button>
+      </div>
+    </div>
   </div>
 
 </body>

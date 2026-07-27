@@ -223,6 +223,12 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	// only by default on regions/region_polygons (T-30-01).
 	se.Router.GET("/region-catalog/", routes.RegionsDashboard)
 
+	// Destructive, admin-only: unlike the page above (which relies on the
+	// PocketBase collection API's own superuser-only rules), this is a
+	// custom Go route with no collection rules of its own, so it must
+	// enforce superuser auth explicitly.
+	se.Router.DELETE("/region-catalog/{id}/archive", routes.RegionArchiveDelete).Bind(apis.RequireSuperuserAuth())
+
 	se.UIExtensions = append(se.UIExtensions, core.UIExtension{
 		Name: "wanderer-region-catalog",
 		FS:   routes.RegionsExtFS(),
