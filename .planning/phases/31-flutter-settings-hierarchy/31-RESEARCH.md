@@ -584,17 +584,17 @@ Note: this project's `l10n.yaml` points `arb-dir` at `lib/i18n` (not the Flutter
 | A2 | `RegionTreeNode` should be a plain mutable class, not a Freezed model, as a deliberate exception to this codebase's otherwise-universal Freezed convention. | Standard Stack > Alternatives Considered, Architecture Patterns > Pattern 1 | Low risk technically (the code works either way), but a reviewer unfamiliar with the rationale could flag it as an inconsistency during code review; the plan should carry this rationale forward into a code comment (mirroring how other deliberate codebase exceptions are documented, e.g. `region_entity.dart`'s explicit `.code` shadow-property comments). |
 | A3 | `RegionHierarchyRow` and `parseRegionHierarchyRows`/`fetchRegionHierarchy` are added directly to `region_provider.dart` (or a small new sibling file), reusing the existing `apiProvider`/Dio client rather than a second, separate HTTP client instance. | Architecture Patterns > Recommended Project Structure | Very low risk — this mirrors `fetchRegionCatalog`'s existing shape exactly; only the file/function name is a judgment call, not the underlying design. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the offline empty state (D-04) distinguish "never fetched successfully this session" from "fetched successfully before, but the app was cold-restarted offline"?**
    - What we know: D-04's copy ("Can't load regions... Connect to the internet") reads as a single, undifferentiated state.
    - What's unclear: Whether a disk-persisted hierarchy cache (so a previously-seen hierarchy survives a cold offline restart) is in scope, or whether "cached hierarchy shape" purely means "already fetched this session."
-   - Recommendation: Treat as in-memory-only per Assumption A1 (matches D-03's "ephemeral... rebuilt from the API's flat list on each fetch" framing most literally) unless the user says otherwise during plan review.
+   - **RESOLVED:** In-memory-only per Assumption A1 — matches D-03's "ephemeral... rebuilt from the API's flat list on each fetch" framing literally, and D-04 already frames this as a deliberate, accepted regression. No disk-persisted hierarchy cache is in scope for this phase.
 
 2. **Exact chevron/group-row visual nesting when a leaf's existing bordered card sits directly under a group row with no border, per UI-SPEC's Color section ("tree structure itself... has no card/border").**
    - What we know: UI-SPEC is explicit that leaf cards keep their border/card treatment and group rows have none.
    - What's unclear: Whether there should be any subtle visual separator (e.g., a thin divider) between a group row and its first child leaf card, purely for scanability at deep nesting (depth 3-4) — UI-SPEC doesn't rule this out but also doesn't specify it, leaving it to "Claude's Discretion" per CONTEXT.md.
-   - Recommendation: Default to no separator (simplest, matches UI-SPEC literally); a plan/verification step can add one later if on-device testing shows deep nesting is hard to scan.
+   - **RESOLVED:** No separator — matches UI-SPEC literally (group rows have no card/border treatment at all). Left as Claude's Discretion per CONTEXT.md; can be revisited post-ship if on-device testing shows deep nesting is hard to scan.
 
 ## Environment Availability
 
