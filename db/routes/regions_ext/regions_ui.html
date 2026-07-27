@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Region Catalog · Wanderer</title>
+  <link rel="icon" href="/_/images/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+
+  <!-- Sync: theme + accent color before first paint to avoid flash -->
+  <script>
+    (function () {
+      var s = localStorage.getItem('pbColorScheme');
+      if (s === 'dark' || (!s && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+      try {
+        var pb = JSON.parse(localStorage.getItem('pbSettings') || '{}');
+        var accent = (pb.meta && pb.meta.accentColor) || '#1055c9';
+        document.documentElement.style.setProperty('--accent', accent);
+        var r = parseInt(accent.slice(1, 3), 16), g = parseInt(accent.slice(3, 5), 16), b = parseInt(accent.slice(5, 7), 16);
+        document.documentElement.style.setProperty('--accent-fade', 'rgba(' + r + ',' + g + ',' + b + ',0.1)');
+      } catch (_) { }
+    })();
+  </script>
+
+  <style>
+    :root {
+      --accent: #1055c9;
+      --accent-fade: rgba(16, 85, 201, 0.1);
+      --bg: #ffffff;
+      --surface: #f8f9fa;
+      --surface2: #e4e8ec;
+      --border: #e2e2e4;
+      --text: #16181a;
+      --text2: #9a9a9a;
+      --danger: #e1473d;
+    }
+
+    html.dark {
+      --bg: #1f1f1f;
+      --surface: #232323;
+      --surface2: #2f2f2f;
+      --border: #353849;
+      --text: #e4e5ea;
+      --text2: #6e7491;
+    }
+
+    [x-cloak] { display: none !important; }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* SVG logo: inner fills must match the header bg so the cutout effect works */
+    .app-header .logo-accent-fill {
+      fill: var(--accent);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ── Header (reused verbatim from federation_ui.html) ──── */
+    .app-header {
+      height: 38px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .header-sep {
+      width: 1px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.22);
+      flex-shrink: 0;
+    }
+
+    .header-label {
+      color: rgba(255, 255, 255, 1);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .header-email {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 13px;
+    }
+
+    .header-link {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 13px;
+      text-decoration: none;
+      transition: color 0.12s;
+    }
+
+    .header-link:hover {
+      color: #fff;
+    }
+
+    .header-spacer {
+      flex: 1;
+    }
+
+    /* ── Inputs / buttons / spinners (reused verbatim) ──────── */
+    .input {
+      height: 36px;
+      padding: 0 12px 0 34px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-fade);
+    }
+
+    .input::placeholder {
+      color: var(--text2);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 14px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: opacity 0.12s, background 0.12s;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-sm {
+      height: 30px;
+      padding: 0 11px;
+      font-size: 12px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .btn-primary:not(:disabled):hover {
+      opacity: 0.87;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    .btn-outline:not(:disabled):hover {
+      background: var(--bg);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+      border-color: var(--danger);
+    }
+
+    .btn-danger:not(:disabled):hover {
+      opacity: 0.87;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.55s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .spinner-accent {
+      border-color: var(--border);
+      border-top-color: var(--accent);
+    }
+
+    /* ── Login prompt (reused verbatim) ─────────────────────── */
+    .login-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+    }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 44px 36px;
+      max-width: 380px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .login-icon {
+      font-size: 38px;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .login-card h2 {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .login-card p {
+      color: var(--text2);
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .login-note {
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    /* ── Phase-30: two-pane layout (net new) ────────────────── */
+    .main-split {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      height: calc(100vh - 38px);
+    }
+
+    .tree-pane {
+      width: 380px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      min-height: 0;
+    }
+
+    .tree-pane-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tree-pane-header h1 {
+      font-size: 19px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tree-pane-header h1 i {
+      color: var(--accent);
+      font-size: 22px;
+    }
+
+    .tree-filter-wrap {
+      position: relative;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .tree-filter-wrap i {
+      position: absolute;
+      left: 28px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text2);
+      font-size: 15px;
+      pointer-events: none;
+    }
+
+    .tree-rows {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .tree-empty-state {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text2);
+    }
+
+    .tree-empty-state i {
+      font-size: 28px;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .tree-empty-state .state-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    /* ── Phase-30 component classes ─────────────────────────── */
+    .tree-row {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-right: 12px;
+      cursor: default;
+      transition: background 0.1s;
+    }
+
+    .tree-row:hover {
+      background: var(--surface2);
+    }
+
+    .tree-row .chevron {
+      cursor: pointer;
+      color: var(--text2);
+      font-size: 16px;
+      flex-shrink: 0;
+      width: 16px;
+      text-align: center;
+    }
+
+    .tree-row .row-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .toggle-slot {
+      flex-shrink: 0;
+      width: 36px;
+      height: 20px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+      border-radius: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch[aria-checked="true"] {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle-switch .toggle-thumb {
+      position: absolute;
+      top: 1px;
+      left: 1px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.15s;
+    }
+
+    .toggle-switch[aria-checked="true"] .toggle-thumb {
+      transform: translateX(16px);
+    }
+
+    .map-pane {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      background: var(--bg);
+    }
+
+    .row-error {
+      color: var(--danger);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .count-badge {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-fade);
+      padding: 2px 9px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+  </style>
+
+  <!-- Alpine app — MUST be defined before the defer'd Alpine CDN tag -->
+  <script>
+    // ── Pure tree helpers (module scope, no Alpine `this`) ──────────
+    // buildTree/flattenVisible/computeDefaultExpanded/computeFilterMatches
+    // implement D-02/D-07/D-08 per 30-RESEARCH.md Pattern 3. Task 30-01-03
+    // wires these into regionsApp(); left here (not inside the Alpine
+    // factory) so they stay easily unit-testable/pure.
+
+    function buildTree(rows) {
+      var byId = new Map();
+      rows.forEach(function (r) {
+        byId.set(r.id, Object.assign({}, r, { children: [] }));
+      });
+      var roots = [];
+      byId.forEach(function (node) {
+        if (node.parent && byId.has(node.parent)) {
+          byId.get(node.parent).children.push(node);
+        } else {
+          roots.push(node);
+        }
+      });
+      byId.forEach(function (node) {
+        node.children.sort(function (a, b) { return a.sort_order - b.sort_order; });
+      });
+      roots.sort(function (a, b) { return a.sort_order - b.sort_order; });
+      return roots;
+    }
+
+    function computeDefaultExpanded(roots) {
+      var expanded = new Set();
+      function hasEnabledDescendant(node) {
+        if (node.kind === 'leaf') return !!node.enabled;
+        var any = node.children.some(hasEnabledDescendant);
+        if (any) expanded.add(node.id);
+        return any;
+      }
+      roots.forEach(hasEnabledDescendant);
+      return expanded;
+    }
+
+    function flattenVisible(roots, expandedSet, filterMatchSet) {
+      var out = [];
+      (function walk(nodes, depth) {
+        nodes.forEach(function (n) {
+          if (filterMatchSet && !filterMatchSet.has(n.id)) return;
+          out.push({ id: n.id, name: n.name, kind: n.kind, depth: depth, enabled: n.enabled });
+          if (n.kind === 'group') {
+            // D-08: while a filter is active, matched groups are treated as
+            // expanded (non-matching children were already excluded above);
+            // otherwise fall back to the explicit expandedSet (D-07).
+            var shouldDescend = filterMatchSet ? true : expandedSet.has(n.id);
+            if (shouldDescend) walk(n.children, depth + 1);
+          }
+        });
+      })(roots, 0);
+      return out;
+    }
+
+    function computeFilterMatches(roots, query) {
+      if (!query) return null;
+      var q = query.toLowerCase();
+      var matchSet = new Set();
+      function walk(node, ancestors) {
+        var selfMatch = node.name.toLowerCase().indexOf(q) !== -1;
+        var childMatch = false;
+        node.children.forEach(function (child) {
+          if (walk(child, ancestors.concat([node.id]))) childMatch = true;
+        });
+        if (selfMatch || childMatch) {
+          matchSet.add(node.id);
+          ancestors.forEach(function (a) { matchSet.add(a); });
+          return true;
+        }
+        return false;
+      }
+      roots.forEach(function (r) { walk(r, []); });
+      return matchSet;
+    }
+
+    function regionsApp() {
+      return {
+        // ── reused auth state (verbatim from federation_ui.html) ────
+        token: null,
+        authenticated: false,
+        email: '',
+
+        // ── phase-30 state stubs ─────────────────────────────────────
+        regions: [],
+        roots: [],
+        visibleRows: [],
+        expanded: new Set(),
+        filterQuery: '',
+        filterMatches: null,
+        rowErrors: {},
+        map: null,
+        enabledPolygons: [],
+        loading: false,
+        _filterDebounceTimer: null,
+
+        init() {
+          var stored = localStorage.getItem('__pb_superusers__/_');
+          if (!stored) { return; }
+          try {
+            var parsed = JSON.parse(stored);
+            this.token = parsed.token;
+            try {
+              var payload = JSON.parse(atob(this.token.split('.')[1]));
+              this.email = payload.email || '';
+            } catch (_) { }
+          } catch (_) { return; }
+          if (!this.token) { return; }
+          if (this.isTokenExpired(this.token)) { return; }
+          this.authenticated = true;
+          this.loadRegions();
+
+          this.$watch('filterQuery', () => {
+            clearTimeout(this._filterDebounceTimer);
+            this._filterDebounceTimer = setTimeout(() => {
+              this.filterMatches = computeFilterMatches(this.roots, this.filterQuery);
+              this.recomputeVisibleRows();
+            }, 120);
+          });
+        },
+
+        isTokenExpired(token) {
+          try {
+            var payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.exp && Date.now() / 1000 > payload.exp;
+          } catch (_) { return true; }
+        },
+
+        async apiFetch(path, opts) {
+          opts = opts || {};
+          var res = await fetch(path, Object.assign({}, opts, {
+            headers: Object.assign({ 'Authorization': this.token }, opts.headers || {})
+          }));
+          if (res.status === 401) { this.authenticated = false; return null; }
+          return res;
+        },
+
+        get enabledCount() {
+          return this.regions.filter(function (r) { return r.kind === 'leaf' && r.enabled; }).length;
+        },
+
+        // 30-01-03 fills in the real fetch/build/flatten pipeline below;
+        // this stub keeps the page loadable/testable after Task 1.
+        async loadRegions() {
+          this.loading = true;
+          try {
+            var rows = await this.loadAllRegions();
+            if (rows === null) return; // apiFetch already handled 401
+            this.regions = rows;
+            this.roots = buildTree(rows);
+            this.expanded = computeDefaultExpanded(this.roots);
+            this.filterMatches = null;
+            this.recomputeVisibleRows();
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        // D-02/Pitfall 2: PocketBase v0.38.0 hard-caps perPage at 1000, so
+        // the 1,306-row catalog needs a 2-page loop, not a single fetch.
+        async loadAllRegions() {
+          var page = 1, all = [], totalPages = 1;
+          do {
+            var res = await this.apiFetch('/api/collections/regions/records?perPage=1000&page=' + page + '&sort=sort_order');
+            if (!res) return null;
+            var data = await res.json();
+            all = all.concat(data.items);
+            totalPages = data.totalPages;
+            page++;
+          } while (page <= totalPages);
+          return all;
+        },
+
+        toggleExpand(id) {
+          if (this.expanded.has(id)) this.expanded.delete(id); else this.expanded.add(id);
+          this.expanded = new Set(this.expanded);
+          this.recomputeVisibleRows();
+        },
+
+        recomputeVisibleRows() {
+          this.visibleRows = flattenVisible(this.roots, this.expanded, this.filterMatches);
+        },
+      };
+    }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+</head>
+
+<body x-data="regionsApp()" x-init="init()" x-cloak>
+
+  <!-- ── Header (reused shell) ────────────────────────────── -->
+  <header class="app-header">
+    <svg width="21" height="21" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M282.194 510.676C411.274 497.557 512 388.542 512 256C512 114.615 397.385 0 256 0C114.615 0 0 114.615 0 256C0 352.324 53.199 436.222 131.818 479.917C180.739 464.052 227.195 443.583 237.5 421C244.301 406.097 233.287 391.002 223.456 377.528C216.971 368.639 211 360.456 211 353.5C211 320.569 300.5 310 300.5 310H331.5C331.5 310 248.5 320.5 252.5 353.5C253.84 364.557 262.721 373.406 272.808 383.458C282.974 393.588 294.364 404.939 300.5 421C315.277 459.681 289.253 500.629 282.194 510.676Z"
+        fill="white" />
+      <path
+        d="M131.818 479.917C180.739 464.052 227.195 443.583 237.5 421C244.301 406.097 233.287 391.002 223.456 377.528C216.971 368.639 211 360.456 211 353.5C211 320.569 300.5 310 300.5 310H331.5C331.5 310 248.5 320.5 252.5 353.5C253.84 364.557 262.721 373.406 272.808 383.458C282.974 393.588 294.364 404.939 300.5 421C315.277 459.681 289.253 500.629 282.194 510.676C273.582 511.552 264.843 512 256 512C210.939 512 168.597 500.358 131.818 479.917Z"
+        fill="#242734" />
+      <path
+        d="M348.212 206.014C349.872 203.329 354.021 203.329 355.681 206.014L416.362 304.207C418.022 306.893 415.947 310.25 412.628 310.25H291.265C287.945 310.25 285.871 306.893 287.531 304.207L348.212 206.014Z"
+        fill="#242734" />
+      <path
+        d="M164.723 183.276C166.612 180.005 171.334 180.005 173.223 183.276L242.282 302.889C244.17 306.161 241.809 310.25 238.032 310.25H99.9145C96.137 310.25 93.776 306.161 95.6648 302.889L164.723 183.276Z"
+        fill="#242734" />
+      <path
+        d="M266.25 155C268.56 151 274.333 151 276.643 155L361.08 301.25C363.389 305.25 360.503 310.25 355.884 310.25H187.009C182.39 310.25 179.503 305.25 181.813 301.25L266.25 155Z"
+        fill="#242734" />
+      <path
+        d="M148.413 115.398C139.829 115.398 132.87 126.079 132.87 139.255H163.957C163.957 126.079 156.998 115.398 148.413 115.398Z"
+        fill="#242734" />
+      <path
+        d="M123.11 115.398C108.138 115.398 96 126.079 96 139.255H150.221C150.221 126.079 138.083 115.398 123.11 115.398Z"
+        fill="#242734" />
+      <path d="M134.316 106C125.532 106 118.411 115.386 118.411 126.965H150.221C150.221 115.386 143.1 106 134.316 106Z"
+        fill="#242734" />
+      <path d="M276 67C264.402 67 255 79.9837 255 96H297C297 79.9837 287.598 67 276 67Z" fill="#242734" />
+      <path d="M250 79C237.85 79 228 86.6112 228 96H272C272 86.6112 262.15 79 250 79Z" fill="#242734" />
+      <path d="M255 63C245.611 63 238 72.402 238 84H272C272 72.402 264.389 63 255 63Z" fill="#242734" />
+      <path d="M396.5 139C387.94 139 381 147.954 381 159H412C412 147.954 405.06 139 396.5 139Z" fill="#242734" />
+      <path d="M365 138C352.85 138 343 147.402 343 159H387C387 147.402 377.15 138 365 138Z" fill="#242734" />
+      <path d="M377 127C364.297 127 354 136.402 354 148H400C400 136.402 389.703 127 377 127Z" fill="#242734" />
+      <path
+        d="M113.567 421.162C113.567 419.505 114.91 418.162 116.567 418.162H123.285C124.942 418.162 126.285 419.505 126.285 421.162V425.76C126.285 427.417 124.942 428.76 123.285 428.76H116.567C114.91 428.76 113.567 427.417 113.567 425.76V421.162Z"
+        fill="#242734" />
+      <path
+        d="M117.379 394.3C118.857 393.079 120.994 393.079 122.473 394.3L144.391 412.402C147.282 414.79 145.594 419.487 141.844 419.487H98.008C94.258 419.487 92.5695 414.79 95.4607 412.402L117.379 394.3Z"
+        fill="#242734" />
+      <path
+        d="M117.172 382.093C118.715 380.627 121.136 380.627 122.68 382.093L142.519 400.927C145.14 403.416 143.379 407.828 139.765 407.828H100.086C96.4722 407.828 94.7112 403.416 97.3322 400.927L117.172 382.093Z"
+        fill="#242734" />
+      <path
+        d="M116.856 370.436C118.455 368.521 121.397 368.521 122.996 370.436L139.007 389.606C141.182 392.211 139.33 396.17 135.937 396.17H103.915C100.521 396.17 98.6693 392.211 100.845 389.606L116.856 370.436Z"
+        fill="#242734" />
+      <path
+        d="M347.567 397.162C347.567 395.505 348.91 394.162 350.567 394.162H357.285C358.942 394.162 360.285 395.505 360.285 397.162V401.76C360.285 403.417 358.942 404.76 357.285 404.76H350.567C348.91 404.76 347.567 403.417 347.567 401.76V397.162Z"
+        fill="#242734" />
+      <path
+        d="M351.379 370.3C352.857 369.079 354.994 369.079 356.473 370.3L378.391 388.402C381.282 390.79 379.594 395.487 375.844 395.487H332.008C328.258 395.487 326.569 390.79 329.461 388.402L351.379 370.3Z"
+        fill="#242734" />
+      <path
+        d="M351.172 358.093C352.715 356.627 355.136 356.627 356.68 358.093L376.519 376.927C379.14 379.416 377.379 383.828 373.765 383.828H334.086C330.472 383.828 328.711 379.416 331.332 376.927L351.172 358.093Z"
+        fill="#242734" />
+      <path
+        d="M350.856 346.436C352.455 344.521 355.397 344.521 356.996 346.436L373.007 365.606C375.182 368.211 373.33 372.17 369.937 372.17H337.915C334.521 372.17 332.669 368.211 334.845 365.606L350.856 346.436Z"
+        fill="#242734" />
+    </svg>
+    <div class="header-sep"></div>
+    <span class="header-label">Region Catalog</span>
+    <div class="header-spacer"></div>
+    <span class="header-email" x-text="email" x-show="email"></span>
+    <button onclick="window.location.href = '/_/'" class="header-link" style="margin-left: 8px; background: none; border: none; cursor: pointer;">
+      <i class="ri-arrow-left-line"></i>
+      Back to dashboard
+    </button>
+  </header>
+
+  <!-- ── Login prompt (shown when the superuser token is missing/expired) ── -->
+  <div x-show="!authenticated" class="login-wrap">
+    <div class="login-card">
+      <i class="ri-shield-keyhole-line login-icon"></i>
+      <h2>Admin login required</h2>
+      <p>You must be logged in as a Wanderer superuser to manage the region catalog.</p>
+      <a href="/_/" class="btn btn-primary" style="width:100%; justify-content:center">
+        Log in to the admin dashboard
+      </a>
+      <p class="login-note">After logging in, return to this page to manage the region catalog.</p>
+    </div>
+  </div>
+
+  <!-- ── Main content: two-pane tree + map split ──────────── -->
+  <div x-show="authenticated" style="display:none" class="main-split">
+
+    <aside class="tree-pane">
+      <div class="tree-pane-header">
+        <h1>
+          <i class="ri-map-2-line"></i>
+          Region Catalog
+          <span class="count-badge" x-text="enabledCount + ' enabled'"></span>
+        </h1>
+      </div>
+
+      <div class="tree-filter-wrap">
+        <i class="ri-search-line"></i>
+        <label for="regionFilter" class="sr-only">Filter regions</label>
+        <input id="regionFilter" class="input" type="text" x-model="filterQuery" placeholder="Filter regions…">
+      </div>
+
+      <div class="tree-rows" role="tree" aria-label="Region catalog">
+        <!-- Loading state -->
+        <div class="tree-empty-state" x-show="loading && visibleRows.length === 0">
+          <span class="spinner spinner-accent" style="width:22px;height:22px;border-width:3px" aria-label="Loading"></span>
+        </div>
+
+        <!-- Zero-match filter empty state (D-08 / Copywriting Contract) -->
+        <template x-if="!loading && filterQuery && visibleRows.length === 0">
+          <div class="tree-empty-state">
+            <i class="ri-search-line"></i>
+            <p class="state-title" x-text="'No regions match &quot;' + filterQuery + '&quot;'"></p>
+            <p>Try a different search term.</p>
+          </div>
+        </template>
+
+        <!-- Flattened, non-recursive tree render (D-02/D-07/D-08) -->
+        <template x-for="row in visibleRows" :key="row.id">
+          <div class="tree-row" role="treeitem"
+               :style="'padding-left:' + (8 + row.depth * 16) + 'px'"
+               :aria-expanded="row.kind === 'group' ? expanded.has(row.id) : null">
+            <template x-if="row.kind === 'group'">
+              <i class="chevron" @click="toggleExpand(row.id)"
+                 :class="expanded.has(row.id) ? 'ri-arrow-down-s-line' : 'ri-arrow-right-s-line'"></i>
+            </template>
+            <template x-if="row.kind === 'leaf'">
+              <span class="chevron" aria-hidden="true"></span>
+            </template>
+            <span class="row-name" x-text="row.name"></span>
+            <!-- 30-02 mounts the enabled/disabled toggle switch (role="switch") here -->
+            <template x-if="row.kind === 'leaf'">
+              <div class="toggle-slot" :data-region-id="row.id"></div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </aside>
+
+    <main class="map-pane">
+      <!-- 30-02 mounts the MapLibre GL JS coverage map here -->
+      <div id="region-map" style="width:100%;height:100%;"></div>
+    </main>
+
+  </div>
+
+</body>
+
+</html>
