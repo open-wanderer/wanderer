@@ -126,8 +126,10 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
                             onPressed: isDownloading
                                 ? null
                                 : () => ref
-                                    .read(downloadingTrailIdsProvider.notifier)
-                                    .download(trail),
+                                      .read(
+                                        downloadingTrailIdsProvider.notifier,
+                                      )
+                                      .download(trail),
                             icon: isDownloading
                                 ? SizedBox(
                                     width: 18,
@@ -136,11 +138,21 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
                                       strokeWidth: 2,
                                       color: Theme.of(
                                         context,
-                                      ).colorScheme.primary,
+                                      ).colorScheme.onSurface,
                                     ),
                                   )
-                                : FaIcon(FontAwesomeIcons.download),
-                            label: Text(AppLocalizations.of(context)!.download),
+                                : FaIcon(
+                                    FontAwesomeIcons.download,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
+                            label: Text(
+                              AppLocalizations.of(context)!.download,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
