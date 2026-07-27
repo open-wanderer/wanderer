@@ -321,8 +321,14 @@
       font-size: 22px;
     }
 
-    .sync-btn {
+    .sync-hint {
       margin-top: 10px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .sync-btn {
+      margin-top: 6px;
       width: 100%;
       justify-content: center;
     }
@@ -700,6 +706,7 @@
         buildingPaths: new Set(), // region paths currently building, per region_archives.status/dem_status
         syncing: false, // true from the moment "Sync now" is clicked (or discovered already running on load) until nothing is building
         _syncPollTimer: null,
+        nextScheduledRun: null, // Date the nightly cron will next fire on its own, or null if unknown
         map: null,
         mapLoaded: false,
         enabledPolygons: [],
@@ -825,19 +832,39 @@
         // where the flag is already true but no region_archives row has
         // flipped to "building" yet, so treating an empty buildingPaths as
         // "finished" would falsely end the poll seconds too early.
-        async fetchSyncRunning() {
+        // { running, nextScheduledRun } from one GET — both the polling
+        // loop's "is it done" check and the cold-load status check need
+        // `running`, and refreshing `nextScheduledRun` every poll tick too
+        // is harmless (it's a fixed, rarely-changing schedule computed
+        // fresh server-side each call, not something that needs its own
+        // separate fetch).
+        async fetchSyncStatus() {
           var res = await this.apiFetch('/region-catalog/sync');
           if (!res || !res.ok) return null; // unknown — caller must not change state on this
-          var data = await res.json();
-          return !!data.running;
+          return await res.json();
+        },
+
+        applySyncStatus(data) {
+          if (!data) return;
+          this.nextScheduledRun = data.nextScheduledRun ? new Date(data.nextScheduledRun) : null;
+        },
+
+        // Local-time, not the raw UTC the server computes in — an admin
+        // reading "next scheduled run" wants it in their own clock.
+        nextScheduledRunLabel() {
+          if (!this.nextScheduledRun) return '';
+          return this.nextScheduledRun.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
         },
 
         // Catches a sync already running from the cron or another admin's
         // tab so a fresh page load still shows the correct disabled/syncing
-        // state, not just "syncing" started by this tab's own click.
+        // state, not just "syncing" started by this tab's own click. Also
+        // the only place nextScheduledRun is loaded outside of polling, so
+        // the hint above the button shows up even when nothing is syncing.
         async checkSyncStatus() {
-          var running = await this.fetchSyncRunning();
-          if (running) {
+          var data = await this.fetchSyncStatus();
+          this.applySyncStatus(data);
+          if (data && data.running) {
             this.syncing = true;
             this.startSyncPolling();
           }
@@ -861,9 +888,10 @@
         },
 
         async _syncPollTick() {
-          var running = await this.fetchSyncRunning();
+          var data = await this.fetchSyncStatus();
+          this.applySyncStatus(data);
           await this.loadArchiveSizes(); // refresh per-leaf spinners + sizes as builds complete
-          if (running === false) {
+          if (data && data.running === false) {
             this.syncing = false;
             clearInterval(this._syncPollTimer);
             this._syncPollTimer = null;
@@ -1277,6 +1305,8 @@
           Region Catalog
           <span class="count-badge" x-text="enabledCount + ' enabled'"></span>
         </h1>
+        <p class="sync-hint" x-show="!syncing && nextScheduledRun" x-cloak
+           x-text="'Next automatic sync: ' + nextScheduledRunLabel()"></p>
         <button type="button" class="btn btn-sm btn-outline sync-btn" :disabled="syncing" @click="startSync()">
           <span class="spinner spinner-accent" x-show="syncing" x-cloak></span>
           <i class="ri-refresh-line" x-show="!syncing"></i>

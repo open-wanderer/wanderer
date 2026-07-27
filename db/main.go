@@ -271,12 +271,7 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 		}
 	})
 
-	regionSchedule := os.Getenv("REGION_ARCHIVE_CRON_SCHEDULE")
-	if len(regionSchedule) == 0 {
-		regionSchedule = "0 3 * * *"
-	}
-
-	app.Cron().MustAdd("region-archive-build", regionSchedule, func() {
+	app.Cron().MustAdd("region-archive-build", regions.CronSchedule(), func() {
 		regions.BuildAll(app)
 	})
 }

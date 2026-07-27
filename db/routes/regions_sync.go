@@ -1,7 +1,9 @@
 package routes
 
 import (
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/pocketbase/pocketbase/core"
 
@@ -41,7 +43,19 @@ func RegionSyncStart(e *core.RequestEvent) error {
 // disable/re-enable "Sync now" correctly even across a page reload — the
 // button's disabled state must not depend solely on the click that
 // triggered it, since a sync started in one tab (or by the cron) must also
-// disable the button in every other tab/session.
+// disable the button in every other tab/session. Also reports when the
+// nightly cron will next fire on its own (RFC3339 UTC), so the admin page
+// can show that as a hint — omitted entirely if it can't be computed rather
+// than failing the whole status check over a decorative field.
 func RegionSyncStatus(e *core.RequestEvent) error {
-	return e.JSON(http.StatusOK, map[string]any{"running": regions.SyncRunning()})
+	resp := map[string]any{"running": regions.SyncRunning()}
+
+	next, err := regions.NextScheduledSync(regions.CronSchedule())
+	if err != nil {
+		log.Printf("[regions] failed to compute next scheduled sync: %v", err)
+	} else {
+		resp["nextScheduledRun"] = next.Format(time.RFC3339)
+	}
+
+	return e.JSON(http.StatusOK, resp)
 }
