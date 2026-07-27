@@ -472,13 +472,14 @@
     .map-empty-state {
       flex-direction: column;
       text-align: center;
-      color: var(--text2);
+      color: var(--text);
+      background-color: #ffffff96;
       gap: 4px;
     }
 
     .map-empty-state i {
       font-size: 28px;
-      color: var(--text2);
+      color: var(--text);
     }
 
     .map-empty-state .state-title {
@@ -699,9 +700,20 @@
         // (D-06, ADMINUI-02). Map hooks below are stubbed here (guarded by
         // `if (!this.map) return;`) so this task is independently testable;
         // 30-02 Task 2 replaces the stub bodies with real MapLibre layer calls.
+        // `row` is a node from the `roots` tree (see flattenVisible); `this.regions`
+        // is a separate flat array from the initial fetch used by enabledCount/
+        // enabledLeafRows. Flip both in lockstep so the header badge and the
+        // map's empty-state overlay react immediately instead of only after
+        // a full reload re-fetches `this.regions`.
+        setRegionEnabled(id, enabled) {
+          var region = this.regions.find(function (r) { return r.id === id; });
+          if (region) region.enabled = enabled;
+        },
+
         async toggleRegion(row) {
           var prevEnabled = row.enabled;
           row.enabled = !prevEnabled; // 1. optimistic flip, instant feedback
+          this.setRegionEnabled(row.id, row.enabled);
           if (row.enabled) { this.addPolygonForRow(row); } else { this.removePolygonForRow(row); }
           this.rowErrors = Object.assign({}, this.rowErrors, { [row.id]: undefined });
 
@@ -713,6 +725,7 @@
           if (!res) return; // apiFetch already handled 401 -> logged-out state
           if (!res.ok) {
             row.enabled = prevEnabled; // 3. revert on failure
+            this.setRegionEnabled(row.id, row.enabled);
             if (prevEnabled) { this.addPolygonForRow(row); } else { this.removePolygonForRow(row); }
             var data = await res.json().catch(function () { return {}; });
             this.rowErrors = Object.assign({}, this.rowErrors, {
