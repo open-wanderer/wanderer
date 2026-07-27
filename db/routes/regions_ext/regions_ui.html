@@ -771,7 +771,9 @@
                :aria-expanded="row.kind === 'group' ? expanded.has(row.id) : null">
             <template x-if="row.kind === 'group'">
               <i class="chevron" @click="toggleExpand(row.id)"
-                 :class="expanded.has(row.id) ? 'ri-arrow-down-s-line' : 'ri-arrow-right-s-line'"></i>
+                 :class="expanded.has(row.id)
+                   ? 'ri-arrow-down-s-line'
+                   : 'ri-arrow-right-s-line'"></i>
             </template>
             <template x-if="row.kind === 'leaf'">
               <span class="chevron" aria-hidden="true"></span>
