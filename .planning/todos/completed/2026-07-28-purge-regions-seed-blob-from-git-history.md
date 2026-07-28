@@ -61,3 +61,20 @@ Force-pushing rewritten history is disruptive to anyone tracking the branch. If
 `feature/app` has gained other contributors by the time this runs, weigh the ~55 MB
 against the coordination cost — the blob is a permanent tax, but a botched rewrite
 loses work. The backup tag from step 3 is the escape hatch.
+
+## Resolution (2026-07-28, plan 32-06)
+
+Completed as `purge-and-push`. `git filter-branch --index-filter` over
+`b1665219^..HEAD` (133 commits, 2 pruned as empty), backup tag
+`backup/pre-seed-purge-20260728` created locally (not pushed) before the rewrite,
+`HEAD` tree verified byte-identical to the backup tag's tip, force-pushed with
+`--force-with-lease=feature/app:3667e058...` (old remote tip). A fresh clone of
+`feature/app` confirmed the `.gz` gone, `regions_seed.json` intact, and
+`migrate up` producing the identical 1306-row catalog (153 group / 1153 leaf,
+`region_geometry` empty). Fresh-clone `.git` size dropped from a 268.00 MiB
+pre-rewrite pack to 198.14 MiB. Full detail in
+`.planning/phases/32-on-demand-polygon-fetch-seed-slimming/32-06-SUMMARY.md`.
+
+Anyone tracking `feature/app` must `git fetch origin && git reset --hard
+origin/feature/app` (not merge/pull) — local history diverged for the 94
+commits that were already on the remote.
