@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: executing
-stopped_at: Completed 32-04-PLAN.md
-last_updated: "2026-07-28T10:28:28.219Z"
+stopped_at: Completed 32-05-PLAN.md
+last_updated: "2026-07-28T10:36:51.339Z"
 last_activity: 2026-07-28 -- Phase 32 execution started
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 80
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 32 (on-demand-polygon-fetch-seed-slimming) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-07-28 -- Phase 32 execution started
 
@@ -133,6 +133,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 32 P02 | 20min | 3 tasks | 3 files |
 | Phase 32 P03 | 12min | 3 tasks | 2 files |
 | Phase 32 P04 | 35min | 3 tasks | 4 files |
+| Phase 32 P05 | ~20min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -301,6 +302,9 @@ Recent decisions affecting current work:
 - [Phase 32]: [32-02] Migration edited in place per D-05: region_polygons renamed to region_geometry (bbox+polygon, ships empty), regions gains catalog_commit and loses bbox, gzip/streaming-decoder retired for a plain ReadFile+Unmarshal
 - [Phase 32]: [32-03] FetchGeometry proven value-equal (D-07) to the old committed seed across 6 sampled leaves; no holed-Polygon example exists anywhere in the real 1306-row catalog (documented finding, not a fabricated fixture)
 - [Phase 32]: D-14 self-heal: ResolveGeometry treats an absent region_geometry row and a malformed one identically, both refetching and overwriting in place; persistence is derived internally from region.GetBool("enabled") (D-10), never caller-supplied
+- [Phase ?]: [Phase 32] [32-05] D-13 enforced via a standalone route Bind(apis.RequireSuperuserAuth()) outside regionsGroup, mirroring the RegionArchiveDelete/RegionSyncStart/RegionSyncStatus precedent
+- [Phase ?]: [Phase 32] [32-05] D-10/D-11 enforced structurally: RegionGeometryGet never reads enabled or accepts a persistence query param, deferring to ResolveGeometry
+- [Phase ?]: [Phase 32] [32-05] fitToEnabled sources bbox from region_geometry items loadEnabledPolygons already fetched, guarding against non-4-element bbox entries
 
 ### Roadmap Evolution
 
@@ -448,8 +452,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-28T10:28:28.201Z
-Stopped at: Completed 32-04-PLAN.md
+Last session: 2026-07-28T10:36:51.320Z
+Stopped at: Completed 32-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
