@@ -1,7 +1,7 @@
 ---
 phase: 31-flutter-settings-hierarchy
 verified: 2026-07-27T16:12:55Z
-status: verified
+status: human_needed
 score: 4/4 must-haves verified
 overrides_applied: 0
 re_verification:
@@ -11,19 +11,19 @@ re_verification:
     - "Settings -> Offline Maps/Regions shows only enabled (downloadable) leaf regions plus the ancestor group chain needed to reach them"
   gaps_remaining: []
   regressions: []
-human_verification: []
-resolved_human_verification:
-  - test: "On a device/emulator with a real backend, open Settings -> Offline Maps/Regions: confirm the hierarchy shows only downloadable (admin-enabled) leaf regions plus the group chain needed to reach them; an enabled-but-still-building region still appears as a disabled row; expand/collapse, per-region Vector/DEM controls, search/filter, and the disk-usage total all work unchanged; the offline empty state appears only when genuinely offline, not merely because pruning yielded an empty tree."
-    resolved: 2026-07-27
-    result: pass
-    evidence: "Performed on device against a real backend and recorded as Test 2 ('On-device pruned-hierarchy walkthrough', result: pass) in 31-UAT.md, updated 2026-07-27T16:20:00Z — after this report was written at 16:12:55Z. Confirmed with the user on 2026-07-28 that the walkthrough was genuinely run, not recorded prematurely."
+human_verification:
+  - test: "RE-RUN REQUIRED (server-side rewrite). On a device/emulator against a real backend running commit 3667e058 or later, open Settings -> Offline Maps/Regions. Confirm the hierarchy shows only admin-enabled downloadable leaf regions plus the ancestor group chain — now produced by the backend's ?enabled=true filter, NOT by client-side pruning. Confirm an enabled-but-still-building region still appears as a disabled row. Confirm expand/collapse, per-region Vector/DEM controls, search/filter, and the disk-usage total all still work. Confirm the offline empty state appears only when genuinely offline, not merely because the server returned an empty catalog."
+    expected: "Identical observable behavior to the 2026-07-27 client-side-pruning run: only downloadable regions plus ancestors render, building regions show as disabled rows, all per-region actions and the disk-usage summary work, and the offline empty state is distinguishable from an empty-but-online catalog."
+    why_human: "The 2026-07-27 on-device walkthrough recorded in 31-UAT.md (Test 2, pass) validated the CLIENT-SIDE pruneToDownloadable implementation. Commit 3667e058 (2026-07-28 09:17) deleted pruneToDownloadable, removed the `enabled` field from RegionHierarchyRow/RegionTreeNode, dropped ~160 lines of tests, and moved filtering into Go behind ?enabled=true. Observable behavior is expected to be unchanged, but that is an assumption — no on-device run has exercised the server-filtered path. Security audit of the rewrite passed independently (31-SECURITY.md, 12/12 closed); this is a behavioral gap, not a security one."
+superseded_verification:
+  - note: "Truths #1-#4 below were verified 2026-07-27 against the client-side pruning implementation. Truth #4's evidence (pruneToDownloadable, RegionHierarchyRow.enabled, RegionTreeNode.enabled, and 8 pruneToDownloadable unit tests) cites code deleted by 3667e058. The requirement it covers — showing only downloadable regions plus ancestors — is now satisfied server-side by db/services/regions/hierarchy_filter.go AncestorGroupPaths and the ?enabled=true branch in db/routes/regions_get.go, unit-tested in hierarchy_filter_test.go. Re-verification of the truth against the new implementation is pending the on-device check above."
 ---
 
 # Phase 31: Flutter Settings Hierarchy Verification Report
 
 **Phase Goal:** The app's Settings → Offline Maps/Regions screen mirrors the admin-defined hierarchy, with every existing per-region action unregressed.
 **Verified:** 2026-07-27T16:12:55Z
-**Status:** verified (on-device human check completed 2026-07-27, see 31-UAT.md)
+**Status:** human_needed — re-run required after the 3667e058 server-side rewrite (see human_verification in frontmatter)
 **Re-verification:** Yes — after gap closure (31-03, gap_closure: true)
 
 ## Goal Achievement
