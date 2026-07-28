@@ -30,11 +30,13 @@ func RegionsExtFS() fs.FS {
 
 // RegionsDashboard serves the embedded region-catalog admin SPA.
 //
-// The page contains no secrets or tokens. All privileged operations go
+// The page contains no secrets or tokens. Most privileged operations go
 // directly through PocketBase's own JWT-validated collection REST API
-// (/api/collections/regions/records, /api/collections/region_polygons/records).
-// The superuser JWT is read at runtime from the admin's own localStorage —
-// it is never embedded in the document.
+// (/api/collections/regions/records, /api/collections/region_geometry/records).
+// The page's hover-preview flow additionally calls the superuser-gated Go
+// route /regions/{id}/geometry directly, so there are three privileged
+// surfaces in total, not two. The superuser JWT is read at runtime from the
+// admin's own localStorage — it is never embedded in the document.
 //
 // The frame-deny header below prevents clickjacking of the admin page.
 func RegionsDashboard(e *core.RequestEvent) error {

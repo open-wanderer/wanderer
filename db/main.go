@@ -269,6 +269,16 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	regionsGroup.GET("", routes.RegionsList)
 	regionsGroup.GET("/{id}/download", routes.RegionArchiveDownload)
 	regionsGroup.GET("/{id}/download-dem", routes.RegionArchiveDownloadDem)
+
+	// Standalone, NOT a member of regionsGroup above: this route triggers
+	// outbound third-party requests (CoMaps, via ResolveGeometry), so an
+	// authenticated-user gate would make it both an open proxy and a way to
+	// burn CoMaps' rate limit from outside (D-13). It lives under /regions
+	// only for URL coherence with its siblings — not because it belongs to
+	// the group's weaker RequireAuth() trust class. Mirrors the standalone
+	// superuser-bound registrations above (RegionArchiveDelete,
+	// RegionSyncStart, RegionSyncStatus).
+	se.Router.GET("/regions/{id}/geometry", routes.RegionGeometryGet).Bind(apis.RequireSuperuserAuth())
 }
 
 func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
