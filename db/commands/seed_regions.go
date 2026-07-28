@@ -1,13 +1,11 @@
 package commands
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -22,13 +20,12 @@ import (
 // A concrete SHA is baked in — never the literal "main" — so a re-run of this
 // tool without --commit reproduces the exact same output (28-RESEARCH.md
 // Open Question 3). The same commit is fetched from GitHub's mirror (see
-// baseURL below) rather than Codeberg directly — Codeberg's raw-file
-// endpoint enforces a ~250-requests/600s quota that a maintainer run
-// against ~1,150 leaf .poly files routinely exhausts, turning a single run
-// into repeated multi-minute stalls; comaps/comaps is mirrored to GitHub
-// (github.com/comaps/comaps), and raw.githubusercontent.com serves
-// identical byte-for-byte content for the same commit with no observed
-// rate limiting for this access pattern.
+// baseURL below) rather than Codeberg directly — comaps/comaps is mirrored
+// to GitHub (github.com/comaps/comaps), and raw.githubusercontent.com serves
+// identical byte-for-byte content for the same commit with no observed rate
+// limiting. With only hierarchy.txt now fetched (D-12), a run is a single
+// request either host could serve, but the GitHub mirror stays primary for
+// consistency with the commit's provenance.
 const defaultCommitHash = "2528fbb91977201cf6d16b1b01ebf27eea342e85"
 
 // commitHashPattern is the allow-list a --commit value must satisfy before it
@@ -37,36 +34,46 @@ var commitHashPattern = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 
 // SeedRow is one flattened row of the JSON array seed_regions.go writes:
 // one entry per CoMaps hierarchy.txt node (group or leaf). Field tags match
-// byte-for-byte what plan 28-03's migration reader struct expects. Polygon
-// and Bbox are omitempty so group rows serialize without those keys
-// (CATALOG-02: geometry is leaf-only).
+// byte-for-byte what the migration reader struct expects. It carries pure
+// hierarchy only — no geometry (SLIM-01, D-12): a leaf's polygon/bbox are
+// fetched on demand at runtime instead of being carried in this catalog.
 type SeedRow struct {
-	ComapsID       string         `json:"comaps_id"`
-	ParentComapsID string         `json:"parent_comaps_id"`
-	Path           string         `json:"path"`
-	Depth          int            `json:"depth"`
-	SortOrder      int            `json:"sort_order"`
-	Name           string         `json:"name"`
-	Kind           string         `json:"kind"`
-	Polygon        map[string]any `json:"polygon,omitempty"`
-	Bbox           []float64      `json:"bbox,omitempty"`
+	ComapsID       string `json:"comaps_id"`
+	ParentComapsID string `json:"parent_comaps_id"`
+	Path           string `json:"path"`
+	Depth          int    `json:"depth"`
+	SortOrder      int    `json:"sort_order"`
+	Name           string `json:"name"`
+	Kind           string `json:"kind"`
+}
+
+// SeedCatalog is the top-level shape written to --out: the pinned commit
+// this catalog was generated from, recorded once (D-00b), plus every
+// flattened hierarchy row. Storing the commit inside the artifact rather
+// than as a separate shared Go const means a regeneration with a different
+// --commit can never silently desync the recorded provenance from the rows
+// that were actually fetched.
+type SeedCatalog struct {
+	Commit string    `json:"commit"`
+	Rows   []SeedRow `json:"rows"`
 }
 
 // SeedRegions returns the "seed-regions" Cobra command: a maintainer-run,
-// dev-time-only tool that fetches CoMaps' hierarchy.txt and every leaf
-// .poly file fresh from comaps/comaps's GitHub mirror at a pinned commit
-// (D-01 — nothing raw is vendored into this repo, only this tool's
-// flattened JSON output is ever committed), converts them via the plan
-// 28-01 parsers (ParseHierarchy, ParsePoly), and writes the result to
-// --out. The commit to fetch is a CLI flag with a baked-in default (D-02)
-// so a maintainer can refresh the catalog ad hoc without editing source.
+// dev-time-only tool that fetches CoMaps' hierarchy.txt fresh from
+// comaps/comaps's GitHub mirror at a pinned commit (D-01 — nothing raw is
+// vendored into this repo, only this tool's flattened JSON output is ever
+// committed), converts it via ParseHierarchy, and writes the result to
+// --out as a SeedCatalog value. The commit to fetch is a CLI flag with a
+// baked-in default (D-02) so a maintainer can refresh the catalog ad hoc
+// without editing source.
 //
-// The output is a gzip-compressed compact JSON seed (not pretty-printed):
-// indenting the marshaled output inflates the full ~1,150-leaf catalog to
-// ~730 MB, roughly 7x over GitHub's 100 MB hard per-file push limit —
-// compact encoding alone still leaves ~216 MB, so the write path also
-// gzip-compresses (default level 6) down to ~57 MB, comfortably
-// distributable via a normal git push (28-04 gap closure, SEED-02).
+// The run issues exactly one HTTP request (D-12): with geometry no longer
+// carried in this catalog, there is nothing left to derive from a leaf's
+// .poly file, so the ~1,150-file scrape this tool used to perform is gone.
+// The output is plain, pretty-printed JSON (D-00a) — no gzip layer — since
+// the pure-hierarchy catalog is small enough (~292 KB) to commit and review
+// directly; a maintainer refresh is now a reviewable diff rather than an
+// opaque compressed binary blob.
 //
 // Unlike Dedup, this command's constructor takes no *pocketbase.PocketBase —
 // it never touches a live database, only fetches, transforms, and writes a
@@ -74,11 +81,10 @@ type SeedRow struct {
 func SeedRegions() *cobra.Command {
 	var commit string
 	var out string
-	var limit int
 
 	cmd := &cobra.Command{
 		Use:   "seed-regions",
-		Short: "Fetch CoMaps hierarchy.txt + .poly files from comaps/comaps's GitHub mirror and write a gzip-compressed flattened regions JSON seed",
+		Short: "Fetch CoMaps hierarchy.txt from comaps/comaps's GitHub mirror and write a plain, pretty-printed, hierarchy-only regions JSON catalog",
 		Run: func(cmd *cobra.Command, args []string) {
 			if !commitHashPattern.MatchString(commit) {
 				log.Fatalf("seed-regions: --commit %q is not a valid git commit hash (expected 7-40 hex characters)", commit)
@@ -109,61 +115,33 @@ func SeedRegions() *cobra.Command {
 				}
 			}
 
-			var groupCount, leafCount, fetchedLeaves int
+			var groupCount, leafCount int
 			for i := range rows {
-				if rows[i].Kind != "leaf" {
+				if rows[i].Kind == "leaf" {
+					leafCount++
+				} else {
 					groupCount++
-					continue
 				}
-				leafCount++
-
-				if limit > 0 && fetchedLeaves >= limit {
-					continue
-				}
-
-				polyURL := baseURL + "borders/" + url.PathEscape(rows[i].ComapsID) + ".poly"
-				polyData, err := fetch(polyURL, 32<<20)
-				if err != nil {
-					log.Fatalf("seed-regions: failed to fetch .poly for region %q: %v", rows[i].ComapsID, err)
-				}
-
-				geometry, bbox, err := ParsePoly(polyData)
-				if err != nil {
-					log.Fatalf("seed-regions: failed to parse .poly for region %q: %v", rows[i].ComapsID, err)
-				}
-
-				rows[i].Polygon = geometry
-				rows[i].Bbox = []float64{bbox[0], bbox[1], bbox[2], bbox[3]}
-				fetchedLeaves++
 			}
 
-			data, err := json.Marshal(rows)
+			catalog := SeedCatalog{Commit: commit, Rows: rows}
+
+			data, err := json.MarshalIndent(catalog, "", "  ")
 			if err != nil {
 				log.Fatalf("seed-regions: failed to marshal seed JSON: %v", err)
 			}
 
-			outFile, err := os.OpenFile(out, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
-			if err != nil {
-				log.Fatalf("seed-regions: failed to create %s: %v", out, err)
-			}
-			defer outFile.Close()
-
-			gzWriter := gzip.NewWriter(outFile) // DefaultCompression (level 6) — the measured ~57MB point; do not drop below it
-			if _, err := gzWriter.Write(data); err != nil {
-				log.Fatalf("seed-regions: failed to write gzip data to %s: %v", out, err)
-			}
-			if err := gzWriter.Close(); err != nil {
-				log.Fatalf("seed-regions: failed to flush gzip trailer to %s: %v", out, err)
+			if err := os.WriteFile(out, data, 0o644); err != nil {
+				log.Fatalf("seed-regions: failed to write %s: %v", out, err)
 			}
 
-			fmt.Printf("seed-regions: wrote %d rows (%d groups, %d leaves, %d leaf .poly files fetched) to %s (gzip-compressed compact JSON)\n",
-				len(rows), groupCount, leafCount, fetchedLeaves, out)
+			fmt.Printf("seed-regions: wrote %d rows (%d groups, %d leaves) to %s (plain pretty-printed JSON, commit %s, one HTTP request)\n",
+				len(rows), groupCount, leafCount, out, commit)
 		},
 	}
 
-	cmd.Flags().StringVar(&commit, "commit", defaultCommitHash, "CoMaps (comaps/comaps) commit hash to fetch hierarchy.txt/.poly data from")
-	cmd.Flags().StringVar(&out, "out", "migrations/initial_data/regions_seed.json.gz", "output path for the gzip-compressed flattened regions JSON seed")
-	cmd.Flags().IntVar(&limit, "limit", 0, "limit the number of leaf .poly files fetched (0 = all leaves); a dev smoke-test aid")
+	cmd.Flags().StringVar(&commit, "commit", defaultCommitHash, "CoMaps (comaps/comaps) commit hash to fetch hierarchy.txt from")
+	cmd.Flags().StringVar(&out, "out", "migrations/initial_data/regions_seed.json", "output path for the plain, pretty-printed, hierarchy-only regions JSON catalog")
 
 	return cmd
 }
@@ -171,9 +149,9 @@ func SeedRegions() *cobra.Command {
 // maxFetchRetries bounds how many times fetch retries a single URL after a
 // 429 (rate limited) response before giving up. Codeberg's raw-file
 // endpoint enforces a tight per-window quota (observed: 250 requests /
-// 600s) that a maintainer run against ~1,150 leaf .poly files routinely
-// exhausts — this is a transient upstream condition, not malformed data,
-// so it is retried rather than treated as a fatal parse/fetch error.
+// 600s); this generator now issues only one request per run, but the
+// patient retry budget is kept per D-03 — the build path (plan 32-03) gets
+// its own tighter budget rather than reusing this one.
 const maxFetchRetries = 10
 
 // fetch performs an HTTP GET against rawURL and reads at most maxBytes of
