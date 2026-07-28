@@ -8,7 +8,7 @@ import (
 )
 
 // ValidateRegionPathReferenceHandler enforces the path-based "foreign key"
-// that connects region_archives and region_polygons back to the regions
+// that connects region_archives and region_geometry back to the regions
 // table. Neither collection uses a PocketBase relation field — PocketBase
 // relations reference a record's opaque id, but these tables deliberately
 // join on the regions.path materialized key (provably unique and stable
@@ -19,11 +19,11 @@ import (
 //
 // This runs as an OnRecordCreate/OnRecordUpdate MODEL hook (not the *Request
 // variant) so it also covers the internal writes that actually create these
-// rows — services/regions/builder.go's app.Save for archives and the regions
-// seed migration for polygons — not just API traffic (of which these
-// internal-only collections see none). A row whose path has no matching
-// regions row is rejected, giving the referential guarantee a relation would
-// otherwise provide.
+// rows — services/regions/builder.go's app.Save for archives and the
+// on-demand geometry fetch path's persist-on-enabled write for geometry —
+// not just API traffic (of which these internal-only collections see none).
+// A row whose path has no matching regions row is rejected, giving the
+// referential guarantee a relation would otherwise provide.
 func ValidateRegionPathReferenceHandler() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		path := e.Record.GetString("path")

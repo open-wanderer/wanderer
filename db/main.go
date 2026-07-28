@@ -153,12 +153,12 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordCreate("api_tokens").BindFunc(hooks.CreateAPITokenHandler())
 
-	// Path-based referential integrity: region_archives/region_polygons rows
+	// Path-based referential integrity: region_archives/region_geometry rows
 	// must reference an existing regions.path (there is no PocketBase relation
 	// between them — the join is on the stable path natural key). Model hooks
-	// (not *Request) so internal builder/seed writes are covered too.
-	app.OnRecordCreate("region_archives", "region_polygons").BindFunc(hooks.ValidateRegionPathReferenceHandler())
-	app.OnRecordUpdate("region_archives", "region_polygons").BindFunc(hooks.ValidateRegionPathReferenceHandler())
+	// (not *Request) so internal builder/geometry-fetch writes are covered too.
+	app.OnRecordCreate("region_archives", "region_geometry").BindFunc(hooks.ValidateRegionPathReferenceHandler())
+	app.OnRecordUpdate("region_archives", "region_geometry").BindFunc(hooks.ValidateRegionPathReferenceHandler())
 
 	app.OnRecordCreateRequest().BindFunc(util.SanitizeHTML())
 	app.OnRecordUpdateRequest().BindFunc(util.SanitizeHTML())
@@ -234,7 +234,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	// entirely by the page's own content: it reads the PocketBase
 	// dashboard's own superuser JWT from localStorage and talks directly
 	// to PocketBase's built-in collection REST API, which is superuser-
-	// only by default on regions/region_polygons (T-30-01).
+	// only by default on regions/region_geometry (T-30-01).
 	se.Router.GET("/region-catalog/", routes.RegionsDashboard)
 
 	// Destructive, admin-only: unlike the page above (which relies on the
