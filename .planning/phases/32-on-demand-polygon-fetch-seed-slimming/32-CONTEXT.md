@@ -25,9 +25,9 @@ Out of scope: any change to what the catalog *contains* (the 1306-row hierarchy 
 
 - **D-00a:** Seed artifact is plain, pretty-printed JSON. No gzip. Measured on the real 1306-row catalog: with bbox, pretty-printed 386.9 KB; **without bbox (the shipping shape, per D-12), 291.9 KB**. Pretty-printed was chosen deliberately for readability, accepting that it expands a single renamed region into ~10 diff lines where one-object-per-line would show exactly one.
 - **D-00b:** The pinned CoMaps SHA travels **inside the catalog artifact**, not as a shared Go const. A const goes stale the moment someone regenerates with `--commit X`, silently desyncing geometry from hierarchy; storing what `seed-regions` actually used makes that desync structurally impossible.
-- **D-00c:** ⚠️ **SUPERSEDED by D-09.** As originally recorded: "`region_polygons` is dropped entirely — not retained as a lazily-populated cache." That reasoning rested on a `*.go`-only grep that identified `buildRegion` as the sole geometry consumer. It is false — the admin SPA reads the collection over the PocketBase REST API from JavaScript. The table survives, empty. See D-09.
-- **D-00d:** ⚠️ **SUPERSEDED by D-12.** As originally recorded: "`bbox` stays committed." Verified false on re-check: every consumer needs bbox only for *enabled* regions. bbox moves into `region_geometry`.
-- **D-00e:** ⚠️ **SUPERSEDED by D-12.** As originally recorded: "`seed-regions` still fetches all ~1153 `.poly` files." With bbox out of the catalog, the generator needs only `hierarchy.txt` — one request.
+- **D-00c [informational]:** ⚠️ **SUPERSEDED by D-09.** As originally recorded: "`region_polygons` is dropped entirely — not retained as a lazily-populated cache." That reasoning rested on a `*.go`-only grep that identified `buildRegion` as the sole geometry consumer. It is false — the admin SPA reads the collection over the PocketBase REST API from JavaScript. The table survives, empty. See D-09.
+- **D-00d [informational]:** ⚠️ **SUPERSEDED by D-12.** As originally recorded: "`bbox` stays committed." Verified false on re-check: every consumer needs bbox only for *enabled* regions. bbox moves into `region_geometry`.
+- **D-00e [informational]:** ⚠️ **SUPERSEDED by D-12.** As originally recorded: "`seed-regions` still fetches all ~1153 `.poly` files." With bbox out of the catalog, the generator needs only `hierarchy.txt` — one request.
 
 ### Geometry storage and retrieval (resolves the former blocker)
 

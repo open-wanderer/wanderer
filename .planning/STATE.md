@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
-status: verifying
+status: executing
 stopped_at: Phase 32 context gathered — BLOCKED on admin-UI region_polygons dependency
-last_updated: "2026-07-28T08:49:08.187Z"
+last_updated: "2026-07-28T09:40:59.046Z"
 last_activity: 2026-07-27 -- Completed 31-03-PLAN.md (prune Settings hierarchy to downloadable regions)
 progress:
   total_phases: 5
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 Phase: 31 (flutter-settings-hierarchy) — EXECUTING
 Plan: 3 of 3
-Status: Phase complete — gap closure (31-03) executed, ready for re-verification
+Status: Ready to execute
 Last activity: 2026-07-27 -- Completed 31-03-PLAN.md (prune Settings hierarchy to downloadable regions)
 
 ## v1.7 Phases
