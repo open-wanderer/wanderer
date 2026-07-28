@@ -454,7 +454,28 @@ Offline launch is unaffected: the catalog stays a committed in-repo artifact, so
 - **Tests that relied on seeded polygons** need network access or local fixtures; prefer fixtures.
 - **Availability becomes a product of three services** (Mapterhorn, Protomaps, and now CoMaps' host). Reuse the existing `fetch` 429/`Retry-After` backoff, and make failures name the upstream that failed.
 
-**Plans**: TBD (run `/gsd-plan-phase 32`)
+**Plans**: 6 plans (5 waves)
+
+**Wave 1**
+
+- [ ] 32-01-PLAN.md — Slim `seed-regions` to one `hierarchy.txt` request, relocate `ParsePoly` into `services/regions`, regenerate the 292 KB plain-JSON catalog (SLIM-01)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 32-02-PLAN.md — Edit the migration in place: hierarchy-only `regions` with `catalog_commit`, empty `region_geometry` holding bbox + polygon, hook rebind (SLIM-02, SLIM-04)
+- [ ] 32-03-PLAN.md — Two-host on-demand `.poly` fetcher (GitHub primary, Codeberg fallback) + pure unit tests + D-07 value-equality proof (SLIM-03)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 32-04-PLAN.md — `ResolveGeometry` self-heal store, `buildRegion` restructure, `RegionsList` bbox join from `region_geometry` (SLIM-03, SLIM-04)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 32-05-PLAN.md — Superuser-gated `GET /regions/{id}/geometry` + admin picker hover repoint + `fitToEnabled` bbox fix (SLIM-05, SLIM-04)
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 32-06-PLAN.md — Retire the gzip artifact and purge the ~55 MB blob from `feature/app` history (SLIM-01, SLIM-04) — contains a blocking force-push decision checkpoint
 
 **UI hint**: no
 
@@ -510,4 +531,4 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
-| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 0/0 | Not started | — |
+| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 0/6 | Planned | — |
