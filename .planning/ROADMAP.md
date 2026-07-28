@@ -463,7 +463,7 @@ Offline launch is unaffected: the catalog stays a committed in-repo artifact, so
 **Wave 2** *(blocked on Wave 1)*
 
 - [x] 32-02-PLAN.md — Edit the migration in place: hierarchy-only `regions` with `catalog_commit`, empty `region_geometry` holding bbox + polygon, hook rebind (SLIM-02, SLIM-04)
-- [ ] 32-03-PLAN.md — Two-host on-demand `.poly` fetcher (GitHub primary, Codeberg fallback) + pure unit tests + D-07 value-equality proof (SLIM-03)
+- [x] 32-03-PLAN.md — Two-host on-demand `.poly` fetcher (GitHub primary, Codeberg fallback) + pure unit tests + D-07 value-equality proof (SLIM-03)
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -531,4 +531,4 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
-| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 2/6 | In Progress|  |
+| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 3/6 | In Progress|  |

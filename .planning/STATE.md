@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: executing
-stopped_at: Completed 32-02-PLAN.md
-last_updated: "2026-07-28T10:03:55.586Z"
+stopped_at: Completed 32-03-PLAN.md
+last_updated: "2026-07-28T10:15:19.692Z"
 last_activity: 2026-07-28 -- Phase 32 execution started
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 19
-  completed_plans: 15
-  percent: 79
+  completed_plans: 16
+  percent: 80
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 32 (on-demand-polygon-fetch-seed-slimming) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-07-28 -- Phase 32 execution started
 
@@ -131,6 +131,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 31 P03 | ~12min | 2 tasks | 9 files |
 | Phase 32 P01 | 10min | 3 tasks | 5 files |
 | Phase 32 P02 | 20min | 3 tasks | 3 files |
+| Phase 32 P03 | 12min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -297,6 +298,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 32] [32-01] ParsePoly relocated verbatim into package regions (git mv) so plan 32-03's runtime fetch path avoids a services/regions -> commands import
 - [Phase ?]: [Phase 32] [32-01] regions_seed.json.gz deliberately retained on disk -- migration still reads it until 32-02, and 32-03 uses it as the D-07 value-equality oracle
 - [Phase 32]: [32-02] Migration edited in place per D-05: region_polygons renamed to region_geometry (bbox+polygon, ships empty), regions gains catalog_commit and loses bbox, gzip/streaming-decoder retired for a plain ReadFile+Unmarshal
+- [Phase 32]: [32-03] FetchGeometry proven value-equal (D-07) to the old committed seed across 6 sampled leaves; no holed-Polygon example exists anywhere in the real 1306-row catalog (documented finding, not a fabricated fixture)
 
 ### Roadmap Evolution
 
@@ -444,8 +446,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-28T10:03:55.569Z
-Stopped at: Completed 32-02-PLAN.md
+Last session: 2026-07-28T10:15:19.675Z
+Stopped at: Completed 32-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
