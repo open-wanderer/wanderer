@@ -179,16 +179,28 @@ func buildRegion(app core.App, record *core.Record) {
 		return
 	}
 
-	var bboxSlice []float64
-	if err := record.UnmarshalJSONField("bbox", &bboxSlice); err != nil || len(bboxSlice) != 4 {
-		log.Printf("[regions] region %s has an invalid or missing bbox (len=%d, err=%v)", regionID, len(bboxSlice), err)
-		return
-	}
-	bbox := [4]float64{bboxSlice[0], bboxSlice[1], bboxSlice[2], bboxSlice[3]}
-
-	archive, err := findOrCreateRegionRecord(app, regionID, name, bbox)
+	archive, err := findOrCreateRegionRecord(app, regionID, name)
 	if err != nil {
 		log.Printf("[regions] failed to find/create region_archives record for %s: %v", regionID, err)
+		return
+	}
+
+	// Geometry resolution now runs before the early return below because
+	// bbox lives with the polygon in region_geometry (D-12), and the
+	// archive record needs a bbox to compare staleness against regardless
+	// of whether a vector/DEM rebuild ends up being needed. This is what
+	// makes a deleted or corrupted region_geometry row heal on the very
+	// next cron run even when nothing else needed rebuilding (D-14). The
+	// accepted cost: a region whose geometry row was destroyed costs one
+	// upstream request on the next run; the preserved property: a
+	// well-formed cached row still costs zero network (ResolveGeometry
+	// returns it with no fetch).
+	//
+	// Only a failed refetch reaches setError (D-01) — this is the last
+	// resort, after ResolveGeometry has already attempted the self-heal.
+	geometry, bbox, err := ResolveGeometry(app, record)
+	if err != nil {
+		_ = setError(app, archive, fmt.Errorf("resolve geometry for region %s: %w", regionID, err))
 		return
 	}
 
@@ -224,23 +236,7 @@ func buildRegion(app core.App, record *core.Record) {
 		return
 	}
 
-	// Lazy: only look up and write the polygon when a build actually needs
-	// it, avoiding an unnecessary region_polygons query + temp write when
-	// nothing needs building. polygon now lives in its own collection (not
-	// on the regions record) so listing/hierarchy queries never load it.
-	polyRecord, err := app.FindFirstRecordByFilter("region_polygons",
-		"path = {:path}", dbx.Params{"path": regionID})
-	if err != nil {
-		log.Printf("[regions] region %s has no region_polygons entry: %v", regionID, err)
-		return
-	}
-	var polygon map[string]any
-	if err := polyRecord.UnmarshalJSONField("polygon", &polygon); err != nil || len(polygon) == 0 {
-		log.Printf("[regions] region %s has an invalid or missing polygon (err=%v)", regionID, err)
-		return
-	}
-
-	polyPath, err := writePolygonTempFile(polygon)
+	polyPath, err := writePolygonTempFile(geometry)
 	if err != nil {
 		log.Printf("[regions] failed to write polygon temp file for region %s: %v", regionID, err)
 		return
@@ -259,7 +255,14 @@ func buildRegion(app core.App, record *core.Record) {
 // creating one (status/dem_status "building") if none exists yet. Mirrors
 // the per-cell generator's findOrCreateRecord shape. regionID is a
 // regions.path value (A2), stored in the region_archives.path field.
-func findOrCreateRegionRecord(app core.App, regionID, name string, bbox [4]float64) (*core.Record, error) {
+//
+// bbox is no longer a parameter — it now lives in region_geometry (D-12)
+// and is applied by the caller (buildRegion) once ResolveGeometry has run.
+// A newly created record therefore starts with zeroed bounds; the caller's
+// configChanged check immediately corrects this, since bboxChanged against
+// 0,0,0,0 is true for any real bbox — a real region can never have bbox
+// exactly [0,0,0,0], so this cannot mask a genuine no-op.
+func findOrCreateRegionRecord(app core.App, regionID, name string) (*core.Record, error) {
 	collection, err := app.FindCollectionByNameOrId("region_archives")
 	if err != nil {
 		return nil, fmt.Errorf("region_archives collection not found: %w", err)
@@ -279,10 +282,6 @@ func findOrCreateRegionRecord(app core.App, regionID, name string, bbox [4]float
 	record := core.NewRecord(collection)
 	record.Set("path", regionID)
 	record.Set("name", name)
-	record.Set("min_lon", bbox[0])
-	record.Set("min_lat", bbox[1])
-	record.Set("max_lon", bbox[2])
-	record.Set("max_lat", bbox[3])
 	record.Set("status", "building")
 	record.Set("dem_status", "building")
 

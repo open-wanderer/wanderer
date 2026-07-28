@@ -54,6 +54,11 @@ func needsVectorRebuild(storedDate, currentDate string) bool {
 // bbox stored on its region_archives record, used to gate DEM rebuilds
 // (D-11: DEM builds once, rebuilding only when the config bbox changes).
 //
+// The comparison source is now the bbox resolved from region_geometry
+// (via ResolveGeometry) rather than the seeded catalog record, since bbox
+// no longer lives on the regions record (D-12 consequence 3) — semantics
+// and the exact-float64-equality rationale below are unchanged.
+//
 // Exact float64 equality is used (no epsilon) — both sides originate from
 // the same JSON-parsed float64 values (config file -> Region.Bbox -> stored
 // record fields), so no floating-point drift is introduced between them.
