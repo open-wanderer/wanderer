@@ -1088,7 +1088,9 @@
                 if (item && item.polygon) this.addRegionLayer(this.map, row.path, item.polygon);
               });
               // D-05: initial-load-only fit; individual toggles never re-fit (D-06).
-              this.fitToEnabled(this.map, enabledRows);
+              // Bbox now comes from the geometry items `loadEnabledPolygons` already
+              // fetched, not from the regions collection (D-12 moved it out).
+              this.fitToEnabled(this.map, items);
             });
           });
         },
@@ -1107,7 +1109,7 @@
           for (var i = 0; i < paths.length; i += chunkSize) {
             var chunk = paths.slice(i, i + chunkSize);
             var filter = chunk.map(function (p) { return "path='" + p.replace(/'/g, "\\'") + "'"; }).join('||');
-            var res = await this.apiFetch('/api/collections/region_polygons/records?perPage=' + chunkSize + '&filter=' + encodeURIComponent(filter));
+            var res = await this.apiFetch('/api/collections/region_geometry/records?perPage=' + chunkSize + '&filter=' + encodeURIComponent(filter));
             if (!res) return out; // apiFetch already handled 401 -> logged-out state
             var data = await res.json();
             out = out.concat(data.items);
@@ -1132,17 +1134,24 @@
           if (map.getSource(srcId)) map.removeSource(srcId);
         },
 
-        // D-05: union bbox (regions.bbox already [minLon,minLat,maxLon,maxLat])
-        // + 48px padding; Europe-centered fallback when nothing is enabled.
-        fitToEnabled(map, enabledLeafRows) {
-          if (!enabledLeafRows || enabledLeafRows.length === 0) {
+        // D-05: union bbox ([minLon,minLat,maxLon,maxLat], now sourced from
+        // the resolved geometry rows rather than the retired regions.bbox
+        // field, per D-12) + 48px padding; Europe-centered fallback when
+        // nothing is enabled or usable. Entries whose bbox is missing or not
+        // a 4-element array (a half-resolved region) are skipped so they
+        // can't poison the union into NaN/Infinity.
+        fitToEnabled(map, geometryItems) {
+          var usable = (geometryItems || []).filter(function (it) {
+            return it && Array.isArray(it.bbox) && it.bbox.length === 4;
+          });
+          if (usable.length === 0) {
             map.jumpTo({ center: [10, 45], zoom: 3 });
             return;
           }
-          var union = enabledLeafRows.reduce(function (acc, r) {
+          var union = usable.reduce(function (acc, it) {
             return [
-              Math.min(acc[0], r.bbox[0]), Math.min(acc[1], r.bbox[1]),
-              Math.max(acc[2], r.bbox[2]), Math.max(acc[3], r.bbox[3]),
+              Math.min(acc[0], it.bbox[0]), Math.min(acc[1], it.bbox[1]),
+              Math.max(acc[2], it.bbox[2]), Math.max(acc[3], it.bbox[3]),
             ];
           }, [Infinity, Infinity, -Infinity, -Infinity]);
           map.fitBounds([[union[0], union[1]], [union[2], union[3]]], { padding: 48 });
@@ -1154,7 +1163,7 @@
         async addPolygonForRow(row) {
           if (!this.map) return;
           var filter = "path='" + row.path.replace(/'/g, "\\'") + "'";
-          var res = await this.apiFetch('/api/collections/region_polygons/records?perPage=1&filter=' + encodeURIComponent(filter));
+          var res = await this.apiFetch('/api/collections/region_geometry/records?perPage=1&filter=' + encodeURIComponent(filter));
           if (!res || !res.ok) return;
           var data = await res.json();
           var item = data.items && data.items[0];
@@ -1171,7 +1180,13 @@
         // fetch per row, then draw it as a single non-persistent highlight
         // layer separate from the enabled-region layers (region-fill-*/
         // region-line-*), so hovering a disabled region never mutates its
-        // actual enabled state or the persistent map layers.
+        // actual enabled state or the persistent map layers. A disabled
+        // leaf's outline is fetched live from CoMaps through the
+        // superuser-gated /regions/{path}/geometry route (D-10/D-13) rather
+        // than read from the collection directly — a disabled, never-built
+        // leaf has no row there. Per D-11 the route resolves this on the
+        // fly and writes nothing back for a disabled region; the existing
+        // client-side cache below is the only cache involved.
         onLeafHoverStart(row) {
           if (row.kind !== 'leaf' || !this.map) return;
           if (this._hoverDebounceTimer) clearTimeout(this._hoverDebounceTimer);
@@ -1179,13 +1194,11 @@
           this._hoverDebounceTimer = setTimeout(async () => {
             var polygon = this._polygonCache[row.path];
             if (!polygon) {
-              var filter = "path='" + row.path.replace(/'/g, "\\'") + "'";
-              var res = await this.apiFetch('/api/collections/region_polygons/records?perPage=1&filter=' + encodeURIComponent(filter));
+              var res = await this.apiFetch('/regions/' + encodeURIComponent(row.path) + '/geometry');
               if (!res || !res.ok) return;
               var data = await res.json();
-              var item = data.items && data.items[0];
-              if (!item || !item.polygon) return;
-              polygon = item.polygon;
+              if (!data || !data.polygon) return;
+              polygon = data.polygon;
               this._polygonCache[row.path] = polygon;
             }
             if (token !== this._hoverToken) return; // hover moved on before fetch resolved
