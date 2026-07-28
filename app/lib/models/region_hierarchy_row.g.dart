@@ -15,7 +15,6 @@ _RegionHierarchyRow _$RegionHierarchyRowFromJson(Map<String, dynamic> json) =>
       path: json['path'] as String,
       depth: (json['depth'] as num).toInt(),
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
-      enabled: json['enabled'] as bool?,
     );
 
 Map<String, dynamic> _$RegionHierarchyRowToJson(_RegionHierarchyRow instance) =>
@@ -27,7 +26,6 @@ Map<String, dynamic> _$RegionHierarchyRowToJson(_RegionHierarchyRow instance) =>
       'path': instance.path,
       'depth': instance.depth,
       'sort_order': instance.sortOrder,
-      'enabled': instance.enabled,
     };
 
 const _$RegionNodeKindEnumMap = {

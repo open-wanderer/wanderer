@@ -20,7 +20,6 @@ class RegionTreeNode {
     required this.path,
     required this.depth,
     required this.sortOrder,
-    required this.enabled,
   });
 
   final String id;
@@ -30,10 +29,6 @@ class RegionTreeNode {
   final String path;
   final int depth;
   final int sortOrder;
-
-  /// Leaf-only downloadable flag copied from `RegionHierarchyRow.enabled`;
-  /// `null` for group rows. Consumed by `pruneToDownloadable`.
-  final bool? enabled;
 
   /// Populated by `buildRegionTree` as it attaches each node to its parent.
   /// Growable and mutable by design — see the class doc comment.

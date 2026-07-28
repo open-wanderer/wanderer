@@ -19,13 +19,7 @@ mixin _$RegionHierarchyRow {
  String get parent; String get path; int get depth;/// Defaults to `0` (Pitfall 4): deliberate forward-compat guard so a
 /// row fetched before the backend's `sort_order` field ships (or from
 /// an out-of-order rollout) still parses instead of throwing.
-@JsonKey(name: 'sort_order') int get sortOrder;/// Leaf-only downloadable flag, sourced from `regions_get.go`'s
-/// leaf-only `enabled` key (set before the archive lookup, so it is
-/// present regardless of build status). `null` for group rows (which
-/// never carry this key) and for any legacy row fetched before this
-/// field existed. A leaf is treated as downloadable iff this is
-/// exactly `true` — see `pruneToDownloadable` in `region_tree_util.dart`.
-@JsonKey(name: 'enabled') bool? get enabled;
+@JsonKey(name: 'sort_order') int get sortOrder;
 /// Create a copy of RegionHierarchyRow
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -38,16 +32,16 @@ $RegionHierarchyRowCopyWith<RegionHierarchyRow> get copyWith => _$RegionHierarch
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionHierarchyRow&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.parent, parent) || other.parent == parent)&&(identical(other.path, path) || other.path == path)&&(identical(other.depth, depth) || other.depth == depth)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.enabled, enabled) || other.enabled == enabled));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionHierarchyRow&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.parent, parent) || other.parent == parent)&&(identical(other.path, path) || other.path == path)&&(identical(other.depth, depth) || other.depth == depth)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,kind,parent,path,depth,sortOrder,enabled);
+int get hashCode => Object.hash(runtimeType,id,name,kind,parent,path,depth,sortOrder);
 
 @override
 String toString() {
-  return 'RegionHierarchyRow(id: $id, name: $name, kind: $kind, parent: $parent, path: $path, depth: $depth, sortOrder: $sortOrder, enabled: $enabled)';
+  return 'RegionHierarchyRow(id: $id, name: $name, kind: $kind, parent: $parent, path: $path, depth: $depth, sortOrder: $sortOrder)';
 }
 
 
@@ -58,7 +52,7 @@ abstract mixin class $RegionHierarchyRowCopyWith<$Res>  {
   factory $RegionHierarchyRowCopyWith(RegionHierarchyRow value, $Res Function(RegionHierarchyRow) _then) = _$RegionHierarchyRowCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, RegionNodeKind kind, String parent, String path, int depth,@JsonKey(name: 'sort_order') int sortOrder,@JsonKey(name: 'enabled') bool? enabled
+ String id, String name, RegionNodeKind kind, String parent, String path, int depth,@JsonKey(name: 'sort_order') int sortOrder
 });
 
 
@@ -75,7 +69,7 @@ class _$RegionHierarchyRowCopyWithImpl<$Res>
 
 /// Create a copy of RegionHierarchyRow
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? kind = null,Object? parent = null,Object? path = null,Object? depth = null,Object? sortOrder = null,Object? enabled = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? kind = null,Object? parent = null,Object? path = null,Object? depth = null,Object? sortOrder = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -84,8 +78,7 @@ as RegionNodeKind,parent: null == parent ? _self.parent : parent // ignore: cast
 as String,path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
 as String,depth: null == depth ? _self.depth : depth // ignore: cast_nullable_to_non_nullable
 as int,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
-as int,enabled: freezed == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
-as bool?,
+as int,
   ));
 }
 
@@ -170,10 +163,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  RegionNodeKind kind,  String parent,  String path,  int depth, @JsonKey(name: 'sort_order')  int sortOrder, @JsonKey(name: 'enabled')  bool? enabled)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  RegionNodeKind kind,  String parent,  String path,  int depth, @JsonKey(name: 'sort_order')  int sortOrder)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _RegionHierarchyRow() when $default != null:
-return $default(_that.id,_that.name,_that.kind,_that.parent,_that.path,_that.depth,_that.sortOrder,_that.enabled);case _:
+return $default(_that.id,_that.name,_that.kind,_that.parent,_that.path,_that.depth,_that.sortOrder);case _:
   return orElse();
 
 }
@@ -191,10 +184,10 @@ return $default(_that.id,_that.name,_that.kind,_that.parent,_that.path,_that.dep
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  RegionNodeKind kind,  String parent,  String path,  int depth, @JsonKey(name: 'sort_order')  int sortOrder, @JsonKey(name: 'enabled')  bool? enabled)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  RegionNodeKind kind,  String parent,  String path,  int depth, @JsonKey(name: 'sort_order')  int sortOrder)  $default,) {final _that = this;
 switch (_that) {
 case _RegionHierarchyRow():
-return $default(_that.id,_that.name,_that.kind,_that.parent,_that.path,_that.depth,_that.sortOrder,_that.enabled);case _:
+return $default(_that.id,_that.name,_that.kind,_that.parent,_that.path,_that.depth,_that.sortOrder);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -211,10 +204,10 @@ return $default(_that.id,_that.name,_that.kind,_that.parent,_that.path,_that.dep
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  RegionNodeKind kind,  String parent,  String path,  int depth, @JsonKey(name: 'sort_order')  int sortOrder, @JsonKey(name: 'enabled')  bool? enabled)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  RegionNodeKind kind,  String parent,  String path,  int depth, @JsonKey(name: 'sort_order')  int sortOrder)?  $default,) {final _that = this;
 switch (_that) {
 case _RegionHierarchyRow() when $default != null:
-return $default(_that.id,_that.name,_that.kind,_that.parent,_that.path,_that.depth,_that.sortOrder,_that.enabled);case _:
+return $default(_that.id,_that.name,_that.kind,_that.parent,_that.path,_that.depth,_that.sortOrder);case _:
   return null;
 
 }
@@ -226,7 +219,7 @@ return $default(_that.id,_that.name,_that.kind,_that.parent,_that.path,_that.dep
 @JsonSerializable()
 
 class _RegionHierarchyRow implements RegionHierarchyRow {
-  const _RegionHierarchyRow({required this.id, required this.name, required this.kind, required this.parent, required this.path, required this.depth, @JsonKey(name: 'sort_order') this.sortOrder = 0, @JsonKey(name: 'enabled') this.enabled});
+  const _RegionHierarchyRow({required this.id, required this.name, required this.kind, required this.parent, required this.path, required this.depth, @JsonKey(name: 'sort_order') this.sortOrder = 0});
   factory _RegionHierarchyRow.fromJson(Map<String, dynamic> json) => _$RegionHierarchyRowFromJson(json);
 
 @override final  String id;
@@ -240,13 +233,6 @@ class _RegionHierarchyRow implements RegionHierarchyRow {
 /// row fetched before the backend's `sort_order` field ships (or from
 /// an out-of-order rollout) still parses instead of throwing.
 @override@JsonKey(name: 'sort_order') final  int sortOrder;
-/// Leaf-only downloadable flag, sourced from `regions_get.go`'s
-/// leaf-only `enabled` key (set before the archive lookup, so it is
-/// present regardless of build status). `null` for group rows (which
-/// never carry this key) and for any legacy row fetched before this
-/// field existed. A leaf is treated as downloadable iff this is
-/// exactly `true` — see `pruneToDownloadable` in `region_tree_util.dart`.
-@override@JsonKey(name: 'enabled') final  bool? enabled;
 
 /// Create a copy of RegionHierarchyRow
 /// with the given fields replaced by the non-null parameter values.
@@ -261,16 +247,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionHierarchyRow&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.parent, parent) || other.parent == parent)&&(identical(other.path, path) || other.path == path)&&(identical(other.depth, depth) || other.depth == depth)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder)&&(identical(other.enabled, enabled) || other.enabled == enabled));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionHierarchyRow&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.kind, kind) || other.kind == kind)&&(identical(other.parent, parent) || other.parent == parent)&&(identical(other.path, path) || other.path == path)&&(identical(other.depth, depth) || other.depth == depth)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,kind,parent,path,depth,sortOrder,enabled);
+int get hashCode => Object.hash(runtimeType,id,name,kind,parent,path,depth,sortOrder);
 
 @override
 String toString() {
-  return 'RegionHierarchyRow(id: $id, name: $name, kind: $kind, parent: $parent, path: $path, depth: $depth, sortOrder: $sortOrder, enabled: $enabled)';
+  return 'RegionHierarchyRow(id: $id, name: $name, kind: $kind, parent: $parent, path: $path, depth: $depth, sortOrder: $sortOrder)';
 }
 
 
@@ -281,7 +267,7 @@ abstract mixin class _$RegionHierarchyRowCopyWith<$Res> implements $RegionHierar
   factory _$RegionHierarchyRowCopyWith(_RegionHierarchyRow value, $Res Function(_RegionHierarchyRow) _then) = __$RegionHierarchyRowCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, RegionNodeKind kind, String parent, String path, int depth,@JsonKey(name: 'sort_order') int sortOrder,@JsonKey(name: 'enabled') bool? enabled
+ String id, String name, RegionNodeKind kind, String parent, String path, int depth,@JsonKey(name: 'sort_order') int sortOrder
 });
 
 
@@ -298,7 +284,7 @@ class __$RegionHierarchyRowCopyWithImpl<$Res>
 
 /// Create a copy of RegionHierarchyRow
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? kind = null,Object? parent = null,Object? path = null,Object? depth = null,Object? sortOrder = null,Object? enabled = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? kind = null,Object? parent = null,Object? path = null,Object? depth = null,Object? sortOrder = null,}) {
   return _then(_RegionHierarchyRow(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -307,8 +293,7 @@ as RegionNodeKind,parent: null == parent ? _self.parent : parent // ignore: cast
 as String,path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
 as String,depth: null == depth ? _self.depth : depth // ignore: cast_nullable_to_non_nullable
 as int,sortOrder: null == sortOrder ? _self.sortOrder : sortOrder // ignore: cast_nullable_to_non_nullable
-as int,enabled: freezed == enabled ? _self.enabled : enabled // ignore: cast_nullable_to_non_nullable
-as bool?,
+as int,
   ));
 }
 

@@ -98,27 +98,6 @@ List<RegionHierarchyRow> _fixtureHierarchyRows() => [
     parent: 'europe',
     path: 'europe/de-nrw',
     depth: 1,
-    enabled: true,
-  ),
-  // Pruning fixture (31-UAT Test 1 / APPUI-01 gap closure): a disabled leaf
-  // under its own group -- neither should survive pruneToDownloadable, so
-  // neither should ever reach render.
-  const RegionHierarchyRow(
-    id: 'asia',
-    name: 'Asia',
-    kind: RegionNodeKind.group,
-    parent: '',
-    path: 'asia',
-    depth: 0,
-  ),
-  const RegionHierarchyRow(
-    id: 'jp-x',
-    name: 'Kyoto',
-    kind: RegionNodeKind.leaf,
-    parent: 'asia',
-    path: 'asia/jp-x',
-    depth: 1,
-    enabled: false,
   ),
 ];
 
@@ -243,22 +222,6 @@ void main() {
       // Expands again on a second tap.
       expect(find.byIcon(FontAwesomeIcons.angleDown.data), findsOneWidget);
       expect(find.text('North Rhine-Westphalia'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'a disabled leaf and its now-childless group are pruned before render '
-    '(31-UAT Test 1 / APPUI-01 gap closure)',
-    (tester) async {
-      await _pumpScreen(tester);
-
-      // The enabled subtree survives pruning and renders normally.
-      expect(find.text('Europe'), findsOneWidget);
-
-      // The disabled leaf and its group (left with zero surviving children)
-      // are pruned before flattenVisible runs, so neither ever renders.
-      expect(find.text('Asia'), findsNothing);
-      expect(find.text('Kyoto'), findsNothing);
     },
   );
 

@@ -101,7 +101,10 @@ class _SettingsOfflineRegionsScreenState
       if (!mounted) return;
       ref.invalidate(regionListNotifierProvider);
       setState(() {
-        _treeRoots = pruneToDownloadable(buildRegionTree(hierarchyRows));
+        // The backend already prunes to enabled leaves + ancestor groups
+        // (`?enabled=true`), so the tree is rendered as-received — no local
+        // pruning pass.
+        _treeRoots = buildRegionTree(hierarchyRows);
         // Reseed default-expand against the new tree shape on the next build.
         _expandedSeeded = false;
         _hierarchyLoadInFlight = false;

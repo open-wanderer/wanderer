@@ -10,16 +10,16 @@ part of 'region_provider.dart';
 // ignore_for_file: type=lint, type=warning
 /// Construction-only provider seam (D-02) -- builds a [RegionRepository]
 /// from the existing [apiProvider]/[objectBoxProvider] without performing
-/// any fetch on build. Not wired to any screen lifecycle yet; Phase 24
-/// decides when [RegionRepository.refreshCatalog] is actually invoked.
+/// any fetch on build; the Settings/Regions screen drives
+/// [RegionRepository.refreshCatalogAndFetchHierarchy] on open.
 
 @ProviderFor(regionRepository)
 final regionRepositoryProvider = RegionRepositoryProvider._();
 
 /// Construction-only provider seam (D-02) -- builds a [RegionRepository]
 /// from the existing [apiProvider]/[objectBoxProvider] without performing
-/// any fetch on build. Not wired to any screen lifecycle yet; Phase 24
-/// decides when [RegionRepository.refreshCatalog] is actually invoked.
+/// any fetch on build; the Settings/Regions screen drives
+/// [RegionRepository.refreshCatalogAndFetchHierarchy] on open.
 
 final class RegionRepositoryProvider
     extends
@@ -31,8 +31,8 @@ final class RegionRepositoryProvider
     with $Provider<RegionRepository> {
   /// Construction-only provider seam (D-02) -- builds a [RegionRepository]
   /// from the existing [apiProvider]/[objectBoxProvider] without performing
-  /// any fetch on build. Not wired to any screen lifecycle yet; Phase 24
-  /// decides when [RegionRepository.refreshCatalog] is actually invoked.
+  /// any fetch on build; the Settings/Regions screen drives
+  /// [RegionRepository.refreshCatalogAndFetchHierarchy] on open.
   RegionRepositoryProvider._()
     : super(
         from: null,

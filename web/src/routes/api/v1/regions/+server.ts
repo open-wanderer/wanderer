@@ -18,6 +18,17 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *       own — see the routing decision in 21.5-03-PLAN.md).
  *     tags:
  *       - Regions
+ *     parameters:
+ *       - in: query
+ *         name: enabled
+ *         schema:
+ *           type: string
+ *           enum: ["true"]
+ *         required: false
+ *         description: >
+ *           When "true", the catalog is pruned to only admin-enabled leaf
+ *           regions plus the ancestor groups needed to reach them. Any other
+ *           value or omission returns the full catalog.
  *     responses:
  *       200:
  *         description: The instance's region catalog as a JSON array
@@ -84,7 +95,9 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  */
 export async function GET(event: RequestEvent) {
   try {
-    const data = await event.locals.pb.send('/regions', {
+    // Dumb passthrough: forward the incoming query string (e.g. `?enabled=true`)
+    // to the Go backend unchanged. The backend owns any filtering semantics.
+    const data = await event.locals.pb.send('/regions?' + event.url.searchParams, {
       method: 'GET',
       fetch: event.fetch,
     });

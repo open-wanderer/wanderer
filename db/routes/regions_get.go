@@ -40,8 +40,39 @@ func RegionsList(e *core.RequestEvent) error {
 		return e.InternalServerError("failed to load region catalog", err)
 	}
 
+	// `?enabled=true` (opt-in) prunes the response to only enabled leaves plus
+	// the ancestor groups needed to reach them — the filtering the Flutter
+	// client used to do locally after downloading the whole catalog. Any other
+	// value / no param returns the full catalog unchanged (backward-compat: the
+	// dev harness and any admin tooling still expect every row).
+	filtering := e.Request.URL.Query().Get("enabled") == "true"
+
+	// The group rows to keep = ancestors of some enabled leaf. Derived from the
+	// enabled leaves' materialized paths in one cheap pre-pass; a group whose
+	// descendants are all disabled is never an ancestor, so it drops out.
+	var groupPaths map[string]struct{}
+	if filtering {
+		leafPaths := make([]string, 0, len(records))
+		for _, r := range records {
+			if r.GetString("kind") == "leaf" && r.GetBool("enabled") {
+				leafPaths = append(leafPaths, r.GetString("path"))
+			}
+		}
+		groupPaths = regions.AncestorGroupPaths(leafPaths)
+	}
+
 	entries := make([]map[string]any, 0, len(records))
 	for _, r := range records {
+		if filtering {
+			if r.GetString("kind") == "leaf" {
+				if !r.GetBool("enabled") {
+					continue
+				}
+			} else if _, ok := groupPaths[r.GetString("path")]; !ok {
+				continue
+			}
+		}
+
 		entry := map[string]any{
 			"id":         r.Id,
 			"name":       r.GetString("name"),

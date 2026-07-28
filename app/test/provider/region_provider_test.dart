@@ -140,23 +140,6 @@ void main() {
       );
     });
 
-    test(
-      'enabled round-trips: leaf true/false parse correctly, group (no key) parses null',
-      () {
-        final enabledLeaf = parseRegionHierarchyRows([
-          {...leafJson(), 'enabled': true},
-        ]);
-        final disabledLeaf = parseRegionHierarchyRows([
-          {...leafJson(), 'enabled': false},
-        ]);
-        final group = parseRegionHierarchyRows([groupJson()]);
-
-        expect(enabledLeaf.single.enabled, true);
-        expect(disabledLeaf.single.enabled, false);
-        expect(group.single.enabled, isNull);
-      },
-    );
-
     // The repository's `refreshCatalogAndFetchHierarchy` round trip is not
     // unit-tested here: its constructor requires an ObjectBox Store, and this
     // suite has no established pattern for opening one in a plain

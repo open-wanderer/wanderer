@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/models/region_hierarchy_row.dart';
-import 'package:wanderer/models/region_tree_node.dart';
 import 'package:wanderer/util/region_tree_util.dart';
 
 // ---------------------------------------------------------------------------
@@ -21,7 +20,6 @@ void main() {
     RegionNodeKind kind = RegionNodeKind.leaf,
     int sortOrder = 0,
     String? name,
-    bool? enabled,
   }) => RegionHierarchyRow(
     id: id,
     name: name ?? id,
@@ -30,7 +28,6 @@ void main() {
     path: id,
     depth: 0,
     sortOrder: sortOrder,
-    enabled: enabled,
   );
 
   group('buildRegionTree', () {
@@ -222,107 +219,4 @@ void main() {
     );
   });
 
-  group('pruneToDownloadable', () {
-    test('an enabled leaf survives', () {
-      final roots = buildRegionTree([
-        buildRow(id: 'group-a', kind: RegionNodeKind.group),
-        buildRow(id: 'leaf-a', parent: 'group-a', enabled: true),
-      ]);
-
-      final pruned = pruneToDownloadable(roots);
-
-      expect(pruned, hasLength(1));
-      expect(pruned.single.children.map((n) => n.id), ['leaf-a']);
-    });
-
-    test('a disabled (enabled == false) leaf is dropped', () {
-      final roots = buildRegionTree([
-        buildRow(id: 'group-a', kind: RegionNodeKind.group),
-        buildRow(id: 'leaf-a', parent: 'group-a', enabled: false),
-      ]);
-
-      final pruned = pruneToDownloadable(roots);
-
-      expect(pruned, isEmpty);
-    });
-
-    test('a leaf with enabled == null (group row shape / missing flag) is dropped', () {
-      final roots = buildRegionTree([
-        buildRow(id: 'group-a', kind: RegionNodeKind.group),
-        buildRow(id: 'leaf-a', parent: 'group-a'),
-      ]);
-
-      final pruned = pruneToDownloadable(roots);
-
-      expect(pruned, isEmpty);
-    });
-
-    test('a group whose only leaf is disabled is dropped entirely', () {
-      final roots = buildRegionTree([
-        buildRow(id: 'group-a', kind: RegionNodeKind.group),
-        buildRow(id: 'leaf-a', parent: 'group-a', enabled: false),
-      ]);
-
-      final pruned = pruneToDownloadable(roots);
-
-      expect(pruned, isEmpty);
-    });
-
-    test('a group with a mix keeps only its enabled leaves and survives', () {
-      final roots = buildRegionTree([
-        buildRow(id: 'group-a', kind: RegionNodeKind.group),
-        buildRow(id: 'leaf-enabled', parent: 'group-a', enabled: true),
-        buildRow(id: 'leaf-disabled', parent: 'group-a', enabled: false),
-      ]);
-
-      final pruned = pruneToDownloadable(roots);
-
-      expect(pruned, hasLength(1));
-      expect(pruned.single.id, 'group-a');
-      expect(pruned.single.children.map((n) => n.id), ['leaf-enabled']);
-    });
-
-    test('a nested deep-enabled leaf keeps every ancestor group', () {
-      final roots = buildRegionTree([
-        buildRow(id: 'top', kind: RegionNodeKind.group),
-        buildRow(id: 'mid', parent: 'top', kind: RegionNodeKind.group),
-        buildRow(id: 'leaf-deep', parent: 'mid', enabled: true),
-      ]);
-
-      final pruned = pruneToDownloadable(roots);
-
-      expect(pruned, hasLength(1));
-      expect(pruned.single.id, 'top');
-      expect(pruned.single.children.single.id, 'mid');
-      expect(pruned.single.children.single.children.single.id, 'leaf-deep');
-    });
-
-    test('a nested deep-disabled leaf prunes the whole ancestor chain up to the root', () {
-      final roots = buildRegionTree([
-        buildRow(id: 'top', kind: RegionNodeKind.group),
-        buildRow(id: 'mid', parent: 'top', kind: RegionNodeKind.group),
-        buildRow(id: 'leaf-deep', parent: 'mid', enabled: false),
-      ]);
-
-      final pruned = pruneToDownloadable(roots);
-
-      expect(pruned, isEmpty);
-    });
-
-    test(
-      'pruning ignores build/status fields entirely -- an enabled leaf is not '
-      'itself modeled with a status field on RegionTreeNode, so no status can '
-      'block it from surviving regardless of its still-building state',
-      () {
-        final roots = buildRegionTree([
-          buildRow(id: 'group-a', kind: RegionNodeKind.group),
-          buildRow(id: 'leaf-building', parent: 'group-a', enabled: true),
-        ]);
-
-        final pruned = pruneToDownloadable(roots);
-
-        expect(pruned.single.children.map((n) => n.id), ['leaf-building']);
-      },
-    );
-  });
 }

@@ -156,7 +156,13 @@ class RegionRepository {
   Future<List<RegionHierarchyRow>> refreshCatalogAndFetchHierarchy() async {
     final dynamic data;
     try {
-      data = (await _api.get('/regions')).data;
+      // `enabled=true` asks the backend to prune the catalog to only enabled
+      // leaves plus their ancestor groups, so the whole disabled-region catalog
+      // never crosses the wire (the client no longer prunes locally).
+      data = (await _api.get(
+        '/regions',
+        queryParameters: {'enabled': 'true'},
+      )).data;
     } catch (e) {
       throw RegionCatalogException('failed to fetch region catalog', e);
     }
