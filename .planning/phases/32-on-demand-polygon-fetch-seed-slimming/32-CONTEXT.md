@@ -1,48 +1,20 @@
 # Phase 32: On-Demand Polygon Fetch & Seed Slimming - Context
 
 **Gathered:** 2026-07-28
-**Status:** ⛔ BLOCKED — one open decision must be resolved before planning
-
-<blocker>
-## ⛔ Open Blocker — resolve before `/gsd-plan-phase 32`
-
-**The admin UI reads `region_polygons` directly. Dropping the collection breaks shipped Phase 30 behavior.**
-
-Discovered at the end of this discussion, after decisions D-00c and D-05 had already been recorded. `db/routes/regions_ext/regions_ui.html` calls the PocketBase collection REST API in three flows:
-
-| Line | Flow | What it needs |
-|---|---|---|
-| 1110 | `loadEnabledPolygons(rows)` | Batch polygons for every **enabled** leaf — draws the coverage map (ADMINUI-03) |
-| 1157 | `addPolygonForRow(row)` | One leaf's polygon the instant an admin toggles it on (ADMINUI-02/03) |
-| 1183 | `onLeafHoverStart(row)` | Any leaf's polygon on hover — **including disabled regions that have never been built** |
-
-The hover flow is decisive: it rules out any scheme that populates geometry only when a region is built or enabled, because it needs polygons for regions nobody has ever enabled.
-
-**How this was missed:** the claim "`buildRegion` is the only reader of polygon geometry" came from a grep restricted to `*.go`. The admin UI is JavaScript hitting `/api/collections/region_polygons/records` directly, so it did not appear. That claim is **false** and is corrected in `<code_context>` below.
-
-**What this does NOT change:** every original motivation for the phase — repo weight, GitHub push friction, Docker image size, migration runtime — is satisfied by the *seed* no longer carrying geometry. None of them require the collection to be absent. The seed-slimming core of this phase is unaffected.
-
-**What it does change:** D-00c ("`region_polygons` is dropped entirely") is invalid as written, and D-05's "the collection is never created" clause is contingent on how this resolves.
-
-**Options presented, decision deferred by the user on 2026-07-28:**
-
-1. **Keep the table as a lazy cache** — stays in the schema, never seeded; rows written on first demand by `buildRegion` or by a small backend endpoint the admin UI calls on cache miss. Smallest deviation from shipped Phase 30 code.
-2. **Backend proxy endpoint, no table** — drop the collection, add `GET /api/v1/regions/{path}/polygon` fetching from CoMaps server-side with a cache; rewire three JS call sites. Keeps geometry out of the database entirely.
-3. **Admin map falls back to bbox** — drop polygons from the admin surface, draw rectangles from the catalog's `bbox`. No fetch, no table, no endpoint — but ADMINUI-03 specifies "boundary polygons," and a bbox is wildly misleading for Chile or Norway. Requires amending a shipped requirement.
-
-</blocker>
+**Status:** Ready for planning (blocker resolved 2026-07-28 via `/gsd-explore`)
 
 <domain>
 ## Phase Boundary
 
-Boundary geometry stops being a distributed artifact. This phase delivers:
+Geometry stops being a distributed artifact and becomes on-demand, fetched from CoMaps at the moment intent is expressed. This phase delivers:
 
-- `db/commands/seed_regions.go` writes a **geometry-free** catalog — hierarchy fields plus leaf `bbox` only — as plain, pretty-printed JSON with no gzip layer (~387 KB measured, down from 54.65 MB), with the CoMaps commit SHA it fetched from recorded inside the artifact.
-- `db/migrations/1785000000_create_regions_collection.go` no longer bulk-inserts geometry — the streaming decoder and the decompression-bomb guard both come out. **Whether `region_polygons` is still created (empty, as a lazy cache) or removed outright is the open blocker above.**
-- `db/services/regions/builder.go`'s `buildRegion` fetches the one leaf `.poly` it needs at build time from the commit recorded in the catalog, converting it via the existing `ParsePoly`. GitHub mirror primary, CoMaps' canonical Codeberg repository as fallback.
+- `db/commands/seed_regions.go` writes a **pure-hierarchy** catalog — no `bbox`, no `polygon` — as plain, pretty-printed JSON with no gzip layer (291.9 KB measured, down from 54.65 MB), with the CoMaps commit SHA it fetched from recorded inside the artifact. It fetches **only `hierarchy.txt`**: one HTTP request, down from ~1153.
+- `db/migrations/1785000000_create_regions_collection.go` creates `regions` (hierarchy only) plus an **empty** `region_geometry` collection — renamed from `region_polygons`, now holding both `bbox` and `polygon`. No bulk insert; the streaming decoder and decompression-bomb guard both come out.
+- A new backend endpoint fetches a leaf's `.poly` from CoMaps (GitHub primary, Codeberg fallback), converts it via `ParsePoly`, and returns GeoJSON + bbox. It **persists to `region_geometry` only when that region is currently enabled**.
+- `db/services/regions/builder.go`'s `buildRegion` reads `region_geometry`, fetching and persisting on miss.
 - The ~55 MB blob is purged from `feature/app` git history (folded todo, see below).
 
-Out of scope: any change to what the region catalog *contains* (the 1306-row hierarchy is unchanged), the admin picker, the Flutter hierarchy, and the archive-extraction pipeline itself. `ParsePoly` and the existing `fetch` helper are reused as-is, not rewritten.
+Out of scope: any change to what the catalog *contains* (the 1306-row hierarchy is unchanged), the Flutter hierarchy, and the archive-extraction pipeline itself. `ParsePoly` is reused verbatim.
 
 </domain>
 
@@ -51,11 +23,31 @@ Out of scope: any change to what the region catalog *contains* (the 1306-row hie
 
 ### Locked before this discussion (from `/gsd-explore`, same day — do not re-litigate)
 
-- **D-00a:** Seed artifact is plain, pretty-printed JSON. No gzip. Measured on the real 1306-row catalog after stripping geometry: compact 281.8 KB, pretty-printed 386.9 KB, one-object-per-line 283.0 KB. Pretty-printed was chosen deliberately for readability, accepting that it expands a single renamed region into ~10 diff lines where one-object-per-line would show exactly one.
+- **D-00a:** Seed artifact is plain, pretty-printed JSON. No gzip. Measured on the real 1306-row catalog: with bbox, pretty-printed 386.9 KB; **without bbox (the shipping shape, per D-12), 291.9 KB**. Pretty-printed was chosen deliberately for readability, accepting that it expands a single renamed region into ~10 diff lines where one-object-per-line would show exactly one.
 - **D-00b:** The pinned CoMaps SHA travels **inside the catalog artifact**, not as a shared Go const. A const goes stale the moment someone regenerates with `--commit X`, silently desyncing geometry from hierarchy; storing what `seed-regions` actually used makes that desync structurally impossible.
-- **D-00c:** ⛔ **INVALIDATED — see `<blocker>` above.** As originally recorded: "`region_polygons` is dropped entirely — not retained as a lazily-populated cache. The cache would save a ~165 KB fetch inside a function that already downloads hundreds of MB to GB from Mapterhorn and Protomaps." That reasoning only accounted for `buildRegion`. The admin UI is a second consumer requiring on-demand geometry for arbitrary (including disabled) leaves, which the cost/benefit argument never weighed. Do not act on D-00c until the blocker is resolved.
-- **D-00d:** `bbox` stays committed. Non-negotiable: `app/lib/util/trail_coverage_util.dart` runs the on-device trail-download-guard overlap math against a local catalog snapshot with no network.
-- **D-00e:** `seed-regions` still fetches all ~1153 `.poly` files at maintainer time — `ParsePoly` is the only bbox source, so it computes the bbox and discards the geometry. The maintainer run's cost is unchanged; only its output shrinks.
+- **D-00c:** ⚠️ **SUPERSEDED by D-09.** As originally recorded: "`region_polygons` is dropped entirely — not retained as a lazily-populated cache." That reasoning rested on a `*.go`-only grep that identified `buildRegion` as the sole geometry consumer. It is false — the admin SPA reads the collection over the PocketBase REST API from JavaScript. The table survives, empty. See D-09.
+- **D-00d:** ⚠️ **SUPERSEDED by D-12.** As originally recorded: "`bbox` stays committed." Verified false on re-check: every consumer needs bbox only for *enabled* regions. bbox moves into `region_geometry`.
+- **D-00e:** ⚠️ **SUPERSEDED by D-12.** As originally recorded: "`seed-regions` still fetches all ~1153 `.poly` files." With bbox out of the catalog, the generator needs only `hierarchy.txt` — one request.
+
+### Geometry storage and retrieval (resolves the former blocker)
+
+- **D-09:** `region_geometry` (renamed from `region_polygons`) **stays in the schema but ships empty.** It is never seeded. This preserves the admin SPA's three shipped flows while still solving every original motivation for the phase — repo weight, push friction, image size, migration runtime — because the win comes from the *seed* carrying no geometry, not from the table being absent.
+  - The admin SPA reads geometry in three flows: `loadEnabledPolygons` ([regions_ui.html:1110](../../db/routes/regions_ext/regions_ui.html)) batch-loads enabled leaves for the coverage map; `addPolygonForRow` (line 1157) draws a region the instant it is toggled on; `onLeafHoverStart` (line 1183) previews **any** leaf on hover, **including disabled regions that have never been built**. The hover flow is why "populate when built" is not sufficient.
+- **D-10:** A new backend endpoint (shape at planner's discretion, e.g. `GET /api/v1/regions/{path}/geometry`) fetches the leaf's `.poly` from CoMaps, converts via `ParsePoly`, and returns GeoJSON + bbox. **It persists to `region_geometry` only when that region is currently enabled.**
+  - This single rule handles both UI flows with no client cooperation, no `?persist=` flag, and no new state: hovering a disabled region is a pass-through with no write; toggling a region on and drawing it writes, because by then the region *is* enabled. Persistence keys off actual catalog state rather than which gesture happened to call it.
+  - **Why the client cannot fetch CoMaps directly:** CoMaps serves Osmosis-format `.poly`, not GeoJSON. Converting it is `ParsePoly` — Go, with the multi-ring hole/exclave support Phase 28 deliberately built (28-CONTEXT D-03/D-04). Doing it client-side means reimplementing that parser in JavaScript and widening the admin page's CSP to two more hosts. A backend endpoint is therefore required regardless of the persistence rule.
+- **D-11:** **Hover on a disabled region is a pass-through with no write, and no server-side cache.** Rejected: persisting on hover. `region_geometry` has no eviction policy, so hover-writes would let an admin idly scrolling ~1153 leaves grow the table toward the same ~55 MB just removed from git — relocating the weight into `pb_data` rather than shedding it. Persist-on-enable is naturally bounded by deliberate admin intent; persist-on-hover is bounded by curiosity. The existing client-side `_polygonCache` in `onLeafHoverStart` already absorbs repeat hovers within a session, so a server cache buys little; a bounded in-memory LRU was offered and declined.
+- **D-13:** The endpoint **must require superuser auth.** It is otherwise an unauthenticated shape that triggers outbound third-party requests — both an open proxy and a way to burn the CoMaps rate limit from outside. The admin SPA already sends a superuser JWT via its `apiFetch` helper, so gating costs nothing.
+
+### Catalog contents
+
+- **D-12:** **`bbox` moves out of the committed catalog into `region_geometry`**, fetched together with the polygon. The catalog becomes pure hierarchy.
+  - **Verified before deciding — every consumer needs bbox only for enabled regions:** `fitToEnabled` unions bbox over `enabledLeafRows` only (regions_ui.html:1136); `buildRegion:183` runs only for enabled leaves via `BuildAllLocked`; the Flutter guard reads the catalog fetched with `?enabled=true` (commit `407b767c`). The sole exception is `RegionsList` *without* `?enabled=true`, whose own comment scopes it to "the dev harness and any admin tooling."
+  - **The payoff is the generator, not the 95 KB.** With no bbox to derive, `seed-regions` needs only `hierarchy.txt` — one request instead of ~1153. That deletes the Codeberg rate-limit problem (the entire reason GitHub was chosen as the generator's primary host, seed_regions.go:19-31), the 10×/`Retry-After` retry machinery in the generator, and `ParsePoly` from the generator's path. A maintainer run drops from multi-minute and retry-prone to about a second. It also makes CATALOG-F01 (automated refresh) genuinely tractable — fetch one text file, diff a 292 KB JSON, something CI could run.
+  - **Three accepted consequences:**
+    1. Unfiltered `/api/v1/regions` (without `?enabled=true`) returns disabled leaves with no bbox. The Flutter parser drops entries missing required bbox, so an older client in unfiltered mode silently drops disabled regions. Disabled regions aren't downloadable, so this is arguably correct — but it *is* a behavior change to a shipped endpoint.
+    2. An enabled region whose geometry fetch failed has no bbox at all, where today it always had one. It is in `status: "error"` per D-01; the API needs a deliberate answer for what it emits in that state.
+    3. `bboxChanged` staleness comparison moves source from the catalog record to the geometry fetch. Semantics unchanged — bbox can still only change when the pinned commit changes — but the code moves.
 
 ### Cron failure behavior
 
@@ -69,7 +61,7 @@ Out of scope: any change to what the region catalog *contains* (the 1306-row hie
 
 ### Migration delivery
 
-- **D-05:** **Edit `1785000000_create_regions_collection.go` in place.** No separate drop migration. Verified during discussion: this migration has never shipped — it is absent from `origin/main` and from every release tag (v1.6, v1.5, v0.20.0 all contain zero matching files), existing only on `feature/app`. There is no fleet of production instances carrying `region_polygons`.
+- **D-05:** **Edit `1785000000_create_regions_collection.go` in place.** No separate drop migration. Verified during discussion: this migration has never shipped — it is absent from `origin/main` and from every release tag (v1.6, v1.5, v0.20.0 all contain zero matching files), existing only on `feature/app`. There is no fleet of production instances carrying `region_polygons`. Editing in place also makes the `region_polygons` → `region_geometry` rename (D-09) free: no rename migration, the collection is simply created under its new name with `bbox` added.
   - **Execution note:** the migration's idempotency guard is `CountRecords("regions") > 0 → return`, so any dev box that already seeded will **not** re-run it and will retain both a populated `regions` table and an orphaned `region_polygons` collection. Resetting local `pb_data` (or manually dropping the collection) is a required step on already-seeded dev instances. This was accepted knowingly over shipping a defensive drop migration.
 
 ### Test strategy
@@ -133,10 +125,12 @@ Out of scope: any change to what the region catalog *contains* (the 1306-row hie
 - **Migrations** are `m.Register(up, down)` in `db/migrations/*.go`, auto-run on startup, with idempotency guards.
 
 ### Integration Points
-- **CORRECTION — do not trust the earlier claim that `buildRegion` is the only reader of polygon geometry.** That came from a `*.go`-only grep and is false. There are **two** consumers: `buildRegion` (Go, at archive-build time) and the admin SPA (JavaScript, hitting `/api/collections/region_polygons/records` directly). See `<blocker>`.
-- `db/routes/regions_ext/regions_ui.html` lines 1110 / 1157 / 1183 — the three admin-UI polygon flows. Any resolution of the blocker must keep all three working or explicitly amend ADMINUI-02/ADMINUI-03.
-- `db/main.go:160-161` registers `ValidateRegionPathReferenceHandler` on `region_archives` **and** `region_polygons`; if the collection goes, the latter binding must be removed without disturbing the former.
-- `db/routes/regions_ui.go:35` — the doc comment naming both collections as the admin page's privileged API surface; keep it accurate to whatever the blocker resolves to.
+- **CORRECTION — do not trust the earlier claim that `buildRegion` is the only reader of polygon geometry.** That came from a `*.go`-only grep and is false. There are **two** consumers: `buildRegion` (Go, at archive-build time) and the admin SPA (JavaScript, hitting `/api/collections/region_polygons/records` directly). Resolved by D-09/D-10.
+- `db/routes/regions_ext/regions_ui.html` lines 1110 / 1157 / 1183 — the three admin-UI geometry flows. Under D-10, `loadEnabledPolygons` and `addPolygonForRow` can keep reading the collection (enabled regions always have rows); only `onLeafHoverStart` must be repointed at the new endpoint. Line 1136's `fitToEnabled` reads `r.bbox` off the enabled rows and is affected by D-12's bbox move.
+- `db/main.go:160-161` registers `ValidateRegionPathReferenceHandler` on `region_archives` **and** `region_polygons`; the latter binding follows the rename to `region_geometry` without disturbing the former.
+- `db/routes/regions_ui.go:35` — doc comment naming both collections as the admin page's privileged API surface; update for the rename and the new endpoint.
+- `db/routes/regions_get.go` — `RegionsList`'s `filtering` flag (`?enabled=true`) and the bbox emission at lines 99-100; directly affected by D-12 consequence 1.
+- `db/services/regions/staleness.go` `bboxChanged` — affected by D-12 consequence 3.
 
 </code_context>
 

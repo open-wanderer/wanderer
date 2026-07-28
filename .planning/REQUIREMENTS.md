@@ -36,11 +36,12 @@
 
 ### Seed Slimming & On-Demand Geometry
 
-Added 2026-07-28 after `/gsd-explore`. Revises the Phase 28 seeding approach: boundary geometry stops being distributed with the repo and is fetched at archive-build time instead. Supersedes CATALOG-02's stored `polygon` (its `bbox` half is retained) and changes the content of SEED-01/SEED-02.
+Added 2026-07-28 after `/gsd-explore`, revised the same day after a second `/gsd-explore` pass. Revises the Phase 28 seeding approach: geometry stops being distributed with the repo and is fetched on demand instead. **Supersedes CATALOG-02 entirely** — leaf rows store neither `polygon` nor `bbox`; both move to the lazily-populated `region_geometry` collection — and changes the content of SEED-01/SEED-02.
 
-- [ ] **SLIM-01**: `seed-regions` writes a geometry-free catalog — hierarchy fields plus leaf `bbox` only — as plain, pretty-printed JSON (no gzip; measured at 386.9 KB for the current 1306-row catalog, down from 54.65 MB), with the CoMaps commit SHA it fetched from recorded inside the artifact, so the fetcher cannot desync from the hierarchy
-- [ ] **SLIM-02**: The migration creates `regions` only; the `region_polygons` collection is never created on fresh instances and is dropped on existing ones, eliminating the bulk geometry insert from first-boot startup
-- [ ] **SLIM-03**: `buildRegion` fetches the target leaf's `.poly` on demand at the catalog's recorded commit and converts it via the existing `ParsePoly`, producing archives equivalent to today's — GitHub mirror primary, CoMaps' canonical Codeberg repository as fallback, with failures naming which upstreams were tried
+- [ ] **SLIM-01**: `seed-regions` writes a **pure-hierarchy** catalog — no `bbox`, no `polygon` — as plain, pretty-printed JSON (no gzip; measured at 291.9 KB for the current 1306-row catalog, down from 54.65 MB), with the CoMaps commit SHA it fetched from recorded inside the artifact, so the fetcher cannot desync from the hierarchy. The generator fetches only `hierarchy.txt` — one HTTP request, down from ~1153
+- [ ] **SLIM-02**: The migration creates `regions` (hierarchy only) plus an **empty** `region_geometry` collection — renamed from `region_polygons`, now holding both `bbox` and `polygon` — eliminating the bulk geometry insert from first-boot startup
+- [ ] **SLIM-03**: `buildRegion` reads geometry from `region_geometry`, fetching the target leaf's `.poly` on demand at the catalog's recorded commit and converting it via the existing `ParsePoly` when absent — GitHub mirror primary, CoMaps' canonical Codeberg repository as fallback, with failures naming which upstreams were tried
+- [ ] **SLIM-05**: A superuser-authenticated backend endpoint returns a leaf's boundary geometry and bbox on demand, fetched from CoMaps and converted server-side, **persisting to `region_geometry` only when that region is currently enabled** — so toggling a region on caches its geometry while merely hovering a disabled region in the admin picker does not write to the database
 - [ ] **SLIM-04**: A fresh self-hosted instance boots, migrates, and serves the full catalog through `GET /api/v1/regions` and the admin picker with no network access — only archive building, which is already network-gated, requires connectivity
 
 ## v2 Requirements
@@ -88,13 +89,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SLIM-02 | Phase 32 | Not started |
 | SLIM-03 | Phase 32 | Not started |
 | SLIM-04 | Phase 32 | Not started |
+| SLIM-05 | Phase 32 | Not started |
 
 **Coverage:**
 
-- v1 requirements: 17 total
-- Mapped to phases: 17 (Phase 28: Region Catalog Data Model & Seeding, Phase 29: Polygon-Based Extraction & Region API, Phase 30: Admin Region Picker UI, Phase 31: Flutter Settings Hierarchy, Phase 32: On-Demand Polygon Fetch & Seed Slimming)
+- v1 requirements: 18 total
+- Mapped to phases: 18 (Phase 28: Region Catalog Data Model & Seeding, Phase 29: Polygon-Based Extraction & Region API, Phase 30: Admin Region Picker UI, Phase 31: Flutter Settings Hierarchy, Phase 32: On-Demand Polygon Fetch & Seed Slimming)
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-24*
-*Last updated: 2026-07-28 — SLIM-01..04 added after `/gsd-explore` (Phase 32 assigned)*
+*Last updated: 2026-07-28 — SLIM-05 added and SLIM-01/02/03 revised after the second `/gsd-explore` pass (bbox moved to `region_geometry`)*
