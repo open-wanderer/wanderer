@@ -85,11 +85,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADMINUI-03 | Phase 30 | Complete |
 | APPUI-01 | Phase 31 | Complete |
 | APPUI-02 | Phase 31 | Complete |
-| SLIM-01 | Phase 32 | Not started |
-| SLIM-02 | Phase 32 | Not started |
-| SLIM-03 | Phase 32 | Not started |
-| SLIM-04 | Phase 32 | Not started |
-| SLIM-05 | Phase 32 | Not started |
+| SLIM-01 | Phase 32 | Complete |
+| SLIM-02 | Phase 32 | Complete |
+| SLIM-03 | Phase 32 | Complete |
+| SLIM-04 | Phase 32 | Complete |
+| SLIM-05 | Phase 32 | Complete |
 
 **Coverage:**
 
@@ -99,4 +99,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-07-24*
-*Last updated: 2026-07-28 — SLIM-05 added and SLIM-01/02/03 revised after the second `/gsd-explore` pass (bbox moved to `region_geometry`)*
+*Last updated: 2026-07-28 — Phase 32 executed and verified; SLIM-01..05 complete*

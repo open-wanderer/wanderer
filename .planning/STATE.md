@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
-status: verifying
+status: completed
 stopped_at: Completed 32-06-PLAN.md
-last_updated: "2026-07-28T10:48:23.902Z"
-last_activity: 2026-07-28 -- Phase 32 execution started
+last_updated: "2026-07-28T10:57:16.830Z"
+last_activity: 2026-07-28 -- Phase 32 marked complete
 progress:
   total_phases: 5
   completed_phases: 5
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 32 (on-demand-polygon-fetch-seed-slimming) — EXECUTING
+Phase: 32 — COMPLETE
 Plan: 6 of 6
-Status: Phase complete — ready for verification
-Last activity: 2026-07-28 -- Phase 32 execution started
+Status: Phase 32 complete
+Last activity: 2026-07-28 -- Phase 32 marked complete
 
 ## v1.7 Phases
 
