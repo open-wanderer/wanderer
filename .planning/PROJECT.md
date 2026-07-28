@@ -2,23 +2,22 @@
 
 ## Current State
 
-**Shipped:** v1.6 Offline Region Tile Repository (2026-07-24) — trail-scoped PMTiles downloads are replaced app-wide by a region-based offline tile repository (vector + optional Mapterhorn DEM) managed in Settings: an admin-configured, cron-pre-built region catalog served by the backend; `TileRepositoryManager` owning app-wide download lifecycle; map rendering through a local loopback HTTP tile proxy (not incremental source diffing); a trail-download guard that checks region coverage first; and the legacy trail-scoped tile system deleted outright.
+**Shipped:** v1.7 Admin Region Picker (2026-07-28) — a server owner defines downloadable regions by toggling entries in a seeded 1,306-row CoMaps catalog with real polygon boundaries, instead of hand-authoring `region_config.json`. The archive cron clips PMTiles to each leaf's canonical polygon; a custom PocketBase admin page renders the catalog as a filterable tree with a live coverage map; the Flutter Settings screen mirrors the same hierarchy pruned to enabled regions. Boundary geometry is fetched on demand from CoMaps at a pinned commit rather than shipped in the repo — the committed catalog is ~315 KB of plain hierarchy JSON, down from 54.65 MB gzipped.
 
-**Also complete (not yet formally closed):** none — v1.5 and v1.6 are both archived as of 2026-07-24.
+**Previously shipped:** v1.6 Offline Region Tile Repository (2026-07-24) — region-based offline tile repository (vector + optional Mapterhorn DEM) managed in Settings, replacing trail-scoped PMTiles downloads app-wide.
 
-## Current Milestone: v1.7 Admin Region Picker
+**Known gaps carried forward from v1.7** (accepted at close, see `.planning/milestones/v1.7-MILESTONE-AUDIT.md`):
+- Phase 29 has no VERIFICATION.md — EXTRACT-01/02/03 are code-verified correct but have no phase-owned repeatable check
+- Phase 31 is `human_needed` — the on-device pass required after Phase 32's server rewrite has not been run
 
-**Goal:** A server owner defines downloadable regions by toggling entries in a curated, seeded catalog — sourced from CoMaps' extract hierarchy, with real known boundaries — instead of hand-authoring `region_config.json`; the app's settings screen presents the same hierarchy.
+## Next Milestone
 
-**Target features:**
-- Seeded `regions` table (PocketBase): hierarchical (group/leaf), canonical polygon boundary per leaf region, derived bbox for client use
-- CoMaps-sourced data pipeline: `db/commands/seed_regions.go` maintainer tool → committed JSON seed → auto-run migration
-- Polygon-based `pmtiles extract --region` replacing bbox-based extraction
-- Custom PocketBase admin page (AlpineJS bundle, reusing the `feature/ap-instance-actors` pattern): collapsible region tree + live map showing enabled leaf boundaries
-- Archive-generation cron reads `kind = 'leaf' AND enabled = true` — `region_config.json` parsing retired
-- Flutter Settings screen: region list becomes a collapsible hierarchy matching the admin tree, no download-UX regression
+**Not yet defined.** Run `/gsd-new-milestone` to scope v1.8.
 
-Full design settled via `/gsd-explore` — see `.planning/notes/streamlined-region-definition.md`.
+Carried into scoping:
+- 40 deferred artifacts (see STATE.md Deferred Items) — 5 diagnosed debug sessions, 32 quick tasks, 2 todos, 1 verification gap; 39 predate v1.7
+- CATALOG-F01 (automated CoMaps catalog refresh) is now genuinely tractable: the maintainer seed run is one `hierarchy.txt` fetch producing a ~315 KB reviewable diff, where it used to be a ~1,153-request scrape producing an opaque binary blob
+- CATALOG-F02 (group-level cascading enable) and CATALOG-F03 (group-node map preview) remain deferred
 
 ## What This Is
 
@@ -75,16 +74,21 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - [x] Settings → Offline Maps/Regions page: flat searchable region list, size breakdown, independent Vector/DEM download/cancel/delete + progress bars, total disk usage, non-blocking `updateAvailable` badge (v1.6 — Phase 24)
 - [x] Map rendering reads offline tiles through a local loopback HTTP tile proxy (MapLibre Native's own viewport tracking selects regions, not hand-rolled incremental source diffing — Phase 25's reconcile approach had a reentrancy race, replaced in Phase 25.1); legacy trail-scoped tile download/cache code removed outright, no migration path (v1.6 — Phases 25, 25.1, 27)
 
+- ✓ Seeded `regions` table (PocketBase), hierarchical group/leaf, CoMaps-sourced (v1.7 — Phase 28)
+- ✓ `seed_regions.go` maintainer tool + auto-run migration for zero-admin-action seeding (v1.7 — Phase 28)
+- ✓ Polygon-based `pmtiles extract --region` replacing bbox extraction (v1.7 — Phase 29)
+- ✓ Custom PocketBase admin page: collapsible region tree + live map, toggle `enabled` (v1.7 — Phase 30)
+- ✓ Archive cron reads `kind = 'leaf' AND enabled = true`, retiring `region_config.json` (v1.7 — Phase 29)
+- ✓ Flutter Settings screen: flat region list → collapsible hierarchy matching admin tree (v1.7 — Phase 31, on-device pass outstanding)
+- ✓ Geometry fetched on demand from CoMaps at a pinned commit; catalog 54.65 MB → ~315 KB (v1.7 — Phase 32)
+
 ### Active
 
-- [ ] Seeded `regions` table (PocketBase), hierarchical group/leaf, canonical polygon per leaf, CoMaps-sourced (v1.7)
-- [ ] `seed_regions.go` maintainer tool + auto-run migration for zero-admin-action seeding (v1.7)
-- [ ] Polygon-based `pmtiles extract --region` replacing bbox extraction (v1.7)
-- [ ] Custom PocketBase admin page: collapsible region tree + live map, toggle `enabled` (v1.7)
-- [ ] Archive-generation cron reads `kind = 'leaf' AND enabled = true`, retiring `region_config.json` (v1.7)
-- [ ] Flutter Settings screen: flat region list → collapsible hierarchy matching admin tree (v1.7)
+(None — v1.7 shipped. Run `/gsd-new-milestone` to scope v1.8.)
 
 ### Out of Scope
+
+- Storing canonical polygon/bbox on leaf `regions` rows — shipped in v1.7 Phase 28, then deliberately superseded by Phase 32; geometry now lives in `region_geometry`, fetched on demand (CATALOG-02 retired by SLIM-01/02)
 
 - Web frontend changes — `web/` already runs maplibre-gl-js; app-only apart from the v1.4 glyph/sprite endpoint
 - Switching offline tile generation to OpenMapTiles schema — would invalidate every downloaded trail archive and every operator's tile cache
@@ -133,6 +137,7 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - Shipped v1.2: Full settings suite (Language/Units, Privacy, Account/Profile, Notifications)
 - Shipped v1.3: Category/subcategory model + preferences, subcategory-aware trail filters, Settings → Categories screen
 - Shipped v1.4: Full `maplibre` migration — native GL rendering, self-hosted glyph/sprite serving, offline parity, server-side clustering, both `flomp/*` forks retired
+- Shipped v1.7: Seeded CoMaps region catalog (1,306 rows) + polygon-based extraction + PocketBase admin picker + Flutter hierarchy; geometry moved on-demand, repo pack down 268 → 198 MiB
 - Web PR #1059 merged: new category model with translations/icon/short_name, subcategories, user category/subcategory preferences, favourite sport replaced by priority-based category ordering
 - Settings infrastructure: `Settings` freezed model, `settingsProvider` with `saveToServer()` — reused by all settings screens
 - `localeProvider` and `unitProvider` derived from `settingsProvider` — live-switch locale and unit system app-wide
@@ -198,6 +203,11 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 | [v1.6] Local loopback HTTP tile proxy for map rendering, not incremental `addSource`/`removeSource` region-swap reconciliation | Phase 25's hand-rolled Dart diffing had a reentrancy race (no in-flight guard, `MapEventCameraIdle` over-firing during GPS-follow) found in UAT; a proxy lets MapLibre Native's own viewport tracking pick regions, eliminating the race structurally instead of patching it | ✓ Good — shipped as urgent Phase 25.1 insertion |
 | [v1.6] CLEAN-02 (one-time orphaned-legacy-tile sweep) cut outright, not deferred | App is pre-production — no real install base with orphaned legacy tile files exists to clean up; any dev/test device can be wiped/reinstalled manually | ✓ Good — descoped per 27-CONTEXT.md D-05, ROADMAP success criterion #2 annotated accordingly |
 | [v1.6] Legacy trail-scoped tile code deleted outright in Phase 27, no dual-run or migration path | App is pre-production; `pmTiles`/`demPmTiles` had zero readers left once Phase 25 moved map rendering to the region pipeline | ✓ Good — zero remaining references confirmed by goal-backward verification |
+| [v1.7] Region catalog is seeded from CoMaps' own extract hierarchy, not hand-drawn or admin-authored | A curated upstream catalog removes the research and bbox-arithmetic burden that freehand drawing reintroduces, and CoMaps' boundaries are real, maintained, and ODbL-compatible with the existing OSM-derived tile data | ✓ Good — 1,306 rows seeded, zero admin action on a fresh instance |
+| [v1.7] Boundary geometry is fetched on demand from CoMaps at a pinned commit, not committed to the repo | Geometry was 99% of a 54.65 MB seed that only the build path and admin map ever read; a pinned SHA on a raw-file endpoint is content-addressed and immutable, so on-demand costs nothing in reproducibility. Offline boot is unaffected — only archive building, already network-gated, needs connectivity | ✓ Good — catalog to ~315 KB, seed run from ~1,153 requests to 1, clone pack 268 → 198 MiB |
+| [v1.7] `bbox` moved out of the catalog into `region_geometry` alongside the polygon | Verified every consumer needs bbox only for *enabled* regions; keeping it in the catalog would have forced the generator to keep scraping all ~1,153 `.poly` files for data most regions never use | ✓ Good — what made the one-request seed run possible |
+| [v1.7] Geometry persists on the `enabled` false→true transition via a server hook, not a client call | The original design made persistence depend on one specific UI call site doing one specific thing, and it silently never fired — enabling a region cached nothing. Keying off the record transition covers the picker, a REST PATCH, and the collection editor alike | ✓ Good — amended 2026-07-28 (`4b98c48b`) after the hole surfaced in manual use |
+| [v1.7] Phase-level verification under-covered cross-phase wiring | Three integration bugs surfaced through manual use *after* Phase 32's verification passed (`4b98c48b`, `0149b83e`, `6069cb57`), all in the seam where a field moved between collections and its writers weren't all traced | ⚠️ Revisit — milestone audit's integration check caught what phase verification did not; consider making cross-phase checks routine rather than milestone-only |
 
 ## Evolution
 
@@ -217,4 +227,6 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-24 — Milestone v1.7 Admin Region Picker started.*
+
+---
+*Last updated: 2026-07-28 after v1.7 milestone*

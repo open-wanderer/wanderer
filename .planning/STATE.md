@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
-status: completed
+status: Awaiting next milestone
 stopped_at: Completed 32-06-PLAN.md
-last_updated: "2026-07-28T10:57:16.830Z"
-last_activity: 2026-07-28 -- Phase 32 marked complete
+last_updated: "2026-07-28T12:55:30.710Z"
+last_activity: 2026-07-28 — Milestone v1.7 completed and archived
 progress:
   total_phases: 5
   completed_phases: 5
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 32 — COMPLETE
-Plan: 6 of 6
-Status: Phase 32 complete
-Last activity: 2026-07-28 -- Phase 32 marked complete
+Phase: Milestone v1.7 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-28 — Milestone v1.7 completed and archived
 
 ## v1.7 Phases
 
@@ -460,4 +460,53 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 28` to begin planning "Region Catalog Data Model & Seeding", the first phase of v1.7.
+- Start the next milestone with /gsd-new-milestone
+
+## Deferred Items
+
+Items acknowledged and deferred at the v1.7 milestone close on 2026-07-28.
+39 predate v1.7 (v1.2–v1.6 backlog); 1 is v1.7-scoped (Phase 31 verification).
+See `.planning/v1.7-MILESTONE-AUDIT.md` for the two v1.7 verification gaps.
+
+| Category | Item | Status |
+|----------|------|--------|
+| debug_sessions | 26-04-dem-status-not-reflected | diagnosed |
+| debug_sessions | 26-04-progress-bar-resets | diagnosed |
+| debug_sessions | navigation-screen-region-swap-broken | diagnosed |
+| debug_sessions | region-download-diskspace | diagnosed |
+| debug_sessions | region-download-stale-toone | diagnosed |
+| quick_tasks | 260610-kdc-fix-trail-pmtiles-download-add-missing-g | unknown |
+| quick_tasks | 260611-whq-support-multiple-pmtiles-sources-in-offl | unknown |
+| quick_tasks | 260612-gmg-add-proper-dark-mode-to-the-flutter-app- | missing |
+| quick_tasks | 260615-k0w-implement-along-track-projection-for-way | unknown |
+| quick_tasks | 260615-ktn-research-flutter-background-geolocation- | unknown |
+| quick_tasks | 260615-mxk-implement-background-navigation-so-locat | unknown |
+| quick_tasks | 260616-h99-create-wandereractorsearch-component-for | unknown |
+| quick_tasks | 260616-j2n-implement-the-like-feature-from-the-web- | unknown |
+| quick_tasks | 260702-e3g-fix-non-optimistic-reorder-animation-in- | unknown |
+| quick_tasks | 260702-ek7-fix-white-flash-on-sub-category-toggle-r | unknown |
+| quick_tasks | 260702-ere-cascade-category-visibility-to-settingss | unknown |
+| quick_tasks | 260702-gib-add-subcategory-chips-under-each-categor | unknown |
+| quick_tasks | 260702-m4u-make-auth-provider-dart-build-optimistic | unknown |
+| quick_tasks | 260710-kpd-fix-the-6-small-ui-gaps-that-i-found-aft | unknown |
+| quick_tasks | 260710-lem-fix-2-issues-found-during-manual-verific | unknown |
+| quick_tasks | 260710-ptb-clean-up-comments-across-all-files-added | missing |
+| quick_tasks | 260711-d37-shrink-the-navigation-screen-location-pu | unknown |
+| quick_tasks | 260711-lzb-make-hillshading-work-offline-in-the-flu | unknown |
+| quick_tasks | 260712-m9v-resume-navigation-after-manual-app-termi | unknown |
+| quick_tasks | 260712-pac-fix-nosuchmethoderror-in-main-dart-type- | unknown |
+| quick_tasks | 260713-nes-fix-500-errors-on-app-launch-by-gating-n | missing |
+| quick_tasks | 260714-qma-revert-speculative-persisted-500-counter | unknown |
+| quick_tasks | 260714-qtl-fix-meilisearch-token-cookie-never-valid | unknown |
+| quick_tasks | 260715-q01-update-the-ios-bundle-id-and-android-app | unknown |
+| quick_tasks | 260717-seb-reverse-geocode-route-planner-anchors-on | unknown |
+| quick_tasks | 260718-e9j-a-user-should-be-able-to-edit-an-existin | unknown |
+| quick_tasks | 260719-d6a-the-navigation-timer-should-show-time-in | unknown |
+| quick_tasks | 260719-fjw-save-track-recorded-during-navigation-cr | unknown |
+| quick_tasks | 260719-n8g-implement-the-missing-route-recorder-mos | unknown |
+| quick_tasks | 260720-s7m-clean-up-arb-translation-files-remove-un | unknown |
+| quick_tasks | 260721-eob-add-a-bottom-modal-sheet-on-track-save-f | unknown |
+| quick_tasks | 260726-rn1-replace-heuristic-category-travel-profil | missing |
+| todos | 2026-07-18-way-types-and-surfaces-breakdown | mobile |
+| todos | 2026-07-24-comaps-poly-region-extraction-spike (stale — Phase 29 shipped) | backend |
+| verification_gaps | Phase 31 on-device pass | human_needed |

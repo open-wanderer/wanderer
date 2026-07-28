@@ -150,6 +150,72 @@
 
 ---
 
+## Milestone: v1.7 — Admin Region Picker
+
+**Shipped:** 2026-07-28
+**Phases:** 5 | **Plans:** 19 | **Tasks:** 46 | **Timeline:** 4 days (2026-07-25 → 07-28)
+
+### What Was Built
+Seeded the full 1,306-row CoMaps region catalog into PocketBase with a maintainer tool plus an
+auto-run migration; switched archive extraction from bbox to canonical polygon clipping; built a
+PocketBase admin page with a filterable region tree and live coverage map; mirrored the hierarchy
+in the Flutter Settings screen; then moved boundary geometry off-repo entirely — fetched on demand
+from CoMaps at a pinned commit, catalog down from 54.65 MB gzipped to ~315 KB of plain JSON, and
+the retired blob purged from 133 commits of published history.
+
+### What Worked
+- **Measuring instead of estimating.** The seed-slimming design was re-scoped twice by actually
+  running the numbers (322 KB compact vs 387 KB pretty vs 292 KB without bbox) rather than
+  reasoning about them. Two guesses were wrong by 3× and ~190× respectively.
+- **Tombstoning superseded decisions rather than deleting them.** D-00c/D-00d/D-00e were kept in
+  CONTEXT.md marked SUPERSEDED with the reason each fell. Nobody re-derived them, and the
+  `[informational]` tag kept the coverage gate honest without hiding the history.
+- **Structural over procedural constraints.** `ResolveGeometry` taking the region *record* and
+  deriving `persist` internally means no caller can induce a write for a disabled region. That
+  invariant survived three subsequent bug fixes untouched.
+- **The milestone audit's integration check earned its cost.** It resolved the highest-risk seam
+  with direct evidence (single Flutter call site, always `enabled=true`) where phase verification
+  had only inference.
+
+### What Was Inefficient
+- **Three integration bugs shipped past a passing phase verification** (`4b98c48b`, `0149b83e`,
+  `6069cb57`), all found by manual use. Every one was in the same seam: a field moved between
+  collections and not all of its writers were traced.
+- **Two of those traced back to planning, not execution.** A `*.go`-only grep concluded
+  `buildRegion` was the sole geometry consumer and missed a JavaScript client reading the
+  collection REST API directly; a later note asserted "bbox must stay committed — non-negotiable"
+  without checking whether disabled regions needed it. Both were corrected by user pushback rather
+  than by verification.
+- **A circular justification survived plan review.** "Enabled regions always have rows under the
+  persist rule" was fed to the planner as a constraint; the rule only fires when the endpoint is
+  called, and the only post-enable caller read the collection instead. The plan-checker verified
+  the constraint as given — it had no way to see it was self-referential.
+
+### Patterns Established
+- **A PocketBase collection is a public API surface the moment it exists.** Consumer analysis
+  cannot be scoped by the producer's language — see
+  `.planning/notes/pocketbase-collections-are-a-public-api-surface.md`.
+- **Pin upstream by commit SHA, and store the SHA in the artifact it produced**, never in a
+  parallel constant. Makes desync structurally impossible rather than a thing to remember.
+- **Edit-in-place is legitimate for a migration that has never shipped** — verified against
+  `origin/main` and every release tag before committing to it, not assumed.
+
+### Key Lessons
+- When a field moves between tables, enumerate its **writers** as deliberately as its readers. All
+  three bugs were write-path omissions; every read path was traced correctly.
+- A constraint handed to a planner is verified *as given*. Reviewers check whether plans satisfy
+  constraints, not whether the constraints are coherent. Circular reasoning has to be caught
+  upstream.
+- "Never shipped" is a checkable claim (`git ls-tree` against tags), and checking it turned a
+  migration-compatibility question into a non-issue. It also turned out to be *almost* true — one
+  demo instance had the old schema, which the premise had assumed away.
+
+### Cost Observations
+- Model mix: opus for planning and orchestration, sonnet for all execution/verification subagents
+- Notable: Phase 32 alone ran 6 executor agents sequentially (worktrees disabled) plus pattern
+  mapper, plan checker, verifier, and integration checker — the verifier independently closed
+  three human-check items by standing up a live instance, which the phase had recorded as pending
+
 ## Cross-Milestone Trends
 
 ### Process Evolution

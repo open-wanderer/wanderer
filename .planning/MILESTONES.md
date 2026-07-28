@@ -1,5 +1,60 @@
 # Milestones
 
+## v1.7 Admin Region Picker (Shipped: 2026-07-28)
+
+**Phases completed:** 5 phases, 19 plans, 46 tasks
+**Timeline:** 2026-07-25 → 2026-07-28 (4 days) · 166 files, +30,818/−711 · `58ae4d20..e41fa3be`
+
+**Delivered:** A server owner defines downloadable regions by toggling entries in a seeded CoMaps
+catalog with real boundaries, instead of hand-authoring `region_config.json` — and the app's
+settings screen presents the same hierarchy.
+
+**Key accomplishments:**
+
+- Seeded the full 1,306-row CoMaps region catalog (153 groups, 1,153 leaves) into a new `regions`
+  PocketBase collection via a maintainer-run Cobra command plus an auto-run migration, so a fresh
+  self-hosted instance boots with a populated, toggleable catalog and zero admin action.
+- Retired `region_config.json` entirely: the archive cron now reads build targets from
+  `kind='leaf' AND enabled=true` and clips both vector and DEM PMTiles to each leaf's canonical
+  GeoJSON polygon via `pmtiles extract --region`, replacing bbox-based extraction.
+- Shipped a standalone PocketBase admin page rendering the catalog as a collapsible, filterable
+  tree with optimistic enable/disable toggles and a live MapLibre map showing every enabled
+  region's true boundary.
+- Brought the Flutter Settings → Offline Maps/Regions screen to the same hierarchy, pruned to
+  admin-enabled regions plus their ancestors, with every existing download/cancel/delete action
+  and the disk-usage summary preserved.
+- Moved boundary geometry off-repo entirely: the committed catalog went from **54.65 MB gzipped
+  to ~315 KB of plain hierarchy JSON** (~190×), geometry is now fetched on demand from CoMaps at a
+  pinned commit and cached only for regions an admin actually enabled, and the maintainer seed run
+  collapsed from ~1,153 HTTP requests to one.
+- Purged the retired 57 MB seed blob from 133 commits of published history with
+  `--force-with-lease`, shrinking a fresh clone's pack from 268.00 MiB to 198.14 MiB while still
+  migrating up to the identical 1,306-row catalog.
+
+### Known Gaps
+
+Accepted at close; see `.planning/milestones/v1.7-MILESTONE-AUDIT.md` (status `gaps_found`).
+Both are verification-coverage gaps, not defects — integration checking found 8/8 cross-phase
+seams wired and the full E2E flow unbroken.
+
+- **EXTRACT-01/02/03 (Phase 29)** — the phase has no VERIFICATION.md. Wiring is code-verified
+  correct today, but nothing phase-owned would catch it regressing. The `region_id` → `path`
+  rename already broke this area once, silently.
+- **APPUI-01/02 (Phase 31)** — `status: human_needed`. The on-device pass its VERIFICATION.md
+  explicitly requires after Phase 32's server rewrite has never been performed.
+
+**Known deferred items at close:** 40 (see STATE.md Deferred Items) — 39 predate v1.7.
+
+### Notes
+
+- CATALOG-02 was satisfied in Phase 28 and then deliberately superseded by Phase 32; leaf rows
+  store neither `polygon` nor `bbox`. Recorded as superseded-by-design, not a gap.
+- Three integration bugs surfaced through manual use *after* Phase 32's verification passed
+  (`4b98c48b`, `0149b83e`, `6069cb57`), all fixed. Phase-level verification under-covered
+  cross-phase wiring in this milestone.
+- No holed `Polygon` exists anywhere in the real 1,306-row CoMaps catalog — Phase 28's multi-ring
+  hole support has never been exercised by actual data.
+
 ## v1.6 Offline Region Tile Repository (Shipped: 2026-07-24)
 
 **Phases completed:** 8 phases, 30 plans, 63 tasks
