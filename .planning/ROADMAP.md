@@ -308,7 +308,7 @@ Full design settled via `/gsd-explore` — see `.planning/notes/streamlined-regi
 - [x] **Phase 29: Polygon-Based Extraction & Region API** — the archive cron and the client-facing catalog endpoint both read from the new table (completed 2026-07-26)
 - [x] **Phase 30: Admin Region Picker UI** — a server owner toggles regions on a collapsible tree with a live coverage map (completed 2026-07-27)
 - [x] **Phase 31: Flutter Settings Hierarchy** — the app's region list becomes a hierarchy matching the admin tree (completed 2026-07-27)
-- [ ] **Phase 32: On-Demand Polygon Fetch & Seed Slimming** — boundary geometry leaves the repo entirely; the committed seed drops from ~55 MB to well under 100 KB
+- [ ] **Phase 32: On-Demand Polygon Fetch & Seed Slimming** — boundary geometry leaves the repo entirely; the committed seed drops from 54.65 MB gzipped to ~387 KB of plain JSON
 
 #### Sequencing Rationale
 
@@ -428,14 +428,16 @@ Offline launch is unaffected: the catalog stays a committed in-repo artifact, so
 
 **Success Criteria** (what must be TRUE):
 
-  1. A maintainer runs `seed-regions` and gets a geometry-free catalog — hierarchy fields plus leaf `bbox` — under 100 KB, with the CoMaps commit SHA it fetched from recorded inside the artifact itself.
+  1. A maintainer runs `seed-regions` and gets a geometry-free catalog — hierarchy fields plus leaf `bbox` — as plain, pretty-printed JSON with no gzip layer, around 387 KB, with the CoMaps commit SHA it fetched from recorded inside the artifact itself.
   2. A fresh instance boots with no network, runs the migration, and serves the full 1306-row catalog through `GET /api/v1/regions` and the admin picker, with no `region_polygons` collection in the schema.
   3. `buildRegion` produces a byte-equivalent archive to today's for the same region, sourcing its polygon by fetching that leaf's `.poly` at the catalog's recorded commit and converting it via the existing `ParsePoly`.
   4. When the GitHub mirror is unreachable, the fetch transparently falls back to CoMaps' canonical Codeberg repository at the same commit and the build still succeeds; when both are unreachable the build fails with an error naming which upstreams were tried.
 
 **Design notes for planning**:
 
-- **bbox must stay committed.** `ParsePoly` derives it from the same `.poly`, so `seed-regions` still fetches all ~1153 files at maintainer time — it computes the bbox and discards the geometry. The maintainer run is unchanged; only the output shrinks.
+- **The gzip layer retires with the polygons.** The artifact becomes plain, pretty-printed JSON. Measured against the real 1306-row seed after stripping geometry: compact 281.8 KB, pretty-printed 386.9 KB, one-object-per-line 283.0 KB — versus 54.65 MB gzipped today, a ~140× reduction. Gzip existed solely because the output was 55 MB (`seed_regions.go:64-69`, including its "do not drop below level 6" warning); that constraint is gone. Pretty-printed was chosen for readability. Note the tradeoff accepted: pretty-printing expands a single renamed region into ~10 changed diff lines, where one-object-per-line would show exactly one — revisit only if catalog-refresh diffs prove annoying to review in practice.
+- **Two migration-side guards retire with it.** The token-by-token streaming decoder and the `io.LimitReader(gzReader, 512<<20)` decompression-bomb bound (`1785000000_create_regions_collection.go:142-157`) both exist only because `map[string]any` polygons could balloon peak heap past 512 MB on small hosts. At ~387 KB the migration collapses to a plain `ReadAll` + `Unmarshal` into `[]SeedRow`. Note this is a code-clarity win, not a speed one — the performance gain comes entirely from dropping the polygons, not from dropping gzip.
+- **bbox must stay committed.** `ParsePoly` derives it from the same `.poly` (it returns `(geometry, [4]float64, error)`) and CoMaps publishes no separate bbox source, so `seed-regions` still fetches all ~1153 files at maintainer time — it computes the bbox and discards the geometry. The maintainer run's cost is unchanged; only the output shrinks. bbox is load-bearing offline: `regions_get.go:99` serves it, `builder.go:183` reads it, and `app/lib/util/trail_coverage_util.dart` runs the on-device trail-download-guard overlap math against a local catalog snapshot with no network.
 - **The pinned SHA travels with the catalog, not as a shared Go const.** A const goes stale the moment someone regenerates with `--commit X`, silently desyncing geometry from hierarchy. Writing the SHA that `seed-regions` actually used into the artifact makes that desync structurally impossible.
 - **GitHub is primary, Codeberg is fallback — deliberately, and this is not a reversal.** `seed_regions.go:19-31` chose GitHub because Codeberg's raw endpoint enforces ~250 requests/600s, which a ~1150-file maintainer run routinely exhausts. That limit is irrelevant to a single on-demand leaf fetch, so Codeberg is a sound fallback here even though it is a poor primary there. Note Codeberg is CoMaps' canonical home and GitHub is the mirror. Codeberg's Forgejo raw URL form (`/{owner}/{repo}/raw/commit/{sha}/{path}`) should be verified against a real request during planning.
 - **The disputed-territory special case dissolves.** Five leaves share a `comaps_id` across two paths (Jerusalem, Crimea, Abkhazia, South Ossetia, Campo de Hielo Sur). Fetching keyed on `comaps_id` serves both paths from the same `.poly`, so the "path is the safe join key" constraint that shaped the Phase 28 migration no longer applies to geometry.

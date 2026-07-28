@@ -38,7 +38,7 @@
 
 Added 2026-07-28 after `/gsd-explore`. Revises the Phase 28 seeding approach: boundary geometry stops being distributed with the repo and is fetched at archive-build time instead. Supersedes CATALOG-02's stored `polygon` (its `bbox` half is retained) and changes the content of SEED-01/SEED-02.
 
-- [ ] **SLIM-01**: `seed-regions` writes a geometry-free catalog — hierarchy fields plus leaf `bbox` only, under 100 KB — with the CoMaps commit SHA it fetched from recorded inside the artifact, so the fetcher cannot desync from the hierarchy
+- [ ] **SLIM-01**: `seed-regions` writes a geometry-free catalog — hierarchy fields plus leaf `bbox` only — as plain, pretty-printed JSON (no gzip; measured at 386.9 KB for the current 1306-row catalog, down from 54.65 MB), with the CoMaps commit SHA it fetched from recorded inside the artifact, so the fetcher cannot desync from the hierarchy
 - [ ] **SLIM-02**: The migration creates `regions` only; the `region_polygons` collection is never created on fresh instances and is dropped on existing ones, eliminating the bulk geometry insert from first-boot startup
 - [ ] **SLIM-03**: `buildRegion` fetches the target leaf's `.poly` on demand at the catalog's recorded commit and converts it via the existing `ParsePoly`, producing archives equivalent to today's — GitHub mirror primary, CoMaps' canonical Codeberg repository as fallback, with failures naming which upstreams were tried
 - [ ] **SLIM-04**: A fresh self-hosted instance boots, migrates, and serves the full catalog through `GET /api/v1/regions` and the admin picker with no network access — only archive building, which is already network-gated, requires connectivity
