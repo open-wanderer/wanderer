@@ -427,5 +427,23 @@
   "regions_vector_tile_title": "Vector",
   "regions_dem_tile_title": "Elevation data",
   "regions_download_failed": "Download failed",
-  "regions_dem_locked_subtitle": "Download map data first"
+  "regions_dem_locked_subtitle": "Download map data first",
+  "regions_offline_unavailable_title": "Can't load regions",
+  "regions_offline_unavailable_body": "Connect to the internet to browse and manage downloadable regions.",
+  "regions_group_expand_label": "Expand {name}",
+  "@regions_group_expand_label": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "regions_group_collapse_label": "Collapse {name}",
+  "@regions_group_collapse_label": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }
