@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: verifying
-stopped_at: Completed 31-03-PLAN.md
-last_updated: "2026-07-27T16:10:02.192Z"
+stopped_at: Phase 32 context gathered — BLOCKED on admin-UI region_polygons dependency
+last_updated: "2026-07-28T08:49:08.187Z"
 last_activity: 2026-07-27 -- Completed 31-03-PLAN.md (prune Settings hierarchy to downloadable regions)
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 4
   total_plans: 13
   completed_plans: 13
-  percent: 100
+  percent: 80
 ---
 
 # Project State
@@ -438,9 +438,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-27T16:09:37.095Z
-Stopped at: Completed 31-03-PLAN.md
-Resume file: None
+Last session: 2026-07-28T08:49:08.163Z
+Stopped at: Phase 32 context gathered — BLOCKED on admin-UI region_polygons dependency
+Resume file: .planning/phases/32-on-demand-polygon-fetch-seed-slimming/32-CONTEXT.md
 
 ## Operator Next Steps
 
