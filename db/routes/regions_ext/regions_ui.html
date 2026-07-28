@@ -943,7 +943,19 @@
           var prevEnabled = row.enabled;
           row.enabled = !prevEnabled; // 1. optimistic flip, instant feedback
           this.setRegionEnabled(row.id, row.enabled);
-          if (row.enabled) { this.addPolygonForRow(row); } else { this.removePolygonForRow(row); }
+          // 2. Draw optimistically only when it is free — a polygon already in
+          //    the hover cache paints instantly with no request. A cold
+          //    region's outline is deliberately deferred until after the PATCH
+          //    below: resolving it now would hit the route while the record is
+          //    still enabled=false server-side, taking D-11's pass-through and
+          //    burning an upstream fetch that persists nothing.
+          if (row.enabled) {
+            if (this.map && this._polygonCache[row.path]) {
+              this.addRegionLayer(this.map, row.path, this._polygonCache[row.path]);
+            }
+          } else {
+            this.removePolygonForRow(row);
+          }
           this.rowErrors = Object.assign({}, this.rowErrors, { [row.id]: undefined });
 
           var res = await this.apiFetch('/api/collections/regions/records/' + row.id, {
@@ -962,6 +974,13 @@
             });
             return;
           }
+
+          // 4. The enable is committed, so the record now reads enabled=true.
+          //    Resolving here draws the outline for a region whose polygon was
+          //    not already cached, and the same call is what the server's
+          //    persist branch acts on if the background cache-on-enable hook
+          //    has not landed yet.
+          if (row.enabled) await this.addPolygonForRow(row);
 
           if (alsoDeleteFiles) await this.deleteArchiveFiles(row);
         },
@@ -1028,7 +1047,18 @@
             prevStates[leaf.id] = leaf.enabled;
             leaf.enabled = target;
             this.setRegionEnabled(leaf.id, target);
-            if (target) { this.addPolygonForRow(leaf); } else { this.removePolygonForRow(leaf); }
+            // Same rule as the single-row toggle: paint only from cache here,
+            // and resolve cold outlines after the PATCHes land (below). A
+            // group can hold hundreds of leaves — resolving each one now would
+            // fire that many upstream fetches while every record is still
+            // enabled=false, none of which would persist.
+            if (target) {
+              if (this.map && this._polygonCache[leaf.path]) {
+                this.addRegionLayer(this.map, leaf.path, this._polygonCache[leaf.path]);
+              }
+            } else {
+              this.removePolygonForRow(leaf);
+            }
           });
           this.rowErrors = Object.assign({}, this.rowErrors, { [row.id]: undefined });
 
@@ -1057,6 +1087,18 @@
             this.rowErrors = Object.assign({}, this.rowErrors, {
               [row.id]: failed.length + ' of ' + toToggle.length + " couldn't update — try again."
             });
+          }
+
+          // PATCHes are committed — resolve outlines for every leaf that ended
+          // up enabled and is not already painted from cache. Sequential, not
+          // Promise.all: a large group would otherwise open hundreds of
+          // concurrent upstream fetches.
+          var failedIds = {};
+          failed.forEach(function (l) { failedIds[l.id] = true; });
+          for (const leaf of toToggle) {
+            if (leaf.enabled && !failedIds[leaf.id] && !this._polygonCache[leaf.path]) {
+              await this.addPolygonForRow(leaf);
+            }
           }
         },
 
@@ -1114,6 +1156,26 @@
             var data = await res.json();
             out = out.concat(data.items);
           }
+
+          // Backfill anything the batch read missed. An enabled leaf can have
+          // no cached row: it was enabled before the cache-on-enable hook
+          // existed, its background fetch failed, or the row was deleted. The
+          // batch query simply omits those, which used to leave the coverage
+          // map blank AND starve fitToEnabled of bbox so it never zoomed.
+          // Resolve them individually through the read-through route, which
+          // also re-persists them since the regions are enabled.
+          var have = {};
+          out.forEach(function (it) { have[it.path] = true; });
+          for (const row of rows) {
+            if (have[row.path]) continue;
+            var geoRes = await this.apiFetch('/regions/' + encodeURIComponent(row.path) + '/geometry');
+            if (!geoRes || !geoRes.ok) continue;
+            var geo = await geoRes.json();
+            if (!geo || !geo.polygon) continue;
+            this._polygonCache[row.path] = geo.polygon;
+            out.push({ path: row.path, polygon: geo.polygon, bbox: geo.bbox });
+          }
+
           return out;
         },
 
@@ -1157,17 +1219,29 @@
           map.fitBounds([[union[0], union[1]], [union[2], union[3]]], { padding: 48 });
         },
 
-        // Real implementations replacing Task 1's `if (!this.map) return;`
-        // stubs — fetch/drop this single region's polygon per D-03 ("again
-        // for the single region whenever a toggle flips").
+        // Draw one region's outline, per D-03 ("again for the single region
+        // whenever a toggle flips").
+        //
+        // Goes through the read-through /regions/{path}/geometry route, NOT a
+        // direct region_geometry collection query. Reading the collection here
+        // was a bug: a freshly enabled leaf has no row yet — the server-side
+        // cache-on-enable hook writes it in the background — so the query came
+        // back empty and the outline silently never drew. The route resolves
+        // from cache when present and fetches upstream when not, so it is
+        // correct whichever side of that background write it lands on.
         async addPolygonForRow(row) {
           if (!this.map) return;
-          var filter = "path='" + row.path.replace(/'/g, "\\'") + "'";
-          var res = await this.apiFetch('/api/collections/region_geometry/records?perPage=1&filter=' + encodeURIComponent(filter));
+          // Serve from the hover cache first when available: the admin has
+          // almost always just hovered this row to reach its switch, so this
+          // makes the outline appear instantly with no request at all.
+          var cached = this._polygonCache[row.path];
+          if (cached) { this.addRegionLayer(this.map, row.path, cached); return; }
+          var res = await this.apiFetch('/regions/' + encodeURIComponent(row.path) + '/geometry');
           if (!res || !res.ok) return;
           var data = await res.json();
-          var item = data.items && data.items[0];
-          if (item && item.polygon) this.addRegionLayer(this.map, row.path, item.polygon);
+          if (!data || !data.polygon) return;
+          this._polygonCache[row.path] = data.polygon;
+          this.addRegionLayer(this.map, row.path, data.polygon);
         },
 
         removePolygonForRow(row) {

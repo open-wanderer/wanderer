@@ -2,9 +2,12 @@ package hooks
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
+
+	"pocketbase/services/regions"
 )
 
 // ValidateRegionPathReferenceHandler enforces the path-based "foreign key"
@@ -41,5 +44,77 @@ func ValidateRegionPathReferenceHandler() func(e *core.RecordEvent) error {
 		}
 
 		return e.Next()
+	}
+}
+
+// CacheGeometryOnEnableHandler caches a leaf region's boundary geometry the
+// moment the region is enabled, by calling regions.ResolveGeometry — whose
+// persist branch (D-10) fires precisely because the record is now enabled.
+//
+// Why this exists as a server-side hook rather than a client call: the
+// original design assumed the admin picker's toggle-on redraw would populate
+// region_geometry as a side effect. It did not, for two compounding reasons.
+// The redraw read the collection directly instead of the read-through route,
+// so it never triggered a fetch at all; and it ran *before* the enabling PATCH
+// resolved, so even a route call would have seen enabled=false and taken the
+// D-11 pass-through with no write. The result was that nothing ever wrote
+// region_geometry from the admin flow — rows only appeared when the archive
+// cron eventually ran buildRegion.
+//
+// Keying off the record transition instead of a UI call closes that hole for
+// every path that can enable a region: the picker, a direct REST PATCH, or the
+// PocketBase collection editor. The admin map therefore has coverage geometry
+// to draw as soon as a region is enabled, rather than only after the next cron
+// build.
+//
+// Bound to OnRecordAfterUpdateSuccess (not OnRecordUpdate) deliberately: the
+// row must be committed before ResolveGeometry reads its enabled flag back,
+// and the geometry write must not join the enabling update's transaction.
+//
+// The fetch runs in a goroutine so a ~hundreds-of-ms upstream CoMaps request
+// never blocks the PATCH response — the picker's bulk enable PATCHes leaves in
+// chunks, and serialising an upstream fetch into each one would make enabling
+// a country crawl. Callers that need geometry synchronously use the
+// /regions/{path}/geometry route, which is read-through and therefore correct
+// regardless of whether this background write has landed yet.
+func CacheGeometryOnEnableHandler(app core.App) func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		if err := e.Next(); err != nil {
+			return err
+		}
+
+		if e.Record.GetString("kind") != "leaf" || !e.Record.GetBool("enabled") {
+			return nil
+		}
+
+		// Only act on a false -> true transition. Without this, every unrelated
+		// update to an already-enabled region (a re-save, an admin edit) would
+		// re-enter ResolveGeometry.
+		if original := e.Record.Original(); original != nil && original.GetBool("enabled") {
+			return nil
+		}
+
+		path := e.Record.GetString("path")
+
+		go func() {
+			// Re-read the record inside the goroutine rather than closing over
+			// e.Record: the event's record is mutable and may be reused after
+			// this hook returns, and re-reading also confirms the enable
+			// actually committed.
+			region, err := app.FindFirstRecordByFilter("regions", "path = {:path}", dbx.Params{"path": path})
+			if err != nil || region == nil {
+				log.Printf("[regions] geometry cache-on-enable: region %s not found after update: %v", path, err)
+				return
+			}
+			if _, _, err := regions.ResolveGeometry(app, region); err != nil {
+				// Non-fatal by design: the region is enabled either way, and
+				// buildRegion's D-14 self-heal will refetch at build time.
+				// Losing the cache write only costs the admin map its outline
+				// until then.
+				log.Printf("[regions] geometry cache-on-enable failed for %s: %v", path, err)
+			}
+		}()
+
+		return nil
 	}
 }

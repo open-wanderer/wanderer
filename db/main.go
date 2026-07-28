@@ -160,6 +160,12 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordCreate("region_archives", "region_geometry").BindFunc(hooks.ValidateRegionPathReferenceHandler())
 	app.OnRecordUpdate("region_archives", "region_geometry").BindFunc(hooks.ValidateRegionPathReferenceHandler())
 
+	// Cache a leaf's boundary geometry as soon as it is enabled, from whichever
+	// path did the enabling (admin picker, REST PATCH, collection editor). Runs
+	// post-commit so ResolveGeometry reads back an enabled record and takes its
+	// persist branch; the upstream fetch happens off the request goroutine.
+	app.OnRecordAfterUpdateSuccess("regions").BindFunc(hooks.CacheGeometryOnEnableHandler(app))
+
 	app.OnRecordCreateRequest().BindFunc(util.SanitizeHTML())
 	app.OnRecordUpdateRequest().BindFunc(util.SanitizeHTML())
 
