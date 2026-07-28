@@ -822,8 +822,15 @@
           var sizes = {};
           var building = new Set();
           all.forEach(function (a) {
-            sizes[a.region_id] = (a.vector_size_bytes || 0) + (a.dem_size_bytes || 0);
-            if (a.status === 'building' || a.dem_status === 'building') building.add(a.region_id);
+            // Keyed on `path`, not `region_id`: the field was renamed in
+            // 92f3ac6d ("download by path") a few hours after this code was
+            // written, and the rename missed this call site. Reading the old
+            // name yielded undefined, so both maps ended up keyed on a single
+            // `undefined` entry — `buildingPaths.has(row.path)` never matched
+            // and the per-row build spinner and size badge both silently
+            // stopped rendering.
+            sizes[a.path] = (a.vector_size_bytes || 0) + (a.dem_size_bytes || 0);
+            if (a.status === 'building' || a.dem_status === 'building') building.add(a.path);
           });
           this.archiveSizes = sizes;
           this.buildingPaths = building;
