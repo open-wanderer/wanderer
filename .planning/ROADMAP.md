@@ -9,7 +9,7 @@
 - ✅ **v1.4 MapLibre Migration** — Phases 13-18 (shipped 2026-07-10)
 - ✅ **v1.5 Route Planner** — Phases 19-21 (shipped 2026-07-17)
 - ✅ **v1.6 Offline Region Tile Repository** — Phases 21.5, 22-27 (shipped 2026-07-24)
-- 🚧 **v1.7 Admin Region Picker** — Phases 28-31 (in progress)
+- 🚧 **v1.7 Admin Region Picker** — Phases 28-32 (in progress)
 
 ## Phases
 
@@ -298,7 +298,7 @@ See `.planning/milestones/v1.6-ROADMAP.md` for full details.
 
 </details>
 
-### 🚧 v1.7 Admin Region Picker (Phases 28-31, in progress)
+### 🚧 v1.7 Admin Region Picker (Phases 28-32, in progress)
 
 **Milestone Goal:** A server owner defines downloadable regions by toggling entries in a curated, seeded catalog — sourced from CoMaps' extract hierarchy, with real known boundaries — instead of hand-authoring `region_config.json`; the app's settings screen presents the same hierarchy.
 
@@ -308,6 +308,7 @@ Full design settled via `/gsd-explore` — see `.planning/notes/streamlined-regi
 - [x] **Phase 29: Polygon-Based Extraction & Region API** — the archive cron and the client-facing catalog endpoint both read from the new table (completed 2026-07-26)
 - [x] **Phase 30: Admin Region Picker UI** — a server owner toggles regions on a collapsible tree with a live coverage map (completed 2026-07-27)
 - [x] **Phase 31: Flutter Settings Hierarchy** — the app's region list becomes a hierarchy matching the admin tree (completed 2026-07-27)
+- [ ] **Phase 32: On-Demand Polygon Fetch & Seed Slimming** — boundary geometry leaves the repo entirely; the committed seed drops from ~55 MB to well under 100 KB
 
 #### Sequencing Rationale
 
@@ -408,6 +409,44 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 32: On-Demand Polygon Fetch & Seed Slimming
+
+**Goal**: Boundary geometry stops being a distributed artifact. The committed seed carries hierarchy and bbox only; `buildRegion` fetches the one `.poly` it needs at build time, from the CoMaps commit the catalog was generated at.
+**Depends on**: Phase 28 (revises its seeding approach), Phase 29 (owns `buildRegion`, the new fetch call site)
+**Requirements**: SLIM-01, SLIM-02, SLIM-03, SLIM-04
+**Supersedes**: CATALOG-02 (leaf rows no longer store `polygon`; `bbox` is retained), SEED-01 and SEED-02 (seed content and migration behavior both change)
+
+**Rationale** (settled via `/gsd-explore`, 2026-07-28):
+
+The committed seed is ~55 MB gzipped, and essentially all of it is full-precision leaf geometry — roughly 165 KB × ~1153 leaves. The hierarchy the catalog actually exists to serve is a rounding error by comparison. That geometry is read by exactly one caller: `buildRegion` in `db/services/regions/builder.go`, at archive-build time, only for currently-enabled leaves. Every other reader (`GET /api/v1/regions`, the admin region picker, the Flutter Settings hierarchy) needs hierarchy and bbox only — which is why Phase 28 already split geometry into a separate `region_polygons` collection.
+
+The cache that `region_polygons` provides is not worth its cost. It saves a ~165 KB fetch inside a function whose next act is downloading `planet.pmtiles` from Mapterhorn plus a Protomaps daily build — hundreds of MB to GB. In exchange it costs a collection, path-reference validation hook wiring (`db/main.go`), an 8 MB `MaxSize` override for high-vertex coastlines, and a bulk-insert transaction over 1306 rows that dominates first-boot migration. Removing it removes all four.
+
+Fetching from CoMaps upstream preserves reproducibility because `seed_regions.go` already pins a concrete commit SHA (`defaultCommitHash`) and never uses `main`. A pinned SHA on a raw-file endpoint is content-addressed and immutable, so this gets zero-infra hosting without giving up determinism.
+
+Offline launch is unaffected: the catalog stays a committed in-repo artifact, so `migrate up` and the region-serving endpoints need no network. The only new network moment is inside `buildRegion`, which cannot work offline today regardless.
+
+**Success Criteria** (what must be TRUE):
+
+  1. A maintainer runs `seed-regions` and gets a geometry-free catalog — hierarchy fields plus leaf `bbox` — under 100 KB, with the CoMaps commit SHA it fetched from recorded inside the artifact itself.
+  2. A fresh instance boots with no network, runs the migration, and serves the full 1306-row catalog through `GET /api/v1/regions` and the admin picker, with no `region_polygons` collection in the schema.
+  3. `buildRegion` produces a byte-equivalent archive to today's for the same region, sourcing its polygon by fetching that leaf's `.poly` at the catalog's recorded commit and converting it via the existing `ParsePoly`.
+  4. When the GitHub mirror is unreachable, the fetch transparently falls back to CoMaps' canonical Codeberg repository at the same commit and the build still succeeds; when both are unreachable the build fails with an error naming which upstreams were tried.
+
+**Design notes for planning**:
+
+- **bbox must stay committed.** `ParsePoly` derives it from the same `.poly`, so `seed-regions` still fetches all ~1153 files at maintainer time — it computes the bbox and discards the geometry. The maintainer run is unchanged; only the output shrinks.
+- **The pinned SHA travels with the catalog, not as a shared Go const.** A const goes stale the moment someone regenerates with `--commit X`, silently desyncing geometry from hierarchy. Writing the SHA that `seed-regions` actually used into the artifact makes that desync structurally impossible.
+- **GitHub is primary, Codeberg is fallback — deliberately, and this is not a reversal.** `seed_regions.go:19-31` chose GitHub because Codeberg's raw endpoint enforces ~250 requests/600s, which a ~1150-file maintainer run routinely exhausts. That limit is irrelevant to a single on-demand leaf fetch, so Codeberg is a sound fallback here even though it is a poor primary there. Note Codeberg is CoMaps' canonical home and GitHub is the mirror. Codeberg's Forgejo raw URL form (`/{owner}/{repo}/raw/commit/{sha}/{path}`) should be verified against a real request during planning.
+- **The disputed-territory special case dissolves.** Five leaves share a `comaps_id` across two paths (Jerusalem, Crimea, Abkhazia, South Ossetia, Campo de Hielo Sur). Fetching keyed on `comaps_id` serves both paths from the same `.poly`, so the "path is the safe join key" constraint that shaped the Phase 28 migration no longer applies to geometry.
+- **Existing instances need the collection dropped**, not just newly-created ones skipping it.
+- **Tests that relied on seeded polygons** need network access or local fixtures; prefer fixtures.
+- **Availability becomes a product of three services** (Mapterhorn, Protomaps, and now CoMaps' host). Reuse the existing `fetch` 429/`Retry-After` backoff, and make failures name the upstream that failed.
+
+**Plans**: TBD (run `/gsd-plan-phase 32`)
+
+**UI hint**: no
+
 ## Progress
 
 **Execution Order:**
@@ -419,10 +458,11 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 14 ─┘
 ```
 
-v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28 and may execute in parallel; Phase 31 depends specifically on Phase 29:
+v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28 and may execute in parallel; Phase 31 depends specifically on Phase 29. Phase 32 revises Phase 28's seeding approach and changes Phase 29's `buildRegion`, so it follows both:
 
 ```
-28 ─┬─→ 29 → 31
+28 ─┬─→ 29 ─┬─→ 31
+    │       └─→ 32
     └─→ 30
 ```
 
@@ -459,3 +499,4 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
+| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 0/0 | Not started | — |

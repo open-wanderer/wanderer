@@ -34,6 +34,15 @@
 - [x] **APPUI-01**: Settings → Offline Maps/Regions presents downloadable regions as a collapsible hierarchy matching the admin-defined tree, instead of a flat list
 - [x] **APPUI-02**: Existing per-region download/cancel/delete actions and disk-usage summary continue working unchanged within the new hierarchical presentation — no download-UX regression
 
+### Seed Slimming & On-Demand Geometry
+
+Added 2026-07-28 after `/gsd-explore`. Revises the Phase 28 seeding approach: boundary geometry stops being distributed with the repo and is fetched at archive-build time instead. Supersedes CATALOG-02's stored `polygon` (its `bbox` half is retained) and changes the content of SEED-01/SEED-02.
+
+- [ ] **SLIM-01**: `seed-regions` writes a geometry-free catalog — hierarchy fields plus leaf `bbox` only, under 100 KB — with the CoMaps commit SHA it fetched from recorded inside the artifact, so the fetcher cannot desync from the hierarchy
+- [ ] **SLIM-02**: The migration creates `regions` only; the `region_polygons` collection is never created on fresh instances and is dropped on existing ones, eliminating the bulk geometry insert from first-boot startup
+- [ ] **SLIM-03**: `buildRegion` fetches the target leaf's `.poly` on demand at the catalog's recorded commit and converts it via the existing `ParsePoly`, producing archives equivalent to today's — GitHub mirror primary, CoMaps' canonical Codeberg repository as fallback, with failures naming which upstreams were tried
+- [ ] **SLIM-04**: A fresh self-hosted instance boots, migrates, and serves the full catalog through `GET /api/v1/regions` and the admin picker with no network access — only archive building, which is already network-gated, requires connectivity
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
@@ -75,13 +84,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADMINUI-03 | Phase 30 | Complete |
 | APPUI-01 | Phase 31 | Complete |
 | APPUI-02 | Phase 31 | Complete |
+| SLIM-01 | Phase 32 | Not started |
+| SLIM-02 | Phase 32 | Not started |
+| SLIM-03 | Phase 32 | Not started |
+| SLIM-04 | Phase 32 | Not started |
 
 **Coverage:**
 
-- v1 requirements: 13 total
-- Mapped to phases: 13 (Phase 28: Region Catalog Data Model & Seeding, Phase 29: Polygon-Based Extraction & Region API, Phase 30: Admin Region Picker UI, Phase 31: Flutter Settings Hierarchy)
+- v1 requirements: 17 total
+- Mapped to phases: 17 (Phase 28: Region Catalog Data Model & Seeding, Phase 29: Polygon-Based Extraction & Region API, Phase 30: Admin Region Picker UI, Phase 31: Flutter Settings Hierarchy, Phase 32: On-Demand Polygon Fetch & Seed Slimming)
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-24*
-*Last updated: 2026-07-24 after roadmap creation (Phases 28-31 assigned)*
+*Last updated: 2026-07-28 — SLIM-01..04 added after `/gsd-explore` (Phase 32 assigned)*
