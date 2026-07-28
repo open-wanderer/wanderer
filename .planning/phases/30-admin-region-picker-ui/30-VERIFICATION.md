@@ -1,64 +1,43 @@
 ---
 phase: 30-admin-region-picker-ui
 verified: 2026-07-27T10:35:35Z
-status: gaps_found
-score: 6/8 must-haves verified
+status: verified
+score: 8/8 must-haves verified
 overrides_applied: 0
-gaps:
-  - truth: "Toggling a leaf adds/removes only that region's polygon layer immediately (ADMINUI-03, D-06)"
-    status: failed
-    reason: >
-      flattenVisible() (db/routes/regions_ext/regions_ui.html:531-547) builds each
-      visibleRows entry as a brand-new object literal containing only
-      {id, name, kind, depth, enabled} (line 536). It does NOT copy `path` (or
-      `bbox`) from the source tree node. The tree-row template's toggle button
-      (line 953: `@click="toggleRegion(row)"`) passes this flattened object
-      straight into toggleRegion, which forwards it unchanged to
-      addPolygonForRow(row)/removePolygonForRow(row) (lines 686, 697). Those
-      functions immediately dereference `row.path` (line 798:
-      `row.path.replace(/'/g, "\\'")`), which is `undefined` on every row that
-      ever reaches them. Reproduced by extracting the live <script> block and
-      executing buildTree/flattenVisible/addPolygonForRow verbatim in Node:
-      `addPolygonForRow` throws `TypeError: Cannot read properties of
-      undefined (reading 'replace')` on every real toggle click. Because
-      addPolygonForRow/removePolygonForRow are called without `await` or
-      `.catch()` inside toggleRegion, this surfaces only as a silent unhandled
-      promise rejection — the PATCH itself still fires (it uses `row.id`,
-      which IS present), but the map's polygon layer is never added or
-      removed in response to a toggle.
-    artifacts:
-      - path: "db/routes/regions_ext/regions_ui.html"
-        issue: "flattenVisible() (line 536) omits `path`/`bbox` from the row objects handed to the tree-row template and, transitively, to toggleRegion/addPolygonForRow/removePolygonForRow (lines 683-703, 796-809)."
-    missing:
-      - "Add `path` (and `bbox`, needed nowhere else on this object but harmless to include) to the object literal pushed in flattenVisible() (regions_ui.html:536), OR resolve the canonical row by id from `this.regions`/`this.roots` inside toggleRegion/addPolygonForRow instead of trusting the flattened copy."
-      - "Re-verify with a live browser click after the fix: toggling a leaf ON must show its polygon appear on the map without a console error, and toggling it OFF must remove that polygon."
-  - truth: "On PATCH failure, the map polygon is removed/re-added to match the reverted toggle state (ADMINUI-02, D-06)"
-    status: failed
-    reason: >
-      Same root cause as above — the revert branch of toggleRegion (line 697)
-      calls addPolygonForRow/removePolygonForRow with the same path-less `row`
-      object, so the map-side revert silently no-ops/throws exactly like the
-      success path. The toggle control itself does revert correctly (row.enabled
-      flips back, rowErrors is set — that part is independently verified), but
-      the "map polygon is removed/re-added to match" clause of this must-have
-      fails.
-    artifacts:
-      - path: "db/routes/regions_ext/regions_ui.html"
-        issue: "toggleRegion's failure branch (line 697) inherits the same missing-`path` defect as the success branch."
-    missing:
-      - "Same fix as the gap above — once addPolygonForRow/removePolygonForRow can resolve a real path, both the success and failure branches of toggleRegion are fixed together."
-deferred:
+re_verification:
+  previous_status: gaps_found
+  previous_score: 6/8
+  reverified: 2026-07-28
+  method: live UAT (see 30-UAT.md, 9/9 passed)
+  gaps_closed:
+    - "Toggling a leaf adds/removes only that region's polygon layer immediately (ADMINUI-03, D-06)"
+    - "On PATCH failure, the map polygon is removed/re-added to match the reverted toggle state (ADMINUI-02, D-06)"
+  gaps_remaining: []
+  regressions: []
+  note: >
+    Both gaps were artifacts of a stale read. This report was written
+    2026-07-27T10:35Z against a revision of regions_ext/regions_ui.html in which
+    flattenVisible() built each visible row as a stripped {id,name,kind,depth,enabled}
+    copy, dropping `path`. Commit 08696b06 ("stop flattenVisible from stripping
+    path/bbox off tree rows") changed it to push the canonical tree node
+    (`out.push(n)`), so `path`/`bbox` now reach addPolygonForRow/removePolygonForRow
+    on both the success and failure-revert branches of toggleRegion. Confirmed live:
+    toggling on renders the polygon, toggling off removes it, and a failed PATCH
+    reverts both the switch and the map.
+gaps: []
+deferred: []
+resolved_deferred:
   - truth: "Live browser verification of tree render/expand/collapse/filter (30-01 <verify><human-check>) and toggle-persist/map-render/failure-revert/many-enabled-chunking (30-02 <verify><human-check>)"
-    addressed_in: "Explicitly deferred to end-of-phase by both plans themselves (30-01-PLAN.md line 172, 30-02-PLAN.md line 121); not a later roadmap phase — flagged here as still outstanding, see Human Verification Required below."
-    evidence: "Both plans' own <human-check> blocks and both SUMMARY.md 'Next Phase Readiness' sections explicitly state this check has not yet been run on a live instance."
+    resolved: 2026-07-28
+    evidence: "Run as a live UAT session against a running instance — see 30-UAT.md, 9/9 tests passed (cold start, auth gate, tree render, default expansion + expand/collapse, name filter, toggle on, map fit on load, toggle off, PATCH-failure revert)."
 ---
 
 # Phase 30: Admin Region Picker UI Verification Report
 
 **Phase Goal:** A server owner manages the region catalog visually — toggling regions on a tree with a live coverage map — instead of hand-authoring a config file.
 **Verified:** 2026-07-27T10:35:35Z
-**Status:** gaps_found
-**Re-verification:** No — initial verification
+**Status:** verified (re-verified 2026-07-28 via live UAT)
+**Re-verification:** Yes — 2026-07-28, after commit 08696b06 closed both gaps; confirmed live in 30-UAT.md
 
 ## Goal Achievement
 
