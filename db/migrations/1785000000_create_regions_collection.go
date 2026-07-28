@@ -1,22 +1,24 @@
 // Package migrations: this file creates the `regions` PocketBase collection
 // (CATALOG-01: hierarchy fields comaps_id/parent/path/depth/sort_order/
-// name/kind; CATALOG-02: leaf-only bbox; CATALOG-03: leaf-only enabled,
-// default false) and the `region_polygons` collection (leaf polygon
-// geometry, keyed by `path` — kept out of `regions` from the start so
-// hierarchy/listing queries never load ~165KB/row of boundary geometry;
-// see region_polygons' own field comments below), then, on a fresh
-// instance, bulk-inserts every row from the committed
-// db/migrations/initial_data/regions_seed.json.gz (gzip-compressed compact
-// JSON, 28-04) into both collections inside one transaction (SEED-02).
-// See .planning/phases/28-region-catalog-data-model-seeding/28-RESEARCH.md
-// Pattern 1/2 and 28-PATTERNS.md for the exact construction this follows.
+// name/kind; CATALOG-03: leaf-only enabled, default false; SLIM-02: every row
+// also carries `catalog_commit`, the pinned CoMaps commit SHA the seed
+// artifact was generated from) and the `region_geometry` collection (leaf
+// boundary geometry — both `bbox` and `polygon` — keyed by `path`, kept out
+// of `regions` from the start so hierarchy/listing queries never load
+// geometry; see region_geometry's own field comments below). `region_geometry`
+// ships empty (SLIM-02/D-09): it is populated on demand by the runtime
+// geometry fetch path (plan 32-03/32-04), not by this migration. On a fresh
+// instance, this migration bulk-inserts every hierarchy row from the
+// committed, plain-JSON db/migrations/initial_data/regions_seed.json (SEED-02)
+// inside one transaction.
+// See .planning/phases/32-on-demand-polygon-fetch-seed-slimming/32-CONTEXT.md
+// (D-05, D-09, D-12, D-00b) and 32-PATTERNS.md for the exact construction
+// this follows.
 package migrations
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -25,19 +27,27 @@ import (
 )
 
 // SeedRow is the reader-side counterpart of db/commands/seed_regions.go's
-// writer SeedRow (plan 28-02) — JSON tags match byte-for-byte. Defined
+// writer SeedRow (plan 32-01) — JSON tags match byte-for-byte. Defined
 // locally (not imported from package commands) to avoid a
-// migrations->commands package dependency.
+// migrations->commands package dependency. Carries pure hierarchy only — no
+// geometry (SLIM-01/D-12): a leaf's polygon/bbox are fetched on demand at
+// runtime instead of being carried in this catalog.
 type SeedRow struct {
-	ComapsID       string         `json:"comaps_id"`
-	ParentComapsID string         `json:"parent_comaps_id"`
-	Path           string         `json:"path"`
-	Depth          int            `json:"depth"`
-	SortOrder      int            `json:"sort_order"`
-	Name           string         `json:"name"`
-	Kind           string         `json:"kind"`
-	Polygon        map[string]any `json:"polygon,omitempty"`
-	Bbox           []float64      `json:"bbox,omitempty"`
+	ComapsID       string `json:"comaps_id"`
+	ParentComapsID string `json:"parent_comaps_id"`
+	Path           string `json:"path"`
+	Depth          int    `json:"depth"`
+	SortOrder      int    `json:"sort_order"`
+	Name           string `json:"name"`
+	Kind           string `json:"kind"`
+}
+
+// SeedCatalog is the reader-side counterpart of db/commands/seed_regions.go's
+// writer SeedCatalog (plan 32-01): the pinned CoMaps commit this catalog was
+// generated from (D-00b), recorded once, plus every flattened hierarchy row.
+type SeedCatalog struct {
+	Commit string    `json:"commit"`
+	Rows   []SeedRow `json:"rows"`
 }
 
 func init() {
@@ -45,6 +55,15 @@ func init() {
 		// Idempotency guard (Pitfall 5) — a second `up()` after a
 		// `migrate down`+`up` cycle is a no-op rather than duplicating
 		// ~1,300 rows or hitting the unique path index.
+		//
+		// D-05 execution note: this guard means an already-seeded dev box
+		// will NOT re-run this migration after it is edited in place, and
+		// will therefore retain a stale, orphaned pre-rename geometry
+		// collection from before this edit. Resetting local pb_data (or
+		// manually dropping the collection) is a required step on
+		// already-seeded dev instances — accepted knowingly over shipping
+		// a defensive drop migration (no fleet of production instances
+		// carries the old collection; this migration has never shipped).
 		count, err := app.CountRecords("regions")
 		if err == nil && count > 0 {
 			return nil
@@ -72,7 +91,15 @@ func init() {
 				MaxSelect: 1,
 				Required:  true,
 			},
-			&core.JSONField{Name: "bbox", MaxSize: 1 << 10},
+			// catalog_commit (SLIM-02): the pinned CoMaps commit SHA the
+			// seed artifact was generated from (D-00b), carried on every
+			// row rather than a shared Go const so it can never silently
+			// desync from what was actually fetched. Both runtime
+			// consumers of geometry (buildRegion, plan 32-04; the
+			// geometry route, plan 32-05) already hold the leaf's
+			// `regions` record, so carrying the commit here costs zero
+			// extra lookups.
+			&core.TextField{Name: "catalog_commit", Required: true},
 			&core.BoolField{Name: "enabled"},
 		)
 
@@ -103,57 +130,43 @@ func init() {
 			return err
 		}
 
-		// region_polygons: leaf boundary geometry, kept out of `regions`
-		// entirely. Keyed by `path` (plain TextField, not a relation) —
-		// matches region_archives.region_id's existing path-keyed join
-		// pattern (A2), avoiding relation-resolution overhead for a side
-		// table that only services/regions/builder.go's buildRegion ever
-		// reads (at archive-build time, only for currently-enabled
-		// leaves). Every other reader of `regions` (GET /api/v1/regions,
-		// the admin region picker) only needs hierarchy/bbox/enabled, so
-		// this keeps every listing query's SELECT free of ~165KB/row of
-		// full-precision boundary data.
-		polyCollection := core.NewBaseCollection("region_polygons")
-		polyCollection.Fields.Add(
+		// region_geometry (SLIM-02/D-09): leaf
+		// boundary geometry, kept out of `regions` entirely. Keyed by `path`
+		// (plain TextField, not a relation) — matches region_archives's
+		// existing path-keyed join pattern (A2), avoiding relation-
+		// resolution overhead for a side table that only the runtime
+		// geometry fetch path (buildRegion, plan 32-04; the geometry route,
+		// plan 32-05) and the admin SPA ever read. It now holds both `bbox`
+		// (moved here from `regions` per D-12) and `polygon`, and ships
+		// empty: this migration performs no insert into it. It is
+		// populated on demand — the first time a currently-enabled region's
+		// geometry is fetched from CoMaps — rather than at seed time.
+		geometryCollection := core.NewBaseCollection("region_geometry")
+		geometryCollection.Fields.Add(
 			&core.TextField{Name: "path", Required: true},
 			&core.JSONField{Name: "polygon", MaxSize: 8 << 20}, // Pitfall 1: default 1MB cap is too small for some high-vertex coastlines
+			&core.JSONField{Name: "bbox", MaxSize: 1 << 10},
 		)
-		polyCollection.AddIndex("idx_region_polygons_path", true, "path", "")
+		geometryCollection.AddIndex("idx_region_geometry_path", true, "path", "")
 
-		if err := app.Save(polyCollection); err != nil {
+		if err := app.Save(geometryCollection); err != nil {
 			return err
 		}
 
-		// bulk insert — plan 28-03 Task 2 (28-04: seed is now gzip-
-		// compressed compact JSON — the uncompressed 730 MB artifact
-		// exceeded GitHub's 100 MB per-file push limit).
-		seedFile, err := os.Open("migrations/initial_data/regions_seed.json.gz")
+		// Read the committed, plain-JSON hierarchy-only catalog (SLIM-01):
+		// no gzip layer, no streaming decoder, no decompression-bomb bound.
+		// Those retired with the polygons — the artifact is now ~292 KB, not
+		// ~216 MB, so a plain ReadFile + Unmarshal is entirely adequate; the
+		// bound retired because the problem it guarded against (an
+		// unbounded decompression of a many-hundred-MB stream) no longer
+		// exists, not because bounding was wrong in principle.
+		data, err := os.ReadFile("migrations/initial_data/regions_seed.json")
 		if err != nil {
-			return fmt.Errorf("open regions seed: %w", err)
+			return fmt.Errorf("read regions seed: %w", err)
 		}
-		defer seedFile.Close()
 
-		gzReader, err := gzip.NewReader(seedFile)
-		if err != nil {
-			return fmt.Errorf("open gzip reader for regions seed: %w", err)
-		}
-		defer gzReader.Close()
-
-		// T-28-09: the seed is a trusted in-repo artifact of known ~216 MB
-		// decompressed size, read exactly once behind the CountRecords
-		// idempotency guard above; bound the read against a pathological/
-		// corrupt stream rather than trusting an unbounded decompression.
-		//
-		// Decoded token-by-token (not io.ReadAll + json.Unmarshal into one
-		// []SeedRow) so peak heap holds one row at a time instead of the
-		// full decompressed seed plus its parsed Go representation
-		// (map[string]any polygons balloon several times over raw JSON
-		// size) — the earlier all-at-once approach could exceed 512 MB on
-		// memory-constrained hosts. Only path→id and the small
-		// (comaps_id, path, parent_comaps_id) tuples needed for parent
-		// linking survive past each row's processing.
-		dec := json.NewDecoder(io.LimitReader(gzReader, 512<<20))
-		if _, err := dec.Token(); err != nil { // consume opening '['
+		var catalog SeedCatalog
+		if err := json.Unmarshal(data, &catalog); err != nil {
 			return fmt.Errorf("parse regions seed: %w", err)
 		}
 
@@ -173,12 +186,7 @@ func init() {
 			links := make([]parentLink, 0, 1536)
 
 			// Pass 1: create every record, capturing generated ids.
-			for dec.More() {
-				var row SeedRow
-				if err := dec.Decode(&row); err != nil {
-					return fmt.Errorf("parse regions seed: %w", err)
-				}
-
+			for _, row := range catalog.Rows {
 				record := core.NewRecord(collection)
 				record.Set("comaps_id", row.ComapsID)
 				record.Set("path", row.Path)
@@ -186,8 +194,8 @@ func init() {
 				record.Set("sort_order", row.SortOrder)
 				record.Set("name", row.Name)
 				record.Set("kind", row.Kind)
+				record.Set("catalog_commit", catalog.Commit)
 				if row.Kind == "leaf" {
-					record.Set("bbox", row.Bbox)
 					record.Set("enabled", false) // CATALOG-03: leaf-only, never pre-enabled
 				}
 				if err := txApp.Save(record); err != nil {
@@ -195,21 +203,9 @@ func init() {
 				}
 				idByPath[row.Path] = record.Id
 
-				if row.Kind == "leaf" && len(row.Polygon) > 0 {
-					polyRecord := core.NewRecord(polyCollection)
-					polyRecord.Set("path", row.Path)
-					polyRecord.Set("polygon", row.Polygon)
-					if err := txApp.Save(polyRecord); err != nil {
-						return fmt.Errorf("insert region_polygons %s (%s): %w", row.ComapsID, row.Path, err)
-					}
-				}
-
 				if row.ParentComapsID != "" {
 					links = append(links, parentLink{ComapsID: row.ComapsID, Path: row.Path, ParentComapsID: row.ParentComapsID})
 				}
-			}
-			if _, err := dec.Token(); err != nil { // consume closing ']'
-				return fmt.Errorf("parse regions seed: %w", err)
 			}
 
 			// Pass 2: resolve parent links now that every id is known
@@ -240,7 +236,7 @@ func init() {
 			return nil
 		})
 	}, func(app core.App) error {
-		if collection, err := app.FindCollectionByNameOrId("region_polygons"); err == nil {
+		if collection, err := app.FindCollectionByNameOrId("region_geometry"); err == nil {
 			if err := app.Delete(collection); err != nil { // records cascade
 				return err
 			}
