@@ -1,7 +1,7 @@
 ---
 phase: 31-flutter-settings-hierarchy
 verified: 2026-07-27T16:12:55Z
-status: human_needed
+status: verified
 score: 4/4 must-haves verified
 overrides_applied: 0
 re_verification:
@@ -11,17 +11,19 @@ re_verification:
     - "Settings -> Offline Maps/Regions shows only enabled (downloadable) leaf regions plus the ancestor group chain needed to reach them"
   gaps_remaining: []
   regressions: []
-human_verification:
-  - test: "On a device/emulator with a real backend, open Settings -> Offline Maps/Regions: confirm the hierarchy now shows only downloadable (admin-enabled) leaf regions and the group chain needed to reach them, NOT the full ~1306-region world catalog. Confirm an enabled region that is still building (not yet downloadable) still appears (disabled row). Confirm expand/collapse, per-region Vector/DEM controls, search/filter, and the disk-usage total all still work unchanged. Also confirm the offline empty state ('Can't load regions') still appears only when genuinely offline, not merely because pruning yielded an empty tree."
-    expected: "Collapsible hierarchy renders only admin-enabled downloadable regions plus ancestors, exactly as specified in UI-SPEC and the resolved gap-closure product decision; nested leaf actions and disk-usage summary are visually correct on a real device; offline empty state appears only when genuinely offline, and a pruned-to-empty tree (no enabled regions) shows the ordinary empty-catalog state instead."
-    why_human: "Deferred from PLAN 31-02 Task 2's <human-check> block and re-deferred by PLAN 31-03 Task 2's <human-check> block (workflow.human_verify_mode = end-of-phase). Real-device rendering, touch-target feel, true offline network state, and the pruned tree's visual scale on a real ~1306-region seeded catalog cannot be verified by grep or widget tests alone (widget tests use a small, hand-built fixture, not the real backend/catalog). SUMMARY 31-03 explicitly states this on-device check 'was not performed in this autonomous execution.'"
+human_verification: []
+resolved_human_verification:
+  - test: "On a device/emulator with a real backend, open Settings -> Offline Maps/Regions: confirm the hierarchy shows only downloadable (admin-enabled) leaf regions plus the group chain needed to reach them; an enabled-but-still-building region still appears as a disabled row; expand/collapse, per-region Vector/DEM controls, search/filter, and the disk-usage total all work unchanged; the offline empty state appears only when genuinely offline, not merely because pruning yielded an empty tree."
+    resolved: 2026-07-27
+    result: pass
+    evidence: "Performed on device against a real backend and recorded as Test 2 ('On-device pruned-hierarchy walkthrough', result: pass) in 31-UAT.md, updated 2026-07-27T16:20:00Z — after this report was written at 16:12:55Z. Confirmed with the user on 2026-07-28 that the walkthrough was genuinely run, not recorded prematurely."
 ---
 
 # Phase 31: Flutter Settings Hierarchy Verification Report
 
 **Phase Goal:** The app's Settings → Offline Maps/Regions screen mirrors the admin-defined hierarchy, with every existing per-region action unregressed.
 **Verified:** 2026-07-27T16:12:55Z
-**Status:** human_needed
+**Status:** verified (on-device human check completed 2026-07-27, see 31-UAT.md)
 **Re-verification:** Yes — after gap closure (31-03, gap_closure: true)
 
 ## Goal Achievement
