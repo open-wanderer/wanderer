@@ -467,7 +467,7 @@ Offline launch is unaffected: the catalog stays a committed in-repo artifact, so
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 32-04-PLAN.md — `ResolveGeometry` self-heal store, `buildRegion` restructure, `RegionsList` bbox join from `region_geometry` (SLIM-03, SLIM-04)
+- [x] 32-04-PLAN.md — `ResolveGeometry` self-heal store, `buildRegion` restructure, `RegionsList` bbox join from `region_geometry` (SLIM-03, SLIM-04)
 
 **Wave 4** *(blocked on Wave 3)*
 
@@ -531,4 +531,4 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
-| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 3/6 | In Progress|  |
+| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 4/6 | In Progress|  |
