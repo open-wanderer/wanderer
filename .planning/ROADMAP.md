@@ -308,7 +308,7 @@ Full design settled via `/gsd-explore` — see `.planning/notes/streamlined-regi
 - [x] **Phase 29: Polygon-Based Extraction & Region API** — the archive cron and the client-facing catalog endpoint both read from the new table (completed 2026-07-26)
 - [x] **Phase 30: Admin Region Picker UI** — a server owner toggles regions on a collapsible tree with a live coverage map (completed 2026-07-27)
 - [x] **Phase 31: Flutter Settings Hierarchy** — the app's region list becomes a hierarchy matching the admin tree (completed 2026-07-27)
-- [ ] **Phase 32: On-Demand Polygon Fetch & Seed Slimming** — geometry leaves the repo entirely and becomes on-demand; the committed catalog drops from 54.65 MB gzipped to ~292 KB of plain hierarchy JSON
+- [x] **Phase 32: On-Demand Polygon Fetch & Seed Slimming** — geometry leaves the repo entirely and becomes on-demand; the committed catalog drops from 54.65 MB gzipped to ~292 KB of plain hierarchy JSON (completed 2026-07-28)
 
 #### Sequencing Rationale
 
@@ -475,7 +475,7 @@ Offline launch is unaffected: the catalog stays a committed in-repo artifact, so
 
 **Wave 5** *(blocked on Wave 4)*
 
-- [ ] 32-06-PLAN.md — Retire the gzip artifact and purge the ~55 MB blob from `feature/app` history (SLIM-01, SLIM-04) — contains a blocking force-push decision checkpoint
+- [x] 32-06-PLAN.md — Retire the gzip artifact and purge the ~55 MB blob from `feature/app` history (SLIM-01, SLIM-04) — contains a blocking force-push decision checkpoint
 
 **UI hint**: no
 
@@ -531,4 +531,4 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
-| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 5/6 | In Progress|  |
+| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 6/6 | Complete   | 2026-07-28 |
