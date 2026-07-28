@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -23,10 +25,27 @@ import (
 // tree (29-RESEARCH.md Assumption A1) — trimming is a trivial later filter,
 // but omitting group rows now would mean re-adding data later. Each entry
 // always carries the hierarchy fields id/name/kind/parent/path/depth; leaf
-// rows additionally carry bbox/enabled and the existing build-state shape
+// rows additionally carry enabled and the existing build-state shape
 // (status/version/vector_url/vector_size/dem_status/dem_url/dem_size/error),
 // joined to region_archives on region_archives.path == the leaf's path (A2 —
 // path is the provably-unique seeded key, not the record's own opaque id).
+//
+// A leaf's bbox now comes from region_geometry (D-12), joined in one
+// projected path+bbox query built once before the entry loop — never per
+// leaf, and never selecting the polygon column, which would otherwise pull
+// tens of megabytes of geometry into every catalog response. A leaf
+// carries `bbox` only once its geometry has resolved,
+// which under the persist-on-enable rule (D-10) means in practice only for
+// enabled regions: an unfiltered listing therefore returns disabled leaves
+// with no `bbox` key at all (D-12 consequence 1), and the existing Flutter
+// parser already drops entries missing required fields, which is why the
+// pre-existing comment about group rows above applies here too. The
+// `?enabled=true` filtered listing that the shipped app uses is unaffected,
+// because an enabled region cannot exist without its geometry having
+// resolved. An enabled region whose geometry fetch failed (D-12
+// consequence 2) also has no bbox at all — its `status` is already "error"
+// and its `error` field already names the upstreams tried, so the absence
+// of `bbox` is explained by fields the response already contains.
 //
 // Auth is enforced at the route-group level in main.go (apis.RequireAuth()),
 // so — unlike map_cells_id.go's unauthenticated /map/cells routes — every
@@ -59,6 +78,31 @@ func RegionsList(e *core.RequestEvent) error {
 			}
 		}
 		groupPaths = regions.AncestorGroupPaths(leafPaths)
+	}
+
+	// Built once, before the entry loop, via a single projected query that
+	// selects only path+bbox — never polygon, which would otherwise add
+	// tens of megabytes to this response (see doc comment above). A query
+	// error must not fail the whole request; log it and continue with an
+	// empty map so the listing still serves hierarchy and build state.
+	leafBboxes := make(map[string][]float64)
+	rows, err := e.App.DB().Select("path", "bbox").From("region_geometry").Rows()
+	if err != nil {
+		log.Printf("[regions] failed to query region_geometry for bbox join: %v", err)
+	} else {
+		defer rows.Close()
+		for rows.Next() {
+			var path, bboxJSON string
+			if err := rows.Scan(&path, &bboxJSON); err != nil {
+				log.Printf("[regions] failed to scan region_geometry row: %v", err)
+				continue
+			}
+			var bbox []float64
+			if err := json.Unmarshal([]byte(bboxJSON), &bbox); err != nil || len(bbox) != 4 {
+				continue
+			}
+			leafBboxes[path] = bbox
+		}
 	}
 
 	entries := make([]map[string]any, 0, len(records))
@@ -95,9 +139,9 @@ func RegionsList(e *core.RequestEvent) error {
 
 		path := r.GetString("path")
 
-		var bbox []float64
-		_ = r.UnmarshalJSONField("bbox", &bbox)
-		entry["bbox"] = bbox
+		if bbox, ok := leafBboxes[path]; ok {
+			entry["bbox"] = bbox
+		}
 		entry["enabled"] = r.GetBool("enabled")
 
 		archiveRecords, _ := e.App.FindAllRecords("region_archives",
