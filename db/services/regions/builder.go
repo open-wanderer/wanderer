@@ -179,28 +179,40 @@ func buildRegion(app core.App, record *core.Record) {
 		return
 	}
 
-	archive, err := findOrCreateRegionRecord(app, regionID, name)
-	if err != nil {
-		log.Printf("[regions] failed to find/create region_archives record for %s: %v", regionID, err)
-		return
-	}
-
-	// Geometry resolution now runs before the early return below because
-	// bbox lives with the polygon in region_geometry (D-12), and the
-	// archive record needs a bbox to compare staleness against regardless
-	// of whether a vector/DEM rebuild ends up being needed. This is what
-	// makes a deleted or corrupted region_geometry row heal on the very
-	// next cron run even when nothing else needed rebuilding (D-14). The
-	// accepted cost: a region whose geometry row was destroyed costs one
-	// upstream request on the next run; the preserved property: a
-	// well-formed cached row still costs zero network (ResolveGeometry
-	// returns it with no fetch).
+	// Geometry MUST resolve before the archive record is created. Since D-12
+	// moved bbox out of the regions record and into region_geometry,
+	// ResolveGeometry is the only source of the four bounds, and
+	// region_archives requires all of them — creating the record first fails
+	// validation with "min_lat: cannot be blank" for any region that has no
+	// archive row yet (i.e. every newly enabled region).
+	//
+	// Resolving up front also runs ahead of the !needsVector && !needsDem
+	// early return below, which is what makes a deleted or corrupted
+	// region_geometry row heal on the very next cron run even when nothing
+	// else needed rebuilding (D-14). The accepted cost: a region whose
+	// geometry row was destroyed costs one upstream request on the next run.
+	// The preserved property: a well-formed cached row still costs zero
+	// network (ResolveGeometry returns it with no fetch).
 	//
 	// Only a failed refetch reaches setError (D-01) — this is the last
 	// resort, after ResolveGeometry has already attempted the self-heal.
 	geometry, bbox, err := ResolveGeometry(app, record)
 	if err != nil {
-		_ = setError(app, archive, fmt.Errorf("resolve geometry for region %s: %w", regionID, err))
+		// A region that has never built has no archive row to carry the
+		// error, and one cannot be created without the bbox that just failed
+		// to resolve — so there is nothing to mark. Log instead. Either way
+		// buildRegionSafely's per-region isolation keeps the run going (D-02).
+		if archive, findErr := findRegionArchiveRecord(app, regionID); findErr == nil && archive != nil {
+			_ = setError(app, archive, fmt.Errorf("resolve geometry for region %s: %w", regionID, err))
+		} else {
+			log.Printf("[regions] failed to resolve geometry for region %s (no archive record to mark): %v", regionID, err)
+		}
+		return
+	}
+
+	archive, err := findOrCreateRegionRecord(app, regionID, name, bbox)
+	if err != nil {
+		log.Printf("[regions] failed to find/create region_archives record for %s: %v", regionID, err)
 		return
 	}
 
@@ -251,32 +263,50 @@ func buildRegion(app core.App, record *core.Record) {
 	}
 }
 
-// findOrCreateRegionRecord finds the region_archives record for regionID,
-// creating one (status/dem_status "building") if none exists yet. Mirrors
-// the per-cell generator's findOrCreateRecord shape. regionID is a
-// regions.path value (A2), stored in the region_archives.path field.
-//
-// bbox is no longer a parameter — it now lives in region_geometry (D-12)
-// and is applied by the caller (buildRegion) once ResolveGeometry has run.
-// A newly created record therefore starts with zeroed bounds; the caller's
-// configChanged check immediately corrects this, since bboxChanged against
-// 0,0,0,0 is true for any real bbox — a real region can never have bbox
-// exactly [0,0,0,0], so this cannot mask a genuine no-op.
-func findOrCreateRegionRecord(app core.App, regionID, name string) (*core.Record, error) {
-	collection, err := app.FindCollectionByNameOrId("region_archives")
-	if err != nil {
-		return nil, fmt.Errorf("region_archives collection not found: %w", err)
-	}
-
+// findRegionArchiveRecord returns the existing region_archives record for
+// regionID, or (nil, nil) when the region has never been built. Unlike
+// findOrCreateRegionRecord it never creates one, which is what the geometry
+// failure path needs: a create is impossible there precisely because the
+// bbox it would require is the thing that failed to resolve.
+func findRegionArchiveRecord(app core.App, regionID string) (*core.Record, error) {
 	records, err := app.FindAllRecords("region_archives",
 		dbx.NewExp("path = {:path}", dbx.Params{"path": regionID}),
 	)
 	if err != nil {
 		return nil, err
 	}
+	if len(records) == 0 {
+		return nil, nil
+	}
+	return records[0], nil
+}
 
-	if len(records) > 0 {
-		return records[0], nil
+// findOrCreateRegionRecord finds the region_archives record for regionID,
+// creating one (status/dem_status "building") if none exists yet. Mirrors
+// the per-cell generator's findOrCreateRecord shape. regionID is a
+// regions.path value (A2), stored in the region_archives.path field.
+//
+// bbox must be supplied by the caller, resolved from region_geometry via
+// ResolveGeometry (D-12 moved it off the regions record). It is NOT
+// optional: region_archives declares all four bounds as required number
+// fields, and PocketBase treats a required number as "non-zero", so a
+// record saved with zeroed bounds is rejected outright with
+// "min_lat: cannot be blank". An earlier revision of this function omitted
+// bbox on the theory that the caller's configChanged check would backfill
+// it — that never runs, because the Save below fails first, breaking every
+// newly enabled region at its first build.
+func findOrCreateRegionRecord(app core.App, regionID, name string, bbox [4]float64) (*core.Record, error) {
+	collection, err := app.FindCollectionByNameOrId("region_archives")
+	if err != nil {
+		return nil, fmt.Errorf("region_archives collection not found: %w", err)
+	}
+
+	existing, err := findRegionArchiveRecord(app, regionID)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return existing, nil
 	}
 
 	record := core.NewRecord(collection)
@@ -284,6 +314,10 @@ func findOrCreateRegionRecord(app core.App, regionID, name string) (*core.Record
 	record.Set("name", name)
 	record.Set("status", "building")
 	record.Set("dem_status", "building")
+	record.Set("min_lon", bbox[0])
+	record.Set("min_lat", bbox[1])
+	record.Set("max_lon", bbox[2])
+	record.Set("max_lat", bbox[3])
 
 	if err := app.Save(record); err != nil {
 		return nil, err
