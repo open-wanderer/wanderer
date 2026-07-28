@@ -39,6 +39,17 @@
       --text: #16181a;
       --text2: #9a9a9a;
       --danger: #e1473d;
+
+      /* Status-badge tokens are deliberately separate from --accent/--danger.
+         Those two are not redefined for the dark theme, so reusing them here
+         would put #1055c9 on #1f1f1f (~1.9:1) and fail the 3:1 floor for a
+         meaningful graphic. These carry their own dark values below. */
+      --badge-pending: #1055c9;
+      --badge-pending-bg: rgba(16, 85, 201, 0.10);
+      --badge-ok: #0f7a4d;
+      --badge-ok-bg: rgba(15, 122, 77, 0.12);
+      --badge-error: #c9372c;
+      --badge-error-bg: rgba(225, 71, 61, 0.12);
     }
 
     html.dark {
@@ -48,6 +59,13 @@
       --border: #353849;
       --text: #e4e5ea;
       --text2: #6e7491;
+
+      --badge-pending: #7aa9ff;
+      --badge-pending-bg: rgba(122, 169, 255, 0.16);
+      --badge-ok: #4ecf95;
+      --badge-ok-bg: rgba(78, 207, 149, 0.16);
+      --badge-error: #ff8a80;
+      --badge-error-bg: rgba(255, 138, 128, 0.16);
     }
 
     [x-cloak] { display: none !important; }
@@ -417,6 +435,39 @@
       flex-shrink: 0;
     }
 
+    /* Build-state badge for an enabled leaf that is not currently building.
+       Occupies the same 14px slot the spinner does, so a region swapping
+       between building and settled states never shifts the row. Icon-only
+       by design: the tree runs to ~1300 rows and a text label per row would
+       dominate it — the meaning is carried by title (pointer) and aria-label
+       (assistive tech), which is also where the error detail lives. */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      font-size: 11px;
+      line-height: 1;
+      cursor: help;
+      animation: badge-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .status-badge--pending { color: var(--badge-pending); background: var(--badge-pending-bg); }
+    .status-badge--ok      { color: var(--badge-ok);      background: var(--badge-ok-bg); }
+    .status-badge--error   { color: var(--badge-error);   background: var(--badge-error-bg); }
+
+    @keyframes badge-in {
+      from { opacity: 0; transform: scale(0.7); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .status-badge { animation: none; }
+    }
+
     /* ── Disable-with-archive confirm dialog (net new) ──────── */
     .dialog-backdrop {
       position: fixed;
@@ -709,6 +760,7 @@
         archiveSizes: {}, // region path -> already-downloaded archive bytes on disk
         deleteDialog: null, // { row, sizeLabel } while the disable-with-archive confirm is open
         buildingPaths: new Set(), // region paths currently building, per region_archives.status/dem_status
+        archiveStates: {}, // region path -> { status, demStatus, error, demError }, drives the settled-state badge
         syncing: false, // true from the moment "Sync now" is clicked (or discovered already running on load) until nothing is building
         _syncPollTimer: null,
         nextScheduledRun: null, // Date the nightly cron will next fire on its own, or null if unknown
@@ -821,7 +873,14 @@
 
           var sizes = {};
           var building = new Set();
+          var states = {};
           all.forEach(function (a) {
+            states[a.path] = {
+              status: a.status,
+              demStatus: a.dem_status,
+              error: a.error_message,
+              demError: a.dem_error_message,
+            };
             // Keyed on `path`, not `region_id`: the field was renamed in
             // 92f3ac6d ("download by path") a few hours after this code was
             // written, and the rename missed this call site. Reading the old
@@ -834,6 +893,51 @@
           });
           this.archiveSizes = sizes;
           this.buildingPaths = building;
+          this.archiveStates = states;
+        },
+
+        // Build state for an enabled, not-currently-building leaf. Returns the
+        // badge's kind, icon, accessible label and tooltip text.
+        //
+        // A region with no region_archives row at all is "pending", not an
+        // error: enabling a region only sets a flag — the archive is built by
+        // the nightly cron or an explicit "Sync now", so the gap between the
+        // two is a normal state an admin needs to be able to read.
+        //
+        // The DEM (terrain) build is best-effort and independent of the vector
+        // map. A region whose vector is ready but whose DEM failed is still
+        // downloadable, so it stays green rather than red — the tooltip
+        // carries the caveat instead of the badge over-reporting a failure.
+        leafStatus(row) {
+          var a = this.archiveStates[row.path];
+
+          if (!a) {
+            return {
+              kind: 'pending', icon: 'ri-download-cloud-line', label: 'Not downloaded yet',
+              tooltip: 'Not downloaded yet — the next sync builds this region.',
+            };
+          }
+
+          if (a.status === 'error') {
+            return {
+              kind: 'error', icon: 'ri-error-warning-line', label: 'Build failed',
+              tooltip: 'Build failed: ' + (a.error || 'no error message recorded.'),
+            };
+          }
+
+          if (a.status === 'ready') {
+            return {
+              kind: 'ok', icon: 'ri-check-line', label: 'Downloaded',
+              tooltip: a.demStatus === 'error'
+                ? 'Downloaded, but terrain data failed: ' + (a.demError || 'no error message recorded.')
+                : 'Downloaded — this region is available offline.',
+            };
+          }
+
+          return {
+            kind: 'pending', icon: 'ri-download-cloud-line', label: 'Not downloaded yet',
+            tooltip: 'Not downloaded yet — the next sync builds this region.',
+          };
         },
 
         // "Sync now" (manually triggers the same BuildAll pass the nightly
@@ -1460,6 +1564,19 @@
                    `archiveSizes` swaps the spinner for the real size once done. -->
               <template x-if="row.kind === 'leaf' && buildingPaths.has(row.path)">
                 <span class="spinner spinner-accent" aria-label="Building"></span>
+              </template>
+              <!-- Settled state for an enabled leaf: pending / downloaded /
+                   failed. Only rendered when the region is enabled and not
+                   building, so it occupies the spinner's slot rather than
+                   competing with it. Disabled regions stay unmarked — there is
+                   no build state to report for them. -->
+              <template x-if="row.kind === 'leaf' && row.enabled && !buildingPaths.has(row.path)">
+                <span class="status-badge"
+                      :class="'status-badge--' + leafStatus(row).kind"
+                      :title="leafStatus(row).tooltip"
+                      :aria-label="leafStatus(row).label">
+                  <i :class="leafStatus(row).icon" aria-hidden="true"></i>
+                </span>
               </template>
               <!-- Actual on-disk size of an already-built archive (not an
                    estimate) — omitted entirely until that leaf's build exists. -->
