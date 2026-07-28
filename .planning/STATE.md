@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Admin Region Picker
 status: executing
-stopped_at: Phase 32 context gathered — BLOCKED on admin-UI region_polygons dependency
-last_updated: "2026-07-28T09:40:59.046Z"
-last_activity: 2026-07-27 -- Completed 31-03-PLAN.md (prune Settings hierarchy to downloadable regions)
+stopped_at: Completed 32-01-PLAN.md
+last_updated: "2026-07-28T09:54:50.980Z"
+last_activity: 2026-07-28 -- Phase 32 execution started
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
-  percent: 80
+  total_plans: 19
+  completed_plans: 14
+  percent: 74
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 31 — flutter-settings-hierarchy
+**Current focus:** Phase 32 — on-demand-polygon-fetch-seed-slimming
 
 ## Current Position
 
-Phase: 31 (flutter-settings-hierarchy) — EXECUTING
-Plan: 3 of 3
+Phase: 32 (on-demand-polygon-fetch-seed-slimming) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-07-27 -- Completed 31-03-PLAN.md (prune Settings hierarchy to downloadable regions)
+Last activity: 2026-07-28 -- Phase 32 execution started
 
 ## v1.7 Phases
 
@@ -129,6 +129,7 @@ v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1
 | Phase 31 P01 | 20min | 3 tasks | 9 files |
 | Phase 31 P02 | 20min | 3 tasks | 17 files |
 | Phase 31 P03 | ~12min | 2 tasks | 9 files |
+| Phase 32 P01 | 10min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -291,6 +292,9 @@ Recent decisions affecting current work:
 - [Phase 31]: [31-02] Widget test harness for a Notifier-backed screen with no real ObjectBox Store uses a noSuchMethod-based fake Store — Satisfies RegionRepository's constructor Store parameter without ever dereferencing it, avoiding a new mocking library dependency
 - [Phase 31]: [31-03] enabled parses as nullable bool? with no @Default -- absent key (group/legacy rows) reads as null, treated identically to false by pruneToDownloadable; only explicit true survives
 - [Phase 31]: [31-03] pruneToDownloadable ignores build/status entirely -- an enabled==true leaf still status=='building' continues to render, per resolved product decision
+- [Phase ?]: [Phase 32] [32-01] SeedCatalog wrapper (Commit + Rows) chosen over per-row commit field, per D-00b and the diff-noise rationale
+- [Phase ?]: [Phase 32] [32-01] ParsePoly relocated verbatim into package regions (git mv) so plan 32-03's runtime fetch path avoids a services/regions -> commands import
+- [Phase ?]: [Phase 32] [32-01] regions_seed.json.gz deliberately retained on disk -- migration still reads it until 32-02, and 32-03 uses it as the D-07 value-equality oracle
 
 ### Roadmap Evolution
 
@@ -438,9 +442,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-28T08:49:08.163Z
-Stopped at: Phase 32 context gathered — BLOCKED on admin-UI region_polygons dependency
-Resume file: .planning/phases/32-on-demand-polygon-fetch-seed-slimming/32-CONTEXT.md
+Last session: 2026-07-28T09:54:50.965Z
+Stopped at: Completed 32-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

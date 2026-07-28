@@ -458,7 +458,7 @@ Offline launch is unaffected: the catalog stays a committed in-repo artifact, so
 
 **Wave 1**
 
-- [ ] 32-01-PLAN.md — Slim `seed-regions` to one `hierarchy.txt` request, relocate `ParsePoly` into `services/regions`, regenerate the 292 KB plain-JSON catalog (SLIM-01)
+- [x] 32-01-PLAN.md — Slim `seed-regions` to one `hierarchy.txt` request, relocate `ParsePoly` into `services/regions`, regenerate the 292 KB plain-JSON catalog (SLIM-01)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -531,4 +531,4 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
-| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 0/6 | Planned | — |
+| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 1/6 | In Progress|  |
