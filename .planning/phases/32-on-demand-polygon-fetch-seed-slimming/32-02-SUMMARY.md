@@ -101,3 +101,7 @@ None - no external service configuration required for this plan's own change. (T
 ---
 *Phase: 32-on-demand-polygon-fetch-seed-slimming*
 *Completed: 2026-07-28*
+
+## Self-Check: PASSED
+
+All modified files confirmed present on disk; all 3 commits (`e3b17677`, `f6f69792`, `cc6f1a59`) confirmed present in git history.
