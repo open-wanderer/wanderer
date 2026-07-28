@@ -13,7 +13,7 @@ import (
 // buildRegion (build path) and plan 32-05's HTTP route (request path).
 //
 // Persistence is derived internally from the region record's own enabled
-// flag — there is deliberately no `persist` parameter, no `?persist=` query
+// flag — there is deliberately no `persist` parameter, no opt-in query
 // flag, and no caller-supplied override anywhere in this phase (D-10). A
 // caller cannot induce a write for a region that is not enabled.
 //
