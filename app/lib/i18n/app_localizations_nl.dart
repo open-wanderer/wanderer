@@ -1036,4 +1036,12 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get offline_profile_body =>
       'Connect to the internet to load your full profile.';
+
+  @override
+  String get offline_settings_banner =>
+      'You\'re offline. Settings are read-only until you reconnect.';
+
+  @override
+  String get offline_action_unavailable =>
+      'You\'re offline — try again once you\'re back online.';
 }

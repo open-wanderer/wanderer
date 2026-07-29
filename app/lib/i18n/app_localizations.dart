@@ -1945,6 +1945,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connect to the internet to load your full profile.'**
   String get offline_profile_body;
+
+  /// No description provided for @offline_settings_banner.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline. Settings are read-only until you reconnect.'**
+  String get offline_settings_banner;
+
+  /// No description provided for @offline_action_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline — try again once you\'re back online.'**
+  String get offline_action_unavailable;
 }
 
 class _AppLocalizationsDelegate

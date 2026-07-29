@@ -9,6 +9,7 @@ import 'package:dio/dio.dart';
 import 'package:wanderer/models/api_error.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/util/offline_guard_util.dart';
 
 import '/i18n/app_localizations.dart';
 
@@ -27,6 +28,8 @@ class _PasswordChangeSheetState extends ConsumerState<PasswordChangeSheet> {
   bool _isLoading = false;
 
   Future<void> _submit() async {
+    if (!guardOnline(ref, AppLocalizations.of(context)!)) return;
+
     if (!(_formKey.currentState?.saveAndValidate() ?? false)) return;
 
     final v = _formKey.currentState!.value;
@@ -34,24 +37,28 @@ class _PasswordChangeSheetState extends ConsumerState<PasswordChangeSheet> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(apiProvider).post(
-        '/user/${widget.userId}',
-        data: {
-          'oldPassword': v['currentPassword'],
-          'password': v['newPassword'],
-          'passwordConfirm': v['confirmNewPassword'],
-        },
-      );
+      await ref
+          .read(apiProvider)
+          .post(
+            '/user/${widget.userId}',
+            data: {
+              'oldPassword': v['currentPassword'],
+              'password': v['newPassword'],
+              'passwordConfirm': v['confirmNewPassword'],
+            },
+          );
 
       if (!mounted) return;
 
-      ref.read(toastProvider.notifier).add(
-        ToastMessage(
-          type: ToastType.success,
-          icon: FontAwesomeIcons.check,
-          text: AppLocalizations.of(context)!.new_password_success,
-        ),
-      );
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.success,
+              icon: FontAwesomeIcons.check,
+              text: AppLocalizations.of(context)!.new_password_success,
+            ),
+          );
 
       Navigator.of(context).pop();
     } on DioException catch (error) {
@@ -60,25 +67,31 @@ class _PasswordChangeSheetState extends ConsumerState<PasswordChangeSheet> {
         final apiError = ApiError.fromJson(error.response?.data);
         message = apiError.message;
       } catch (_) {
-        message = error.message ?? AppLocalizations.of(context)!.error_updating_password;
+        message =
+            error.message ??
+            AppLocalizations.of(context)!.error_updating_password;
       }
       if (!mounted) return;
-      ref.read(toastProvider.notifier).add(
-        ToastMessage(
-          type: ToastType.error,
-          icon: FontAwesomeIcons.circleExclamation,
-          text: message,
-        ),
-      );
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: message,
+            ),
+          );
     } catch (_) {
       if (!mounted) return;
-      ref.read(toastProvider.notifier).add(
-        ToastMessage(
-          type: ToastType.error,
-          icon: FontAwesomeIcons.circleExclamation,
-          text: AppLocalizations.of(context)!.error_updating_password,
-        ),
-      );
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: AppLocalizations.of(context)!.error_updating_password,
+            ),
+          );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -124,8 +137,9 @@ class _PasswordChangeSheetState extends ConsumerState<PasswordChangeSheet> {
               validator: FormBuilderValidators.compose([
                 FormBuilderValidators.required(),
                 (val) {
-                  final pw = _formKey.currentState?.fields['newPassword']?.value
-                      as String?;
+                  final pw =
+                      _formKey.currentState?.fields['newPassword']?.value
+                          as String?;
                   return (val != pw) ? l10n.passwords_must_match : null;
                 },
               ]),
