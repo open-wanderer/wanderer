@@ -3,9 +3,12 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpx/gpx.dart';
+import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/route_anchor_provider.dart';
+import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
 
 // Tests for the pure handoff helpers (no network/navigation), plus
@@ -139,6 +142,46 @@ Future<WidgetRef> _pumpHeightRef(
     ),
   );
   return capturedRef;
+}
+
+/// A 3-anchor / 2-leg route, as `segmentPolylinesFromTrack` would hand it to
+/// `seedFromTrack`: one polyline per leg, each sharing its boundary anchor
+/// with its neighbour, and each with an interior point so a straight-line
+/// fallback is distinguishable from the real geometry.
+final _twoLegRoute = <List<ml.Geographic>>[
+  [
+    ml.Geographic(lat: 47.000, lon: 9.000),
+    ml.Geographic(lat: 47.0005, lon: 9.0015), // off the direct line
+    ml.Geographic(lat: 47.001, lon: 9.001),
+  ],
+  [
+    ml.Geographic(lat: 47.001, lon: 9.001),
+    ml.Geographic(lat: 47.0015, lon: 9.0025),
+    ml.Geographic(lat: 47.002, lon: 9.002),
+  ],
+];
+
+/// Seeds [routeAnchorsProvider] with an edit session over [legs], exactly as
+/// RoutePlannerScreen does on open, and lets each segment's fire-and-forget
+/// height fetch settle. Anchors are the legs' shared boundary points.
+///
+/// Runs under [WidgetTester.runAsync]: Dio schedules its interceptor pipeline
+/// via `Timer.run`, a real timer that `testWidgets`' fake clock never fires.
+Future<void> _seedRoute(
+  WidgetTester tester,
+  WidgetRef ref,
+  List<List<ml.Geographic>> legs,
+) async {
+  final anchors = [
+    if (legs.isNotEmpty) legs.first.first,
+    for (final leg in legs) leg.last,
+  ];
+  await tester.runAsync(() async {
+    ref
+        .read(routeAnchorsProvider.notifier)
+        .seedFromTrack(anchors, 'pedestrian', null, segmentPolylines: legs);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  });
 }
 
 /// Calls [buildDraftTrail] inside [WidgetTester.runAsync] — `testWidgets`
@@ -295,6 +338,114 @@ void main() {
       });
 
       expect(caught, isA<DioException>());
+    });
+  });
+
+  group('buildFinalPlannedGpx', () {
+    // The regression these guard: the export used to flatten every leg into
+    // a single trkseg (buildNavShape + mergeHeightsIntoGpx), so re-opening a
+    // finished multi-leg route in the planner collapsed it to a bare
+    // start/finish pair. The round-trip assertions below — export, then read
+    // back through anchorsFromTrack/segmentPolylinesFromTrack, exactly as
+    // trail_create_screen does — are the real guard; trkseg counts alone
+    // would not catch a boundary landing one point off an anchor.
+
+    testWidgets('a route with no legs exports a bare Gpx', (tester) async {
+      final ref = await _pumpHeightRef(tester, (shape) => const []);
+
+      final gpx = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
+
+      expect(gpx.trks, isEmpty);
+    });
+
+    testWidgets('a 3-anchor / 2-leg route round-trips back to 3 anchors and '
+        '2 full-resolution legs', (tester) async {
+      final ref = await _pumpHeightRef(
+        tester,
+        (shape) => List<num>.filled(shape.length, 500),
+      );
+      await _seedRoute(tester, ref, _twoLegRoute);
+
+      final gpx = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
+
+      expect(gpx.trks.single.trksegs, hasLength(2));
+
+      final anchors = anchorsFromTrack(gpx);
+      expect(anchors, hasLength(3));
+      expect(anchors[0].lat, _twoLegRoute[0].first.lat);
+      expect(anchors[1].lat, _twoLegRoute[0].last.lat);
+      expect(anchors[2].lat, _twoLegRoute[1].last.lat);
+
+      final polylines = segmentPolylinesFromTrack(gpx, anchors);
+      expect(polylines, hasLength(2));
+      // Not the 2-point straight-line fallback: each leg's interior points
+      // survived, so the user can still see (and edit) the real geometry.
+      expect(polylines[0], hasLength(_twoLegRoute[0].length));
+      expect(polylines[1], hasLength(_twoLegRoute[1].length));
+      expect(polylines[0][1].lon, _twoLegRoute[0][1].lon);
+
+      // Heights from each segment's own fetch are carried onto the export.
+      expect(gpx.trks.single.trksegs.first.trkpts.first.ele, 500);
+    });
+
+    testWidgets('the flattened point stream carries no duplicated boundary '
+        'point, so a re-export is byte-stable', (tester) async {
+      final ref = await _pumpHeightRef(
+        tester,
+        (shape) => List<num>.filled(shape.length, 500),
+      );
+      await _seedRoute(tester, ref, _twoLegRoute);
+
+      final first = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
+      final total = _twoLegRoute[0].length + _twoLegRoute[1].length - 1;
+      expect(first.allPoints, hasLength(total));
+
+      // Feed the export back in as a fresh edit session and re-export: point
+      // count must not grow. A shared-endpoint layout would gain one point
+      // per boundary on every save/re-edit cycle.
+      final anchors = anchorsFromTrack(first);
+      await _seedRoute(tester, ref, segmentPolylinesFromTrack(first, anchors));
+      final second = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
+
+      expect(second.allPoints, hasLength(total));
+      expect(anchorsFromTrack(second), hasLength(3));
+    });
+
+    testWidgets('a leg whose height fetch never resolved is backfilled at '
+        'export time', (tester) async {
+      var failUntilExport = true;
+      final ref = await _pumpHeightRef(tester, (shape) {
+        if (failUntilExport) throw StateError('height unavailable');
+        return List<num>.filled(shape.length, 750);
+      });
+      await _seedRoute(tester, ref, _twoLegRoute);
+
+      // Seeding left both segments without elevations.
+      expect(
+        ref.read(routeAnchorsProvider).segments.every((s) => s.elevations == null),
+        isTrue,
+      );
+
+      failUntilExport = false;
+      final gpx = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
+
+      expect(gpx.trks.single.trksegs, hasLength(2));
+      expect(gpx.trks.single.trksegs.first.trkpts.first.ele, 750);
+    });
+
+    testWidgets('a leg whose height fetch fails at export time still exports '
+        'its geometry, with ele left null', (tester) async {
+      final ref = await _pumpHeightRef(
+        tester,
+        (shape) => throw StateError('height unavailable'),
+      );
+      await _seedRoute(tester, ref, _twoLegRoute);
+
+      final gpx = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
+
+      expect(gpx.trks.single.trksegs, hasLength(2));
+      expect(anchorsFromTrack(gpx), hasLength(3));
+      expect(gpx.trks.single.trksegs.first.trkpts.first.ele, isNull);
     });
   });
 

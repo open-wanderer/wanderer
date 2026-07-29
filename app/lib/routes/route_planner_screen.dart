@@ -214,6 +214,54 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     );
   }
 
+  /// Frames the whole seeded route on open in edit mode.
+  ///
+  /// [ml.MapOptions.initCenter]/`initZoom` alone can't do this: the caller
+  /// only has a single point (the trail's bbox centroid) to hand over, so a
+  /// long route would open zoomed into its middle with both ends off-screen.
+  /// No-ops for a fresh session, where `initCenter` is already correct.
+  ///
+  /// Fits the seeded *polylines* rather than the anchors, since a leg can
+  /// bulge well outside the box its two anchors describe.
+  Future<void> _fitInitialCamera() async {
+    final controller = _mapController;
+    if (controller == null || !_editMode) return;
+
+    final points = <ml.Geographic>[
+      for (final polyline
+          in widget.seedSegmentPolylines ?? const <List<ml.Geographic>>[])
+        ...polyline,
+      // A seeded session with no polylines still has anchors to frame.
+      ...?widget.seedAnchors,
+    ];
+    if (points.isEmpty) return;
+
+    final bounds = ml.LngLatBounds.fromPoints(points);
+    final hasExtent =
+        bounds.latitudeNorth != bounds.latitudeSouth ||
+        bounds.longitudeEast != bounds.longitudeWest;
+    if (!hasExtent) return; // initCenter/initZoom already frame a single point.
+
+    // The map fills the whole screen (extendBodyBehindAppBar), so inset for
+    // the two things floating over it: the transparent app bar up top and
+    // RouteAnchorSheet's 164px docked peek at the bottom. Read before the
+    // await, while the frame's MediaQuery is still current.
+    final padding = EdgeInsets.fromLTRB(
+      32,
+      MediaQuery.paddingOf(context).top + kToolbarHeight + 16,
+      32,
+      164 + 16,
+    );
+
+    // Duration.zero is avoided: the Android binding passes it to
+    // `animateCamera` as null, which throws. Mirrors TrailMap's fit.
+    await controller.fitBounds(
+      bounds: bounds,
+      padding: padding,
+      nativeDuration: const Duration(milliseconds: 1),
+    );
+  }
+
   Widget _buildMap(
     BuildContext context,
     RouteAnchorsState state,
@@ -235,6 +283,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       ),
       onMapCreated: (controller) {
         _mapController = controller;
+        _fitInitialCamera().ignore();
         final pending = _pendingStyle;
         if (pending != null) {
           _pendingStyle = null;

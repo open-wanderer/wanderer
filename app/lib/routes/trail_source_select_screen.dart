@@ -170,9 +170,6 @@ class _TrailSourceSelectScreenState
   }
 
   Geographic _fallbackCenter(Settings? settings) {
-    final cam = ref.read(mapCameraProvider);
-    if (cam != null) return cam.center;
-
     final loc = settings?.location;
     if (loc != null) return Geographic(lat: loc.lat, lon: loc.lon);
 

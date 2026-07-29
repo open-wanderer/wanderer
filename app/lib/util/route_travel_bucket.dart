@@ -12,7 +12,13 @@ import 'package:wanderer/util/valhalla_util.dart';
 /// `costing_options` payload (mirrors `route_editor.svelte` on web).
 ///
 /// There is no manual-override UI (no sliders); `shortest` is always `false`.
-enum RouteTravelBucket { hiking, bikingHybrid, bikingMountain, bikingCross, bikingRoad }
+enum RouteTravelBucket {
+  hiking,
+  bikingHybrid,
+  bikingMountain,
+  bikingCross,
+  bikingRoad,
+}
 
 /// Resolved display/behavior data for each [RouteTravelBucket].
 extension RouteTravelBucketData on RouteTravelBucket {
@@ -214,17 +220,15 @@ Widget bucketIcon(
       : FaIcon(bucket.fallbackIcon, size: size);
 
   final badge = bucket.badgeIcon;
-  if (badge == null) return primary;
+  if (matchedSubcategory?.badgeIcon?.isNotEmpty == true || badge == null) {
+    return primary;
+  }
 
   return Stack(
     clipBehavior: Clip.none,
     children: [
       primary,
-      Positioned(
-        right: -3,
-        top: -3,
-        child: FaIcon(badge, size: size * 0.4),
-      ),
+      Positioned(right: -6, top: -3, child: FaIcon(badge, size: size * 0.4)),
     ],
   );
 }

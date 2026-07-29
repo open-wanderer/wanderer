@@ -59,6 +59,31 @@ class RouteAnchorsState {
     );
   }
 
+  /// The route's segments in traversal order, walking the anchor chain from
+  /// `anchors.first` via each segment's `beforeAnchorId -> afterAnchorId`
+  /// link rather than [segments] array order — so a detached/orphaned
+  /// segment never contributes, and the order survives
+  /// renumber/insert/delete/reorder operations.
+  ///
+  /// Empty when there are no anchors. The single source of this walk: every
+  /// consumer that needs legs start-to-finish (GPX export, elevation GPX,
+  /// cumulative stats) goes through here.
+  List<RouteSegment> get orderedSegments {
+    if (anchors.isEmpty) return const [];
+
+    final segByBefore = {for (final s in segments) s.beforeAnchorId: s};
+    final ordered = <RouteSegment>[];
+    var currentId = anchors.first.id;
+
+    while (segByBefore.containsKey(currentId)) {
+      final seg = segByBefore[currentId]!;
+      ordered.add(seg);
+      currentId = seg.afterAnchorId;
+    }
+
+    return ordered;
+  }
+
   /// Total estimated travel time across every segment, in seconds: uses each
   /// routed segment's Valhalla `durationSeconds`, falling back to a
   /// distance/speed estimate for any segment that never resolved one.
@@ -77,17 +102,13 @@ class RouteAnchorsState {
   }
 
   /// Per-anchor cumulative distance/duration/elevation-gain, keyed by anchor
-  /// id (stable across reorder, unlike array index). Walks the anchor chain
-  /// via each segment's `beforeAnchorId -> afterAnchorId` link rather than
-  /// `segments` array order, so a detached/orphaned segment never
-  /// contributes.
+  /// id (stable across reorder, unlike array index). Walks [orderedSegments],
+  /// so a detached/orphaned segment never contributes.
   ///
   /// The first anchor always maps to all-zero stats. Elevation gain reads
   /// `0` until that segment's fire-and-forget height fetch resolves.
   Map<String, AnchorRouteStats> get cumulativeStatsByAnchorId {
     if (anchors.isEmpty) return {};
-
-    final segByBefore = {for (final s in segments) s.beforeAnchorId: s};
 
     final result = <String, AnchorRouteStats>{
       anchors.first.id: const AnchorRouteStats(
@@ -100,11 +121,8 @@ class RouteAnchorsState {
     var distance = 0.0;
     var duration = 0.0;
     var elevationGain = 0.0;
-    var currentId = anchors.first.id;
 
-    while (segByBefore.containsKey(currentId)) {
-      final seg = segByBefore[currentId]!;
-
+    for (final seg in orderedSegments) {
       distance += seg.distanceMeters;
       duration +=
           seg.durationSeconds ??
@@ -120,8 +138,6 @@ class RouteAnchorsState {
         durationSeconds: duration,
         elevationGainMeters: elevationGain,
       );
-
-      currentId = seg.afterAnchorId;
     }
 
     return result;

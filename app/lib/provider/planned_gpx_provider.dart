@@ -7,10 +7,16 @@ part 'planned_gpx_provider.g.dart';
 /// Derives an ordered, pre-elevation [Gpx] skeleton (points only, no `ele`)
 /// from the in-progress route held by [routeAnchorsProvider].
 ///
-/// Walks the anchor-id chain starting at `anchors.first`, following each
-/// segment's `beforeAnchorId -> afterAnchorId` link (not `state.segments`
-/// array order), appending each segment's polyline via `skip(1)` so the
-/// shared boundary point between two consecutive segments isn't duplicated.
+/// Walks [RouteAnchorsState.orderedSegments], appending each segment's
+/// polyline via `skip(1)` so the shared boundary point between two
+/// consecutive segments isn't duplicated. The leading single-point `Trkseg`
+/// carries the start anchor.
+///
+/// This layout is for in-app consumers that read the route as one continuous
+/// point stream (`gpx.allPoints`) — its `trkseg` boundaries sit one point
+/// *after* each anchor, so it is NOT round-trippable through
+/// `anchorsFromTrack`. Route export uses [buildFinalPlannedGpx] instead,
+/// which emits whole legs including both endpoints.
 ///
 /// Never sets `ele`: the elevation tab owns the elevation-merged copy.
 @riverpod
@@ -20,17 +26,12 @@ Gpx plannedGpx(Ref ref) {
   final gpx = Gpx();
   if (state.anchors.isEmpty) return gpx;
 
-  final segByBefore = {for (final s in state.segments) s.beforeAnchorId: s};
-
   final first = state.anchors.first;
   final trackSegments = <Trkseg>[
     Trkseg(trkpts: [Wpt(lat: first.lat, lon: first.lon)]),
   ];
-  var currentId = first.id;
 
-  while (segByBefore.containsKey(currentId)) {
-    final seg = segByBefore[currentId]!;
-
+  for (final seg in state.orderedSegments) {
     trackSegments.add(
       Trkseg(
         trkpts: [
@@ -38,8 +39,6 @@ Gpx plannedGpx(Ref ref) {
         ],
       ),
     );
-
-    currentId = seg.afterAnchorId;
   }
 
   gpx.trks = [Trk(trksegs: trackSegments)];
@@ -51,7 +50,8 @@ Gpx plannedGpx(Ref ref) {
 /// tab's chart, built from data already on `routeAnchorsProvider`'s
 /// segments (elevation fetches happen there, fire-and-forget per segment).
 ///
-/// Same anchor-chain walk as [plannedGpx], but each segment contributes its
+/// Same layout and [RouteAnchorsState.orderedSegments] walk as [plannedGpx]
+/// (and the same non-round-trippable caveat), but each segment contributes its
 /// [RouteSegment.elevationProfile] points (falling back to
 /// [RouteSegment.polyline] while a segment's height fetch is pending) paired
 /// with [RouteSegment.elevations]; `ele` stays `null` for points not yet
@@ -63,18 +63,14 @@ Gpx plannedElevationGpx(Ref ref) {
   final gpx = Gpx();
   if (state.anchors.isEmpty) return gpx;
 
-  final segByBefore = {for (final s in state.segments) s.beforeAnchorId: s};
-
   final first = state.anchors.first;
   // Heights live on segments, not anchors, so the seed anchor's elevation
   // is always unknown; `ele: null` degrades the same as any unfetched point.
   final trackSegments = <Trkseg>[
     Trkseg(trkpts: [Wpt(lat: first.lat, lon: first.lon)]),
   ];
-  var currentId = first.id;
 
-  while (segByBefore.containsKey(currentId)) {
-    final seg = segByBefore[currentId]!;
+  for (final seg in state.orderedSegments) {
     final points = seg.elevationProfile ?? seg.polyline;
     final elevations = seg.elevations;
 
@@ -92,8 +88,6 @@ Gpx plannedElevationGpx(Ref ref) {
         ],
       ),
     );
-
-    currentId = seg.afterAnchorId;
   }
 
   gpx.trks = [Trk(trksegs: trackSegments)];

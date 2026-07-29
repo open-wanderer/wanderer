@@ -225,29 +225,99 @@ Future<Trail> buildDraftTrail(
 /// (extracted from [finishPlanning] so the edit-mode handoff can pop this
 /// same value instead of forward-pushing a draft trail).
 ///
-/// Reads the final [plannedGpxProvider] snapshot and attempts a one-time
-/// `POST /valhalla/height` elevation merge — best-effort; any failure
-/// degrades to the pre-elevation `Gpx` with no error UI. Returns the bare
-/// `Gpx` unchanged below 2 points (the Finish action is already disabled
-/// below that at the call site).
+/// Builds the route's export [Gpx]: **one `Trkseg` per leg**, each starting
+/// exactly on its opening anchor.
+///
+/// A leg omits its closing point — that point opens the next leg's `Trkseg`,
+/// and only the final leg emits the route's last anchor. So the flattened
+/// point stream stays duplicate-free while every `trkseg` boundary lands on
+/// an anchor, which is precisely the pair of properties [anchorsFromTrack]
+/// and [segmentPolylinesFromTrack] read back. Repeating both endpoints per
+/// leg would also round-trip, but would leave a duplicated coordinate at
+/// every boundary that compounds on each successive save/re-edit cycle.
+///
+/// That layout is the entire mechanism by which a route's structure survives
+/// a save/reload — nothing anchor-related is persisted on `Trail`, so
+/// [anchorsFromTrack] rebuilds anchors from `trkseg` boundaries on the way
+/// back in. Emitting a single flattened segment here (as an earlier version
+/// did, via [buildNavShape] + [mergeHeightsIntoGpx]) collapsed every
+/// intermediate anchor to a bare start/end pair on re-edit. Deliberately does
+/// NOT reuse [plannedGpxProvider], whose `skip(1)` layout puts boundaries one
+/// point after each anchor and so is not round-trippable.
+///
+/// Elevations are read off each segment's already-fetched
+/// [RouteSegment.elevationProfile]/[RouteSegment.elevations] — the route
+/// planner resolves heights per segment as the user builds the route, so no
+/// whole-route refetch is needed. Because `elevationProfile` comes from
+/// [buildNavShape], which always preserves its input's first and last point,
+/// every leg boundary lands exactly on an anchor coordinate — which is what
+/// [segmentPolylinesFromTrack]'s exact-match slicing requires.
+///
+/// A segment whose fire-and-forget height fetch never landed is backfilled
+/// here (in parallel, best-effort); one that still fails emits `ele: null`
+/// rather than blocking the save. Returns a bare (trackless) [Gpx] when the
+/// route has no legs — the Finish action is already disabled below 2 anchors
+/// at the call site.
 Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
-  final gpx = ref.read(plannedGpxProvider);
-  final points = gpx.allPoints;
-  if (points.length < 2) return gpx;
+  final legs = ref.read(routeAnchorsProvider).orderedSegments;
+  if (legs.isEmpty) return Gpx();
 
-  final shape = buildNavShape(points);
-  var finalGpx = gpx; // fallback if the height fetch fails
-  try {
-    final response = await ref
-        .read(apiProvider)
-        .post('/valhalla/height', data: {'shape': shape});
-    final heights = (response.data['height'] as List).cast<num>();
-    finalGpx = mergeHeightsIntoGpx(shape, heights);
-  } catch (_) {
-    // Silent fallback: proceed with the pre-elevation Gpx.
+  // Prefer the height-resolved point set; fall back to the raw polyline for
+  // a leg whose fetch is still pending or failed.
+  final legPoints = [for (final s in legs) s.elevationProfile ?? s.polyline];
+  final legElevations = [for (final s in legs) s.elevations];
+
+  final pending = <int>[
+    for (var i = 0; i < legs.length; i++)
+      if (legElevations[i] == null) i,
+  ];
+  if (pending.isNotEmpty) {
+    final fetched = await Future.wait([
+      for (final i in pending)
+        fetchHeightsForShape(ref, [
+          for (final p in legPoints[i]) {'lat': p.lat, 'lon': p.lon},
+        ]),
+    ]);
+    for (var k = 0; k < pending.length; k++) {
+      final heights = fetched[k];
+      // fetchHeightsForShape returns an empty list on any failure.
+      if (heights.isEmpty) continue;
+      legElevations[pending[k]] = [for (final h in heights) h.toDouble()];
+    }
   }
 
-  return finalGpx;
+  final gpx = Gpx();
+  gpx.trks = [
+    Trk(
+      trksegs: [
+        for (var i = 0; i < legs.length; i++)
+          Trkseg(
+            trkpts: [
+              // Drop the closing point of every leg but the last: it is the
+              // next leg's opening point. A degenerate 1-point leg keeps its
+              // single point rather than emitting an empty trkseg, which
+              // anchorsFromTrack would skip and so lose that anchor.
+              for (
+                var j = 0;
+                j <
+                    (i == legs.length - 1 || legPoints[i].length < 2
+                        ? legPoints[i].length
+                        : legPoints[i].length - 1);
+                j++
+              )
+                Wpt(
+                  lat: legPoints[i][j].lat,
+                  lon: legPoints[i][j].lon,
+                  ele: j < (legElevations[i]?.length ?? 0)
+                      ? legElevations[i]![j]
+                      : null,
+                ),
+            ],
+          ),
+      ],
+    ),
+  ];
+  return gpx;
 }
 
 /// Orchestrates the Route Planner's "Finish planning" handoff — the plain
