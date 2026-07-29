@@ -54,53 +54,133 @@ settings blob) rather than name/keyword matching. Concretely:
   add one via a new migration, mirroring the categories migration's
   `AddMarshaledJSONAt` JSON-field pattern (categories collection id
   `kjxvi8asj2igqwf`, field id `json3846545605`, type `"json"`).
-- The setting's value vocabulary must exactly mirror
-  `RouteTravelBucket` (`app/lib/util/route_travel_bucket.dart`) — the 5
-  fixed buckets: `hiking`, `bikingHybrid`, `bikingMountain`, `bikingCross`,
-  `bikingRoad` (or equivalent stable identifiers derived from that enum) —
-  not raw Valhalla costing strings, since a bucket also carries
-  `bicycle_type`/`costingOptions`, not just `costing`.
+- **[Correction 1, locked]** The setting's value vocabulary must translate
+  *directly* to a Valhalla costing option, NOT an arbitrary Dart enum name.
+  This supersedes the earlier "mirror `RouteTravelBucket.name`
+  (`bikingMountain` etc.)" plan — that vocabulary was an internal Dart
+  identifier, not something an operator reading raw PocketBase JSON would
+  recognize as a Valhalla costing.
+- **[Correction 2, locked — OPEN vocabulary]** `valhalla_profile` is **not**
+  restricted to a fixed set of 5 strings. It accepts **any** Valhalla costing
+  model name, so an operator who creates a new category (e.g. "Car") can set
+  `valhalla_profile: "auto"` and the Flutter app will route that category
+  with Valhalla's `auto` costing. Grammar:
+
+  ```
+  valhalla_profile := <costing>                     e.g. "auto", "pedestrian",
+                                                         "motor_scooter", "truck"
+                    | "bicycle_" <bicycle_type>     e.g. "bicycle_mountain"
+  ```
+
+  - The **only** special-cased form is `bicycle_<type>`, where `<type>` is one
+    of Valhalla's 4 `bicycle_type` values (`road`, `hybrid`, `cross`,
+    `mountain`). It parses to costing `bicycle` + `bicycle_type` `Road`/
+    `Hybrid`/`Cross`/`Mountain` (Valhalla's capitalization).
+  - **Every other value is passed through verbatim as the costing name**, with
+    no `bicycle_type`. Critically, do NOT split on `_` generally — Valhalla has
+    legitimately underscored costing names (`motor_scooter`) that must survive
+    intact. Match the literal `bicycle_(road|hybrid|cross|mountain)` prefix
+    form only; everything else is an opaque costing string.
+  - Unknown/garbage values are **not** validated against an allowlist (Valhalla
+    gains costing models over time; hardcoding a list would block operators
+    from new ones the moment upstream adds them). They pass through to the
+    Valhalla proxy, which rejects genuinely invalid ones. Apply only a cheap
+    format sanity guard (lowercase letters/underscores) and treat a value
+    failing that as "unset" so a typo degrades to the fallback chain rather
+    than producing a malformed routing request.
+
+  Model this as a small parsed value type (e.g. `ValhallaProfile` with
+  `costing` + `bicycleType?`) rather than a closed enum, since the value space
+  is open. `RouteTravelBucket` keeps a `valhallaProfileKey` getter deriving its
+  own canonical string from its existing `.costing`/`.costingOptions`
+  (`pedestrian`, `bicycle_hybrid`, `bicycle_mountain`, `bicycle_cross`,
+  `bicycle_road`) so the 5 shipped buckets can never drift from their actual
+  Valhalla request payload — but the bucket enum is now only the **route
+  planner's picker vocabulary**, not the limit of what a category may map to.
 - Seed the new setting on the built-in default categories/subcategories so
-  the mapping works out of the box:
-  - Category `Hiking` (`db/util/category_defaults.go`) → `hiking` bucket.
-  - Subcategory `Biking / Touring` → `bikingHybrid`.
-  - Subcategory `Biking / MTB` → `bikingMountain`.
-  - Subcategory `Biking / Gravel` → `bikingCross`.
-  - Subcategory `Biking / Road` → `bikingRoad`.
+  the mapping works out of the box (values are the Valhalla-native strings):
+  - Category `Hiking` (`db/util/category_defaults.go`) → `pedestrian`.
+  - Subcategory `Biking / Touring` → `bicycle_hybrid`.
+  - Subcategory `Biking / MTB` → `bicycle_mountain`.
+  - Subcategory `Biking / Gravel` → `bicycle_cross`.
+  - Subcategory `Biking / Road` → `bicycle_road`.
+  - Subcategory `Biking / E-Bike` → `bicycle_hybrid` (Valhalla has no
+    dedicated e-bike costing model; Hybrid is its closest general-purpose
+    bike profile).
   - (Default subcategories are defined in `db/util/subcategory_defaults.go`;
-    confirmed these 4 names — MTB, Gravel, Touring, Road — plus an unmapped
-    `E-Bike` already exist as Biking's default subcategories.)
+    confirmed these 5 names — MTB, Gravel, Touring, Road, E-Bike — already
+    exist as Biking's default subcategories.)
 - Update `app/lib/models/category.dart` (`Category.settings`) and the
   `Subcategory` model (find/add `settings` field) to parse this JSON field,
-  plus a typed accessor (e.g. `Category.valhallaProfile` /
-  `Subcategory.valhallaProfile` getter parsing the enum-ish string).
+  plus a typed accessor (`Category.valhallaProfile` /
+  `Subcategory.valhallaProfile`) returning the parsed `ValhallaProfile?`.
 - Update `docs/src/content/docs/run/backend-configuration/custom-categories.md`
   — add `settings` to the Subcategory fields table (currently only listed
-  under Category fields) and document the new `valhalla_profile` setting
-  key/values alongside the existing `wp_merge_enabled`/`wp_merge_radius`
-  documentation, including which of the 5 bucket identifiers are valid.
-- This is an operator-facing opt-in field — categories/subcategories that
-  don't set it (e.g. Climbing, Running, Skiing, Walking, E-Bike) simply have
-  no mapped profile and fall through the fallback chain below.
+  under Category fields) and document the `valhalla_profile` key: the open
+  grammar above, the `bicycle_<type>` special form, the shipped defaults, and
+  a worked "Car" → `auto` example showing operators they can map new
+  categories onto any Valhalla costing.
+
+### Route planner picker vs. open profiles (implication of Correction 2)
+The Route Planner's entry sheet / Settings tab keeps offering exactly its 5
+`RouteTravelBucket` options — this change does not add UI for arbitrary
+costings. Consequences to handle explicitly:
+- **Icon resolution + planner category pre-fill** stay bucket-based; a
+  category mapped to a non-bucket costing (e.g. `auto`) simply never matches a
+  bucket and is not offered/pre-filled by the planner. That's correct, not a
+  bug.
+- **Editing the route of a trail whose category maps to a non-bucket costing**
+  (e.g. a "Car" trail) must still route with that costing — pass the resolved
+  costing through to the planner/Valhalla rather than silently downgrading it
+  to pedestrian. `bucketForState` currently defaults any non-`pedestrian`
+  costing to `bikingHybrid`; it must instead return `null` for a costing that
+  matches no bucket, and the picker must tolerate "no bucket highlighted".
+- **Navigation, road-snap, and offline download** all consume the resolved
+  costing directly, so they get open-costing support for free.
+
+`valhalla_profile` remains an operator-facing **opt-in** field — categories and
+subcategories that don't set it (e.g. Climbing, Running, Skiing, Walking)
+simply have no mapped profile and fall through the fallback chain below.
 
 ### Category with no subcategory chosen
-When a trail's category resolves to "the biking category" (i.e. the
-category itself, or its default subcategory set, maps into the biking
-buckets) but no specific subcategory is selected/available, default to the
-**Hybrid** bucket (`RouteTravelBucket.bikingHybrid` — Valhalla's
-general-purpose bike costing). This is a code-level fallback, not
-necessarily a seeded setting on the parent "Biking" category itself.
+When a trail's category is "biking-shaped" (the category itself, or at least
+one of its subcategories, resolves to a profile whose costing is `bicycle`)
+but no specific subcategory is selected/available, default to
+**`bicycle_hybrid`** — Valhalla's general-purpose bike costing
+(`RouteTravelBucket.bikingHybrid`'s own profile). This is a code-level
+fallback, not necessarily a seeded setting on the parent "Biking" category
+itself.
+
+Note this tier is deliberately **bicycle-specific**: it exists because
+Valhalla's 4 bike variants share one `bicycle` costing and need a sane
+`bicycle_type` default. It does not generalize to other costings — a "Car"
+category with no subcategory just resolves to its own `auto` profile via the
+category tier, no special-casing needed.
 
 ### Definition of "unavailable" for fallback-to-parent
-A subcategory counts as unavailable — triggering fallback to the parent
-category's mapping — in **both** of these cases:
-- It does not exist in the operator's currently loaded subcategory list at
-  all (e.g. never created, or deleted).
-- It exists but is hidden by the user's category/subcategory visibility
-  preferences (mirrors how `visibleSortedCategories`
-  (`app/lib/util/category_preference_sort.dart`) already determines what's
-  "available" elsewhere in the app — reuse/consult that existing
-  availability logic rather than re-implementing visibility checks).
+**[Correction 3, locked — supersedes the earlier "both" answer]** Visibility
+preferences apply to the **reverse** direction only, not to resolving an
+existing trail.
+
+- **Forward (existing trail → costing):** a subcategory counts as unavailable
+  *only* when it does not exist in the operator's currently loaded subcategory
+  list (never created, or deleted). This check is load-bearing:
+  `trails.subcategory` is declared `cascadeDelete: false`
+  (`db/migrations/1781000000_categories_redesign.go`), so deleting a
+  subcategory leaves a **dangling id** on every trail that referenced it.
+  Visibility preferences are deliberately NOT consulted here. Evidence: the
+  subcategory `visible` flag drives only display surfaces everywhere else in
+  the app — which entries appear in `CategoryPicker`'s dropdown
+  (`category_picker.dart`), and opacity/toggles on the two settings screens.
+  Treating it as semantic would mean hiding "MTB" to declutter a picker
+  silently changes how existing MTB trails route, which is a surprising side
+  effect from a UI preference and inconsistent with its use everywhere else.
+- **Reverse (bucket → category/subcategory pre-fill):** visibility DOES apply.
+  A hidden subcategory is never auto-assigned to a trail on the user's behalf;
+  `categorySelectionForBucket` falls back to a matching category instead. This
+  is the correct home for the original requirement ("fallback ... because a
+  user has disabled it") — the preference governs what we may newly assign,
+  not how an already-tagged trail routes.
 
 ### Root cause 2 (live selection) — required, not optional
 `_onEditRoute` (`app/lib/routes/trail_create_screen.dart:290-321`) must read
