@@ -38,8 +38,6 @@ void main() async {
   final store = await openStore(directory: dbPath);
   final proxyServer = await TileProxyServer.start(store);
 
-  // store.box<TrailEntity>().removeAll();
-
   final cookiePath = p.join(appDocDir.path, ".cookies");
   final cookieDir = Directory(cookiePath);
   if (!await cookieDir.exists()) {

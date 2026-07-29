@@ -62,6 +62,7 @@ class _PasswordChangeSheetState extends ConsumerState<PasswordChangeSheet> {
 
       Navigator.of(context).pop();
     } on DioException catch (error) {
+      if (!mounted) return;
       String message;
       try {
         final apiError = ApiError.fromJson(error.response?.data);
@@ -71,7 +72,6 @@ class _PasswordChangeSheetState extends ConsumerState<PasswordChangeSheet> {
             error.message ??
             AppLocalizations.of(context)!.error_updating_password;
       }
-      if (!mounted) return;
       ref
           .read(toastProvider.notifier)
           .add(

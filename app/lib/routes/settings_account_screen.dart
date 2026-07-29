@@ -65,9 +65,11 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
             ),
           );
     } finally {
-      setState(() {
-        _avatarLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _avatarLoading = false;
+        });
+      }
     }
   }
 

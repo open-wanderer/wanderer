@@ -222,12 +222,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.invalidate(mapStyleSourcesProvider);
     ref.invalidate(mapStyleJsonProvider);
 
-    final controller = _controller;
-    if (controller == null) return;
-    final bounds = controller.getVisibleRegion();
-    final zoom = controller.getCamera().zoom;
-    ref.read(mapClusterSearchProvider.notifier).searchInBounds(bounds, zoom);
-    ref.read(mapTrailSearchProvider.notifier).searchInBounds(bounds);
+    // TrailCollectionMap (and its native controller) was torn out of the
+    // tree while offline, so `_controller` is a stale/disposed reference —
+    // calling native methods on it here would hit a disposed platform
+    // channel. Clear it and reset the initial-search flag so the fresh
+    // onMapCreated/onStyleLoaded cycle (fired when the map remounts now
+    // that isOnline flips true) re-runs the bounds search itself.
+    _controller = null;
+    _initialSearchDone = false;
   }
 
   @override

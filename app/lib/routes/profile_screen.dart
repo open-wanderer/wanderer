@@ -86,13 +86,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // WandererError/spinner branches unconditionally.
     if (isOwn) {
       final cachedUser = ref.watch(authProvider).value;
+      // Only fall back to the cached/offline scaffold when we're actually
+      // offline — otherwise a normal loading spinner or error should show,
+      // since a transient loading/error state while online is not "offline"
+      // and shouldn't be mislabeled as such.
+      final isOffline = !ref.watch(onlineStatusProvider);
       return Scaffold(
         body: actorAsync.when(
           data: (actor) => _buildProfile(actor),
-          loading: () => cachedUser != null
+          loading: () => (isOffline && cachedUser != null)
               ? _buildCachedProfile(cachedUser)
               : const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => cachedUser != null
+          error: (err, stack) => (isOffline && cachedUser != null)
               ? _buildCachedProfile(cachedUser)
               : WandererError(err: err, stack: stack),
         ),
