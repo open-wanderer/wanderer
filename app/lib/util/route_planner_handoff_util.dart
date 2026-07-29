@@ -11,7 +11,10 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/planned_gpx_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/subcategory_preference_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/route_travel_bucket.dart';
 import 'package:wanderer/util/trail_import_util.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
@@ -185,6 +188,7 @@ Future<Trail> buildDraftTrail(
   WidgetRef ref,
   Gpx finalGpx, {
   String? category,
+  String? subcategory,
   double? durationSeconds,
 }) async {
   final xml = GpxWriter().asString(finalGpx);
@@ -199,6 +203,9 @@ Future<Trail> buildDraftTrail(
 
   trail = trail.copyWith(
     category: category,
+    // `''` clears the relation — matches trail_create_screen's own
+    // subcategory-on-clear convention.
+    subcategory: subcategory ?? '',
     expand: (trail.expand ?? const TrailExpand()).copyWith(gpx: finalGpx),
   );
 
@@ -246,26 +253,44 @@ Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
 /// Orchestrates the Route Planner's "Finish planning" handoff — the plain
 /// GPX-import forward-push path.
 ///
-/// Builds the final ele-merged [Gpx] via [buildFinalPlannedGpx], resolves a
-/// category pre-fill via [categoryForTravelProfile] (may be `null`), builds
-/// the draft [Trail] via [buildDraftTrail], then reuses the existing
-/// GPX-import handoff mechanism ([pendingImportedTrail] +
+/// Builds the final ele-merged [Gpx] via [buildFinalPlannedGpx], resolves the
+/// exact bucket the session is running ([bucketForState]) and maps it back to
+/// an operator (sub)category pre-fill via [categorySelectionForBucket] (both
+/// may be `null`), builds the draft [Trail] via [buildDraftTrail], then reuses
+/// the existing GPX-import handoff mechanism ([pendingImportedTrail] +
 /// `navContext.push('/trail/create/edit')`).
+///
+/// A session running a costing outside the 5 picker buckets simply yields no
+/// category pre-fill — no default bucket is ever substituted.
 Future<void> finishPlanning({
   required WidgetRef ref,
   required BuildContext navContext,
 }) async {
   final anchorsState = ref.read(routeAnchorsProvider);
-  final travelProfile = anchorsState.travelProfile;
   final finalGpx = await buildFinalPlannedGpx(ref);
 
   final categories = ref.read(categoryProvider).value ?? const [];
-  final categoryId = categoryForTravelProfile(travelProfile, categories);
+  final subcategories = ref.read(subcategoryProvider);
+  final bucket = bucketForState(
+    anchorsState.travelProfile,
+    anchorsState.costingOptions,
+  );
+  final selection = bucket == null
+      ? null
+      : categorySelectionForBucket(
+          bucket,
+          categories,
+          subcategories,
+          // Never auto-assign a subcategory the user has hidden.
+          subcategoryPrefs:
+              ref.read(subcategoryPreferenceProvider).value ?? const [],
+        );
 
   final draftTrail = await buildDraftTrail(
     ref,
     finalGpx,
-    category: categoryId,
+    category: selection?.categoryId,
+    subcategory: selection?.subcategoryId,
     durationSeconds: anchorsState.estimatedDurationSeconds,
   );
 

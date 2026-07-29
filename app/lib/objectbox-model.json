@@ -299,7 +299,7 @@
     },
     {
       "id": "5:686829528950894660",
-      "lastPropertyId": "6:6437104223388593365",
+      "lastPropertyId": "7:857403103277587453",
       "name": "CategoryEntity",
       "properties": [
         {
@@ -333,6 +333,11 @@
         {
           "id": "6:6437104223388593365",
           "name": "translationsJson",
+          "type": 9
+        },
+        {
+          "id": "7:857403103277587453",
+          "name": "settingsJson",
           "type": 9
         }
       ],
@@ -562,7 +567,7 @@
     },
     {
       "id": "9:1133408451611476214",
-      "lastPropertyId": "8:7327599832160544687",
+      "lastPropertyId": "9:8863469595509014354",
       "name": "SubcategoryEntity",
       "properties": [
         {
@@ -608,6 +613,11 @@
         {
           "id": "8:7327599832160544687",
           "name": "translationsJson",
+          "type": 9
+        },
+        {
+          "id": "9:8863469595509014354",
+          "name": "settingsJson",
           "type": 9
         }
       ],

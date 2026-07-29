@@ -21,6 +21,7 @@ class SubcategoryEntity {
   String? icon;
   String? badgeIcon;
   String? translationsJson;
+  String? settingsJson;
 
   SubcategoryEntity({
     required this.id,
@@ -30,6 +31,7 @@ class SubcategoryEntity {
     this.icon,
     this.badgeIcon,
     this.translationsJson,
+    this.settingsJson,
   });
 
   factory SubcategoryEntity.fromModel(Subcategory s) {
@@ -43,6 +45,7 @@ class SubcategoryEntity {
       translationsJson: s.translations != null
           ? jsonEncode(s.translations!.map((k, v) => MapEntry(k, v.toJson())))
           : null,
+      settingsJson: s.settings != null ? jsonEncode(s.settings) : null,
     );
   }
 }
@@ -58,6 +61,11 @@ extension SubcategoryEntityMapping on SubcategoryEntity {
       );
     }
 
+    Map<String, dynamic>? settings;
+    if (settingsJson != null) {
+      settings = jsonDecode(settingsJson!) as Map<String, dynamic>;
+    }
+
     return Subcategory(
       id: id,
       category: category,
@@ -66,6 +74,7 @@ extension SubcategoryEntityMapping on SubcategoryEntity {
       icon: icon,
       badgeIcon: badgeIcon,
       translations: translations,
+      settings: settings,
     );
   }
 }

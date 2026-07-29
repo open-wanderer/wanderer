@@ -17,6 +17,7 @@ _Subcategory _$SubcategoryFromJson(Map<String, dynamic> json) => _Subcategory(
     (k, e) =>
         MapEntry(k, CategoryTranslation.fromJson(e as Map<String, dynamic>)),
   ),
+  settings: json['settings'] as Map<String, dynamic>?,
 );
 
 Map<String, dynamic> _$SubcategoryToJson(
@@ -29,4 +30,5 @@ Map<String, dynamic> _$SubcategoryToJson(
   'icon': instance.icon,
   'badge_icon': instance.badgeIcon,
   'translations': instance.translations?.map((k, e) => MapEntry(k, e.toJson())),
+  'settings': instance.settings,
 };

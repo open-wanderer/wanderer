@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/navigate_response.dart';
+import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/valhalla_util.dart';
@@ -30,10 +31,16 @@ class TrailDownloadService {
 
   TrailDownloadService(this._store, this._api);
 
+  /// Downloads [trail] for offline use.
+  ///
+  /// [subcategories] is passed in by the caller because this service holds no
+  /// `Ref` — it feeds [costingForTrail] so the cached Valhalla payload uses
+  /// the same settings-driven costing as the online path.
   Future<void> downloadTrail(
     Trail trail, {
     CancelToken? cancelToken,
     void Function(int done, int total)? onProgress,
+    List<Subcategory> subcategories = const [],
   }) async {
     final box = _store.box<TrailEntity>();
     final trailId = trail.id;
@@ -136,7 +143,7 @@ class TrailDownloadService {
           // Shared with the online path so cache and live requests send
           // identical payloads to Valhalla.
           final shape = buildNavShape(points);
-          final costing = costingForCategory(trail.expand?.category?.name);
+          final costing = costingForTrail(trail, subcategories: subcategories);
 
           final res = await _api.post(
             '/valhalla/navigate',

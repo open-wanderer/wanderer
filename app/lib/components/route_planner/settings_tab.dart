@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
 
 /// The route planner sheet's "Settings" tab: hosts the auto-routing toggle
@@ -54,7 +55,11 @@ class SettingsTab extends ConsumerWidget {
           for (final bucket in RouteTravelBucket.values) ...[
             _BucketCard(
               bucket: bucket,
-              icon: bucketIcon(bucket, categories),
+              icon: bucketIcon(
+                bucket,
+                categories,
+                ref.watch(subcategoryProvider),
+              ),
               selected: bucket == selectedBucket,
               // No-op on the already-active bucket — switchProfile clears
               // undo/redo and re-dispatches every segment, so re-tapping the

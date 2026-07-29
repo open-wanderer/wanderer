@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/valhalla_profile.dart';
 
 part 'subcategory.freezed.dart';
 part 'subcategory.g.dart';
@@ -19,6 +20,7 @@ abstract class Subcategory with _$Subcategory {
     String? icon,
     @JsonKey(name: 'badge_icon') String? badgeIcon,
     Map<String, CategoryTranslation>? translations,
+    Map<String, dynamic>? settings,
   }) = _Subcategory;
 
   factory Subcategory.fromJson(Map<String, dynamic> json) =>
@@ -33,4 +35,14 @@ extension SubcategoryDisplay on Subcategory {
       translations?[locale?.languageCode]?.name ??
       translations?['en']?.name ??
       name;
+}
+
+/// Reads the operator-configured Valhalla routing profile from this
+/// subcategory's `settings.valhalla_profile`.
+///
+/// Returns `null` when unset or unparseable — [ValhallaProfile.parse] is
+/// total, so an operator-edited settings blob can never make this throw.
+extension SubcategoryValhallaProfile on Subcategory {
+  ValhallaProfile? get valhallaProfile =>
+      ValhallaProfile.parse(settings?['valhalla_profile']);
 }

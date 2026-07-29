@@ -2,6 +2,8 @@ import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/subcategory.dart';
+import 'package:wanderer/models/valhalla_profile.dart';
 import 'package:wanderer/util/category_icon_util.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
@@ -104,6 +106,19 @@ extension RouteTravelBucketData on RouteTravelBucket {
     }
   }
 
+  /// The Valhalla-native string stored in `settings.valhalla_profile` —
+  /// derived from [costing]/[costingOptions] so it can never drift from the
+  /// bucket's actual Valhalla request payload. `'pedestrian'` for hiking;
+  /// `'bicycle_<type>'` (lowercase `bicycle_type`) for every bike bucket.
+  String get valhallaProfileKey => this == RouteTravelBucket.hiking
+      ? 'pedestrian'
+      : 'bicycle_${(costingOptions['bicycle_type']! as String).toLowerCase()}';
+
+  /// This bucket's own resolved profile — the bridge between the closed
+  /// picker enum and the open profile space.
+  ValhallaProfile get valhallaProfile =>
+      ValhallaProfile.parse(valhallaProfileKey)!;
+
   /// Keyword set used to resolve an operator [Category] to this bucket for
   /// icon purposes only — never used to derive the costing payload.
   List<String> get keywords {
@@ -159,27 +174,43 @@ extension RouteTravelBucketData on RouteTravelBucket {
 /// Resolves the leading icon for [bucket]'s picker card — shared by
 /// `settings_tab.dart` and `travel_profile_sheet.dart`.
 ///
-/// Prefers a matching operator [Category] icon (via [trailCategoryIcon]),
-/// falling back to [RouteTravelBucket.fallbackIcon]. Always overlays
+/// Prefers the operator (sub)category mapped to this bucket via
+/// `settings.valhalla_profile` (resolved by [categorySelectionForBucket], so
+/// icons and routing agree by construction), falling back to
+/// [RouteTravelBucket.fallbackIcon]. Always overlays
 /// [RouteTravelBucket.badgeIcon] so the 4 bike buckets stay visually
 /// distinct even when no category match is found.
 Widget bucketIcon(
   RouteTravelBucket bucket,
-  List<Category> categories, {
+  List<Category> categories,
+  List<Subcategory> subcategories, {
   double size = 20,
 }) {
-  Category? matched;
-  if (bucket == RouteTravelBucket.hiking) {
-    final id = categoryForTravelProfile('pedestrian', categories);
-    matched = id == null
-        ? null
-        : categories.firstWhereOrNull((c) => c.id == id);
-  } else {
-    matched = categoryForBikeBucket(bucket.keywords, categories);
+  final selection = categorySelectionForBucket(
+    bucket,
+    categories,
+    subcategories,
+  );
+
+  Category? matchedCategory;
+  Subcategory? matchedSubcategory;
+  if (selection != null) {
+    matchedCategory = categories.firstWhereOrNull(
+      (c) => c.id == selection.categoryId,
+    );
+    if (selection.subcategoryId != null) {
+      matchedSubcategory = subcategories.firstWhereOrNull(
+        (s) => s.id == selection.subcategoryId,
+      );
+    }
   }
 
-  final primary = matched != null
-      ? trailCategoryIcon(matched, size: size)
+  final primary = matchedCategory != null || matchedSubcategory != null
+      ? trailCategoryIcon(
+          matchedCategory,
+          subcategory: matchedSubcategory,
+          size: size,
+        )
       : FaIcon(bucket.fallbackIcon, size: size);
 
   final badge = bucket.badgeIcon;
@@ -206,12 +237,19 @@ Widget bucketIcon(
 /// `'bicycle'`, matches on `costingOptions['bicycle_type']` (capitalized
 /// exactly as Valhalla emits it: `Road`/`Mountain`/`Cross`/`Hybrid`),
 /// defaulting to [RouteTravelBucket.bikingHybrid] when [costingOptions] is
-/// `null` or `bicycle_type` is absent/unrecognized.
-RouteTravelBucket bucketForState(
+/// `null` or `bicycle_type` is absent/unrecognized — a bicycle costing with
+/// no usable `bicycle_type` genuinely is Valhalla's Hybrid default.
+///
+/// Returns `null` for any other costing (e.g. `auto`, from a category mapped
+/// to a costing outside the 5 picker buckets). Callers must treat that as
+/// "nothing highlighted" and must NOT substitute a default bucket — doing so
+/// would mis-seed the planner for e.g. a car trail.
+RouteTravelBucket? bucketForState(
   String travelProfile,
   Map<String, dynamic>? costingOptions,
 ) {
   if (travelProfile == 'pedestrian') return RouteTravelBucket.hiking;
+  if (travelProfile != 'bicycle') return null;
 
   switch (costingOptions?['bicycle_type']) {
     case 'Road':

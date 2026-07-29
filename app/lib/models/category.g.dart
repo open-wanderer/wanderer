@@ -25,6 +25,7 @@ _Category _$CategoryFromJson(Map<String, dynamic> json) => _Category(
     (k, e) =>
         MapEntry(k, CategoryTranslation.fromJson(e as Map<String, dynamic>)),
   ),
+  settings: json['settings'] as Map<String, dynamic>?,
 );
 
 Map<String, dynamic> _$CategoryToJson(_Category instance) => <String, dynamic>{
@@ -33,4 +34,5 @@ Map<String, dynamic> _$CategoryToJson(_Category instance) => <String, dynamic>{
   'short_name': instance.shortName,
   'icon': instance.icon,
   'translations': instance.translations?.map((k, e) => MapEntry(k, e.toJson())),
+  'settings': instance.settings,
 };

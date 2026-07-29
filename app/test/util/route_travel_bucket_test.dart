@@ -120,5 +120,39 @@ void main() {
         );
       },
     );
+
+    test('a costing matching no bucket returns null, never bikingHybrid', () {
+      expect(bucketForState('auto', null), isNull);
+      expect(bucketForState('truck', const {'bicycle_type': 'Road'}), isNull);
+      expect(bucketForState('motor_scooter', null), isNull);
+    });
+  });
+
+  group('RouteTravelBucket.valhallaProfileKey / valhallaProfile', () {
+    test('derives the settings string from costing/costingOptions', () {
+      expect(RouteTravelBucket.hiking.valhallaProfileKey, 'pedestrian');
+      expect(
+        RouteTravelBucket.bikingHybrid.valhallaProfileKey,
+        'bicycle_hybrid',
+      );
+      expect(
+        RouteTravelBucket.bikingMountain.valhallaProfileKey,
+        'bicycle_mountain',
+      );
+      expect(RouteTravelBucket.bikingCross.valhallaProfileKey, 'bicycle_cross');
+      expect(RouteTravelBucket.bikingRoad.valhallaProfileKey, 'bicycle_road');
+    });
+
+    test('every bucket profile round-trips its own costing payload', () {
+      for (final bucket in RouteTravelBucket.values) {
+        final profile = bucket.valhallaProfile;
+        expect(profile.costing, bucket.costing, reason: bucket.name);
+        expect(
+          profile.bicycleType,
+          bucket.costingOptions['bicycle_type'],
+          reason: bucket.name,
+        );
+      }
+    });
   });
 }

@@ -15,6 +15,7 @@ class CategoryEntity {
   String? icon;
   String? shortName;
   String? translationsJson;
+  String? settingsJson;
 
   CategoryEntity({
     required this.id,
@@ -22,6 +23,7 @@ class CategoryEntity {
     this.icon,
     this.shortName,
     this.translationsJson,
+    this.settingsJson,
   });
 
   factory CategoryEntity.fromModel(Category c) {
@@ -33,6 +35,7 @@ class CategoryEntity {
       translationsJson: c.translations != null
           ? jsonEncode(c.translations!.map((k, v) => MapEntry(k, v.toJson())))
           : null,
+      settingsJson: c.settings != null ? jsonEncode(c.settings) : null,
     );
   }
 }
@@ -48,12 +51,18 @@ extension CategoryEntityMapping on CategoryEntity {
       );
     }
 
+    Map<String, dynamic>? settings;
+    if (settingsJson != null) {
+      settings = jsonDecode(settingsJson!) as Map<String, dynamic>;
+    }
+
     return Category(
       id: id,
       name: name,
       icon: icon,
       shortName: shortName,
       translations: translations,
+      settings: settings,
     );
   }
 }

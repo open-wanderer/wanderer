@@ -286,11 +286,38 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   /// saving. A non-null result is merged onto `trail` via
   /// [mergeRouteIntoTrail], preserving every other field.
   ///
-  /// `travelProfile` defaults to `'pedestrian'` since none is stored on `Trail`.
+  /// `travelProfile` is resolved from the LIVE form category/subcategory
+  /// selection (not `trail.expand?.category`, a relation that is never
+  /// populated on an unsaved draft) so re-opening the planner after manually
+  /// fixing the category uses the corrected profile rather than reverting to
+  /// pedestrian.
+  ///
+  /// The resolved costing passes through verbatim — an `auto`-mapped ("Car")
+  /// trail correctly seeds the planner with `auto` rather than being clamped
+  /// to pedestrian/bicycle.
   Future<void> _onEditRoute(
     BuildContext context,
     List<ml.Geographic> points,
   ) async {
+    // Read the live field value directly — deliberately no saveAndValidate(),
+    // which would surface unrelated validation errors mid-fill.
+    final categoryValue =
+        _formKey.currentState?.fields['category']?.value as String?;
+    final subcategories = ref.read(subcategoryProvider);
+    final selection = CategoryPicker.resolve(categoryValue, subcategories);
+    // Fall back to the trail's own saved values only when the form field is
+    // empty/unset (e.g. before the picker mounts a value).
+    final categoryId = selection?.category ?? trail.category;
+    final subcategoryId = selection?.subcategory ?? trail.subcategory;
+    final category = (ref.read(categoryProvider).value ?? const [])
+        .firstWhereOrNull((c) => c.id == categoryId);
+
+    final profile = resolveValhallaProfile(
+      category: category,
+      subcategoryId: subcategoryId,
+      subcategories: subcategories,
+    );
+
     final newGpx = await context.push<Gpx>(
       '/route-planner',
       extra: {
@@ -300,7 +327,14 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           trail.expand!.gpx!,
           points,
         ),
-        'travelProfile': costingForCategory(trail.expand?.category?.name),
+        'travelProfile': profile?.costing ?? 'pedestrian',
+        // Carry the resolved bike variant so an MTB/Gravel/Road trail
+        // re-opens on its own bicycle_type instead of Valhalla's Hybrid
+        // default.
+        if (profile?.bicycleType != null)
+          'costingOptions': <String, dynamic>{
+            'bicycle_type': profile!.bicycleType,
+          },
         'lat': trail.lat,
         'lon': trail.lon,
       },

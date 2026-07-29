@@ -17,6 +17,7 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/valhalla_util.dart';
@@ -157,7 +158,10 @@ Future<void> launchNavigation({
   }
 
   // Shared with downloadTrail so cache and live costing match.
-  final costing = costingForCategory(trail.expand?.category?.name);
+  final costing = costingForTrail(
+    trail,
+    subcategories: ref.read(subcategoryProvider),
+  );
 
   // Shared with downloadTrail so cached and online shapes are byte-identical.
   final shape = buildNavShape(points);

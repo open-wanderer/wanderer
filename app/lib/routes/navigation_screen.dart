@@ -35,8 +35,10 @@ import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
+import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/util/format_util.dart';
@@ -44,6 +46,7 @@ import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 import 'package:wanderer/util/polyline_util.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
+import 'package:wanderer/util/route_travel_bucket.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/trail_import_util.dart';
 import 'package:wanderer/util/valhalla_util.dart';
@@ -767,7 +770,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           // category for a real trail's navigate/save flow.
           final costing =
               _recordingCosting ??
-              costingForCategory(originalTrail?.expand?.category?.name);
+              costingForTrail(
+                originalTrail,
+                subcategories: ref.read(subcategoryProvider),
+              );
           // buildNavShape's cap applies only to this outbound hint — the
           // matched path Valhalla returns replaces workingShape entirely.
           workingShape = await snapShapeToRoads(
@@ -803,20 +809,45 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         gpx = buildGpxFromPoints(navState.breadcrumb);
       }
 
-      // For a real trail, keep its own category. For a trail-less
-      // recording, derive one from the chosen travel profile (same
-      // categoryForTravelProfile pre-fill the route planner already uses)
-      // rather than always leaving it unset.
-      final category =
-          originalTrail?.categoryId ??
-          (_recordingCosting != null
-              ? categoryForTravelProfile(
-                  _recordingCosting,
-                  ref.read(categoryProvider).value ?? const [],
-                )
-              : null);
+      // For a real trail, keep its own category/subcategory. For a trail-less
+      // recording, derive a (sub)category from the chosen travel profile
+      // (the same settings-driven pre-fill the route planner uses) rather
+      // than always leaving it unset.
+      //
+      // Precision limit: `_recordingCosting` only ever carries the binary
+      // `'bicycle'`/`'pedestrian'` Valhalla costing string (captured via
+      // `bucket.costing` in trail_source_select_screen's `_openRecorder`),
+      // not the full RouteTravelBucket — so a recording started on
+      // MTB/Gravel/Road collapses to the generic Hybrid bike bucket here.
+      // That is a pre-existing limitation, not a new regression: widening it
+      // needs ActiveNavigationEntity/router_provider schema changes, which
+      // are out of scope for this task.
+      final recordingBucket = _recordingCosting == null
+          ? null
+          : (_recordingCosting == 'bicycle'
+                ? RouteTravelBucket.bikingHybrid
+                : RouteTravelBucket.hiking);
+      final selection = recordingBucket == null
+          ? null
+          : categorySelectionForBucket(
+              recordingBucket,
+              ref.read(categoryProvider).value ?? const [],
+              ref.read(subcategoryProvider),
+              // Never auto-assign a subcategory the user has hidden.
+              subcategoryPrefs:
+                  ref.read(subcategoryPreferenceProvider).value ?? const [],
+            );
 
-      final trail = await buildDraftTrail(ref, gpx, category: category);
+      final category = originalTrail?.categoryId ?? selection?.categoryId;
+      final subcategory =
+          originalTrail?.subcategoryId ?? selection?.subcategoryId;
+
+      final trail = await buildDraftTrail(
+        ref,
+        gpx,
+        category: category,
+        subcategory: subcategory,
+      );
 
       active_nav.clear(_store);
 
