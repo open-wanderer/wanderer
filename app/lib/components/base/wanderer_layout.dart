@@ -1,8 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/router_provider.dart';
+import 'package:wanderer/util/avatar_cache_util.dart';
 import '/i18n/app_localizations.dart';
 
 class WandererLayout extends ConsumerWidget {
@@ -14,6 +19,7 @@ class WandererLayout extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final user = ref.watch(authProvider).value;
+    final isOnline = ref.watch(onlineStatusProvider);
 
     final int selectedIndex = _calculateSelectedIndex(router.state.uri.path);
     final unselectedColor = Theme.of(
@@ -92,17 +98,7 @@ class WandererLayout extends ConsumerWidget {
               onTap: () => onTap(2),
             ),
             _NavItem(
-              icon: CircleAvatar(
-                radius: 12,
-                backgroundColor: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest,
-                backgroundImage: NetworkImage(
-                  user?.getFileUrl(user.serverUrl, user.avatar) ??
-                      "https://api.dicebear.com/7.x/initials/png?seed=${user?.preferredUsername}&backgroundType=gradientLinear",
-                ),
-                onBackgroundImageError: (_, _) => FaIcon(FontAwesomeIcons.user),
-              ),
+              icon: _NavAvatar(user: user, isOnline: isOnline),
               label: AppLocalizations.of(context)!.profile,
               selected: selectedIndex == 3,
               selectedColor: selectedColor,
@@ -169,6 +165,103 @@ class _NavItem extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Bottom-nav profile avatar with a cached-file / network / glyph fallback
+/// chain: a cached on-disk avatar (from a prior online session) always wins
+/// when present, then a live network fetch while online, then a plain user
+/// glyph while offline with nothing cached — never a blank grey circle.
+///
+/// `cachedAvatarFile` is async, so its result is held in a future that's
+/// only recomputed when the user id or avatar filename actually changes
+/// (`didUpdateWidget`), not on every rebuild/frame.
+class _NavAvatar extends StatefulWidget {
+  final UserEntity? user;
+  final bool isOnline;
+
+  const _NavAvatar({required this.user, required this.isOnline});
+
+  @override
+  State<_NavAvatar> createState() => _NavAvatarState();
+}
+
+class _NavAvatarState extends State<_NavAvatar> {
+  late Future<File?> _avatarFuture;
+
+  // Set when a NetworkImage load fails (e.g. connectivity drops mid-fetch) —
+  // triggers the glyph fallback instead of leaving a blank grey circle
+  // (the previous bug here: `onBackgroundImageError` returned a discarded
+  // `FaIcon` from a void callback, which never rendered anything).
+  bool _networkFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _avatarFuture = _resolveAvatarFuture();
+  }
+
+  @override
+  void didUpdateWidget(covariant _NavAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user?.id != widget.user?.id ||
+        oldWidget.user?.avatar != widget.user?.avatar) {
+      setState(() {
+        _networkFailed = false;
+        _avatarFuture = _resolveAvatarFuture();
+      });
+    } else if (!oldWidget.isOnline && widget.isOnline && _networkFailed) {
+      // Coming back online — give the network image another chance.
+      setState(() => _networkFailed = false);
+    }
+  }
+
+  Future<File?> _resolveAvatarFuture() {
+    final user = widget.user;
+    if (user == null) return Future.value(null);
+    return cachedAvatarFile(user.id, user.avatar);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = widget.user;
+    final backgroundColor = Theme.of(
+      context,
+    ).colorScheme.surfaceContainerHighest;
+
+    return FutureBuilder<File?>(
+      future: _avatarFuture,
+      builder: (context, snapshot) {
+        final cachedFile = snapshot.data;
+        if (cachedFile != null) {
+          return CircleAvatar(
+            radius: 12,
+            backgroundColor: backgroundColor,
+            backgroundImage: FileImage(cachedFile),
+          );
+        }
+
+        if (widget.isOnline && !_networkFailed) {
+          return CircleAvatar(
+            radius: 12,
+            backgroundColor: backgroundColor,
+            backgroundImage: NetworkImage(
+              user?.getFileUrl(user.serverUrl, user.avatar) ??
+                  "https://api.dicebear.com/7.x/initials/png?seed=${user?.preferredUsername}&backgroundType=gradientLinear",
+            ),
+            onBackgroundImageError: (_, _) {
+              if (mounted) setState(() => _networkFailed = true);
+            },
+          );
+        }
+
+        return CircleAvatar(
+          radius: 12,
+          backgroundColor: backgroundColor,
+          child: const FaIcon(FontAwesomeIcons.user, size: 12),
+        );
+      },
     );
   }
 }

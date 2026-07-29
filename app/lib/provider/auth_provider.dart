@@ -12,6 +12,7 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
+import 'package:wanderer/util/avatar_cache_util.dart';
 
 part 'auth_provider.g.dart';
 
@@ -243,6 +244,21 @@ class Auth extends _$Auth {
           .updateFromServer(userData.expand!.settings!);
     }
     _box.put(userEntity);
+
+    // Best-effort avatar cache refresh — fire-and-forget so a slow or failed
+    // download never delays or breaks sign-in/refresh. cacheAvatar() itself
+    // swallows all errors.
+    final avatar = userEntity.avatar;
+    if (avatar != null && avatar.isNotEmpty) {
+      unawaited(
+        cacheAvatar(
+          ref.read(apiProvider),
+          userEntity.getFileUrl(userEntity.serverUrl, avatar)!,
+          userEntity.id,
+          avatar,
+        ),
+      );
+    }
 
     return userEntity;
   }
