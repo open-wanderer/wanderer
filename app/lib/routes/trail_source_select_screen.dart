@@ -11,10 +11,9 @@ import 'package:wanderer/components/route_planner/travel_profile_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/settings.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
-import 'package:wanderer/provider/map_camera_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/connectivity_util.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/trail_import_util.dart';
@@ -96,7 +95,10 @@ class _TrailSourceSelectScreenState
       // needs the network; without this flag the recorder opens the online
       // map, whose `/map/style-sources` fetch never resolves offline and
       // leaves the screen stuck on its loading spinner.
-      final offlineFuture = isBackendReachable(ref).then((online) => !online);
+      final offlineFuture = ref
+          .read(onlineStatusProvider.notifier)
+          .refresh()
+          .then((online) => !online);
       LocationMarkerPosition? pos;
       try {
         pos = await ref

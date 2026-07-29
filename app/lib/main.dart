@@ -16,10 +16,10 @@ import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
 import 'package:wanderer/services/tile_proxy_server.dart';
 import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
-import 'package:wanderer/util/connectivity_util.dart';
 import 'package:wanderer/util/navigation_launch_util.dart';
 
 import 'i18n/app_localizations.dart';
@@ -82,6 +82,10 @@ class _MainAppState extends ConsumerState<MainApp> {
   @override
   void initState() {
     super.initState();
+    // Seed the app-wide online status as early as possible; unawaited since
+    // startup must not block on a network probe.
+    unawaited(ref.read(onlineStatusProvider.notifier).refresh());
+
     // One-shot resume check that waits for auth to settle so the GoRouter
     // redirect (which bounces unauthenticated users to /welcome) does not
     // race the resume-dialog push. Also replays a buffered share once a
@@ -237,7 +241,7 @@ class _MainAppState extends ConsumerState<MainApp> {
         // `/map/style-sources` fetch hangs offline and freezes the map on its
         // loading spinner. The cached response already makes navigation itself
         // work offline; this flag only selects the map style path.
-        final isOffline = !await isBackendReachable(ref);
+        final isOffline = !await ref.read(onlineStatusProvider.notifier).refresh();
         navigatorKey.currentContext?.push(
           '/trail/${row.trailId}/navigate',
           // No fresh fix to seed on resume — same as a brand-new session
@@ -284,7 +288,7 @@ class _MainAppState extends ConsumerState<MainApp> {
         // mode must open NavigationScreen's offline style path, or its
         // `/map/style-sources` fetch hangs the map on its loading spinner.
         // The router reads this back off `resume.isOffline`.
-        row.isOffline = !await isBackendReachable(ref);
+        row.isOffline = !await ref.read(onlineStatusProvider.notifier).refresh();
         navigatorKey.currentContext?.push('/record', extra: row);
       } else {
         active_nav.clear(store);

@@ -1,7 +1,6 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:wanderer/provider/api_provider.dart';
+import 'package:dio/dio.dart';
 
-/// The app's single source of truth for "is the backend reachable right now".
+/// The app's underlying backend reachability probe.
 ///
 /// Probes the unauthenticated `/health` endpoint on the SvelteKit proxy — the
 /// app always talks to that proxy, never PocketBase directly — under a short
@@ -13,9 +12,12 @@ import 'package:wanderer/provider/api_provider.dart';
 /// it also reports offline when a self-hosted instance is simply down. It
 /// fails fast in airplane mode — the api client's `connectTimeout` bounds it,
 /// and it returns immediately when there is no route at all.
-Future<bool> isBackendReachable(WidgetRef ref) async {
+///
+/// This is the underlying probe behind `onlineStatusProvider`
+/// (`online_status_provider.dart`) and is no longer called directly by
+/// screens.
+Future<bool> isBackendReachable(Dio api) async {
   try {
-    final api = ref.read(apiProvider);
     final res = await api.get('/health').timeout(const Duration(seconds: 5));
     return res.statusCode == 200;
   } catch (_) {
