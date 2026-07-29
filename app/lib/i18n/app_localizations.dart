@@ -1915,6 +1915,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Collapse {name}'**
   String regions_group_collapse_label(String name);
+
+  /// Title shown by the shared offline takeover state (map, list, profile) when the backend is unreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline'**
+  String get offline_title;
+
+  /// Retry button label on the shared offline takeover state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get offline_try_again;
+
+  /// Body copy for the map screen's offline takeover.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to load the map. Downloaded trails are still available.'**
+  String get offline_map_body;
+
+  /// Body copy for the list screen's offline takeover.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to load lists.'**
+  String get offline_list_body;
+
+  /// Body copy for the profile screen's offline takeover of network-only sections.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to load your full profile.'**
+  String get offline_profile_body;
 }
 
 class _AppLocalizationsDelegate

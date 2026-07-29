@@ -1007,4 +1007,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String regions_group_collapse_label(String name) {
     return 'Collapse $name';
   }
+
+  @override
+  String get offline_title => 'You\'re offline';
+
+  @override
+  String get offline_try_again => 'Try again';
+
+  @override
+  String get offline_map_body =>
+      'Connect to the internet to load the map. Downloaded trails are still available.';
+
+  @override
+  String get offline_list_body => 'Connect to the internet to load lists.';
+
+  @override
+  String get offline_profile_body =>
+      'Connect to the internet to load your full profile.';
 }

@@ -11,6 +11,7 @@ import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/trail_collection_map.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
+import 'package:wanderer/components/base/wanderer_offline_state.dart';
 import 'package:wanderer/components/map/cluster_layer.dart';
 import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
@@ -22,6 +23,9 @@ import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/map_camera_provider.dart';
+import 'package:wanderer/provider/map_style_json_provider.dart';
+import 'package:wanderer/provider/map_style_sources_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/map_cluster_search_provider.dart';
@@ -207,9 +211,29 @@ class _MapScreenState extends ConsumerState<MapScreen>
     });
   }
 
+  /// Re-probes connectivity, and if it's back, invalidates the keepAlive
+  /// providers `TrailCollectionMap` depends on (they cache their offline
+  /// error otherwise) and re-runs the last bounds search so the sheet
+  /// repopulates without an app restart.
+  Future<void> _retryOnline() async {
+    final online = await ref.read(onlineStatusProvider.notifier).refresh();
+    if (!online) return;
+
+    ref.invalidate(mapStyleSourcesProvider);
+    ref.invalidate(mapStyleJsonProvider);
+
+    final controller = _controller;
+    if (controller == null) return;
+    final bounds = controller.getVisibleRegion();
+    final zoom = controller.getCamera().zoom;
+    ref.read(mapClusterSearchProvider.notifier).searchInBounds(bounds, zoom);
+    ref.read(mapTrailSearchProvider.notifier).searchInBounds(bounds);
+  }
+
   @override
   Widget build(BuildContext context) {
     final savedCamera = ref.read(mapCameraProvider);
+    final isOnline = ref.watch(onlineStatusProvider);
 
     sheetMinSize =
         (56 + kBottomNavigationBarHeight + 48) /
@@ -336,151 +360,164 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     return Stack(
       children: [
-        TrailCollectionMap(
-          initCenter:
-              widget.initialCenter ?? savedCamera?.center ?? fallbackCenter,
-          initZoom: widget.initialZoom ?? savedCamera?.zoom ?? fallbackZoom,
-          onMapCreated: (controller) => _controller = controller,
-          onStyleLoaded: (style) async {
-            // Fail soft on a malformed/oversized cluster response — never
-            // crash the map.
-            try {
-              final data =
-                  ref.read(mapClusterSearchProvider).value ??
-                  const {'type': 'FeatureCollection', 'features': <Object>[]};
-              await addClusterLayers(style, jsonEncode(data));
-            } catch (e) {
-              debugPrint('map_screen: failed to add cluster layers — $e');
-            }
-
-            // Initial-load search trigger — fires once per widget lifetime,
-            // not on every theme-swap style reload.
-            if (!_initialSearchDone) {
-              _initialSearchDone = true;
-              final controller = _controller;
-              if (controller != null) {
-                final bounds = controller.getVisibleRegion();
-                final zoom = controller.getCamera().zoom;
-                ref
-                    .read(mapClusterSearchProvider.notifier)
-                    .searchInBounds(bounds, zoom);
-                ref
-                    .read(mapTrailSearchProvider.notifier)
-                    .searchInBounds(bounds);
+        if (!isOnline)
+          Container(
+            color: Theme.of(context).colorScheme.surface,
+            child: WandererOfflineState(
+              title: AppLocalizations.of(context)!.offline_title,
+              body: AppLocalizations.of(context)!.offline_map_body,
+              retryLabel: AppLocalizations.of(context)!.offline_try_again,
+              onRetry: _retryOnline,
+            ),
+          )
+        else
+          TrailCollectionMap(
+            initCenter:
+                widget.initialCenter ?? savedCamera?.center ?? fallbackCenter,
+            initZoom: widget.initialZoom ?? savedCamera?.zoom ?? fallbackZoom,
+            onMapCreated: (controller) => _controller = controller,
+            onStyleLoaded: (style) async {
+              // Fail soft on a malformed/oversized cluster response — never
+              // crash the map.
+              try {
+                final data =
+                    ref.read(mapClusterSearchProvider).value ??
+                    const {'type': 'FeatureCollection', 'features': <Object>[]};
+                await addClusterLayers(style, jsonEncode(data));
+              } catch (e) {
+                debugPrint('map_screen: failed to add cluster layers — $e');
               }
-            }
-          },
-          onMapEvent: (event) {
-            if (event is ml.MapEventStartMoveCamera &&
-                event.reason == ml.CameraChangeReason.apiGesture) {
-              _searchAreaController.forward();
-              return;
-            }
 
-            if (event is ml.MapEventClick) {
-              final controller = _controller;
-              if (controller == null) return;
-
-              // Only the native `clusters` circle layer needs
-              // featuresAtPoint — unclustered points are WidgetLayer markers
-              // that handle their own onTap directly.
-              final clusterHits = controller.featuresAtPoint(
-                event.screenPoint,
-                layerIds: const ['clusters'],
-              );
-              if (clusterHits.isNotEmpty) {
-                final currentZoom = controller.getCamera().zoom;
-                controller
-                    .animateCamera(
-                      center: event.point,
-                      zoom: currentZoom + 2,
-                      nativeDuration: const Duration(milliseconds: 400),
-                    )
-                    .then((_) {
-                      if (!mounted) return;
-                      final bounds = controller.getVisibleRegion();
-                      final zoom = controller.getCamera().zoom;
-                      ref
-                          .read(mapClusterSearchProvider.notifier)
-                          .searchInBounds(bounds, zoom);
-                      ref
-                          .read(mapTrailSearchProvider.notifier)
-                          .searchInBounds(bounds);
-                    });
+              // Initial-load search trigger — fires once per widget lifetime,
+              // not on every theme-swap style reload.
+              if (!_initialSearchDone) {
+                _initialSearchDone = true;
+                final controller = _controller;
+                if (controller != null) {
+                  final bounds = controller.getVisibleRegion();
+                  final zoom = controller.getCamera().zoom;
+                  ref
+                      .read(mapClusterSearchProvider.notifier)
+                      .searchInBounds(bounds, zoom);
+                  ref
+                      .read(mapTrailSearchProvider.notifier)
+                      .searchInBounds(bounds);
+                }
+              }
+            },
+            onMapEvent: (event) {
+              if (event is ml.MapEventStartMoveCamera &&
+                  event.reason == ml.CameraChangeReason.apiGesture) {
+                _searchAreaController.forward();
                 return;
               }
 
-              // Background tap (not on a cluster or a marker widget) —
-              // deselect and collapse the sheet.
-              if (_sheetController.isAttached) {
-                _sheetController.animateTo(
-                  sheetMediumsize,
-                  curve: Curves.easeOut,
-                  duration: const Duration(milliseconds: 300),
-                );
-              }
-              setState(() {
-                _selectedTrail = null;
-                _selectedPolyline = null;
-              });
-              return;
-            }
+              if (event is ml.MapEventClick) {
+                final controller = _controller;
+                if (controller == null) return;
 
-            if (event is ml.MapEventCameraIdle) {
-              final camera = _controller?.getCamera();
-              if (camera != null) {
-                ref
-                    .read(mapCameraProvider.notifier)
-                    .save(camera.center, camera.zoom);
+                // Only the native `clusters` circle layer needs
+                // featuresAtPoint — unclustered points are WidgetLayer markers
+                // that handle their own onTap directly.
+                final clusterHits = controller.featuresAtPoint(
+                  event.screenPoint,
+                  layerIds: const ['clusters'],
+                );
+                if (clusterHits.isNotEmpty) {
+                  final currentZoom = controller.getCamera().zoom;
+                  controller
+                      .animateCamera(
+                        center: event.point,
+                        zoom: currentZoom + 2,
+                        nativeDuration: const Duration(milliseconds: 400),
+                      )
+                      .then((_) {
+                        if (!mounted) return;
+                        final bounds = controller.getVisibleRegion();
+                        final zoom = controller.getCamera().zoom;
+                        ref
+                            .read(mapClusterSearchProvider.notifier)
+                            .searchInBounds(bounds, zoom);
+                        ref
+                            .read(mapTrailSearchProvider.notifier)
+                            .searchInBounds(bounds);
+                      });
+                  return;
+                }
+
+                // Background tap (not on a cluster or a marker widget) —
+                // deselect and collapse the sheet.
+                if (_sheetController.isAttached) {
+                  _sheetController.animateTo(
+                    sheetMediumsize,
+                    curve: Curves.easeOut,
+                    duration: const Duration(milliseconds: 300),
+                  );
+                }
+                setState(() {
+                  _selectedTrail = null;
+                  _selectedPolyline = null;
+                });
+                return;
               }
-            }
-          },
-          layers: _selectedPolyline != null
-              ? [
-                  ml.PolylineLayer(
-                    polylines: [
-                      ml.Feature<ml.LineString>(
-                        geometry: ml.LineString.from(_selectedPolyline!),
-                      ),
-                    ],
-                    color: kTrailRouteColor,
-                    width: 5,
-                  ),
-                ]
-              : null,
-          children: [
-            if (unclusteredMarkers.isNotEmpty)
-              ml.WidgetLayer(
-                allowInteraction: true,
-                markers: unclusteredMarkers,
+
+              if (event is ml.MapEventCameraIdle) {
+                final camera = _controller?.getCamera();
+                if (camera != null) {
+                  ref
+                      .read(mapCameraProvider.notifier)
+                      .save(camera.center, camera.zoom);
+                }
+              }
+            },
+            layers: _selectedPolyline != null
+                ? [
+                    ml.PolylineLayer(
+                      polylines: [
+                        ml.Feature<ml.LineString>(
+                          geometry: ml.LineString.from(_selectedPolyline!),
+                        ),
+                      ],
+                      color: kTrailRouteColor,
+                      width: 5,
+                    ),
+                  ]
+                : null,
+            children: [
+              if (unclusteredMarkers.isNotEmpty)
+                ml.WidgetLayer(
+                  allowInteraction: true,
+                  markers: unclusteredMarkers,
+                ),
+              const LocationMarkerLayer(),
+              Positioned(
+                top: 124,
+                right: 8,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: const [ml.MapCompass(hideIfRotatedNorth: true)],
+                ),
               ),
-            const LocationMarkerLayer(),
-            Positioned(
-              top: 124,
-              right: 8,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: const [ml.MapCompass(hideIfRotatedNorth: true)],
+              const ml.MapScalebar(
+                alignment: Alignment.topLeft,
+                padding: EdgeInsets.only(left: 24, top: 112),
               ),
-            ),
-            const ml.MapScalebar(
-              alignment: Alignment.topLeft,
-              padding: EdgeInsets.only(left: 24, top: 112),
-            ),
-            WandererAttribution(
-              alignment: Alignment.bottomLeft,
-              padding: EdgeInsets.only(
-                left: 10,
-                bottom: kBottomNavigationBarHeight + 45,
+              WandererAttribution(
+                alignment: Alignment.bottomLeft,
+                padding: EdgeInsets.only(
+                  left: 10,
+                  bottom: kBottomNavigationBarHeight + 45,
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
 
         // Rides up with the sheet as it drags from min to medium size, then
         // holds still at that height and gets covered as the sheet expands
-        // past medium.
-        if (_selectedTrail == null)
+        // past medium. Hidden while offline — neither the FAB nor the
+        // search-this-area button below it can do anything useful without
+        // connectivity.
+        if (_selectedTrail == null && isOnline)
           ValueListenableBuilder<double>(
             valueListenable: _sheetSize,
             builder: (context, sheetSize, child) {
@@ -528,7 +565,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
           ),
 
-        if (_selectedTrail == null)
+        if (_selectedTrail == null && isOnline)
           ValueListenableBuilder(
             valueListenable: _sheetSize,
             builder: (context, sheetSize, child) {
@@ -902,7 +939,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
       return minPadding + (percentage * (maxTopPadding - minPadding));
     }
-    ;
   }
 
   int _countActiveFilters(TrailFilter current, TrailFilter defaultFilter) {
