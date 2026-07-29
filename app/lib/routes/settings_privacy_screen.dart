@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wanderer/components/settings/settings_offline_banner.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/settings.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/util/offline_guard_util.dart';
 
 class SettingsPrivacyScreen extends ConsumerWidget {
   const SettingsPrivacyScreen({super.key});
@@ -18,6 +20,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
     AppLocalizations l10n,
     Settings updated,
   ) async {
+    if (!guardOnline(ref, l10n)) return;
     try {
       await ref.read(settingsProvider.notifier).saveToServer(updated);
     } catch (_) {
@@ -67,6 +70,7 @@ class SettingsPrivacyScreen extends ConsumerWidget {
       ),
       body: ListView(
         children: [
+          const SettingsOfflineBanner(),
           _sectionHeader(context, l10n.account_privacy),
           RadioGroup<String>(
             groupValue: settings?.privacy?.account ?? "public",

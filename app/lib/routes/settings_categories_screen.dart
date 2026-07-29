@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/async_loader.dart';
+import 'package:wanderer/components/settings/settings_offline_banner.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/category_preference.dart';
@@ -17,6 +18,7 @@ import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/util/category_icon_util.dart';
 import 'package:wanderer/util/category_preference_sort.dart';
+import 'package:wanderer/util/offline_guard_util.dart';
 import 'package:wanderer/util/own_trail_count.dart';
 
 /// SETCAT-06/07/09/11 (category half): the category list with priority sort,
@@ -62,6 +64,7 @@ class _SettingsCategoriesScreenState
   /// `invalidateSelf`).
   Future<void> _save(Future<void> Function() op) async {
     final l10n = AppLocalizations.of(context)!;
+    if (!guardOnline(ref, l10n)) return;
     try {
       await op();
     } catch (_) {
@@ -160,6 +163,7 @@ class _SettingsCategoriesScreenState
       ),
       body: Column(
         children: [
+          const SettingsOfflineBanner(),
           // Explains what this screen controls and its two row gestures
           // (long-press to reorder vs. tap to open the subcategory editor)
           // up front, since neither is otherwise self-evident once the drag
@@ -290,6 +294,17 @@ class _SettingsCategoriesScreenState
     setState(() => _orderedIds = reordered);
 
     final l10n = AppLocalizations.of(context)!;
+    if (!guardOnline(ref, l10n)) {
+      // Mirror the catch path below: nothing was persisted, so revert the
+      // optimistic reorder and clear the in-flight guard — otherwise the
+      // list would stay stuck in its reordering state (never reseeding from
+      // the provider again) while displaying an order the server never saw.
+      setState(() {
+        _orderedIds = snapshot;
+        _reordering = false;
+      });
+      return;
+    }
     try {
       await ref.read(categoryPreferenceProvider.notifier).reorder(_orderedIds);
       // reorder() calls invalidateSelf() internally but does not wait for the
@@ -548,6 +563,7 @@ class _SettingsCategoriesScreenState
       (f) => f.copyWith(category: [category], subcategory: const []),
     );
 
+    if (!dialogContext.mounted) return;
     Navigator.of(dialogContext).pop(false);
     if (!context.mounted) return;
     context.push('/profile/$handle/trails');
