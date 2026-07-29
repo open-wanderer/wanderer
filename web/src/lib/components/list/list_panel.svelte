@@ -16,6 +16,37 @@
     import ShareInfo from "../share_info.svelte";
     import TrailListItem from "../trail/trail_list_item.svelte";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
+
+    const DESCRIPTION_PREVIEW_LENGTH = 100;
+    const DESCRIPTION_ENTITIES: Record<string, string> = {
+        "&nbsp;": " ",
+        "&amp;": "&",
+        "&lt;": "<",
+        "&gt;": ">",
+        "&quot;": '"',
+        "&#39;": "'",
+        "&#x27;": "'",
+    };
+
+    function formatDescriptionPreview(html: string) {
+        return html
+            .replace(/<br\s*\/?>/gi, "\n")
+            .replace(
+                /<\/(?:address|article|aside|blockquote|div|h[1-6]|li|ol|p|pre|section|table|tr|ul)>/gi,
+                "\n",
+            )
+            .replace(/<(?:[^>"']|"[^"]*"|'[^']*')*>/g, "")
+            .replace(
+                /&(?:nbsp|amp|lt|gt|quot|#39|#x27);/gi,
+                (entity) =>
+                    DESCRIPTION_ENTITIES[entity.toLowerCase()] ?? entity,
+            )
+            .replace(/[ \t]+\n/g, "\n")
+            .replace(/\n[ \t]+/g, "\n")
+            .replace(/\n{3,}/g, "\n\n")
+            .trim();
+    }
+
     interface Props {
         list: List;
         onclick?: (data: { trail: Trail; index: number }) => void;
@@ -74,6 +105,20 @@
     );
 
     let fullDescription: boolean = $state(false);
+
+    let descriptionText = $derived(
+        formatDescriptionPreview(list.description ?? ""),
+    );
+
+    let descriptionNeedsExpansion = $derived(
+        Array.from(descriptionText).length > DESCRIPTION_PREVIEW_LENGTH,
+    );
+
+    let descriptionPreview = $derived(
+        Array.from(descriptionText)
+            .slice(0, DESCRIPTION_PREVIEW_LENGTH)
+            .join(""),
+    );
 
     function handleTrailSelect(trail: Trail, index: number) {
         onclick?.({ trail, index });
@@ -178,20 +223,21 @@
     </div>
     <hr class="mb-4" />
     {#if list.description}
-        <p
-            class="text-gray-500 whitespace-pre-wrap {fullDescription
-                ? ''
-                : 'max-h-24 overflow-hidden text-ellipsis'} prose dark:prose-invert"
-        >
-            {@html !fullDescription
-                ? list.description?.substring(0, 100)
-                : list.description}
-            {#if (list.description?.length ?? 0) > 100 && !fullDescription}
-                <button onclick={() => (fullDescription = true)}>
+        <div class="text-gray-500 whitespace-pre-wrap">
+            {#if descriptionNeedsExpansion && !fullDescription}
+                <div>{descriptionPreview}</div>
+                <button
+                    type="button"
+                    onclick={() => (fullDescription = true)}
+                >
                     ... <span class="underline">{$_("read-more")}</span></button
                 >
+            {:else}
+                <div class="prose dark:prose-invert">
+                    {@html list.description}
+                </div>
             {/if}
-        </p>
+        </div>
     {/if}
     <h5 class="text-xl font-semibold my-4">
         {list.trails?.length ?? 0}
