@@ -39,10 +39,24 @@ void main() async {
   final dbPath = p.join(appDocDir.path, "objectbox");
   final store = await openStore(directory: dbPath);
   // Runs before the proxy starts, so the first tile request already sees
-  // repaired rows (T-h2p-05/T-h2p-06). Result is intentionally unused at the
-  // call site — reconcileRegionPackagesWithDisk owns its own error handling
-  // (never throws) and there is no UI to report repair counts to at startup.
-  await reconcileRegionPackagesWithDisk(store, appDocDir.path);
+  // repaired rows (T-h2p-05/T-h2p-06). reconcileRegionPackagesWithDisk owns
+  // its own error handling and never throws.
+  //
+  // TEMPORARY DIAGNOSTIC — remove once the repaired region state is confirmed
+  // on device. The signal is the SECOND launch: the first launch after the
+  // persistence fix should report repairs, and every launch after it should
+  // report all zeros. Counts that stay non-zero forever would mean the repair
+  // writes are still not reaching the database.
+  final reconcileResult = await reconcileRegionPackagesWithDisk(
+    store,
+    appDocDir.path,
+  );
+  debugPrint(
+    '[region-reconcile] repairedDownloaded='
+    '${reconcileResult.repairedDownloaded} '
+    'repairedNotDownloaded=${reconcileResult.repairedNotDownloaded} '
+    'orphanDirsDeleted=${reconcileResult.orphanDirsDeleted}',
+  );
   final proxyServer = await TileProxyServer.start(store);
 
   final cookiePath = p.join(appDocDir.path, ".cookies");

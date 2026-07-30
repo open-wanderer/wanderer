@@ -169,6 +169,19 @@ Future<RegionDiskReconcileResult> reconcileRegionPackagesWithDisk(
 /// row by business id first (mirrors `TileRepositoryManager`'s fresh-row
 /// read-modify-write shape) so a concurrently-linked sibling package FK is
 /// never clobbered.
+///
+/// Every branch that mutates a [DownloadedTilePackageEntity] MUST also
+/// `put` it on its OWN box — do not "simplify" these calls away. Putting
+/// the owning `RegionEntity` is NOT enough: ObjectBox's `ToOne.applyToDb`
+/// writes the target only `if (targetId == 0)`, i.e. only when the target
+/// is brand new, so on an already-persisted package row every field change
+/// (`status`, `localFilePath`, `sizeBytesOnDisk`, `downloadedAtUtc`) is
+/// silently discarded. That is exactly how this util originally shipped
+/// computing correct repairs that never reached the database — a region
+/// whose archive was on disk kept reporting `notDownloaded` while its bytes
+/// were still counted by `region_disk_usage_util.dart`. This mirrors
+/// `TileRepositoryManager._updatePackageStatus`, the same pattern for the
+/// same reason.
 void _applyRepair({
   required Store store,
   required String regionId,
@@ -206,12 +219,21 @@ void _applyRepair({
         if (!dem) {
           freshRegion.lastDownloadedVersion ??= freshRegion.version;
         }
+        // Region first: persists the relation id (assigning `toOne.target`
+        // above only inserts a BRAND-NEW package, giving it its id) plus the
+        // `lastDownloadedVersion` seed. Then the package on its own box, so
+        // the four field writes above land for an EXISTING package row too.
         store.box<RegionEntity>().put(freshRegion);
+        store.box<DownloadedTilePackageEntity>().put(package);
       case PackageRepair.markNotDownloaded:
         final package = toOne.target;
         if (package != null) {
           package.status = PackageStatus.notDownloaded;
-          store.box<RegionEntity>().put(freshRegion);
+          // The region row itself is unchanged in this branch — only the
+          // package box put matters. `package` is necessarily already
+          // persisted here (it came from `toOne.target`), so an owner put
+          // would have been a guaranteed no-op.
+          store.box<DownloadedTilePackageEntity>().put(package);
         }
       case PackageRepair.none:
         break;
