@@ -695,7 +695,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   ),
                   child: child,
                 ),
-                child: (searchResultAsync.hasError && !isOnline)
+                // Keyed on connectivity alone, deliberately NOT on
+                // `searchResultAsync.hasError`: `mapTrailSearchProvider` is
+                // keepAlive, so returning to this screen offline after an
+                // online visit replays the previous results with no error set —
+                // stale trails for a viewport whose map has been replaced by the
+                // offline takeover. This also matches the takeover above and
+                // list_screen, both of which gate on connectivity alone.
+                child: !isOnline
                     ? _buildSheetOfflineState(scrollController)
                     : AsyncLoader(
                         asyncValue: searchResultAsync,
