@@ -1042,4 +1042,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get offline_action_unavailable =>
       'You\'re offline — try again once you\'re back online.';
+
+  @override
+  String get offline_categories_body =>
+      'Connect to the internet to manage categories.';
 }

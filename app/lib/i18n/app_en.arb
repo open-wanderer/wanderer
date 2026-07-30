@@ -467,5 +467,9 @@
     "description": "Body copy for the profile screen's offline takeover of network-only sections."
   },
   "offline_settings_banner": "You're offline. Settings are read-only until you reconnect.",
-  "offline_action_unavailable": "You're offline — try again once you're back online."
+  "offline_action_unavailable": "You're offline — try again once you're back online.",
+  "offline_categories_body": "Connect to the internet to manage categories.",
+  "@offline_categories_body": {
+    "description": "Body copy for the categories and subcategories settings screens' offline state."
+  }
 }

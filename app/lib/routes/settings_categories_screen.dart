@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/async_loader.dart';
-import 'package:wanderer/components/settings/settings_offline_banner.dart';
+import 'package:wanderer/components/base/wanderer_offline_state.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/category_preference.dart';
@@ -11,6 +11,7 @@ import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/subcategory_preference.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/category_preference_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
@@ -81,9 +82,43 @@ class _SettingsCategoriesScreenState
     }
   }
 
+  /// Re-probes connectivity and, if it's back, clears the cached failures on
+  /// the keepAlive providers this screen reads — without the invalidate they
+  /// would replay their stored offline error instead of refetching.
+  Future<void> _retryOnline() async {
+    final online = await ref.read(onlineStatusProvider.notifier).refresh();
+    if (!online) return;
+    ref.invalidate(categoryProvider);
+    ref.invalidate(categoryPreferenceProvider);
+    ref.invalidate(subcategoryPreferenceProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+
+    // Offline this screen has nothing to show: the preference endpoints have no
+    // local cache, and every mutation here is already gated. Return before the
+    // providers below are watched so no doomed fetch is even started — the
+    // alternative was a skeleton that resolved into a raw error block.
+    if (!ref.watch(onlineStatusProvider)) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.pop(),
+          ),
+          title: Text(l10n.categories),
+        ),
+        body: WandererOfflineState(
+          title: l10n.offline_title,
+          body: l10n.offline_categories_body,
+          retryLabel: l10n.offline_try_again,
+          onRetry: _retryOnline,
+        ),
+      );
+    }
+
     final categoriesAsync = ref.watch(categoryProvider);
     final prefsAsync = ref.watch(categoryPreferenceProvider);
     // subcategoryProvider is a synchronous List (like categoryProvider); it does
@@ -163,7 +198,6 @@ class _SettingsCategoriesScreenState
       ),
       body: Column(
         children: [
-          const SettingsOfflineBanner(),
           // Explains what this screen controls and its two row gestures
           // (long-press to reorder vs. tap to open the subcategory editor)
           // up front, since neither is otherwise self-evident once the drag

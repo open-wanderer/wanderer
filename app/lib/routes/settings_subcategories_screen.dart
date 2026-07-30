@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/async_loader.dart';
-import 'package:wanderer/components/settings/settings_offline_banner.dart';
+import 'package:wanderer/components/base/wanderer_offline_state.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/category_preference.dart';
@@ -11,6 +11,7 @@ import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/subcategory_preference.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/category_preference_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
@@ -96,16 +97,48 @@ class _SettingsSubcategoriesScreenState
     }
   }
 
+  /// Re-probes connectivity and clears the cached failures on the keepAlive
+  /// preference providers — see the sibling category screen for why the
+  /// invalidate is required.
+  Future<void> _retryOnline() async {
+    final online = await ref.read(onlineStatusProvider.notifier).refresh();
+    if (!online) return;
+    ref.invalidate(subcategoryPreferenceProvider);
+    ref.invalidate(categoryPreferenceProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context);
+
+    // Offline the preference providers have no local cache to serve, so show
+    // the offline state instead of a skeleton that resolves into an error.
+    // Returns before those providers are watched so no doomed fetch starts.
+    if (!ref.watch(onlineStatusProvider)) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.pop(),
+          ),
+          title: Text(widget.category.displayName(locale)),
+        ),
+        body: WandererOfflineState(
+          title: l10n.offline_title,
+          body: l10n.offline_categories_body,
+          retryLabel: l10n.offline_try_again,
+          onRetry: _retryOnline,
+        ),
+      );
+    }
+
     // subcategoryProvider is a synchronous List; only the preference providers
     // are async, so AsyncLoader (D-14) wraps just the prefs loads.
     final subcategories = ref.watch(subcategoryProvider);
     final prefsAsync = ref.watch(subcategoryPreferenceProvider);
     // Parent-category preferences drive the visibility cascade (read-only here).
     final categoryPrefsAsync = ref.watch(categoryPreferenceProvider);
-    final locale = Localizations.localeOf(context);
     final colorScheme = Theme.of(context).colorScheme;
     final activeColor = Theme.of(context).brightness == Brightness.dark
         ? colorScheme.onSurface
@@ -167,7 +200,6 @@ class _SettingsSubcategoriesScreenState
       ),
       body: Column(
         children: [
-          const SettingsOfflineBanner(),
           Expanded(
             child:
                 AsyncLoader<

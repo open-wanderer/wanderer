@@ -1957,6 +1957,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You\'re offline — try again once you\'re back online.'**
   String get offline_action_unavailable;
+
+  /// Body copy for the categories and subcategories settings screens' offline state.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to manage categories.'**
+  String get offline_categories_body;
 }
 
 class _AppLocalizationsDelegate
