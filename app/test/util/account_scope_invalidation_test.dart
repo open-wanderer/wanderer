@@ -4,6 +4,7 @@ import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/profile/profile_provider.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
+import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
@@ -18,12 +19,11 @@ import 'package:wanderer/util/account_scope_invalidation.dart';
 void main() {
   group('accountScopedProviders', () {
     test(
-      'contains ownProfileProvider, settingsProvider, trailLibraryProvider and regionListNotifierProvider',
+      'contains ownProfileProvider, settingsProvider and trailLibraryProvider',
       () {
         expect(accountScopedProviders, contains(ownProfileProvider));
         expect(accountScopedProviders, contains(settingsProvider));
         expect(accountScopedProviders, contains(trailLibraryProvider));
-        expect(accountScopedProviders, contains(regionListNotifierProvider));
       },
     );
 
@@ -45,6 +45,23 @@ void main() {
         );
       },
     );
+
+    test('contains no region provider — regions are shared device data', () {
+      // Downloaded regions are public basemap archives shared by every
+      // account on the device and must never be re-downloaded per account,
+      // so no region provider may be invalidated on an auth change. These
+      // were briefly listed on the mistaken theory that an account switch
+      // detached region download state; the real cause was the backend
+      // re-minting region record ids.
+      expect(
+        accountScopedProviders,
+        isNot(contains(regionListNotifierProvider)),
+      );
+      expect(
+        accountScopedProviders,
+        isNot(contains(tileRepositoryStatusProvider)),
+      );
+    });
   });
 
   group('invalidateAccountScopedProvidersOn', () {

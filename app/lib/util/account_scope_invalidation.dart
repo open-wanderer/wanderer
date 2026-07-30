@@ -14,11 +14,14 @@
 /// - `downloadingTrailIdsProvider` / `tileRepositoryManagerProvider` stay:
 ///   invalidating them mid-download would desync in-flight download
 ///   bookkeeping from its `CancelToken`s.
-///
-/// `regionListNotifierProvider` and `tileRepositoryStatusProvider` ARE
-/// included — a `RegionEntity` instance caches its `ToOne.target`
-/// permanently per Dart object (see `region_tile_status_util.dart`'s
-/// header), so any snapshot surviving an account switch must be dropped.
+/// - Every region provider stays: downloaded regions are PUBLIC, device-level
+///   data shared by all accounts on the device (they are expensive basemap
+///   archives with no user-specific content and must never be re-downloaded
+///   per account), so nothing about a region snapshot is account-scoped.
+///   `regionListNotifierProvider`/`tileRepositoryStatusProvider` were briefly
+///   listed here on the mistaken theory that an account switch detached
+///   region download state; the real cause was the backend re-minting region
+///   record ids, fixed by keying region identity on `path`.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,8 +30,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // sub-library (confirmed via package source: flutter_riverpod-3.3.2/lib/misc.dart).
 import 'package:flutter_riverpod/misc.dart' show ProviderOrFamily;
 import 'package:wanderer/provider/profile/profile_provider.dart';
-import 'package:wanderer/provider/region/region_provider.dart';
-import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
@@ -56,8 +57,6 @@ final accountScopedProviders = <ProviderOrFamily>[
   routeAnchorsProvider,
   categoryProvider,
   subcategoryProvider,
-  regionListNotifierProvider,
-  tileRepositoryStatusProvider,
 ];
 
 /// Invalidates every provider in [accountScopedProviders] from widget-tree
