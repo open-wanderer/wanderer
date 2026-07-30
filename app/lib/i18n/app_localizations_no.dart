@@ -653,7 +653,7 @@ class AppLocalizationsNo extends AppLocalizations {
   String get shower => 'Dusj';
 
   @override
-  String get slogan => 'Lagre dine eventyr!';
+  String get slogan => 'Dine stier. Dine data. Din server.';
 
   @override
   String get sort => 'Sorter';

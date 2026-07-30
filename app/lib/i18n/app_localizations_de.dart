@@ -659,7 +659,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get shower => 'Dusche';
 
   @override
-  String get slogan => 'Speichere deine Abenteuer!';
+  String get slogan => 'Deine Routen. Deine Daten. Dein Server.';
 
   @override
   String get sort => 'Sortieren';

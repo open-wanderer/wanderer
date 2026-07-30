@@ -656,7 +656,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shower => 'Душ';
 
   @override
-  String get slogan => 'Сохраняйте ваши приключения!';
+  String get slogan => 'Ваши треки. Ваши данные. Ваш сервер.';
 
   @override
   String get sort => 'Сортировка';

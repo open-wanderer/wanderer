@@ -656,7 +656,7 @@ class AppLocalizationsHu extends AppLocalizations {
   String get shower => 'Shower';
 
   @override
-  String get slogan => 'Mentse el a kalandjait!';
+  String get slogan => 'Az Ön útvonalai. Az Ön adatai. Az Ön szervere.';
 
   @override
   String get sort => 'Rendezés';

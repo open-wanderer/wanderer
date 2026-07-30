@@ -11,10 +11,16 @@ part of 'planned_gpx_provider.dart';
 /// Derives an ordered, pre-elevation [Gpx] skeleton (points only, no `ele`)
 /// from the in-progress route held by [routeAnchorsProvider].
 ///
-/// Walks the anchor-id chain starting at `anchors.first`, following each
-/// segment's `beforeAnchorId -> afterAnchorId` link (not `state.segments`
-/// array order), appending each segment's polyline via `skip(1)` so the
-/// shared boundary point between two consecutive segments isn't duplicated.
+/// Walks [RouteAnchorsState.orderedSegments], appending each segment's
+/// polyline via `skip(1)` so the shared boundary point between two
+/// consecutive segments isn't duplicated. The leading single-point `Trkseg`
+/// carries the start anchor.
+///
+/// This layout is for in-app consumers that read the route as one continuous
+/// point stream (`gpx.allPoints`) — its `trkseg` boundaries sit one point
+/// *after* each anchor, so it is NOT round-trippable through
+/// `anchorsFromTrack`. Route export uses [buildFinalPlannedGpx] instead,
+/// which emits whole legs including both endpoints.
 ///
 /// Never sets `ele`: the elevation tab owns the elevation-merged copy.
 
@@ -24,10 +30,16 @@ final plannedGpxProvider = PlannedGpxProvider._();
 /// Derives an ordered, pre-elevation [Gpx] skeleton (points only, no `ele`)
 /// from the in-progress route held by [routeAnchorsProvider].
 ///
-/// Walks the anchor-id chain starting at `anchors.first`, following each
-/// segment's `beforeAnchorId -> afterAnchorId` link (not `state.segments`
-/// array order), appending each segment's polyline via `skip(1)` so the
-/// shared boundary point between two consecutive segments isn't duplicated.
+/// Walks [RouteAnchorsState.orderedSegments], appending each segment's
+/// polyline via `skip(1)` so the shared boundary point between two
+/// consecutive segments isn't duplicated. The leading single-point `Trkseg`
+/// carries the start anchor.
+///
+/// This layout is for in-app consumers that read the route as one continuous
+/// point stream (`gpx.allPoints`) — its `trkseg` boundaries sit one point
+/// *after* each anchor, so it is NOT round-trippable through
+/// `anchorsFromTrack`. Route export uses [buildFinalPlannedGpx] instead,
+/// which emits whole legs including both endpoints.
 ///
 /// Never sets `ele`: the elevation tab owns the elevation-merged copy.
 
@@ -36,10 +48,16 @@ final class PlannedGpxProvider extends $FunctionalProvider<Gpx, Gpx, Gpx>
   /// Derives an ordered, pre-elevation [Gpx] skeleton (points only, no `ele`)
   /// from the in-progress route held by [routeAnchorsProvider].
   ///
-  /// Walks the anchor-id chain starting at `anchors.first`, following each
-  /// segment's `beforeAnchorId -> afterAnchorId` link (not `state.segments`
-  /// array order), appending each segment's polyline via `skip(1)` so the
-  /// shared boundary point between two consecutive segments isn't duplicated.
+  /// Walks [RouteAnchorsState.orderedSegments], appending each segment's
+  /// polyline via `skip(1)` so the shared boundary point between two
+  /// consecutive segments isn't duplicated. The leading single-point `Trkseg`
+  /// carries the start anchor.
+  ///
+  /// This layout is for in-app consumers that read the route as one continuous
+  /// point stream (`gpx.allPoints`) — its `trkseg` boundaries sit one point
+  /// *after* each anchor, so it is NOT round-trippable through
+  /// `anchorsFromTrack`. Route export uses [buildFinalPlannedGpx] instead,
+  /// which emits whole legs including both endpoints.
   ///
   /// Never sets `ele`: the elevation tab owns the elevation-merged copy.
   PlannedGpxProvider._()
@@ -75,13 +93,14 @@ final class PlannedGpxProvider extends $FunctionalProvider<Gpx, Gpx, Gpx>
   }
 }
 
-String _$plannedGpxHash() => r'7016eabc1c55ba40c78dfff70be678bf4fca7a90';
+String _$plannedGpxHash() => r'320a52783e92694b1083a6f969764792d988c813';
 
 /// Sibling of [plannedGpx]: an elevation-bearing `Gpx` for the Elevation
 /// tab's chart, built from data already on `routeAnchorsProvider`'s
 /// segments (elevation fetches happen there, fire-and-forget per segment).
 ///
-/// Same anchor-chain walk as [plannedGpx], but each segment contributes its
+/// Same layout and [RouteAnchorsState.orderedSegments] walk as [plannedGpx]
+/// (and the same non-round-trippable caveat), but each segment contributes its
 /// [RouteSegment.elevationProfile] points (falling back to
 /// [RouteSegment.polyline] while a segment's height fetch is pending) paired
 /// with [RouteSegment.elevations]; `ele` stays `null` for points not yet
@@ -94,7 +113,8 @@ final plannedElevationGpxProvider = PlannedElevationGpxProvider._();
 /// tab's chart, built from data already on `routeAnchorsProvider`'s
 /// segments (elevation fetches happen there, fire-and-forget per segment).
 ///
-/// Same anchor-chain walk as [plannedGpx], but each segment contributes its
+/// Same layout and [RouteAnchorsState.orderedSegments] walk as [plannedGpx]
+/// (and the same non-round-trippable caveat), but each segment contributes its
 /// [RouteSegment.elevationProfile] points (falling back to
 /// [RouteSegment.polyline] while a segment's height fetch is pending) paired
 /// with [RouteSegment.elevations]; `ele` stays `null` for points not yet
@@ -107,7 +127,8 @@ final class PlannedElevationGpxProvider
   /// tab's chart, built from data already on `routeAnchorsProvider`'s
   /// segments (elevation fetches happen there, fire-and-forget per segment).
   ///
-  /// Same anchor-chain walk as [plannedGpx], but each segment contributes its
+  /// Same layout and [RouteAnchorsState.orderedSegments] walk as [plannedGpx]
+  /// (and the same non-round-trippable caveat), but each segment contributes its
   /// [RouteSegment.elevationProfile] points (falling back to
   /// [RouteSegment.polyline] while a segment's height fetch is pending) paired
   /// with [RouteSegment.elevations]; `ele` stays `null` for points not yet
@@ -146,4 +167,4 @@ final class PlannedElevationGpxProvider
 }
 
 String _$plannedElevationGpxHash() =>
-    r'e871230092d3a77c6f7126108e9561cfa8a98dd7';
+    r'8635ffebb4dc7148db335134b5e6ced66557dac1';

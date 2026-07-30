@@ -654,7 +654,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get shower => 'Shower';
 
   @override
-  String get slogan => 'Zapisz swoją wyprawę!';
+  String get slogan => 'Twoje szlaki. Twoje dane. Twój serwer.';
 
   @override
   String get sort => 'Sortowanie';

@@ -72,7 +72,7 @@ class _WandererOfflineStateState extends State<WandererOfflineState> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            FilledButton.tonal(
+            FilledButton(
               onPressed: _inFlight ? null : _handleRetry,
               child: _inFlight
                   ? const SizedBox(

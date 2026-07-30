@@ -657,7 +657,7 @@ class AppLocalizationsEu extends AppLocalizations {
   String get shower => 'Dutxa';
 
   @override
-  String get slogan => 'Gorde zure abenturak!';
+  String get slogan => 'Zure ibilbideak. Zure datuak. Zure zerbitzaria.';
 
   @override
   String get sort => 'Ordenatu';

@@ -657,7 +657,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get shower => 'Sprcha';
 
   @override
-  String get slogan => 'Uložte si svá dobrodružství!';
+  String get slogan => 'Vaše trasy. Vaše data. Váš server.';
 
   @override
   String get sort => 'Seřadit';

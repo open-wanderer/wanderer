@@ -1283,7 +1283,7 @@ abstract class AppLocalizations {
   /// No description provided for @slogan.
   ///
   /// In en, this message translates to:
-  /// **'Save your adventures!'**
+  /// **'Your trails. Your data. Your server.'**
   String get slogan;
 
   /// No description provided for @sort.

@@ -657,7 +657,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get shower => 'Ducha';
 
   @override
-  String get slogan => '¡Guarda tus aventuras!';
+  String get slogan => 'Tus rutas. Tus datos. Tu servidor.';
 
   @override
   String get sort => 'Ordenar';

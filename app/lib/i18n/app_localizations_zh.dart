@@ -647,7 +647,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shower => '淋浴';
 
   @override
-  String get slogan => '保存你的冒险！';
+  String get slogan => '你的路线。你的数据。你的服务器。';
 
   @override
   String get sort => '排序';
