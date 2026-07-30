@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:7780573664962685596",
-      "lastPropertyId": "17:3792668263909473854",
+      "lastPropertyId": "18:2536150042628885580",
       "name": "UserEntity",
       "properties": [
         {
@@ -83,6 +83,14 @@
           "type": 11,
           "flags": 520,
           "relationTarget": "SettingsEntity"
+        },
+        {
+          "id": "18:2536150042628885580",
+          "name": "actorObxId",
+          "indexId": "22:8994270532329500705",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "ActorEntity"
         }
       ],
       "relations": []
@@ -867,7 +875,7 @@
     }
   ],
   "lastEntityId": "12:7228865513396600510",
-  "lastIndexId": "21:8934601337546040437",
+  "lastIndexId": "22:8994270532329500705",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,

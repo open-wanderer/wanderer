@@ -32,7 +32,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(1, 7780573664962685596),
     name: 'UserEntity',
-    lastPropertyId: const obx_int.IdUid(17, 3792668263909473854),
+    lastPropertyId: const obx_int.IdUid(18, 2536150042628885580),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -122,6 +122,15 @@ final _entities = <obx_int.ModelEntity>[
         indexId: const obx_int.IdUid(14, 6564329935493948317),
         relationField: 'settings',
         relationTarget: 'SettingsEntity',
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(18, 2536150042628885580),
+        name: 'actorObxId',
+        type: 11,
+        flags: 520,
+        indexId: const obx_int.IdUid(22, 8994270532329500705),
+        relationField: 'actor',
+        relationTarget: 'ActorEntity',
       ),
     ],
     relations: <obx_int.ModelRelation>[],
@@ -1089,7 +1098,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
     lastEntityId: const obx_int.IdUid(12, 7228865513396600510),
-    lastIndexId: const obx_int.IdUid(21, 8934601337546040437),
+    lastIndexId: const obx_int.IdUid(22, 8994270532329500705),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [1110440324073703466],
@@ -1146,7 +1155,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
   final bindings = <Type, obx_int.EntityDefinition>{
     UserEntity: obx_int.EntityDefinition<UserEntity>(
       model: _entities[0],
-      toOneRelations: (UserEntity object) => [object.settings],
+      toOneRelations: (UserEntity object) => [object.settings, object.actor],
       toManyRelations: (UserEntity object) => {},
       getId: (UserEntity object) => object.obxId,
       setId: (UserEntity object, int id) {
@@ -1167,7 +1176,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final actorIdOffset = fbb.writeString(object.actorId);
         final collectionIdOffset = fbb.writeString(object.collectionId);
         final collectionNameOffset = fbb.writeString(object.collectionName);
-        fbb.startTable(18);
+        fbb.startTable(19);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, usernameOffset);
@@ -1182,6 +1191,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(14, collectionIdOffset);
         fbb.addOffset(15, collectionNameOffset);
         fbb.addInt64(16, object.settings.targetId);
+        fbb.addInt64(17, object.actor.targetId);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1247,6 +1257,13 @@ obx_int.ModelDefinition getObjectBoxModel() {
           0,
         );
         object.settings.attach(store);
+        object.actor.targetId = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          38,
+          0,
+        );
+        object.actor.attach(store);
         return object;
       },
     ),
@@ -2488,6 +2505,11 @@ class UserEntity_ {
   /// See [UserEntity.settings].
   static final settings = obx.QueryRelationToOne<UserEntity, SettingsEntity>(
     _entities[0].properties[13],
+  );
+
+  /// See [UserEntity.actor].
+  static final actor = obx.QueryRelationToOne<UserEntity, ActorEntity>(
+    _entities[0].properties[14],
   );
 }
 

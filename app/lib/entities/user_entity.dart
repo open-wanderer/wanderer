@@ -1,4 +1,5 @@
 import 'package:objectbox/objectbox.dart';
+import 'package:wanderer/entities/actor_entity.dart';
 import 'package:wanderer/entities/settings_entity.dart';
 import 'package:wanderer/models/record.dart';
 
@@ -31,6 +32,17 @@ class UserEntity with RecordFunctions implements IRecord {
   final String? avatar;
 
   final settings = ToOne<SettingsEntity>();
+
+  /// Cached ActivityPub actor for this user, populated from the
+  /// `activitypub_actors_via_user` expand at auth time and refreshed by
+  /// `OwnProfile`. Lets the own-profile screen render its real layout offline
+  /// rather than a stand-in scaffold.
+  ///
+  /// The target-id column is named explicitly because the default (`actorId`)
+  /// would collide with the existing [actorId] field above — which holds the
+  /// actor's PocketBase record id, not an ObjectBox row id.
+  @TargetIdProperty('actorObxId')
+  final actor = ToOne<ActorEntity>();
 
   UserEntity({
     required this.id,

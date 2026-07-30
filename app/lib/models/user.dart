@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:wanderer/entities/actor_entity.dart';
 import 'package:wanderer/entities/settings_entity.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/actor.dart';
@@ -65,6 +66,8 @@ abstract class User with _$User, RecordFunctions implements IRecord {
     if (expand?.settings != null) {
       entity.settings.target = SettingsEntity.fromModel(expand!.settings!);
     }
+
+    entity.actor.target = ActorEntity.fromModel(expand!.actor!);
 
     return entity;
   }
