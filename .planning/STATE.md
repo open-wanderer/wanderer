@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 Phase: Milestone v1.7 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-07-29 - Completed quick task 260729-i4k: Harden offline behavior across map, list, nav avatar, and profile/settings screens
+Last activity: 2026-07-30 - Completed quick task 260730-h2p: Fix account-switch data leakage (library purge, provider invalidation, region disk self-heal)
 
 ## v1.7 Phases
 
@@ -360,6 +360,7 @@ Recent decisions affecting current work:
 | 260720-s7m | Clean up ARB translation files: safety-scanned dead-key removal (291 removed), equalized all 14 locales to 267 keys, extracted 43 hard-coded Dart literals into l10n keys, added @key ICU metadata, extended crowdin.yml for the app | 2026-07-20 | bde01f50,4116ecba,dc6b98a9,f10dc9d8 | Needs Review | [260720-s7m-…](./quick/260720-s7m-clean-up-arb-translation-files-remove-un/) |
 | 260721-eob | Add a bottom modal sheet on track save from navigation screen with Recalculate-heights/Follow-roads toggles; new authenticated /valhalla/trace-route SvelteKit proxy + snap-then-heights pipeline with a bbox-diagonal truncation guard | 2026-07-21 | d35be0e6,5c93547a,9346ef8e | Needs Review | [260721-eob-…](./quick/260721-eob-add-a-bottom-modal-sheet-on-track-save-f/) |
 | 260729-i4k | Harden offline behavior: global onlineStatusProvider fed by dio interceptor (replacing per-call isBackendReachable probes); map/list screens show offline empty state + retry, keeping the map's draggable trail sheet intact; nav avatar + profile screen cache from local UserEntity with settings always reachable; network-mutating settings actions (account, privacy, notifications, language, categories, subcategories) gated behind a guardOnline chokepoint + offline banner | 2026-07-29 | d1ba7a1e,c8d6c18b,c772ae9a,e465751a,8ecbbd9f,d25aefa3 | Verified | [260729-i4k-…](./quick/260729-i4k-harden-offline-behavior-map-screen-and-l/) |
+| 260730-h2p | Fix account-switch data leakage: purge account-scoped ObjectBox rows (trail/waypoint/actor/settings/active-navigation) plus `library/` and `avatars/` on logout and on detected account switch; invalidate 14 keepAlive account-scoped providers from main.dart's auth listener and make ownProfileProvider watch auth; startup region DB↔disk self-heal so a drifted vectorPackage/demPackage link no longer reads not-downloaded while still counted in MB used. Regions, map_cache and the region catalog are deliberately preserved — they are public/shared and must not be re-downloaded per account | 2026-07-30 | fc6712d1,b2b8bc82,4574dc5e | Needs Review | [260730-h2p-…](./quick/260730-h2p-fix-account-switch-data-leakage-library-/) |
 
 ## Deferred Items
 
