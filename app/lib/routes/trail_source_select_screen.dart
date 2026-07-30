@@ -207,6 +207,17 @@ class _TrailSourceSelectScreenState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isOnline = ref.watch(onlineStatusProvider);
+
+    // Any in-flight action disables all three cards, so a second tap cannot
+    // race the first.
+    final busy = _importLoading || _plannerLoading || _recorderLoading;
+
+    // Planning needs the routing backend and importing uploads the trail, so
+    // both are unusable offline. Recording is not: it only needs GPS, and
+    // `_openRecorder` already hands NavigationScreen an `isOffline` flag so it
+    // opens the network-free map style.
+    final networkBlocked = busy || !isOnline;
 
     return Scaffold(
       appBar: AppBar(
@@ -222,9 +233,7 @@ class _TrailSourceSelectScreenState
             description:
                 "Design your perfect route from scratch using our map tools.",
             isLoading: _plannerLoading,
-            onTap: (_importLoading || _plannerLoading || _recorderLoading)
-                ? null
-                : () => _openPlanner(l10n),
+            onTap: networkBlocked ? null : () => _openPlanner(l10n),
           ),
           const SizedBox(height: 8),
           _SourceActionCard(
@@ -233,9 +242,7 @@ class _TrailSourceSelectScreenState
             description:
                 "Track your live coordinates and log your journey in real-time.",
             isLoading: _recorderLoading,
-            onTap: (_importLoading || _plannerLoading || _recorderLoading)
-                ? null
-                : () => _openRecorder(l10n),
+            onTap: busy ? null : () => _openRecorder(l10n),
           ),
           const SizedBox(height: 8),
           _SourceActionCard(
@@ -244,9 +251,7 @@ class _TrailSourceSelectScreenState
             description:
                 "Upload external GPX files directly from your device storage.",
             isLoading: _importLoading,
-            onTap: (_importLoading || _plannerLoading || _recorderLoading)
-                ? null
-                : () => _importGpx(l10n),
+            onTap: networkBlocked ? null : () => _importGpx(l10n),
           ),
         ],
       ),
