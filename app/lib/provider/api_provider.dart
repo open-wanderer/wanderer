@@ -6,13 +6,24 @@ import 'package:wanderer/provider/online_status_provider.dart';
 
 part 'api_provider.g.dart';
 
+/// Placeholder host the shared client starts on, before a signed-in user's
+/// server URL is known (applied later by [Api.updateBaseUrl], from
+/// `Auth.build()`).
+///
+/// Requests issued against it are meaningless — the host does not resolve — so
+/// connectivity must never be judged from their failures. Doing so reported the
+/// app offline on every cold start: the startup probe in `main.dart` runs before
+/// auth has applied the real server URL, and its DNS failure looked exactly
+/// like a genuine connection error.
+const String kUnconfiguredApiHost = 'unknown-server.local';
+
 @Riverpod(keepAlive: true)
 class Api extends _$Api {
   @override
   Dio build() {
     final cookieJar = ref.watch(cookieJarProvider);
 
-    final baseUrl = "https://unknown-server.local";
+    final baseUrl = "https://$kUnconfiguredApiHost";
 
     // Bound the connect phase so an offline call fails fast instead of hanging
     // on the OS socket timeout — this is what lets the trail-load fallback in
@@ -42,6 +53,13 @@ class Api extends _$Api {
           handler.next(response);
         },
         onError: (err, handler) {
+          // A failure against the placeholder host says nothing about
+          // connectivity (see [kUnconfiguredApiHost]) — leave the status alone
+          // rather than reporting offline.
+          if (err.requestOptions.uri.host == kUnconfiguredApiHost) {
+            handler.next(err);
+            return;
+          }
           final notifier = ref.read(onlineStatusProvider.notifier);
           if (isConnectionFailure(err)) {
             notifier.markOffline();
@@ -59,4 +77,9 @@ class Api extends _$Api {
   void updateBaseUrl(String baseUrl) {
     state.options.baseUrl = "$baseUrl/api/v1";
   }
+
+  /// Whether a real server URL has been applied yet. Until it has, no request
+  /// this client makes can report anything meaningful about connectivity.
+  bool get isConfigured =>
+      !Uri.parse(state.options.baseUrl).host.contains(kUnconfiguredApiHost);
 }

@@ -60,7 +60,15 @@ class OnlineStatus extends _$OnlineStatus {
   /// Re-probes the backend directly (via [isBackendReachable]) and updates
   /// [state] to match, returning the fresh result. Runs post-build, so
   /// writing `state` here is always safe.
+  ///
+  /// No-ops while the api client still points at [kUnconfiguredApiHost]: the
+  /// startup seed in `main.dart` fires before `Auth.build()` applies the real
+  /// server URL, so probing here would hit a host that cannot resolve and
+  /// report the app offline on every cold start. Leaving the optimistic default
+  /// in place is correct — the interceptor settles the true status from auth's
+  /// own traffic moments later.
   Future<bool> refresh() async {
+    if (!ref.read(apiProvider.notifier).isConfigured) return state;
     final api = ref.read(apiProvider);
     final result = await isBackendReachable(api);
     state = result;

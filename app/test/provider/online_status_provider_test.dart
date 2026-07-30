@@ -1,9 +1,35 @@
 import 'dart:io' show SocketException;
 
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
+
+/// In-memory cookie storage — `cookie_jar` ships only a `FileStorage`, and
+/// these tests must not touch disk. Only exists to satisfy the
+/// `cookieJarProvider` override that `apiProvider` depends on; no cookie is
+/// ever read or written here.
+class _MemoryCookieStorage implements Storage {
+  final Map<String, String> _values = {};
+
+  @override
+  Future<void> init(bool persistSession, bool ignoreExpires) async {}
+
+  @override
+  Future<String?> read(String key) async => _values[key];
+
+  @override
+  Future<void> write(String key, String value) async => _values[key] = value;
+
+  @override
+  Future<void> delete(String key) async => _values.remove(key);
+
+  @override
+  Future<void> deleteAll(List<String> keys) async => _values.clear();
+}
 
 DioException _exception({
   required DioExceptionType type,
@@ -109,6 +135,49 @@ void main() {
 
       container.read(onlineStatusProvider.notifier).markOnline();
       expect(container.read(onlineStatusProvider), isTrue);
+    });
+
+    test(
+      'refresh() does not probe (or report offline) while the api client is '
+      'still on the placeholder host',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            cookieJarProvider.overrideWithValue(
+              PersistCookieJar(storage: _MemoryCookieStorage()),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        // The cold-start ordering: main.dart seeds the status before
+        // Auth.build() has applied a real server URL. Probing here would hit a
+        // host that cannot resolve and mark the app offline on every launch.
+        expect(container.read(apiProvider.notifier).isConfigured, isFalse);
+
+        await expectLater(
+          container.read(onlineStatusProvider.notifier).refresh(),
+          completion(isTrue),
+        );
+        expect(container.read(onlineStatusProvider), isTrue);
+      },
+    );
+
+    test('isConfigured flips once a real server URL is applied', () {
+      final container = ProviderContainer(
+        overrides: [
+          cookieJarProvider.overrideWithValue(
+            PersistCookieJar(storage: _MemoryCookieStorage()),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final api = container.read(apiProvider.notifier);
+      expect(api.isConfigured, isFalse);
+
+      api.updateBaseUrl('https://wanderer.example');
+      expect(api.isConfigured, isTrue);
     });
   });
 }
