@@ -13,6 +13,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/region_download_state.dart';
 import 'package:wanderer/models/region_hierarchy_row.dart';
 import 'package:wanderer/models/region_status.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/routes/settings_offline_regions_screen.dart';
@@ -66,6 +67,30 @@ class _DeferredRegionRepository extends RegionRepository {
   @override
   Future<List<RegionHierarchyRow>> refreshCatalogAndFetchHierarchy() =>
       _completer.future;
+}
+
+/// Records whether the screen attempted a catalog refresh at all, so the
+/// offline test can assert the doomed round-trip is never started rather than
+/// merely that its failure was handled.
+class _RecordingRegionRepository extends RegionRepository {
+  _RecordingRegionRepository() : super(Dio(), _FakeStore());
+
+  bool refreshCalled = false;
+
+  @override
+  Future<List<RegionHierarchyRow>> refreshCatalogAndFetchHierarchy() async {
+    refreshCalled = true;
+    return _fixtureHierarchyRows();
+  }
+}
+
+class _FakeOnlineStatus extends OnlineStatus {
+  _FakeOnlineStatus(this._online);
+
+  final bool _online;
+
+  @override
+  bool build() => _online;
 }
 
 class _StubRegionListNotifier extends RegionListNotifier {
@@ -281,6 +306,57 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(SkeletonizerScope), findsNothing);
       expect(find.text('Europe'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'offline the catalog refresh is never attempted and the offline empty '
+    'state shows immediately',
+    (tester) async {
+      tester.view.physicalSize = const Size(1080, 4000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repository = _RecordingRegionRepository();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            regionRepositoryProvider.overrideWithValue(repository),
+            onlineStatusProvider.overrideWith(() => _FakeOnlineStatus(false)),
+            // Cached regions present — precisely the shape that used to raise a
+            // spurious error toast on every offline open, since the refresh
+            // failure path toasts only when the snapshot is non-empty.
+            regionListNotifierProvider.overrideWith(
+              () => _StubRegionListNotifier([_fixtureRegionEntity()]),
+            ),
+            tileRepositoryStatusProvider.overrideWith(
+              _StubTileRepositoryStatus.new,
+            ),
+          ],
+          child: const MaterialApp(
+            localizationsDelegates: [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: Locale('en'),
+            home: SettingsOfflineRegionsScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No doomed round-trip, so no toast to suppress in the first place.
+      expect(repository.refreshCalled, isFalse);
+
+      // And the offline state is reached on the first frame rather than after a
+      // skeleton waits out a request that cannot succeed.
+      expect(find.text("Can't load regions"), findsOneWidget);
+      expect(find.byType(SkeletonizerScope), findsNothing);
     },
   );
 }

@@ -10,6 +10,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/region_hierarchy_row.dart';
 import 'package:wanderer/models/region_status.dart';
 import 'package:wanderer/models/region_tree_node.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
@@ -81,6 +82,18 @@ class _SettingsOfflineRegionsScreenState
   @override
   void initState() {
     super.initState();
+
+    // The catalog only exists on the backend, so offline there is nothing to
+    // fetch. Skipping the doomed round-trip suppresses the spurious error
+    // toast `_refreshCatalog` raises whenever cached regions exist, and lets
+    // the offline empty state render immediately rather than after a skeleton
+    // waits out a request that cannot succeed. Assigning the field directly
+    // is correct here — build has not run yet, so no setState is needed.
+    if (!ref.read(onlineStatusProvider)) {
+      _hierarchyLoadInFlight = false;
+      return;
+    }
+
     // Fire-and-forget (RESEARCH.md Pitfall 4) — never blocks the list on a
     // network round-trip; the list renders the synchronous provider
     // snapshot unconditionally below.
