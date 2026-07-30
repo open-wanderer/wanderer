@@ -23,14 +23,16 @@ void main() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
-  RegionEntity buildRegion({String id = 'de-nrw'}) {
-    return RegionEntity(id: id, name: 'Test Region');
+  // Keyed by `path` -- the id is deliberately unrelated, since the backend
+  // re-mints record ids and they never name a directory.
+  RegionEntity buildRegion({String path = 'europe.de_nrw'}) {
+    return RegionEntity(path: path, id: 'rec1', name: 'Test Region');
   }
 
   group('regionDiskUsageBytes', () {
     test('final vector file present contributes its byte length', () {
       final region = buildRegion();
-      final vectorPath = regionVectorPath(tempDir.path, region.id);
+      final vectorPath = regionVectorPath(tempDir.path, region.path);
       Directory(File(vectorPath).parent.path).createSync(recursive: true);
       File(vectorPath).writeAsBytesSync(List.filled(100, 0));
 
@@ -41,7 +43,7 @@ void main() {
       'only a .part partial vector file present contributes its byte length (Pitfall 1)',
       () {
         final region = buildRegion();
-        final vectorPath = regionVectorPath(tempDir.path, region.id);
+        final vectorPath = regionVectorPath(tempDir.path, region.path);
         Directory(File(vectorPath).parent.path).createSync(recursive: true);
         File('$vectorPath.part').writeAsBytesSync(List.filled(42, 0));
 
@@ -56,8 +58,8 @@ void main() {
 
     test('vector final (N) + DEM final (K) both present sums to N+K', () {
       final region = buildRegion();
-      final vectorPath = regionVectorPath(tempDir.path, region.id);
-      final demPath = regionDemPath(tempDir.path, region.id);
+      final vectorPath = regionVectorPath(tempDir.path, region.path);
+      final demPath = regionDemPath(tempDir.path, region.path);
       Directory(File(vectorPath).parent.path).createSync(recursive: true);
       File(vectorPath).writeAsBytesSync(List.filled(100, 0));
       File(demPath).writeAsBytesSync(List.filled(30, 0));
@@ -65,12 +67,15 @@ void main() {
       expect(regionDiskUsageBytes(tempDir.path, region), 130);
     });
 
-    test('an invalid region id throws ArgumentError via assertValidRegionId', () {
-      final region = buildRegion(id: '../etc');
-      expect(
-        () => regionDiskUsageBytes(tempDir.path, region),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'an invalid region path throws ArgumentError via assertValidRegionPath',
+      () {
+        final region = buildRegion(path: '../etc');
+        expect(
+          () => regionDiskUsageBytes(tempDir.path, region),
+          throwsArgumentError,
+        );
+      },
+    );
   });
 }

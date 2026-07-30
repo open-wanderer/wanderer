@@ -88,7 +88,8 @@ void main() {
     );
 
     RegionEntity region({String id = 'r1'}) => RegionEntity(
-      id: id,
+      path: id,
+      id: 'rec-$id',
       name: id,
       minLon: 0,
       minLat: 0,
@@ -206,7 +207,8 @@ void main() {
       double maxLon = 10,
       double maxLat = 10,
     }) => RegionEntity(
-      id: id,
+      path: id,
+      id: 'rec-$id',
       name: id,
       minLon: minLon,
       minLat: minLat,
@@ -226,7 +228,7 @@ void main() {
 
       final winner = resolveRegionForTile([big, small], tileBounds, dem: false);
 
-      expect(winner?.id, 'small');
+      expect(winner?.path, 'small');
     });
 
     test('a region overlapping the tile with a null package target is not a candidate', () {
@@ -240,7 +242,7 @@ void main() {
       final winner =
           resolveRegionForTile([noPackage, withPackage], tileBounds, dem: false);
 
-      expect(winner?.id, 'with-package');
+      expect(winner?.path, 'with-package');
     });
 
     test('equal-area overlapping candidates: most-recent downloadedAtUtc wins (D-03)', () {
@@ -257,7 +259,7 @@ void main() {
 
       final winner = resolveRegionForTile([older, newer], tileBounds, dem: false);
 
-      expect(winner?.id, 'newer');
+      expect(winner?.path, 'newer');
     });
 
     test('equal-area tie: a null downloadedAtUtc sorts as epoch-zero and loses', () {
@@ -273,7 +275,7 @@ void main() {
 
       final winner = resolveRegionForTile([undated, dated], tileBounds, dem: false);
 
-      expect(winner?.id, 'dated');
+      expect(winner?.path, 'dated');
     });
 
     test('dem:true resolves against demPackage; a vector-only region is not a DEM candidate', () {
@@ -289,7 +291,7 @@ void main() {
       final winner =
           resolveRegionForTile([vectorOnly, demRegion], tileBounds, dem: true);
 
-      expect(winner?.id, 'dem-region');
+      expect(winner?.path, 'dem-region');
     });
 
     test('dem:false resolves against vectorPackage; a DEM-only region is not a vector candidate', () {

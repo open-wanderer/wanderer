@@ -173,7 +173,7 @@ class _RegionRenderSpikeScreenState
     final vectorPath = region.vectorPackage.target?.localFilePath;
     if (vectorPath == null) {
       debugPrint(
-        '[spike] ${region.id} has no downloaded vector archive -- '
+        '[spike] ${region.path} has no downloaded vector archive -- '
         'download it first via Settings -> Offline Maps/Regions',
       );
       return null;
@@ -400,7 +400,7 @@ class _RegionRenderSpikeScreenState
                         DropdownMenuItem(
                           value: region,
                           child: Text(
-                            '${region.name} (${region.id}) -- vector='
+                            '${region.name} (${region.path}) -- vector='
                             '${region.vectorPackage.target?.localFilePath != null} '
                             'dem=${region.demPackage.target?.localFilePath != null}',
                           ),

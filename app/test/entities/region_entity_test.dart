@@ -60,7 +60,7 @@ void main() {
 
   group('RegionEntity.dbCatalogStatus / dbDemStatus', () {
     test('dbCatalogStatus round-trips CatalogStatus by .code', () {
-      final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
+      final entity = RegionEntity(path: 'de.nrw', id: 'rec1', name: 'NRW');
 
       for (final s in CatalogStatus.values) {
         entity.dbCatalogStatus = s.code;
@@ -70,7 +70,7 @@ void main() {
     });
 
     test('out-of-range dbCatalogStatus falls back to building', () {
-      final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
+      final entity = RegionEntity(path: 'de.nrw', id: 'rec1', name: 'NRW');
 
       entity.dbCatalogStatus = 99;
 
@@ -78,7 +78,7 @@ void main() {
     });
 
     test('dbDemStatus round-trips CatalogStatus by .code', () {
-      final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
+      final entity = RegionEntity(path: 'de.nrw', id: 'rec1', name: 'NRW');
 
       for (final s in CatalogStatus.values) {
         entity.dbDemStatus = s.code;
@@ -88,7 +88,7 @@ void main() {
     });
 
     test('out-of-range dbDemStatus falls back to absent', () {
-      final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
+      final entity = RegionEntity(path: 'de.nrw', id: 'rec1', name: 'NRW');
 
       entity.dbDemStatus = 99;
 
@@ -98,13 +98,13 @@ void main() {
 
   group('RegionEntity.status getter', () {
     test('no vectorPackage target -> notDownloaded', () {
-      final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
+      final entity = RegionEntity(path: 'de.nrw', id: 'rec1', name: 'NRW');
 
       expect(entity.status, RegionStatus.notDownloaded);
     });
 
     test('vectorPackage downloading -> downloading', () {
-      final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
+      final entity = RegionEntity(path: 'de.nrw', id: 'rec1', name: 'NRW');
       entity.vectorPackage.target = DownloadedTilePackageEntity(
         status: PackageStatus.downloading,
       );
@@ -114,7 +114,8 @@ void main() {
 
     test('vectorPackage downloaded, catalogStatus != ready -> downloaded', () {
       final entity = RegionEntity(
-        id: 'de-nrw',
+        path: 'de.nrw',
+        id: 'rec1',
         name: 'NRW',
         catalogStatus: CatalogStatus.building,
         version: '2026-07-01',
@@ -131,7 +132,8 @@ void main() {
       'vectorPackage downloaded, version == lastDownloadedVersion -> downloaded',
       () {
         final entity = RegionEntity(
-          id: 'de-nrw',
+          path: 'de.nrw',
+          id: 'rec1',
           name: 'NRW',
           catalogStatus: CatalogStatus.ready,
           version: '2026-07-01',
@@ -149,7 +151,8 @@ void main() {
       'vectorPackage downloaded, catalogStatus == ready and version changed -> updateAvailable',
       () {
         final entity = RegionEntity(
-          id: 'de-nrw',
+          path: 'de.nrw',
+          id: 'rec1',
           name: 'NRW',
           catalogStatus: CatalogStatus.ready,
           version: '2026-07-01',
@@ -164,7 +167,7 @@ void main() {
     );
 
     test('vectorPackage error -> error', () {
-      final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
+      final entity = RegionEntity(path: 'de.nrw', id: 'rec1', name: 'NRW');
       entity.vectorPackage.target = DownloadedTilePackageEntity(
         status: PackageStatus.error,
       );
@@ -246,11 +249,11 @@ void main() {
 
   group('RegionEntity.applyCatalogEntry', () {
     test(
-      'overwrites only catalog-owned fields, preserves obxId/links/lastDownloadedVersion',
+      'overwrites only catalog-owned fields, preserves obxId/path/links/lastDownloadedVersion',
       () {
         final entity = RegionEntity(
-          id: 'de-nrw',
-          path: 'germany.old_path',
+          path: 'germany.north_rhine_westphalia',
+          id: 'oldrecordid1234',
           name: 'Old Name',
         );
         entity.obxId = 7;
@@ -261,7 +264,7 @@ void main() {
         entity.lastDownloadedVersion = '2026-01-01';
 
         final entry = RegionCatalogEntry(
-          id: 'de-nrw',
+          id: 'newrecordid5678',
           path: 'germany.north_rhine_westphalia',
           name: 'New Name',
           bbox: [5.9, 50.3, 9.5, 52.5],
@@ -272,17 +275,60 @@ void main() {
         entity.applyCatalogEntry(entry);
 
         expect(entity.name, 'New Name');
-        expect(entity.path, 'germany.north_rhine_westphalia');
         expect(entity.version, '2026-07-01');
         expect(entity.catalogStatus, CatalogStatus.ready);
         expect(entity.obxId, 7);
         expect(entity.vectorPackage.target, same(vectorPkg));
         expect(entity.lastDownloadedVersion, '2026-01-01');
+
+        // `path` is the key this row was matched by and must never be
+        // reassigned; `id` MUST be adopted, because a differing id means the
+        // backend re-minted the record and this row has to follow it while
+        // keeping its download state.
+        expect(entity.path, 'germany.north_rhine_westphalia');
+        expect(entity.id, 'newrecordid5678');
       },
     );
 
+    test('adopts a re-minted record id without dropping download state', () {
+      // The exact regression: `ReconcileArchives` deletes a region_archives
+      // row whose files are gone and the next build recreates it with a fresh
+      // PocketBase id. Matched by path, that must be an in-place update.
+      final entity = RegionEntity(
+        path: 'canada.canada_alberta.canada_alberta_south',
+        id: '1ani4n8myc8rh2m',
+        name: 'South',
+      );
+      final vectorPkg = DownloadedTilePackageEntity(
+        status: PackageStatus.downloaded,
+        localFilePath:
+            '/docs/regions/canada.canada_alberta'
+            '.canada_alberta_south/vector.pmtiles',
+      );
+      entity.vectorPackage.target = vectorPkg;
+      entity.lastDownloadedVersion = '20260727';
+
+      entity.applyCatalogEntry(
+        RegionCatalogEntry(
+          id: '3v3rsaxejr4yihp',
+          path: 'canada.canada_alberta.canada_alberta_south',
+          name: 'South',
+          bbox: [-114.0, 49.0, -110.0, 51.0],
+          status: CatalogStatus.ready,
+          version: '20260729',
+        ),
+      );
+
+      expect(entity.id, '3v3rsaxejr4yihp');
+      expect(entity.vectorPackage.target, same(vectorPkg));
+      expect(entity.lastDownloadedVersion, '20260727');
+      // A genuinely newer server version still reads as an available update
+      // rather than silently masquerading as up to date.
+      expect(entity.status, RegionStatus.updateAvailable);
+    });
+
     test('throws FormatException on a malformed bbox', () {
-      final entity = RegionEntity(id: 'de-nrw', name: 'NRW');
+      final entity = RegionEntity(path: 'de.nrw', id: 'rec1', name: 'NRW');
       final entry = RegionCatalogEntry(
         id: 'de-nrw',
         path: 'germany.north_rhine_westphalia',

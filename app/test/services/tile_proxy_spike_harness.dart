@@ -241,7 +241,7 @@ class _TileProxySpikeScreenState extends ConsumerState<TileProxySpikeScreen> {
       nativeDuration: const Duration(milliseconds: 1),
     );
     _appendLog(
-      'camera flown to "${region.id}" bounds -- test case (b): now turn '
+      'camera flown to "${region.path}" bounds -- test case (b): now turn '
       'Wi-Fi + cellular data OFF (airplane mode NOT engaged) and pan/zoom '
       'here; test case (c): then engage FULL airplane mode and repeat -- '
       'this is the load-bearing result',
@@ -334,7 +334,7 @@ class _TileProxySpikeScreenState extends ConsumerState<TileProxySpikeScreen> {
                         DropdownMenuItem(
                           value: region,
                           child: Text(
-                            '${region.name} (${region.id}) -- vector='
+                            '${region.name} (${region.path}) -- vector='
                             '${region.vectorPackage.target?.localFilePath != null} '
                             'dem=${region.demPackage.target?.localFilePath != null}',
                           ),

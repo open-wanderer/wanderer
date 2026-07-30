@@ -117,17 +117,23 @@ List<RegionHierarchyRow> _fixtureHierarchyRows() => [
     depth: 0,
   ),
   const RegionHierarchyRow(
+    // A dotted materialized path, matching what the backend actually sends --
+    // `regionPathPattern` rejects `/`, so a slash-separated fixture would
+    // throw the moment it reached a path builder.
     id: 'de-nrw',
     name: 'North Rhine-Westphalia',
     kind: RegionNodeKind.leaf,
     parent: 'europe',
-    path: 'europe/de-nrw',
+    path: 'europe.de_nrw',
     depth: 1,
   ),
 ];
 
 RegionEntity _fixtureRegionEntity() {
   final region = RegionEntity(
+    // Must match the hierarchy leaf's `path` above -- the screen joins tree
+    // rows to entities by path, never by the catalog's node id.
+    path: 'europe.de_nrw',
     id: 'de-nrw',
     name: 'North Rhine-Westphalia',
     minLon: 5.9,
@@ -140,10 +146,11 @@ RegionEntity _fixtureRegionEntity() {
     demUrl: '/api/v1/regions/de-nrw/download-dem',
     demSize: 654321,
     catalogStatus: CatalogStatus.ready,
-  )..vectorPackage.target = DownloadedTilePackageEntity(
-      status: PackageStatus.downloaded,
-      sizeBytesOnDisk: 123456,
-    );
+  );
+  region.vectorPackage.target = DownloadedTilePackageEntity(
+    status: PackageStatus.downloaded,
+    sizeBytesOnDisk: 123456,
+  );
   return region;
 }
 

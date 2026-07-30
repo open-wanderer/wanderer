@@ -31,7 +31,10 @@ void main() {
     required double maxLat,
   }) {
     return RegionEntity(
-      id: id,
+      // Keyed by `path`; `id` is deliberately unrelated, since the backend
+      // re-mints record ids and they are never an identity here.
+      path: id,
+      id: 'rec-$id',
       name: id,
       minLon: minLon,
       minLat: minLat,
@@ -155,7 +158,7 @@ void main() {
 
       final result = overlappingRegions(trail, [overlapping, disjoint]);
 
-      expect(result.map((r) => r.id), ['overlap']);
+      expect(result.map((r) => r.path), ['overlap']);
     });
 
     test('empty catalog yields empty result, no throw', () {
@@ -243,7 +246,7 @@ void main() {
 
         final result = missingCoverageRegions(trail, [notDownloaded]);
 
-        expect(result.map((r) => r.id), ['not-downloaded']);
+        expect(result.map((r) => r.path), ['not-downloaded']);
       },
     );
 
@@ -340,7 +343,7 @@ void main() {
     test('a downloaded region counts as usable coverage', () {
       final downloaded = downloadedRegion(overlappingRegion('downloaded'));
 
-      expect(usableCoverageRegions(trail, [downloaded]).map((r) => r.id), [
+      expect(usableCoverageRegions(trail, [downloaded]).map((r) => r.path), [
         'downloaded',
       ]);
     });
@@ -349,7 +352,7 @@ void main() {
       final downloadable = overlappingRegion('downloadable')
         ..vectorUrl = '/api/v1/regions/downloadable/download';
 
-      expect(usableCoverageRegions(trail, [downloadable]).map((r) => r.id), [
+      expect(usableCoverageRegions(trail, [downloadable]).map((r) => r.path), [
         'downloadable',
       ]);
     });
@@ -371,7 +374,7 @@ void main() {
       final downloadedOrphan = downloadedRegion(overlappingRegion('kept'))
         ..inCatalog = false;
 
-      expect(usableCoverageRegions(trail, [downloadedOrphan]).map((r) => r.id), [
+      expect(usableCoverageRegions(trail, [downloadedOrphan]).map((r) => r.path), [
         'kept',
       ]);
     });

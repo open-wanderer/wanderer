@@ -931,8 +931,7 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(2, 4039124996490710874),
         name: 'id',
         type: 9,
-        flags: 34848,
-        indexId: const obx_int.IdUid(19, 2837718969465956680),
+        flags: 0,
       ),
       obx_int.ModelProperty(
         id: const obx_int.IdUid(3, 5311151678852809106),
@@ -1046,7 +1045,8 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(20, 4586267527719177846),
         name: 'path',
         type: 9,
-        flags: 0,
+        flags: 34848,
+        indexId: const obx_int.IdUid(23, 6305628536415824179),
       ),
     ],
     relations: <obx_int.ModelRelation>[],
@@ -1098,11 +1098,15 @@ obx_int.ModelDefinition getObjectBoxModel() {
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
     lastEntityId: const obx_int.IdUid(12, 7228865513396600510),
-    lastIndexId: const obx_int.IdUid(22, 8994270532329500705),
+    lastIndexId: const obx_int.IdUid(23, 6305628536415824179),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [1110440324073703466],
-    retiredIndexUids: const [3377491348144337262, 4235871213533179134],
+    retiredIndexUids: const [
+      3377491348144337262,
+      4235871213533179134,
+      2837718969465956680,
+    ],
     retiredPropertyUids: const [
       1147012112998304753,
       3896929027028370202,
@@ -2313,12 +2317,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
       objectFromFB: (obx.Store store, ByteData fbData) {
         final buffer = fb.BufferContext(fbData);
         final rootOffset = buffer.derefObject(0);
-        final idParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGet(buffer, rootOffset, 6, '');
         final pathParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 42, '');
+        final idParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 6, '');
         final nameParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 8, '');
@@ -2379,8 +2383,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         ).vTableGetNullable(buffer, rootOffset, 32);
         final object =
             RegionEntity(
-                id: idParam,
                 path: pathParam,
+                id: idParam,
                 name: nameParam,
                 minLon: minLonParam,
                 minLat: minLatParam,

@@ -10,8 +10,8 @@
 /// paused download's partial bytes are still counted.
 ///
 /// Every path is built via `region_file_path.dart`'s sanctioned builders
-/// (never string-concatenated) so an invalid region id fails closed via
-/// [assertValidRegionId]'s `ArgumentError` (T-24-01).
+/// (never string-concatenated) so an invalid region path fails closed via
+/// [assertValidRegionPath]'s `ArgumentError` (T-24-01).
 library;
 
 import 'dart:io';
@@ -23,11 +23,11 @@ import 'package:wanderer/util/region_file_path.dart';
 /// Sums the real on-disk bytes for [region]'s vector and DEM archives under
 /// [root] -- final file bytes if present, else `.part` partial bytes if
 /// present, else 0 for that package. Throws [ArgumentError] if
-/// `region.id` is not a valid region id.
+/// `region.path` is not a valid region path.
 int regionDiskUsageBytes(String root, RegionEntity region) {
-  final id = assertValidRegionId(region.id);
-  return _fileOrPartBytes(regionVectorPath(root, id)) +
-      _fileOrPartBytes(regionDemPath(root, id));
+  final path = assertValidRegionPath(region.path);
+  return _fileOrPartBytes(regionVectorPath(root, path)) +
+      _fileOrPartBytes(regionDemPath(root, path));
 }
 
 int _fileOrPartBytes(String finalPath) {

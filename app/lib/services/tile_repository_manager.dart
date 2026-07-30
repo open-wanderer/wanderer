@@ -163,34 +163,34 @@ class TileRepositoryManager {
   final Dio _api;
 
   /// One `CancelToken` per active (region, package-kind) download, keyed
-  /// `'<regionId>:vector'` / `'<regionId>:dem'` so vector and DEM downloads
-  /// for the same region can run concurrently without clobbering each
-  /// other's token.
+  /// `'<regionPath>:vector'` / `'<regionPath>:dem'` so vector and DEM
+  /// downloads for the same region can run concurrently without clobbering
+  /// each other's token.
   final Map<String, CancelToken> _activeCancelTokens = {};
 
   TileRepositoryManager(this._store, this._api);
 
-  /// Starts a fresh vector archive download for [regionId]. Refuses to
+  /// Starts a fresh vector archive download for [regionPath]. Refuses to
   /// write any bytes — marking the vector package `error` instead — when
   /// disk space is tight (TILE-03).
   Future<void> startVectorDownload(
-    String regionId, {
+    String regionPath, {
     void Function(int received, int total)? onProgress,
   }) async {
-    final id = assertValidRegionId(regionId);
-    final region = _regionById(id);
+    final path = assertValidRegionPath(regionPath);
+    final region = _regionByPath(path);
     if (region == null) {
-      throw StateError('Unknown region: $id');
+      throw StateError('Unknown region: $path');
     }
     if (region.vectorUrl == null) {
-      throw StateError('Region $id has no vector archive available yet');
+      throw StateError('Region $path has no vector archive available yet');
     }
 
     final root = (await getApplicationDocumentsDirectory()).path;
-    final finalPath = regionVectorPath(root, id);
+    final finalPath = regionVectorPath(root, path);
     final partPath = '$finalPath.part';
 
-    final free = await freeDiskSpaceBytes(regionStorageDir(root, id));
+    final free = await freeDiskSpaceBytes(regionStorageDir(root, path));
     if (!hasEnoughSpace(
       freeBytes: free,
       declaredSizeBytes: region.vectorSize ?? 0,
@@ -203,9 +203,9 @@ class TileRepositoryManager {
     final package = _getOrCreatePackage(region, dem: false);
     _updatePackageStatus(package, status: PackageStatus.downloading);
 
-    Directory(regionStorageDir(root, id)).createSync(recursive: true);
+    Directory(regionStorageDir(root, path)).createSync(recursive: true);
 
-    final tokenKey = '$id:vector';
+    final tokenKey = '$path:vector';
     final token = CancelToken();
     _activeCancelTokens[tokenKey] = token;
 
@@ -243,7 +243,7 @@ class TileRepositoryManager {
       // Writing only `lastDownloadedVersion` onto the FRESH row means that
       // sibling FK is carried through, never clobbered back to unset.
       _store.runInTransaction(TxMode.write, () {
-        final freshRegion = _regionById(id);
+        final freshRegion = _regionByPath(path);
         if (freshRegion != null) {
           freshRegion.lastDownloadedVersion = freshRegion.version;
           _store.box<RegionEntity>().put(freshRegion);
@@ -273,23 +273,23 @@ class TileRepositoryManager {
   /// `RegionEntity`'s own doc comment). A DEM failure never marks the
   /// vector package, keeping the two lifecycles fully independent.
   Future<void> startDemDownload(
-    String regionId, {
+    String regionPath, {
     void Function(int received, int total)? onProgress,
   }) async {
-    final id = assertValidRegionId(regionId);
-    final region = _regionById(id);
+    final path = assertValidRegionPath(regionPath);
+    final region = _regionByPath(path);
     if (region == null) {
-      throw StateError('Unknown region: $id');
+      throw StateError('Unknown region: $path');
     }
     if (region.demUrl == null) {
-      throw StateError('Region $id has no DEM archive available yet');
+      throw StateError('Region $path has no DEM archive available yet');
     }
 
     final root = (await getApplicationDocumentsDirectory()).path;
-    final finalPath = regionDemPath(root, id);
+    final finalPath = regionDemPath(root, path);
     final partPath = '$finalPath.part';
 
-    final free = await freeDiskSpaceBytes(regionStorageDir(root, id));
+    final free = await freeDiskSpaceBytes(regionStorageDir(root, path));
     if (!hasEnoughSpace(
       freeBytes: free,
       declaredSizeBytes: region.demSize ?? 0,
@@ -302,9 +302,9 @@ class TileRepositoryManager {
     final package = _getOrCreatePackage(region, dem: true);
     _updatePackageStatus(package, status: PackageStatus.downloading);
 
-    Directory(regionStorageDir(root, id)).createSync(recursive: true);
+    Directory(regionStorageDir(root, path)).createSync(recursive: true);
 
-    final tokenKey = '$id:dem';
+    final tokenKey = '$path:dem';
     final token = CancelToken();
     _activeCancelTokens[tokenKey] = token;
 
@@ -347,20 +347,20 @@ class TileRepositoryManager {
     }
   }
 
-  /// Cancels [regionId]'s in-flight vector download, if any — a no-op when
+  /// Cancels [regionPath]'s in-flight vector download, if any — a no-op when
   /// nothing is currently downloading. The `.part` file is deleted (no
   /// resume support): a later download tap always starts fresh from byte 0.
   /// Independent of [cancelDemDownload] (separate `CancelToken`).
-  void cancelVectorDownload(String regionId) {
-    final id = assertValidRegionId(regionId);
-    _activeCancelTokens['$id:vector']?.cancel('cancelled');
+  void cancelVectorDownload(String regionPath) {
+    final path = assertValidRegionPath(regionPath);
+    _activeCancelTokens['$path:vector']?.cancel('cancelled');
   }
 
-  /// Cancels [regionId]'s in-flight DEM download, if any. See
+  /// Cancels [regionPath]'s in-flight DEM download, if any. See
   /// [cancelVectorDownload].
-  void cancelDemDownload(String regionId) {
-    final id = assertValidRegionId(regionId);
-    _activeCancelTokens['$id:dem']?.cancel('cancelled');
+  void cancelDemDownload(String regionPath) {
+    final path = assertValidRegionPath(regionPath);
+    _activeCancelTokens['$path:dem']?.cancel('cancelled');
   }
 
   /// Returns the local vector/DEM archive file paths for every downloaded
@@ -378,21 +378,21 @@ class TileRepositoryManager {
     return splitRegionTilePaths(_store.box<RegionEntity>().getAll(), query);
   }
 
-  /// Cancels any in-flight vector/DEM download for [regionId], then removes
+  /// Cancels any in-flight vector/DEM download for [regionPath], then removes
   /// both `DownloadedTilePackageEntity` rows and their on-disk files
   /// (vector, DEM, and any `.part` siblings) as one logical unit — ObjectBox
   /// does not cascade a `ToOne` target's deletion (RESEARCH.md Pitfall 5 /
   /// T-23-07). Deleting an unknown/never-downloaded region is a no-op.
-  Future<void> deleteRegion(String regionId) async {
-    final id = assertValidRegionId(regionId);
+  Future<void> deleteRegion(String regionPath) async {
+    final path = assertValidRegionPath(regionPath);
 
     for (final entry in _activeCancelTokens.entries.toList()) {
-      if (entry.key == '$id:vector' || entry.key == '$id:dem') {
+      if (entry.key == '$path:vector' || entry.key == '$path:dem') {
         entry.value.cancel('deleted');
       }
     }
 
-    final region = _regionById(id);
+    final region = _regionByPath(path);
     if (region == null) return;
 
     final vectorPackage = region.vectorPackage.target;
@@ -412,8 +412,8 @@ class TileRepositoryManager {
     // Best-effort, outside the transaction: a missing file is never fatal.
     final root = (await getApplicationDocumentsDirectory()).path;
     for (final finalPath in [
-      regionVectorPath(root, id),
-      regionDemPath(root, id),
+      regionVectorPath(root, path),
+      regionDemPath(root, path),
     ]) {
       for (final candidate in [finalPath, '$finalPath.part']) {
         final file = File(candidate);
@@ -421,28 +421,28 @@ class TileRepositoryManager {
       }
     }
 
-    final dir = Directory(regionStorageDir(root, id));
+    final dir = Directory(regionStorageDir(root, path));
     if (dir.existsSync() && dir.listSync().isEmpty) {
       dir.deleteSync();
     }
   }
 
-  /// DEM-only cascade delete (D-01, T-24-02): removes ONLY [regionId]'s DEM
+  /// DEM-only cascade delete (D-01, T-24-02): removes ONLY [regionPath]'s DEM
   /// package row and its on-disk file(s) — the sibling (non-DEM) package
   /// row, its file, and [RegionEntity.lastDownloadedVersion] are provably
   /// untouched, unlike [deleteRegion], which removes both packages together.
   /// Deleting an unknown/never-downloaded region is a no-op (matches
   /// [deleteRegion]).
-  Future<void> deleteDemPackage(String regionId) async {
-    final id = assertValidRegionId(regionId);
+  Future<void> deleteDemPackage(String regionPath) async {
+    final path = assertValidRegionPath(regionPath);
 
     for (final entry in _activeCancelTokens.entries.toList()) {
-      if (entry.key == '$id:dem') {
+      if (entry.key == '$path:dem') {
         entry.value.cancel('deleted');
       }
     }
 
-    final region = _regionById(id);
+    final region = _regionByPath(path);
     if (region == null) return;
 
     final demPackage = region.demPackage.target;
@@ -457,7 +457,7 @@ class TileRepositoryManager {
 
     // Best-effort, outside the transaction: a missing file is never fatal.
     final root = (await getApplicationDocumentsDirectory()).path;
-    final finalPath = regionDemPath(root, id);
+    final finalPath = regionDemPath(root, path);
     for (final candidate in [finalPath, '$finalPath.part']) {
       final file = File(candidate);
       if (file.existsSync()) file.deleteSync();
@@ -473,9 +473,11 @@ class TileRepositoryManager {
     _activeCancelTokens.clear();
   }
 
-  RegionEntity? _regionById(String id) {
+  /// Looks a region up by its materialized `path` — the stable local key.
+  /// Never by `RegionEntity.id`, which the backend re-mints on every rebuild.
+  RegionEntity? _regionByPath(String path) {
     final box = _store.box<RegionEntity>();
-    final query = box.query(RegionEntity_.id.equals(id)).build();
+    final query = box.query(RegionEntity_.path.equals(path)).build();
     final region = query.findFirst();
     query.close();
     return region;
@@ -566,7 +568,7 @@ class TileRepositoryManager {
 
     final created = DownloadedTilePackageEntity();
     _store.runInTransaction(TxMode.write, () {
-      final freshRegion = _regionById(region.id) ?? region;
+      final freshRegion = _regionByPath(region.path) ?? region;
       (dem ? freshRegion.demPackage : freshRegion.vectorPackage).target =
           created;
       _store.box<RegionEntity>().put(freshRegion);

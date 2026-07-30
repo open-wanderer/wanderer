@@ -76,16 +76,20 @@ List<RegionHierarchyRow> parseRegionHierarchyRows(dynamic data) {
   return rows;
 }
 
-/// The persisted [existing] region ids that are absent from [fetchedIds] --
-/// i.e. regions dropped from the latest catalog fetch (D-08).
-Set<String> orphanedRegionIds(
-  Iterable<String> fetchedIds,
+/// The persisted [existing] region paths that are absent from [fetchedPaths]
+/// -- i.e. regions dropped from the latest catalog fetch (D-08).
+///
+/// Compares `path`, never the server record id: the backend re-mints that id
+/// on every rebuild (see `RegionEntity.id`), which made every persisted region
+/// look dropped and every re-minted one look new.
+Set<String> orphanedRegionPaths(
+  Iterable<String> fetchedPaths,
   Iterable<RegionEntity> existing,
 ) {
-  final fetchedIdSet = fetchedIds.toSet();
+  final fetchedPathSet = fetchedPaths.toSet();
   return existing
-      .map((e) => e.id)
-      .where((id) => !fetchedIdSet.contains(id))
+      .map((e) => e.path)
+      .where((path) => !fetchedPathSet.contains(path))
       .toSet();
 }
 
@@ -99,20 +103,32 @@ class RegionRepository {
   final Dio _api;
   final Store _store;
 
-  /// Upserts [entries] into ObjectBox by business id inside a single write
+  /// Upserts [entries] into ObjectBox by `path` inside a single write
   /// transaction: an existing row is merged in place via
   /// [RegionEntity.applyCatalogEntry] (preserving `obxId`, both `ToOne`
   /// targets, and `lastDownloadedVersion`); a new row is inserted via
   /// [RegionEntity.fromCatalogEntry]. After upserting, any persisted region
-  /// whose id is absent from [entries] is flipped `inCatalog = false` --
+  /// whose path is absent from [entries] is flipped `inCatalog = false` --
   /// its row and any on-disk files are left untouched (D-08).
+  ///
+  /// Matching on `path` rather than the server record id is what makes a
+  /// backend rebuild non-destructive. `ReconcileArchives` deletes and
+  /// recreates `region_archives` rows with fresh PocketBase ids (see
+  /// `RegionEntity.id`); keyed by id, every re-minted region was inserted as a
+  /// brand-new row with no package links while its real row was flipped out of
+  /// the catalog still holding the packages and the downloaded archives --
+  /// leaving the region reading "not downloaded" while its bytes stayed in the
+  /// disk-usage total. Keyed by path, the same rebuild simply updates the row
+  /// in place and adopts the new id.
   void upsertCatalog(List<RegionCatalogEntry> entries) {
     _store.runInTransaction(TxMode.write, () {
       final box = _store.box<RegionEntity>();
 
       for (final entry in entries) {
         try {
-          final query = box.query(RegionEntity_.id.equals(entry.id)).build();
+          final query = box
+              .query(RegionEntity_.path.equals(entry.path))
+              .build();
           final existing = query.findFirst();
           query.close();
 
@@ -127,12 +143,12 @@ class RegionRepository {
         }
       }
 
-      final fetchedIds = entries.map((e) => e.id);
-      final orphans = orphanedRegionIds(fetchedIds, box.getAll());
+      final fetchedPaths = entries.map((e) => e.path);
+      final orphans = orphanedRegionPaths(fetchedPaths, box.getAll());
       if (orphans.isEmpty) return;
 
-      for (final id in orphans) {
-        final query = box.query(RegionEntity_.id.equals(id)).build();
+      for (final path in orphans) {
+        final query = box.query(RegionEntity_.path.equals(path)).build();
         final entity = query.findFirst();
         query.close();
 
@@ -194,7 +210,9 @@ class RegionListNotifier extends _$RegionListNotifier {
   List<RegionEntity> build() {
     final store = ref.watch(objectBoxProvider);
     final regions = store.box<RegionEntity>().getAll();
-    regions.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    regions.sort(
+      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+    );
     return regions;
   }
 }

@@ -18,7 +18,10 @@ Map<String, dynamic> _fullReadyJson({String id = 'de-nrw', String? path}) => {
   'dem_size': 654321,
 };
 
-Map<String, dynamic> _minimalBuildingJson({String id = 'de-bay', String? path}) => {
+Map<String, dynamic> _minimalBuildingJson({
+  String id = 'de-bay',
+  String? path,
+}) => {
   'id': id,
   'path': path ?? id,
   'name': 'Bavaria',
@@ -149,11 +152,14 @@ void main() {
     // (parseRegionCatalog/parseRegionHierarchyRows, both covered above).
   });
 
-  group('orphanedRegionIds', () {
-    RegionEntity entity(String id) => RegionEntity(id: id, name: id);
+  group('orphanedRegionPaths', () {
+    // `id` is deliberately unrelated to `path` here: the backend re-mints
+    // record ids, so orphan detection must key on `path` alone.
+    RegionEntity entity(String path) =>
+        RegionEntity(path: path, id: 'rec-$path', name: path);
 
-    test('returns persisted ids absent from the fetched set', () {
-      final result = orphanedRegionIds(
+    test('returns persisted paths absent from the fetched set', () {
+      final result = orphanedRegionPaths(
         {'a', 'b'},
         [entity('a'), entity('c')],
       );
@@ -161,8 +167,8 @@ void main() {
       expect(result, {'c'});
     });
 
-    test('returns an empty set when every persisted id is still fetched', () {
-      final result = orphanedRegionIds(
+    test('returns an empty set when every persisted path is still fetched', () {
+      final result = orphanedRegionPaths(
         {'a', 'b', 'c'},
         [entity('a'), entity('b'), entity('c')],
       );
@@ -171,7 +177,26 @@ void main() {
     });
 
     test('returns an empty set when there are no persisted entities', () {
-      expect(orphanedRegionIds({'a'}, []), isEmpty);
+      expect(orphanedRegionPaths({'a'}, []), isEmpty);
+    });
+
+    test('a re-minted record id does not make a region look orphaned', () {
+      // Same path, different id than the persisted row -- the pre-fix
+      // id-keyed comparison reported this as orphaned and flipped the row
+      // (and its downloaded archive) out of the catalog.
+      final persisted = RegionEntity(
+        path: 'canada.canada_alberta.canada_alberta_south',
+        id: '1ani4n8myc8rh2m',
+        name: 'South',
+      );
+
+      expect(
+        orphanedRegionPaths(
+          {'canada.canada_alberta.canada_alberta_south'},
+          [persisted],
+        ),
+        isEmpty,
+      );
     });
   });
 }

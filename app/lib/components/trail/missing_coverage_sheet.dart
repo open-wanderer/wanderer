@@ -94,10 +94,10 @@ class _MissingCoverageSheetContentState
   // region. Toggling only mutates this local state (D-06) — no download
   // starts from this widget.
   late final Map<String, bool> _vectorChecked = {
-    for (final region in widget.missingRegions) region.id: true,
+    for (final region in widget.missingRegions) region.path: true,
   };
   late final Map<String, bool> _demChecked = {
-    for (final region in widget.missingRegions) region.id: false,
+    for (final region in widget.missingRegions) region.path: false,
   };
 
   @override
@@ -107,7 +107,7 @@ class _MissingCoverageSheetContentState
     final downloadStates = ref.watch(tileRepositoryStatusProvider);
 
     final rows = widget.missingRegions.map((region) {
-      final downloadState = downloadStates[region.id];
+      final downloadState = downloadStates[region.path];
       final vectorStatus = resolveVectorTileStatus(
         region.status,
         downloadState?.vectorProgress,
@@ -130,11 +130,11 @@ class _MissingCoverageSheetContentState
     for (final row in rows) {
       final vectorSelected =
           row.vectorStatus != RegionStatus.downloading &&
-          (_vectorChecked[row.region.id] ?? false);
+          (_vectorChecked[row.region.path] ?? false);
       final demSelected =
           row.demStatus != null &&
           row.demStatus != PackageStatus.downloading &&
-          (_demChecked[row.region.id] ?? false);
+          (_demChecked[row.region.path] ?? false);
       if (vectorSelected) combinedBytes += row.region.vectorSize ?? 0;
       if (demSelected) combinedBytes += row.region.demSize ?? 0;
       if (vectorSelected || demSelected) selectedCount++;
@@ -199,7 +199,7 @@ class _MissingCoverageSheetContentState
                   .where(
                     (row) =>
                         row.vectorStatus != RegionStatus.downloading &&
-                        (_vectorChecked[row.region.id] ?? false),
+                        (_vectorChecked[row.region.path] ?? false),
                   )
                   .map((row) => row.region)
                   .toList();
@@ -208,7 +208,7 @@ class _MissingCoverageSheetContentState
                     (row) =>
                         row.demStatus != null &&
                         row.demStatus != PackageStatus.downloading &&
-                        (_demChecked[row.region.id] ?? false),
+                        (_demChecked[row.region.path] ?? false),
                   )
                   .map((row) => row.region)
                   .toList();
@@ -296,9 +296,9 @@ class _MissingCoverageSheetContentState
               style: const TextStyle(color: Colors.redAccent),
             )
           : Text(formatBytes(row.region.vectorSize ?? 0)),
-      value: _vectorChecked[row.region.id] ?? true,
+      value: _vectorChecked[row.region.path] ?? true,
       onChanged: (checked) => setState(() {
-        _vectorChecked[row.region.id] = checked ?? false;
+        _vectorChecked[row.region.path] = checked ?? false;
       }),
     );
   }
@@ -335,9 +335,9 @@ class _MissingCoverageSheetContentState
               style: const TextStyle(color: Colors.redAccent),
             )
           : Text(formatBytes(row.region.demSize ?? 0)),
-      value: _demChecked[row.region.id] ?? false,
+      value: _demChecked[row.region.path] ?? false,
       onChanged: (checked) => setState(() {
-        _demChecked[row.region.id] = checked ?? false;
+        _demChecked[row.region.path] = checked ?? false;
       }),
     );
   }

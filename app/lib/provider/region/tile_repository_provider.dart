@@ -18,8 +18,9 @@ TileRepositoryManager tileRepositoryManager(Ref ref) {
   );
 }
 
-/// Per-region download state, keyed by region id -- the Settings/Regions
-/// screen subscribes to this. `keepAlive` so in-progress state survives
+/// Per-region download state, keyed by region PATH (never the server record
+/// id, which the backend re-mints) -- the Settings/Regions screen subscribes
+/// to this. `keepAlive` so in-progress state survives
 /// whichever widget happens to rebuild or unmount mid-download (mirrors
 /// `DownloadingTrailIds`). Vector and DEM downloads are fully independent:
 /// each has its own start/cancel method and its own progress field on
@@ -30,21 +31,21 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
   Map<String, RegionDownloadState> build() => {};
 
   /// The in-flight [startVectorDownload]/[startDemDownload] `Future`s,
-  /// keyed by region id. Used only to identity-guard each download's
+  /// keyed by region path. Used only to identity-guard each download's
   /// terminal progress-clear so a rapid cancel-then-redownload can't let the
   /// OLD download's `finally` wipe the NEW download's freshly-set progress.
   final Map<String, Future<void>> _activeVectorDownloads = {};
   final Map<String, Future<void>> _activeDemDownloads = {};
 
-  /// Starts a fresh vector download for [regionId]. Idempotent re-entry
+  /// Starts a fresh vector download for [regionPath]. Idempotent re-entry
   /// guard: a second call while already downloading is a no-op, matching
   /// `DownloadingTrailIds.download`'s guard.
-  Future<void> downloadVector(String regionId) async {
-    if (state[regionId]?.vectorProgress != null) return;
+  Future<void> downloadVector(String regionPath) async {
+    if (state[regionPath]?.vectorProgress != null) return;
 
     state = {
       ...state,
-      regionId: (state[regionId] ?? const RegionDownloadState()).copyWith(
+      regionPath: (state[regionPath] ?? const RegionDownloadState()).copyWith(
         vectorProgress: 0,
       ),
     };
@@ -52,20 +53,20 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
     final future = ref
         .read(tileRepositoryManagerProvider)
         .startVectorDownload(
-          regionId,
+          regionPath,
           onProgress: (received, total) {
             if (total <= 0) return;
             // A cancel clears the entry synchronously; never let a late
             // in-flight progress callback resurrect it into `downloading`.
-            if (state[regionId]?.vectorProgress == null) return;
+            if (state[regionPath]?.vectorProgress == null) return;
             state = {
               ...state,
-              regionId: (state[regionId] ?? const RegionDownloadState())
+              regionPath: (state[regionPath] ?? const RegionDownloadState())
                   .copyWith(vectorProgress: received / total),
             };
           },
         );
-    _activeVectorDownloads[regionId] = future;
+    _activeVectorDownloads[regionPath] = future;
 
     try {
       await future;
@@ -73,22 +74,22 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
       // Only THIS download owns the clear — a superseding download (started
       // after a cancel) has already replaced the map entry and its own
       // progress, which must survive.
-      if (identical(_activeVectorDownloads[regionId], future)) {
-        _activeVectorDownloads.remove(regionId);
-        _clearVectorProgress(regionId);
+      if (identical(_activeVectorDownloads[regionPath], future)) {
+        _activeVectorDownloads.remove(regionPath);
+        _clearVectorProgress(regionPath);
       }
     }
   }
 
-  /// Starts a fresh DEM download for [regionId]. Fully independent from
+  /// Starts a fresh DEM download for [regionPath]. Fully independent from
   /// [downloadVector] -- a DEM failure never touches the vector entry, and
   /// vice versa.
-  Future<void> downloadDem(String regionId) async {
-    if (state[regionId]?.demProgress != null) return;
+  Future<void> downloadDem(String regionPath) async {
+    if (state[regionPath]?.demProgress != null) return;
 
     state = {
       ...state,
-      regionId: (state[regionId] ?? const RegionDownloadState()).copyWith(
+      regionPath: (state[regionPath] ?? const RegionDownloadState()).copyWith(
         demProgress: 0,
       ),
     };
@@ -96,30 +97,30 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
     final future = ref
         .read(tileRepositoryManagerProvider)
         .startDemDownload(
-          regionId,
+          regionPath,
           onProgress: (received, total) {
             if (total <= 0) return;
-            if (state[regionId]?.demProgress == null) return;
+            if (state[regionPath]?.demProgress == null) return;
             state = {
               ...state,
-              regionId: (state[regionId] ?? const RegionDownloadState())
+              regionPath: (state[regionPath] ?? const RegionDownloadState())
                   .copyWith(demProgress: received / total),
             };
           },
         );
-    _activeDemDownloads[regionId] = future;
+    _activeDemDownloads[regionPath] = future;
 
     try {
       await future;
     } finally {
-      if (identical(_activeDemDownloads[regionId], future)) {
-        _activeDemDownloads.remove(regionId);
-        _clearDemProgress(regionId);
+      if (identical(_activeDemDownloads[regionPath], future)) {
+        _activeDemDownloads.remove(regionPath);
+        _clearDemProgress(regionPath);
       }
     }
   }
 
-  /// Cancels [regionId]'s in-flight vector download and resets the UI
+  /// Cancels [regionPath]'s in-flight vector download and resets the UI
   /// SYNCHRONOUSLY by clearing the ephemeral progress entry — deliberately
   /// NOT awaiting the download future.
   ///
@@ -133,57 +134,59 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
   /// nothing and the tile stayed frozen. No pause/resume: the manager's
   /// `deleteOnError: true` deletes the `.part` file, so a later
   /// [downloadVector] always restarts from byte 0.
-  void cancelVector(String regionId) {
-    ref.read(tileRepositoryManagerProvider).cancelVectorDownload(regionId);
-    _clearVectorProgress(regionId);
+  void cancelVector(String regionPath) {
+    ref.read(tileRepositoryManagerProvider).cancelVectorDownload(regionPath);
+    _clearVectorProgress(regionPath);
   }
 
-  /// Cancels [regionId]'s in-flight DEM download. See [cancelVector].
-  void cancelDem(String regionId) {
-    ref.read(tileRepositoryManagerProvider).cancelDemDownload(regionId);
-    _clearDemProgress(regionId);
+  /// Cancels [regionPath]'s in-flight DEM download. See [cancelVector].
+  void cancelDem(String regionPath) {
+    ref.read(tileRepositoryManagerProvider).cancelDemDownload(regionPath);
+    _clearDemProgress(regionPath);
   }
 
-  /// Deletes [regionId]'s downloaded packages (vector AND DEM) + on-disk
+  /// Deletes [regionPath]'s downloaded packages (vector AND DEM) + on-disk
   /// files and clears its tracked state.
-  Future<void> delete(String regionId) async {
-    await ref.read(tileRepositoryManagerProvider).deleteRegion(regionId);
-    state = {...state}..remove(regionId);
+  Future<void> delete(String regionPath) async {
+    await ref.read(tileRepositoryManagerProvider).deleteRegion(regionPath);
+    state = {...state}..remove(regionPath);
   }
 
-  /// Removes [regionId]'s DEM package only (D-01) -- the vector package and
+  /// Removes [regionPath]'s DEM package only (D-01) -- the vector package and
   /// its lifecycle are untouched. Mirrors [delete]'s ephemeral-state
   /// clearing but performs no progress tracking (pure removal, not a status
   /// transition).
-  Future<void> deleteDemPackage(String regionId) async {
+  Future<void> deleteDemPackage(String regionPath) async {
     try {
-      await ref.read(tileRepositoryManagerProvider).deleteDemPackage(regionId);
+      await ref
+          .read(tileRepositoryManagerProvider)
+          .deleteDemPackage(regionPath);
     } finally {
-      _clearDemProgress(regionId);
+      _clearDemProgress(regionPath);
     }
   }
 
   /// Clears only the vector progress field, preserving a concurrently
-  /// in-flight DEM download's entry -- removing the whole [regionId] key
+  /// in-flight DEM download's entry -- removing the whole [regionPath] key
   /// outright would wipe `demProgress` out from under it.
-  void _clearVectorProgress(String regionId) {
-    final current = state[regionId];
+  void _clearVectorProgress(String regionPath) {
+    final current = state[regionPath];
     if (current == null) return;
     if (current.demProgress == null) {
-      state = {...state}..remove(regionId);
+      state = {...state}..remove(regionPath);
     } else {
-      state = {...state, regionId: current.copyWith(vectorProgress: null)};
+      state = {...state, regionPath: current.copyWith(vectorProgress: null)};
     }
   }
 
   /// See [_clearVectorProgress] -- the DEM-side mirror.
-  void _clearDemProgress(String regionId) {
-    final current = state[regionId];
+  void _clearDemProgress(String regionPath) {
+    final current = state[regionPath];
     if (current == null) return;
     if (current.vectorProgress == null) {
-      state = {...state}..remove(regionId);
+      state = {...state}..remove(regionPath);
     } else {
-      state = {...state, regionId: current.copyWith(demProgress: null)};
+      state = {...state, regionPath: current.copyWith(demProgress: null)};
     }
   }
 }

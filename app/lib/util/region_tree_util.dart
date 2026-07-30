@@ -45,22 +45,29 @@ List<RegionTreeNode> buildRegionTree(List<RegionHierarchyRow> rows) {
   return roots;
 }
 
-/// Given a predicate over leaf ids, returns the set of group node ids that
+/// Given a predicate over leaf nodes, returns the set of group node ids that
 /// should be expanded by default (D-02) — a group is expanded iff ANY
 /// descendant leaf satisfies [hasDownloadOrInProgress]. Ported 1:1 from
 /// `regions_ui.html:599-609`'s `computeDefaultExpanded`/
 /// `hasEnabledDescendant`, generalized from a hardcoded `node.enabled` check
 /// to an injected predicate so it can be recomputed against a fresh
 /// `RegionEntity` snapshot without rebuilding tree shape.
+///
+/// The predicate receives the whole leaf [RegionTreeNode], not just its id, so
+/// a caller can resolve the matching `RegionEntity` by `path` — the stable
+/// local key. Node ids come straight from the catalog response and the backend
+/// re-mints them on every rebuild, so they must never be used to look up local
+/// download state (see `RegionEntity.id`). The returned set stays keyed by
+/// group node id, which is only ever compared against the same fetch's tree.
 Set<String> computeDefaultExpanded(
   List<RegionTreeNode> roots,
-  bool Function(String leafId) hasDownloadOrInProgress,
+  bool Function(RegionTreeNode leaf) hasDownloadOrInProgress,
 ) {
   final expanded = <String>{};
 
   bool walk(RegionTreeNode node) {
     if (node.kind == RegionNodeKind.leaf) {
-      return hasDownloadOrInProgress(node.id);
+      return hasDownloadOrInProgress(node);
     }
     final any = node.children.map(walk).toList().any((v) => v);
     if (any) expanded.add(node.id);
@@ -97,7 +104,8 @@ List<({RegionTreeNode node, int depth})> flattenVisible(
       if (filterMatches != null && !filterMatches.contains(node.id)) continue;
       out.add((node: node, depth: depth));
       if (node.kind == RegionNodeKind.group) {
-        final shouldDescend = filterMatches != null || expanded.contains(node.id);
+        final shouldDescend =
+            filterMatches != null || expanded.contains(node.id);
         if (shouldDescend) walk(node.children, depth + 1);
       }
     }

@@ -120,7 +120,9 @@ class _TileRepositoryHarnessScreenState
 
   Future<void> _refreshCatalog() async {
     try {
-      await ref.read(regionRepositoryProvider).refreshCatalogAndFetchHierarchy();
+      await ref
+          .read(regionRepositoryProvider)
+          .refreshCatalogAndFetchHierarchy();
       debugPrint('[harness] refreshCatalog succeeded');
     } catch (e) {
       debugPrint('[harness] refreshCatalog failed: $e');
@@ -135,55 +137,57 @@ class _TileRepositoryHarnessScreenState
     });
   }
 
-  void _onProgress(String regionId, String kind, int received, int total) {
+  void _onProgress(String regionPath, String kind, int received, int total) {
     final pct = total > 0 ? (received / total * 100).toStringAsFixed(1) : '?';
     debugPrint(
-      '[harness] $regionId:$kind received=$received total=$total ($pct%)',
+      '[harness] $regionPath:$kind received=$received total=$total ($pct%)',
     );
     setState(() {
-      _statusLine = '$regionId:$kind received=$received total=$total';
+      _statusLine = '$regionPath:$kind received=$received total=$total';
     });
   }
 
   Future<void> _downloadVector(RegionEntity region) async {
     final manager = ref.read(tileRepositoryManagerProvider);
     await manager.startVectorDownload(
-      region.id,
+      region.path,
       onProgress: (received, total) =>
-          _onProgress(region.id, 'vector', received, total),
+          _onProgress(region.path, 'vector', received, total),
     );
     _reloadRegions();
-    debugPrint('[harness] ${region.id} vector RegionStatus=${region.status}');
+    debugPrint('[harness] ${region.path} vector RegionStatus=${region.status}');
   }
 
   Future<void> _downloadDem(RegionEntity region) async {
     final manager = ref.read(tileRepositoryManagerProvider);
     await manager.startDemDownload(
-      region.id,
+      region.path,
       onProgress: (received, total) =>
-          _onProgress(region.id, 'dem', received, total),
+          _onProgress(region.path, 'dem', received, total),
     );
     _reloadRegions();
     debugPrint(
-      '[harness] ${region.id} dem PackageStatus='
+      '[harness] ${region.path} dem PackageStatus='
       '${region.demPackage.target?.status ?? PackageStatus.notDownloaded}',
     );
   }
 
   void _cancelVector(RegionEntity region) {
-    ref.read(tileRepositoryManagerProvider).cancelVectorDownload(region.id);
-    debugPrint('[harness] ${region.id} vector cancelled');
+    ref.read(tileRepositoryManagerProvider).cancelVectorDownload(region.path);
+    debugPrint('[harness] ${region.path} vector cancelled');
   }
 
   void _cancelDem(RegionEntity region) {
-    ref.read(tileRepositoryManagerProvider).cancelDemDownload(region.id);
-    debugPrint('[harness] ${region.id} dem cancelled');
+    ref.read(tileRepositoryManagerProvider).cancelDemDownload(region.path);
+    debugPrint('[harness] ${region.path} dem cancelled');
   }
 
   Future<void> _delete(RegionEntity region) async {
-    await ref.read(tileRepositoryManagerProvider).deleteRegion(region.id);
+    await ref.read(tileRepositoryManagerProvider).deleteRegion(region.path);
     _reloadRegions();
-    debugPrint('[harness] ${region.id} deleted, RegionStatus=${region.status}');
+    debugPrint(
+      '[harness] ${region.path} deleted, RegionStatus=${region.status}',
+    );
   }
 
   /// Queries `localTilePathsForBounds` for either a bbox inside [region]
@@ -208,12 +212,12 @@ class _TileRepositoryHarnessScreenState
     final result = manager.localTilePathsForBounds(bounds);
     final label = inside ? 'inside' : 'outside';
     debugPrint(
-      '[harness] localTilePathsForBounds($label ${region.id}) -> '
+      '[harness] localTilePathsForBounds($label ${region.path}) -> '
       'vector=${result.vectorPaths} dem=${result.demPaths}',
     );
     setState(() {
       _lastQueryResult =
-          '$label(${region.id}): vector=${result.vectorPaths} '
+          '$label(${region.path}): vector=${result.vectorPaths} '
           'dem=${result.demPaths}';
     });
   }
@@ -257,7 +261,7 @@ class _TileRepositoryHarnessScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${region.name} (${region.id}) -- RegionStatus='
+                      '${region.name} (${region.path}) -- RegionStatus='
                       '${region.status} demPackageStatus='
                       '${region.demPackage.target?.status ?? PackageStatus.notDownloaded}',
                       style: Theme.of(context).textTheme.titleSmall,

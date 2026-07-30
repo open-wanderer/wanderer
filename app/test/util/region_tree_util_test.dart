@@ -94,8 +94,8 @@ void main() {
     test('a leaf returns the predicate result directly', () {
       final roots = buildRegionTree([buildRow(id: 'leaf-a')]);
 
-      final expandedTrue = computeDefaultExpanded(roots, (id) => true);
-      final expandedFalse = computeDefaultExpanded(roots, (id) => false);
+      final expandedTrue = computeDefaultExpanded(roots, (leaf) => true);
+      final expandedFalse = computeDefaultExpanded(roots, (leaf) => false);
 
       // Leaves are never added to the expanded set themselves (only groups
       // are); this just confirms the predicate result doesn't spuriously
@@ -114,7 +114,7 @@ void main() {
           buildRow(id: 'leaf-b', parent: 'group-b'),
         ]);
 
-        final expanded = computeDefaultExpanded(roots, (id) => id == 'leaf-a');
+        final expanded = computeDefaultExpanded(roots, (leaf) => leaf.id == 'leaf-a');
 
         expect(expanded, {'group-a'});
       },
@@ -127,7 +127,7 @@ void main() {
         buildRow(id: 'leaf-deep', parent: 'mid'),
       ]);
 
-      final expanded = computeDefaultExpanded(roots, (id) => id == 'leaf-deep');
+      final expanded = computeDefaultExpanded(roots, (leaf) => leaf.id == 'leaf-deep');
 
       expect(expanded, {'top', 'mid'});
     });

@@ -163,11 +163,17 @@ class _SettingsOfflineRegionsScreenState
     // Render-time join (RESEARCH.md Pitfall 1) — cheap on every build; the
     // tree shape itself (`_treeRoots`) is NEVER rebuilt here, only in
     // `_refreshCatalog` after a genuine fetch.
-    final byId = {for (final r in regions) r.id: r};
+    //
+    // Joined on `path`, never on the catalog's node id: the backend re-mints
+    // region record ids on every rebuild (see `RegionEntity.id`), so an
+    // id-keyed join silently stopped finding the downloaded row and rendered
+    // every region as "not downloaded" while the disk-usage summary — which
+    // iterates the same rows directly — still counted its bytes.
+    final byPath = {for (final r in regions) r.path: r};
 
     if (_treeRoots != null && !_expandedSeeded) {
-      _expandedIds = computeDefaultExpanded(_treeRoots!, (leafId) {
-        final entity = byId[leafId];
+      _expandedIds = computeDefaultExpanded(_treeRoots!, (leaf) {
+        final entity = byPath[leaf.path];
         if (entity == null) return false;
         final vectorStatus = entity.status;
         final hasVectorDownloadOrInProgress =
@@ -220,7 +226,7 @@ class _SettingsOfflineRegionsScreenState
                   child: _buildRegionArea(
                     l10n,
                     visibleRows,
-                    byId,
+                    byPath,
                     hasSearchQuery: trimmedQuery.isNotEmpty,
                   ),
                 ),
@@ -252,7 +258,7 @@ class _SettingsOfflineRegionsScreenState
   Widget _buildRegionArea(
     AppLocalizations l10n,
     List<_RegionRow> visibleRows,
-    Map<String, RegionEntity> byId, {
+    Map<String, RegionEntity> byPath, {
     required bool hasSearchQuery,
   }) {
     if (_treeRoots == null) {
@@ -288,12 +294,13 @@ class _SettingsOfflineRegionsScreenState
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 16),
       itemCount: visibleRows.length,
-      itemBuilder: (context, index) => _buildTreeRow(visibleRows[index], byId),
+      itemBuilder: (context, index) =>
+          _buildTreeRow(visibleRows[index], byPath),
     );
   }
 
   /// A single flattened tree row: either a group header or a leaf region card.
-  Widget _buildTreeRow(_RegionRow row, Map<String, RegionEntity> byId) {
+  Widget _buildTreeRow(_RegionRow row, Map<String, RegionEntity> byPath) {
     if (row.node.kind != RegionNodeKind.leaf) {
       return KeyedSubtree(
         key: ValueKey(row.node.id),
@@ -301,7 +308,7 @@ class _SettingsOfflineRegionsScreenState
       );
     }
 
-    final entity = byId[row.node.id];
+    final entity = byPath[row.node.path];
     if (entity == null) {
       // Pitfall 6: a hierarchy row with no matching RegionEntity (e.g. a
       // mid-refresh race) must never crash the render.
@@ -623,7 +630,7 @@ class _SettingsOfflineRegionsScreenState
   /// too (D-02); deleting the DEM tile removes only the DEM package (D-01).
   Widget _buildActiveRow(RegionEntity region) {
     final l10n = AppLocalizations.of(context)!;
-    final downloadState = ref.watch(tileRepositoryStatusProvider)[region.id];
+    final downloadState = ref.watch(tileRepositoryStatusProvider)[region.path];
     final colorScheme = Theme.of(context).colorScheme;
     final accentColor = Theme.of(context).brightness == Brightness.dark
         ? colorScheme.onSurface
@@ -965,7 +972,7 @@ class _SettingsOfflineRegionsScreenState
     _save(
       () => ref
           .read(tileRepositoryStatusProvider.notifier)
-          .downloadVector(region.id),
+          .downloadVector(region.path),
     );
   }
 
@@ -976,7 +983,7 @@ class _SettingsOfflineRegionsScreenState
   /// the manager deletes the `.part` file, so a later download restarts from
   /// byte 0.
   void _onCancelVector(RegionEntity region) {
-    ref.read(tileRepositoryStatusProvider.notifier).cancelVector(region.id);
+    ref.read(tileRepositoryStatusProvider.notifier).cancelVector(region.path);
     ref.invalidate(regionListNotifierProvider);
   }
 
@@ -984,13 +991,13 @@ class _SettingsOfflineRegionsScreenState
     _save(
       () => ref
           .read(tileRepositoryStatusProvider.notifier)
-          .downloadDem(region.id),
+          .downloadDem(region.path),
     );
   }
 
   /// See [_onCancelVector] — the DEM-side mirror, fully independent.
   void _onCancelDem(RegionEntity region) {
-    ref.read(tileRepositoryStatusProvider.notifier).cancelDem(region.id);
+    ref.read(tileRepositoryStatusProvider.notifier).cancelDem(region.path);
     ref.invalidate(regionListNotifierProvider);
   }
 
@@ -1001,7 +1008,7 @@ class _SettingsOfflineRegionsScreenState
     _save(
       () => ref
           .read(tileRepositoryStatusProvider.notifier)
-          .deleteDemPackage(region.id),
+          .deleteDemPackage(region.path),
     );
   }
 
@@ -1037,7 +1044,7 @@ class _SettingsOfflineRegionsScreenState
     if (!mounted) return;
 
     await _save(
-      () => ref.read(tileRepositoryStatusProvider.notifier).delete(region.id),
+      () => ref.read(tileRepositoryStatusProvider.notifier).delete(region.path),
     );
   }
 }

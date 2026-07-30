@@ -13,25 +13,37 @@ class RegionEntity {
   @Id()
   int obxId = 0;
 
-  /// The catalog business id (e.g. `"de-nrw"`). `@Unique(replace)` is what
-  /// makes Plan 02's upsert-by-id cheap: `box.put()` with a matching unique
-  /// id replaces the row in place rather than erroring or duplicating.
-  @Index()
-  @Unique(onConflict: ConflictStrategy.replace)
+  /// The server's `region_archives` record id. Informational ONLY — it is
+  /// deliberately NOT indexed, NOT unique, and never a lookup or storage key.
+  ///
+  /// The backend re-mints this id: `ReconcileArchives`
+  /// (`db/services/regions/reconcile.go`) deletes any `region_archives` row
+  /// whose vector AND DEM files are both missing from disk, and the next
+  /// build pass recreates the row through `findOrCreateRegionRecord` with a
+  /// fresh PocketBase id. Keying local rows or on-disk archive directories
+  /// off this value silently detached every download whenever the server
+  /// regenerated: the re-minted id arrived as a brand-new row with no package
+  /// links, while the old row kept the packages and the archives but vanished
+  /// from the catalog. Always key on [path] instead.
   String id;
 
   // --- Catalog-owned fields (D-01: only these are overwritten by
   // applyCatalogEntry) ---
   String name;
 
-  /// The region's materialized `path` (e.g. `canada.alberta.south`) — the key
-  /// the backend names every archive dir and download URL after. Distinct
-  /// from [id] (the opaque record id used only for local storage dirs). The
-  /// download request URL is built from this, not [id] (see
-  /// `TileRepositoryManager._requestPathFor`). Defaults `''` so ObjectBox's
-  /// add-column migration leaves pre-existing rows valid; a catalog refresh
-  /// repopulates it via [applyCatalogEntry].
-  String path = '';
+  /// The region's materialized `path` (e.g. `canada.alberta.south`) — the
+  /// stable identity of a region and the local primary key.
+  ///
+  /// This is what the backend itself treats as canonical: `region_archives`
+  /// stores it in its `path` field, `findOrCreateRegionRecord` looks a region
+  /// up by it, and every archive dir and download URL is named after it. It
+  /// survives the record-id re-minting described on [id], so `@Unique(replace)`
+  /// lives here — a `box.put()` for a known path replaces that row in place,
+  /// carrying its `ToOne` package links and `lastDownloadedVersion` through a
+  /// re-mint instead of duplicating the region.
+  @Index()
+  @Unique(onConflict: ConflictStrategy.replace)
+  String path;
 
   /// bbox stored as four discrete fields (not a List) — ObjectBox has no
   /// native `List<double>` column support for this shape; matches
@@ -130,8 +142,8 @@ class RegionEntity {
   }
 
   RegionEntity({
-    required this.id,
-    this.path = '',
+    required this.path,
+    this.id = '',
     required this.name,
     this.minLon = 0,
     this.minLat = 0,
@@ -163,8 +175,8 @@ class RegionEntity {
     }
 
     return RegionEntity(
-      id: entry.id,
       path: entry.path,
+      id: entry.id,
       name: entry.name,
       minLon: entry.bbox[0],
       minLat: entry.bbox[1],
@@ -183,9 +195,15 @@ class RegionEntity {
   }
 
   /// Overwrites ONLY the catalog-owned fields (D-01) — never touches
-  /// [obxId], [id], [vectorPackage], [demPackage], or
+  /// [obxId], [path], [vectorPackage], [demPackage], or
   /// [lastDownloadedVersion]. Throws [FormatException] when
   /// `entry.bbox.length != 4`, matching [fromCatalogEntry] (T-22-01).
+  ///
+  /// [id] IS overwritten: the caller matched this row by [path], so a differing
+  /// `entry.id` means the backend re-minted the record id and this row must
+  /// adopt it while keeping its download state. [path] is deliberately not
+  /// reassigned — it is the key this row was found by, so writing it back
+  /// could only ever be a no-op or a silent identity change.
   void applyCatalogEntry(RegionCatalogEntry entry) {
     if (entry.bbox.length != 4) {
       throw FormatException(
@@ -194,8 +212,8 @@ class RegionEntity {
       );
     }
 
+    id = entry.id;
     name = entry.name;
-    path = entry.path;
     minLon = entry.bbox[0];
     minLat = entry.bbox[1];
     maxLon = entry.bbox[2];

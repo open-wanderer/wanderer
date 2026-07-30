@@ -148,27 +148,30 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
       // each package's own future forces its latch to a full 1.0 on
       // completion (see the whenComplete callbacks below), so the
       // contribution can never move backwards once set. Two separate maps
-      // (never one keyed solely by region.id) so a region checked for BOTH
-      // Vector and DEM doesn't collide on a single key.
-      final vectorLatched = {for (final region in vectorRegions) region.id: 0.0};
-      final demLatched = {for (final region in demRegions) region.id: 0.0};
+      // (never one keyed solely by region.path) so a region checked for BOTH
+      // Vector and DEM doesn't collide on a single key. Keyed by `path`, which
+      // is also how `tileRepositoryStatusProvider` keys its state.
+      final vectorLatched = {
+        for (final region in vectorRegions) region.path: 0.0,
+      };
+      final demLatched = {for (final region in demRegions) region.path: 0.0};
 
       void updateAggregate() {
         final packageStates = ref.read(tileRepositoryStatusProvider);
         var sum = lastTrailFraction;
         for (final region in vectorRegions) {
-          final live = packageStates[region.id]?.vectorProgress;
-          if (live != null && live > vectorLatched[region.id]!) {
-            vectorLatched[region.id] = live;
+          final live = packageStates[region.path]?.vectorProgress;
+          if (live != null && live > vectorLatched[region.path]!) {
+            vectorLatched[region.path] = live;
           }
-          sum += vectorLatched[region.id]!;
+          sum += vectorLatched[region.path]!;
         }
         for (final region in demRegions) {
-          final live = packageStates[region.id]?.demProgress;
-          if (live != null && live > demLatched[region.id]!) {
-            demLatched[region.id] = live;
+          final live = packageStates[region.path]?.demProgress;
+          if (live != null && live > demLatched[region.path]!) {
+            demLatched[region.path] = live;
           }
-          sum += demLatched[region.id]!;
+          sum += demLatched[region.path]!;
         }
         final combined = (sum / itemCount).clamp(0.0, 1.0);
         notificationService
@@ -183,13 +186,13 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
 
       regionFutures.addAll([
         for (final region in vectorRegions)
-          tileRepoNotifier.downloadVector(region.id).whenComplete(() {
-            vectorLatched[region.id] = 1.0;
+          tileRepoNotifier.downloadVector(region.path).whenComplete(() {
+            vectorLatched[region.path] = 1.0;
             updateAggregate();
           }),
         for (final region in demRegions)
-          tileRepoNotifier.downloadDem(region.id).whenComplete(() {
-            demLatched[region.id] = 1.0;
+          tileRepoNotifier.downloadDem(region.path).whenComplete(() {
+            demLatched[region.path] = 1.0;
             updateAggregate();
           }),
       ]);
