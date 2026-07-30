@@ -121,7 +121,11 @@ abstract class _$ProfileNotifier extends $AsyncNotifier<Actor> {
 
 /// keepAlive provider — fetches the current user's own profile Actor.
 /// Reads handle from authProvider.preferredUsername (per D-02).
-/// Cache refreshed only on pull-to-refresh (Phase 2); no app-resume invalidation (D-03).
+/// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
+/// (T-h2p-02: watching `authProvider` instead of reading it once means this
+/// provider rebuilds — and re-fetches — the moment auth resolves to a
+/// different session, rather than holding the first account's `Actor`
+/// forever); still no app-resume invalidation (D-03).
 ///
 /// Writes every successful fetch through to `UserEntity.actor` and falls back
 /// to that cached actor when the fetch fails, so the own-profile screen renders
@@ -133,7 +137,11 @@ final ownProfileProvider = OwnProfileProvider._();
 
 /// keepAlive provider — fetches the current user's own profile Actor.
 /// Reads handle from authProvider.preferredUsername (per D-02).
-/// Cache refreshed only on pull-to-refresh (Phase 2); no app-resume invalidation (D-03).
+/// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
+/// (T-h2p-02: watching `authProvider` instead of reading it once means this
+/// provider rebuilds — and re-fetches — the moment auth resolves to a
+/// different session, rather than holding the first account's `Actor`
+/// forever); still no app-resume invalidation (D-03).
 ///
 /// Writes every successful fetch through to `UserEntity.actor` and falls back
 /// to that cached actor when the fetch fails, so the own-profile screen renders
@@ -143,7 +151,11 @@ final class OwnProfileProvider
     extends $AsyncNotifierProvider<OwnProfile, Actor> {
   /// keepAlive provider — fetches the current user's own profile Actor.
   /// Reads handle from authProvider.preferredUsername (per D-02).
-  /// Cache refreshed only on pull-to-refresh (Phase 2); no app-resume invalidation (D-03).
+  /// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
+  /// (T-h2p-02: watching `authProvider` instead of reading it once means this
+  /// provider rebuilds — and re-fetches — the moment auth resolves to a
+  /// different session, rather than holding the first account's `Actor`
+  /// forever); still no app-resume invalidation (D-03).
   ///
   /// Writes every successful fetch through to `UserEntity.actor` and falls back
   /// to that cached actor when the fetch fails, so the own-profile screen renders
@@ -168,11 +180,15 @@ final class OwnProfileProvider
   OwnProfile create() => OwnProfile();
 }
 
-String _$ownProfileHash() => r'b17f8b890fbe0946117fc6c46047b59714a34453';
+String _$ownProfileHash() => r'893e3bb20e9fd2f84c8e373379c0d32f0139daf2';
 
 /// keepAlive provider — fetches the current user's own profile Actor.
 /// Reads handle from authProvider.preferredUsername (per D-02).
-/// Cache refreshed only on pull-to-refresh (Phase 2); no app-resume invalidation (D-03).
+/// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
+/// (T-h2p-02: watching `authProvider` instead of reading it once means this
+/// provider rebuilds — and re-fetches — the moment auth resolves to a
+/// different session, rather than holding the first account's `Actor`
+/// forever); still no app-resume invalidation (D-03).
 ///
 /// Writes every successful fetch through to `UserEntity.actor` and falls back
 /// to that cached actor when the fetch fails, so the own-profile screen renders

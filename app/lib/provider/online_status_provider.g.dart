@@ -70,7 +70,7 @@ final class OnlineStatusProvider extends $NotifierProvider<OnlineStatus, bool> {
   }
 }
 
-String _$onlineStatusHash() => r'fe9a395052af3268b4645b3cf95745c92bf0963c';
+String _$onlineStatusHash() => r'ddc57c807dc7ceb952ac866ee246ffb5d3cb0fae';
 
 /// The app's single keepAlive source of truth for "is the backend reachable
 /// right now". Optimistic by default (`true`), kept live by an

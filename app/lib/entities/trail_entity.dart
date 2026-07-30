@@ -39,6 +39,22 @@ class TrailEntity {
   DateTime updated;
   List<String> photos = [];
 
+  /// Ids of the accounts that have this trail in their offline library.
+  ///
+  /// This is what makes the library per-account WITHOUT deleting anything on
+  /// logout: one row and one copy of the files per trail, shared by however
+  /// many accounts downloaded it, with every read path filtering on the
+  /// signed-in account via `savedByUserIds.containsElement(userId)`.
+  ///
+  /// A per-(trail, account) row was not an option: [id] is
+  /// `@Unique(onConflict: replace)`, so a second account downloading the same
+  /// trail would silently replace the first account's row.
+  ///
+  /// Empty means no account holds it — `TrailLibraryNotifier.deleteTrail`
+  /// treats that as the signal to finally remove the row and its
+  /// `library/<id>/` directory.
+  List<String> savedByUserIds = [];
+
   @Transient()
   TrailDifficulty difficulty = TrailDifficulty.easy;
 

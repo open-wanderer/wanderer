@@ -222,8 +222,12 @@ class Auth extends _$Auth {
     final jar = ref.read(cookieJarProvider);
     await jar.deleteAll();
     _box.removeAll();
-    // Privacy invariant: after logout, no row and no file belonging to the
-    // signed-out account remains on the device (T-h2p-01/T-h2p-03).
+    // Privacy invariant: after logout, no content belonging to the signed-out
+    // account is REACHABLE by whoever signs in next (T-h2p-01/T-h2p-03). Not
+    // the same as erasing it -- the offline library deliberately survives and
+    // is scoped per account via `TrailEntity.savedByUserIds`, because deleting
+    // it meant signing out of an account destroyed every trail it had
+    // downloaded.
     await purgeAccountScopedData(ref.read(objectBoxProvider));
     ref.invalidateSelf();
   }

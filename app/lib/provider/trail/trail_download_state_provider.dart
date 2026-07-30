@@ -6,6 +6,7 @@ import 'package:wanderer/entities/region_entity.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/download_notification_provider.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
+import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/router_provider.dart';
@@ -13,6 +14,7 @@ import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
+import 'package:wanderer/util/current_account.dart';
 import 'package:wanderer/util/trail_coverage_util.dart';
 
 part 'trail_download_state_provider.g.dart';
@@ -218,6 +220,9 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
         await trailDownloadService.downloadTrail(
           trail,
           subcategories: ref.read(subcategoryProvider),
+          // Claims this trail for the downloading account -- what scopes the
+          // offline library without deleting anything on logout.
+          savedByUserId: currentAccountId(ref.read(objectBoxProvider)),
           onProgress: (done, total) {
             if (hasSelectedPackages) {
               lastTrailFraction = total > 0 ? (done / total).clamp(0, 1) : 0;

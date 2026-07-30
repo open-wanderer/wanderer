@@ -6,6 +6,7 @@ import 'package:wanderer/models/trail_like.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/util/current_account.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
 part 'trail_provider.g.dart';
@@ -51,9 +52,21 @@ class TrailNotifier extends _$TrailNotifier {
 
       return trail;
     } catch (_) {
+      // Offline fallback, scoped to the signed-in account: trail rows are
+      // shared and survive a logout (see `TrailEntity.savedByUserIds`), so an
+      // unfiltered read here would serve one account the cached copy of a
+      // private trail only another account had downloaded.
       final store = ref.read(objectBoxProvider);
+      final userId = currentAccountId(store);
+      if (userId == null) rethrow;
+
       final box = store.box<TrailEntity>();
-      final query = box.query(TrailEntity_.id.equals(id)).build();
+      final query = box
+          .query(
+            TrailEntity_.id.equals(id) &
+                TrailEntity_.savedByUserIds.containsElement(userId),
+          )
+          .build();
       final entity = query.findFirst();
       query.close();
 

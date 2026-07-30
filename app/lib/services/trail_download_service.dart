@@ -4,14 +4,15 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:objectbox/objectbox.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/library_membership.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
 class TrailDownloadService {
@@ -36,11 +37,18 @@ class TrailDownloadService {
   /// [subcategories] is passed in by the caller because this service holds no
   /// `Ref` — it feeds [costingForTrail] so the cached Valhalla payload uses
   /// the same settings-driven costing as the online path.
+  ///
+  /// [savedByUserId] is the id of the account downloading the trail, passed in
+  /// for the same reason. It is added to `TrailEntity.savedByUserIds`, which is
+  /// what scopes the offline library per account. A null id (no signed-in user)
+  /// adds no membership, so the trail stays invisible to every library rather
+  /// than leaking into all of them.
   Future<void> downloadTrail(
     Trail trail, {
     CancelToken? cancelToken,
     void Function(int done, int total)? onProgress,
     List<Subcategory> subcategories = const [],
+    String? savedByUserId,
   }) async {
     final box = _store.box<TrailEntity>();
     final trailId = trail.id;
@@ -167,6 +175,20 @@ class TrailDownloadService {
     }
 
     _store.runInTransaction(TxMode.write, () {
+      // Carry the existing library membership across a re-download. `id` is
+      // `@Unique(onConflict: replace)` and `entity` is a FRESH row built by
+      // `fromModel`, so putting it blind would wipe `savedByUserIds` -- and
+      // with it every other account's claim on this trail. Re-read inside the
+      // transaction rather than trusting an entry-time snapshot.
+      final query = box.query(TrailEntity_.id.equals(trailId)).build();
+      final existing = query.findFirst();
+      query.close();
+
+      entity.savedByUserIds = libraryMembersAfterSave(
+        existing?.savedByUserIds ?? const [],
+        savedByUserId,
+      );
+
       box.put(entity);
     });
   }

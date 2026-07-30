@@ -70,8 +70,9 @@ final class TileRepositoryManagerProvider
 String _$tileRepositoryManagerHash() =>
     r'64c5e2fb8758d08be2dcc4154282b30efea8b9c6';
 
-/// Per-region download state, keyed by region id -- the Settings/Regions
-/// screen subscribes to this. `keepAlive` so in-progress state survives
+/// Per-region download state, keyed by region PATH (never the server record
+/// id, which the backend re-mints) -- the Settings/Regions screen subscribes
+/// to this. `keepAlive` so in-progress state survives
 /// whichever widget happens to rebuild or unmount mid-download (mirrors
 /// `DownloadingTrailIds`). Vector and DEM downloads are fully independent:
 /// each has its own start/cancel method and its own progress field on
@@ -80,8 +81,9 @@ String _$tileRepositoryManagerHash() =>
 @ProviderFor(TileRepositoryStatus)
 final tileRepositoryStatusProvider = TileRepositoryStatusProvider._();
 
-/// Per-region download state, keyed by region id -- the Settings/Regions
-/// screen subscribes to this. `keepAlive` so in-progress state survives
+/// Per-region download state, keyed by region PATH (never the server record
+/// id, which the backend re-mints) -- the Settings/Regions screen subscribes
+/// to this. `keepAlive` so in-progress state survives
 /// whichever widget happens to rebuild or unmount mid-download (mirrors
 /// `DownloadingTrailIds`). Vector and DEM downloads are fully independent:
 /// each has its own start/cancel method and its own progress field on
@@ -92,8 +94,9 @@ final class TileRepositoryStatusProvider
           TileRepositoryStatus,
           Map<String, RegionDownloadState>
         > {
-  /// Per-region download state, keyed by region id -- the Settings/Regions
-  /// screen subscribes to this. `keepAlive` so in-progress state survives
+  /// Per-region download state, keyed by region PATH (never the server record
+  /// id, which the backend re-mints) -- the Settings/Regions screen subscribes
+  /// to this. `keepAlive` so in-progress state survives
   /// whichever widget happens to rebuild or unmount mid-download (mirrors
   /// `DownloadingTrailIds`). Vector and DEM downloads are fully independent:
   /// each has its own start/cancel method and its own progress field on
@@ -128,10 +131,11 @@ final class TileRepositoryStatusProvider
 }
 
 String _$tileRepositoryStatusHash() =>
-    r'6c4955d47fc8ac04d49d0cac30a131bbb8086bfd';
+    r'5e41954e1715cee839c643249070effbb1c8c000';
 
-/// Per-region download state, keyed by region id -- the Settings/Regions
-/// screen subscribes to this. `keepAlive` so in-progress state survives
+/// Per-region download state, keyed by region PATH (never the server record
+/// id, which the backend re-mints) -- the Settings/Regions screen subscribes
+/// to this. `keepAlive` so in-progress state survives
 /// whichever widget happens to rebuild or unmount mid-download (mirrors
 /// `DownloadingTrailIds`). Vector and DEM downloads are fully independent:
 /// each has its own start/cancel method and its own progress field on

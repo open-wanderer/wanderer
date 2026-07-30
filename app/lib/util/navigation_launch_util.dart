@@ -18,15 +18,28 @@ import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
+import 'package:wanderer/util/current_account.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
 /// Reads the cached [NavigateResponse] for [trailId] from ObjectBox, or null
 /// if not found/decodable. Also used by `main.dart`'s launch-time resume flow.
+///
+/// Scoped to the signed-in account: trail rows are shared across accounts and
+/// survive a logout (see `TrailEntity.savedByUserIds`), so an unfiltered read
+/// would let one account navigate a trail only another account had downloaded.
 NavigateResponse? readCachedNav(Store store, String trailId) {
+  final userId = currentAccountId(store);
+  if (userId == null) return null;
+
   final box = store.box<TrailEntity>();
-  final query = box.query(TrailEntity_.id.equals(trailId)).build();
+  final query = box
+      .query(
+        TrailEntity_.id.equals(trailId) &
+            TrailEntity_.savedByUserIds.containsElement(userId),
+      )
+      .build();
   final entity = query.findFirst();
   query.close();
 
