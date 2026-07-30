@@ -12,6 +12,7 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
+import 'package:wanderer/util/account_data_purge_util.dart';
 import 'package:wanderer/util/avatar_cache_util.dart';
 
 part 'auth_provider.g.dart';
@@ -221,6 +222,9 @@ class Auth extends _$Auth {
     final jar = ref.read(cookieJarProvider);
     await jar.deleteAll();
     _box.removeAll();
+    // Privacy invariant: after logout, no row and no file belonging to the
+    // signed-out account remains on the device (T-h2p-01/T-h2p-03).
+    await purgeAccountScopedData(ref.read(objectBoxProvider));
     ref.invalidateSelf();
   }
 
@@ -237,6 +241,21 @@ class Auth extends _$Auth {
     final userData = User.fromJson(userResponse.data);
 
     final UserEntity userEntity = userData.toEntity();
+
+    // Defense in depth for a logout that never ran or was interrupted
+    // mid-flight: if the incoming account differs from whatever is cached,
+    // purge before this account's data is written. Must run before the
+    // `updateFromServer` call below (it purges SettingsEntity, so the
+    // incoming account's settings must not be written first), and
+    // `_box.removeAll()` must run before the later `_box.put(userEntity)` so
+    // the store can never hold two UserEntity rows — every reader resolves
+    // the session via `getAll().firstOrNull`, which would otherwise be able
+    // to return the previous account (T-h2p-03).
+    final cachedUserId = _box.getAll().firstOrNull?.id;
+    if (shouldPurgeForIncomingUser(cachedUserId, userEntity.id)) {
+      _box.removeAll();
+      await purgeAccountScopedData(ref.read(objectBoxProvider));
+    }
 
     if (userData.expand?.settings != null) {
       await ref
