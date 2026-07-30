@@ -1963,6 +1963,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connect to the internet to manage categories.'**
   String get offline_categories_body;
+
+  /// Body copy shown inside the map screen's draggable trail-results sheet when offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to search for trails. Downloaded trails are still available.'**
+  String get offline_trail_search_body;
 }
 
 class _AppLocalizationsDelegate

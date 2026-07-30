@@ -1036,4 +1036,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get offline_categories_body =>
       'Connect to the internet to manage categories.';
+
+  @override
+  String get offline_trail_search_body =>
+      'Connect to the internet to search for trails. Downloaded trails are still available.';
 }

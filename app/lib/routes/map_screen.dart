@@ -232,6 +232,62 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _initialSearchDone = false;
   }
 
+  /// Offline stand-in for the trail-results list inside the draggable sheet.
+  ///
+  /// MUST attach [scrollController] and stay scrollable: the sheet drives its
+  /// drag from the attached scroll position, so a non-scrollable child (which
+  /// is what `AsyncLoader` substitutes on error — a bare `WandererError`) leaves
+  /// the sheet frozen as well as showing a raw exception. Carries no retry CTA
+  /// because the map takeover behind it already owns that affordance.
+  Widget _buildSheetOfflineState(ScrollController scrollController) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.5);
+
+    return ListView(
+      controller: scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        8,
+        16,
+        kBottomNavigationBarHeight + 16 + 32,
+      ),
+      children: [
+        Center(
+          child: Container(
+            width: 30,
+            height: 5,
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.outline,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 64),
+          child: Column(
+            children: [
+              FaIcon(FontAwesomeIcons.linkSlash, size: 32, color: muted),
+              const SizedBox(height: 16),
+              Text(
+                l10n.offline_title,
+                style: theme.textTheme.labelLarge!.copyWith(color: muted),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.offline_trail_search_body,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(color: muted),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final savedCamera = ref.read(mapCameraProvider);
@@ -639,107 +695,120 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   ),
                   child: child,
                 ),
-                child: AsyncLoader(
-                  asyncValue: searchResultAsync,
-                  mockData: List.generate(5, (_) => TrailSearchResult.mock()),
-                  builder: (trails) => ListView(
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      8,
-                      16,
-                      kBottomNavigationBarHeight + 16 + 32,
-                    ),
-                    controller: scrollController,
-                    children: [
-                      ValueListenableBuilder<double>(
-                        valueListenable: _sheetSize,
-                        builder: (context, size, child) {
-                          final opacity = _sheetHeaderOpacity(size);
+                child: (searchResultAsync.hasError && !isOnline)
+                    ? _buildSheetOfflineState(scrollController)
+                    : AsyncLoader(
+                        asyncValue: searchResultAsync,
+                        mockData: List.generate(
+                          5,
+                          (_) => TrailSearchResult.mock(),
+                        ),
+                        builder: (trails) => ListView(
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            8,
+                            16,
+                            kBottomNavigationBarHeight + 16 + 32,
+                          ),
+                          controller: scrollController,
+                          children: [
+                            ValueListenableBuilder<double>(
+                              valueListenable: _sheetSize,
+                              builder: (context, size, child) {
+                                final opacity = _sheetHeaderOpacity(size);
 
-                          return Column(
-                            children: [
-                              if (opacity > 0.0)
-                                Opacity(
-                                  opacity: opacity,
-                                  child: Column(
-                                    children: [
-                                      Center(
-                                        child: Container(
-                                          width: 30,
-                                          height: 5,
-                                          margin: const EdgeInsets.only(top: 4),
-                                          decoration: BoxDecoration(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.outline,
-                                            borderRadius: BorderRadius.circular(
-                                              10,
+                                return Column(
+                                  children: [
+                                    if (opacity > 0.0)
+                                      Opacity(
+                                        opacity: opacity,
+                                        child: Column(
+                                          children: [
+                                            Center(
+                                              child: Container(
+                                                width: 30,
+                                                height: 5,
+                                                margin: const EdgeInsets.only(
+                                                  top: 4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.outline,
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                              ),
                                             ),
-                                          ),
+
+                                            Padding(
+                                              padding: const EdgeInsets.all(
+                                                8.0,
+                                              ),
+                                              child: Center(
+                                                child: Opacity(
+                                                  opacity: trails.isNotEmpty
+                                                      ? 1
+                                                      : (1 - size / sheetMediumsize)
+                                                            .clamp(0, 1),
+                                                  child: Text(
+                                                    "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
+                                                    style: Theme.of(
+                                                      context,
+                                                    ).textTheme.labelLarge,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-
-                                      Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: Center(
-                                          child: Opacity(
-                                            opacity: trails.isNotEmpty
-                                                ? 1
-                                                : (1 - size / sheetMediumsize)
-                                                      .clamp(0, 1),
-                                            child: Text(
-                                              "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.labelLarge,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    SizedBox(height: _getDynamicPadding(size)),
+                                  ],
+                                );
+                              },
+                            ),
+                            if (trails.isNotEmpty) ...{
+                              ...trails.map(
+                                (t) => TrailCard(
+                                  trail: t,
+                                  onTrailSelect: () =>
+                                      context.push("/trail/${t.id}", extra: t),
                                 ),
-                              SizedBox(height: _getDynamicPadding(size)),
-                            ],
-                          );
-                        },
-                      ),
-                      if (trails.isNotEmpty) ...{
-                        ...trails.map(
-                          (t) => TrailCard(
-                            trail: t,
-                            onTrailSelect: () =>
-                                context.push("/trail/${t.id}", extra: t),
-                          ),
-                        ),
-                      } else ...{
-                        Padding(
-                          padding: EdgeInsetsGeometry.only(top: 64),
-                          child: Column(
-                            children: [
-                              SvgPicture.asset(
-                                "assets/svgs/empty_state_search_${Theme.of(context).brightness.name}.svg",
-                                semanticsLabel: 'wanderer comment empty state',
-                                height: 120,
                               ),
-                              const SizedBox(height: 16),
-                              Text(
-                                AppLocalizations.of(context)!.no_trails_found,
-                                style: Theme.of(context).textTheme.labelLarge!
-                                    .copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(alpha: 0.5),
+                            } else ...{
+                              Padding(
+                                padding: EdgeInsetsGeometry.only(top: 64),
+                                child: Column(
+                                  children: [
+                                    SvgPicture.asset(
+                                      "assets/svgs/empty_state_search_${Theme.of(context).brightness.name}.svg",
+                                      semanticsLabel:
+                                          'wanderer comment empty state',
+                                      height: 120,
                                     ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      AppLocalizations.of(
+                                        context,
+                                      )!.no_trails_found,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge!
+                                          .copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.5),
+                                          ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
-                          ),
+                            },
+                          ],
                         ),
-                      },
-                    ],
-                  ),
-                ),
+                      ),
               );
             },
           ),
