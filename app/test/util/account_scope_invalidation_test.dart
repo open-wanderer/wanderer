@@ -28,16 +28,16 @@ void main() {
     );
 
     test('contains no duplicate entries', () {
-      expect(accountScopedProviders.toSet().length, accountScopedProviders.length);
+      expect(
+        accountScopedProviders.toSet().length,
+        accountScopedProviders.length,
+      );
     });
 
     test(
       'does not contain device/server-level or in-flight-download providers',
       () {
-        expect(
-          accountScopedProviders,
-          isNot(contains(localSettingsProvider)),
-        );
+        expect(accountScopedProviders, isNot(contains(localSettingsProvider)));
         expect(accountScopedProviders, isNot(contains(onlineStatusProvider)));
         expect(
           accountScopedProviders,
@@ -59,7 +59,10 @@ void main() {
     });
 
     test('completes without throwing and without building any provider', () {
-      expect(() => invalidateAccountScopedProvidersOn(container), returnsNormally);
+      expect(
+        () => invalidateAccountScopedProvidersOn(container),
+        returnsNormally,
+      );
     });
   });
 }

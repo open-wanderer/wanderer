@@ -65,8 +65,14 @@ void main() {
 
         await purgeAccountScopedDirectories(tempDir.path);
 
-        expect(Directory(p.join(tempDir.path, 'library')).existsSync(), isFalse);
-        expect(Directory(p.join(tempDir.path, 'avatars')).existsSync(), isFalse);
+        expect(
+          Directory(p.join(tempDir.path, 'library')).existsSync(),
+          isFalse,
+        );
+        expect(
+          Directory(p.join(tempDir.path, 'avatars')).existsSync(),
+          isFalse,
+        );
 
         expect(
           File(
@@ -88,10 +94,7 @@ void main() {
     );
 
     test('a root with none of those dirs completes without throwing', () async {
-      await expectLater(
-        purgeAccountScopedDirectories(tempDir.path),
-        completes,
-      );
+      await expectLater(purgeAccountScopedDirectories(tempDir.path), completes);
     });
 
     test(

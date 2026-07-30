@@ -22,6 +22,7 @@ import 'package:wanderer/services/tile_proxy_server.dart';
 import 'package:wanderer/util/account_scope_invalidation.dart';
 import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/util/navigation_launch_util.dart';
+import 'package:wanderer/util/region_disk_reconcile_util.dart';
 
 import 'i18n/app_localizations.dart';
 import 'objectbox.g.dart';
@@ -37,6 +38,11 @@ void main() async {
 
   final dbPath = p.join(appDocDir.path, "objectbox");
   final store = await openStore(directory: dbPath);
+  // Runs before the proxy starts, so the first tile request already sees
+  // repaired rows (T-h2p-05/T-h2p-06). Result is intentionally unused at the
+  // call site — reconcileRegionPackagesWithDisk owns its own error handling
+  // (never throws) and there is no UI to report repair counts to at startup.
+  await reconcileRegionPackagesWithDisk(store, appDocDir.path);
   final proxyServer = await TileProxyServer.start(store);
 
   final cookiePath = p.join(appDocDir.path, ".cookies");
@@ -258,7 +264,9 @@ class _MainAppState extends ConsumerState<MainApp> {
         // `/map/style-sources` fetch hangs offline and freezes the map on its
         // loading spinner. The cached response already makes navigation itself
         // work offline; this flag only selects the map style path.
-        final isOffline = !await ref.read(onlineStatusProvider.notifier).refresh();
+        final isOffline = !await ref
+            .read(onlineStatusProvider.notifier)
+            .refresh();
         navigatorKey.currentContext?.push(
           '/trail/${row.trailId}/navigate',
           // No fresh fix to seed on resume — same as a brand-new session
@@ -284,9 +292,7 @@ class _MainAppState extends ConsumerState<MainApp> {
     showDialog<bool>(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
-        content: Text(
-          AppLocalizations.of(dialogCtx)!.resume_recording_prompt,
-        ),
+        content: Text(AppLocalizations.of(dialogCtx)!.resume_recording_prompt),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogCtx).pop(false),
@@ -305,7 +311,9 @@ class _MainAppState extends ConsumerState<MainApp> {
         // mode must open NavigationScreen's offline style path, or its
         // `/map/style-sources` fetch hangs the map on its loading spinner.
         // The router reads this back off `resume.isOffline`.
-        row.isOffline = !await ref.read(onlineStatusProvider.notifier).refresh();
+        row.isOffline = !await ref
+            .read(onlineStatusProvider.notifier)
+            .refresh();
         navigatorKey.currentContext?.push('/record', extra: row);
       } else {
         active_nav.clear(store);
