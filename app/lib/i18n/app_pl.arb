@@ -247,7 +247,7 @@
   "shared": "Udostępniono",
   "show_on_map": "Pokaż na mapie",
   "shower": "Shower",
-  "slogan": "Zapisz swoją wyprawę!",
+  "slogan": "Twoje szlaki. Twoje dane. Twój serwer.",
   "sort": "Sortowanie",
   "speed": "Prędkość",
   "start": "Start",
@@ -445,5 +445,35 @@
         "type": "String"
       }
     }
+  },
+  "offline_title": "You're offline",
+  "@offline_title": {
+    "description": "Title shown by the shared offline takeover state (map, list, profile) when the backend is unreachable."
+  },
+  "offline_try_again": "Try again",
+  "@offline_try_again": {
+    "description": "Retry button label on the shared offline takeover state."
+  },
+  "offline_map_body": "Connect to the internet to load the map. Downloaded trails are still available.",
+  "@offline_map_body": {
+    "description": "Body copy for the map screen's offline takeover."
+  },
+  "offline_list_body": "Connect to the internet to load lists.",
+  "@offline_list_body": {
+    "description": "Body copy for the list screen's offline takeover."
+  },
+  "offline_profile_body": "Connect to the internet to load your full profile.",
+  "@offline_profile_body": {
+    "description": "Body copy for the profile screen's offline takeover of network-only sections."
+  },
+  "offline_settings_banner": "You're offline. Settings are read-only until you reconnect.",
+  "offline_action_unavailable": "You're offline — try again once you're back online.",
+  "offline_categories_body": "Connect to the internet to manage categories.",
+  "@offline_categories_body": {
+    "description": "Body copy for the categories and subcategories settings screens' offline state."
+  },
+  "offline_trail_search_body": "Connect to the internet to search for trails. Downloaded trails are still available.",
+  "@offline_trail_search_body": {
+    "description": "Body copy shown inside the map screen's draggable trail-results sheet when offline."
   }
 }
