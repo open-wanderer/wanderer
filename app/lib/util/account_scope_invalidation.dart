@@ -42,8 +42,19 @@ import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/provider/trail/trail_search_provider.dart';
 import 'package:wanderer/provider/waypoint/waypoint_provider.dart';
 
-/// Every keepAlive provider holding account-scoped state. Every entry is a
-/// non-family provider, so no family handling is needed here.
+/// Every keepAlive provider holding account-scoped state.
+///
+/// `trailFilterProvider` is a FAMILY (`TrailFilterNotifierFamily`, keyed by
+/// filter id); invalidating the family object invalidates all of its
+/// instances, which is exactly what an account switch needs. Every other entry
+/// is a plain provider — note `ownProfileProvider`, not the `profileProvider`
+/// family that lives beside it.
+///
+/// Riverpod keeps one Notifier instance alive across rebuilds and only re-runs
+/// `build()`, so anything listed here must tolerate `build()` running more than
+/// once on the same instance. A `late final` field assigned in `build()` will
+/// throw `LateInitializationError` on the second pass (this is what happened to
+/// `TrailFilterNotifier.defaultFilter`).
 final accountScopedProviders = <ProviderOrFamily>[
   ownProfileProvider,
   settingsProvider,

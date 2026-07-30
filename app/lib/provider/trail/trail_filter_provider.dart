@@ -7,7 +7,14 @@ part 'trail_filter_provider.g.dart';
 
 @Riverpod(keepAlive: true)
 class TrailFilterNotifier extends _$TrailFilterNotifier {
-  late final TrailFilter defaultFilter;
+  /// Deliberately `late` and NOT `late final`: [build] assigns it, and
+  /// Riverpod keeps one Notifier instance alive across rebuilds — only
+  /// `build()` re-runs. A `late final` therefore threw
+  /// `LateInitializationError: Field 'defaultFilter' has already been
+  /// initialized` on the second build, which an account switch triggers every
+  /// time (this provider is invalidated from `accountScopedProviders`), and
+  /// which any other refresh would have hit too.
+  late TrailFilter defaultFilter;
 
   @override
   Future<TrailFilter> build(String filterId) async {
