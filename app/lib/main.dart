@@ -19,6 +19,7 @@ import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
 import 'package:wanderer/services/tile_proxy_server.dart';
+import 'package:wanderer/util/account_scope_invalidation.dart';
 import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/util/navigation_launch_util.dart';
 
@@ -72,6 +73,12 @@ class _MainAppState extends ConsumerState<MainApp> {
   bool _resumeHandled = false;
   ProviderSubscription? _authSub;
 
+  // Account-switch cache invalidation (T-h2p-02): tracks the last-seen auth
+  // user id so a change is detected exactly once per switch, without acting
+  // on the listener's first (baseline) emission.
+  String? _lastAuthUserId;
+  bool _authSeen = false;
+
   // Files handed to the app via the OS share sheet, buffered until auth settles
   // with a signed-in user (a share can arrive on a cold, signed-out start).
   List<SharedMediaFile>? _pendingShare;
@@ -93,6 +100,18 @@ class _MainAppState extends ConsumerState<MainApp> {
       AsyncValue<UserEntity?> next,
     ) {
       if (next.isLoading) return;
+
+      // Drop every keepAlive cache holding account-scoped state on any auth
+      // user-id change (T-h2p-02). `_authSeen` gates this: `fireImmediately:
+      // true` makes the first emission a baseline, not a change, so it must
+      // not trigger an invalidation.
+      final userId = next.value?.id;
+      if (_authSeen && userId != _lastAuthUserId) {
+        invalidateAccountScopedProviders(ref);
+      }
+      _authSeen = true;
+      _lastAuthUserId = userId;
+
       if (next.value != null) _maybeHandleShare();
 
       if (_resumeHandled) return;

@@ -33,7 +33,11 @@ class ProfileNotifier extends _$ProfileNotifier {
 
 /// keepAlive provider — fetches the current user's own profile Actor.
 /// Reads handle from authProvider.preferredUsername (per D-02).
-/// Cache refreshed only on pull-to-refresh (Phase 2); no app-resume invalidation (D-03).
+/// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
+/// (T-h2p-02: watching `authProvider` instead of reading it once means this
+/// provider rebuilds — and re-fetches — the moment auth resolves to a
+/// different session, rather than holding the first account's `Actor`
+/// forever); still no app-resume invalidation (D-03).
 ///
 /// Writes every successful fetch through to `UserEntity.actor` and falls back
 /// to that cached actor when the fetch fails, so the own-profile screen renders
@@ -43,7 +47,7 @@ class ProfileNotifier extends _$ProfileNotifier {
 class OwnProfile extends _$OwnProfile {
   @override
   FutureOr<Actor> build() async {
-    final user = await ref.read(authProvider.future);
+    final user = await ref.watch(authProvider.future);
     if (user == null) throw const NotAuthenticatedException();
 
     try {
