@@ -350,7 +350,7 @@ Four phases, strictly sequential — each one's success criteria depend on groun
 Plans:
 **Wave 1**
 
-- [ ] 33-01-PLAN.md — Fix the `getTotals()` off-by-one loop bound and the centroid divisor (CONV-01/02), plus the first GPX Vitest fixture suite
+- [x] 33-01-PLAN.md — Fix the `getTotals()` off-by-one loop bound and the centroid divisor (CONV-01/02), plus the first GPX Vitest fixture suite
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -470,7 +470,7 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
 | 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 6/6 | Complete   | 2026-07-28 |
-| 33. Conversion Correctness | v1.8 | 0/0 | Not planned | — |
+| 33. Conversion Correctness | v1.8 | 1/3 | In Progress|  |
 | 34. Dart Conversion Port | v1.8 | 0/0 | Not planned | — |
 | 35. Offline Trail Creation | v1.8 | 0/0 | Not planned | — |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 0/0 | Not planned | — |

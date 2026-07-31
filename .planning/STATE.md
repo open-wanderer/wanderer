@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
-status: planning
+status: executing
 stopped_at: Completed 32-06-PLAN.md
-last_updated: "2026-07-31T10:10:02.789Z"
-last_activity: 2026-07-31 — v1.8 ROADMAP.md created (Phases 33-36, 25/25 requirements mapped)
+last_updated: "2026-07-31T10:17:10.113Z"
+last_activity: 2026-07-31 -- Phase 33 execution started
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
   percent: 0
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 33 of 36 (Conversion Correctness) — not started
-Plan: — (not yet planned)
-Status: ROADMAP.md created — ready to plan Phase 33
-Last activity: 2026-07-31 — v1.8 ROADMAP.md created (Phases 33-36, 25/25 requirements mapped)
+Phase: 33 (conversion-correctness) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-07-31 -- Phase 33 execution started
 
 ## v1.8 Phases
 
@@ -135,6 +135,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 32 P04 | 35min | 3 tasks | 4 files |
 | Phase 32 P05 | ~20min | 3 tasks | 4 files |
 | Phase 32 P06 | ~30min | 3 tasks | 2 files |
+| Phase 33 P01 | 5min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -308,6 +309,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 32] [32-05] D-10/D-11 enforced structurally: RegionGeometryGet never reads enabled or accepts a persistence query param, deferring to ResolveGeometry
 - [Phase ?]: [Phase 32] [32-05] fitToEnabled sources bbox from region_geometry items loadEnabledPolygons already fetched, guarding against non-4-element bbox entries
 - [Phase ?]: [Phase 32] [32-06] Task 2 (blocking checkpoint) pre-resolved as purge-and-push; git filter-branch over b1665219^..HEAD (133 commits, 2 pruned empty), backup tag kept local-only (never pushed), force-pushed with --force-with-lease, fresh clone verified (.gz gone, pack 268.00 MiB -> 198.14 MiB, migrate up reproduces 1306-row catalog)
+- [Phase ?]: [33-01] No metrics-anchor reset introduced at segment boundaries -- shared GpxMetricsComputation instance across all tracks/segments is what makes the multi-leg planner route measure through its anchors
 
 ### Roadmap Evolution
 
@@ -459,7 +461,7 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-28T10:48:23.883Z
+Last session: 2026-07-31T10:16:35.535Z
 Stopped at: Completed 32-06-PLAN.md
 Resume file: None
 

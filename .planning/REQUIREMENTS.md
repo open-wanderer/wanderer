@@ -20,8 +20,8 @@ Fixes to the shared GPX→trail metrics computation, applied to `web/src/lib/mod
 `web/src/lib/models/gpx/gpx-metrics-computation.ts`, and `web/src/lib/util/gpx_util.ts`. Each was
 found by auditing the TS before porting it.
 
-- [ ] **CONV-01**: A track segment's first point is included in distance, bounding box, and centroid — a 2-point segment reports its real length instead of zero, and a planned route no longer cuts the corner at every anchor
-- [ ] **CONV-02**: The centroid divides by the same point count it summed, instead of summing `n − k` points and dividing by `n`
+- [x] **CONV-01**: A track segment's first point is included in distance, bounding box, and centroid — a 2-point segment reports its real length instead of zero, and a planned route no longer cuts the corner at every anchor
+- [x] **CONV-02**: The centroid divides by the same point count it summed, instead of summing `n − k` points and dividing by `n`
 - [ ] **CONV-03**: Points with no elevation are excluded from gain/loss instead of being treated as 0 m, so a partially-elevated GPX no longer reports a phantom plunge to sea level and back
 - [ ] **CONV-04**: Elevation gain/loss is sampled independently of the horizontal threshold, so a steep climb with little horizontal movement (switchbacks, scrambles) is measured rather than skipped
 - [ ] **CONV-05**: Distance is computed from the smoothed accumulator rather than the raw haversine sum, so GPS jitter no longer inflates it; the dead, misaligned `cumulativeDistance` array is removed
@@ -95,8 +95,8 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONV-01 | Phase 33 | Pending |
-| CONV-02 | Phase 33 | Pending |
+| CONV-01 | Phase 33 | Complete |
+| CONV-02 | Phase 33 | Complete |
 | CONV-03 | Phase 33 | Pending |
 | CONV-04 | Phase 33 | Pending |
 | CONV-05 | Phase 33 | Pending |
@@ -122,6 +122,7 @@ Populated during roadmap creation.
 | OFFUI-04 | Phase 35 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 25 total
 - Mapped to phases: 25
 - Unmapped: 0 ✓
