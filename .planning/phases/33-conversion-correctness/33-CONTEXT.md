@@ -67,12 +67,25 @@ elevation, and duration, before the Dart port is pinned against it.
 - **D-04 [locked]:** Ship a Vitest fixture suite covering, at minimum, one fixture per
   success criterion: a 2-point segment, a partial-elevation track, a steep switchback /
   low-horizontal-movement stretch, a jittery track, and a multi-anchor planned route.
-  No `*.gpx` fixtures and no `gpx*.test.ts` exist in the repo today; Vitest is installed
-  and ready.
+  No `gpx*.test.ts` exists in the repo today; Vitest is installed and ready.
+
+- **D-05 [locked]:** Fixtures are **inline, not disk files**. This follows the repo's only
+  Vitest precedent (`web/src/lib/models/trail.test.ts`), which builds fixtures as inline
+  object graphs through the real class constructors — no mocks, no disk reads. Concretely:
+  - Tests that exercise the **XML parse path** (notably CONV-03, where a missing `<ele>`
+    tag must stay `undefined` rather than becoming `0`) use **inline GPX XML strings**.
+    A missing `<ele>` cannot be simulated by an object graph, because `Waypoint` only
+    yields the genuine `undefined` when the tag is absent from the parsed XML
+    (`waypoint.ts:53-55` — note `lat`/`lon` fall back to `-1` but `ele` has no fallback).
+  - Tests that exercise **computation only** use inline `new GPX({...})` object graphs.
+
+  Test files co-locate beside the code under test in `web/src/lib/models/gpx/`, which the
+  Vitest `include: ['src/**/*.{test,spec}.{js,ts}']` glob in `web/vite.config.ts` already
+  picks up. No new test-runner config is needed.
 
 ### Claude's Discretion
 
-- Exact fixture file layout, naming, and helper structure.
+- Fixture helper/builder naming and internal structure (within the D-05 constraint).
 - Whether the empty-segment / zero-point edge case (pre-existing, not one of the four
   named defects) gets its own regression-guard fixture — include it if it costs little.
 - Internal function decomposition within the three in-scope files.
