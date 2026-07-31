@@ -132,7 +132,7 @@ export interface Summary {
 }
 
 interface ValhallaHeightResponse {
-    height: number[];
+    height?: number[];
 }
 
 interface ValhallaAnchor {

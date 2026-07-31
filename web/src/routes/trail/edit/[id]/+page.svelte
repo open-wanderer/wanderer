@@ -577,6 +577,8 @@
             const segment = segments[i];
             const points = segment.trkpt ?? [];
 
+            if (points.length === 0) continue;
+
             if (points.length > 0) {
                 addAnchor(
                     points[0].$.lat!,
@@ -2182,8 +2184,8 @@
                         ? $_("stop-editing")
                         : $_("edit-route")
                     : drawingActive
-                        ? $_("stop-drawing")
-                        : $_("draw-a-route")}</button
+                      ? $_("stop-drawing")
+                      : $_("draw-a-route")}</button
             >
         {/if}
         {#if drawingActive && valhallaStore.anchors.length}
@@ -2197,19 +2199,16 @@
             ></TrailAnchorList>
         {/if}
         {#if !drawingActive && (isNewTrail || replacingRoute)}
-        <div class="flex gap-4 items-center w-full">
-            <hr class="basis-full border-input-border" />
-            <span class="text-gray-500 uppercase">{$_("or")}</span>
-            <hr class="basis-full border-input-border" />
-        </div>
-        <Button
-            primary={true}
-            type="button"
-            onclick={openFileBrowser}
-            >{$formData.expand?.gpx_data
-                ? $_("upload-new-file")
-                : $_("upload-file")}</Button
-        >
+            <div class="flex gap-4 items-center w-full">
+                <hr class="basis-full border-input-border" />
+                <span class="text-gray-500 uppercase">{$_("or")}</span>
+                <hr class="basis-full border-input-border" />
+            </div>
+            <Button primary={true} type="button" onclick={openFileBrowser}
+                >{$formData.expand?.gpx_data
+                    ? $_("upload-new-file")
+                    : $_("upload-file")}</Button
+            >
         {/if}
         <input
             type="file"
@@ -2509,7 +2508,9 @@
                 oncontextmenu={(target) => handleMapContextMenu(target)}
                 onsegmentclick={(data) => handleSegmentClick(data)}
                 onsegmentdragend={(data) => handleSegmentDragEnd(data)}
-                mapOptions={{ canvasContextAttributes: { preserveDrawingBuffer: true } }}
+                mapOptions={{
+                    canvasContextAttributes: { preserveDrawingBuffer: true },
+                }}
                 {buildPoiAnchorAction}
             ></MapWithElevationMaplibre>
         </div>

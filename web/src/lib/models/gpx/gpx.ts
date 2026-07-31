@@ -219,7 +219,7 @@ export default class GPX {
           continue
         }
         segment.trkpt.forEach((pt) => {
-          pt.ele = heightResponse.height[heightIndex]
+          pt.ele = heights[heightIndex]
           heightIndex++;
         })
       }
