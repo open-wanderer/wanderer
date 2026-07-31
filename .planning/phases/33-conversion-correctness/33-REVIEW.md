@@ -1,563 +1,661 @@
 ---
 phase: 33-conversion-correctness
-reviewed: 2026-07-31T12:45:00Z
+reviewed: 2026-07-31T12:55:00Z
 depth: standard
-files_reviewed: 5
+files_reviewed: 7
 files_reviewed_list:
-  - web/src/lib/models/gpx/gpx.ts
-  - web/src/lib/models/gpx/gpx.test.ts
+  - web/src/lib/models/gpx/crop.ts
+  - web/src/lib/models/gpx/crop.test.ts
   - web/src/lib/models/gpx/gpx-metrics-computation.ts
   - web/src/lib/models/gpx/gpx-metrics-computation.test.ts
+  - web/src/lib/models/gpx/gpx.ts
+  - web/src/lib/models/gpx/gpx.test.ts
   - web/src/routes/trail/edit/[id]/+page.svelte
 findings:
-  critical: 3
-  warning: 9
-  info: 6
-  total: 18
+  critical: 4
+  warning: 12
+  info: 7
+  total: 23
 status: issues_found
 ---
 
 # Phase 33: Code Review Report
 
-**Reviewed:** 2026-07-31T12:45:00Z
+**Reviewed:** 2026-07-31T12:55:00Z
 **Depth:** standard
-**Files Reviewed:** 5
+**Files Reviewed:** 7
 **Status:** issues_found
 
 ## Summary
 
-Phase 33 fixes five real defects (CONV-01..CONV-05) and the fixes it claims to make are
-present and test-covered. The 21 shipped tests pass. That is where the good news ends.
+This round re-reviews phase 33 after gap-closure plans 33-04 (commit-then-retract elevation
+noise filter) and 33-05 (degenerate-safe crop interpolation extracted to `crop.ts` +
+`croppedGPX` lifecycle fixes). All 34 tests in `web/src/lib/models/gpx/` pass
+(`npx vitest run src/lib/models/gpx/`).
 
-Every finding below was **executed**, not inferred: I built a scratch vitest probe against the
-shipped code, captured real output, and deleted it (working tree is clean). Three defects are
-blockers:
+What genuinely landed:
 
-1. The crop slider produces `NaN` marker coordinates on routes whose first two trackpoints are
-   coincident (a very common GPS artefact, and unconditionally true for a zero-length route).
-   The new `cumulativeRoute.length < 2 || !Number.isFinite(rawRouteTotal)` guard does **not**
-   catch it — it guards the wrong two conditions. MapLibre's `LngLat` constructor throws on
-   `NaN`, so the crop UI dies with an uncaught exception. This is precisely the case the phase
-   deferred to end-of-phase human verification ("including 0%/100%, with no NaN totals");
-   it fails.
-2. CONV-04 removed the horizontal-displacement gate from elevation smoothing **entirely**
-   rather than replacing it with something noise-aware. A stationary 60-sample track with
-   ±7 m altitude jitter — a lunch break, a paused recording, a phone on a table — now reports
-   **210 m of gain and 203 m of loss over 0 m of travel**. Before this phase it reported 0/0.
-   That number is written straight into `trail.elevation_gain`.
-3. The new early `return` in `updateCropMarkers()` leaves `croppedGPX` holding the previous
-   route. `confirmCrop()` does not re-validate, so confirming a crop can silently resurrect a
-   route the user already replaced.
+- `getCoordinateAtDistance()` is now degenerate-safe (`span > 0`), extracted, and covered by
+  tests. The `[NaN, NaN, 1]` → `Invalid LngLat object` crash from the prior round's CR-01 is
+  closed.
+- `croppedGPX` is now cleared in `resetTrail()`, `replaceRoute()`, `toggleCropMarkers(false)`
+  and `updateTrailWithRouteData()`, and `confirmCrop()` hoists it locally. The prior round's
+  CR-03 (stale crop restoring a discarded route) is closed on every path I traced except
+  `handleFileSelection()` (WR-12).
+- The stationary ±7 m oscillation case (prior CR-02) now reports 0/0 for the single-swing
+  fixtures the tests use.
 
-Beyond the blockers, the CONV-05 raw→smoothed swap is systematically biased low (chord-cutting
-on dense/curvy geometry, plus an always-dropped trailing residual) and it has fractured the
-editor into three surfaces that now report three different distances for the same route.
-CONV-03's `parseElevation` is documented as "the single coercion point" but is not applied at
-the GeoJSON boundary, so the elevation *profile chart* still draws the sea-level plunge that
-CONV-03 removed from the *number* — the two disagree on screen.
+What is not closed, and what the gap-closure work newly broke:
+
+1. The 33-05 guard's *mitigation* (`toggleCropMarkers(false)`) is undone one tick later by
+   `route_editor.svelte`, so the prior round's WR-05 (crop pins stranded at 0°N 0°E) is still
+   live on the exact path the new comment claims to fix (CR-02).
+2. That same mitigation calls `updateTotals(valhallaStore.route)`, which overwrites
+   user-entered distance/duration/elevation with the empty route's zeros — a new data-loss
+   path introduced by 33-05 (CR-01).
+3. 33-04 made `totalElevationGainSmoothed` / `totalElevationLossSmoothed` **non-monotonic**.
+   An existing consumer (`trail_anchor_list.svelte`) derives per-segment metrics by
+   subtracting consecutive snapshots of those fields and can now render negative elevation
+   gain (CR-03).
+4. The retract filter is single-level and horizontal-distance gated, so it neither removes
+   multi-step stationary drift (WR-01) nor preserves genuine elevation on the very
+   low-horizontal-movement geometry CONV-04 declared real (WR-02) — the in-file comment
+   "a genuine climb is never under-reported" is provably false.
+
+Findings below were verified by reading the call chain and, for the metrics filter, by
+re-running the exact algorithm on hand-built elevation series.
 
 ## Narrative Findings (AI reviewer)
 
 ## Critical Issues
 
-### CR-01 (BLOCKER): Crop markers become `NaN` when the route starts with coincident points — uncaught MapLibre throw
+### CR-01 (BLOCKER): The new degenerate-route guard silently zeroes user-entered distance / duration / elevation
 
-**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1478-1485`, `web/src/routes/trail/edit/[id]/+page.svelte:1537-1540`
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1483-1492` (guard), `:1428-1439`
+(`toggleCropMarkers`), `:2182-2200` (the editable fields), `:269-306` (submit)
 
-**Issue:**
-D-01 made `cumulativeDistance[0] === 0` by design. `getCoordinateAtDistance()` then computes
-`ratio = (target - prevDist) / (nextDist - prevDist)`. When `target === 0` (the slider fires
-`onupdate` with `[0, 100]` on mount — `double_slider.svelte:42`) the binary search lands on
-`i = Math.max(1, 0) = 1`, so `prevDist = cumulative[0]` and `nextDist = cumulative[1]`. If the
-route's first two points are coincident, `cumulative[1]` is also `0` and the ratio is `0 / 0`
-= `NaN`. Both returned coordinates are `NaN`.
+**Issue:** Before 33-05 the degenerate-route branch was a bare `return` — it touched no state.
+It now calls `toggleCropMarkers(false)`, whose `else` branch runs
+`updateTotals(valhallaStore.route)`. `updateTotals()` (`:1546-1555`) writes `distance`,
+`duration`, `elevation_gain`, `elevation_loss` straight into `$formData`.
 
-The guard added by this phase does not cover it. Measured against the shipped code:
+The guard fires precisely when the route is empty or degenerate, so
+`valhallaStore.route.features` is `{distance: 0, duration: 0, elevationGain: 0, elevationLoss: 0}`
+— the four fields are overwritten with zeros.
 
-```
-P1  cumulative: [0, 0, 111.19, 222.39]   total 222.39   guard passes: true
-    coord at 0%: [NaN, NaN, 1]
-P2  cumulative: [0, 0, 0]                total 0        guard passes: true
-    coord at 0%: [NaN, NaN, 1]
-```
+Reachable through plain UI, no route required: `RouteEditor` is rendered whenever
+`drawingActive` (`:2413-2432`), not gated on `routeHasTrackPoints()`.
 
-`cropStartMarker.setLngLat([NaN, NaN])` reaches `LngLat.convert`, which throws
-`Invalid LngLat object: (NaN, NaN)` (`node_modules/maplibre-gl/dist/maplibre-gl.js`). Nothing
-catches it, so `updateCropMarkers` aborts mid-flight — `croppedGPX` is never assigned and
-`updateTotals` never runs — on every slider movement.
+1. New trail → expand "basic info" → type distance / elevation by hand (these are real
+   `TextField`s bound to `$formData`, `:2182-2200`).
+2. Click "draw route" → click the crop icon.
+3. `DoubleSlider` mounts → `onupdate([0, 100])` → `updateCropMarkers` → guard →
+   `toggleCropMarkers(false)` → `updateTotals(empty route)` → all four fields become 0.
+4. Save. `onSubmit` persists the felte `form` object, so the zeros are written to the DB.
 
-Coincident leading points are not exotic: GPS loggers emit repeated identical fixes while the
-device is stationary at the trailhead, and a fully degenerate route (P2) hits it for *any*
-target. Note also that `!Number.isFinite(rawRouteTotal)` is effectively dead code —
-`totalDistance` only ever accumulates values that already passed
-`Number.isFinite(distance)` (`gpx-metrics-computation.ts:80-82`), so the last entry is always
-finite. The guard checks a condition that cannot occur while missing the one that does.
-
-Pre-phase this produced a *wrongly placed* marker (negative ratio extrapolating backwards), not
-a crash — so this is a regression in failure mode introduced by the D-01 leading-zero entry.
-
-**Fix:** guard on a usable interpolation basis, and make the interpolation itself degenerate-safe.
+**Fix:** the guard must not mutate form state. Hide the markers directly and leave totals
+alone:
 
 ```ts
-// +page.svelte, replacing the length/isFinite guard
-const cumulativeRoute = valhallaStore.route.features.cumulativeDistance;
-const rawRouteTotal = cumulativeRoute[cumulativeRoute.length - 1];
-
-if (cumulativeRoute.length < 2 || !(rawRouteTotal > 0)) {
-    // No positive interpolation basis: empty, single-point, or zero-length route.
-    croppedGPX = null;               // see CR-03
-    toggleCropMarkers(false);        // don't strand pins at [0, 0] — see WR-05
-    return;
-}
-```
-
-```ts
-// getCoordinateAtDistance(), guarding the zero-length span
-const span = nextDist - prevDist;
-const ratio = span > 0 ? (target - prevDist) / span : 0;
-```
-
-Add regression tests for both fixtures above (leading duplicate point; all-identical points).
-
----
-
-### CR-02 (BLOCKER): CONV-04 fabricates hundreds of metres of elevation gain on stationary GPS noise
-
-**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:107-128`
-
-**Issue:**
-The pre-phase code evaluated smoothed elevation *only* for points that had already cleared the
-5 m horizontal threshold (`if (smoothedDistance < this.thresholdXY_m) return;` guarded the
-elevation block). CONV-04 correctly identified that this loses genuine steep/low-horizontal
-climbs — but the fix removes the horizontal criterion outright instead of replacing it with a
-noise-tolerant one. Elevation is now diffed against `lastFilteredZ` on **every** sample, and
-the anchor re-arms on **every** ±5 m excursion.
-
-Consumer GPS/barometric altitude noise is routinely ±5–15 m. Measured against the shipped code
-with a completely stationary track (identical lat/lon for all 60 samples, altitude alternating
-1000 / 1007 m — well inside normal noise):
-
-```
-P3  gain: 210   loss: 203   distance: 0
-```
-
-210 m of climb over zero metres of travel. Pre-phase this fixture returned 0/0. `getTotals()`
-publishes these as `features.elevationGain` / `elevationLoss` (`gpx.ts:142-143, 158-159`),
-which `updateTotals()` writes to `$formData.elevation_gain` / `elevation_loss`
-(`+page.svelte:1569-1570`) and `gpx_util.ts:74-75` writes to the persisted trail. Because
-CONV-F01 (migration) is deferred, these wrong values are permanent once saved.
-
-The shipped test suite cannot catch this: the only CONV-04 fixture
-(`gpx-metrics-computation.test.ts:88-116`) is a monotonic climb, which is exactly the case where
-removing the gate is safe. There is no oscillating/stationary fixture anywhere in the phase.
-
-**Fix:** keep the CONV-04 win (elevation must not require horizontal travel) but restore
-noise rejection with hysteresis on the *direction* of travel, so an out-and-back excursion
-inside the noise band cannot ratchet:
-
-```ts
-// Track the running extremum since the last committed anchor; only commit a
-// gain/loss once the elevation has moved thresholdZ_m *and* reversed by less
-// than thresholdZ_m from the extremum (classic ZigZag / hysteresis filter).
-if (elevation !== undefined) {
-  if (this.lastFilteredZ === null) {
-    this.lastFilteredZ = elevation;
-    this.pendingExtremum = elevation;
-    this.pendingDirection = 0;
-  } else {
-    const diff = elevation - this.lastFilteredZ;
-    const direction = Math.sign(diff);
-    if (Math.abs(diff) >= this.thresholdZ_m) {
-      if (direction === this.pendingDirection || this.pendingDirection === 0) {
-        // sustained move in one direction — commit it
-        if (diff > 0) this.totalElevationGainSmoothed += diff;
-        else this.totalElevationLossSmoothed -= diff;
-        this.lastFilteredZ = elevation;
-        this.pendingDirection = direction;
-      } else {
-        // reversal: re-anchor without crediting the reversal itself
-        this.lastFilteredZ = elevation;
-        this.pendingDirection = direction;
-      }
-    }
-  }
-}
-```
-
-Whatever filter is chosen, the phase must add a stationary-noise regression fixture (60
-samples, fixed lat/lon, ±7 m alternation) asserting `elevationGain === 0`, alongside the
-existing monotonic-climb fixture asserting `88`.
-
----
-
-### CR-03 (BLOCKER): Stale `croppedGPX` after the new early return can silently restore a discarded route
-
-**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1480-1485`, `web/src/routes/trail/edit/[id]/+page.svelte:1513-1521`
-
-**Issue:**
-`croppedGPX` is assigned only at `:1504` and initialised to `null` only at its declaration
-(`:166`); nothing ever resets it — not `resetRoute()`, not `replaceRoute()`, not
-`toggleCropMarkers(false)`. The `return` introduced at `:1484` therefore leaves the previous
-route's crop in `croppedGPX`, and `confirmCrop()` (`:1513`) only checks `if (!croppedGPX)`
-before calling `setRoute(croppedGPX, true)`.
-
-Reachable sequence, all through the normal UI (the crop button in `route_editor.svelte:405-417`
-is not gated on `routeHasTrackPoints()`):
-
-1. Open the crop panel on route A, drag the slider → `croppedGPX` = crop of A.
-2. Close crop, `replaceRoute()` / draw a new short or empty route B.
-3. Open the crop panel again → `DoubleSlider` fires `onupdate([0, 100])` on mount →
-   `updateCropMarkers` hits the new guard and returns → `croppedGPX` is *still* the crop of A.
-4. Click "crop" → `confirmCrop()` → `setRoute(crop-of-A)` → route B is destroyed and replaced
-   by a stale crop of a route the user already discarded.
-
-This is a data-loss path created by this phase's change; before the early return existed,
-`croppedGPX` was always recomputed from the current route on every slider event.
-
-**Fix:** clear the derived state on every non-productive exit, and re-derive rather than trust
-the cache on confirm.
-
-```ts
-if (cumulativeRoute.length < 2 || !(rawRouteTotal > 0)) {
+if (!hasCropInterpolationBasis(cumulativeRoute)) {
     croppedGPX = null;
+    cropStartMarker?.setOpacity("0");
+    cropEndMarker?.setOpacity("0");
     return;
 }
 ```
 
-Additionally reset `croppedGPX = null` in `resetRoute()`, `replaceRoute()`, and
-`toggleCropMarkers(false)` so the cache cannot outlive the route it was derived from.
+Separately, `toggleCropMarkers(false)`'s unconditional `updateTotals(valhallaStore.route)`
+should only run when a crop preview was actually applied (`if (croppedGPX) { ... }`),
+otherwise every crop-panel close also clobbers hand-entered metrics on trails whose stored
+numbers were never derived from the GPX.
+
+---
+
+### CR-02 (BLOCKER): The guard's marker-hiding is undone one tick later — pins are still stranded at 0°N 0°E
+
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1483-1492`;
+`web/src/lib/components/trail/route_editor.svelte:124-131`, `:410`;
+`web/src/lib/components/base/double_slider.svelte:26-45`
+
+**Issue:** The new comment claims the guard prevents "stranding two visible pins at 0N 0E".
+Call ordering makes that false.
+
+`togglePanels()` in `route_editor.svelte` is:
+
+```ts
+crop = _crop;
+editRoute = _edit;
+await tick();      // <- DoubleSlider mounts HERE
+onCropToggle(_crop);
+```
+
+`DoubleSlider.onMount` calls `noUiSlider.create(...)` then binds an `update` listener, and
+noUiSlider fires `update` *immediately on bind*
+(`node_modules/nouislider/dist/nouislider.js:1767-1769`, once per handle). So the sequence on
+crop-panel open is:
+
+1. markers are constructed and `setLngLat([0, 0]).addTo(map!)` (`:1468-1469`) — **before** the
+   guard;
+2. guard fires → `toggleCropMarkers(false)` → opacity `"0"`;
+3. `tick()` resolves → `onCropToggle(true)` → `toggleCropMarkers(true)` → opacity `"1"`.
+
+Net effect on an empty/degenerate route: two fully visible crop pins at Null Island, exactly
+the prior round's WR-05, plus a crop panel whose slider does nothing. The MapLibre `NaN` throw
+is fixed; the visual defect the same commit claims to fix is not.
+
+**Fix:** do not rely on a sibling component to set the final visibility. Track whether a crop
+basis exists and make `toggleCropMarkers(true)` respect it:
+
+```ts
+let cropBasisAvailable = $state(false);
+
+function toggleCropMarkers(active: boolean) {
+    if (active && cropBasisAvailable) {
+        cropStartMarker?.setOpacity("1");
+        cropEndMarker?.setOpacity("1");
+        return;
+    }
+    cropStartMarker?.setOpacity("0");
+    cropEndMarker?.setOpacity("0");
+    ...
+}
+```
+
+and set `cropBasisAvailable = hasCropInterpolationBasis(cumulativeRoute)` at the top of
+`updateCropMarkers()`. Better still: only construct/add the markers *after* the guard passes,
+so nothing is ever added to the map at `[0, 0]`.
+
+---
+
+### CR-03 (BLOCKER): 33-04 made the smoothed elevation totals non-monotonic; an existing consumer subtracts them and can now show negative gain
+
+**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:161-170` (retraction);
+consumer: `web/src/lib/components/trail/trail_anchor_list.svelte:219-250`
+
+**Issue:** Before 33-04, `totalElevationGainSmoothed` and `totalElevationLossSmoothed` were
+accumulate-only. The retraction branch now *decreases* them:
+
+```ts
+if (this.retractableDelta > 0) this.totalElevationGainSmoothed -= this.retractableDelta;
+else this.totalElevationLossSmoothed += this.retractableDelta;  // delta < 0
+```
+
+`trail_anchor_list.svelte` computes per-segment metrics by snapshotting the running instance
+at each segment boundary and subtracting the previous snapshot:
+
+```ts
+elevationGain: metrics.elevationGain - previous.elevationGain,
+```
+
+That subtraction is only valid while the totals are non-decreasing. If a retraction happens on
+the first committed point of segment *N* (retracting a commit made at the end of segment
+*N-1*), that segment's rendered gain is negative. Planner segments share a duplicated anchor
+point (identical coordinates → `retractDistance = 0 < thresholdXY_m`), so the
+horizontal-stillness half of the retraction condition is trivially satisfied at every segment
+boundary; only the ±5 m elevation return is needed.
+
+Verified by replaying the algorithm: on `[1000, 1006, 1012, 1006, 1000]` the smoothed gain
+sequence is `0 → 6 → 12 → 6`; any segment boundary between samples 3 and 4 yields a negative
+per-segment gain.
+
+The class comment at `:126-129` only argues the *totals* cannot go negative — it never states
+(and the code no longer honours) the monotonicity contract the consumer depends on.
+
+**Fix:** either (a) make retraction non-observable by consumers — buffer the pending commit
+and only fold it into the public totals once it can no longer be retracted; or (b) expose an
+explicit clamped snapshot and clamp in the consumer:
+
+```ts
+elevationGain: Math.max(0, metrics.elevationGain - previous.elevationGain),
+```
+
+Option (a) is preferable because (b) silently loses the retracted amount from the segment
+where it was earned. Whichever is chosen, add a test asserting monotonic non-decrease (or the
+documented replacement contract) — no current test covers a retraction across a snapshot.
+
+---
+
+### CR-04 (BLOCKER): Saving while a crop preview is pending persists cropped metrics with the uncropped GPX
+
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1511-1517`, `:269-306`
+
+**Issue:** `updateCropMarkers()` writes the *preview* crop's totals into `$formData`
+(`updateTotals(croppedGPX)`, `:1517`) while `valhallaStore.route` still holds the full route.
+The Save button lives in the always-visible form (`:2404-2410`) and `onSubmit` writes
+`form.expand!.gpx_data = valhallaStore.route.toString()` (`:298`) — the **uncropped** track —
+while `form.distance` / `elevation_gain` / `elevation_loss` / `duration` are the cropped
+preview values.
+
+Repro: open crop, drag the slider to ~50 %, click Save without pressing Crop. The saved trail
+reports half the distance/elevation of the GPX it stores. Nothing rolls the preview back on
+submit; the discrepancy is silent and persisted (it also flows to Meilisearch and the stats
+page, which sum `elevation_gain`).
+
+This is pre-existing (not introduced by 33-05), but it sits squarely in the `croppedGPX`
+lifecycle 33-05 set out to make correct, and it is the highest-impact remaining hole in it.
+
+**Fix:** keep the crop preview out of `$formData` — render preview totals from separate state
+used only by the UI — or discard the preview on submit:
+
+```ts
+onSubmit: async (form) => {
+    if (croppedGPX) {                       // unconfirmed preview -> discard
+        croppedGPX = null;
+        updateTotals(valhallaStore.route);
+        Object.assign(form, {
+            distance: $formData.distance,
+            duration: $formData.duration,
+            elevation_gain: $formData.elevation_gain,
+            elevation_loss: $formData.elevation_loss,
+        });
+    }
+    ...
+```
 
 ---
 
 ## Warnings
 
-### WR-01: Reported distance permanently drops the trailing sub-threshold residual; short routes report exactly 0
+### WR-01: The retract filter is single-level — multi-step stationary drift still ratchets gain
 
-**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:125-128`, `web/src/lib/models/gpx/gpx.ts:144`
+**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:118-182`
 
-**Issue:** `totalDistanceSmoothed` only accumulates when a hop clears `thresholdXY_m`; the
-final partial span from `lastFilteredPointXY` to the last point is never added. Since CONV-05
-made this the *reported* distance, every trail now under-reports by up to 5 m, and any route
-shorter than the threshold reports zero. Measured:
+**Issue:** Only the *immediately preceding* commit is retractable (`retractableDelta` is
+overwritten by each new commit and zeroed after a retraction). A stationary device whose
+altimeter drifts in more than one step before returning is not filtered.
 
-```
-P5  raw: [0, 2.224]                  reported: 0        <- a 2.2 m route reports 0 m
-P7  raw: [0, 111.195, 113.419]       reported: 111.195  <- trailing 2.22 m silently dropped
-```
+Verified by replaying the algorithm (identical lat/lon throughout, thresholds 5/5):
 
-A user who draws two anchors 3 m apart sees "0 km" and cannot tell the editor is working.
+| elevation series (stationary) | reported gain | reported loss | truth |
+|---|---|---|---|
+| `1000, 1006, 1012, 1006, 1000` | 6 | 6 | 0 / 0 |
+| `1000, 1006, 1012, 1018, 1012, 1006, 1000` | 12 | 12 | 0 / 0 |
+| `1000, 1007, 1000, 1007, …` (61 samples, in tests) | 0 | 0 | 0 / 0 |
 
-**Fix:** flush the residual when reading the total.
+The test suite only exercises the single-swing shape, so this gap is invisible to CI. Real
+altimeter noise on a paused device drifts in steps at least as often as it alternates.
+
+Related, lower-impact: a retraction resets `lastFilteredZ` to `preRetractZ` rather than the
+observed `elevation`, so up to `thresholdZ_m` of real elevation change is absorbed per
+retraction (self-limiting — a replay of ten drifting cycles reported 10.5 m against a true
+9 m — but it is a documented-nowhere bias).
+
+**Fix:** keep a bounded stack (or a running excursion window anchored at the pre-excursion
+elevation) so an excursion that returns to the anchor after *k* commits retracts all *k*:
+track `excursionStartZ` + `committedSinceExcursionStart` and unwind the whole run when
+`|elevation - excursionStartZ| < thresholdZ_m` and horizontal movement is below
+`thresholdXY_m`. Add fixtures for the two rows above.
+
+---
+
+### WR-02: The comment's core claim is false — a genuine climb *is* under-reported in the CONV-04 regime
+
+**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:118-129`
+
+**Issue:** The comment asserts "a genuine climb is never under-reported" and that horizontal
+stillness distinguishes noise from terrain. Both fail in exactly the geometry CONV-04 declared
+genuine (88 m of climb over 4.4 m of horizontal movement is an accepted fixture at
+`gpx-metrics-computation.test.ts:88-116`).
+
+Replayed results:
+
+| series | horizontal spacing | reported gain / loss |
+|---|---|---|
+| `1000, 1010, 1000` | ~2 m per sample | **0 / 0** (all real elevation erased) |
+| `1000, 1008, 1000, 1008, 1000, 1008` | ~4 m per sample | 8 / 0 |
+| `1000, 1008, 1000, 1008, 1000, 1008` | ~100 m per sample | 24 / 16 |
+
+The same elevation profile reports three times the gain purely because of sample spacing.
+Anyone who climbs and down-climbs a steep step (via ferrata, tower, scramble to a viewpoint)
+loses the whole excursion, and densely-sampled tracks are penalised relative to sparse ones.
+
+**Fix:** at minimum correct the comment so it documents the real trade-off. Better: gate
+retraction on elapsed *time* / sample count as well as horizontal distance (noise on a paused
+device returns within seconds; a down-climb does not), or require the excursion to have zero
+net horizontal progress rather than "less than 5 m from the last commit point".
+
+---
+
+### WR-03: Crop start is off by one point — the start pin is drawn at a point the crop excludes
+
+**File:** `web/src/lib/models/gpx/crop.ts:44`, `:66`;
+`web/src/routes/trail/edit/[id]/+page.svelte:1495-1515`
+
+**Issue:** Carried over unfixed from the prior round (WR-04) and now baked into the extracted
+API. `getCoordinateAtDistance()` returns the *later* endpoint of the bracketing segment
+(`i = Math.max(1, …)`), so for `target = 0` it returns coordinate = `points[0]` but
+`index = 1`. `updateCropMarkers` uses the coordinate for the pin and the index for
+`cropGPX(flatRoute[startIndex], …)`.
+
+Consequence: opening the crop panel and pressing Crop without moving the slider (range
+`[0, 100]`) silently deletes the route's first track point — the pin sits on a point that is
+not in the result, the distance shrinks by the first hop, and `$formData.lat/lon` (derived
+from the first `trkpt` at `:914-923` / `:308-320`) moves.
+
+**Fix:** return both bracket indices, or have the caller floor the start:
 
 ```ts
-distanceTotal(): number {
-  if (!this.lastFilteredPointXY || !this.lastPointXY) return this.totalDistanceSmoothed;
-  const residual = haversineDistance(
-    this.lastFilteredPointXY.$.lat, this.lastFilteredPointXY.$.lon,
-    this.lastPointXY.$.lat, this.lastPointXY.$.lon,
-  );
-  return this.totalDistanceSmoothed + (Number.isFinite(residual) ? residual : 0);
+const startPointIndex = targetStartDistance <= cumulativeRoute[startIndex - 1]
+    ? startIndex - 1
+    : startIndex;
+croppedGPX = cropGPX(flatRoute[startPointIndex], flatRoute[endIndex], valhallaStore.route);
+```
+
+and add a `crop.test.ts` case asserting that the index returned for `target = 0` maps to the
+point whose coordinate is returned.
+
+---
+
+### WR-04: `startIndex === endIndex` makes `cropGPX` crop to the end of the track
+
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1511-1515`;
+`web/src/lib/util/gpx_util.ts:379-403`
+
+**Issue:** Nothing validates that the two interpolated indices differ. When both slider
+handles land in the same segment (easy on a coarse route — noUiSlider is continuous, the index
+space is not), `startIndex === endIndex`. In `cropGPX`, the branch that matches `start` does
+`newPoints.push(pt); continue;` — the `pt === end` test is never evaluated for that same
+point, so `done` stays `false` and **every remaining point of the track is appended**.
+
+Result: the previewed totals (and the confirmed route, since `confirmCrop` trusts
+`croppedGPX`) describe "from here to the end", while the two pins sit millimetres apart. The
+user sees a tiny selection and gets most of the route.
+
+**Fix:** guard in the caller and fail closed:
+
+```ts
+if (endIndex <= startIndex) {
+    croppedGPX = null;
+    updateTotals(valhallaStore.route);
+    return;
 }
 ```
 
-and use it at `gpx.ts:144`. Add a test asserting a 2-point 2.2 m route reports ~2.2 m, not 0.
+and, separately, make `cropGPX` terminate immediately when `start === end`.
 
 ---
 
-### WR-02: CONV-05 chord-cuts curves — reported distance is systematically short on dense/switchback geometry
+### WR-05: `updateCropMarkers` assumes `features.cumulativeDistance` is index-aligned with `flatten()`, and nothing enforces it
 
-**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:73-78`, `web/src/lib/models/gpx/gpx.ts:144`
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1473-1506`
 
-**Issue:** `smoothedDistance` is the straight-line distance from the last *anchor*, not the sum
-of the intermediate hops, so any curve sampled finer than 5 m is replaced by its chord. Valhalla
-polylines and 1 Hz recordings both sample switchbacks at 1–3 m. Measured on a 30 m-radius circle
-sampled every ~2 m:
+**Issue:** `flatRoute` is read live from `valhallaStore.route.flatten()`, while
+`cumulativeRoute` is read from the cached `features` object. The alignment invariant holds
+only if every mutation recomputes `features`. `deleteFromRoute()`
+(`web/src/lib/stores/valhalla_store.svelte.ts:148-159`) assigns
+`snapshot.features = valhallaStore.route.getTotals()` — totals computed from the route
+*before* the splice — so after deleting a segment the cached `cumulativeDistance` is longer
+than `flatten()` and `rawRouteTotal` is inflated.
 
-```
-P4  true circumference: 188.496   raw: 188.253   reported (smoothed): 186.125
-```
+`crop.ts`'s `Math.min(low, points.length - 1)` clamp keeps this from crashing (good), but the
+pins are then placed at the wrong percentage of the route and the crop indices are wrong — a
+silent wrong-data failure rather than a loud one.
 
-~1.3 % short on a gentle circle; the error grows as turn radius shrinks relative to the
-threshold (a tight hairpin can lose a third of its arc). Both CONV-05 tests
-(`gpx.test.ts:117-138`, `:207-226`) use collinear north-south points, where chord == arc, so the
-bias is structurally invisible to the suite.
-
-**Fix:** accumulate the *path* length between anchors rather than the chord, i.e. keep a
-running sum of raw hops and commit that sum when the anchor displacement clears the threshold:
+**Fix:** cheap consistency check in the caller (and fix `deleteFromRoute` to compute totals
+from the spliced snapshot):
 
 ```ts
-this.pendingPathLength += distance;                 // raw hop, already computed above
-if (smoothedDistance >= this.thresholdXY_m) {
-  this.totalDistanceSmoothed += this.pendingPathLength;
-  this.pendingPathLength = 0;
-  this.lastFilteredPointXY = point;
+if (cumulativeRoute.length !== flatRoute.length || !hasCropInterpolationBasis(cumulativeRoute)) {
+    croppedGPX = null;
+    ...
+    return;
 }
 ```
 
-This preserves the jitter rejection the existing tests assert (jitter never clears the anchor
-threshold, so the out-and-back cancels only if you also reset `pendingPathLength` on
-non-committing spans — pick one semantic and test both fixtures) while ending the chord bias.
-At minimum, add a curved-geometry fixture so the trade-off is pinned by a test.
-
 ---
 
-### WR-03: A single `GpxMetricsComputation` spans `trk` boundaries — disjoint tracks accrue a phantom connecting leg
+### WR-06: `getCoordinateAtDistance` uses a valid coordinate as its error sentinel, and its "never non-finite" doc is not enforced
 
-**File:** `web/src/lib/models/gpx/gpx.ts:106`, `web/src/lib/models/gpx/gpx.ts:111-140`
+**File:** `web/src/lib/models/gpx/crop.ts:25-31`, `:10-24`
 
-**Issue:** `metrics` is constructed once outside both loops, so the last point of track *n* is
-the anchor for the first point of track *n+1*. Multiple `<trk>` elements in one file mean
-genuinely separate activities (that is what the container is for), not one continuous polyline.
-Measured with two 111 m tracks ~134 km apart:
+**Issue:** Two problems in the extracted API:
 
-```
-P6  reported distance: 134319.75 m   cumulative: [0, 111.19, 134208.55, 134319.75]
-```
+1. `points.length === 0` returns `[0, 0, 0]` — a *legal* LngLat in the Gulf of Guinea. A
+   caller that forgets the `hasCropInterpolationBasis` guard gets a plausible-looking pin
+   instead of an error. That is the same Null Island failure mode the file was created to
+   prevent, moved one layer down.
+2. The doc block promises the function "never returns a non-finite number", but `target` is
+   never validated: `getCoordinateAtDistance(points, cumulative, NaN)` returns `[NaN, NaN, i]`
+   because `ratio = (NaN - prevDist) / span`. The promise is a comment, not an invariant.
 
-134 km of travel that never happened, plus a `cumulativeDistance` array whose interpolation
-basis is dominated by the gap (so the crop slider's 50 % lands in the middle of the void).
-
-CONV-01 did not introduce this — the `i = 1` bound spanned the gap too — but the phase edited
-exactly this loop, added tests that lock in cross-*segment* concatenation as intended
-(`gpx.test.ts:58-103`), and never distinguished the segment case (planner legs, correctly
-continuous) from the track case (not continuous).
-
-**Fix:** keep one accumulator per `trk` and sum the per-track results; segments stay
-concatenated within a track. Concatenate the per-track `cumulativeDistance` arrays with each
-track re-based on the running total so index alignment with `flatten()` is preserved. Add a
-two-disjoint-track fixture asserting `distance ≈ 222 m`, not 134 km.
-
----
-
-### WR-04: Crop start is off by one point — the marker and the crop disagree at 0 %
-
-**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1537-1549`, `web/src/routes/trail/edit/[id]/+page.svelte:1504-1508`
-
-**Issue:** `getCoordinateAtDistance` returns `i` — the index of the point *after* the target —
-while interpolating the coordinate between `points[i-1]` and `points[i]`. At `target = 0` the
-returned coordinate is exactly `points[0]` but the returned index is `1`, and `cropGPX()`
-(`lib/util/gpx_util.ts:389-396`) starts collecting at the identity-matched `start` point. So a
-crop at 0 % draws the pin on the first trackpoint but silently discards it, and the cropped
-route begins one point late. The same asymmetry means the reported crop totals never match what
-the pins show.
-
-**Fix:** return the index of the point the interpolated coordinate is closest to (or the floor
-index, and let `cropGPX` include it):
+**Fix:** return `null` for the empty case and force callers to handle it, and enforce the
+documented invariant:
 
 ```ts
-const startIndex = ratio > 0 ? i : i - 1;   // for the start pin
+export function getCoordinateAtDistance(...): [number, number, number] | null {
+  if (points.length === 0 || !Number.isFinite(target)) return null;
+  ...
 ```
 
-Return `[lon, lat, i - 1, i, ratio]` and let the caller pick floor (start) vs. ceil (end).
+Add `crop.test.ts` cases for `target = NaN` / `target = Infinity` — today nothing covers them.
 
 ---
 
-### WR-05: Degenerate routes strand two crop pins at Null Island
+### WR-07: After the guard fires (or after any route edit) the crop UI stays open and the Crop button silently does nothing
 
-**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1439-1467`, `web/src/routes/trail/edit/[id]/+page.svelte:1480-1485`
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1483-1492`, `:1520-1532`, `:1534-1535`;
+`web/src/lib/components/trail/route_editor.svelte:410-418`
 
-**Issue:** The markers are created and `setLngLat([0, 0]).addTo(map!)` runs *before* the new
-guard. On an empty/degenerate route the guard returns immediately, leaving two visible pins at
-0°N 0°E (`toggleCropMarkers(true)` has already set opacity to `1`), plus a `map!` non-null
-assertion that will throw if the crop panel is somehow opened before the map initialises.
+**Issue:** Two silent no-op paths:
 
-**Fix:** move marker creation after the guard, and call `toggleCropMarkers(false)` (or skip
-`addTo`) on the degenerate path. Replace `map!` with an explicit `if (!map) return;`.
+1. Guard path: `updateCropMarkers` hides the markers but `route_editor`'s own `crop` boolean
+   stays `true`, so the panel remains open with a live slider that does nothing. Pressing
+   "crop" calls `confirmCrop()` → `croppedGPX` is `null` → `return` with no feedback.
+2. `updateTrailWithRouteData()` now sets `croppedGPX = null` (`:1535`). Any route edit made
+   while the crop panel is open (undo/redo, anchor drag, split, recalculate elevation) throws
+   the pending crop away; the pins stay where they were and the Crop button becomes a silent
+   no-op until the slider is touched again.
 
----
+Nulling the cache is the right call (a stale `croppedGPX` holds object identities from a
+replaced route — see the prior round's CR-03), but the user gets no signal.
 
-### WR-06: `parseElevation` is not applied at the GeoJSON boundary — the profile chart still draws the sea-level plunge CONV-03 removed
-
-**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:3-14` (docstring claim), `web/src/lib/models/gpx/track-segment.ts:22-26`, `web/src/lib/models/gpx/waypoint.ts:87`, `web/src/lib/models/gpx/route.ts:48`
-
-**Issue:** The docstring calls `parseElevation` "the single coercion point", but it is only
-called inside `GpxMetricsComputation`. The `toGeoJSON` paths still emit `pt.ele ?? 0` verbatim,
-and `ele` is a **string** at rest for every XML-parsed GPX (the phase's own test documents this
-at `gpx-metrics-computation.test.ts:69`). Measured:
-
-```
-P8  GeoJSON coordinates: [[11,47,"1000"],[11,47.001,""]]
-```
-
-That is not valid GeoJSON (altitude must be a number), and it feeds
-`smoothElevations()` (`lib/vendor/maplibre-elevation-profile/tools.ts:42`), whose
-`sum + elevation * weights[idx]` coerces `""` to **0**. So the elevation *profile chart* still
-renders the fabricated plunge to sea level for a missing `<ele>`, while the *number* next to it
-now correctly reports 15 m of gain. The two disagree on screen, and CONV-03 is only half done.
-
-**Fix:** coerce at the model boundary so every consumer sees numbers or `undefined`:
+**Fix:** give `confirmCrop()` a user-visible failure and have the guard path close the panel
+through the component (a `bind:crop` or an `onCropUnavailable` callback) rather than only
+hiding the markers:
 
 ```ts
-// track-segment.ts / waypoint.ts / route.ts
-import { parseElevation } from './gpx-metrics-computation';   // or move it to utils.ts
-const coordinates = (this.trkpt || []).map(pt => {
-  const ele = parseElevation(pt.ele);
-  return ele === undefined ? [pt.$.lon ?? 0, pt.$.lat ?? 0] : [pt.$.lon ?? 0, pt.$.lat ?? 0, ele];
-});
+function confirmCrop() {
+    const confirmedCrop = croppedGPX;
+    if (!confirmedCrop) {
+        show_toast({ type: "error", icon: "close", text: $_("crop-unavailable") });
+        return;
+    }
+    ...
 ```
 
-Better still: coerce once in the `Waypoint` constructor (`this.ele = parseElevation(object.ele)`)
-so the declared type `ele?: number` stops being a lie. Note `correctElevation` already assigns
-numbers, so `ele` is a `string | number | undefined` union in practice — exactly the ambiguity
-`parseElevation` was introduced to eliminate.
+---
+
+### WR-08: `any` typing throughout `GpxMetricsComputation` defeats strict mode in the file being hardened
+
+**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:29-37`, `:56`
+
+**Issue:** `addAndFilter(point: any)`, `lastPointXY: any | null`,
+`lastFilteredPointXY: any | null`, `lastFilteredZPointXY: any | null`. `any | null` collapses
+to `any`, so `this.lastFilteredZPointXY !== null` is unchecked by the compiler, and a typo
+such as `point.$.long` or `point.elevation` compiles cleanly and silently produces
+`NaN`/`undefined` at runtime. This is the hottest correctness path in the phase and the only
+one with no type safety.
+
+**Fix:** `import type Waypoint from './waypoint'` and type the fields/parameters as
+`Waypoint | null` / `Waypoint`. The class only touches `$.lat`, `$.lon` and `ele`, all present
+on `Waypoint`.
 
 ---
 
-### WR-07: The editor now shows three different distances for the same route
+### WR-09: The `elevation_loss` hidden input is named and valued `elevation_gain`
 
-**File:** `web/src/lib/models/gpx/gpx.ts:144`, `web/src/lib/components/trail/trail_anchor_list.svelte:221`, `web/src/lib/components/trail/trail_anchor_list.svelte:242-244`, `web/src/lib/vendor/maplibre-elevation-profile/elevationprofile.ts:915-917`
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:2240-2244`
 
-**Issue:** CONV-05 changed the reported total to smoothed, but two sibling surfaces in the same
-screen were not aligned:
+**Issue:** Inside the elevation-*loss* block:
 
-- `trail_anchor_list.svelte:243` still carries a verbatim copy of the CONV-01 bug
-  (`for (let i = 1; i < points.length; i++)`) and reads `metrics.totalDistance` (raw) at `:221`.
-  Its per-anchor distances therefore drop each segment's first hop *and* use a different
-  smoothing basis, so they cannot sum to the form's total.
-- The elevation profile computes its own `haversineCumulatedDistanceWgs84` (raw) for the x-axis,
-  so the chart's end-of-route distance exceeds the form's by the smoothing loss (WR-01 + WR-02).
+```svelte
+<input type="hidden" name="elevation_gain" value={$formData.elevation_gain} />
+```
 
-`33-03-SUMMARY.md:105` self-flags the anchor-list copy as a carried risk, which is honest — but
-it is shipping a user-visible arithmetic contradiction in the same view, and the "sum of the
-legs ≠ the whole" symptom is exactly the bug report class this phase exists to eliminate.
+The form emits `elevation_gain` twice and never emits `elevation_loss` in read-only mode.
+Felte's `data-felte-keep-on-remove` on the fieldset (`:2179`) plus the store-based `onSubmit`
+currently masks the consequence, but any change to how the payload is built (or a
+`new FormData(htmlForm)` read — one already exists at `:275`) turns this into a wrong-value
+submission.
 
-**Fix:** fix the `i = 1` bound and switch to `totalDistanceSmoothed` in
-`trail_anchor_list.svelte` in this phase (it is a two-line change against code the phase already
-proved correct), or explicitly label the anchor-list column as raw. Extract the shared
-"accumulate a GPX's metrics" loop into one function so a third copy cannot appear.
+**Fix:**
+
+```svelte
+<input type="hidden" name="elevation_loss" value={$formData.elevation_loss} />
+```
 
 ---
 
-### WR-08: `correctElevation` throws a `TypeError` when Valhalla omits `height`, and silently blanks trailing points on a short response
+### WR-10: `correctElevation` blanks trailing elevations when Valhalla returns a short `height` array
 
-**File:** `web/src/lib/models/gpx/gpx.ts:203-222`
+**File:** `web/src/lib/models/gpx/gpx.ts:203-224`
 
-**Issue:** (Pre-existing; unchanged by this phase but inside a reviewed file, and directly
-upstream of the metrics this phase rewrote.)
-
-- `heights` defensively defaults to `[]` at `:204`, but the write loop at `:218` dereferences
-  `heightResponse.height[heightIndex]` — the *undefaulted* field. If the endpoint returns
-  `{}`, `heights.length === 0` skips the `:207` guard and `:218` throws
-  `Cannot read properties of undefined (reading '0')`, unhandled, mid-mutation.
-- There is no length check between `heightResponse.height` and the point count. A short array
-  assigns `undefined` to every trailing point, wiping existing elevation data for the tail of
-  the track with no error surfaced. A long array is silently ignored.
+**Issue:** Carried over unfixed from the prior round (WR-08). The all-non-finite guard
+(`:207-209`) covers total failure, but nothing checks
+`heightResponse.height.length === pointCount`. The write loop indexes past the end, so every
+point beyond the response length gets `pt.ele = undefined`, destroying elevation that was
+already correct. Post-33-02 those points are treated as "no data" by `parseElevation`, so the
+elevation profile silently shortens instead of erroring.
 
 **Fix:**
 
 ```ts
-const heights = heightResponse.height ?? [];
-const pointCount = coordinates.length;
+const pointCount = this.flatten().length;
 if (heights.length !== pointCount) {
-  throw new APIError(502, "elevation-response-length-mismatch",
-    `expected ${pointCount} heights, got ${heights.length}`);
+    throw new APIError(502, "elevation-service-returned-incomplete-data");
 }
-if (heights.every((h) => !Number.isFinite(h))) return;
-// ...then assign from `heights`, never from `heightResponse.height`
 ```
+
+or skip assignment when `heightResponse.height[heightIndex] === undefined`.
 
 ---
 
-### WR-09: Malformed / non-GPX uploads surface as `Cannot read properties of undefined (reading 'gpx')`
+### WR-11: `GPX.parse`'s `if (error) throw error` is unreachable; malformed uploads throw a `TypeError` instead
 
-**File:** `web/src/lib/models/gpx/gpx.ts:229-254`
+**File:** `web/src/lib/models/gpx/gpx.ts:240-253`
 
-**Issue:** (Pre-existing; inside a reviewed file.) The `parseString` callback assigns
-`error = err` and then *immediately* constructs `new GPX({ $: xml.gpx.$, ... })` without
-checking `err` or the existence of `xml.gpx`. The `if (error) throw error` at `:250` is
-unreachable for any input that actually fails to parse. Verified against the shipped code:
-
-```
-GPX.parse("<gpx><trk></gpx>")  ->  TypeError: Cannot read properties of undefined (reading 'gpx')
-```
-
-User-supplied files are the input here, so this is missing input validation on an untrusted
-path: the real parse diagnostic is discarded and the user gets an internal `TypeError`.
+**Issue:** Carried over unfixed from the prior round (WR-09). Inside the `parseString`
+callback, `error = err` is assigned and then `new GPX({ $: xml.gpx.$, … })` runs
+unconditionally. When parsing fails, `xml` is `undefined`, so the callback throws
+`Cannot read properties of undefined (reading 'gpx')` before the `if (error) throw error` line
+is ever reached. The same happens for well-formed XML with a non-`gpx` root (e.g. a
+mis-detected KML). Callers that branch on `gpx instanceof Error` (`gpx_util.ts:26`, `:106`,
+`+page.svelte:386`) are dead code — `parse` never returns an `Error`.
 
 **Fix:**
 
 ```ts
 xml2js.parseString(sanitizedGPX, opts, (err, xml) => {
-  if (err) { error = err; return; }
-  if (!xml?.gpx) { error = new Error("not-a-gpx-document"); return; }
-  data = new GPX({ $: xml.gpx.$, metadata: xml.gpx.metadata, wpt: xml.gpx.wpt, rte: xml.gpx.rte, trk: xml.gpx.trk });
+    if (err) { error = err; return; }
+    if (!xml?.gpx) { error = new Error("Not a GPX document"); return; }
+    data = new GPX({ ... });
 });
 if (error) throw error;
-if (!data) throw new Error("gpx-parse-produced-no-data");
 ```
+
+and delete the dead `instanceof Error` branches at the call sites.
+
+---
+
+### WR-12: `handleFileSelection()` is the one route-replacing path that does not clear `croppedGPX`
+
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:440-544`
+
+**Issue:** 33-05 cleared the crop cache in `resetTrail`, `replaceRoute`, `toggleCropMarkers`
+and `updateTrailWithRouteData`, but `handleFileSelection()` calls `clearRoute()` / `setRoute()`
+without going through any of them (it never calls `updateTrailWithRouteData()`). In the normal
+"replace route" flow `replaceRoute()` runs first and clears the cache, so this is currently
+defence-in-depth rather than a live bug — but it is the same class of stale-cache hazard the
+prior round's CR-03 documented, and one refactor away from being live again.
+
+**Fix:** add `croppedGPX = null;` alongside `clearRoute();` at `:455`, or route all
+route-replacement paths through a single helper that owns the invalidation.
 
 ---
 
 ## Info
 
-### IN-01: Dead raw accumulators and an unreachable anchor branch
+### IN-01: Redundant `croppedGPX = null` assignments
 
-**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:33-34`, `web/src/lib/models/gpx/gpx-metrics-computation.ts:90-105`
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1400`, `:1411`, `:1489`
 
-`totalElevationGain` / `totalElevationLoss` (raw) are computed on every point but read nowhere
-in production — `getTotals()` uses only the smoothed pair (`gpx.ts:142-143`) and
-`trail_anchor_list.svelte:222-223` likewise. CONV-03 added a `lastZ === null` anchor branch for
-this dead path, so that logic ships untested and unused. Either delete the raw elevation
-accumulators or add an assertion that consumes them; carrying two parallel implementations of
-the same rule is how the smoothed one drifts.
-
-### IN-02: `summedPointCount` is provably equal to `allPoints.length`, and nothing reads `centroid`
-
-**File:** `web/src/lib/models/gpx/gpx.ts:104`, `web/src/lib/models/gpx/gpx.ts:114`, `web/src/lib/models/gpx/gpx.ts:132`, `web/src/lib/models/gpx/gpx.ts:147`
-
-After CONV-01 fixed the loop bound, `summedPointCount++` runs exactly once per
-`allPoints.push(...points)` entry, so the two counters cannot diverge — CONV-02's separate
-counter is now redundant bookkeeping. More to the point, `features.centroid` has **no**
-production consumer (grep finds references only in `gpx.test.ts`), so CONV-02 fixed a value
-nobody reads. Consider deleting `centroid` outright, or at least drop the duplicate counter.
-
-### IN-03: Duplicated `if (elevation !== undefined)` blocks
-
-**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:91-105`, `web/src/lib/models/gpx/gpx-metrics-computation.ts:107-123`
-
-Two consecutive guards on the same condition with near-identical anchor-init logic. Merge into
-one block with two sub-branches; it removes ~8 lines and one opportunity for the two paths to
-drift apart.
-
-### IN-04: `any` typing defeats the type discipline CONV-03 was meant to establish
-
-**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:29-30`, `web/src/lib/models/gpx/gpx-metrics-computation.ts:46`
-
-`addAndFilter(point: any)`, `lastPointXY: any`, `lastFilteredPointXY: any` in a `strict: true`
-project. `parseElevation(raw: unknown)` is correctly typed, but its caller hands it a value the
-compiler knows nothing about, so no future refactor of `Waypoint` will be caught here. Type
-these as `Waypoint` (and let `parseElevation` remain `unknown`-tolerant for the string case).
-
-### IN-05: Test-suite smells
-
-**File:** `web/src/lib/models/gpx/gpx.test.ts:228-230`, `web/src/lib/models/gpx/gpx.test.ts:105-115`, `web/src/lib/models/gpx/gpx-metrics-computation.test.ts:88-116`
-
-- `waypointAt(lat, lon, ele?)` declares an `ele` parameter that no call site passes — dead
-  parameter in a brand-new helper.
-- `gpx.test.ts:109` asserts `Number.isNaN(centroid.lat)` for an empty track, promoting an
-  accidental `0/0` sentinel into a contract. If `centroid` survives IN-02, it should return
-  `null`, not `NaN`.
-- The 12-point CONV-04 fixture and the 5×jitter fixture are each rebuilt inline in two
-  different tests; hoist them into named builders so a fixture change cannot update one copy
-  only.
-- Magic expectations (`134.592`, `444.78`, `100.075`) are repeated across blocks with no shared
-  constant.
-
-### IN-06: A single non-finite coordinate silently truncates raw distance and flatlines `cumulativeDistance`
-
-**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:80-88`
-
-`Number.isFinite(distance)` correctly skips the accumulation, but `lastPointXY = point` runs
-unconditionally at `:88`, so the poisoned point becomes the anchor and the *next* hop is
-non-finite too — two hops of real distance vanish with no diagnostic, and
-`cumulativeDistance` records a flat plateau that the crop interpolator will treat as a
-zero-length span (feeding CR-01). Currently hard to reach because `Waypoint` coerces missing
-coordinates to `-1` (`waypoint.ts:53-54`, itself questionable), but the guard's intent is
-defeated. Either skip the anchor update for non-finite hops or drop such points before they
-reach the accumulator.
+`resetTrail()` and `replaceRoute()` both null the cache and then call
+`updateTrailWithRouteData()`, which nulls it again (`:1535`); `:1489` nulls it immediately
+before `toggleCropMarkers(false)`, which nulls it again (`:1436`). Harmless, but it obscures
+who owns the invariant. Keep ownership in `updateTrailWithRouteData()` / `toggleCropMarkers()`
+and drop the duplicates.
 
 ---
 
-_Reviewed: 2026-07-31T12:45:00Z_
+### IN-02: `crop.ts` is more review history than code
+
+**File:** `web/src/lib/models/gpx/crop.ts:1-19`, `:42-53`, `:69-79`
+
+Roughly half the file is prose about a defect that no longer exists, citing planning artifacts
+(`.planning/phases/33-conversion-correctness/33-VERIFICATION.md`, "gap 2 / CR-01") and phrasing
+like "the shipped code returns […]". Source comments should describe current behaviour; the
+narrative belongs in the phase summary. The same pattern is heavy in
+`gpx-metrics-computation.ts` ("D-01: …", "T-33-11") and in both test files.
+
+---
+
+### IN-03: `rawRouteTotal` is derived twice, in two places
+
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1481`; `web/src/lib/models/gpx/crop.ts:81`
+
+The caller and the predicate each independently read `cumulative[cumulative.length - 1]`. If
+the predicate's notion of "total" ever changes (e.g. `Math.max(...)` for a non-monotonic
+array), the caller silently keeps the old one. Have `hasCropInterpolationBasis` return the
+total (or `null`) and use it.
+
+---
+
+### IN-04: Dead accumulators and a dead hash
+
+**File:** `web/src/lib/models/gpx/gpx-metrics-computation.ts:43-44`, `:101-116`;
+`web/src/lib/models/gpx/gpx.ts:161`, `:179-182`
+
+`totalElevationGain` / `totalElevationLoss` (raw) are maintained on every point and read by
+nothing in production (`getTotals` uses the smoothed fields; no test asserts them either).
+`features.hash` / `generateMinHash()` is likewise unread anywhere in `web/` or `db/` — and
+despite the name it is not a MinHash: `hashes.sort().join('').slice(0, 10)` is determined by
+the single lexicographically-smallest geohash, so unrelated trails starting in the same cell
+collide. Delete both, or wire them up deliberately.
+
+---
+
+### IN-05: The crop range callback fires twice per panel open
+
+**File:** `web/src/lib/components/base/double_slider.svelte:39-42`
+
+noUiSlider fires `update` once per handle when a listener is bound, so `onupdate([0, 100])` —
+and therefore `updateCropMarkers()`, `cropGPX()` over the whole track, and `updateTotals()` —
+runs twice on every crop-panel open. Bind with a namespace and fire once, or debounce.
+
+---
+
+### IN-06: Commented-out summit-log block
+
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:491-506`
+
+16 lines of commented-out code in `handleFileSelection()`. Delete it; git has it.
+
+---
+
+### IN-07: Crop markers are never removed, only made transparent
+
+**File:** `web/src/routes/trail/edit/[id]/+page.svelte:1442-1470`, `:1428-1439`
+
+The markers are constructed once, `addTo(map!)` (unchecked non-null assertion) and thereafter
+only toggled via `setOpacity`. They remain attached to the map for the lifetime of the page,
+and `updateCropMarkers()`'s success path never restores opacity — so if the route becomes
+valid again while the panel is open (draw anchors with the crop panel showing), the pins stay
+invisible even though a crop preview is being computed. Prefer `remove()` / `addTo()`, and set
+opacity `"1"` explicitly on the success path.
+
+---
+
+_Reviewed: 2026-07-31T12:55:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
