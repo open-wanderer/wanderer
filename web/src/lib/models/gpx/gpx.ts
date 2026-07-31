@@ -141,7 +141,7 @@ export default class GPX {
 
     totalElevationGain = metrics.totalElevationGainSmoothed;
     totalElevationLoss = metrics.totalElevationLossSmoothed;
-    totalDistance = metrics.totalDistance;
+    totalDistance = metrics.totalDistanceSmoothed;
 
     const boundingBox = { minLat, maxLat, minLon, maxLon };
     const centroid = { lat: totalLat / summedPointCount, lon: totalLon / summedPointCount };
@@ -150,6 +150,10 @@ export default class GPX {
       centroid,
       boundingBox,
       distance: totalDistance,
+      // D-01: raw (unsmoothed), index-aligned with flatten() — one entry
+      // per point, first entry 0 — reserved for position interpolation
+      // (the trail-edit crop slider). Deliberately not equal to the
+      // reported `distance` above, which is the smoothed total.
       cumulativeDistance: metrics.cumulativeDistance,
       elevationGain: totalElevationGain,
       elevationLoss: totalElevationLoss,

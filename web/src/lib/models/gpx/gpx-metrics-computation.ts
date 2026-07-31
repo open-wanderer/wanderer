@@ -56,6 +56,10 @@ class GpxMetricsComputation {
         this.lastFilteredZ = initialElevation;
         this.lastZ = initialElevation;
       }
+      // D-01: push once per call, including this first call, so
+      // cumulativeDistance stays index-aligned with the point count —
+      // entry 0 is always the route-start distance, 0.
+      this.cumulativeDistance.push(this.totalDistance);
       return;
     }
 
@@ -73,7 +77,12 @@ class GpxMetricsComputation {
       point.$.lon
     );
 
-    this.totalDistance += distance;
+    if (Number.isFinite(distance)) {
+      this.totalDistance += distance;
+    }
+    // D-01: unconditional push keeps cumulativeDistance's entry count equal
+    // to the call count even when a hostile coordinate yields a non-finite
+    // haversine distance (T-33-11).
     this.cumulativeDistance.push(this.totalDistance)
 
     this.lastPointXY = point;
