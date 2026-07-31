@@ -1469,19 +1469,32 @@
 
         const flatRoute = valhallaStore.route.flatten();
 
-        const targetStartDistance =
-            valhallaStore.route.features.distance * (start / 100);
+        // After CONV-05, features.distance is the smoothed total while
+        // cumulativeRoute accumulates raw per-point hops. getCoordinateAtDistance()
+        // interpolates between adjacent entries of the raw array, so its
+        // percentage basis must be that array's own total (rawRouteTotal) or the
+        // crop pins drift off the polyline — the drift grows with GPS jitter.
+        const cumulativeRoute = valhallaStore.route.features.cumulativeDistance;
+        const rawRouteTotal = cumulativeRoute[cumulativeRoute.length - 1];
+
+        if (cumulativeRoute.length < 2 || !Number.isFinite(rawRouteTotal)) {
+            // An empty/too-short route has no interpolation basis;
+            // getCoordinateAtDistance() would otherwise produce NaN
+            // coordinates that MapLibre's setLngLat rejects at runtime.
+            return;
+        }
+
+        const targetStartDistance = rawRouteTotal * (start / 100);
         const [startLon, startLat, startIndex] = getCoordinateAtDistance(
             flatRoute,
-            valhallaStore.route.features.cumulativeDistance,
+            cumulativeRoute,
             targetStartDistance,
         );
 
-        const targetEndDistance =
-            valhallaStore.route.features.distance * (end / 100);
+        const targetEndDistance = rawRouteTotal * (end / 100);
         const [endLon, endLat, endIndex] = getCoordinateAtDistance(
             flatRoute,
-            valhallaStore.route.features.cumulativeDistance,
+            cumulativeRoute,
             targetEndDistance,
         );
 
