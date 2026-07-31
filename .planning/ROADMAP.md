@@ -335,58 +335,77 @@ Four phases, strictly sequential — each one's success criteria depend on groun
 4. **Recording before sync, and both after the screen works offline.** SYNC-* drains a queue that REC-* must create first — you cannot drain what doesn't exist. REC-05 (editing an unsynced recording while offline) reuses the exact map/tag fixes Phase 35 ships, so Phase 36 depends on Phase 35, not just Phase 34. REC-01 (saving a recording offline at all) needs Phase 34's on-device conversion to produce a trail with no network call.
 
 ### Phase 33: Conversion Correctness
+
 **Goal**: Every GPX converted anywhere in Wanderer — a web upload or a server-side conversion — reports correct distance, elevation, and duration, fixing four real defects in the shared TS computation before the Dart port can be pinned against it.
 **Depends on**: Nothing new this milestone (continues from Phase 32)
 **Requirements**: CONV-01, CONV-02, CONV-03, CONV-04, CONV-05
 **Success Criteria** (what must be TRUE):
+
   1. Converting a 2-point GPX track segment reports its real length instead of zero, and its centroid/bounding box sum and divide by the same point count instead of silently losing the first point.
   2. Converting a GPX with only some elevation-tagged points no longer reports a phantom drop to sea level, and a steep, low-horizontal-movement stretch (switchbacks, scrambles) is measured instead of skipped.
   3. A converted trail's distance comes from the smoothed accumulator instead of the raw, GPS-jitter-inflated haversine sum, and the dead, misaligned `cumulativeDistance` array is gone.
   4. A route planned in the web planner reports a distance that follows its anchors instead of cutting the corner at each one.
-**Plans**: 3 plans
 
+**Plans**: 3 plans
 Plans:
+**Wave 1**
+
 - [ ] 33-01-PLAN.md — Fix the `getTotals()` off-by-one loop bound and the centroid divisor (CONV-01/02), plus the first GPX Vitest fixture suite
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 33-02-PLAN.md — Undefined-aware elevation via `parseElevation` (CONV-03) and threshold-independent elevation sampling (CONV-04), with fixtures
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 33-03-PLAN.md — Report the smoothed distance and rebuild `cumulativeDistance` index-aligned (CONV-05/D-01), rescale the crop slider (D-02)
 
 **Scope note:** deliberately web-only — `web/src/lib/models/gpx/gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`. CONV-06 (moving time) was originally mapped here and moved to Phase 34: pause data lives in the app's `navigation_stats_provider` (`pausedAccum`) and exists only for trails recorded in the app, so it cannot be satisfied or observed by a web-only change.
 
 ### Phase 34: Dart Conversion Port
+
 **Goal**: The app computes a trail's name, waypoints, distance, elevation, duration, and bounding box from a GPX entirely on-device — for recordings, route-planner output, and file imports — proven identical to the corrected web implementation; the server's convert endpoint stops computing trails at all.
 **Depends on**: Phase 33 (the port must be pinned against the corrected algorithm — porting the buggy TS first would make the defects permanent and unfixable without diverging)
 **Requirements**: PORT-01, PORT-02, PORT-03, PORT-04, PORT-05, CONV-06
 **Success Criteria** (what must be TRUE):
+
   1. The app derives a draft trail's name, description, waypoints, start coordinates, date, distance, elevation gain/loss, duration, and bounding box from a GPX with no network call.
   2. A shared fixture test proves the Dart and TypeScript implementations produce identical metrics for the same GPX inputs, explicitly covering the CONV-01..05 defect cases.
   3. Recordings, route-planner output, and `.gpx` file imports all produce their trail through the Dart path — `POST /trail/convert` is called for none of them.
   4. `POST /api/v1/trail/convert` transcodes kml/kmz/tcx/fit to GPX and returns it without computing a trail, and its published OpenAPI description matches the new behavior.
   5. Importing a kml/kmz/tcx/fit file while online still produces a correct trail, computed by the app from the server-transcoded GPX.
   6. A trail saved from an in-app recording reports moving time — elapsed minus the session's accumulated pause — while an imported file continues to report elapsed time.
+
 **Plans**: TBD
 
 ### Phase 35: Offline Trail Creation
+
 **Goal**: A hiker can open `trail_create_screen` with no connection and complete every step — see the map, enter tags, import a GPX — with non-GPX formats clearly explained instead of failing generically.
 **Depends on**: Phase 34 (OFFUI-03 needs the on-device Dart conversion path; OFFUI-04 needs the transcode-only endpoint contract to explain correctly). OFFUI-01/02 have no such dependency and are live bugs today (`.planning/todos/pending/2026-07-31-trail-create-screen-offline-gaps.md`) — plan-phase may sequence them first within this phase's plans.
 **Requirements**: OFFUI-01, OFFUI-02, OFFUI-03, OFFUI-04
 **Success Criteria** (what must be TRUE):
+
   1. The map on `trail_create_screen` renders from downloaded regions when there is no connection, instead of going blank.
   2. Typing a tag with no connection shows no suggestions instead of throwing, and a typed free-form tag still reaches the saved trail.
   3. Importing a `.gpx` file works with no connection, converted on-device via Phase 34's Dart path.
   4. Attempting to import a kml/kmz/tcx/fit file with no connection explains that format needs a connection and that GPX works offline, instead of a generic failure.
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 36: Local-First Recording & Automatic Upload
+
 **Goal**: A hiker who records a trail with no signal can save it, review it, and fill in its details on the spot — and it uploads itself the next time the phone has a connection, without the hiker doing anything.
 **Depends on**: Phase 35 (REC-05's offline edit reuses the exact `trail_create_screen` map/tag fixes Phase 35 ships; REC-01 needs Phase 34's on-device conversion, carried forward)
 **Requirements**: REC-01, REC-02, REC-03, REC-04, REC-05, SYNC-01, SYNC-02, SYNC-03, SYNC-04, SYNC-05
 **Success Criteria** (what must be TRUE):
+
   1. Ending a recording with no connection saves it immediately into the trail library — no save-failure is ever shown for being offline, and the unsynced recording is visibly distinguishable from both a synced trail and a trail downloaded for offline use.
   2. A recording survives app restart and stays tied to the account that recorded it — a different account never sees or uploads it, and logging out never deletes it.
   3. A hiker can open, review, and edit an unsynced recording's title, description, category, and photos while still offline, on the same screen Phase 35 made offline-capable.
   4. Once the app is foregrounded with a working connection, an unsynced recording uploads on its own — with inline per-item progress visible on the recording itself (not a separate pending-uploads screen), and a manual retry when an upload fails or stalls.
   5. An interrupted upload never produces a duplicate trail when retried, and once uploaded the recording becomes an ordinary trail in place — keeping its identity in the library rather than appearing a second time.
+
 **Plans**: TBD
 **UI hint**: yes
 
