@@ -151,6 +151,20 @@ beyond what the corpus reader needs.
   `route_planner_screen.dart:513-524` currently catches the offline failure, shows an error
   toast, and leaves the user stuck on the planner unable to finish a route at all.
 
+### Second in-app metrics implementation (added post-research)
+
+- **D-17 [locked]:** `GpxMappingUtils.getTotals()` in `app/lib/util/gpx_util.dart` is a
+  **second, CONV-01-buggy metrics implementation already in the app**, consumed by
+  `elevation_profile.dart` and `trail_panel.dart` for unsaved-GPX preview. Both consumers
+  are **redirected onto the new ported function and the buggy extension is deleted** in this
+  phase.
+
+  **Rationale:** leaving it would ship two metrics implementations that disagree — the
+  preview showing one distance and the saved trail another for the same GPX — and it is
+  precisely the CONV-01 defect this milestone exists to eliminate, surviving in a file the
+  fixture corpus does not cover. Surfaced by 34-RESEARCH.md; the planner must not confuse
+  this extension with the new port.
+
 ### Claude's Discretion
 
 - Where the Dart conversion module lives and whether it mirrors the TS file layout.
