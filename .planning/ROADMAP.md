@@ -317,7 +317,7 @@ Audit: `.planning/milestones/v1.7-MILESTONE-AUDIT.md` (status `gaps_found` — v
 
 **Milestone Goal:** A hiker who records a trail with no signal can save it, review it, and fill in its details on the spot — and it uploads itself when the phone next has a connection, without the hiker doing anything.
 
-- [x] **Phase 33: Conversion Correctness** - Corrected GPX→trail metrics in the shared TS computation (`gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`), fixing four defects plus GPS-jitter-inflated distance before anything ports or builds on top of them (completed 2026-07-31)
+- [ ] **Phase 33: Conversion Correctness** - Corrected GPX→trail metrics in the shared TS computation (`gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`), fixing four defects plus GPS-jitter-inflated distance before anything ports or builds on top of them (verification found gaps 2026-07-31 — see 33-VERIFICATION.md)
 - [ ] **Phase 34: Dart Conversion Port** - The app computes trail metrics from a GPX entirely on-device (including moving time for recordings), pinned against the corrected TS by a shared fixture test; `/trail/convert` becomes transcode-only
 - [ ] **Phase 35: Offline Trail Creation** - `trail_create_screen` is fully usable with no connection: map, tags, GPX import, and a clear message for formats that need one
 - [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the library, and uploads itself once the phone is back online
@@ -470,7 +470,7 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
 | 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 6/6 | Complete   | 2026-07-28 |
-| 33. Conversion Correctness | v1.8 | 3/3 | Complete   | 2026-07-31 |
+| 33. Conversion Correctness | v1.8 | 3/3 | Gaps Found | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 0/0 | Not planned | — |
 | 35. Offline Trail Creation | v1.8 | 0/0 | Not planned | — |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 0/0 | Not planned | — |
