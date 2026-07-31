@@ -19,7 +19,6 @@
     import { TrailCreateSchema } from "$lib/models/api/trail_schema.js";
     import { WaypointCreateSchema } from "$lib/models/api/waypoint_schema.js";
     import GPX from "$lib/models/gpx/gpx";
-    import GPXWaypoint from "$lib/models/gpx/waypoint";
     import type { List } from "$lib/models/list";
     import { SummitLog } from "$lib/models/summit_log";
     import { Trail, hasDuplicatePhotos } from "$lib/models/trail";
@@ -65,6 +64,7 @@
         formatTimeHHMM,
     } from "$lib/util/format_util";
     import { cropGPX, fromFile, gpx2trail } from "$lib/util/gpx_util";
+    import { getCoordinateAtDistance, hasCropInterpolationBasis } from "$lib/models/gpx/crop";
 
     import { page } from "$app/state";
     import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
@@ -1397,6 +1397,7 @@
 
     function resetTrail() {
         resetRoute();
+        croppedGPX = null;
 
         updateTrailWithRouteData();
     }
@@ -1407,6 +1408,7 @@
 
     function replaceRoute() {
         resetRoute();
+        croppedGPX = null;
         clearUndoRedoStack();
         gpxFile = null;
         overwriteGPX = true;
@@ -1431,6 +1433,7 @@
             cropStartMarker?.setOpacity("0");
             cropEndMarker?.setOpacity("0");
 
+            croppedGPX = null;
             updateTotals(valhallaStore.route);
         }
     }
@@ -1477,10 +1480,14 @@
         const cumulativeRoute = valhallaStore.route.features.cumulativeDistance;
         const rawRouteTotal = cumulativeRoute[cumulativeRoute.length - 1];
 
-        if (cumulativeRoute.length < 2 || !Number.isFinite(rawRouteTotal)) {
-            // An empty/too-short route has no interpolation basis;
-            // getCoordinateAtDistance() would otherwise produce NaN
-            // coordinates that MapLibre's setLngLat rejects at runtime.
+        if (!hasCropInterpolationBasis(cumulativeRoute)) {
+            // No positive interpolation basis (empty, too short, or a fully
+            // degenerate/coincident-point route); getCoordinateAtDistance() would
+            // otherwise produce NaN coordinates that MapLibre's setLngLat rejects
+            // at runtime. Discard any pending crop and hide the markers rather than
+            // stranding two visible pins at 0N 0E.
+            croppedGPX = null;
+            toggleCropMarkers(false);
             return;
         }
 
@@ -1511,45 +1518,21 @@
     }
 
     function confirmCrop() {
-        if (!croppedGPX) {
+        // Hoisted locally: updateTrailWithRouteData() below (called between this and
+        // initRouteAnchors()) resets croppedGPX = null, so re-reading the field after
+        // that call would pass null into initRouteAnchors and break the crop feature.
+        const confirmedCrop = croppedGPX;
+        if (!confirmedCrop) {
             return;
         }
-        setRoute(croppedGPX, true);
+        setRoute(confirmedCrop, true);
         updateTrailWithRouteData();
         clearAnchors();
-        initRouteAnchors(croppedGPX, true);
-    }
-
-    function getCoordinateAtDistance(
-        points: GPXWaypoint[],
-        cumulative: number[],
-        target: number,
-    ) {
-        let low = 0,
-            high = cumulative.length - 1;
-
-        while (low < high) {
-            const mid = Math.floor((low + high) / 2);
-            if (cumulative[mid] < target) low = mid + 1;
-            else high = mid;
-        }
-
-        const i = Math.max(1, low);
-        const prevDist = cumulative[i - 1];
-        const nextDist = cumulative[i];
-        const ratio = (target - prevDist) / (nextDist - prevDist);
-
-        const prev = points[i - 1];
-        const next = points[i];
-
-        return [
-            prev.$.lon! + (next.$.lon! - prev.$.lon!) * ratio,
-            prev.$.lat! + (next.$.lat! - prev.$.lat!) * ratio,
-            i,
-        ];
+        initRouteAnchors(confirmedCrop, true);
     }
 
     function updateTrailWithRouteData() {
+        croppedGPX = null;
         overwriteGPX = true;
         routeSegments = [...(valhallaStore.route.trk?.at(0)?.trkseg ?? [])];
         updateTotals(valhallaStore.route);
