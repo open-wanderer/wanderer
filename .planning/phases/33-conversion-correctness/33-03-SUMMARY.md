@@ -108,3 +108,15 @@ None - no external service configuration required.
 ---
 *Phase: 33-conversion-correctness*
 *Completed: 2026-07-31*
+
+## Self-Check: PASSED
+
+- FOUND: web/src/lib/models/gpx/gpx-metrics-computation.ts
+- FOUND: web/src/lib/models/gpx/gpx.ts
+- FOUND: web/src/routes/trail/edit/[id]/+page.svelte
+- FOUND: web/src/lib/models/gpx/gpx.test.ts
+- FOUND: .planning/phases/33-conversion-correctness/33-03-SUMMARY.md
+- FOUND: commit b7631bef
+- FOUND: commit 023de25a
+- FOUND: commit 6397edef
+- FOUND: commit 00032d82
