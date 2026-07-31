@@ -1,5 +1,28 @@
 import { haversineDistance } from './utils';
 
+/**
+ * Coerces a raw `<ele>` value into a finite elevation in metres, or `undefined`
+ * when no genuine elevation reading is present.
+ *
+ * `<ele>` is XML element text, never coerced by xml2js's `attrValueProcessors`
+ * (those only touch attributes), so `point.ele` is a `string` for every
+ * XML-parsed GPX (`"1000"`, `"0"`, `""`) and only a real `number` for
+ * programmatically constructed waypoints. This is the single coercion point:
+ * `undefined`/`null`/empty-or-whitespace strings/non-numeric strings/`NaN`/
+ * `Infinity` all map to `undefined` ("no data"), while a genuine `0` (numeric
+ * or `"0"`) is preserved as real sea-level data.
+ */
+export function parseElevation(raw: unknown): number | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw === 'string' && raw.trim() === '') {
+    return undefined;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 class GpxMetricsComputation {
   private readonly thresholdXY_m: number;  // Distance threshold for filtering on the XY axis (latitude / longitude)
   private readonly thresholdZ_m: number;  // Distance threshold for filtering on the Z axis (elevation)
@@ -22,11 +45,17 @@ class GpxMetricsComputation {
 
   addAndFilter(point: any) {
     if (!this.lastPointXY || !this.lastFilteredPointXY) {
-      // Initialize raw and smoothed anchors with the first point.
+      // Initialize raw and smoothed anchors with the first point. When the
+      // first point has no usable elevation, leave both anchors `null` so
+      // the first point that *does* carry elevation becomes the anchor
+      // instead of diffing against a fabricated `0`.
       this.lastPointXY = point;
       this.lastFilteredPointXY = point;
-      this.lastFilteredZ = point.ele ?? 0;
-      this.lastZ = point.ele ?? 0;
+      const initialElevation = parseElevation(point.ele);
+      if (initialElevation !== undefined) {
+        this.lastFilteredZ = initialElevation;
+        this.lastZ = initialElevation;
+      }
       return;
     }
 
@@ -49,15 +78,21 @@ class GpxMetricsComputation {
 
     this.lastPointXY = point;
 
-    const elevation = point.ele ?? 0;
-    // @ts-ignore I know this.lastZ is not null
-    const elevationDiff = elevation - this.lastZ;
-    this.lastZ = elevation;
-    if (elevationDiff > 0) {
-      this.totalElevationGain += elevationDiff;
-    }
-    if (elevationDiff < 0) {
-      this.totalElevationLoss -= elevationDiff;
+    const elevation = parseElevation(point.ele);
+    if (elevation !== undefined) {
+      if (this.lastZ === null) {
+        // This point establishes the raw anchor; no diff to record yet.
+        this.lastZ = elevation;
+      } else {
+        const elevationDiff = elevation - this.lastZ;
+        this.lastZ = elevation;
+        if (elevationDiff > 0) {
+          this.totalElevationGain += elevationDiff;
+        }
+        if (elevationDiff < 0) {
+          this.totalElevationLoss -= elevationDiff;
+        }
+      }
     }
 
     if (smoothedDistance < this.thresholdXY_m) {
@@ -67,18 +102,22 @@ class GpxMetricsComputation {
     this.totalDistanceSmoothed += smoothedDistance;
     this.lastFilteredPointXY = point;
 
-    // @ts-ignore: I know this.lastFilteredZ is not null
-    const elevationDiffSmoothed = elevation - this.lastFilteredZ;
+    if (elevation !== undefined) {
+      if (this.lastFilteredZ === null) {
+        // This point establishes the smoothed anchor; no diff to record yet.
+        this.lastFilteredZ = elevation;
+      } else {
+        const elevationDiffSmoothed = elevation - this.lastFilteredZ;
 
-    if (Math.abs(elevationDiffSmoothed) < this.thresholdZ_m) {
-      return;
-    }
-
-    this.lastFilteredZ = elevation;
-    if (elevationDiffSmoothed > 0) {
-      this.totalElevationGainSmoothed += elevationDiffSmoothed;
-    } else {
-      this.totalElevationLossSmoothed -= elevationDiffSmoothed;
+        if (Math.abs(elevationDiffSmoothed) >= this.thresholdZ_m) {
+          this.lastFilteredZ = elevation;
+          if (elevationDiffSmoothed > 0) {
+            this.totalElevationGainSmoothed += elevationDiffSmoothed;
+          } else {
+            this.totalElevationLossSmoothed -= elevationDiffSmoothed;
+          }
+        }
+      }
     }
   }
 }
