@@ -29,6 +29,9 @@ class Trail {
     elevation_gain?: number;
     elevation_loss?: number;
     duration?: number;
+    // Moving time in seconds for trails recorded in the Wanderer app; `duration`
+    // always means GPX-derived elapsed time (D-10, phase 34).
+    moving_duration?: number;
     difficulty?: "easy" | "moderate" | "difficult"
     lat?: number;
     lon?: number;
@@ -77,6 +80,7 @@ class Trail {
             elevation_gain?: number,
             elevation_loss?: number,
             duration?: number,
+            moving_duration?: number,
             difficulty?: "easy" | "moderate" | "difficult",
             lat?: number,
             lon?: number,
@@ -107,6 +111,7 @@ class Trail {
         this.elevation_gain = params?.elevation_gain ?? 0;
         this.elevation_loss = params?.elevation_loss ?? 0;
         this.duration = params?.duration ?? 0;
+        this.moving_duration = params?.moving_duration;
         this.difficulty = params?.difficulty ?? "easy";
         this.lat = params?.lat;
         this.lon = params?.lon;
@@ -143,6 +148,7 @@ class Trail {
             completed: orig.completed,
             distance: orig.distance,
             duration: orig.duration,
+            moving_duration: orig.moving_duration,
             elevation_gain: orig.elevation_gain,
             elevation_loss: orig.elevation_loss,
             thumbnail: orig.thumbnail,

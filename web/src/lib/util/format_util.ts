@@ -13,6 +13,26 @@ export function formatTimeHHMM(seconds?: number) {
     return (h < 10 ? "0" : "") + h.toString() + "h " + (m < 10 ? "0" : "") + m.toString() + "m";
 }
 
+/**
+ * The single implementation of D-10's display rule: show `moving_duration`
+ * (moving time, set only by app recordings) when present, otherwise fall
+ * back to `duration` (GPX-derived elapsed time, always present when the
+ * trail has a route). Nothing may write `moving_duration` from a GPX
+ * recompute -- this function only reads it for display.
+ *
+ * Typed structurally (not as `Trail`) so partially-expanded records (e.g.
+ * feed/search results) can be passed without importing the full model and
+ * risking an import cycle.
+ */
+export function trailDisplayDuration(trail: {
+    duration?: number;
+    moving_duration?: number;
+}): number | undefined {
+    return trail.moving_duration != null && trail.moving_duration > 0
+        ? trail.moving_duration
+        : trail.duration;
+}
+
 export function formatDistance(
     meters?: number,
     options: { compact?: boolean } = {},
