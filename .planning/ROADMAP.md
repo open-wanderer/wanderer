@@ -346,7 +346,7 @@ Four phases, strictly sequential — each one's success criteria depend on groun
   3. A converted trail's distance comes from the smoothed accumulator instead of the raw, GPS-jitter-inflated haversine sum, and the dead, misaligned `cumulativeDistance` array is gone.
   4. A route planned in the web planner reports a distance that follows its anchors instead of cutting the corner at each one.
 
-**Plans**: 3 plans
+**Plans**: 5 plans (3 shipped + 2 gap closure)
 Plans:
 **Wave 1**
 
@@ -359,6 +359,11 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 33-03-PLAN.md — Report the smoothed distance and rebuild `cumulativeDistance` index-aligned (CONV-05/D-01), rescale the crop slider (D-02)
+
+**Wave 4** *(gap closure — from 33-VERIFICATION.md)*
+
+- [ ] 33-04-PLAN.md — Replace the removed horizontal gate with a commit-then-retract elevation noise filter so a stationary track stops fabricating 210 m of gain (CONV-04)
+- [ ] 33-05-PLAN.md — Make crop interpolation degenerate-safe in a testable module and stop `croppedGPX` resurrecting a discarded route (CONV-05 consumer)
 
 **Scope note:** deliberately web-only — `web/src/lib/models/gpx/gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`. CONV-06 (moving time) was originally mapped here and moved to Phase 34: pause data lives in the app's `navigation_stats_provider` (`pausedAccum`) and exists only for trails recorded in the app, so it cannot be satisfied or observed by a web-only change.
 
