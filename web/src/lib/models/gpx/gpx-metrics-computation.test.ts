@@ -115,6 +115,79 @@ describe("GpxMetricsComputation — CONV-04 steep, low-horizontal-movement stret
   });
 });
 
+describe("GpxMetricsComputation — CONV-04 stationary GPS/altimeter noise", () => {
+  it("reports elevationGain === 0 and elevationLoss === 0 for a fully-stationary track whose altitude oscillates +/-7 m and returns to its starting elevation", () => {
+    // 61 samples, identical lat/lon, altitude alternating 1000/1007, ends at 1000.
+    const trkpts: string[] = [];
+    for (let i = 0; i <= 60; i++) {
+      trkpts.push(trkptXml(47.0, 11.0, String(i % 2 === 0 ? 1000 : 1007)));
+    }
+    const gpx = GPX.parse(gpxXml(trkpts));
+
+    // Pre-fix value on this exact fixture: elevationGain 210, elevationLoss 210 —
+    // the flat threshold commit rule ratchets on every +/-7 m swing even though
+    // the track never moves and returns exactly to its starting elevation.
+    expect(gpx.features.elevationGain).toBe(0);
+    expect(gpx.features.elevationLoss).toBe(0);
+    expect(gpx.features.elevationGain).toBeGreaterThanOrEqual(0);
+    expect(gpx.features.elevationLoss).toBeGreaterThanOrEqual(0);
+  });
+
+  it("reports exactly the one un-cancelled excursion when a stationary +/-7 m oscillation ends mid-swing", () => {
+    // Same generator truncated to 60 trackpoints — ends at 1007, one swing
+    // un-cancelled. 7 m is the track's genuine net displacement.
+    const trkpts: string[] = [];
+    for (let i = 0; i < 60; i++) {
+      trkpts.push(trkptXml(47.0, 11.0, String(i % 2 === 0 ? 1000 : 1007)));
+    }
+    const gpx = GPX.parse(gpxXml(trkpts));
+
+    // Pre-fix value on this exact fixture: elevationGain 210, elevationLoss 203.
+    expect(gpx.features.elevationGain).toBe(7);
+    expect(gpx.features.elevationLoss).toBe(0);
+    expect(gpx.features.elevationGain).toBeGreaterThanOrEqual(0);
+    expect(gpx.features.elevationLoss).toBeGreaterThanOrEqual(0);
+  });
+
+  it("rejects a stationary out-and-back bump but measures the genuine climb that follows in full", () => {
+    // 6 trackpoints, all at the same lat/lon, elevations 1000, 1008, 1000,
+    // 1008, 1016, 1024.
+    const trkpts: string[] = [
+      trkptXml(47.0, 11.0, "1000"),
+      trkptXml(47.0, 11.0, "1008"),
+      trkptXml(47.0, 11.0, "1000"),
+      trkptXml(47.0, 11.0, "1008"),
+      trkptXml(47.0, 11.0, "1016"),
+      trkptXml(47.0, 11.0, "1024"),
+    ];
+    const gpx = GPX.parse(gpxXml(trkpts));
+
+    // Pre-fix value on this exact fixture: elevationGain 32, elevationLoss 8.
+    expect(gpx.features.elevationGain).toBe(24);
+    expect(gpx.features.elevationLoss).toBe(0);
+    expect(gpx.features.elevationGain).toBeGreaterThanOrEqual(0);
+    expect(gpx.features.elevationLoss).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("GpxMetricsComputation — CONV-04 rolling terrain guard", () => {
+  it("still reports full gain and loss for rolling terrain with genuine horizontal movement (noise rejection never eats real terrain)", () => {
+    // 6 trackpoints spaced ~100 m apart, elevations 1000, 1008, 1000, 1008,
+    // 1000, 1008. Green before AND after the noise-tolerant filter lands.
+    const trkpts: string[] = [];
+    const elevations = [1000, 1008, 1000, 1008, 1000, 1008];
+    for (let i = 0; i < 6; i++) {
+      trkpts.push(trkptXml(47 + i * 0.0009, 11.0, String(elevations[i])));
+    }
+    const gpx = GPX.parse(gpxXml(trkpts));
+
+    expect(gpx.features.elevationGain).toBe(24);
+    expect(gpx.features.elevationLoss).toBe(16);
+    expect(gpx.features.elevationGain).toBeGreaterThanOrEqual(0);
+    expect(gpx.features.elevationLoss).toBeGreaterThanOrEqual(0);
+  });
+});
+
 describe("GpxMetricsComputation — distance smoothing is unchanged", () => {
   it("suppresses GPS jitter in totalDistanceSmoothed while totalDistance stays raw", () => {
     const trkpts: string[] = [trkptXml(47.0, 11.0)];
