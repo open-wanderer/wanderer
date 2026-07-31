@@ -95,13 +95,6 @@ class GpxMetricsComputation {
       }
     }
 
-    if (smoothedDistance < this.thresholdXY_m) {
-      return;
-    }
-
-    this.totalDistanceSmoothed += smoothedDistance;
-    this.lastFilteredPointXY = point;
-
     if (elevation !== undefined) {
       if (this.lastFilteredZ === null) {
         // This point establishes the smoothed anchor; no diff to record yet.
@@ -118,6 +111,11 @@ class GpxMetricsComputation {
           }
         }
       }
+    }
+
+    if (smoothedDistance >= this.thresholdXY_m) {
+      this.totalDistanceSmoothed += smoothedDistance;
+      this.lastFilteredPointXY = point;
     }
   }
 }
