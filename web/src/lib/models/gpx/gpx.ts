@@ -139,8 +139,12 @@ export default class GPX {
       }
     }
 
-    totalElevationGain = metrics.totalElevationGainSmoothed;
-    totalElevationLoss = metrics.totalElevationLossSmoothed;
+    // final* rather than total*Smoothed: the track is complete here, so an
+    // excursion still pending in the noise filter (a climb the track ends on)
+    // is real and must be counted. The total*Smoothed fields deliberately
+    // exclude it to stay monotonic for per-segment differencing consumers.
+    totalElevationGain = metrics.finalElevationGain;
+    totalElevationLoss = metrics.finalElevationLoss;
     totalDistance = metrics.totalDistanceSmoothed;
 
     const boundingBox = { minLat, maxLat, minLon, maxLon };

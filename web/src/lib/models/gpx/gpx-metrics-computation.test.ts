@@ -111,7 +111,12 @@ describe("GpxMetricsComputation — CONV-04 steep, low-horizontal-movement stret
     points.forEach((point) => metrics.addAndFilter(point));
 
     expect(metrics.totalDistanceSmoothed).toBe(0);
-    expect(metrics.totalElevationGainSmoothed).toBe(88);
+    // finalElevationGain, not totalElevationGainSmoothed: this monotonic climb
+    // ends without a confirming move, so its last 8 m step is still sitting in
+    // the noise filter's pending slot. The published running total reads 80;
+    // the reported total for a completed track is 88.
+    expect(metrics.finalElevationGain).toBe(88);
+    expect(metrics.totalElevationGainSmoothed).toBe(80);
   });
 });
 
@@ -209,6 +214,107 @@ describe("GpxMetricsComputation — distance smoothing is unchanged", () => {
     expect(metrics.totalDistance).toBeCloseTo(110.083, 0);
   });
 });
+
+// These two suites assert the INVARIANT rather than specific numbers. Both
+// regression rounds on this file shipped with every value-based test green:
+// the defect was never a wrong total, it was a published running total that
+// moved backwards and broke a consumer in a different file.
+describe("GpxMetricsComputation — smoothed elevation totals are monotonic", () => {
+  // Every fixture that previously produced a retraction, plus the shapes most
+  // likely to provoke one.
+  const fixtures: Record<string, string[]> = {
+    "stationary oscillation returning to start": buildStationary([
+      1000, 1007, 1000, 1007, 1000,
+    ]),
+    "stationary oscillation ending mid-swing": buildStationary([
+      1000, 1007, 1000, 1007,
+    ]),
+    "stationary drift (staircase)": buildStationary([
+      1000, 1006, 1012, 1006, 1000,
+    ]),
+    "steep low-horizontal climb": Array.from({ length: 12 }, (_, i) =>
+      trkptXml(47 + i * 0.0000036, 11.0, String(1000 + i * 8)),
+    ),
+    "rolling terrain with real horizontal movement": Array.from(
+      { length: 20 },
+      (_, i) =>
+        trkptXml(47 + i * 0.0005, 11.0, String(1000 + (i % 2 === 0 ? 0 : 30))),
+    ),
+    "coincident points with oscillating elevation": [
+      1000, 1008, 1000, 1008, 1000, 1008,
+    ].map((ele) => trkptXml(47.0, 11.0, String(ele))),
+  };
+
+  for (const [name, trkpts] of Object.entries(fixtures)) {
+    it(`never decreases either published total: ${name}`, () => {
+      const points = GPX.parse(gpxXml(trkpts)).flatten();
+      const metrics = new GpxMetricsComputation(5, 5);
+
+      let previousGain = 0;
+      let previousLoss = 0;
+
+      points.forEach((point, index) => {
+        metrics.addAndFilter(point);
+
+        expect(
+          metrics.totalElevationGainSmoothed,
+          `gain decreased at point ${index}`,
+        ).toBeGreaterThanOrEqual(previousGain);
+        expect(
+          metrics.totalElevationLossSmoothed,
+          `loss decreased at point ${index}`,
+        ).toBeGreaterThanOrEqual(previousLoss);
+
+        previousGain = metrics.totalElevationGainSmoothed;
+        previousLoss = metrics.totalElevationLossSmoothed;
+      });
+
+      // The invariant is worthless if the totals are simply always 0.
+      expect(metrics.finalElevationGain).toBeGreaterThanOrEqual(0);
+      expect(metrics.finalElevationLoss).toBeGreaterThanOrEqual(0);
+    });
+  }
+});
+
+describe("GpxMetricsComputation — per-segment differencing never goes negative", () => {
+  // Mirrors trail_anchor_list.svelte's routeMetrics: it snapshots the running
+  // totals at each segment boundary and subtracts consecutive snapshots. This
+  // is the consumer that rendered negative elevation gain (CR-03), reproduced
+  // here so the contract is enforced from within this file's own test suite.
+  it("reports no negative segment gain or loss across a stationary-noise boundary", () => {
+    const segments = [
+      buildStationary([1000, 1008]), // excursion opens in segment 1
+      buildStationary([1000, 1008, 1000]), // and cancels in segment 2
+      Array.from({ length: 6 }, (_, i) =>
+        trkptXml(47 + i * 0.0005, 11.0, String(1000 + i * 12)),
+      ),
+    ];
+
+    const metrics = new GpxMetricsComputation(5, 5);
+    let previous = { gain: 0, loss: 0 };
+
+    for (const trkpts of segments) {
+      const points = GPX.parse(gpxXml(trkpts)).flatten();
+      points.forEach((point) => metrics.addAndFilter(point));
+
+      const segmentGain = metrics.totalElevationGainSmoothed - previous.gain;
+      const segmentLoss = metrics.totalElevationLossSmoothed - previous.loss;
+
+      expect(segmentGain).toBeGreaterThanOrEqual(0);
+      expect(segmentLoss).toBeGreaterThanOrEqual(0);
+
+      previous = {
+        gain: metrics.totalElevationGainSmoothed,
+        loss: metrics.totalElevationLossSmoothed,
+      };
+    }
+  });
+});
+
+/** A track that never moves horizontally, only in elevation. */
+function buildStationary(elevations: number[]): string[] {
+  return elevations.map((ele) => trkptXml(47.0, 11.0, String(ele)));
+}
 
 function trkptXml(lat: number, lon: number, ele?: string): string {
   const eleElement = ele !== undefined ? `<ele>${ele}</ele>` : "";

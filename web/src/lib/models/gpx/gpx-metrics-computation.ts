@@ -32,16 +32,23 @@ class GpxMetricsComputation {
   private lastZ: number | null = null;
   // Point at which lastFilteredZ was last set. Used only to ask "has the
   // device moved horizontally since the elevation anchor?" on the
-  // retraction path below. Distinct from lastFilteredPointXY, which is the
+  // discard path below. Distinct from lastFilteredPointXY, which is the
   // distance-smoothing anchor — the two must never be merged or reused.
   private lastFilteredZPointXY: any | null = null;
-  // Signed elevation delta of the most recent smoothed commit, still
-  // eligible for retraction. 0 means nothing is retractable.
-  private retractableDelta = 0;
-  // The value lastFilteredZ held immediately before the retractable commit.
-  private preRetractZ: number | null = null;
+  // Signed elevation delta of the most recent above-threshold move, held
+  // back from the published totals until it is confirmed. 0 means nothing
+  // is pending. See the defer-then-publish note in addAndFilter().
+  private pendingDelta = 0;
+  // The value lastFilteredZ held immediately before the pending excursion.
+  private pendingAnchorZ: number | null = null;
   totalElevationGain = 0;
   totalElevationLoss = 0;
+  // INVARIANT: these two are monotonically non-decreasing running totals.
+  // trail_anchor_list.svelte derives per-segment metrics by subtracting
+  // consecutive snapshots of them, so any code path that decrements them
+  // makes that component render negative elevation gain. Only ever `+=`.
+  // The provisional (not-yet-confirmed) excursion lives in pendingDelta and
+  // is surfaced through finalElevationGain/finalElevationLoss instead.
   totalElevationGainSmoothed = 0;
   totalElevationLossSmoothed = 0;
   totalDistance = 0;
@@ -51,6 +58,40 @@ class GpxMetricsComputation {
   constructor(thresholdXY_m: number, thresholdZ_m: number) {
     this.thresholdXY_m = thresholdXY_m;
     this.thresholdZ_m = thresholdZ_m;
+  }
+
+  /**
+   * Smoothed elevation gain including a still-pending excursion.
+   *
+   * This — not `totalElevationGainSmoothed` — is a completed track's reported
+   * gain. A track that ends mid-swing (climbs and stops) has its final climb
+   * sitting in the pending slot, unconfirmed but real.
+   *
+   * Consumers that difference successive readings to derive per-segment
+   * metrics must use the monotonic `totalElevationGainSmoothed` instead; this
+   * getter can decrease when a pending excursion is later discarded as noise.
+   */
+  get finalElevationGain(): number {
+    return this.totalElevationGainSmoothed + Math.max(this.pendingDelta, 0);
+  }
+
+  /** Smoothed elevation loss including a still-pending excursion. See {@link finalElevationGain}. */
+  get finalElevationLoss(): number {
+    return this.totalElevationLossSmoothed + Math.max(-this.pendingDelta, 0);
+  }
+
+  /**
+   * Move the pending excursion into the published totals. Only ever adds, so
+   * the monotonicity invariant on those fields is preserved.
+   */
+  private publishPending() {
+    if (this.pendingDelta > 0) {
+      this.totalElevationGainSmoothed += this.pendingDelta;
+    } else if (this.pendingDelta < 0) {
+      this.totalElevationLossSmoothed -= this.pendingDelta;
+    }
+    this.pendingDelta = 0;
+    this.pendingAnchorZ = null;
   }
 
   addAndFilter(point: any) {
@@ -115,32 +156,41 @@ class GpxMetricsComputation {
       }
     }
 
-    // Commit-then-retract noise filter: an elevation excursion is credited
-    // immediately (a genuine climb is never under-reported), and is
-    // *retracted* when the track returns to the pre-excursion elevation
-    // WITHOUT having moved horizontally — the signature of altimeter/GPS
-    // noise on a paused or stationary device, and the only thing that
-    // distinguishes that from rolling terrain (which produces an
-    // identical elevation series). Horizontal stillness is checked only on
-    // the retraction path, so a monotonic low-horizontal climb (the
-    // CONV-04 case) is never affected. Because a retraction only ever
-    // subtracts the exact amount the immediately preceding commit added,
-    // neither totalElevationGainSmoothed nor totalElevationLossSmoothed
-    // can go negative.
+    // Defer-then-publish noise filter. An above-threshold elevation move is
+    // held in a single pending slot rather than added to the published
+    // totals straight away. It is *discarded* if the track then returns to
+    // the pre-excursion elevation WITHOUT having moved horizontally — the
+    // signature of altimeter/GPS noise on a paused or stationary device, and
+    // the only thing that distinguishes it from rolling terrain (which
+    // produces an identical elevation series). Any other subsequent move
+    // confirms it, so it is published then.
+    //
+    // Deferring rather than committing-then-retracting is what keeps
+    // totalElevationGainSmoothed/LossSmoothed monotonic (see the INVARIANT
+    // note on those fields): a discarded excursion was never published, so
+    // no published total ever decreases. Horizontal stillness is checked
+    // only on the discard path, so a monotonic low-horizontal climb (the
+    // CONV-04 case) is never affected.
+    //
+    // The pending excursion is not lost when a track ends mid-swing: it is
+    // surfaced by the finalElevationGain/finalElevationLoss getters, which
+    // are what a completed track's reported totals come from.
     if (elevation !== undefined) {
       if (this.lastFilteredZ === null) {
         // This point establishes the smoothed anchor; no diff to record yet.
         this.lastFilteredZ = elevation;
         this.lastFilteredZPointXY = point;
-        this.retractableDelta = 0;
-        this.preRetractZ = null;
+        this.pendingDelta = 0;
+        this.pendingAnchorZ = null;
       } else {
         const elevationDiffSmoothed = elevation - this.lastFilteredZ;
 
         if (Math.abs(elevationDiffSmoothed) < this.thresholdZ_m) {
-          // Below the noise floor — nothing to commit or retract.
+          // Below the noise floor — nothing to defer, publish or discard.
         } else {
-          const retractDistance =
+          // Distance from where the pending excursion left off to here: "has
+          // the device moved horizontally while the elevation came back?"
+          const returnDistance =
             this.lastFilteredZPointXY !== null
               ? haversineDistance(
                   this.lastFilteredZPointXY.$.lat,
@@ -150,32 +200,27 @@ class GpxMetricsComputation {
                 )
               : Infinity;
 
-          const canRetract =
-            this.retractableDelta !== 0 &&
-            this.preRetractZ !== null &&
-            Math.sign(elevationDiffSmoothed) === -Math.sign(this.retractableDelta) &&
-            Math.abs(elevation - this.preRetractZ) < this.thresholdZ_m &&
-            Number.isFinite(retractDistance) &&
-            retractDistance < this.thresholdXY_m;
+          const cancelsPending =
+            this.pendingDelta !== 0 &&
+            this.pendingAnchorZ !== null &&
+            Math.sign(elevationDiffSmoothed) === -Math.sign(this.pendingDelta) &&
+            Math.abs(elevation - this.pendingAnchorZ) < this.thresholdZ_m &&
+            Number.isFinite(returnDistance) &&
+            returnDistance < this.thresholdXY_m;
 
-          if (canRetract) {
-            if (this.retractableDelta > 0) {
-              this.totalElevationGainSmoothed -= this.retractableDelta;
-            } else {
-              this.totalElevationLossSmoothed += this.retractableDelta;
-            }
-            this.lastFilteredZ = this.preRetractZ;
+          if (cancelsPending) {
+            // Noise round-trip: drop the pending excursion unpublished and
+            // rewind the anchor to where the excursion started.
+            this.lastFilteredZ = this.pendingAnchorZ;
             this.lastFilteredZPointXY = point;
-            this.retractableDelta = 0;
-            this.preRetractZ = null;
+            this.pendingDelta = 0;
+            this.pendingAnchorZ = null;
           } else {
-            if (elevationDiffSmoothed > 0) {
-              this.totalElevationGainSmoothed += elevationDiffSmoothed;
-            } else {
-              this.totalElevationLossSmoothed -= elevationDiffSmoothed;
-            }
-            this.preRetractZ = this.lastFilteredZ;
-            this.retractableDelta = elevationDiffSmoothed;
+            // This move confirms whatever was pending — publish it — and
+            // then becomes the new pending excursion itself.
+            this.publishPending();
+            this.pendingAnchorZ = this.lastFilteredZ;
+            this.pendingDelta = elevationDiffSmoothed;
             this.lastFilteredZ = elevation;
             this.lastFilteredZPointXY = point;
           }
