@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: planning
-last_updated: "2026-07-31T09:19:33.507Z"
+last_updated: "2026-07-31T15:00:00.000Z"
 last_activity: 2026-07-31
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,25 +20,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 32 — on-demand-polygon-fetch-seed-slimming
+**Current focus:** Phase 33 — conversion-correctness
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-07-31 — Milestone v1.8 started
+Phase: 33 of 36 (Conversion Correctness) — not started
+Plan: — (not yet planned)
+Status: ROADMAP.md created — ready to plan Phase 33
+Last activity: 2026-07-31 — v1.8 ROADMAP.md created (Phases 33-36, 25/25 requirements mapped)
 
-## v1.7 Phases
+## v1.8 Phases
 
-- [ ] **Phase 28: Region Catalog Data Model & Seeding** — CATALOG-01/02/03, SEED-01/02
-- [ ] **Phase 29: Polygon-Based Extraction & Region API** — EXTRACT-01/02/03
-- [ ] **Phase 30: Admin Region Picker UI** — ADMINUI-01/02/03
-- [ ] **Phase 31: Flutter Settings Hierarchy** — APPUI-01/02
+- [ ] **Phase 33: Conversion Correctness** — CONV-01/02/03/04/05
+- [ ] **Phase 34: Dart Conversion Port** — PORT-01/02/03/04/05, CONV-06
+- [ ] **Phase 35: Offline Trail Creation** — OFFUI-01/02/03/04
+- [ ] **Phase 36: Local-First Recording & Automatic Upload** — REC-01/02/03/04/05, SYNC-01/02/03/04/05
 
-Execution order: 28 → {29, 30 in parallel} → 31. Phase 29 (cron/API) and Phase 30 (admin UI) both depend only on Phase 28's seeded table and don't depend on each other. Phase 31 (Flutter) depends specifically on Phase 29 — it needs `GET /api/v1/regions` to expose hierarchy fields (`parent`/`path`/`depth`), not on Phase 30's admin page.
+Execution order: 33 → 34 → 35 → 36, strictly sequential. Phase 34 needs Phase 33's corrected algorithm (porting first would pin the buggy behavior in Dart). Phase 35's OFFUI-03/04 need Phase 34's on-device conversion and transcode-only endpoint contract; OFFUI-01/02 are independent live bugs plan-phase may schedule first within Phase 35. Phase 36's REC-05 (offline edit) reuses Phase 35's trail_create_screen map/tag fixes, and REC-01 needs Phase 34's on-device conversion to save an offline recording at all.
 
-v1.6 phase history (Phase 21.5, 22-27) archived — see `.planning/milestones/v1.6-ROADMAP.md` / MILESTONES.md.
+v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-ROADMAP.md` / MILESTONES.md.
 
 ## Performance Metrics
 
@@ -273,6 +273,7 @@ Recent decisions affecting current work:
 - [Phase 27]: [27-02] Regeneration touched two riverpod provider hash files (map_style_json_provider.g.dart, trail_download_state_provider.g.dart) as a side effect of the single project-wide build_runner pass — Logic in those files is unchanged; only the compile-time source hash used for provider identity shifted because it hashes the whole dependency graph including the Trail model
 - [Phase 27]: [27-02] No ObjectBox migration step performed for pmTiles/demPmTiles removal — Field removal is a supported regeneration for a pre-production app (D-06); build_runner's own log confirmed both properties were cleanly retired from the model
 - [v1.7 roadmap] 4 phases (28-31), split from the single draft "Phase 28" sketch that predated `/gsd-explore`. Coarse granularity targets 2-4 phases; the milestone's own dependency chain (table before seeding, seeding before extraction, admin UI needs the table) maps directly onto Data Model + Seeding (28) → {Extraction + Region API (29), Admin UI (30) — both depend only on 28, independent of each other} → Flutter Settings Hierarchy (31, needs 29's hierarchy-aware `GET /api/v1/regions`, not 30's admin page). All 13 v1.7 requirements (CATALOG/SEED/EXTRACT/ADMINUI/APPUI) map 1:1 to exactly one phase, no orphans.
+- [v1.8 roadmap] 4 phases (33-36), matching config.json's `coarse` granularity (2-4 target). Strictly sequential: Conversion Correctness (33, TS-only shared fix in `gpx.ts`/`gpx-metrics-computation.ts`/`gpx_util.ts`) → Dart Conversion Port (34, PORT-04's breaking `/trail/convert` change lands only after PORT-01/03 make the app self-sufficient) → Offline Trail Creation (35, OFFUI-01/02 are independent live bugs bundled here with OFFUI-03/04 because together the four complete "trail_create_screen usable with no connection" as one capability) → Local-First Recording & Automatic Upload (36, REC-* + SYNC-* combined — REC-05's offline edit needs Phase 35's map/tag fixes, and draining a sync queue needs the queue to exist first). All 25 v1.8 requirements (CONV/PORT/REC/SYNC/OFFUI) map 1:1 to exactly one phase, no orphans. Three decisions left open for Phase 36's discuss-phase: photo file durability, tag→trail→waypoint partial-failure semantics, logout-with-undrained-recordings UX (see `.planning/research/questions.md`).
 - [Phase 28]: [28-01] GeoJSON coordinates emitted as plain nested []float64 slices (not fixed-size [2]float64 arrays) in the public map[string]any so output round-trips through encoding/json and is trivially type-assertable — Keeps the parser's public API simple for downstream consumers (seed_regions.go in 28-02) and test assertions
 - [Phase 28]: [28-01] ParseHierarchy does not fetch or cross-check countries.txt — hierarchy.txt indentation alone determines group/leaf — Per 28-RESEARCH.md's resolved Open Question 2: a second fetched file adds network surface to a maintainer-run tool for marginal benefit
 - [Phase 28]: [28-02] seed_regions.go fetches from comaps/comaps's GitHub mirror (raw.githubusercontent.com) instead of Codeberg directly, same pinned commit — Codeberg's raw-file endpoint enforces a ~250 req/600s quota that a full ~1,150-leaf run routinely exhausted (one run lost entirely to an unrelated machine restart mid rate-limit-wait, since the tool only writes output once at the end); GitHub's mirror served identical content with zero rate limiting across the full run
@@ -311,6 +312,7 @@ Recent decisions affecting current work:
 
 - Phase 25.1 inserted after Phase 25 (2026-07-23, URGENT): Local HTTP tile proxy for region-based offline map rendering. Replaces `navigation_screen.dart`'s incremental `addSource`/`removeSource` region-swap reconcile with a loopback `HttpServer` serving `pmtiles` archives per-tile via a static `tiles:` XYZ source, so MapLibre Native's own viewport tracking takes over instead of hand-rolled Dart diffing -- structurally eliminates the reentrancy bug class (no reconcile call = no race). Considered and rejected: patching `_reconcileRegionComposition` in place (reentrancy guard + symmetric tracking-set mutation + gating camera-idle during GPS-follow) -- viable and lower-risk short-term, but the proxy better fits the genuinely dynamic viewport-tracking requirement and also removes the `_sourceFromJson`/`_layerFromJson` duplication between `trail_map.dart` and `navigation_screen.dart`. New unknowns the proxy introduces: per-tile overlap-resolution logic for regions with overlapping bboxes (none exists today), and unverified MapLibre Native offline+loopback-HTTP behavior (needs its own on-device spike, mirroring RENDER-03's). Phase 25 itself is NOT force-completed -- `25-UAT.md` and `25-VERIFICATION.md` accurately record the Test 4 gap; `25-02`'s `localTilePathsForBounds` split survives unchanged and Phase 25.1 will consume it.
 - v1.7 ROADMAP.md created 2026-07-24: 4 phases (28-31) superseding the single-phase "Phase 28" draft sketched ahead of formal milestone scoping. See Decisions above for the phase-split rationale.
+- v1.8 ROADMAP.md created 2026-07-31: 4 phases (33-36), continuing numbering from Phase 32. See Decisions above for the phase-split and sequencing rationale.
 
 ### Pending Todos
 

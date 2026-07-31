@@ -95,37 +95,37 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONV-01 | — | Pending |
-| CONV-02 | — | Pending |
-| CONV-03 | — | Pending |
-| CONV-04 | — | Pending |
-| CONV-05 | — | Pending |
-| CONV-06 | — | Pending |
-| PORT-01 | — | Pending |
-| PORT-02 | — | Pending |
-| PORT-03 | — | Pending |
-| PORT-04 | — | Pending |
-| PORT-05 | — | Pending |
-| REC-01 | — | Pending |
-| REC-02 | — | Pending |
-| REC-03 | — | Pending |
-| REC-04 | — | Pending |
-| REC-05 | — | Pending |
-| SYNC-01 | — | Pending |
-| SYNC-02 | — | Pending |
-| SYNC-03 | — | Pending |
-| SYNC-04 | — | Pending |
-| SYNC-05 | — | Pending |
-| OFFUI-01 | — | Pending |
-| OFFUI-02 | — | Pending |
-| OFFUI-03 | — | Pending |
-| OFFUI-04 | — | Pending |
+| CONV-01 | Phase 33 | Pending |
+| CONV-02 | Phase 33 | Pending |
+| CONV-03 | Phase 33 | Pending |
+| CONV-04 | Phase 33 | Pending |
+| CONV-05 | Phase 33 | Pending |
+| CONV-06 | Phase 34 | Pending |
+| PORT-01 | Phase 34 | Pending |
+| PORT-02 | Phase 34 | Pending |
+| PORT-03 | Phase 34 | Pending |
+| PORT-04 | Phase 34 | Pending |
+| PORT-05 | Phase 34 | Pending |
+| REC-01 | Phase 36 | Pending |
+| REC-02 | Phase 36 | Pending |
+| REC-03 | Phase 36 | Pending |
+| REC-04 | Phase 36 | Pending |
+| REC-05 | Phase 36 | Pending |
+| SYNC-01 | Phase 36 | Pending |
+| SYNC-02 | Phase 36 | Pending |
+| SYNC-03 | Phase 36 | Pending |
+| SYNC-04 | Phase 36 | Pending |
+| SYNC-05 | Phase 36 | Pending |
+| OFFUI-01 | Phase 35 | Pending |
+| OFFUI-02 | Phase 35 | Pending |
+| OFFUI-03 | Phase 35 | Pending |
+| OFFUI-04 | Phase 35 | Pending |
 
 **Coverage:**
 - v1 requirements: 25 total
-- Mapped to phases: 0
-- Unmapped: 25 ⚠️
+- Mapped to phases: 25
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-31*
-*Last updated: 2026-07-31 after milestone v1.8 scoping*
+*Last updated: 2026-07-31 after v1.8 ROADMAP.md created (Phases 33-36, 25/25 requirements mapped)*
