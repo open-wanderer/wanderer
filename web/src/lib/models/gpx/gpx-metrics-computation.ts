@@ -30,6 +30,16 @@ class GpxMetricsComputation {
   private lastFilteredPointXY: any | null = null;
   private lastFilteredZ: number | null = null;
   private lastZ: number | null = null;
+  // Point at which lastFilteredZ was last set. Used only to ask "has the
+  // device moved horizontally since the elevation anchor?" on the
+  // retraction path below. Distinct from lastFilteredPointXY, which is the
+  // distance-smoothing anchor — the two must never be merged or reused.
+  private lastFilteredZPointXY: any | null = null;
+  // Signed elevation delta of the most recent smoothed commit, still
+  // eligible for retraction. 0 means nothing is retractable.
+  private retractableDelta = 0;
+  // The value lastFilteredZ held immediately before the retractable commit.
+  private preRetractZ: number | null = null;
   totalElevationGain = 0;
   totalElevationLoss = 0;
   totalElevationGainSmoothed = 0;
@@ -54,6 +64,7 @@ class GpxMetricsComputation {
       const initialElevation = parseElevation(point.ele);
       if (initialElevation !== undefined) {
         this.lastFilteredZ = initialElevation;
+        this.lastFilteredZPointXY = point;
         this.lastZ = initialElevation;
       }
       // D-01: push once per call, including this first call, so
@@ -104,19 +115,69 @@ class GpxMetricsComputation {
       }
     }
 
+    // Commit-then-retract noise filter: an elevation excursion is credited
+    // immediately (a genuine climb is never under-reported), and is
+    // *retracted* when the track returns to the pre-excursion elevation
+    // WITHOUT having moved horizontally — the signature of altimeter/GPS
+    // noise on a paused or stationary device, and the only thing that
+    // distinguishes that from rolling terrain (which produces an
+    // identical elevation series). Horizontal stillness is checked only on
+    // the retraction path, so a monotonic low-horizontal climb (the
+    // CONV-04 case) is never affected. Because a retraction only ever
+    // subtracts the exact amount the immediately preceding commit added,
+    // neither totalElevationGainSmoothed nor totalElevationLossSmoothed
+    // can go negative.
     if (elevation !== undefined) {
       if (this.lastFilteredZ === null) {
         // This point establishes the smoothed anchor; no diff to record yet.
         this.lastFilteredZ = elevation;
+        this.lastFilteredZPointXY = point;
+        this.retractableDelta = 0;
+        this.preRetractZ = null;
       } else {
         const elevationDiffSmoothed = elevation - this.lastFilteredZ;
 
-        if (Math.abs(elevationDiffSmoothed) >= this.thresholdZ_m) {
-          this.lastFilteredZ = elevation;
-          if (elevationDiffSmoothed > 0) {
-            this.totalElevationGainSmoothed += elevationDiffSmoothed;
+        if (Math.abs(elevationDiffSmoothed) < this.thresholdZ_m) {
+          // Below the noise floor — nothing to commit or retract.
+        } else {
+          const retractDistance =
+            this.lastFilteredZPointXY !== null
+              ? haversineDistance(
+                  this.lastFilteredZPointXY.$.lat,
+                  this.lastFilteredZPointXY.$.lon,
+                  point.$.lat,
+                  point.$.lon
+                )
+              : Infinity;
+
+          const canRetract =
+            this.retractableDelta !== 0 &&
+            this.preRetractZ !== null &&
+            Math.sign(elevationDiffSmoothed) === -Math.sign(this.retractableDelta) &&
+            Math.abs(elevation - this.preRetractZ) < this.thresholdZ_m &&
+            Number.isFinite(retractDistance) &&
+            retractDistance < this.thresholdXY_m;
+
+          if (canRetract) {
+            if (this.retractableDelta > 0) {
+              this.totalElevationGainSmoothed -= this.retractableDelta;
+            } else {
+              this.totalElevationLossSmoothed += this.retractableDelta;
+            }
+            this.lastFilteredZ = this.preRetractZ;
+            this.lastFilteredZPointXY = point;
+            this.retractableDelta = 0;
+            this.preRetractZ = null;
           } else {
-            this.totalElevationLossSmoothed -= elevationDiffSmoothed;
+            if (elevationDiffSmoothed > 0) {
+              this.totalElevationGainSmoothed += elevationDiffSmoothed;
+            } else {
+              this.totalElevationLossSmoothed -= elevationDiffSmoothed;
+            }
+            this.preRetractZ = this.lastFilteredZ;
+            this.retractableDelta = elevationDiffSmoothed;
+            this.lastFilteredZ = elevation;
+            this.lastFilteredZPointXY = point;
           }
         }
       }
