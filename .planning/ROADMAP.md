@@ -381,7 +381,26 @@ Plans:
   5. Importing a kml/kmz/tcx/fit file while online still produces a correct trail, computed by the app from the server-transcoded GPX.
   6. A trail saved from an in-app recording reports moving time — elapsed minus the session's accumulated pause — while an imported file continues to report elapsed time.
 
-**Plans**: TBD
+**Plans**: 7 plans in 4 waves
+Plans:
+**Wave 1**
+
+- [ ] 34-01-PLAN.md — Dart GPX sanitize pass and the ported `GpxMetricsComputation` / `computeTrailMetrics`, with the CONV-01..05 defect suite
+- [ ] 34-02-PLAN.md — `moving_duration` end to end: PocketBase migration, OpenAPI, TS + Dart models, trail form body, web display rule
+- [ ] 34-03-PLAN.md — The shared on-disk `fixtures/gpx-corpus/` and the TypeScript parity suite
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 34-04-PLAN.md — `trailFromGpx` trail assembly, the Dart corpus parity suite, and retiring the app's second (buggy) metrics implementation
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 34-05-PLAN.md — All three capture paths onto the Dart path; `/trail/convert` reduced to a transcode-only helper; recording moving-time hand-off
+
+**Wave 4** *(blocked on Wave 3 completion; 34-06 and 34-07 run in parallel)*
+
+- [ ] 34-06-PLAN.md — Online-gated `showTrackSaveOptionsSheet` for all three sources, fixing the route planner's offline dead end
+- [ ] 34-07-PLAN.md — `POST /api/v1/trail/convert` becomes transcode-only and returns raw GPX; OpenAPI regenerated
 
 ### Phase 35: Offline Trail Creation
 
