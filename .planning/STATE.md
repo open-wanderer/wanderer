@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 34-02-PLAN.md
-last_updated: "2026-07-31T20:27:20.864Z"
+stopped_at: Completed 34-03-PLAN.md
+last_updated: "2026-07-31T22:06:41.231Z"
 last_activity: 2026-07-31 -- Phase 34 execution started
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 12
-  completed_plans: 7
+  completed_plans: 8
   percent: 25
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 34 (dart-conversion-port) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-07-31 -- Phase 34 execution started
 
@@ -143,6 +143,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 33 P05 | 15min | 3 tasks | 3 files |
 | Phase 34 P01 | 20min | 3 tasks | 2 files |
 | Phase 34 P02 | 25min | 3 tasks | 17 files |
+| Phase 34 P03 | 50min | 2 tasks | 31 files |
 
 ## Accumulated Context
 
@@ -329,6 +330,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [34-01] Doc comments reworded to avoid the literal substrings 'cumulativeDistance'/'getTotals' so the plan's own acceptance-criteria greps (which count comment text) pass
 - [Phase 34]: [34-02] web/static/docs/api/wanderer.openapi.json is regenerated and verified but not committed -- it is gitignored (web/.gitignore:6), generated at build time — Force-adding a gitignored build artifact was avoided per git-safety guidance
 - [Phase 34]: [34-02] Trail.from() (TS trail-duplicate helper) now carries moving_duration alongside duration — Omitting it would silently drop a recording's moving time whenever a user duplicates a trail (Rule 2)
+- [Phase ?]: [34-03] trail.date only asserted when the fixture supplies a non-null expected date -- Trail's constructor defaults date to today's (non-deterministic) date whenever gpx2trail finds no GPX timestamp, unrelated to the GPX-derived contract this corpus pins
 
 ### Roadmap Evolution
 
@@ -480,8 +482,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-31T20:27:20.848Z
-Stopped at: Completed 34-02-PLAN.md
+Last session: 2026-07-31T22:06:41.198Z
+Stopped at: Completed 34-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

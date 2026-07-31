@@ -387,7 +387,7 @@ Plans:
 
 - [x] 34-01-PLAN.md — Dart GPX sanitize pass and the ported `GpxMetricsComputation` / `computeTrailMetrics`, with the CONV-01..05 defect suite
 - [x] 34-02-PLAN.md — `moving_duration` end to end: PocketBase migration, OpenAPI, TS + Dart models, trail form body, web display rule
-- [ ] 34-03-PLAN.md — The shared on-disk `fixtures/gpx-corpus/` and the TypeScript parity suite
+- [x] 34-03-PLAN.md — The shared on-disk `fixtures/gpx-corpus/` and the TypeScript parity suite
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -495,6 +495,6 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
 | 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 6/6 | Complete   | 2026-07-28 |
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
-| 34. Dart Conversion Port | v1.8 | 2/7 | In Progress|  |
+| 34. Dart Conversion Port | v1.8 | 3/7 | In Progress|  |
 | 35. Offline Trail Creation | v1.8 | 0/0 | Not planned | — |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 0/0 | Not planned | — |
