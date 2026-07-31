@@ -131,6 +131,21 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Required so canLaunchUrl() can probe map apps for directions; iOS
+	     rejects canOpenURL for any scheme not listed here (50 entry cap).
+	     Must stay in sync with probeUrl in lib/util/map_app.dart. Apple Maps
+	     is absent on purpose — it is reached via a maps.apple.com universal
+	     link and is always installed. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+		<string>osmandmaps</string>
+		<string>mapsme</string>
+		<string>magicearth</string>
+		<string>szn-mapy</string>
+		<string>here-location</string>
+		<string>waze</string>
+	</array>
 	<!-- Offer Wanderer as an "Open in" target for trail files. -->
 	<key>CFBundleDocumentTypes</key>
 	<array>

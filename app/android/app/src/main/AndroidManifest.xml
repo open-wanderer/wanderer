@@ -89,5 +89,17 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Required so canLaunchUrl() can see installed map apps (Google Maps,
+             OsmAnd, Organic Maps, ...) when opening directions. Without this,
+             package visibility hides them and we fall back to the browser. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="geo"/>
+        </intent>
+        <!-- Same, for the browser fallback. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
     </queries>
 </manifest>
