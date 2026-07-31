@@ -362,7 +362,7 @@ Plans:
 
 **Wave 4** *(gap closure — from 33-VERIFICATION.md)*
 
-- [ ] 33-04-PLAN.md — Replace the removed horizontal gate with a commit-then-retract elevation noise filter so a stationary track stops fabricating 210 m of gain (CONV-04)
+- [x] 33-04-PLAN.md — Replace the removed horizontal gate with a commit-then-retract elevation noise filter so a stationary track stops fabricating 210 m of gain (CONV-04)
 - [ ] 33-05-PLAN.md — Make crop interpolation degenerate-safe in a testable module and stop `croppedGPX` resurrecting a discarded route (CONV-05 consumer)
 
 **Scope note:** deliberately web-only — `web/src/lib/models/gpx/gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`. CONV-06 (moving time) was originally mapped here and moved to Phase 34: pause data lives in the app's `navigation_stats_provider` (`pausedAccum`) and exists only for trails recorded in the app, so it cannot be satisfied or observed by a web-only change.
@@ -475,7 +475,7 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
 | 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 6/6 | Complete   | 2026-07-28 |
-| 33. Conversion Correctness | v1.8 | 3/3 | Gaps Found | 2026-07-31 |
+| 33. Conversion Correctness | v1.8 | 4/5 | In Progress|  |
 | 34. Dart Conversion Port | v1.8 | 0/0 | Not planned | — |
 | 35. Offline Trail Creation | v1.8 | 0/0 | Not planned | — |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 0/0 | Not planned | — |

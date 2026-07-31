@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 33-03-PLAN.md
-last_updated: "2026-07-31T11:28:19.452Z"
+stopped_at: Completed 33-04-PLAN.md
+last_updated: "2026-07-31T11:37:32.945Z"
 last_activity: 2026-07-31 -- Phase 33 execution started
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 25
+  completed_phases: 0
+  total_plans: 5
+  completed_plans: 4
+  percent: 0
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 33 (conversion-correctness) — EXECUTING
-Plan: 3 of 3
+Plan: 2 of 5
 Status: Ready to execute
 Last activity: 2026-07-31 -- Phase 33 execution started
 
@@ -138,6 +138,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 33 P01 | 5min | 2 tasks | 2 files |
 | Phase 33 P02 | ~10min | 3 tasks | 2 files |
 | Phase 33 P03 | 8min | 3 tasks | 4 files |
+| Phase 33 P04 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -317,6 +318,7 @@ Recent decisions affecting current work:
 - [Phase 33]: [33-03] cumulativeDistance stays raw (never smoothedDistance) even though reported distance is now smoothed -- decoupling pinned by an executable invariant (distance < cumulativeDistance[last])
 - [Phase 33]: [33-03] totalDistance accumulation gated on Number.isFinite(distance) while the cumulativeDistance push stays unconditional, keeping array length structurally equal to call count regardless of input validity
 - [Phase 33]: [33-03] updateCropMarkers() early-returns when cumulativeRoute.length < 2 or rawRouteTotal is non-finite, closing a pre-existing NaN-coordinate path in the trail-edit crop slider
+- [Phase 33]: [33-04] 60-sample ends-mid-swing fixture asserts 7/0, not 0/0 -- a causal streaming filter that credits a genuine single-step climb cannot simultaneously discard a track's real net displacement — The 61-sample fixture is the one that delivers the gap's literal 0/0
 
 ### Roadmap Evolution
 
@@ -468,8 +470,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-07-31T10:34:56.234Z
-Stopped at: Completed 33-03-PLAN.md
+Last session: 2026-07-31T11:37:32.928Z
+Stopped at: Completed 33-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
