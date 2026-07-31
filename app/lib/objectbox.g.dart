@@ -439,7 +439,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(6, 5034082009762803572),
     name: 'TrailEntity',
-    lastPropertyId: const obx_int.IdUid(28, 5980375855283526072),
+    lastPropertyId: const obx_int.IdUid(29, 5553735844226385778),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -603,6 +603,12 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(28, 5980375855283526072),
         name: 'savedByUserIds',
         type: 30,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(29, 5553735844226385778),
+        name: 'movingDuration',
+        type: 8,
         flags: 0,
       ),
     ],
@@ -1670,7 +1676,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final savedByUserIdsOffset = fbb.writeList(
           object.savedByUserIds.map(fbb.writeString).toList(growable: false),
         );
-        fbb.startTable(29);
+        fbb.startTable(30);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1697,6 +1703,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addFloat64(24, object.minLon);
         fbb.addOffset(25, navCacheJsonOffset);
         fbb.addOffset(27, savedByUserIdsOffset);
+        fbb.addFloat64(28, object.movingDuration);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1754,6 +1761,11 @@ obx_int.ModelDefinition getObjectBoxModel() {
           rootOffset,
           22,
         );
+        final movingDurationParam = const fb.Float64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          60,
+        );
         final latParam = const fb.Float64Reader().vTableGetNullable(
           buffer,
           rootOffset,
@@ -1810,6 +1822,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 elevationGain: elevationGainParam,
                 elevationLoss: elevationLossParam,
                 duration: durationParam,
+                movingDuration: movingDurationParam,
                 lat: latParam,
                 lon: lonParam,
                 maxLat: maxLatParam,
@@ -2890,6 +2903,11 @@ class TrailEntity_ {
   /// See [TrailEntity.savedByUserIds].
   static final savedByUserIds = obx.QueryStringVectorProperty<TrailEntity>(
     _entities[4].properties[25],
+  );
+
+  /// See [TrailEntity.movingDuration].
+  static final movingDuration = obx.QueryDoubleProperty<TrailEntity>(
+    _entities[4].properties[26],
   );
 
   /// see [TrailEntity.waypoints]

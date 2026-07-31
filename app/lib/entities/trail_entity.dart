@@ -24,6 +24,11 @@ class TrailEntity {
   double? elevationGain;
   double? elevationLoss;
   double? duration;
+  // Moving time in seconds for trails recorded in the Wanderer app. No
+  // default and stays nullable: absence is the meaningful "no moving time
+  // known" state (D-10, phase 34) -- `duration` always means GPX-derived
+  // elapsed time.
+  double? movingDuration;
   double? lat;
   double? lon;
   double maxLat;
@@ -88,6 +93,7 @@ class TrailEntity {
     this.elevationGain = 0,
     this.elevationLoss = 0,
     this.duration = 0,
+    this.movingDuration,
     this.difficulty = TrailDifficulty.easy,
     this.lat,
     this.lon,
@@ -111,6 +117,7 @@ class TrailEntity {
       elevationGain: trail.elevationGain,
       elevationLoss: trail.elevationLoss,
       duration: trail.duration,
+      movingDuration: trail.movingDuration,
       lat: trail.lat,
       lon: trail.lon,
       maxLat: trail.maxLat,
@@ -159,6 +166,7 @@ extension TrailEntityMapping on TrailEntity {
       elevationGain: elevationGain ?? 0,
       elevationLoss: elevationLoss ?? 0,
       duration: duration ?? 0,
+      movingDuration: movingDuration,
       difficulty: difficulty,
       lat: lat,
       lon: lon,

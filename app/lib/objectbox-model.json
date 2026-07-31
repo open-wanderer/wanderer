@@ -353,7 +353,7 @@
     },
     {
       "id": "6:5034082009762803572",
-      "lastPropertyId": "28:5980375855283526072",
+      "lastPropertyId": "29:5553735844226385778",
       "name": "TrailEntity",
       "properties": [
         {
@@ -494,6 +494,11 @@
           "id": "28:5980375855283526072",
           "name": "savedByUserIds",
           "type": 30
+        },
+        {
+          "id": "29:5553735844226385778",
+          "name": "movingDuration",
+          "type": 8
         }
       ],
       "relations": []
