@@ -10,6 +10,7 @@
 - ✅ **v1.5 Route Planner** — Phases 19-21 (shipped 2026-07-17)
 - ✅ **v1.6 Offline Region Tile Repository** — Phases 21.5, 22-27 (shipped 2026-07-24)
 - ✅ **v1.7 Admin Region Picker** — Phases 28-32 (shipped 2026-07-28)
+- 🚧 **v1.8 Offline Recording & Deferred Upload** — Phase 33 (started 2026-07-31)
 
 ## Phases
 
@@ -312,6 +313,41 @@ Audit: `.planning/milestones/v1.7-MILESTONE-AUDIT.md` (status `gaps_found` — v
 
 </details>
 
+### 🚧 v1.8 Offline Recording & Deferred Upload (Phase 33)
+
+**Goal:** A hiker who records a trail with no signal can save it, review it, and fill in its
+details on the spot — and it uploads itself when the phone next has a connection, without the
+hiker doing anything.
+
+Today `_saveRecordedTrack` (`app/lib/routes/navigation_screen.dart:732`) round-trips through
+`POST /trail/convert`, so an offline recording cannot be saved at all and is stranded in the
+session.
+
+- [ ] Phase 33: Offline Recording & Deferred Upload
+
+**Scope:**
+
+1. **Port `gpx2trail` to Dart** and make it the app's only conversion path — `/trail/convert` is
+   no longer called from the app, online or offline. Must faithfully reproduce
+   `GpxMetricsComputation(5, 5)` (raw distance, smoothed elevation) and the `i = 1` first-point
+   skip; pin with a shared fixture test against the TS implementation.
+2. **Local-first recorded trails** in the existing ObjectBox `TrailEntity` store — no server id,
+   a sync-state field, account-scoped, visible in the trail library immediately with a sync badge.
+3. **Automatic background drain** on app-foreground + connectivity, with per-item inline progress
+   and a manual retry escape hatch.
+4. **Make `trail_create_screen` fully offline-capable** — the blank-map and tag-autocomplete fixes
+   (see `.planning/todos/pending/2026-07-31-trail-create-screen-offline-gaps.md`, shippable
+   independently and ahead of the rest).
+
+**Design context:** `.planning/notes/offline-recording-deferred-upload-design.md` — records the
+Komoot/AllTrails architecture research, why local-first beat a pending-uploads queue, and the
+finding that `PUT /trail/form` does not recompute metrics (so client values are authoritative and
+no post-sync reconciliation is needed).
+
+**Open decisions for `discuss-phase`:** photo file durability, partial-failure semantics of the
+`tag → trail → waypoint` upload sequence, and the logout-with-undrained-recordings UX. See
+`.planning/research/questions.md`.
+
 ## Progress
 
 **Execution Order:**
@@ -365,3 +401,4 @@ v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
 | 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 6/6 | Complete   | 2026-07-28 |
+| 33. Offline Recording & Deferred Upload | v1.8 | 0/0 | Not planned | — |
