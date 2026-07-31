@@ -29,7 +29,7 @@ found by auditing the TS before porting it.
 
 ### Dart Conversion Port
 
-- [ ] **PORT-01**: The app computes a draft trail's name, description, waypoints, start coordinates, date, distance, elevation gain/loss, duration, and bounding box from a GPX entirely on-device, with no network call
+- [x] **PORT-01**: The app computes a draft trail's name, description, waypoints, start coordinates, date, distance, elevation gain/loss, duration, and bounding box from a GPX entirely on-device, with no network call
 - [ ] **PORT-02**: A shared fixture test proves the Dart and TypeScript implementations produce the same metrics for the same GPX inputs, covering the CONV-01..05 defect cases explicitly
 - [ ] **PORT-03**: Recordings, route-planner output, and `.gpx` file imports all produce their trail through the Dart path — `POST /trail/convert` is no longer called for any of them
 - [ ] **PORT-04**: `POST /api/v1/trail/convert` transcodes kml/kmz/tcx/fit to GPX and returns it, without computing a trail; the published OpenAPI description matches the new behaviour
@@ -101,7 +101,7 @@ Populated during roadmap creation.
 | CONV-04 | Phase 33 | Complete |
 | CONV-05 | Phase 33 | Complete |
 | CONV-06 | Phase 34 | Pending |
-| PORT-01 | Phase 34 | Pending |
+| PORT-01 | Phase 34 | Complete |
 | PORT-02 | Phase 34 | Pending |
 | PORT-03 | Phase 34 | Pending |
 | PORT-04 | Phase 34 | Pending |
