@@ -354,7 +354,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 33-02-PLAN.md — Undefined-aware elevation via `parseElevation` (CONV-03) and threshold-independent elevation sampling (CONV-04), with fixtures
+- [x] 33-02-PLAN.md — Undefined-aware elevation via `parseElevation` (CONV-03) and threshold-independent elevation sampling (CONV-04), with fixtures
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -470,7 +470,7 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 | 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
 | 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 6/6 | Complete   | 2026-07-28 |
-| 33. Conversion Correctness | v1.8 | 1/3 | In Progress|  |
+| 33. Conversion Correctness | v1.8 | 2/3 | In Progress|  |
 | 34. Dart Conversion Port | v1.8 | 0/0 | Not planned | — |
 | 35. Offline Trail Creation | v1.8 | 0/0 | Not planned | — |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 0/0 | Not planned | — |

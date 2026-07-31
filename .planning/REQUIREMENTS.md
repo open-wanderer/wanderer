@@ -22,8 +22,8 @@ found by auditing the TS before porting it.
 
 - [x] **CONV-01**: A track segment's first point is included in distance, bounding box, and centroid — a 2-point segment reports its real length instead of zero, and a planned route no longer cuts the corner at every anchor
 - [x] **CONV-02**: The centroid divides by the same point count it summed, instead of summing `n − k` points and dividing by `n`
-- [ ] **CONV-03**: Points with no elevation are excluded from gain/loss instead of being treated as 0 m, so a partially-elevated GPX no longer reports a phantom plunge to sea level and back
-- [ ] **CONV-04**: Elevation gain/loss is sampled independently of the horizontal threshold, so a steep climb with little horizontal movement (switchbacks, scrambles) is measured rather than skipped
+- [x] **CONV-03**: Points with no elevation are excluded from gain/loss instead of being treated as 0 m, so a partially-elevated GPX no longer reports a phantom plunge to sea level and back
+- [x] **CONV-04**: Elevation gain/loss is sampled independently of the horizontal threshold, so a steep climb with little horizontal movement (switchbacks, scrambles) is measured rather than skipped
 - [ ] **CONV-05**: Distance is computed from the smoothed accumulator rather than the raw haversine sum, so GPS jitter no longer inflates it; the dead, misaligned `cumulativeDistance` array is removed
 - [ ] **CONV-06**: A trail recorded in the app reports moving time, excluding accumulated pause time; an imported file continues to report elapsed time
 
@@ -97,8 +97,8 @@ Populated during roadmap creation.
 |-------------|-------|--------|
 | CONV-01 | Phase 33 | Complete |
 | CONV-02 | Phase 33 | Complete |
-| CONV-03 | Phase 33 | Pending |
-| CONV-04 | Phase 33 | Pending |
+| CONV-03 | Phase 33 | Complete |
+| CONV-04 | Phase 33 | Complete |
 | CONV-05 | Phase 33 | Pending |
 | CONV-06 | Phase 34 | Pending |
 | PORT-01 | Phase 34 | Pending |
