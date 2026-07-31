@@ -2,7 +2,7 @@
 created: 2026-07-31T00:00:00.000Z
 title: Fix the two offline gaps in trail_create_screen (blank map, throwing tag autocomplete)
 area: app
-resolves_phase: 33
+resolves_phase: 35
 files:
   - app/lib/routes/trail_create_screen.dart
   - app/lib/provider/trail/tag_provider.dart
