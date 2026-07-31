@@ -1,7 +1,7 @@
 ---
 phase: 33-conversion-correctness
 verified: 2026-07-31T16:55:00Z
-status: human_needed
+status: passed
 score: 9/9 must-haves verified
 overrides_applied: 0
 re_verification:
@@ -14,6 +14,7 @@ re_verification:
   gaps_remaining: []
   regressions: []
 deferred: []
+human_verification_result: passed  # all 3 items confirmed in a live browser, 2026-07-31 — see 33-UAT.md
 human_verification:
   - test: "Open a new (empty or near-empty) trail, type distance/duration/elevation values by hand under 'basic info', click 'draw route', then click the crop icon to open the crop panel without drawing anything."
     expected: "The hand-typed distance/duration/elevation values remain unchanged after the crop panel opens (crop preview totals render in the crop panel itself, not in the form)."
@@ -31,7 +32,7 @@ human_verification:
 **Phase Goal:** Every GPX converted anywhere in Wanderer — a web upload or a server-side conversion — reports correct distance, elevation, and duration, fixing four real defects in the shared TS computation before the Dart port can be pinned against it.
 
 **Verified:** 2026-07-31T16:55:00Z
-**Status:** human_needed
+**Status:** passed (human verification cleared via 33-UAT.md)
 **Re-verification:** Yes — third round, after root-cause fixes for round 2's three regressions
 
 ## Goal Achievement
