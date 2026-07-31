@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/components/welcome/oauth_provider_buttons.dart';
 import 'package:wanderer/components/welcome/server_selctor.dart';
+import 'package:wanderer/components/welcome/topography_background.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/router_provider.dart';
@@ -20,63 +21,69 @@ class WelcomeScreen extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0),
-          child: Column(
-            children: [
-              const Spacer(flex: 1),
+      body: Stack(
+        children: [
+          Positioned.fill(child: TopographyBackground()),
 
-              SvgPicture.asset(
-                "assets/svgs/logo_text_${Theme.of(context).brightness.name}.svg",
-                semanticsLabel: 'wanderer logo',
-                height: 80,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "${AppLocalizations.of(context)!.welcome_to} wanderer",
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
-                ),
-              ),
-
-              const Spacer(flex: 1),
-              const Spacer(flex: 2),
-
-              ServerSelector(),
-              const SizedBox(height: 24),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Column(
                 children: [
-                  WandererButton(
-                    onPressed: authState.isLoading
-                        ? null
-                        : () => {router.push('/login')},
-                    primary: true,
-                    disabled: serverSelection.value?.selectedServer == null,
-                    child: Text(AppLocalizations.of(context)!.login),
+                  const Spacer(flex: 1),
+
+                  SvgPicture.asset(
+                    "assets/svgs/logo_text_${Theme.of(context).brightness.name}.svg",
+                    semanticsLabel: 'wanderer logo',
+                    height: 80,
                   ),
-                  const SizedBox(height: 12),
-                  WandererButton(
-                    onPressed: authState.isLoading
-                        ? null
-                        : () => {router.push('/register')},
-                    secondary: true,
-                    disabled: serverSelection.value?.selectedServer == null,
-                    child: Text(AppLocalizations.of(context)!.register),
-                  ),
-                  if (serverSelection.value?.selectedServer != null)
-                    OAuthProviderButtons(
-                      serverUrl: serverSelection.value!.selectedServer!.url,
+                  const SizedBox(height: 16),
+                  Text(
+                    "${AppLocalizations.of(context)!.welcome_to} wanderer",
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
                     ),
+                  ),
+
+                  const Spacer(flex: 1),
+                  const Spacer(flex: 2),
+
+                  ServerSelector(),
+                  const SizedBox(height: 24),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      WandererButton(
+                        onPressed: authState.isLoading
+                            ? null
+                            : () => {router.push('/login')},
+                        primary: true,
+                        disabled: serverSelection.value?.selectedServer == null,
+                        child: Text(AppLocalizations.of(context)!.login),
+                      ),
+                      const SizedBox(height: 12),
+                      WandererButton(
+                        onPressed: authState.isLoading
+                            ? null
+                            : () => {router.push('/register')},
+                        secondary: true,
+                        disabled: serverSelection.value?.selectedServer == null,
+                        child: Text(AppLocalizations.of(context)!.register),
+                      ),
+                      if (serverSelection.value?.selectedServer != null)
+                        OAuthProviderButtons(
+                          serverUrl: serverSelection.value!.selectedServer!.url,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
                 ],
               ),
-              const SizedBox(height: 32),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

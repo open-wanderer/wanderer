@@ -284,13 +284,13 @@ class _SourceActionCard extends StatelessWidget {
         : theme.colorScheme.secondaryContainer.withValues(alpha: 0.4);
     final resolvedIconColor = disabled
         ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
-        : theme.colorScheme.primary;
+        : theme.colorScheme.onSurface.withValues(alpha: 1);
     final resolvedTitleColor = disabled
         ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
         : null;
     final resolvedDescriptionColor = disabled
         ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
-        : theme.colorScheme.onSurfaceVariant;
+        : theme.colorScheme.onSurface.withValues(alpha: 0.6);
     final resolvedBorderColor = disabled
         ? theme.colorScheme.outline.withValues(alpha: 0.3)
         : theme.colorScheme.outline;

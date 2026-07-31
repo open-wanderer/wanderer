@@ -153,10 +153,7 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
                     if (index > 0 && cumulativeStats[anchor.id] != null)
                       Text(
                         _statsLabel(cumulativeStats[anchor.id]!, unit),
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                   ],
                 ),
@@ -234,9 +231,10 @@ class _AnchorActionChips extends ConsumerWidget {
         children: [
           ActionChip(
             visualDensity: VisualDensity.compact,
-            avatar: const FaIcon(
+            avatar: FaIcon(
               FontAwesomeIcons.arrowRightArrowLeft,
               size: 12,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
             label: Text(l10n.reverse_direction),
             onPressed: anchors.length < 2 ? null : notifier.reverseRoute,
