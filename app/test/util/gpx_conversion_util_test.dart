@@ -127,6 +127,289 @@ void main() {
       },
     );
   });
+
+  group('computeTrailMetrics', () {
+    test('CONV-01: a two-point segment reports the full hop instead of 0', () {
+      // Pre-fix value on this exact fixture: exactly 0 -- the loop started
+      // at i = 1, so only the second point was ever fed to addAndFilter().
+      final xml = _gpxXml([_trkptXml(47.0, 11.0), _trkptXml(47.001, 11.001)]);
+      final metrics = computeTrailMetrics(parseGpxSafely(xml));
+
+      expect(metrics.distance, closeTo(134.59, 0.5));
+    });
+
+    test(
+      'CONV-01/CONV-02: bounding box and centroid include the geographic-extreme first point',
+      () {
+        // Pre-fix: minLat 47.0, centroid 31.33/7.33 -- the first point
+        // (also the geographic extreme) was skipped by the i = 1 loop
+        // bound.
+        final xml = _gpxXml([
+          _trkptXml(40.0, 10.0),
+          _trkptXml(47.0, 11.0),
+          _trkptXml(48.0, 12.0),
+        ]);
+        final metrics = computeTrailMetrics(parseGpxSafely(xml));
+
+        expect(metrics.minLat, 40.0);
+        expect(metrics.minLon, 10.0);
+        expect(metrics.centroidLat, closeTo(45.0, 1e-9));
+        expect(metrics.centroidLon, closeTo(11.0, 1e-9));
+      },
+    );
+
+    test(
+      'CONV-03: an omitted <ele> is carried forward as "no data", not sea level',
+      () {
+        // Pre-fix: elevationGain 1015, elevationLoss 1005 -- the missing
+        // tag coerced to 0, fabricating a plunge to sea level and back.
+        final xml = _gpxXml([
+          _trkptXml(47.000, 11.0, ele: '1000'),
+          _trkptXml(47.001, 11.0, ele: '1005'),
+          _trkptXml(47.002, 11.0),
+          _trkptXml(47.003, 11.0, ele: '1010'),
+          _trkptXml(47.004, 11.0, ele: '1015'),
+        ]);
+        final metrics = computeTrailMetrics(parseGpxSafely(xml));
+
+        expect(metrics.elevationGain, 15.0);
+        expect(metrics.elevationLoss, 0.0);
+      },
+    );
+
+    test(
+      'CONV-03: an empty <ele></ele> is the parser landmine canary, treated identically to an omitted tag',
+      () {
+        // Pre-fix: elevationGain 1015, elevationLoss 1005. This is the
+        // exact fixture that crashes the raw parser (34-RESEARCH.md
+        // Pitfall 1).
+        final xml = _gpxXml([
+          _trkptXml(47.000, 11.0, ele: '1000'),
+          _trkptXml(47.001, 11.0, ele: '1005'),
+          _trkptXml(47.002, 11.0, ele: ''),
+          _trkptXml(47.003, 11.0, ele: '1010'),
+          _trkptXml(47.004, 11.0, ele: '1015'),
+        ]);
+        final metrics = computeTrailMetrics(parseGpxSafely(xml));
+
+        expect(metrics.elevationGain, 15.0);
+        expect(metrics.elevationLoss, 0.0);
+      },
+    );
+
+    test(
+      'CONV-03: a genuine <ele>0</ele> counts as real sea-level data, not missing',
+      () {
+        final xml = _gpxXml([
+          _trkptXml(47.0, 11.0, ele: '0'),
+          _trkptXml(47.001, 11.0, ele: '10'),
+        ]);
+        final metrics = computeTrailMetrics(parseGpxSafely(xml));
+
+        expect(metrics.elevationGain, 10.0);
+        expect(metrics.elevationLoss, 0.0);
+      },
+    );
+
+    test(
+      'CONV-04: registers the full climb of an 88 m scramble spread over ~4.4 m of horizontal movement',
+      () {
+        // Pre-fix: elevationGain 0 -- the smoothed elevation diff was
+        // gated behind the horizontal threshold, which this stretch never
+        // clears.
+        final trkpts = [
+          for (var i = 0; i < 12; i++)
+            _trkptXml(47 + i * 0.0000036, 11.0, ele: '${1000 + i * 8}'),
+        ];
+        final metrics = computeTrailMetrics(parseGpxSafely(_gpxXml(trkpts)));
+
+        expect(metrics.elevationGain, 88.0);
+        expect(metrics.elevationLoss, 0.0);
+        // Distance smoothing must stay gated for the same stretch.
+        expect(metrics.distance, 0.0);
+      },
+    );
+
+    test(
+      'D-04: a completed track reports finalElevationGain (88), not the monotonic totalElevationGainSmoothed (80)',
+      () {
+        // The single test that catches porting the wrong one of the pair
+        // (Pitfall 2): this monotonic climb ends without a confirming
+        // move, so its last 8 m step is still sitting in the noise
+        // filter's pending slot.
+        final trkpts = [
+          for (var i = 0; i < 12; i++)
+            _trkptXml(47 + i * 0.0000036, 11.0, ele: '${1000 + i * 8}'),
+        ];
+        final points = _flatten(parseGpxSafely(_gpxXml(trkpts)));
+        final metrics = GpxMetricsComputation(5, 5);
+        for (final point in points) {
+          metrics.addAndFilter(point);
+        }
+
+        expect(metrics.finalElevationGain, 88.0);
+        expect(metrics.totalElevationGainSmoothed, 80.0);
+      },
+    );
+
+    test(
+      'CONV-04: a fully-stationary track whose altitude oscillates +/-7 m and returns to start reports 0/0',
+      () {
+        // Pre-fix: elevationGain 210, elevationLoss 210 -- the flat
+        // threshold commit rule ratchets on every +/-7 m swing even
+        // though the track never moves and returns exactly to its
+        // starting elevation.
+        final trkpts = [
+          for (var i = 0; i <= 60; i++)
+            _trkptXml(47.0, 11.0, ele: i.isEven ? '1000' : '1007'),
+        ];
+        final metrics = computeTrailMetrics(parseGpxSafely(_gpxXml(trkpts)));
+
+        expect(metrics.elevationGain, 0.0);
+        expect(metrics.elevationLoss, 0.0);
+      },
+    );
+
+    test(
+      'CONV-04: the same stationary oscillation ending mid-swing reports exactly the one un-cancelled excursion',
+      () {
+        // Pre-fix: elevationGain 210, elevationLoss 203.
+        final trkpts = [
+          for (var i = 0; i < 60; i++)
+            _trkptXml(47.0, 11.0, ele: i.isEven ? '1000' : '1007'),
+        ];
+        final metrics = computeTrailMetrics(parseGpxSafely(_gpxXml(trkpts)));
+
+        expect(metrics.elevationGain, 7.0);
+        expect(metrics.elevationLoss, 0.0);
+      },
+    );
+
+    test(
+      'CONV-04: rejects a stationary out-and-back bump but measures the genuine climb that follows in full',
+      () {
+        // Pre-fix: elevationGain 32, elevationLoss 8.
+        final trkpts = [
+          _trkptXml(47.0, 11.0, ele: '1000'),
+          _trkptXml(47.0, 11.0, ele: '1008'),
+          _trkptXml(47.0, 11.0, ele: '1000'),
+          _trkptXml(47.0, 11.0, ele: '1008'),
+          _trkptXml(47.0, 11.0, ele: '1016'),
+          _trkptXml(47.0, 11.0, ele: '1024'),
+        ];
+        final metrics = computeTrailMetrics(parseGpxSafely(_gpxXml(trkpts)));
+
+        expect(metrics.elevationGain, 24.0);
+        expect(metrics.elevationLoss, 0.0);
+      },
+    );
+
+    test(
+      'CONV-04 rolling-terrain guard: noise rejection never eats real terrain',
+      () {
+        const elevations = [1000, 1008, 1000, 1008, 1000, 1008];
+        final trkpts = [
+          for (var i = 0; i < 6; i++)
+            _trkptXml(47 + i * 0.0009, 11.0, ele: '${elevations[i]}'),
+        ];
+        final metrics = computeTrailMetrics(parseGpxSafely(_gpxXml(trkpts)));
+
+        expect(metrics.elevationGain, 24.0);
+        expect(metrics.elevationLoss, 16.0);
+      },
+    );
+
+    test(
+      'CONV-05: suppresses GPS jitter in totalDistanceSmoothed while totalDistance stays raw',
+      () {
+        // Pre-33-01 (i = 1 loop bug): 90.068 m -- a different defect
+        // entirely. Real forward travel is ~100.075 m; the raw haversine
+        // sum over every consecutive pair is ~110.083 m.
+        final trkpts = [_trkptXml(47.0, 11.0)];
+        var lat = 47.0;
+        for (var i = 0; i < 5; i++) {
+          lat += 0.00018;
+          trkpts.add(_trkptXml(lat, 11.0));
+          lat += 0.000009;
+          trkpts.add(_trkptXml(lat, 11.0));
+          lat -= 0.000009;
+          trkpts.add(_trkptXml(lat, 11.0));
+        }
+        final points = _flatten(parseGpxSafely(_gpxXml(trkpts)));
+        final metrics = GpxMetricsComputation(5, 5);
+        for (final point in points) {
+          metrics.addAndFilter(point);
+        }
+
+        expect(metrics.totalDistanceSmoothed, closeTo(100.075, 1.0));
+        expect(metrics.totalDistance, closeTo(110.083, 1.0));
+      },
+    );
+
+    test(
+      'cross-segment continuity: a two-leg planner route measures through its shared anchor, no per-segment reset',
+      () {
+        // Pre-fix: 333.585 -- the i = 1 loop bound dropped each segment's
+        // own first point (leg1's opening hop and leg2's zero-length
+        // anchor duplicate), losing one real hop's worth of distance.
+        final leg1 = [
+          _trkptXml(47.0, 11.0),
+          _trkptXml(47.001, 11.0),
+          _trkptXml(47.002, 11.0),
+        ];
+        final leg2 = [
+          _trkptXml(47.002, 11.0),
+          _trkptXml(47.003, 11.0),
+          _trkptXml(47.004, 11.0),
+        ];
+        final xml = _gpxXmlSegments([leg1, leg2]);
+        final metrics = computeTrailMetrics(parseGpxSafely(xml));
+
+        expect(metrics.distance, closeTo(444.78, 1.0));
+      },
+    );
+
+    test('duration: two trkpts 30 minutes apart report durationMs == 1800000', () {
+      final xml = _gpxXml([
+        '<trkpt lat="47.0" lon="11.0"><time>2024-01-01T00:00:00Z</time></trkpt>',
+        '<trkpt lat="47.001" lon="11.0"><time>2024-01-01T00:30:00Z</time></trkpt>',
+      ]);
+      final metrics = computeTrailMetrics(parseGpxSafely(xml));
+
+      expect(metrics.durationMs, 1800000);
+    });
+
+    test(
+      'duration: a segment where only the middle point carries a <time> reports durationMs == 0',
+      () {
+        // gpx.ts:116-123 requires both the first AND last point of a
+        // segment to carry a time; a time on an interior point alone does
+        // not contribute.
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"></trkpt>',
+          '<trkpt lat="47.001" lon="11.0"><time>2024-01-01T00:30:00Z</time></trkpt>',
+          '<trkpt lat="47.002" lon="11.0"></trkpt>',
+        ]);
+        final metrics = computeTrailMetrics(parseGpxSafely(xml));
+
+        expect(metrics.durationMs, 0);
+      },
+    );
+
+    test(
+      'empty-document guard: a track with no points keeps the pre-existing sentinel behavior, not a fix',
+      () {
+        final xml = _gpxXml(const []);
+        final metrics = computeTrailMetrics(parseGpxSafely(xml));
+
+        expect(metrics.pointCount, 0);
+        expect(metrics.distance, 0.0);
+        expect(metrics.centroidLat.isNaN, isTrue);
+        expect(metrics.minLat, double.infinity);
+        expect(metrics.maxLat, double.negativeInfinity);
+      },
+    );
+  });
 }
 
 /// Produces a GPX 1.1 document with one `<trk>` and one `<trkseg>` holding
@@ -142,4 +425,43 @@ String _gpxXml(List<String> trkpts) {
     </trkseg>
   </trk>
 </gpx>''';
+}
+
+/// Produces a GPX 1.1 document with one `<trk>` holding one `<trkseg>` per
+/// entry in [segments], mirroring `valhalla_store.svelte.ts`'s
+/// `insertIntoRoute()` output shape: each planner leg is its own track
+/// segment, with the shared anchor point deliberately repeated as the next
+/// leg's first point.
+String _gpxXmlSegments(List<List<String>> segments) {
+  final trksegs = segments
+      .map(
+        (trkpts) => '''<trkseg>
+      ${trkpts.join('\n      ')}
+    </trkseg>''',
+      )
+      .join('\n    ');
+
+  return '''<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    $trksegs
+  </trk>
+</gpx>''';
+}
+
+/// Produces a single `<trkpt>` XML string at [lat]/[lon], with an `<ele>`
+/// element only when [ele] is non-null (mirroring `trkptXml` in
+/// `gpx-metrics-computation.test.ts:319-321`).
+String _trkptXml(double lat, double lon, {String? ele}) {
+  final eleElement = ele != null ? '<ele>$ele</ele>' : '';
+  return '<trkpt lat="$lat" lon="$lon">$eleElement</trkpt>';
+}
+
+/// Flattens every `<trkpt>` across every track/segment in [gpx] into a
+/// single ordered list, mirroring `gpx.ts`'s `flatten()`.
+List<Wpt> _flatten(Gpx gpx) {
+  return [
+    for (final track in gpx.trks)
+      for (final segment in track.trksegs) ...segment.trkpts,
+  ];
 }
