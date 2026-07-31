@@ -101,6 +101,7 @@ export default class GPX {
     let totalDistance = 0;
     let totalLat = 0
     let totalLon = 0
+    let summedPointCount = 0
 
     const metrics = new GpxMetricsComputation(5, 5);
 
@@ -122,12 +123,13 @@ export default class GPX {
         }
 
         const pointLength = points.length
-        for (let i = 1; i < pointLength; i++) {
+        for (let i = 0; i < pointLength; i++) {
           const point = points[i];
           metrics.addAndFilter(point)
 
           totalLat += point.$.lat ?? 0;
           totalLon += point.$.lon ?? 0;
+          summedPointCount++;
 
           minLat = Math.min(minLat, point.$.lat ?? Infinity);
           maxLat = Math.max(maxLat, point.$.lat ?? -Infinity);
@@ -142,7 +144,7 @@ export default class GPX {
     totalDistance = metrics.totalDistance;
 
     const boundingBox = { minLat, maxLat, minLon, maxLon };
-    const centroid = { lat: totalLat / allPoints.length, lon: totalLon / allPoints.length };
+    const centroid = { lat: totalLat / summedPointCount, lon: totalLon / summedPointCount };
 
     return {
       centroid,
