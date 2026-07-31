@@ -596,10 +596,11 @@ verified on this machine (parser fidelity, float agreement, `flutter test` file 
 call site, migration field shapes) or directly read from source (algorithm semantics, schema
 locations).
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should `elevation_profile.dart`/`trail_panel.dart` be redirected onto the new correct Dart
-   metrics function, or left on the existing buggy `getTotals()` extension?**
+1. **(RESOLVED — CONTEXT.md D-17: redirect both consumers and delete the extension; implemented
+   by 34-04 Task 3.)** Should `elevation_profile.dart`/`trail_panel.dart` be redirected onto the
+   new correct Dart metrics function, or left on the existing buggy `getTotals()` extension?**
    - What we know: Both are unsaved-GPX preview display consumers, not part of the
      save/persist pipeline PORT-01..05 targets. The existing extension has the same class of bug
      Phase 33 fixed in TS (CONV-01-shaped: `for (int i = 1; ...)`).
@@ -611,7 +612,10 @@ locations).
      function exists (just swap the call site), so leaning toward "fix it as a small bonus task"
      is reasonable, but this is the planner's/discuss-phase's call, not locked by CONTEXT.md.
 
-2. **Exact on-disk corpus fixture format (JSON? YAML? a paired `.gpx` + `.expected.ts`/`.dart`?)**
+2. **(RESOLVED — planner's discretion per CONTEXT.md; 34-03 chose paired `.gpx` + JSON
+   `expected.json` with the tolerance in each language's shared assertion helper, matching the
+   recommendation below.)** Exact on-disk corpus fixture format (JSON? YAML? a paired `.gpx` +
+   `.expected.ts`/`.dart`?)**
    - What we know: D-01 locks the *location* (on disk, language-neutral) but CONTEXT.md
      explicitly marks the format as Claude's discretion.
    - What's unclear: Whether a plain JSON expected-values file (trivially read by both
