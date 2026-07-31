@@ -114,6 +114,117 @@ describe("GPX.getTotals — zero-point regression guard", () => {
   });
 });
 
+describe("GPX.getTotals — CONV-05 smoothed distance", () => {
+  it("reports the smoothed forward travel, not the raw jitter-inflated sum, for a jittery track", () => {
+    // Single segment: forward hop (~20 m) then a jitter out-and-back
+    // (~1 m each way) that never clears the 5 m threshold, repeated 5
+    // times. Real forward travel is ~100.075 m. The raw haversine sum
+    // over every consecutive pair (what cumulativeDistance's last entry
+    // holds) is ~110.083 m. Pre-33-01 (i = 1 loop bug), the reported
+    // value was 90.068 m — a different defect entirely.
+    const points = [waypointAt(47.0, 11.0)];
+    let lat = 47.0;
+    for (let i = 0; i < 5; i++) {
+      lat += 0.00018;
+      points.push(waypointAt(lat, 11.0));
+      lat += 0.000009;
+      points.push(waypointAt(lat, 11.0));
+      lat -= 0.000009;
+      points.push(waypointAt(lat, 11.0));
+    }
+    const gpx = gpxFromSegments([points]);
+
+    expect(gpx.features.distance).toBeCloseTo(100.075, 0);
+  });
+
+  it("keeps the reported distance strictly less than the raw cumulative total (D-01 decoupling)", () => {
+    const points = [waypointAt(47.0, 11.0)];
+    let lat = 47.0;
+    for (let i = 0; i < 5; i++) {
+      lat += 0.00018;
+      points.push(waypointAt(lat, 11.0));
+      lat += 0.000009;
+      points.push(waypointAt(lat, 11.0));
+      lat -= 0.000009;
+      points.push(waypointAt(lat, 11.0));
+    }
+    const gpx = gpxFromSegments([points]);
+
+    const rawTotal =
+      gpx.features.cumulativeDistance[gpx.features.cumulativeDistance.length - 1];
+
+    // Executable invariant: the reported (smoothed) distance and the raw
+    // cumulative array's total are provably decoupled once GPS jitter is
+    // present — the smoothed value must be strictly smaller.
+    expect(gpx.features.distance).toBeLessThan(rawTotal);
+  });
+});
+
+describe("GPX.getTotals — D-01 cumulativeDistance index alignment", () => {
+  it("index-aligns a 2-point segment with a leading 0 entry", () => {
+    const a = waypointAt(47.0, 11.0);
+    const b = waypointAt(47.001, 11.001);
+    const gpx = gpxFromSegments([[a, b]]);
+
+    expect(gpx.features.cumulativeDistance).toHaveLength(gpx.flatten().length);
+    expect(gpx.features.cumulativeDistance).toHaveLength(2);
+    expect(gpx.features.cumulativeDistance[0]).toBe(0);
+    expect(gpx.features.cumulativeDistance[1]).toBeCloseTo(134.592, 1);
+  });
+
+  it("index-aligns the two-leg planner route, staying non-decreasing across the shared anchor", () => {
+    const leg1 = [
+      waypointAt(47.0, 11.0),
+      waypointAt(47.001, 11.0),
+      waypointAt(47.002, 11.0),
+    ];
+    const leg2 = [
+      waypointAt(47.002, 11.0),
+      waypointAt(47.003, 11.0),
+      waypointAt(47.004, 11.0),
+    ];
+    const gpx = gpxFromSegments([leg1, leg2]);
+    const cumulative = gpx.features.cumulativeDistance;
+
+    expect(cumulative).toHaveLength(gpx.flatten().length);
+    expect(cumulative).toHaveLength(6);
+    expect(cumulative[0]).toBe(0);
+    expect(cumulative[cumulative.length - 1]).toBeCloseTo(444.78, 1);
+
+    for (let i = 1; i < cumulative.length; i++) {
+      expect(cumulative[i]).toBeGreaterThanOrEqual(cumulative[i - 1]);
+    }
+  });
+
+  it("stays empty for a track with no points", () => {
+    const gpx = gpxFromSegments([[]]);
+
+    expect(gpx.features.cumulativeDistance).toHaveLength(gpx.flatten().length);
+    expect(gpx.features.cumulativeDistance).toEqual([]);
+  });
+});
+
+describe("GPX.getTotals — CONV-05 does not regress the planner route", () => {
+  it("still reports the full polyline distance when every hop clears the smoothing threshold", () => {
+    // Every hop in this fixture exceeds the 5 m threshold, so raw and
+    // smoothed totals coincide and the CONV-05 source swap must not
+    // change this value from 33-01's baseline.
+    const leg1 = [
+      waypointAt(47.0, 11.0),
+      waypointAt(47.001, 11.0),
+      waypointAt(47.002, 11.0),
+    ];
+    const leg2 = [
+      waypointAt(47.002, 11.0),
+      waypointAt(47.003, 11.0),
+      waypointAt(47.004, 11.0),
+    ];
+    const gpx = gpxFromSegments([leg1, leg2]);
+
+    expect(gpx.features.distance).toBeCloseTo(444.78, 1);
+  });
+});
+
 function waypointAt(lat: number, lon: number, ele?: number): Waypoint {
   return new Waypoint({ $: { lat, lon }, ele });
 }
