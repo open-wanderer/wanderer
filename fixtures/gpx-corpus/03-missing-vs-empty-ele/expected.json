@@ -1,0 +1,31 @@
+{
+  "id": "03-missing-vs-empty-ele",
+  "covers": ["CONV-03"],
+  "derivation": "hand",
+  "notes": "The third trkpt carries a literal empty <ele></ele> element pair -- the parser landmine that crashes an unsanitised Dart GpxReader on load (FormatException: Invalid double) rather than disagreeing on the value. parseElevation() must treat this identically to a wholly-omitted <ele>, i.e. undefined, so the elevation anchor carries forward across it rather than treating it as a plunge to 0m sea level.",
+  "metrics": {
+    "distance": 444.77970657798846,
+    "elevationGain": 15,
+    "elevationLoss": 0,
+    "durationMs": 0,
+    "pointCount": 5,
+    "boundingBox": { "minLat": 47.0, "maxLat": 47.004, "minLon": 11.0, "maxLon": 11.0 },
+    "centroid": { "lat": 47.002, "lon": 11.0 }
+  },
+  "trail": {
+    "name": "Missing vs Empty Elevation",
+    "description": null,
+    "lat": 47.0,
+    "lon": 11.0,
+    "date": null,
+    "distance": 444.77970657798846,
+    "elevationGain": 15,
+    "elevationLoss": 0,
+    "duration": 0,
+    "minLat": 47.0,
+    "maxLat": 47.004,
+    "minLon": 11.0,
+    "maxLon": 11.0,
+    "waypoints": []
+  }
+}

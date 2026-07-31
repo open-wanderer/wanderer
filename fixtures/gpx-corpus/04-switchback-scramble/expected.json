@@ -1,0 +1,31 @@
+{
+  "id": "04-switchback-scramble",
+  "covers": ["CONV-04"],
+  "derivation": "hand",
+  "notes": "finalElevationGain (88), not the monotonic running-total field (80), is the value this corpus asserts (D-04) -- the climb's last 8 m step is still sitting unconfirmed in the noise filter's pending slot when the track ends, and a completed track's reported gain must include it. Distance stays 0 because the cumulative horizontal movement across all 11 hops (~4.4 m) never clears the 5 m smoothing threshold, proving the elevation and distance thresholds are gated independently.",
+  "metrics": {
+    "distance": 0,
+    "elevationGain": 88,
+    "elevationLoss": 0,
+    "durationMs": 0,
+    "pointCount": 12,
+    "boundingBox": { "minLat": 47.0, "maxLat": 47.0000396, "minLon": 11.0, "maxLon": 11.0 },
+    "centroid": { "lat": 47.0000198, "lon": 11.0 }
+  },
+  "trail": {
+    "name": "Switchback Scramble",
+    "description": null,
+    "lat": 47.0,
+    "lon": 11.0,
+    "date": null,
+    "distance": 0,
+    "elevationGain": 88,
+    "elevationLoss": 0,
+    "duration": 0,
+    "minLat": 47.0,
+    "maxLat": 47.0000396,
+    "minLon": 11.0,
+    "maxLon": 11.0,
+    "waypoints": []
+  }
+}

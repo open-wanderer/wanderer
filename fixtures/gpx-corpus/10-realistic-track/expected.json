@@ -1,0 +1,46 @@
+{
+  "id": "10-realistic-track",
+  "covers": ["PORT-01"],
+  "derivation": "seeded",
+  "notes": "Seeded from the Phase 33-corrected TS implementation (GPX.parse + gpx2trail against this fixture's own input.gpx), then read back and sanity-checked: distance (1971.38 m) is plausible for the ~2.17 km-diagonal coordinate span on a winding 45-point path; durationMs (3432000) equals the last trkpt time (08:57:12Z) minus the first (08:00:00Z) exactly; pointCount (45) equals the trkpt count in input.gpx; boundingBox exactly equals the coordinate extremes, which coincide with the first/last points because the generated path's lat/lon deltas are each strictly positive (monotonically increasing track); both waypoints (sym 'campground' and 'mountain') are present in the trail block with icon populated, confirming both sym strings pass the icons.includes() guard on the TS side and are present in app/lib/util/icon_util.dart's fontAwesomeIconsMap on the Dart side.",
+  "metrics": {
+    "distance": 1971.3766232877194,
+    "elevationGain": 234,
+    "elevationLoss": 75,
+    "durationMs": 3432000,
+    "pointCount": 45,
+    "boundingBox": { "minLat": 47.26893, "maxLat": 47.28485, "minLon": 11.39359, "maxLon": 11.40492 },
+    "centroid": { "lat": 47.27689, "lon": 11.399288000000002 }
+  },
+  "trail": {
+    "name": "Alpine Ridge Loop",
+    "description": "A seeded realistic morning hike used to sanity-check the ported metrics against a plausible track.",
+    "lat": 47.26893,
+    "lon": 11.39359,
+    "date": "2026-06-15",
+    "distance": 1971.3766232877194,
+    "elevationGain": 234,
+    "elevationLoss": 75,
+    "duration": 3432,
+    "minLat": 47.26893,
+    "maxLat": 47.28485,
+    "minLon": 11.39359,
+    "maxLon": 11.40492,
+    "waypoints": [
+      {
+        "lat": 47.27253,
+        "lon": 11.39621,
+        "name": "Trailhead Camp",
+        "description": "Camping area near the start of the climb.",
+        "icon": "campground"
+      },
+      {
+        "lat": 47.28158,
+        "lon": 11.40267,
+        "name": "Summit Overlook",
+        "description": "High point of the loop with a wide view.",
+        "icon": "mountain"
+      }
+    ]
+  }
+}

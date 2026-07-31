@@ -1,0 +1,31 @@
+{
+  "id": "08-jittery-track",
+  "covers": ["CONV-05"],
+  "derivation": "hand",
+  "notes": "Sixteen points, no elevation: a ~20 m forward hop followed by a ~1 m out-and-back jitter (never clearing the 5 m threshold), repeated 5 times. The raw haversine sum over every consecutive pair is ~110.083 m (see DERIVATION.md); the reported distance is the smoothed accumulator, ~100.075 m, which only advances the anchor on a hop that clears the threshold. The corpus asserts the smoothed value because that is what GPX.getTotals() reports as `distance` (gpx.ts:148); the raw per-point running total is not part of the public contract (D-04, the raw index-aligned array is not ported).",
+  "metrics": {
+    "distance": 100.07543398026468,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "durationMs": 0,
+    "pointCount": 16,
+    "boundingBox": { "minLat": 47.0, "maxLat": 47.000909, "minLon": 11.0, "maxLon": 11.0 },
+    "centroid": { "lat": 47.0005090625, "lon": 11.0 }
+  },
+  "trail": {
+    "name": "Jittery Track",
+    "description": null,
+    "lat": 47.0,
+    "lon": 11.0,
+    "date": null,
+    "distance": 100.07543398026468,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "duration": 0,
+    "minLat": 47.0,
+    "maxLat": 47.000909,
+    "minLon": 11.0,
+    "maxLon": 11.0,
+    "waypoints": []
+  }
+}

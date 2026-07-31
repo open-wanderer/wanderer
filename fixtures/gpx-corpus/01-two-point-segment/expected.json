@@ -1,0 +1,31 @@
+{
+  "id": "01-two-point-segment",
+  "covers": ["CONV-01"],
+  "derivation": "hand",
+  "notes": "The pre-CONV-01 loop started at i = 1, so a 2-point segment's only call to addAndFilter() was on point b, which is that call's first-ever invocation and only initializes anchors -- no distance is ever added. The fix (i = 0) restores the missing hop.",
+  "metrics": {
+    "distance": 134.59240148587796,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "durationMs": 0,
+    "pointCount": 2,
+    "boundingBox": { "minLat": 47.0, "maxLat": 47.001, "minLon": 11.0, "maxLon": 11.001 },
+    "centroid": { "lat": 47.0005, "lon": 11.000499999999999 }
+  },
+  "trail": {
+    "name": "Two Point Segment",
+    "description": null,
+    "lat": 47.0,
+    "lon": 11.0,
+    "date": null,
+    "distance": 134.59240148587796,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "duration": 0,
+    "minLat": 47.0,
+    "maxLat": 47.001,
+    "minLon": 11.0,
+    "maxLon": 11.001,
+    "waypoints": []
+  }
+}
