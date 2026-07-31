@@ -10,14 +10,26 @@
 - Phase 29 has no VERIFICATION.md — EXTRACT-01/02/03 are code-verified correct but have no phase-owned repeatable check
 - Phase 31 is `human_needed` — the on-device pass required after Phase 32's server rewrite has not been run
 
-## Next Milestone
+## Current Milestone: v1.8 Offline Recording & Deferred Upload
 
-**Not yet defined.** Run `/gsd-new-milestone` to scope v1.8.
+**Goal:** A hiker who records a trail with no signal can save it, review it, and fill in its details on the spot — and it uploads itself when the phone next has a connection, without the hiker doing anything.
 
-Carried into scoping:
+**Target features:**
+- Corrected GPX→trail metrics, shared by app and web — fixes four real defects found by auditing the TS implementation before porting
+- A Dart port of the metrics computation, used for recordings, planner output, and `.gpx` file imports
+- `/api/v1/trail/convert` reduced to transcode-only (kml/kmz/tcx/fit → GPX); the app computes trail metrics itself
+- Local-first recorded trails in ObjectBox with automatic background upload
+- `trail_create_screen` usable with no connection
+
+**Deliberate scope exceptions:**
+- **Web frontend changes are in scope for this milestone**, overriding the standing app-only boundary — the metrics defects live in shared conversion logic used by both, and fixing only one side would make a single GPX yield two different answers.
+- **Trail metrics are re-baselined.** Newly converted trails report different distance/elevation/duration than the same file converted before v1.8. Already-saved trails are unaffected (`PUT /trail/form` stores client values and never recomputes), so the library will contain trails measured two ways with nothing marking which is which. Accepted: the app is pre-production.
+
+**Not carried into v1.8** (deliberately deferred to keep the milestone focused):
 - 40 deferred artifacts (see STATE.md Deferred Items) — 5 diagnosed debug sessions, 32 quick tasks, 2 todos, 1 verification gap; 39 predate v1.7
-- CATALOG-F01 (automated CoMaps catalog refresh) is now genuinely tractable: the maintainer seed run is one `hierarchy.txt` fetch producing a ~315 KB reviewable diff, where it used to be a ~1,153-request scrape producing an opaque binary blob
-- CATALOG-F02 (group-level cascading enable) and CATALOG-F03 (group-node map preview) remain deferred
+- Phase 31's outstanding on-device pass and Phase 29's missing VERIFICATION.md (v1.7 known gaps)
+- Dark mode for the Flutter app (quick task 260612-gmg)
+- CATALOG-F01 (automated CoMaps catalog refresh), CATALOG-F02 (group-level cascading enable), CATALOG-F03 (group-node map preview)
 
 ## What This Is
 
@@ -84,13 +96,24 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 
 ### Active
 
-(None — v1.7 shipped. Run `/gsd-new-milestone` to scope v1.8.)
+- [ ] Four metric defects fixed in the shared GPX→trail computation: per-segment first-point skip, centroid divisor mismatch, `ele ?? 0` treating missing elevation as sea level, and elevation sampling gated behind the 5 m horizontal threshold (v1.8)
+- [ ] Distance switched from the raw haversine sum to the smoothed accumulator; `cumulativeDistance` (dead, misaligned) deleted (v1.8)
+- [ ] Recorded trails report moving time, excluding `pausedAccum`; imported files keep elapsed time (v1.8)
+- [ ] Dart port of the metrics computation, pinned against the TS by a shared fixture test (v1.8)
+- [ ] `/api/v1/trail/convert` reduced to transcode-only; `.gpx` imports, recordings, and planner output all measured in Dart (v1.8)
+- [ ] Recorded trails persist locally with no server id and a sync state, account-scoped, visible in the trail library immediately (v1.8)
+- [ ] Undrained recordings upload automatically on app-foreground + connectivity, with per-item inline progress and manual retry (v1.8)
+- [ ] `trail_create_screen` works with no connection: offline basemap, non-throwing tag autocomplete, and a clear message when a non-GPX import needs a connection (v1.8)
 
 ### Out of Scope
 
 - Storing canonical polygon/bbox on leaf `regions` rows — shipped in v1.7 Phase 28, then deliberately superseded by Phase 32; geometry now lives in `region_geometry`, fetched on demand (CATALOG-02 retired by SLIM-01/02)
 
-- Web frontend changes — `web/` already runs maplibre-gl-js; app-only apart from the v1.4 glyph/sprite endpoint
+- Web frontend changes — `web/` already runs maplibre-gl-js; app-only apart from the v1.4 glyph/sprite endpoint. **Amended 2026-07-31 (v1.8):** shared GPX→trail conversion logic (`web/src/lib/models/gpx/*`, `web/src/lib/util/gpx_util.ts`, `/api/v1/trail/convert`) is explicitly in scope, because leaving its metric defects unfixed on one side would make a single GPX yield two different answers. The boundary still holds for web UI.
+- Migrating already-saved trails to the corrected metrics — no backfill; `PUT /trail/form` stores client values and never recomputes, and the app is pre-production so there is no meaningful install base to migrate (v1.8)
+- Porting the kml/kmz/tcx/fit transcoders to Dart — they depend on vendored `toGeoJSON`, JSZip, and `fit-parser`, none of which a recording can reach; those formats stay online-only via `/api/v1/trail/convert` (v1.8)
+- Queuing a non-GPX file import for conversion on reconnect — a queued import has no trail to show until it transcodes, which breaks the local-first model the recordings use (v1.8)
+- Moving time for imported GPX files — pause data only exists for trails recorded in the app; imports keep elapsed time (v1.8)
 - Switching offline tile generation to OpenMapTiles schema — would invalidate every downloaded trail archive and every operator's tile cache
 - Basemap picker in app settings (OpenTopoMap / CyclOSM / Carto, as web offers) — deferred; v1.4 shipped the Protomaps wanderer style only (FUT-02/03)
 - Contributing `cluster` fields upstream to maplibre's `GeoJsonSource` — unnecessary once clustering is server-side
@@ -170,6 +193,12 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
+| v1.8: audit the TS `gpx2trail` before porting it, rather than porting bug-for-bug | Surfaced four real defects (per-segment first-point skip, centroid divisor, `ele ?? 0`, elevation gated behind the XY threshold); a faithful port would have made them permanent and unfixable without diverging | — Pending |
+| v1.8: fix the metrics in web and app together, overriding the app-only boundary | The defects live in shared conversion logic; fixing one side means a single GPX yields two different answers | — Pending |
+| v1.8: accept re-baselined metrics with no backfill | `PUT /trail/form` stores client values and never recomputes, so old trails keep old numbers; app is pre-production, so no meaningful install base to migrate | — Pending |
+| v1.8: recorded trails are local-first records that acquire a server id later, not a pending-upload queue | Matches how Komoot and AllTrails both model it — the recording is in the library immediately with an inline sync badge, not in a separate inbox | — Pending |
+| v1.8: `/api/v1/trail/convert` becomes transcode-only rather than gaining an opt-in mode | The Flutter app is its only caller (web converts in-browser via `fromFile`/`gpx2trail`) and the endpoint is not deployed in production anywhere, so the breaking change is safe | — Pending |
+| v1.8: don't port the kml/kmz/tcx/fit transcoders to Dart | They need vendored `toGeoJSON`, JSZip, and `fit-parser`; no recording can reach them, so the cost buys only offline import of rare formats | — Pending |
 | Extend SvelteKit Valhalla API rather than calling Valhalla directly from Flutter | Keeps credentials server-side, consistent with existing route endpoint pattern | ✓ Good — used in v1.0 through v1.2 |
 | DraggableScrollableSheet for stats, not fixed bottom bar | Matches MapScreen pattern; user can expand for more detail without blocking map | ✓ Good |
 | Button-driven PageView for stats (not horizontal swipe) | Locked during Phase 3 context; horizontal swipe conflicts with map pan gesture | ✓ Good |
@@ -229,4 +258,4 @@ This document evolves at phase transitions and milestone boundaries.
 ---
 
 ---
-*Last updated: 2026-07-28 after v1.7 milestone*
+*Last updated: 2026-07-31 after starting milestone v1.8*

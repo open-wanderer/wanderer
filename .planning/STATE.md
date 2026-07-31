@@ -2,12 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
-status: Milestone opened — Phase 33 not yet planned
-stopped_at: Roadmap entry created via /gsd-explore
-last_updated: "2026-07-31T00:00:00.000Z"
-last_activity: 2026-07-31 — Opened v1.8 and added Phase 33 (offline recording & deferred upload) after a /gsd-explore session
+status: planning
+last_updated: "2026-07-31T09:19:33.507Z"
+last_activity: 2026-07-31
 progress:
-  total_phases: 1
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,20 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 33 — offline-recording-deferred-upload
+**Current focus:** Phase 32 — on-demand-polygon-fetch-seed-slimming
 
 ## Current Position
 
-Phase: 33 — Offline Recording & Deferred Upload (v1.8)
+Phase: Not started (defining requirements)
 Plan: —
-Status: Not planned — run `/gsd-discuss-phase 33` next (three open decisions are recorded in `.planning/research/questions.md`)
-Last activity: 2026-07-31 - Opened milestone v1.8 and added Phase 33 after a `/gsd-explore` session; design recorded in `.planning/notes/offline-recording-deferred-upload-design.md`
-
-## v1.8 Phases
-
-- [ ] **Phase 33: Offline Recording & Deferred Upload** — port `gpx2trail` to Dart as the app's only conversion path; local-first recorded trails in `TrailEntity` with automatic background upload; `trail_create_screen` offline-capable.
-
-Single phase, no ordering constraints. The two `trail_create_screen` fixes are split out to `.planning/todos/pending/2026-07-31-trail-create-screen-offline-gaps.md` and can ship ahead of the phase — they are live offline bugs today.
+Status: Defining requirements
+Last activity: 2026-07-31 — Milestone v1.8 started
 
 ## v1.7 Phases
 
