@@ -160,10 +160,30 @@
 
     let searchDropdownItems: SearchItem[] = $state([]);
     let selectedSearchLocation: SearchItem | null = $state(null);
-    let cropStartMarker: FontawesomeMarker;
-    let cropEndMarker: FontawesomeMarker;
+    let cropStartMarker: FontawesomeMarker | null = null;
+    let cropEndMarker: FontawesomeMarker | null = null;
 
-    let croppedGPX: GPX | null = null;
+    // Pending, uncommitted crop. This is PREVIEW state and must never reach
+    // $formData — $formData is committed trail state that onSubmit() persists
+    // verbatim, so writing a preview into it both destroys whatever the user
+    // had typed and lets a Save mid-preview persist cropped metrics next to
+    // the uncropped GPX. Only confirmCrop() promotes a preview to committed
+    // state, and it does so by mutating the route and letting the normal
+    // updateTrailWithRouteData() path recompute the form.
+    // Optional to mirror GPXFeature: the format helpers render `-` for a
+    // missing value, which is the honest display for a GPX carrying no
+    // elevation data. Defaulting to 0 here would invent a reading.
+    type CropTotals = {
+        distance?: number;
+        duration?: number;
+        elevationGain?: number;
+        elevationLoss?: number;
+    };
+    let cropPreview: { gpx: GPX; totals: CropTotals } | null = $state(null);
+    // Whether the crop panel is open. Together with the interpolation basis
+    // this is the single source of truth for crop marker visibility — see the
+    // $effect below.
+    let cropPanelOpen = $state(false);
 
     const PhotoCloneSourceSchema = z.object({
         id: z.string(),
@@ -1397,8 +1417,9 @@
 
     function resetTrail() {
         resetRoute();
-        croppedGPX = null;
 
+        // No explicit preview reset needed: updateTrailWithRouteData() is the
+        // single invalidation point and every route mutation funnels through it.
         updateTrailWithRouteData();
     }
 
@@ -1408,7 +1429,6 @@
 
     function replaceRoute() {
         resetRoute();
-        croppedGPX = null;
         clearUndoRedoStack();
         gpxFile = null;
         overwriteGPX = true;
@@ -1425,20 +1445,78 @@
         updateTrailWithRouteData();
     }
 
+    // Sole entry point for the crop panel's open/closed state. Marker
+    // visibility is NOT set here — it is derived by the $effect below, so
+    // that opening the panel and the slider's first synchronous update
+    // cannot fight over it (whichever ran last used to win).
+    //
+    // Closing simply discards the preview. There is deliberately no "restore
+    // totals" step: the preview never touched $formData, so there is nothing
+    // to restore. The previous implementation recomputed from
+    // valhallaStore.route here, which silently overwrote hand-entered
+    // distance/duration/elevation values — with zeros when no route existed.
     function toggleCropMarkers(active: boolean) {
-        if (active) {
-            cropStartMarker?.setOpacity("1");
-            cropEndMarker?.setOpacity("1");
-        } else {
-            cropStartMarker?.setOpacity("0");
-            cropEndMarker?.setOpacity("0");
-
-            croppedGPX = null;
-            updateTotals(valhallaStore.route);
+        cropPanelOpen = active;
+        if (!active) {
+            cropPreview = null;
         }
     }
 
+    // Single writer for crop marker visibility. Derived from panel state and
+    // whether an actual preview resolved, so ordering between the panel
+    // transition and DoubleSlider's mount-time update event is irrelevant.
+    $effect(() => {
+        const opacity = cropPanelOpen && cropPreview !== null ? "1" : "0";
+        cropStartMarker?.setOpacity(opacity);
+        cropEndMarker?.setOpacity(opacity);
+    });
+
     function updateCropMarkers(range: [start: number, end: number]) {
+        const [start, end] = range;
+
+        const flatRoute = valhallaStore.route.flatten();
+
+        // After CONV-05, features.distance is the smoothed total while
+        // cumulativeRoute accumulates raw per-point hops. getCoordinateAtDistance()
+        // interpolates between adjacent entries of the raw array, so its
+        // percentage basis must be that array's own total (rawRouteTotal) or the
+        // crop pins drift off the polyline — the drift grows with GPS jitter.
+        const cumulativeRoute = valhallaStore.route.features.cumulativeDistance;
+        const rawRouteTotal = cumulativeRoute[cumulativeRoute.length - 1];
+
+        // features is a cache refreshed by getTotals(); flatten() is live. If a
+        // mutation ever leaves the two out of step, cumulativeRoute describes
+        // different geometry than flatRoute and every interpolated index lands
+        // on the wrong point. Treat that as no basis rather than silently
+        // placing pins somewhere plausible-looking but wrong.
+        const basisMatchesRoute = cumulativeRoute.length === flatRoute.length;
+
+        if (!basisMatchesRoute || !hasCropInterpolationBasis(cumulativeRoute)) {
+            // No usable interpolation basis (empty, too short, fully
+            // degenerate/coincident-point, or a stale cache);
+            // getCoordinateAtDistance() would otherwise produce NaN coordinates
+            // that MapLibre's setLngLat rejects at runtime. Dropping the preview
+            // hides the markers via the visibility $effect.
+            cropPreview = null;
+            return;
+        }
+
+        const targetStartDistance = rawRouteTotal * (start / 100);
+        const [startLon, startLat, startIndex] = getCoordinateAtDistance(
+            flatRoute,
+            cumulativeRoute,
+            targetStartDistance,
+        );
+
+        const targetEndDistance = rawRouteTotal * (end / 100);
+        const [endLon, endLat, endIndex] = getCoordinateAtDistance(
+            flatRoute,
+            cumulativeRoute,
+            targetEndDistance,
+        );
+
+        // Created only once a real coordinate exists, so there is no window in
+        // which two pins sit at 0N 0E waiting to be hidden.
         if (!cropStartMarker || !cropEndMarker) {
             cropStartMarker = new FontawesomeMarker(
                 {
@@ -1465,63 +1543,44 @@
                 {},
             );
 
-            cropStartMarker.setLngLat([0, 0]).addTo(map!);
-            cropEndMarker.setLngLat([0, 0]).addTo(map!);
+            cropStartMarker.setOpacity("0").setLngLat([startLon, startLat]).addTo(map!);
+            cropEndMarker.setOpacity("0").setLngLat([endLon, endLat]).addTo(map!);
         }
-        const [start, end] = range;
-
-        const flatRoute = valhallaStore.route.flatten();
-
-        // After CONV-05, features.distance is the smoothed total while
-        // cumulativeRoute accumulates raw per-point hops. getCoordinateAtDistance()
-        // interpolates between adjacent entries of the raw array, so its
-        // percentage basis must be that array's own total (rawRouteTotal) or the
-        // crop pins drift off the polyline — the drift grows with GPS jitter.
-        const cumulativeRoute = valhallaStore.route.features.cumulativeDistance;
-        const rawRouteTotal = cumulativeRoute[cumulativeRoute.length - 1];
-
-        if (!hasCropInterpolationBasis(cumulativeRoute)) {
-            // No positive interpolation basis (empty, too short, or a fully
-            // degenerate/coincident-point route); getCoordinateAtDistance() would
-            // otherwise produce NaN coordinates that MapLibre's setLngLat rejects
-            // at runtime. Discard any pending crop and hide the markers rather than
-            // stranding two visible pins at 0N 0E.
-            croppedGPX = null;
-            toggleCropMarkers(false);
-            return;
-        }
-
-        const targetStartDistance = rawRouteTotal * (start / 100);
-        const [startLon, startLat, startIndex] = getCoordinateAtDistance(
-            flatRoute,
-            cumulativeRoute,
-            targetStartDistance,
-        );
-
-        const targetEndDistance = rawRouteTotal * (end / 100);
-        const [endLon, endLat, endIndex] = getCoordinateAtDistance(
-            flatRoute,
-            cumulativeRoute,
-            targetEndDistance,
-        );
 
         cropStartMarker.setLngLat([startLon, startLat]);
         cropEndMarker.setLngLat([endLon, endLat]);
 
-        croppedGPX = cropGPX(
+        const previewGPX = cropGPX(
             flatRoute[startIndex],
             flatRoute[endIndex],
             valhallaStore.route,
         );
 
-        updateTotals(croppedGPX);
+        // Preview only — deliberately NOT written into $formData. The crop
+        // panel renders these totals; the form keeps showing the committed
+        // route's numbers until confirmCrop().
+        cropPreview = {
+            gpx: previewGPX,
+            totals: {
+                distance: previewGPX.features.distance,
+                duration:
+                    previewGPX.features.duration === undefined
+                        ? undefined
+                        : previewGPX.features.duration / 1000,
+                elevationGain: previewGPX.features.elevationGain,
+                elevationLoss: previewGPX.features.elevationLoss,
+            },
+        };
     }
 
+    // The ONLY path that promotes a crop preview into committed state. It does
+    // so indirectly: mutate the route, then let updateTrailWithRouteData()
+    // recompute $formData from it, exactly as any other route mutation does.
     function confirmCrop() {
         // Hoisted locally: updateTrailWithRouteData() below (called between this and
-        // initRouteAnchors()) resets croppedGPX = null, so re-reading the field after
+        // initRouteAnchors()) clears cropPreview, so re-reading the field after
         // that call would pass null into initRouteAnchors and break the crop feature.
-        const confirmedCrop = croppedGPX;
+        const confirmedCrop = cropPreview?.gpx;
         if (!confirmedCrop) {
             return;
         }
@@ -1532,7 +1591,7 @@
     }
 
     function updateTrailWithRouteData() {
-        croppedGPX = null;
+        cropPreview = null;
         overwriteGPX = true;
         routeSegments = [...(valhallaStore.route.trk?.at(0)?.trkseg ?? [])];
         updateTotals(valhallaStore.route);
@@ -2239,8 +2298,8 @@
                     >
                     <input
                         type="hidden"
-                        name="elevation_gain"
-                        value={$formData.elevation_gain}
+                        name="elevation_loss"
+                        value={$formData.elevation_loss}
                     />
                 </div>
             {/if}
@@ -2425,6 +2484,7 @@
                     onCropToggle={toggleCropMarkers}
                     onCrop={confirmCrop}
                     onUpdateCropRange={updateCropMarkers}
+                    cropPreviewTotals={cropPreview?.totals ?? null}
                     onRecalculateElevationData={recalculateElevationData}
                     onUndo={undoRouteEdit}
                     onRedo={redoRouteEdit}

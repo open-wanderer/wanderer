@@ -4,7 +4,12 @@
         ValhallaBicycleCostingOptions,
     } from "$lib/models/valhalla";
     import { valhallaStore } from "$lib/stores/valhalla_store.svelte";
-    import { formatSpeed } from "$lib/util/format_util";
+    import {
+        formatDistance,
+        formatElevation,
+        formatSpeed,
+        formatTimeHHMM,
+    } from "$lib/util/format_util";
     import { _ } from "svelte-i18n";
     import { slide } from "svelte/transition";
     import Button from "../base/button.svelte";
@@ -12,7 +17,6 @@
     import Select, { type SelectItem } from "../base/select.svelte";
     import Slider from "../base/slider.svelte";
     import Toggle from "../base/toggle.svelte";
-    import { tick } from "svelte";
     interface Props {
         options: RoutingOptions;
         onReverse: () => void;
@@ -20,6 +24,18 @@
         onCropToggle: (active: boolean) => void;
         onUpdateCropRange: (data: [number, number]) => void;
         onCrop: () => void;
+        /**
+         * Totals for the pending, uncommitted crop, shown in the crop panel.
+         * `null` while no valid preview has resolved. These deliberately live
+         * here rather than in the trail form: until the user confirms, the form
+         * must keep showing the committed route's numbers.
+         */
+        cropPreviewTotals?: {
+            distance?: number;
+            duration?: number;
+            elevationGain?: number;
+            elevationLoss?: number;
+        } | null;
         onRecalculateElevationData: () => void;
         onUndo: () => void;
         onRedo: () => void;
@@ -35,6 +51,7 @@
         onCropToggle,
         onUpdateCropRange,
         onCrop,
+        cropPreviewTotals = null,
         onRecalculateElevationData,
         onUndo,
         onRedo,
@@ -122,11 +139,17 @@
         }
     }
 
-    async function togglePanels(_edit: boolean, _crop: boolean, _recalc: boolean) {        
+    function togglePanels(_edit: boolean, _crop: boolean, _recalc: boolean) {
         recalculateElevationData = _recalc;
         crop = _crop;
-        editRoute = _edit
-        await tick()
+        editRoute = _edit;
+        // Reported synchronously, before the panel renders. It used to be
+        // deferred behind `await tick()`, which meant DoubleSlider's
+        // mount-time update event reached the parent FIRST and this call
+        // then clobbered the visibility the parent had just derived from it.
+        // The parent now treats this purely as panel state and derives marker
+        // visibility itself, so ordering no longer matters — but reporting it
+        // synchronously keeps the two in step regardless.
         onCropToggle(_crop);
     }
 </script>
@@ -137,19 +160,19 @@
             class="btn-icon"
             class:bg-secondary-hover={editRoute}
             aria-label="edit route"
-            onclick={async () => await togglePanels(!editRoute, false, false)}><i class="fa fa-route text-sm"></i></button
+            onclick={() => togglePanels(!editRoute, false, false)}><i class="fa fa-route text-sm"></i></button
         >
         <button
             class="btn-icon"
             class:bg-secondary-hover={crop}
             aria-label="crop route"
-            onclick={async () => await togglePanels(false, !crop, false)}><i class="fa fa-scissors text-sm"></i></button
+            onclick={() => togglePanels(false, !crop, false)}><i class="fa fa-scissors text-sm"></i></button
         >
         <button
             class="btn-icon"
             class:bg-secondary-hover={recalculateElevationData}
             aria-label="recalculate elevation data"
-            onclick={async () => await togglePanels(false, false, !recalculateElevationData)}><i class="fa fa-mountain text-sm"></i></button
+            onclick={() => togglePanels(false, false, !recalculateElevationData)}><i class="fa fa-mountain text-sm"></i></button
         >
         <button
             class="btn-icon tooltip"
@@ -408,9 +431,38 @@
             class="p-4 my-2 rounded-xl bg-background shadow-xl min-w-72 flex flex-col"
         >
             <DoubleSlider onupdate={onUpdateCropRange}></DoubleSlider>
+            {#if cropPreviewTotals}
+                <dl
+                    class="grid grid-cols-2 gap-x-4 gap-y-1 my-3 text-sm"
+                    aria-label={$_("crop")}
+                >
+                    <dt class="text-gray-500">{$_("distance")}</dt>
+                    <dd class="font-medium text-right">
+                        {formatDistance(cropPreviewTotals.distance)}
+                    </dd>
+                    <dt class="text-gray-500">{$_("duration")}</dt>
+                    <dd class="font-medium text-right">
+                        {formatTimeHHMM(cropPreviewTotals.duration)}
+                    </dd>
+                    <dt class="text-gray-500">{$_("elevation-gain")}</dt>
+                    <dd class="font-medium text-right">
+                        {formatElevation(cropPreviewTotals.elevationGain)}
+                    </dd>
+                    <dt class="text-gray-500">{$_("elevation-loss")}</dt>
+                    <dd class="font-medium text-right">
+                        {formatElevation(cropPreviewTotals.elevationLoss)}
+                    </dd>
+                </dl>
+            {/if}
             <button
                 class="btn-secondary mb-2"
+                disabled={!cropPreviewTotals}
                 onclick={() => {
+                    // onCrop() commits the crop through the parent's normal
+                    // route-mutation path, which clears the preview. The
+                    // onCropToggle(false) then reports the panel as closed so
+                    // the parent's panel state matches this component's.
+                    // Neither call touches marker visibility directly.
                     crop = false;
                     onCrop();
                     onCropToggle(false);
