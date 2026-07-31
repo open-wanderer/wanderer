@@ -343,7 +343,12 @@ Four phases, strictly sequential — each one's success criteria depend on groun
   2. Converting a GPX with only some elevation-tagged points no longer reports a phantom drop to sea level, and a steep, low-horizontal-movement stretch (switchbacks, scrambles) is measured instead of skipped.
   3. A converted trail's distance comes from the smoothed accumulator instead of the raw, GPS-jitter-inflated haversine sum, and the dead, misaligned `cumulativeDistance` array is gone.
   4. A route planned in the web planner reports a distance that follows its anchors instead of cutting the corner at each one.
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 33-01-PLAN.md — Fix the `getTotals()` off-by-one loop bound and the centroid divisor (CONV-01/02), plus the first GPX Vitest fixture suite
+- [ ] 33-02-PLAN.md — Undefined-aware elevation via `parseElevation` (CONV-03) and threshold-independent elevation sampling (CONV-04), with fixtures
+- [ ] 33-03-PLAN.md — Report the smoothed distance and rebuild `cumulativeDistance` index-aligned (CONV-05/D-01), rescale the crop slider (D-02)
 
 **Scope note:** deliberately web-only — `web/src/lib/models/gpx/gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`. CONV-06 (moving time) was originally mapped here and moved to Phase 34: pause data lives in the app's `navigation_stats_provider` (`pausedAccum`) and exists only for trails recorded in the app, so it cannot be satisfied or observed by a web-only change.
 
