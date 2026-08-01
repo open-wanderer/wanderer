@@ -395,7 +395,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 34-05-PLAN.md — All three capture paths onto the Dart path; `/trail/convert` reduced to a transcode-only helper; recording moving-time hand-off
+- [x] 34-05-PLAN.md — All three capture paths onto the Dart path; `/trail/convert` reduced to a transcode-only helper; recording moving-time hand-off
 
 **Wave 4** *(blocked on Wave 3 completion; 34-06 and 34-07 run in parallel)*
 
@@ -495,6 +495,6 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 | 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
 | 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 6/6 | Complete   | 2026-07-28 |
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
-| 34. Dart Conversion Port | v1.8 | 4/7 | In Progress|  |
+| 34. Dart Conversion Port | v1.8 | 5/7 | In Progress|  |
 | 35. Offline Trail Creation | v1.8 | 0/0 | Not planned | — |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 0/0 | Not planned | — |
