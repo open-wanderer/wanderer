@@ -791,6 +791,41 @@ void main() {
     );
   });
 
+  group('a coordinate-less first point does not poison the run', () {
+    // Reachable only since the vendored reader leaves lat/lon null for a
+    // <trkpt> missing them instead of throwing. Seeding the XY anchors with
+    // such a point made every subsequent haversine NaN, so the smoothed
+    // threshold never fired, the filtered anchor never advanced, and a ~2 km
+    // track measured 0.0 m with a null trail lat/lon — and importTrailFile's
+    // emptiness guard does not catch it, so the trail was offered for saving.
+    Gpx trackWithLeadingBadPoint() {
+      final pts = <Wpt>[Wpt(lat: null, lon: null, ele: 1000)];
+      for (var i = 0; i < 40; i++) {
+        pts.add(Wpt(lat: 47.0 + i * 0.0002, lon: 11.0, ele: 1000 + i * 1.0));
+      }
+      return Gpx()
+        ..trks = [
+          Trk(trksegs: [Trkseg(trkpts: pts)]),
+        ];
+    }
+
+    test('distance is measured, not zero', () {
+      final metrics = computeTrailMetrics(trackWithLeadingBadPoint());
+      expect(metrics.distance, greaterThan(500));
+    });
+
+    test('matches the same track with the bad point simply absent', () {
+      final withBad = computeTrailMetrics(trackWithLeadingBadPoint());
+
+      final clean = trackWithLeadingBadPoint();
+      clean.trks.single.trksegs.single.trkpts.removeAt(0);
+      final withoutBad = computeTrailMetrics(clean);
+
+      expect(withBad.distance, closeTo(withoutBad.distance, 1e-9));
+      expect(withBad.elevationGain, closeTo(withoutBad.elevationGain, 1e-9));
+    });
+  });
+
   group('single GpxReader call site gate', () {
     // parseGpxSafely is the only sanctioned parse entry point, but nothing
     // enforced that: trail_provider.dart and trail_entity.dart both constructed

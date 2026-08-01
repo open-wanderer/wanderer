@@ -663,46 +663,51 @@ List<TrackPoint> buildElevationTrackPoints(Gpx gpx, int windowSize) {
 
   final result = <TrackPoint>[];
   Duration cumDuration = Duration.zero;
-  Wpt? prevTimed;
 
-  // SMOOTHED cumulative distance, not a raw haversine sum.
+  // RAW per-sample cumulative distance — deliberately NOT the smoothed total.
   //
-  // The x-axis and the distance stat above the chart both read
-  // `_points.last.distanceM`, while every other distance in the app —
-  // trail_panel, the trail cards, the persisted `trail.distance` — comes from
-  // `computeTrailMetrics`, which is smoothed. Accumulating raw here made the
-  // same track show two different lengths depending on where the user looked,
-  // and the gap grows with GPS jitter (that gap is the whole point of the
-  // smoothing: CONV-05).
+  // These two are different things and must not be conflated: the smoothed
+  // accumulator (computeTrailMetrics / trail.distance) is a DENOISED ESTIMATE
+  // OF TRAIL LENGTH, while this is a PLOTTING COORDINATE saying where each
+  // sample actually sits along the track. They legitimately differ, and the
+  // gap grows with GPS jitter.
   //
-  // Driving the ported `GpxMetricsComputation` over the SAME traversal
-  // `computeTrailMetrics` uses — every trkpt of every trkseg in order, not the
-  // coordinate-filtered `allWaypoints` — makes the agreement structural rather
-  // than coincidental: the chart's final x IS the trail's reported distance,
-  // because it is the same accumulator over the same sequence. Do not
-  // "simplify" this back to a haversine sum.
-  final metrics = GpxMetricsComputation(5, 5);
+  // Driving the axis from the smoothed accumulator was tried and reverted: it
+  // only advances once per ~5 m, so consecutive samples share an x, and the
+  // gradient below (dElev / dDist) then divides a one-sample numerator by a
+  // zero or multi-sample denominator. Measured on a true constant 10% grade at
+  // 1.5 m sampling: 46 of 60 points read 0.0% and the rest 2.5%, all of which
+  // fall in _gradientColor's "flat" bucket — the chart's gradient colouring is
+  // destroyed for any 1 Hz recording. Waypoint markers broke too, since
+  // Waypoint.distanceFromStart is raw from both producers.
+  //
+  // If the axis maximum must equal the trail's reported distance, scale this
+  // axis by (smoothed / raw) and keep computing the gradient from raw deltas —
+  // do not swap the accumulator.
+  double cumDist = 0;
+  Wpt? prevPoint;
 
   for (final track in gpx.trks) {
     for (final segment in track.trksegs) {
       for (final wpt in segment.trkpts) {
-        metrics.addAndFilter(wpt);
-
-        final prevTime = prevTimed?.time;
-        final currTime = wpt.time;
-        if (prevTime != null && currTime != null) {
-          final delta = currTime.difference(prevTime);
-          if (delta > Duration.zero) cumDuration += delta;
-        }
-        if (wpt.time != null) prevTimed = wpt;
-
-        // A point with no usable coordinate still advances the metrics (so the
-        // totals keep matching) but cannot be plotted.
         if (wpt.lat == null || wpt.lon == null) continue;
+
+        if (prevPoint != null) {
+          final hop = haversineMeters(prevPoint, wpt);
+          if (hop.isFinite) cumDist += hop;
+
+          final prevTime = prevPoint.time;
+          final currTime = wpt.time;
+          if (prevTime != null && currTime != null) {
+            final delta = currTime.difference(prevTime);
+            if (delta > Duration.zero) cumDuration += delta;
+          }
+        }
+        prevPoint = wpt;
 
         result.add(
           TrackPoint(
-            distanceM: metrics.totalDistanceSmoothed,
+            distanceM: cumDist,
             elevationM: wpt.ele ?? 0,
             lonlat: Geographic(lat: wpt.lat!, lon: wpt.lon!),
             duration: cumDuration,

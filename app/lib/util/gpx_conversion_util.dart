@@ -173,6 +173,22 @@ class GpxMetricsComputation {
       // first point has no usable elevation, leave both anchors null so
       // the first point that *does* carry elevation becomes the anchor
       // instead of diffing against a fabricated 0.
+      //
+      // Coordinates get the same treatment, for a sharper reason: seeding the
+      // XY anchors with a coordinate-less point poisons the run permanently.
+      // Every haversine from that anchor is NaN, so `smoothedDistance >=
+      // _thresholdXYm` is never true, so _lastFilteredPointXY is never
+      // replaced — measured on a ~2 km track whose first point lacked
+      // lat/lon: distance 0.0 and a null trail lat/lon. The vendored reader
+      // makes this reachable (it leaves lat/lon null rather than throwing),
+      // so the guard is not theoretical.
+      //
+      // No parity risk: the TS Waypoint falls lat/lon back to -1, so a
+      // coordinate-less point cannot occur on that side, and no corpus
+      // fixture contains one.
+      if (point.lat == null || point.lon == null) {
+        return;
+      }
       _lastPointXY = point;
       _lastFilteredPointXY = point;
       final initialElevation = parseGpxElevation(point.ele);

@@ -4,14 +4,28 @@ import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/util/gpx_conversion_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
-/// A slow, jittery track: ~1 m of real eastward progress per sample with GPS
-/// noise of the same order, so most hops fall UNDER the 5 m smoothing
-/// threshold. Measured on this fixture: raw haversine 232.6 m vs smoothed
-/// 80.6 m — a 152 m gap over 100 points.
-///
-/// This is the shape CONV-05's smoothing exists for, and where the chart's old
-/// raw accumulation disagreed most visibly with the distance shown everywhere
-/// else in the app.
+/// A track on a true, constant 10% grade sampled every ~1.5 m — roughly what a
+/// 1 Hz recording at walking pace produces.
+Gpx _constantGradeTrack({int points = 60}) {
+  final trkpts = <Wpt>[];
+  for (var i = 0; i < points; i++) {
+    trkpts.add(
+      Wpt(
+        lat: 47.0,
+        lon: 11.0 + i * 0.00002, // ~1.5 m per step at 47N
+        ele: 1000 + i * 0.15, // 0.15 m rise per 1.5 m run = 10%
+        time: DateTime.utc(2024, 1, 1, 10).add(Duration(seconds: i)),
+      ),
+    );
+  }
+  return Gpx()
+    ..trks = [
+      Trk(trksegs: [Trkseg(trkpts: trkpts)]),
+    ];
+}
+
+/// A slow, jittery track: ~1 m of real progress per sample with GPS noise of
+/// the same order, so most hops fall under the 5 m smoothing threshold.
 Gpx _jitteryTrack({int points = 100}) {
   final trkpts = <Wpt>[];
   for (var i = 0; i < points; i++) {
@@ -21,7 +35,6 @@ Gpx _jitteryTrack({int points = 100}) {
         lat: 47.0 + jitter,
         lon: 11.0 + i * 0.00001,
         ele: 1000 + (i % 5) * 2.0,
-        time: DateTime.utc(2024, 1, 1, 10).add(Duration(seconds: i * 10)),
       ),
     );
   }
@@ -32,63 +45,82 @@ Gpx _jitteryTrack({int points = 100}) {
 }
 
 void main() {
-  group('buildElevationTrackPoints distance agrees with the trail', () {
-    // The defect this pins: the chart's x-axis and its distance stat both read
-    // the last TrackPoint's distanceM, while trail_panel/trail cards/the
-    // persisted trail.distance all come from computeTrailMetrics. When the
-    // chart accumulated raw haversine, one track showed two different lengths.
-    test('final distanceM equals computeTrailMetrics().distance', () {
-      final gpx = _jitteryTrack();
+  group('buildElevationTrackPoints', () {
+    // REGRESSION GUARD. The chart's distanceM was once switched to the SMOOTHED
+    // accumulator so the axis maximum would equal the trail's reported
+    // distance. That broke this: the smoothed accumulator only advances once
+    // per ~5 m, so consecutive samples shared an x and the gradient below
+    // divided a one-sample elevation delta by a zero or multi-sample distance
+    // delta. On this exact fixture it produced 46 zeroes out of 60 and a max of
+    // 2.5%, all inside _gradientColor's "flat" bucket — the chart's gradient
+    // colouring was destroyed for any 1 Hz recording.
+    test('reports the true grade on a constant 10% climb', () {
+      final points = buildElevationTrackPoints(_constantGradeTrack(), 1);
 
-      final points = buildElevationTrackPoints(gpx, 1);
-      final metrics = computeTrailMetrics(gpx);
+      // Point 0 has no predecessor, so its gradient is 0 by definition.
+      final gradients = points.skip(1).map((p) => p.gradient).toList();
 
-      expect(points, isNotEmpty);
-      expect(points.last.distanceM, closeTo(metrics.distance, 1e-9));
-    });
-
-    test('the fixture is one where raw and smoothed genuinely differ', () {
-      // Non-vacuity: without this, the assertion above would still pass on a
-      // track so clean that raw and smoothed coincide, proving nothing.
-      final gpx = _jitteryTrack();
-
-      var raw = 0.0;
-      final pts = gpx.allWaypoints;
-      for (var i = 1; i < pts.length; i++) {
-        raw += haversineMeters(pts[i - 1], pts[i]);
+      expect(gradients, isNotEmpty);
+      for (final g in gradients) {
+        expect(g, closeTo(10.0, 0.5));
       }
-
-      final smoothed = computeTrailMetrics(gpx).distance;
-      expect(raw, greaterThan(smoothed));
-      // Measured: raw 232.6 m vs smoothed 80.6 m on this fixture.
-      expect(raw - smoothed, greaterThan(100.0));
     });
 
-    test('distanceM is non-decreasing along the track', () {
-      final points = buildElevationTrackPoints(_jitteryTrack(), 1);
+    test('distanceM advances on every sample, never as a step function', () {
+      final points = buildElevationTrackPoints(_constantGradeTrack(), 1);
+
       for (var i = 1; i < points.length; i++) {
         expect(
           points[i].distanceM,
-          greaterThanOrEqualTo(points[i - 1].distanceM),
+          greaterThan(points[i - 1].distanceM),
+          reason:
+              'sample $i shares an x with its predecessor — this is what '
+              'breaks the gradient and the waypoint markers',
         );
       }
     });
 
-    test('a point with no usable coordinate is skipped but still counted', () {
-      // The vendored reader leaves lat/lon null for a <trkpt> missing them,
-      // so this is reachable. It must not be plotted, and must not desync the
-      // chart's total from the trail's.
-      final gpx = _jitteryTrack(points: 20);
+    test(
+      'the axis is raw, and legitimately differs from the trail distance',
+      () {
+        // Documents a deliberate decision, not an oversight. The smoothed total
+        // is a denoised estimate of trail LENGTH; the axis is a plotting
+        // COORDINATE saying where each sample sits. Conflating them is what
+        // broke the gradient. If the axis maximum must match the reported
+        // distance, scale the axis and keep computing the gradient from raw
+        // deltas — do not swap the accumulator.
+        final gpx = _jitteryTrack();
+
+        final axisMax = buildElevationTrackPoints(gpx, 1).last.distanceM;
+        final reported = computeTrailMetrics(gpx).distance;
+
+        var raw = 0.0;
+        final pts = gpx.allWaypoints;
+        for (var i = 1; i < pts.length; i++) {
+          raw += haversineMeters(pts[i - 1], pts[i]);
+        }
+
+        expect(axisMax, closeTo(raw, 1e-9));
+        expect(axisMax, greaterThan(reported));
+      },
+    );
+
+    test('a point with no usable coordinate is skipped, not plotted', () {
+      // Reachable since the vendored reader leaves lat/lon null for a <trkpt>
+      // missing them rather than throwing.
+      final gpx = _constantGradeTrack(points: 20);
       gpx.trks.single.trksegs.single.trkpts.insert(
         10,
         Wpt(lat: null, lon: null, ele: 1000),
       );
 
       final points = buildElevationTrackPoints(gpx, 1);
-      final metrics = computeTrailMetrics(gpx);
 
+      expect(points, hasLength(20));
       expect(points.every((p) => p.lonlat.lat.isFinite), isTrue);
-      expect(points.last.distanceM, closeTo(metrics.distance, 1e-9));
+      for (var i = 1; i < points.length; i++) {
+        expect(points[i].distanceM, greaterThan(points[i - 1].distanceM));
+      }
     });
 
     test('an empty GPX yields no points', () {
