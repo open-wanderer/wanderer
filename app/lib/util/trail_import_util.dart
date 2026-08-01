@@ -125,11 +125,19 @@ Future<void> importTrailFile({
       // returns an empty list), so a mid-import network drop degrades to
       // the untransformed track rather than failing the import outright.
       final originalWaypoints = gpx.allWaypoints;
+      // `source: gpx` is load-bearing, not defensive (CR-01): only the track
+      // GEOMETRY is being replaced here, so the source document's own
+      // metadata name/description, its `<wpt>` markers, its routes and its
+      // track name must survive the transform. Without it the re-serialised
+      // `finalGpxData` below — which is what gets uploaded and persisted —
+      // would permanently drop every imported waypoint and fall back to
+      // naming the trail after the file.
       finalGpx = mergeHeightsIntoGpx(
         workingShape,
         heights,
         startTime: originalWaypoints.firstOrNull?.time,
         endTime: originalWaypoints.lastOrNull?.time,
+        source: gpx,
       );
       // Re-serialise so the saved track matches its own computed metrics —
       // passing the untransformed original text here would save a track

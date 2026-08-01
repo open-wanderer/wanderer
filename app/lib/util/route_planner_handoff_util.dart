@@ -30,18 +30,58 @@ import 'package:wanderer/util/valhalla_util.dart';
 /// so this is sufficient to recover a real recorded duration — pass `null`
 /// for a planned (never-traversed) route, where no such times exist.
 ///
-/// Returns a bare (trackless) [Gpx] when [shape] is empty.
+/// [source], when given, is the ORIGINAL parsed document the [shape] was
+/// derived from. Its non-track content — `metadata` (name/description/time),
+/// `wpts` (the file's own `<wpt>` markers), `rtes`, `extensions`,
+/// `version`/`creator`, and the first `<trk>`'s `name`/`desc`/`cmt`/`src`/
+/// `number`/`type`/`links`/`extensions` — is carried onto the rebuilt
+/// document, so only the track GEOMETRY is replaced.
+///
+/// This is mandatory for the file-import path (CR-01): `trailFromGpx` reads
+/// `metadata.name`, `metadata.desc`, `trks.first.name`, `rtes.first.name`
+/// and `wpts` to build the draft trail, and the caller re-serialises the
+/// result as the track file it uploads — so returning a bare document here
+/// permanently discarded every imported waypoint, the GPX's own name, and
+/// its description the moment either post-capture toggle was enabled.
+/// Copying `rtes` through cannot double-count metrics: `computeTrailMetrics`
+/// and `GpxMappingUtils.allPoints` both read `trks` only.
+///
+/// Omit [source] for a recording or a planner session, where there is no
+/// source document and the geometry IS the whole document.
+///
+/// Returns a track-less [Gpx] when [shape] is empty — still carrying
+/// [source]'s non-track content when one was given.
 Gpx mergeHeightsIntoGpx(
   List<Map<String, double>> shape,
   List<num> heights, {
   DateTime? startTime,
   DateTime? endTime,
+  Gpx? source,
 }) {
   final gpx = Gpx();
+  if (source != null) {
+    gpx.version = source.version;
+    gpx.creator = source.creator;
+    gpx.metadata = source.metadata;
+    gpx.wpts = source.wpts;
+    gpx.rtes = source.rtes;
+    gpx.extensions = source.extensions;
+  }
   if (shape.isEmpty) return gpx;
+  final sourceTrk = source != null && source.trks.isNotEmpty
+      ? source.trks.first
+      : null;
   final lastIndex = shape.length - 1;
   gpx.trks = [
     Trk(
+      name: sourceTrk?.name,
+      cmt: sourceTrk?.cmt,
+      desc: sourceTrk?.desc,
+      src: sourceTrk?.src,
+      links: sourceTrk?.links,
+      number: sourceTrk?.number,
+      type: sourceTrk?.type,
+      extensions: sourceTrk?.extensions,
       trksegs: [
         Trkseg(
           trkpts: [

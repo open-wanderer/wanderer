@@ -1164,6 +1164,125 @@ void main() {
 
       expect(gpx.trks, isEmpty);
     });
+
+    // CR-01 regression. Before the `source:` parameter existed this helper
+    // returned a bare `Gpx()` carrying only `trks`, so a file import with
+    // either post-capture toggle enabled permanently discarded the imported
+    // document's waypoints, name and description — the stripped document was
+    // both what the draft trail was built from AND what got uploaded.
+    group('source: preserves the original document\'s non-track content', () {
+      const sourceXml = '''
+<?xml version="1.0"?>
+<gpx version="1.1" creator="unit-test">
+  <metadata>
+    <name>Alpine Traverse</name>
+    <desc>A long day out.</desc>
+  </metadata>
+  <wpt lat="47.0005" lon="9.0005">
+    <name>Hut</name>
+    <desc>Overnight stop</desc>
+    <sym>campground</sym>
+  </wpt>
+  <rte><name>Planned variant</name>
+    <rtept lat="47.0" lon="9.0"/>
+  </rte>
+  <trk>
+    <name>Day 1</name>
+    <desc>Track description</desc>
+    <trkseg>
+      <trkpt lat="47.000" lon="9.000"><ele>400</ele></trkpt>
+      <trkpt lat="47.001" lon="9.001"><ele>410</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
+''';
+
+      final shape = [
+        {'lat': 47.000, 'lon': 9.000},
+        {'lat': 47.001, 'lon': 9.001},
+      ];
+
+      test('carries metadata, wpts, rtes and the trk name onto the '
+          'rebuilt document', () {
+        final source = parseGpxSafely(sourceXml);
+
+        final merged = mergeHeightsIntoGpx(
+          shape,
+          const [500, 510],
+          source: source,
+        );
+
+        expect(merged.metadata?.name, 'Alpine Traverse');
+        expect(merged.metadata?.desc, 'A long day out.');
+        expect(merged.wpts, hasLength(1));
+        expect(merged.wpts.single.name, 'Hut');
+        expect(merged.rtes, hasLength(1));
+        expect(merged.creator, 'unit-test');
+        expect(merged.trks.single.name, 'Day 1');
+        expect(merged.trks.single.desc, 'Track description');
+        // The geometry IS replaced — that is the whole point of the merge.
+        expect(merged.trks.single.trksegs.single.trkpts, hasLength(2));
+        expect(merged.trks.single.trksegs.single.trkpts.first.ele, 500.0);
+      });
+
+      test('the draft trail built from the merged document keeps the '
+          'GPX\'s own name, description and waypoints', () {
+        final source = parseGpxSafely(sourceXml);
+
+        final merged = mergeHeightsIntoGpx(
+          shape,
+          const [500, 510],
+          source: source,
+        );
+        final trail = trailFromGpx(merged, fallbackName: 'track.gpx');
+
+        expect(trail.name, 'Alpine Traverse');
+        expect(trail.description, 'A long day out.');
+        expect(trail.expand?.waypointsViaTrail, hasLength(1));
+        expect(trail.expand?.waypointsViaTrail?.single.name, 'Hut');
+      });
+
+      test('the re-serialised document still contains the waypoint and '
+          'metadata name (this is what gets uploaded)', () {
+        final source = parseGpxSafely(sourceXml);
+
+        final merged = mergeHeightsIntoGpx(
+          shape,
+          const [500, 510],
+          source: source,
+        );
+        final xml = GpxWriter().asString(merged);
+
+        expect(xml, contains('Alpine Traverse'));
+        expect(xml, contains('<wpt'));
+        expect(xml, contains('Hut'));
+      });
+
+      test('preserves non-track content even when the shape is empty', () {
+        final source = parseGpxSafely(sourceXml);
+
+        final merged = mergeHeightsIntoGpx(
+          const [],
+          const [],
+          source: source,
+        );
+
+        expect(merged.trks, isEmpty);
+        expect(merged.metadata?.name, 'Alpine Traverse');
+        expect(merged.wpts, hasLength(1));
+        expect(merged.rtes, hasLength(1));
+      });
+
+      test('without source: still returns a bare document (recording and '
+          'planner paths are unchanged)', () {
+        final merged = mergeHeightsIntoGpx(shape, const [500, 510]);
+
+        expect(merged.metadata, isNull);
+        expect(merged.wpts, isEmpty);
+        expect(merged.rtes, isEmpty);
+        expect(merged.trks.single.name, isNull);
+      });
+    });
   });
 
   group('snapResultAcceptable', () {
