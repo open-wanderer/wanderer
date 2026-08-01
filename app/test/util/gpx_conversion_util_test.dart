@@ -4,10 +4,10 @@ import 'package:gpx/gpx.dart';
 import 'package:wanderer/util/gpx_conversion_util.dart';
 
 void main() {
-  group('sanitizeGpxEleAndTime', () {
+  group('sanitizeGpxNumericAndTime', () {
     test('preserves a genuine <ele>0</ele> (real sea level, CONV-03)', () {
       final xml = _gpxXml(['<trkpt lat="47.0" lon="11.0"><ele>0</ele></trkpt>']);
-      expect(sanitizeGpxEleAndTime(xml), contains('<ele>0</ele>'));
+      expect(sanitizeGpxNumericAndTime(xml), contains('<ele>0</ele>'));
     });
 
     test(
@@ -16,13 +16,13 @@ void main() {
         final xml = _gpxXml([
           '<trkpt lat="47.0" lon="11.0"><ele>\n 1000.5\n </ele></trkpt>',
         ]);
-        expect(sanitizeGpxEleAndTime(xml), contains('<ele>\n 1000.5\n </ele>'));
+        expect(sanitizeGpxNumericAndTime(xml), contains('<ele>\n 1000.5\n </ele>'));
       },
     );
 
     test('rewrites an empty <ele></ele> to a self-closing <ele/>', () {
       final xml = _gpxXml(['<trkpt lat="47.0" lon="11.0"><ele></ele></trkpt>']);
-      final sanitized = sanitizeGpxEleAndTime(xml);
+      final sanitized = sanitizeGpxNumericAndTime(xml);
       expect(sanitized, contains('<ele/>'));
       expect(sanitized, isNot(contains('<ele></ele>')));
     });
@@ -31,12 +31,12 @@ void main() {
       final xml = _gpxXml([
         '<trkpt lat="47.0" lon="11.0"><ele>   </ele></trkpt>',
       ]);
-      expect(sanitizeGpxEleAndTime(xml), contains('<ele/>'));
+      expect(sanitizeGpxNumericAndTime(xml), contains('<ele/>'));
     });
 
     test('rewrites a non-numeric <ele>N/A</ele> to a self-closing <ele/>', () {
       final xml = _gpxXml(['<trkpt lat="47.0" lon="11.0"><ele>N/A</ele></trkpt>']);
-      expect(sanitizeGpxEleAndTime(xml), contains('<ele/>'));
+      expect(sanitizeGpxNumericAndTime(xml), contains('<ele/>'));
     });
 
     test('rewrites <ele>NaN</ele> and <ele>Infinity</ele> to self-closing tags', () {
@@ -44,7 +44,7 @@ void main() {
         '<trkpt lat="47.0" lon="11.0"><ele>NaN</ele></trkpt>',
         '<trkpt lat="47.001" lon="11.0"><ele>Infinity</ele></trkpt>',
       ]);
-      final sanitized = sanitizeGpxEleAndTime(xml);
+      final sanitized = sanitizeGpxNumericAndTime(xml);
       expect(sanitized, isNot(contains('<ele>NaN</ele>')));
       expect(sanitized, isNot(contains('<ele>Infinity</ele>')));
     });
@@ -53,7 +53,7 @@ void main() {
       final xml = _gpxXml([
         '<trkpt lat="47.0" lon="11.0"><time></time></trkpt>',
       ]);
-      final sanitized = sanitizeGpxEleAndTime(xml);
+      final sanitized = sanitizeGpxNumericAndTime(xml);
       expect(sanitized, contains('<time/>'));
       expect(sanitized, isNot(contains('<time></time>')));
     });
@@ -63,9 +63,165 @@ void main() {
         '<trkpt lat="47.0" lon="11.0"><time>2024-01-01T00:00:00Z</time></trkpt>',
       ]);
       expect(
-        sanitizeGpxEleAndTime(xml),
+        sanitizeGpxNumericAndTime(xml),
         contains('<time>2024-01-01T00:00:00Z</time>'),
       );
+    });
+  });
+
+  // CR-02 regression. Before this pass covered them, `GpxReader`'s
+  // `_readDouble`/`_readInt` called a THROWING `double.parse`/`int.parse` on
+  // these eight tags, so an empty/whitespace/non-numeric body from a common
+  // GPS logger aborted the entire import with a generic error toast.
+  group('sanitizeGpxNumericAndTime - the other unguarded numeric tags', () {
+    // `<sat>`/`<dgpsid>` reach `_readInt`; the rest reach `_readDouble`.
+    const doubleTags = [
+      'hdop',
+      'vdop',
+      'pdop',
+      'magvar',
+      'geoidheight',
+      'ageofdgpsdata',
+    ];
+    const intTags = ['sat', 'dgpsid'];
+
+    for (final tag in [...doubleTags, ...intTags]) {
+      test('rewrites an empty <$tag></$tag> to a self-closing <$tag/>', () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><$tag></$tag></trkpt>',
+        ]);
+        final sanitized = sanitizeGpxNumericAndTime(xml);
+        expect(sanitized, contains('<$tag/>'));
+        expect(sanitized, isNot(contains('<$tag></$tag>')));
+      });
+
+      test('rewrites a whitespace-only <$tag>   </$tag>', () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><$tag>   </$tag></trkpt>',
+        ]);
+        expect(sanitizeGpxNumericAndTime(xml), contains('<$tag/>'));
+      });
+
+      test('rewrites a non-numeric <$tag>N/A</$tag>', () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><$tag>N/A</$tag></trkpt>',
+        ]);
+        expect(sanitizeGpxNumericAndTime(xml), contains('<$tag/>'));
+      });
+
+      test('parseGpxSafely survives an empty <$tag> that crashes the raw '
+          'parser', () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><$tag></$tag></trkpt>',
+        ]);
+        expect(() => GpxReader().fromString(xml), throwsA(anything));
+        expect(() => parseGpxSafely(xml), returnsNormally);
+      });
+    }
+
+    for (final tag in doubleTags) {
+      test('preserves a valid decimal <$tag>1.5</$tag>', () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><$tag>1.5</$tag></trkpt>',
+        ]);
+        expect(sanitizeGpxNumericAndTime(xml), contains('<$tag>1.5</$tag>'));
+      });
+    }
+
+    for (final tag in intTags) {
+      test('preserves a valid integer <$tag>7</$tag>', () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><$tag>7</$tag></trkpt>',
+        ]);
+        expect(sanitizeGpxNumericAndTime(xml), contains('<$tag>7</$tag>'));
+      });
+
+      test('preserves a pretty-printed <$tag> (int.parse trims too)', () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><$tag>\n 7\n </$tag></trkpt>',
+        ]);
+        expect(
+          sanitizeGpxNumericAndTime(xml),
+          contains('<$tag>\n 7\n </$tag>'),
+        );
+        expect(() => parseGpxSafely(xml), returnsNormally);
+      });
+
+      test('rewrites a decimal <$tag>3.5</$tag>, which int.parse would '
+          'throw on', () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><$tag>3.5</$tag></trkpt>',
+        ]);
+        expect(sanitizeGpxNumericAndTime(xml), contains('<$tag/>'));
+      });
+    }
+
+    test('a realistic Garmin-style trkpt carrying every optional tag empty '
+        'parses instead of throwing', () {
+      final xml = _gpxXml([
+        '<trkpt lat="47.0" lon="11.0">'
+            '<ele></ele><time></time><magvar></magvar>'
+            '<geoidheight></geoidheight><sat></sat><hdop></hdop>'
+            '<vdop></vdop><pdop></pdop><ageofdgpsdata></ageofdgpsdata>'
+            '<dgpsid></dgpsid>'
+            '</trkpt>',
+        '<trkpt lat="47.001" lon="11.001"><ele>500</ele><sat>8</sat>'
+            '<hdop>1.2</hdop></trkpt>',
+      ]);
+
+      expect(() => GpxReader().fromString(xml), throwsA(anything));
+      final gpx = parseGpxSafely(xml);
+      final points = gpx.trks.single.trksegs.single.trkpts;
+      expect(points, hasLength(2));
+      expect(points.first.ele, isNull);
+      expect(points.first.sat, isNull);
+      expect(points.first.hdop, isNull);
+      expect(points.last.ele, 500.0);
+      expect(points.last.sat, 8);
+      expect(points.last.hdop, 1.2);
+    });
+  });
+
+  group('sanitizeGpxNumericAndTime - non-corruption guarantees', () {
+    test('leaves a namespaced <gpx:hdop></gpx:hdop> untouched', () {
+      const xml = '<gpx><gpx:hdop></gpx:hdop></gpx>';
+      expect(sanitizeGpxNumericAndTime(xml), xml);
+    });
+
+    test('leaves a longer same-suffix tag <myele></myele> untouched', () {
+      const xml = '<gpx><myele></myele></gpx>';
+      expect(sanitizeGpxNumericAndTime(xml), xml);
+    });
+
+    test('never rewrites inside a CDATA section', () {
+      const xml =
+          '<gpx><desc><![CDATA[readings: <hdop></hdop> and <ele>N/A</ele>]]>'
+          '</desc><trkpt><hdop></hdop></trkpt></gpx>';
+      final sanitized = sanitizeGpxNumericAndTime(xml);
+
+      expect(
+        sanitized,
+        contains('<![CDATA[readings: <hdop></hdop> and <ele>N/A</ele>]]>'),
+      );
+      // The real markup outside the CDATA is still sanitised.
+      expect(sanitized, contains('<trkpt><hdop/></trkpt>'));
+    });
+
+    test('never rewrites inside an XML comment', () {
+      const xml = '<gpx><!-- <sat></sat> --><trkpt><sat></sat></trkpt></gpx>';
+      final sanitized = sanitizeGpxNumericAndTime(xml);
+
+      expect(sanitized, contains('<!-- <sat></sat> -->'));
+      expect(sanitized, contains('<trkpt><sat/></trkpt>'));
+    });
+
+    test('is idempotent - a second pass changes nothing', () {
+      final xml = _gpxXml([
+        '<trkpt lat="47.0" lon="11.0"><ele></ele><hdop>N/A</hdop>'
+            '<sat>8</sat></trkpt>',
+      ]);
+      final once = sanitizeGpxNumericAndTime(xml);
+      expect(sanitizeGpxNumericAndTime(once), once);
     });
   });
 
