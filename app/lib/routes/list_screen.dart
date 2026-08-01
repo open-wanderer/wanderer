@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/async_loader.dart';
+import 'package:wanderer/components/base/wanderer_offline_state.dart';
 import 'package:wanderer/components/list/list_card.dart';
 import 'package:wanderer/components/list/list_quick_filter_bar.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/list/list_filter_provider.dart';
 import 'package:wanderer/provider/list/list_search_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 
 class ListScreen extends ConsumerStatefulWidget {
   const ListScreen({super.key});
@@ -51,9 +53,16 @@ class _ListScreenState extends ConsumerState<ListScreen> {
     ref.invalidate(listSearchProvider);
   }
 
+  Future<void> _retryOnline() async {
+    final online = await ref.read(onlineStatusProvider.notifier).refresh();
+    if (!online) return;
+    ref.invalidate(listSearchProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(listSearchProvider);
+    final isOnline = ref.watch(onlineStatusProvider);
     final l10n = AppLocalizations.of(context)!;
 
     return SafeArea(
@@ -102,34 +111,44 @@ class _ListScreenState extends ConsumerState<ListScreen> {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async => ref.invalidate(listSearchProvider),
-                child: AsyncLoader<ListSearchState>(
-                  asyncValue: searchState,
-                  mockData: ListSearchState.mock(),
-                  builder: (state) {
-                    if (state.lists.isEmpty) {
-                      return Center(child: Text(l10n.no_lists_found));
-                    }
-                    return ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
-                      itemCount: state.lists.length + (state.hasMore ? 1 : 0),
-                      itemBuilder: (context, i) {
-                        if (i == state.lists.length) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Center(child: CircularProgressIndicator()),
+                child: !isOnline
+                    ? WandererOfflineState(
+                        title: l10n.offline_title,
+                        body: l10n.offline_list_body,
+                        retryLabel: l10n.offline_try_again,
+                        onRetry: _retryOnline,
+                      )
+                    : AsyncLoader<ListSearchState>(
+                        asyncValue: searchState,
+                        mockData: ListSearchState.mock(),
+                        builder: (state) {
+                          if (state.lists.isEmpty) {
+                            return Center(child: Text(l10n.no_lists_found));
+                          }
+                          return ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
+                            itemCount:
+                                state.lists.length + (state.hasMore ? 1 : 0),
+                            itemBuilder: (context, i) {
+                              if (i == state.lists.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
+                              return ListCard(
+                                list: state.lists[i],
+                                mini: false,
+                                onListSelect: () =>
+                                    context.push('/list/${state.lists[i].id}'),
+                              );
+                            },
                           );
-                        }
-                        return ListCard(
-                          list: state.lists[i],
-                          mini: false,
-                          onListSelect: () =>
-                              context.push('/list/${state.lists[i].id}'),
-                        );
-                      },
-                    );
-                  },
-                ),
+                        },
+                      ),
               ),
             ),
           ],

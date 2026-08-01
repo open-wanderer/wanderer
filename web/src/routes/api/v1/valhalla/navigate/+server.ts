@@ -3,7 +3,7 @@ import { decodePolyline } from '$lib/util/polyline_util';
 import { NavigateRequestSchema } from '$lib/models/api/valhalla_navigate_schema';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import type { NavigateManeuver } from '$lib/models/api/valhalla_navigate_schema';
-import { getValhallaNavigateUrl } from '$lib/server/valhalla';
+import { getValhallaUrl } from '$lib/server/valhalla';
 
 /**
  * @swagger
@@ -82,9 +82,9 @@ export async function POST(event: RequestEvent) {
   }
 
   try {
-    const navigateUrl = getValhallaNavigateUrl();
+    const navigateUrl = getValhallaUrl() + '/trace_route';
     if (!navigateUrl) {
-      return json({ message: "VALHALLA_NAVIGATE_URL not set" }, { status: 400 });
+      return json({ message: "VALHALLA_URL not set" }, { status: 400 });
     }
 
     const body = NavigateRequestSchema.parse(await event.request.json());

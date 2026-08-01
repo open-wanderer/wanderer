@@ -57,7 +57,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
 
   // Pristine snapshot kept separate from `trail`, which is mutated in place —
   // diffing against `trail` itself would never detect changed waypoints.
-  late final Trail _originalTrail = widget.trail;
+  late Trail _originalTrail = widget.trail;
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
 
@@ -286,11 +286,38 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   /// saving. A non-null result is merged onto `trail` via
   /// [mergeRouteIntoTrail], preserving every other field.
   ///
-  /// `travelProfile` defaults to `'pedestrian'` since none is stored on `Trail`.
+  /// `travelProfile` is resolved from the LIVE form category/subcategory
+  /// selection (not `trail.expand?.category`, a relation that is never
+  /// populated on an unsaved draft) so re-opening the planner after manually
+  /// fixing the category uses the corrected profile rather than reverting to
+  /// pedestrian.
+  ///
+  /// The resolved costing passes through verbatim — an `auto`-mapped ("Car")
+  /// trail correctly seeds the planner with `auto` rather than being clamped
+  /// to pedestrian/bicycle.
   Future<void> _onEditRoute(
     BuildContext context,
     List<ml.Geographic> points,
   ) async {
+    // Read the live field value directly — deliberately no saveAndValidate(),
+    // which would surface unrelated validation errors mid-fill.
+    final categoryValue =
+        _formKey.currentState?.fields['category']?.value as String?;
+    final subcategories = ref.read(subcategoryProvider);
+    final selection = CategoryPicker.resolve(categoryValue, subcategories);
+    // Fall back to the trail's own saved values only when the form field is
+    // empty/unset (e.g. before the picker mounts a value).
+    final categoryId = selection?.category ?? trail.category;
+    final subcategoryId = selection?.subcategory ?? trail.subcategory;
+    final category = (ref.read(categoryProvider).value ?? const [])
+        .firstWhereOrNull((c) => c.id == categoryId);
+
+    final profile = resolveValhallaProfile(
+      category: category,
+      subcategoryId: subcategoryId,
+      subcategories: subcategories,
+    );
+
     final newGpx = await context.push<Gpx>(
       '/route-planner',
       extra: {
@@ -300,7 +327,14 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           trail.expand!.gpx!,
           points,
         ),
-        'travelProfile': costingForCategory(trail.expand?.category?.name),
+        'travelProfile': profile?.costing ?? 'pedestrian',
+        // Carry the resolved bike variant so an MTB/Gravel/Road trail
+        // re-opens on its own bicycle_type instead of Valhalla's Hybrid
+        // default.
+        if (profile?.bicycleType != null)
+          'costingOptions': <String, dynamic>{
+            'bicycle_type': profile!.bicycleType,
+          },
         'lat': trail.lat,
         'lon': trail.lon,
       },
@@ -386,6 +420,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       setState(() {
         trail = result.trail;
         _removedServerPhotos = [];
+        _originalTrail = trail;
       });
 
       ref
@@ -416,6 +451,32 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           );
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  bool get _hasUnsavedChanges =>
+      trail != _originalTrail || _formKey.currentState?.isDirty == true;
+
+  Future<void> _confirmDiscard(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(l10n.discard_trail_confirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.discard),
+          ),
+        ],
+      ),
+    );
+    if (discard == true && context.mounted) {
+      context.canPop() ? context.pop() : context.pushReplacement('/map');
     }
   }
 
@@ -465,158 +526,166 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       trail = trail.copyWith(public: settings.privacy?.trails == 'public');
     }
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
-          onPressed: () => context.canPop()
-              ? context.pop()
-              : context.pushReplacement('/map'),
-          style: IconButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.surface,
-          ),
-        ),
-        actions: [
-          Builder(
-            builder: (context) {
-              // Only enabled when the track yields >=2 seedable anchors, so a
-              // trk with no coordinates doesn't silently open "new route" mode.
-              final seedAnchors = trail.expand?.gpx != null
-                  ? anchorsFromTrack(trail.expand!.gpx!)
-                  : const <ml.Geographic>[];
-              return IconButton(
-                icon: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const FaIcon(FontAwesomeIcons.route, size: 18),
-                    Positioned(
-                      top: -2,
-                      child: const FaIcon(FontAwesomeIcons.pen, size: 9),
-                    ),
-                  ],
-                ),
-                tooltip: AppLocalizations.of(context)!.edit_route,
-                onPressed: seedAnchors.length >= 2
-                    ? () => _onEditRoute(context, seedAnchors)
-                    : null,
-                style: IconButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  disabledBackgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surface,
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const FaIcon(FontAwesomeIcons.floppyDisk, size: 18),
-            onPressed: _saving ? null : () => _onSave(context),
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmDiscard(context);
+      },
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+            onPressed: () => _hasUnsavedChanges
+                ? _confirmDiscard(context)
+                : (context.canPop()
+                      ? context.pop()
+                      : context.pushReplacement('/map')),
             style: IconButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.surface,
-              disabledBackgroundColor: Theme.of(context).colorScheme.surface,
             ),
           ),
-        ],
-        backgroundColor: Colors.transparent,
-
-        shadowColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-      ),
-
-      body: SafeArea(
-        top: false,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: TrailMap(
-                trail: trail,
-                elevationMarkerPosition: _elevationMarkerPosition,
-                showLocation: true,
-                offline: trail.isOffline,
-                initialCameraFitPadding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).size.height * 0.4 + 40,
-                  left: 40,
-                  right: 40,
-                  top: 40,
-                ),
-                controls: [
-                  const ml.MapCompass(
-                    hideIfRotatedNorth: true,
-
-                    padding: EdgeInsets.only(top: 112, right: 4),
-                  ),
-                ],
-                onMapCreated: (controller) => _mapController = controller,
-                onTap: (point) => _onCreateWaypoint(context, at: point),
-                onWaypointTap: (wp) => _onEditWaypoint(context, wp),
-                onWaypointDragEnd: _onWaypointMoved,
-              ),
-            ),
-            DraggableScrollableSheet(
-              minChildSize: sheetMinSize,
-              maxChildSize: sheetMaxSize,
-              initialChildSize: sheetMediumSize,
-              snap: true,
-              snapSizes: [sheetMinSize, sheetMediumSize, sheetMaxSize],
-              shouldCloseOnMinExtent: false,
-              controller: _sheetController,
-
-              builder: (context, scrollController) {
-                return Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).canvasColor,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
+          actions: [
+            Builder(
+              builder: (context) {
+                // Only enabled when the track yields >=2 seedable anchors, so a
+                // trk with no coordinates doesn't silently open "new route" mode.
+                final seedAnchors = trail.expand?.gpx != null
+                    ? anchorsFromTrack(trail.expand!.gpx!)
+                    : const <ml.Geographic>[];
+                return IconButton(
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const FaIcon(FontAwesomeIcons.route, size: 18),
+                      Positioned(
+                        top: -2,
+                        child: const FaIcon(FontAwesomeIcons.pen, size: 9),
                       ),
                     ],
                   ),
-                  child: ValueListenableBuilder<double>(
-                    valueListenable: _sheetSize,
-
-                    builder: (context, size, child) {
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          top: size >= sheetMediumSize
-                              ? _getDynamicPadding(size)
-                              : 8.0,
-                        ),
-                        child: TrailForm(
-                          scrollController: scrollController,
-                          formKey: _formKey,
-                          trail: trail,
-                          onCreateWaypoint: (context) =>
-                              _onCreateWaypoint(context),
-                          onCreateWaypointsFromPhotos:
-                              _onCreateWaypointsFromPhotos,
-                          onEditWaypoint: _onEditWaypoint,
-                          onDeleteWaypoint: _onDeleteWaypoint,
-                          onPhotosChanged: _onServerPhotosChanged,
-                          onElevationLineTouch: (p) => setState(
-                            () => _elevationMarkerPosition = p?.lonlat,
-                          ),
-                        ),
-                      );
-                    },
+                  tooltip: AppLocalizations.of(context)!.edit_route,
+                  onPressed: seedAnchors.length >= 2
+                      ? () => _onEditRoute(context, seedAnchors)
+                      : null,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                    disabledBackgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surface,
                   ),
                 );
               },
             ),
+            IconButton(
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const FaIcon(FontAwesomeIcons.floppyDisk, size: 18),
+              onPressed: _saving ? null : () => _onSave(context),
+              style: IconButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                disabledBackgroundColor: Theme.of(context).colorScheme.surface,
+              ),
+            ),
           ],
+          backgroundColor: Colors.transparent,
+
+          shadowColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+        ),
+
+        body: SafeArea(
+          top: false,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: TrailMap(
+                  trail: trail,
+                  elevationMarkerPosition: _elevationMarkerPosition,
+                  showLocation: true,
+                  offline: trail.isOffline,
+                  initialCameraFitPadding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).size.height * 0.4 + 40,
+                    left: 40,
+                    right: 40,
+                    top: 40,
+                  ),
+                  controls: [
+                    const ml.MapCompass(
+                      hideIfRotatedNorth: true,
+
+                      padding: EdgeInsets.only(top: 112, right: 4),
+                    ),
+                  ],
+                  onMapCreated: (controller) => _mapController = controller,
+                  onTap: (point) => _onCreateWaypoint(context, at: point),
+                  onWaypointTap: (wp) => _onEditWaypoint(context, wp),
+                  onWaypointDragEnd: _onWaypointMoved,
+                ),
+              ),
+              DraggableScrollableSheet(
+                minChildSize: sheetMinSize,
+                maxChildSize: sheetMaxSize,
+                initialChildSize: sheetMediumSize,
+                snap: true,
+                snapSizes: [sheetMinSize, sheetMediumSize, sheetMaxSize],
+                shouldCloseOnMinExtent: false,
+                controller: _sheetController,
+
+                builder: (context, scrollController) {
+                  return Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).canvasColor,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                    child: ValueListenableBuilder<double>(
+                      valueListenable: _sheetSize,
+
+                      builder: (context, size, child) {
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            top: size >= sheetMediumSize
+                                ? _getDynamicPadding(size)
+                                : 8.0,
+                          ),
+                          child: TrailForm(
+                            scrollController: scrollController,
+                            formKey: _formKey,
+                            trail: trail,
+                            onCreateWaypoint: (context) =>
+                                _onCreateWaypoint(context),
+                            onCreateWaypointsFromPhotos:
+                                _onCreateWaypointsFromPhotos,
+                            onEditWaypoint: _onEditWaypoint,
+                            onDeleteWaypoint: _onDeleteWaypoint,
+                            onPhotosChanged: _onServerPhotosChanged,
+                            onElevationLineTouch: (p) => setState(
+                              () => _elevationMarkerPosition = p?.lonlat,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

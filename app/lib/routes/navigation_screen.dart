@@ -33,7 +33,11 @@ import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/provider/region/tile_proxy_provider.dart';
+import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/util/format_util.dart';
@@ -41,8 +45,11 @@ import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 import 'package:wanderer/util/polyline_util.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
+import 'package:wanderer/util/route_travel_bucket.dart';
+import 'package:wanderer/util/track_save_options_util.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/trail_import_util.dart';
+import 'package:wanderer/util/valhalla_util.dart';
 
 /// The three actions offered by [_NavigationScreenState._confirmExit]'s
 /// premature-exit dialog.
@@ -68,6 +75,22 @@ class NavigationScreen extends ConsumerStatefulWidget {
   /// `Geographic(0, 0)` fallback. Ignored outside recording mode.
   final ml.Geographic? initialCenter;
 
+  /// Already-resolved GPS fix — from `_openRecorder` (recording) or
+  /// `launchNavigation` (turn-by-turn) — seeded into [TraceletPositionSource]
+  /// so the live marker renders instantly instead of waiting for tracelet's
+  /// own cold GPS acquisition. Null for a resumed session (no fresh fix to
+  /// hand off) — the marker waits for tracelet's fix same as before.
+  final geo.Position? initialPosition;
+
+  /// Valhalla costing (`'pedestrian'`/`'bicycle'`) chosen via
+  /// `showTravelProfileSheet` at record start (`_openRecorder`) — gives
+  /// "Follow roads" the same profile picker the route planner already has,
+  /// instead of always costing as pedestrian for a trail-less recording
+  /// (which has no trail category for [costingForCategory] to read). Ignored
+  /// outside recording mode; a resumed session reads its own persisted
+  /// [ActiveNavigationEntity.recordingCosting] instead (see `initState`).
+  final String? recordingCosting;
+
   const NavigationScreen({
     super.key,
     required this.id,
@@ -76,6 +99,8 @@ class NavigationScreen extends ConsumerStatefulWidget {
     this.resumeSession,
     this.isRecording = false,
     this.initialCenter,
+    this.initialPosition,
+    this.recordingCosting,
   });
 
   @override
@@ -108,6 +133,12 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   late final List<Wpt>? _resumeBreadcrumb;
   late final NavigationStatsSeed? _resumeStats;
 
+  /// Resolved once in [initState]: a resumed recording's own persisted
+  /// costing wins over [NavigationScreen.recordingCosting] (a fresh push
+  /// only ever supplies one of the two — resume seeds have no fresh sheet
+  /// selection to carry). Null outside recording mode.
+  late final String? _recordingCosting;
+
   /// obxId of the single active-session row this screen owns. 0 means "not
   /// yet inserted" — the first [_persistNow] call inserts and this is updated
   /// with the id `active_nav.save` returns so every later save updates the
@@ -119,8 +150,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   Timer? _persistTimer;
 
   /// Guards [_saveRecordedTrack] against a double-tap firing two concurrent
-  /// `/trail/convert` uploads/navigations, and drives the completion
-  /// banner's loading state.
+  /// conversions/navigations, and drives the completion banner's loading
+  /// state.
   bool _savingTrack = false;
 
   /// Latest *animated* GPS fix, driving both the custom [_LocationMarkerLayer]
@@ -270,6 +301,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final resumeSession = widget.resumeSession;
     _resumeManeuverIndex = resumeSession?.currentManeuverIndex;
     _activeRowObxId = resumeSession?.obxId ?? 0;
+    _recordingCosting =
+        resumeSession?.recordingCosting ?? widget.recordingCosting;
     final resumePos = resumeSession?.breadcrumbPolyline != null
         ? PolylineUtil.decode(resumeSession!.breadcrumbPolyline!)
         : null;
@@ -340,6 +373,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         _positionSource.start(
           notificationTitle: localizations.location_tracking_notification_title,
           notificationText: localizations.location_tracking_notification_text,
+          seed: widget.initialPosition,
         ),
       );
     });
@@ -616,6 +650,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           : ActiveSessionType.nav,
       trailId: widget.isRecording ? null : widget.id,
       isOffline: widget.isOffline,
+      recordingCosting: widget.isRecording ? _recordingCosting : null,
       currentManeuverIndex: navState.currentManeuverIndex,
       breadcrumbPolyline: PolylineUtil.encode(
         navState.breadcrumb
@@ -661,11 +696,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   }
 
   /// Builds a stub [Trail] from the recorded breadcrumb (via the same
-  /// `/trail/convert` round-trip the Route Planner and GPX-file import use)
-  /// and hands off to `trail_create_screen`. Callers must only invoke this
-  /// with a breadcrumb of >=2 points (see the completion-banner and
-  /// exit-dialog guards) — the server-side conversion isn't meaningful for a
-  /// near-empty track.
+  /// on-device conversion the Route Planner and GPX-file import use, since
+  /// 34-05 — see `buildDraftTrail`) and hands off to `trail_create_screen`.
+  /// Callers must only invoke this with a breadcrumb of >=2 points (see the
+  /// completion-banner and exit-dialog guards) — the conversion isn't
+  /// meaningful for a near-empty track.
   ///
   /// Reads `navState` via `ref.read` with the IDENTICAL family seed args used
   /// everywhere else in this file — a different seed would resolve a
@@ -676,8 +711,34 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// `_finishing`). On failure (e.g. offline), shows an error toast and
   /// leaves the session intact so the user can retry — matching
   /// `trail_import_util.dart`'s `importTrailFile` precedent for this same
-  /// `/trail/convert` call.
-  Future<void> _saveRecordedTrack() async {
+  /// toast-and-stay behaviour.
+  ///
+  /// Opens the shared online gate (see `track_save_options_util.dart`)
+  /// FIRST, before the [_savingTrack] guard, so both call sites
+  /// (exit-dialog and completion-banner) inherit it with no change. The
+  /// sheet itself is now shown only when online (D-15); offline, the save
+  /// proceeds straight through with both transforms off.
+  /// Cancelling/dismissing an online sheet still aborts the save entirely —
+  /// no change to the session.
+  ///
+  /// When "Follow roads" is on, the breadcrumb is snapped to the road
+  /// network via [snapShapeToRoads] BEFORE "Recalculate heights" runs, so
+  /// elevation reflects the final (possibly snapped) shape. Both transforms
+  /// are best-effort with silent fallback (see [snapShapeToRoads]'s and
+  /// `/valhalla/height`'s own fallback behavior) — a failure never blocks
+  /// the save nor surfaces an error toast.
+  ///
+  /// Any transform path (snap and/or heights) yields a timeless track — the
+  /// merge/handoff helpers here are elevation-only, matching the planner
+  /// handoff. Only the no-transform path preserves the recorded breadcrumb's
+  /// timestamps verbatim.
+  Future<void> _saveRecordedTrack(BuildContext context) async {
+    final options = await resolveTrackSaveOptions(
+      ref,
+      context,
+      TrackSaveOptionsSource.recording,
+    );
+    if (options == null) return;
     if (_savingTrack) return;
     setState(() => _savingTrack = true);
 
@@ -689,14 +750,129 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           resumeBreadcrumb: _resumeBreadcrumb,
         ),
       );
+      // IDENTICAL family seed args as every other navigationStatsProvider
+      // read in this file (see _persistNow and build()) — a different seed
+      // would resolve a different, split-brain provider instance whose
+      // `elapsed` is zero.
+      final navStats = ref.read(
+        navigationStatsProvider(widget.response, resume: _resumeStats),
+      );
 
       final originalTrail = ref.read(trailProvider(widget.id)).value;
 
-      final gpx = buildGpxFromPoints(navState.breadcrumb);
+      Gpx gpx;
+      final (recalcHeights, followRoads) = options;
+      if (recalcHeights || followRoads) {
+        final breadcrumbPoints = [
+          for (final wpt in navState.breadcrumb)
+            if (wpt.lat != null && wpt.lon != null)
+              ml.Geographic(lat: wpt.lat!, lon: wpt.lon!),
+        ];
+        // Full recorded resolution — NOT [buildNavShape]'s downsampled form.
+        // Downsampling to Valhalla's 500-point cap is fine for an outbound
+        // routing *request* hint but must never define what gets saved.
+        var workingShape = [
+          for (final p in breadcrumbPoints) {'lat': p.lat, 'lon': p.lon},
+        ];
+
+        if (followRoads && workingShape.length >= 2) {
+          // `_recordingCosting` (from `showTravelProfileSheet` at record
+          // start, see `_openRecorder`) wins for a trail-less recording,
+          // where `originalTrail` is always null and `costingForCategory`
+          // would otherwise always fall back to pedestrian regardless of
+          // the recorded activity. Falls through to the trail's own
+          // category for a real trail's navigate/save flow.
+          final costing =
+              _recordingCosting ??
+              costingForTrail(
+                originalTrail,
+                subcategories: ref.read(subcategoryProvider),
+              );
+          // buildNavShape's cap applies only to this outbound hint — the
+          // matched path Valhalla returns replaces workingShape entirely.
+          // `fallbackShape` is what enforces that: without it a failed or
+          // rejected snap returned the hint itself, so a flaky connection
+          // silently saved a 500-point decimation of a full-resolution
+          // recording (WR-02).
+          workingShape = await snapShapeToRoads(
+            ref,
+            buildNavShape(breadcrumbPoints),
+            costing,
+            fallbackShape: workingShape,
+          );
+        }
+
+        // Real recorded start/end times survive the transform (snap/height
+        // merge builds a fresh trackless Gpx from lat/lon/ele only) so the
+        // server can still derive an accurate duration instead of 0.
+        final startTime = navState.breadcrumb.firstOrNull?.time;
+        final endTime = navState.breadcrumb.lastOrNull?.time;
+
+        if (recalcHeights && workingShape.length >= 2) {
+          final heights = await fetchHeightsForShape(ref, workingShape);
+          gpx = mergeHeightsIntoGpx(
+            workingShape,
+            heights,
+            startTime: startTime,
+            endTime: endTime,
+          );
+        } else {
+          gpx = mergeHeightsIntoGpx(
+            workingShape,
+            const [],
+            startTime: startTime,
+            endTime: endTime,
+          );
+        }
+      } else {
+        gpx = buildGpxFromPoints(navState.breadcrumb);
+      }
+
+      // For a real trail, keep its own category/subcategory. For a trail-less
+      // recording, derive a (sub)category from the chosen travel profile
+      // (the same settings-driven pre-fill the route planner uses) rather
+      // than always leaving it unset.
+      //
+      // Precision limit: `_recordingCosting` only ever carries the binary
+      // `'bicycle'`/`'pedestrian'` Valhalla costing string (captured via
+      // `bucket.costing` in trail_source_select_screen's `_openRecorder`),
+      // not the full RouteTravelBucket — so a recording started on
+      // MTB/Gravel/Road collapses to the generic Hybrid bike bucket here.
+      // That is a pre-existing limitation, not a new regression: widening it
+      // needs ActiveNavigationEntity/router_provider schema changes, which
+      // are out of scope for this task.
+      final recordingBucket = _recordingCosting == null
+          ? null
+          : (_recordingCosting == 'bicycle'
+                ? RouteTravelBucket.bikingHybrid
+                : RouteTravelBucket.hiking);
+      final selection = recordingBucket == null
+          ? null
+          : categorySelectionForBucket(
+              recordingBucket,
+              ref.read(categoryProvider).value ?? const [],
+              ref.read(subcategoryProvider),
+              // Never auto-assign a subcategory the user has hidden.
+              subcategoryPrefs:
+                  ref.read(subcategoryPreferenceProvider).value ?? const [],
+            );
+
+      final category = originalTrail?.categoryId ?? selection?.categoryId;
+      final subcategory =
+          originalTrail?.subcategoryId ?? selection?.subcategoryId;
+
+      // D-09: NavigationStats.elapsed is already moving time — the 1-second
+      // tick is a no-op while isPaused || isStationary, and it is already
+      // the value shown to the user during the session, so no second
+      // derivation is invented here. D-11: no planner-style estimated
+      // duration fallback is passed here — `duration` must come from the
+      // GPX so a later web recompute reproduces it.
       final trail = await buildDraftTrail(
         ref,
         gpx,
-        category: originalTrail?.categoryId,
+        category: category,
+        subcategory: subcategory,
+        movingDuration: navStats.elapsed,
       );
 
       active_nav.clear(_store);
@@ -758,28 +934,32 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  /// Composes the style JSON to hand to the map from the two resolved inputs.
+  /// Composes the style JSON to hand to the map from the two resolved
+  /// inputs.
   ///
   /// Online: [baseJson] as-is. Offline: [baseJson] rewritten via
-  /// [rewriteStyleForOffline] so `glyphs`/`sprite` resolve from [cache] and the
-  /// protomaps tiles resolve from the trail's `.pmtiles` cells
-  /// (`pmtiles://file://`). Returns null while a required input is still
-  /// resolving or if the rewrite rejects an input — the caller then shows the
-  /// loading passthrough.
+  /// [rewriteStyleForProxy] so `glyphs`/`sprite` resolve from [cache] and the
+  /// protomaps/hillshade tiles resolve from the loopback tile proxy
+  /// (PROXY-01) — a single static XYZ source, with per-tile region coverage
+  /// resolved server-side (`resolveRegionForTile`) rather than a live
+  /// viewport query here. This screen's camera moves freely across a
+  /// session, unlike `TrailMap`'s fixed trail bounds, but the proxy's
+  /// per-request resolution means no viewport parameter is needed at all.
+  /// Returns null while a required input is still resolving — the caller
+  /// then shows the loading passthrough (initStyle path) or leaves the
+  /// mounted style unchanged (`_swapStyle` path). An uncovered viewport
+  /// resolves to a blank basemap via the proxy's own 404 responses
+  /// (D-01/D-02 carried forward).
   String? _composeStyle(String? baseJson, GlyphSpriteCachePaths? cache) {
     if (baseJson == null) return null;
     if (!widget.isOffline) return baseJson;
     if (cache == null) return null;
-    final pmTiles = ref.read(trailProvider(widget.id)).value?.pmTiles;
-    if (pmTiles == null || pmTiles.isEmpty) return null;
     try {
       final decoded = jsonDecode(baseJson) as Map<String, dynamic>;
-      final offlineStyle = rewriteStyleForOffline(
+      final offlineStyle = rewriteStyleForProxy(
         decoded,
         cacheRoot: cache.root,
-        cellPaths: pmTiles,
-        demCellPaths:
-            ref.read(trailProvider(widget.id)).value?.demPmTiles ?? const [],
+        proxyBaseUrl: ref.read(tileProxyBaseUrlProvider),
         dark:
             effectiveBrightness(ref.read(themeModeProvider)) == Brightness.dark,
       );
@@ -791,13 +971,18 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   }
 
   /// Recomposes the (possibly offline-rewritten) style from current provider
-  /// state and swaps it onto the mounted controller in place.
+  /// state and swaps it onto the mounted controller in place. Theme/glyph
+  /// path only (unchanged mechanism) — the static proxy source is baked into
+  /// every composed style by construction, so no separate region-swap path
+  /// is needed here.
   void _swapStyle() {
     final controller = _controller;
     if (controller == null) return;
-    final baseJson = ref.read(mapStyleJsonProvider).value;
+    final baseJson = widget.isOffline
+        ? ref.read(offlineMapStyleJsonProvider).value
+        : ref.read(mapStyleJsonProvider).value;
     final cache = widget.isOffline
-        ? ref.read(glyphSpriteCacheProvider).value
+        ? ref.read(offlineGlyphSpritePathsProvider).value
         : null;
     final json = _composeStyle(baseJson, cache);
     if (json != null && json != _lastStyleJson) {
@@ -882,17 +1067,27 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   @override
   Widget build(BuildContext context) {
     // Cache warm on first open (mirrors TrailMap's caching pattern) —
-    // idempotent against the trail-download trigger.
-    if (!_cacheWarmed) {
+    // idempotent against the trail-download trigger. Skipped when offline:
+    // the warm is a network download, and the cache is already populated by
+    // the time an offline navigation session renders from it.
+    if (!_cacheWarmed && !widget.isOffline) {
       _cacheWarmed = true;
       ref.read(glyphSpriteCacheProvider.future).ignore();
     }
 
     // Live style swap: theme toggle or (offline) glyph/sprite cache warm
-    // swaps the composed style in place on the already-mounted map.
-    ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
+    // swaps the composed style in place on the already-mounted map. Region
+    // coverage is resolved by the loopback tile proxy per-tile (PROXY-01):
+    // a newly-downloaded region's tiles resolve the next time MapLibre
+    // requests them (confirmed on-device, 25.1-03-SUMMARY.md test case d,
+    // no remount needed) — no separate region-change listener is required.
+    // Offline reads the network-free providers so no `/map/style-sources`
+    // call is ever made.
     if (widget.isOffline) {
-      ref.listen(glyphSpriteCacheProvider, (_, _) => _swapStyle());
+      ref.listen(offlineMapStyleJsonProvider, (_, _) => _swapStyle());
+      ref.listen(offlineGlyphSpritePathsProvider, (_, _) => _swapStyle());
+    } else {
+      ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
     }
 
     // Breadcrumb in-place update: swap the native source's data on every new
@@ -933,13 +1128,15 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     final localizations = AppLocalizations.of(context)!;
     final unit = ref.watch(unitProvider);
 
-    final baseAsync = ref.watch(mapStyleJsonProvider);
+    final baseAsync = widget.isOffline
+        ? ref.watch(offlineMapStyleJsonProvider)
+        : ref.watch(mapStyleJsonProvider);
     final baseJson = baseAsync.value;
     Object? error = baseAsync.error;
 
     GlyphSpriteCachePaths? cache;
     if (widget.isOffline) {
-      final cacheAsync = ref.watch(glyphSpriteCacheProvider);
+      final cacheAsync = ref.watch(offlineGlyphSpritePathsProvider);
       cache = cacheAsync.value;
       error ??= cacheAsync.error;
     }
@@ -1178,7 +1375,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     ).then((choice) {
       switch (choice) {
         case _NavExitChoice.saveTrack:
-          _saveRecordedTrack();
+          if (context.mounted) _saveRecordedTrack(context);
         case _NavExitChoice.exit:
           // Deliberate exit — best-effort clear so no stale resume prompt
           // appears on next launch.
@@ -1340,7 +1537,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         if (_hasSavableTrack()) ...[
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: _savingTrack ? null : _saveRecordedTrack,
+            onPressed: _savingTrack ? null : () => _saveRecordedTrack(context),
             icon: _savingTrack
                 ? const SizedBox(
                     width: 16,
@@ -1674,8 +1871,19 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               elevation: 2,
               shape: StadiumBorder(),
               backgroundColor: Colors.redAccent,
-              onPressed: () => _confirmExit(context, localizations),
-              child: const FaIcon(FontAwesomeIcons.stop),
+              onPressed: _savingTrack
+                  ? null
+                  : () => _confirmExit(context, localizations),
+              child: _savingTrack
+                  ? SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: const CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const FaIcon(FontAwesomeIcons.stop),
             ),
 
             // Right — toggle between additional stats and elevation profile.

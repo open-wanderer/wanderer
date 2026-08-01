@@ -273,6 +273,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.2"
+  disk_space_2:
+    dependency: "direct main"
+    description:
+      name: disk_space_2
+      sha256: "3d8662a6ed022defb4205bdc453480f5f1ea4b1494fbc6711d564616c1ff8a68"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.12"
   duration:
     dependency: "direct main"
     description:
@@ -958,7 +966,7 @@ packages:
     source: hosted
     version: "0.13.0"
   meta:
-    dependency: "direct overridden"
+    dependency: "direct main"
     description:
       name: meta
       sha256: c82594181e3312f3d0695fc95aaaf7758d75b8d4ae2bbecf223b9fd5109a059d
@@ -1810,7 +1818,7 @@ packages:
     source: hosted
     version: "1.1.0"
   xml:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: xml
       sha256: "971043b3a0d3da28727e40ed3e0b5d18b742fa5a68665cca88e74b7876d5e025"

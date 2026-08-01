@@ -105,7 +105,14 @@ class _OAuthProviderButtonsState extends ConsumerState<OAuthProviderButtons> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (provider.img != null) ...[
-                      _ProviderIcon(provider.img!),
+                      Container(
+                        padding: EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.all(Radius.circular(16)),
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        child: _ProviderIcon(provider.img!),
+                      ),
                       const SizedBox(width: 8),
                     ],
                     Text(provider.displayName),

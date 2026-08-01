@@ -1,10 +1,9 @@
-import 'package:gpx/gpx.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/entities/actor_entity.dart';
 import 'package:wanderer/entities/category_entity.dart';
 import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/gpx_conversion_util.dart';
 
 @Entity()
 class TrailEntity {
@@ -24,6 +23,11 @@ class TrailEntity {
   double? elevationGain;
   double? elevationLoss;
   double? duration;
+  // Moving time in seconds for trails recorded in the Wanderer app. No
+  // default and stays nullable: absence is the meaningful "no moving time
+  // known" state (D-10, phase 34) -- `duration` always means GPX-derived
+  // elapsed time.
+  double? movingDuration;
   double? lat;
   double? lon;
   double maxLat;
@@ -38,8 +42,22 @@ class TrailEntity {
   @Property(type: PropertyType.dateUtc)
   DateTime updated;
   List<String> photos = [];
-  List<String> pmTiles = [];
-  List<String> demPmTiles = [];
+
+  /// Ids of the accounts that have this trail in their offline library.
+  ///
+  /// This is what makes the library per-account WITHOUT deleting anything on
+  /// logout: one row and one copy of the files per trail, shared by however
+  /// many accounts downloaded it, with every read path filtering on the
+  /// signed-in account via `savedByUserIds.containsElement(userId)`.
+  ///
+  /// A per-(trail, account) row was not an option: [id] is
+  /// `@Unique(onConflict: replace)`, so a second account downloading the same
+  /// trail would silently replace the first account's row.
+  ///
+  /// Empty means no account holds it — `TrailLibraryNotifier.deleteTrail`
+  /// treats that as the signal to finally remove the row and its
+  /// `library/<id>/` directory.
+  List<String> savedByUserIds = [];
 
   @Transient()
   TrailDifficulty difficulty = TrailDifficulty.easy;
@@ -74,6 +92,7 @@ class TrailEntity {
     this.elevationGain = 0,
     this.elevationLoss = 0,
     this.duration = 0,
+    this.movingDuration,
     this.difficulty = TrailDifficulty.easy,
     this.lat,
     this.lon,
@@ -97,6 +116,7 @@ class TrailEntity {
       elevationGain: trail.elevationGain,
       elevationLoss: trail.elevationLoss,
       duration: trail.duration,
+      movingDuration: trail.movingDuration,
       lat: trail.lat,
       lon: trail.lon,
       maxLat: trail.maxLat,
@@ -145,6 +165,7 @@ extension TrailEntityMapping on TrailEntity {
       elevationGain: elevationGain ?? 0,
       elevationLoss: elevationLoss ?? 0,
       duration: duration ?? 0,
+      movingDuration: movingDuration,
       difficulty: difficulty,
       lat: lat,
       lon: lon,
@@ -155,17 +176,18 @@ extension TrailEntityMapping on TrailEntity {
       description: description ?? "",
       isOffline: true,
       localPhotos: photos,
-      pmTiles: pmTiles,
-      demPmTiles: demPmTiles,
       updated: updated,
       created: created,
       expand: TrailExpand(
         author: author.target?.toModel(),
         category: category.target?.toModel(),
         gpxData: gpxData,
-        gpx: gpxData != null
-            ? GpxReader().fromString(sanitizeGpxEmail(gpxData!))
-            : null,
+        // parseGpxSafely, not a bare GpxReader: this is third-party GPX read
+        // back out of the offline cache and needs the full sanitize chain.
+        // toModel() is called outside any try/catch, so a FormatException from
+        // an unsanitized tag escaped the notifier entirely and made the trail
+        // permanently un-openable offline once cached.
+        gpx: gpxData != null ? parseGpxSafely(gpxData!) : null,
         waypointsViaTrail: waypoints.map((w) => w.toModel()).toList(),
       ),
     );

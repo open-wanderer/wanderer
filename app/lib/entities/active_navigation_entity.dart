@@ -35,6 +35,15 @@ class ActiveNavigationEntity {
   /// Nullable, trail-specific.
   bool? isOffline;
 
+  /// Nullable, `rec`-specific — the Valhalla costing string (`'pedestrian'`
+  /// or `'bicycle'`) chosen via `showTravelProfileSheet` at record start
+  /// (`trail_source_select_screen.dart`'s `_openRecorder`). Persisted so a
+  /// resumed-after-kill recording keeps the user's chosen profile for
+  /// "Follow roads" instead of silently falling back to pedestrian. Null for
+  /// `nav` sessions (costing there is derived from the trail's category
+  /// instead) and for a `rec` row persisted before this field existed.
+  String? recordingCosting;
+
   /// Nullable, trail-specific (no maneuvers exist for a future `rec` session).
   int? currentManeuverIndex;
 
@@ -61,6 +70,7 @@ class ActiveNavigationEntity {
     this.sessionType = ActiveSessionType.nav,
     this.trailId,
     this.isOffline,
+    this.recordingCosting,
     this.currentManeuverIndex,
     this.breadcrumbPolyline,
     this.elevations,

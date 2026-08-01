@@ -16,6 +16,10 @@ import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
+import 'package:wanderer/provider/region/tile_proxy_provider.dart';
+import 'package:wanderer/services/tile_proxy_server.dart';
+import 'package:wanderer/util/account_scope_invalidation.dart';
 import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/util/navigation_launch_util.dart';
 
@@ -33,8 +37,7 @@ void main() async {
 
   final dbPath = p.join(appDocDir.path, "objectbox");
   final store = await openStore(directory: dbPath);
-
-  // store.box<TrailEntity>().removeAll();
+  final proxyServer = await TileProxyServer.start(store);
 
   final cookiePath = p.join(appDocDir.path, ".cookies");
   final cookieDir = Directory(cookiePath);
@@ -51,6 +54,7 @@ void main() async {
     ProviderScope(
       overrides: [
         objectBoxProvider.overrideWithValue(store),
+        tileProxyBaseUrlProvider.overrideWithValue(proxyServer.baseUrl),
         cookieJarProvider.overrideWithValue(jar),
       ],
       child: MainApp(),
@@ -69,6 +73,12 @@ class _MainAppState extends ConsumerState<MainApp> {
   bool _resumeHandled = false;
   ProviderSubscription? _authSub;
 
+  // Account-switch cache invalidation (T-h2p-02): tracks the last-seen auth
+  // user id so a change is detected exactly once per switch, without acting
+  // on the listener's first (baseline) emission.
+  String? _lastAuthUserId;
+  bool _authSeen = false;
+
   // Files handed to the app via the OS share sheet, buffered until auth settles
   // with a signed-in user (a share can arrive on a cold, signed-out start).
   List<SharedMediaFile>? _pendingShare;
@@ -77,6 +87,10 @@ class _MainAppState extends ConsumerState<MainApp> {
   @override
   void initState() {
     super.initState();
+    // Seed the app-wide online status as early as possible; unawaited since
+    // startup must not block on a network probe.
+    unawaited(ref.read(onlineStatusProvider.notifier).refresh());
+
     // One-shot resume check that waits for auth to settle so the GoRouter
     // redirect (which bounces unauthenticated users to /welcome) does not
     // race the resume-dialog push. Also replays a buffered share once a
@@ -86,6 +100,18 @@ class _MainAppState extends ConsumerState<MainApp> {
       AsyncValue<UserEntity?> next,
     ) {
       if (next.isLoading) return;
+
+      // Drop every keepAlive cache holding account-scoped state on any auth
+      // user-id change (T-h2p-02). `_authSeen` gates this: `fireImmediately:
+      // true` makes the first emission a baseline, not a change, so it must
+      // not trigger an invalidation.
+      final userId = next.value?.id;
+      if (_authSeen && userId != _lastAuthUserId) {
+        invalidateAccountScopedProviders(ref);
+      }
+      _authSeen = true;
+      _lastAuthUserId = userId;
+
       if (next.value != null) _maybeHandleShare();
 
       if (_resumeHandled) return;
@@ -223,11 +249,23 @@ class _MainAppState extends ConsumerState<MainApp> {
           ),
         ],
       ),
-    ).then((accepted) {
+    ).then((accepted) async {
       if (accepted == true) {
+        // Re-probe rather than trusting the persisted flag: connectivity may
+        // have changed since the session was last saved (e.g. saved online,
+        // relaunched in airplane mode). A stale `isOffline=false` here would
+        // send NavigationScreen down the online style path, whose
+        // `/map/style-sources` fetch hangs offline and freezes the map on its
+        // loading spinner. The cached response already makes navigation itself
+        // work offline; this flag only selects the map style path.
+        final isOffline = !await ref
+            .read(onlineStatusProvider.notifier)
+            .refresh();
         navigatorKey.currentContext?.push(
           '/trail/${row.trailId}/navigate',
-          extra: (response, row.isOffline ?? false, row),
+          // No fresh fix to seed on resume — same as a brand-new session
+          // pending its first tracelet fix.
+          extra: (response, isOffline, row, null),
         );
       } else {
         active_nav.clear(store);
@@ -248,9 +286,7 @@ class _MainAppState extends ConsumerState<MainApp> {
     showDialog<bool>(
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
-        content: Text(
-          AppLocalizations.of(dialogCtx)!.resume_recording_prompt,
-        ),
+        content: Text(AppLocalizations.of(dialogCtx)!.resume_recording_prompt),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogCtx).pop(false),
@@ -262,8 +298,16 @@ class _MainAppState extends ConsumerState<MainApp> {
           ),
         ],
       ),
-    ).then((accepted) {
+    ).then((accepted) async {
       if (accepted == true) {
+        // Re-probe rather than trusting the persisted flag (see the .nav
+        // resume branch): a recording saved online then resumed in airplane
+        // mode must open NavigationScreen's offline style path, or its
+        // `/map/style-sources` fetch hangs the map on its loading spinner.
+        // The router reads this back off `resume.isOffline`.
+        row.isOffline = !await ref
+            .read(onlineStatusProvider.notifier)
+            .refresh();
         navigatorKey.currentContext?.push('/record', extra: row);
       } else {
         active_nav.clear(store);

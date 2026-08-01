@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart' as geo;
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -35,6 +36,7 @@ import 'package:wanderer/routes/settings_appearance_screen.dart';
 import 'package:wanderer/routes/settings_categories_screen.dart';
 import 'package:wanderer/routes/settings_language_screen.dart';
 import 'package:wanderer/routes/settings_notifications_screen.dart';
+import 'package:wanderer/routes/settings_offline_regions_screen.dart';
 import 'package:wanderer/routes/settings_privacy_screen.dart';
 import 'package:wanderer/routes/settings_screen.dart';
 import 'package:wanderer/routes/settings_subcategories_screen.dart';
@@ -229,6 +231,10 @@ class Router extends _$Router {
                 ),
               ],
             ),
+            GoRoute(
+              path: 'regions',
+              builder: (context, state) => const SettingsOfflineRegionsScreen(),
+            ),
           ],
         ),
         GoRoute(
@@ -280,8 +286,9 @@ class Router extends _$Router {
           builder: (context, state) {
             // extra: either an ActiveNavigationEntity resume seed when
             // re-entering an in-progress recording (see main.dart's
-            // _maybeResume rec branch), or a {'lat', 'lon'} map with the
-            // real GPS fix resolved before starting a fresh recording (see
+            // _maybeResume rec branch), or a {'lat', 'lon', 'position',
+            // 'costing'} map with the real GPS fix and chosen travel
+            // profile resolved before starting a fresh recording (see
             // trail_source_select_screen.dart's _openRecorder) — null for
             // neither case falls back to NavigationScreen's own default.
             final extra = state.extra;
@@ -296,15 +303,33 @@ class Router extends _$Router {
                 // its last known breadcrumb point instead of falling all the
                 // way through to Geographic(0, 0).
                 : (resume?.breadcrumbPolyline != null
-                      ? PolylineUtil.decode(resume!.breadcrumbPolyline!)
-                            .lastOrNull
+                      ? PolylineUtil.decode(
+                          resume!.breadcrumbPolyline!,
+                        ).lastOrNull
                       : null);
+            final seedPosition = extra is Map
+                ? extra['position'] as geo.Position?
+                : null;
+            final recordingCosting = extra is Map
+                ? extra['costing'] as String?
+                : null;
+            // A fresh recording carries the reachability probe result from
+            // _openRecorder; a resumed one reuses its persisted flag (parity
+            // with the .nav resume branch in main.dart). Either way this keeps
+            // NavigationScreen off the online `/map/style-sources` fetch when
+            // offline, so the recorder never hangs on its loading spinner.
+            final isOffline = extra is Map
+                ? (extra['isOffline'] as bool? ?? false)
+                : (resume?.isOffline ?? false);
             return NavigationScreen(
               id: '',
               response: const NavigateResponse(maneuvers: [], shape: []),
               isRecording: true,
+              isOffline: isOffline,
               resumeSession: resume,
               initialCenter: center,
+              initialPosition: seedPosition,
+              recordingCosting: recordingCosting,
             );
           },
         ),
@@ -344,16 +369,23 @@ class Router extends _$Router {
                 final trailId = state.pathParameters['id']!;
                 final extra = state.extra;
                 if (extra
-                    is! (NavigateResponse, bool, ActiveNavigationEntity?)) {
+                    is! (
+                      NavigateResponse,
+                      bool,
+                      ActiveNavigationEntity?,
+                      geo.Position?,
+                    )) {
                   // extra is lost across process restart / deep-link — fall back.
                   return TrailDetailScreen(id: trailId);
                 }
-                final (response, isOffline, resumeSession) = extra;
+                final (response, isOffline, resumeSession, seedPosition) =
+                    extra;
                 return NavigationScreen(
                   id: trailId,
                   response: response,
                   isOffline: isOffline,
                   resumeSession: resumeSession,
+                  initialPosition: seedPosition,
                 );
               },
             ),

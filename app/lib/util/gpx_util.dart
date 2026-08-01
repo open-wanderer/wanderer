@@ -1,16 +1,12 @@
 import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart';
+import 'package:wanderer/util/gpx_conversion_util.dart' show haversineMeters;
 
-/// GPX 1.1 requires `<email id="user" domain="example.com"/>` but some files
-/// use the non-standard text form `<email>user@example.com</email>`, which
-/// crashes `GpxReader` with `Bad state: No element`. Rewrites the latter into
-/// the attribute form expected by the `gpx` package before parsing.
-String sanitizeGpxEmail(String xml) {
-  return xml.replaceAllMapped(
-    RegExp(r'<email>([^@<]+)@([^<]+)</email>'),
-    (m) => '<email id="${m[1]}" domain="${m[2]}"/>',
-  );
-}
+// sanitizeGpxEmail lived here. The non-standard
+// `<email>user@example.com</email>` text form is now handled where the
+// coercion happens, in `lib/vendor/gpx/gpx_reader.dart`'s `_readEmail`
+// (LOCAL MODIFICATION 4), so no pre-parse XML rewriting is needed. Parse
+// third-party GPX with `parseGpxSafely` from `gpx_conversion_util.dart`.
 
 /// Builds a Valhalla shape list from [points], downsampling to ≤500 entries
 /// while always preserving the first and last point.
@@ -58,20 +54,15 @@ Gpx buildGpxFromPoints(List<Wpt> points) {
   return gpx;
 }
 
-class GpxStats {
-  final double totalDistance;
-  final double totalDuration;
-  final double totalElevationGain;
-  final double totalElevationloss;
-
-  const GpxStats({
-    required this.totalDistance,
-    required this.totalDuration,
-    required this.totalElevationGain,
-    required this.totalElevationloss,
-  });
-}
-
+// D-17: trail metrics live in gpx_conversion_util.dart's
+// computeTrailMetrics/GpxTrailMetrics — the port of the Phase 33-corrected
+// TS algorithm. No second metrics implementation (a "totals"-style method or
+// value class, or anything computing distance/elevation summaries) may be
+// re-added to this extension: this file previously carried a second,
+// CONV-01-buggy metrics implementation that disagreed with the ported one,
+// so an unsaved-GPX preview showed one distance and the saved trail another
+// for the same GPX (T-34-19). Both former consumers (elevation_profile.dart,
+// trail_panel.dart) now call computeTrailMetrics.
 extension GpxMappingUtils on Gpx {
   List<Wpt> get allWaypoints {
     return trks
@@ -93,47 +84,6 @@ extension GpxMappingUtils on Gpx {
     return LngLatBounds.fromPoints(points);
   }
 
-  GpxStats getTotals() {
-    final points = allWaypoints;
-
-    double totalDistance = 0;
-    double totalElevationGain = 0;
-    double totalElevationLoss = 0;
-    Duration totalDuration = Duration.zero;
-
-    for (int i = 1; i < points.length; i++) {
-      final prev = points[i - 1];
-      final curr = points[i];
-
-      final calculator = SphericalGreatCircle(
-        Geographic(lat: prev.lat!, lon: prev.lon!),
-      );
-      totalDistance += calculator.distanceTo(
-        Geographic(lat: curr.lat!, lon: curr.lon!),
-      );
-
-      if (prev.ele != null && curr.ele != null) {
-        final diff = curr.ele! - prev.ele!;
-        if (diff > 0) {
-          totalElevationGain += diff;
-        } else {
-          totalElevationLoss += diff.abs();
-        }
-      }
-
-      if (prev.time != null && curr.time != null) {
-        totalDuration += curr.time!.difference(prev.time!);
-      }
-    }
-
-    return GpxStats(
-      totalDistance: totalDistance,
-      totalDuration: totalDuration.inSeconds.toDouble(),
-      totalElevationGain: totalElevationGain,
-      totalElevationloss: totalElevationLoss,
-    );
-  }
-
   /// Approximates how far along the track [point] falls, in meters, by
   /// snapping to the nearest track vertex and returning its cumulative
   /// distance from the start. This is a lightweight estimate (not a true
@@ -151,13 +101,10 @@ extension GpxMappingUtils on Gpx {
     for (int i = 0; i < points.length; i++) {
       final wpt = points[i];
       if (i > 0) {
-        final prev = points[i - 1];
-        final calculator = SphericalGreatCircle(
-          Geographic(lat: prev.lat!, lon: prev.lon!),
-        );
-        cumDist += calculator.distanceTo(
-          Geographic(lat: wpt.lat!, lon: wpt.lon!),
-        );
+        // Shared haversine, not an open-coded SphericalGreatCircle loop: the
+        // cumulative distance this returns is compared against distances the
+        // metrics engine produces, so the two must use one implementation.
+        cumDist += haversineMeters(points[i - 1], wpt);
       }
 
       final pointCalculator = SphericalGreatCircle(

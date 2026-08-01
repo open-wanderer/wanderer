@@ -121,19 +121,46 @@ abstract class _$ProfileNotifier extends $AsyncNotifier<Actor> {
 
 /// keepAlive provider — fetches the current user's own profile Actor.
 /// Reads handle from authProvider.preferredUsername (per D-02).
-/// Cache refreshed only on pull-to-refresh (Phase 2); no app-resume invalidation (D-03).
+/// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
+/// (T-h2p-02: watching `authProvider` instead of reading it once means this
+/// provider rebuilds — and re-fetches — the moment auth resolves to a
+/// different session, rather than holding the first account's `Actor`
+/// forever); still no app-resume invalidation (D-03).
+///
+/// Writes every successful fetch through to `UserEntity.actor` and falls back
+/// to that cached actor when the fetch fails, so the own-profile screen renders
+/// its real layout offline instead of an error page. Only the genuinely
+/// network-bound sections (counts, lists, feed) degrade.
 
 @ProviderFor(OwnProfile)
 final ownProfileProvider = OwnProfileProvider._();
 
 /// keepAlive provider — fetches the current user's own profile Actor.
 /// Reads handle from authProvider.preferredUsername (per D-02).
-/// Cache refreshed only on pull-to-refresh (Phase 2); no app-resume invalidation (D-03).
+/// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
+/// (T-h2p-02: watching `authProvider` instead of reading it once means this
+/// provider rebuilds — and re-fetches — the moment auth resolves to a
+/// different session, rather than holding the first account's `Actor`
+/// forever); still no app-resume invalidation (D-03).
+///
+/// Writes every successful fetch through to `UserEntity.actor` and falls back
+/// to that cached actor when the fetch fails, so the own-profile screen renders
+/// its real layout offline instead of an error page. Only the genuinely
+/// network-bound sections (counts, lists, feed) degrade.
 final class OwnProfileProvider
     extends $AsyncNotifierProvider<OwnProfile, Actor> {
   /// keepAlive provider — fetches the current user's own profile Actor.
   /// Reads handle from authProvider.preferredUsername (per D-02).
-  /// Cache refreshed only on pull-to-refresh (Phase 2); no app-resume invalidation (D-03).
+  /// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
+  /// (T-h2p-02: watching `authProvider` instead of reading it once means this
+  /// provider rebuilds — and re-fetches — the moment auth resolves to a
+  /// different session, rather than holding the first account's `Actor`
+  /// forever); still no app-resume invalidation (D-03).
+  ///
+  /// Writes every successful fetch through to `UserEntity.actor` and falls back
+  /// to that cached actor when the fetch fails, so the own-profile screen renders
+  /// its real layout offline instead of an error page. Only the genuinely
+  /// network-bound sections (counts, lists, feed) degrade.
   OwnProfileProvider._()
     : super(
         from: null,
@@ -153,11 +180,20 @@ final class OwnProfileProvider
   OwnProfile create() => OwnProfile();
 }
 
-String _$ownProfileHash() => r'545e771d72c533a8121a7fcde8f3863740882abf';
+String _$ownProfileHash() => r'893e3bb20e9fd2f84c8e373379c0d32f0139daf2';
 
 /// keepAlive provider — fetches the current user's own profile Actor.
 /// Reads handle from authProvider.preferredUsername (per D-02).
-/// Cache refreshed only on pull-to-refresh (Phase 2); no app-resume invalidation (D-03).
+/// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
+/// (T-h2p-02: watching `authProvider` instead of reading it once means this
+/// provider rebuilds — and re-fetches — the moment auth resolves to a
+/// different session, rather than holding the first account's `Actor`
+/// forever); still no app-resume invalidation (D-03).
+///
+/// Writes every successful fetch through to `UserEntity.actor` and falls back
+/// to that cached actor when the fetch fails, so the own-profile screen renders
+/// its real layout offline instead of an error page. Only the genuinely
+/// network-bound sections (counts, lists, feed) degrade.
 
 abstract class _$OwnProfile extends $AsyncNotifier<Actor> {
   FutureOr<Actor> build();

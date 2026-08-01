@@ -11,10 +11,11 @@ import 'package:wanderer/components/route_planner/travel_profile_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/settings.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
-import 'package:wanderer/provider/map_camera_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
+import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/trail_import_util.dart';
 
 class TrailSourceSelectScreen extends ConsumerStatefulWidget {
@@ -41,6 +42,13 @@ class _TrailSourceSelectScreenState
   /// `_openPlanner`/`_importGpx`'s existing loading-flag pattern.
   Future<void> _openRecorder(AppLocalizations l10n) async {
     if (_recorderLoading) return;
+
+    // Same entry-point picker `_openPlanner` uses — a trail-less recording
+    // has no trail category for `costingForCategory` to derive "Follow
+    // roads"' costing from at save time, so the choice is captured here
+    // instead and threaded through to `NavigationScreen.recordingCosting`.
+    final bucket = await showTravelProfileSheet(context);
+    if (!mounted || bucket == null) return;
 
     void showError(String text) => ref
         .read(toastProvider.notifier)
@@ -80,6 +88,17 @@ class _TrailSourceSelectScreenState
     if (!mounted) return;
     setState(() => _recorderLoading = true);
     try {
+      // Probe backend reachability concurrently with the GPS wait — running
+      // both under one spinner instead of serializing their timeouts — to
+      // decide whether `NavigationScreen` renders from the online style or the
+      // network-free offline style path. A recording session itself never
+      // needs the network; without this flag the recorder opens the online
+      // map, whose `/map/style-sources` fetch never resolves offline and
+      // leaves the screen stuck on its loading spinner.
+      final offlineFuture = ref
+          .read(onlineStatusProvider.notifier)
+          .refresh()
+          .then((online) => !online);
       LocationMarkerPosition? pos;
       try {
         pos = await ref
@@ -94,9 +113,17 @@ class _TrailSourceSelectScreenState
         showError(l10n.location_unavailable);
         return;
       }
+      final isOffline = await offlineFuture;
+      if (!mounted) return;
       context.push(
         '/record',
-        extra: {'lat': pos.latitude, 'lon': pos.longitude},
+        extra: {
+          'lat': pos.latitude,
+          'lon': pos.longitude,
+          'position': seedPositionFrom(pos),
+          'costing': bucket.costing,
+          'isOffline': isOffline,
+        },
       );
     } finally {
       if (mounted) setState(() => _recorderLoading = false);
@@ -145,9 +172,6 @@ class _TrailSourceSelectScreenState
   }
 
   Geographic _fallbackCenter(Settings? settings) {
-    final cam = ref.read(mapCameraProvider);
-    if (cam != null) return cam.center;
-
     final loc = settings?.location;
     if (loc != null) return Geographic(lat: loc.lat, lon: loc.lon);
 
@@ -183,6 +207,13 @@ class _TrailSourceSelectScreenState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isOnline = ref.watch(onlineStatusProvider);
+
+    // Any in-flight action disables all three cards, so a second tap cannot
+    // race the first.
+    final busy = _importLoading || _plannerLoading || _recorderLoading;
+
+    final networkBlocked = busy || !isOnline;
 
     return Scaffold(
       appBar: AppBar(
@@ -198,31 +229,25 @@ class _TrailSourceSelectScreenState
             description:
                 "Design your perfect route from scratch using our map tools.",
             isLoading: _plannerLoading,
-            onTap: (_importLoading || _plannerLoading || _recorderLoading)
-                ? null
-                : () => _openPlanner(l10n),
+            onTap: networkBlocked ? null : () => _openPlanner(l10n),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _SourceActionCard(
             icon: FontAwesomeIcons.solidCircleDot,
             title: l10n.trail_source_record,
             description:
                 "Track your live coordinates and log your journey in real-time.",
             isLoading: _recorderLoading,
-            onTap: (_importLoading || _plannerLoading || _recorderLoading)
-                ? null
-                : () => _openRecorder(l10n),
+            onTap: busy ? null : () => _openRecorder(l10n),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _SourceActionCard(
             icon: FontAwesomeIcons.fileArrowUp,
             title: l10n.trail_source_import,
             description:
                 "Upload external GPX files directly from your device storage.",
             isLoading: _importLoading,
-            onTap: (_importLoading || _plannerLoading || _recorderLoading)
-                ? null
-                : () => _importGpx(l10n),
+            onTap: busy ? null : () => _importGpx(l10n),
           ),
         ],
       ),
@@ -255,13 +280,13 @@ class _SourceActionCard extends StatelessWidget {
         : theme.colorScheme.secondaryContainer.withValues(alpha: 0.4);
     final resolvedIconColor = disabled
         ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
-        : theme.colorScheme.primary;
+        : theme.colorScheme.onSurface.withValues(alpha: 1);
     final resolvedTitleColor = disabled
         ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
         : null;
     final resolvedDescriptionColor = disabled
         ? theme.colorScheme.onSurface.withValues(alpha: 0.38)
-        : theme.colorScheme.onSurfaceVariant;
+        : theme.colorScheme.onSurface.withValues(alpha: 0.6);
     final resolvedBorderColor = disabled
         ? theme.colorScheme.outline.withValues(alpha: 0.3)
         : theme.colorScheme.outline;

@@ -1,0 +1,31 @@
+{
+  "id": "05-stationary-noise-returns",
+  "covers": ["CONV-04"],
+  "derivation": "hand",
+  "notes": "61 samples at a single fixed coordinate, altitude alternating 1000/1007, ending back at 1000 (i even => 1000, i odd => 1007, i = 0..60). Every +/-7 m swing returns to the pre-excursion elevation without any horizontal movement (returnDistance is always 0, well under the 5 m threshold), so the defer-then-publish filter discards each excursion as noise. Nothing is ever published or left pending at the end, so both gain and loss are 0.",
+  "metrics": {
+    "distance": 0,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "durationMs": 0,
+    "pointCount": 61,
+    "boundingBox": { "minLat": 47.0, "maxLat": 47.0, "minLon": 11.0, "maxLon": 11.0 },
+    "centroid": { "lat": 47.0, "lon": 11.0 }
+  },
+  "trail": {
+    "name": "Stationary Noise Returns",
+    "description": null,
+    "lat": 47.0,
+    "lon": 11.0,
+    "date": null,
+    "distance": 0,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "duration": 0,
+    "minLat": 47.0,
+    "maxLat": 47.0,
+    "minLon": 11.0,
+    "maxLon": 11.0,
+    "waypoints": []
+  }
+}

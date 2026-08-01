@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/components/route_planner/travel_profile_sheet.dart';
 import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
 
 /// A `CategoryNotifier` fake returning an empty list synchronously — avoids
@@ -14,6 +16,15 @@ class _FakeCategoryNotifier extends CategoryNotifier {
   @override
   FutureOr<List<Category>> build() async => const [];
 }
+
+/// A `SubcategoryNotifier` fake returning an empty list — the sheet resolves
+/// its bucket icons through `categorySelectionForBucket`, which now consults
+/// subcategories, and the real notifier would reach for ObjectBox.
+class _FakeSubcategoryNotifier extends SubcategoryNotifier {
+  @override
+  List<Subcategory> build() => const [];
+}
+
 
 /// Opens [showTravelProfileSheet] on tap and stashes the awaited result in
 /// [onResult] so the test can assert on it after the sheet closes.
@@ -46,6 +57,7 @@ void main() {
       ProviderScope(
         overrides: [
           categoryProvider.overrideWith(() => _FakeCategoryNotifier()),
+          subcategoryProvider.overrideWith(() => _FakeSubcategoryNotifier()),
         ],
         child: MaterialApp(home: _Host(onResult: (_) {})),
       ),
@@ -69,6 +81,7 @@ void main() {
         ProviderScope(
           overrides: [
             categoryProvider.overrideWith(() => _FakeCategoryNotifier()),
+            subcategoryProvider.overrideWith(() => _FakeSubcategoryNotifier()),
           ],
           child: MaterialApp(
             home: _Host(onResult: (result) => captured = result),
@@ -94,6 +107,7 @@ void main() {
       ProviderScope(
         overrides: [
           categoryProvider.overrideWith(() => _FakeCategoryNotifier()),
+          subcategoryProvider.overrideWith(() => _FakeSubcategoryNotifier()),
         ],
         child: MaterialApp(
           home: _Host(onResult: (result) => captured = result),

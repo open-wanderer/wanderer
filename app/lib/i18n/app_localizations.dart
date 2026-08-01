@@ -164,6 +164,12 @@ abstract class AppLocalizations {
   /// **'Add Waypoint'**
   String get add_waypoint;
 
+  /// No description provided for @adjust_track.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust track'**
+  String get adjust_track;
+
   /// No description provided for @after.
   ///
   /// In en, this message translates to:
@@ -229,6 +235,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get cancel;
+
+  /// No description provided for @discard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get discard;
+
+  /// No description provided for @discard_trail_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard this trail and its changes?'**
+  String get discard_trail_confirm;
 
   /// No description provided for @car.
   ///
@@ -1076,11 +1094,41 @@ abstract class AppLocalizations {
   /// **'{n, plural, =1 {Route} other {Routes}}'**
   String route(num n);
 
+  /// No description provided for @follow_roads.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow roads'**
+  String get follow_roads;
+
+  /// No description provided for @follow_roads_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Snap the recorded path to the nearest roads and trails.'**
+  String get follow_roads_description;
+
+  /// No description provided for @recalculate_heights.
+  ///
+  /// In en, this message translates to:
+  /// **'Recalculate heights'**
+  String get recalculate_heights;
+
+  /// No description provided for @recalculate_heights_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace recorded GPS elevation with more accurate values from the map.'**
+  String get recalculate_heights_description;
+
   /// No description provided for @save.
   ///
   /// In en, this message translates to:
   /// **'Save'**
   String get save;
+
+  /// No description provided for @save_recording_options.
+  ///
+  /// In en, this message translates to:
+  /// **'Save recording'**
+  String get save_recording_options;
 
   /// No description provided for @save_track.
   ///
@@ -1241,7 +1289,7 @@ abstract class AppLocalizations {
   /// No description provided for @slogan.
   ///
   /// In en, this message translates to:
-  /// **'Save your adventures!'**
+  /// **'Your trails. Your data. Your server.'**
   String get slogan;
 
   /// No description provided for @sort.
@@ -1723,6 +1771,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Library'**
   String get library;
+
+  /// No description provided for @settings_offline_regions_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline Maps/Regions'**
+  String get settings_offline_regions_title;
+
+  /// No description provided for @regions_search_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search regions'**
+  String get regions_search_hint;
+
+  /// No description provided for @regions_dem_toggle_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Download elevation data (DEM)'**
+  String get regions_dem_toggle_label;
+
+  /// No description provided for @regions_dem_toggle_caption.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds hillshading; increases download size'**
+  String get regions_dem_toggle_caption;
+
+  /// No description provided for @regions_update_available.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get regions_update_available;
+
+  /// No description provided for @regions_update_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get regions_update_action;
+
+  /// No description provided for @regions_retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get regions_retry;
+
+  /// No description provided for @regions_not_yet_available.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet available'**
+  String get regions_not_yet_available;
+
+  /// No description provided for @regions_build_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Build failed'**
+  String get regions_build_failed;
+
+  /// No description provided for @regions_delete_confirm_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String regions_delete_confirm_title(String name);
+
+  /// No description provided for @regions_delete_confirm_body.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the downloaded map and elevation data for this region. You\'ll need to download it again to use it offline.'**
+  String get regions_delete_confirm_body;
+
+  /// No description provided for @regions_delete_confirm_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get regions_delete_confirm_action;
+
+  /// No description provided for @regions_disk_usage_summary.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} used across {count} downloaded region(s)'**
+  String regions_disk_usage_summary(String size, num count);
+
+  /// No description provided for @regions_empty_search_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching regions'**
+  String get regions_empty_search_title;
+
+  /// No description provided for @regions_empty_search_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a different search term.'**
+  String get regions_empty_search_body;
+
+  /// No description provided for @regions_empty_catalog_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No offline regions available'**
+  String get regions_empty_catalog_title;
+
+  /// No description provided for @regions_empty_catalog_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your Wanderer instance administrator to configure downloadable regions.'**
+  String get regions_empty_catalog_body;
+
+  /// No description provided for @regions_vector_tile_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Vector'**
+  String get regions_vector_tile_title;
+
+  /// No description provided for @regions_dem_tile_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Elevation data'**
+  String get regions_dem_tile_title;
+
+  /// No description provided for @regions_download_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed'**
+  String get regions_download_failed;
+
+  /// No description provided for @regions_dem_locked_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download map data first'**
+  String get regions_dem_locked_subtitle;
+
+  /// No description provided for @regions_offline_unavailable_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t load regions'**
+  String get regions_offline_unavailable_title;
+
+  /// No description provided for @regions_offline_unavailable_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to browse and manage downloadable regions.'**
+  String get regions_offline_unavailable_body;
+
+  /// No description provided for @regions_group_expand_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand {name}'**
+  String regions_group_expand_label(String name);
+
+  /// No description provided for @regions_group_collapse_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse {name}'**
+  String regions_group_collapse_label(String name);
+
+  /// Title shown by the shared offline takeover state (map, list, profile) when the backend is unreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline'**
+  String get offline_title;
+
+  /// Retry button label on the shared offline takeover state.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get offline_try_again;
+
+  /// Body copy for the map screen's offline takeover.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to load the map. Downloaded trails are still available.'**
+  String get offline_map_body;
+
+  /// Body copy for the list screen's offline takeover.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to load lists.'**
+  String get offline_list_body;
+
+  /// Body copy for the profile screen's offline takeover of network-only sections.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to load your full profile.'**
+  String get offline_profile_body;
+
+  /// No description provided for @offline_settings_banner.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline. Settings are read-only until you reconnect.'**
+  String get offline_settings_banner;
+
+  /// No description provided for @offline_action_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline — try again once you\'re back online.'**
+  String get offline_action_unavailable;
+
+  /// Body copy for the categories and subcategories settings screens' offline state.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to manage categories.'**
+  String get offline_categories_body;
+
+  /// Body copy shown inside the map screen's draggable trail-results sheet when offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the internet to search for trails. Downloaded trails are still available.'**
+  String get offline_trail_search_body;
 }
 
 class _AppLocalizationsDelegate

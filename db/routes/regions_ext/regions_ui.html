@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Region Catalog · Wanderer</title>
+  <link rel="icon" href="/_/images/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+
+  <!-- Sync: theme + accent color before first paint to avoid flash -->
+  <script>
+    (function () {
+      var s = localStorage.getItem('pbColorScheme');
+      if (s === 'dark' || (!s && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+      try {
+        var pb = JSON.parse(localStorage.getItem('pbSettings') || '{}');
+        var accent = (pb.meta && pb.meta.accentColor) || '#1055c9';
+        document.documentElement.style.setProperty('--accent', accent);
+        var r = parseInt(accent.slice(1, 3), 16), g = parseInt(accent.slice(3, 5), 16), b = parseInt(accent.slice(5, 7), 16);
+        document.documentElement.style.setProperty('--accent-fade', 'rgba(' + r + ',' + g + ',' + b + ',0.1)');
+      } catch (_) { }
+    })();
+  </script>
+
+  <style>
+    :root {
+      --accent: #1055c9;
+      --accent-fade: rgba(16, 85, 201, 0.1);
+      --bg: #ffffff;
+      --surface: #f8f9fa;
+      --surface2: #e4e8ec;
+      --border: #e2e2e4;
+      --text: #16181a;
+      --text2: #9a9a9a;
+      --danger: #e1473d;
+
+      /* Status-badge tokens are deliberately separate from --accent/--danger.
+         Those two are not redefined for the dark theme, so reusing them here
+         would put #1055c9 on #1f1f1f (~1.9:1) and fail the 3:1 floor for a
+         meaningful graphic. These carry their own dark values below. */
+      --badge-pending: #1055c9;
+      --badge-pending-bg: rgba(16, 85, 201, 0.10);
+      --badge-ok: #0f7a4d;
+      --badge-ok-bg: rgba(15, 122, 77, 0.12);
+      --badge-error: #c9372c;
+      --badge-error-bg: rgba(225, 71, 61, 0.12);
+    }
+
+    html.dark {
+      --bg: #1f1f1f;
+      --surface: #232323;
+      --surface2: #2f2f2f;
+      --border: #353849;
+      --text: #e4e5ea;
+      --text2: #6e7491;
+
+      --badge-pending: #7aa9ff;
+      --badge-pending-bg: rgba(122, 169, 255, 0.16);
+      --badge-ok: #4ecf95;
+      --badge-ok-bg: rgba(78, 207, 149, 0.16);
+      --badge-error: #ff8a80;
+      --badge-error-bg: rgba(255, 138, 128, 0.16);
+    }
+
+    [x-cloak] { display: none !important; }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* SVG logo: inner fills must match the header bg so the cutout effect works */
+    .app-header .logo-accent-fill {
+      fill: var(--accent);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ── Header (reused verbatim from federation_ui.html) ──── */
+    .app-header {
+      height: 38px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .header-sep {
+      width: 1px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.22);
+      flex-shrink: 0;
+    }
+
+    .header-label {
+      color: rgba(255, 255, 255, 1);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .header-email {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 13px;
+    }
+
+    .header-link {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 13px;
+      text-decoration: none;
+      transition: color 0.12s;
+    }
+
+    .header-link:hover {
+      color: #fff;
+    }
+
+    .header-spacer {
+      flex: 1;
+    }
+
+    /* ── Inputs / buttons / spinners (reused verbatim) ──────── */
+    .input {
+      height: 36px;
+      padding: 0 12px 0 34px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-fade);
+    }
+
+    .input::placeholder {
+      color: var(--text2);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 14px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: opacity 0.12s, background 0.12s;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-sm {
+      height: 30px;
+      padding: 0 11px;
+      font-size: 12px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .btn-primary:not(:disabled):hover {
+      opacity: 0.87;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    .btn-outline:not(:disabled):hover {
+      background: var(--bg);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+      border-color: var(--danger);
+    }
+
+    .btn-danger:not(:disabled):hover {
+      opacity: 0.87;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.55s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .spinner-accent {
+      border-color: var(--border);
+      border-top-color: var(--accent);
+    }
+
+    /* ── Login prompt (reused verbatim) ─────────────────────── */
+    .login-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+    }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 44px 36px;
+      max-width: 380px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .login-icon {
+      font-size: 38px;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .login-card h2 {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .login-card p {
+      color: var(--text2);
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .login-note {
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    /* ── Phase-30: two-pane layout (net new) ────────────────── */
+    .main-split {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      height: calc(100vh - 38px);
+    }
+
+    .tree-pane {
+      width: 380px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      min-height: 0;
+    }
+
+    .tree-pane-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tree-pane-header h1 {
+      font-size: 19px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tree-pane-header h1 i {
+      color: var(--accent);
+      font-size: 22px;
+    }
+
+    .sync-hint {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .sync-btn {
+      margin-top: 6px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .tree-filter-wrap {
+      position: relative;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .tree-filter-wrap i {
+      position: absolute;
+      left: 28px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text2);
+      font-size: 15px;
+      pointer-events: none;
+    }
+
+    .tree-rows {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .tree-empty-state {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text2);
+    }
+
+    .tree-empty-state i {
+      font-size: 28px;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .tree-empty-state .state-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    /* ── Phase-30 component classes ─────────────────────────── */
+    .tree-row {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-right: 12px;
+      cursor: default;
+      transition: background 0.1s;
+    }
+
+    .tree-row-clickable {
+      cursor: pointer;
+    }
+
+    .tree-row:hover {
+      background: var(--surface2);
+    }
+
+    .tree-row .chevron {
+      cursor: pointer;
+      color: var(--text2);
+      font-size: 16px;
+      flex-shrink: 0;
+      width: 16px;
+      text-align: center;
+    }
+
+    .tree-row .row-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .archive-size {
+      font-size: 11px;
+      color: var(--text2);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Build-state badge for an enabled leaf that is not currently building.
+       Occupies the same 14px slot the spinner does, so a region swapping
+       between building and settled states never shifts the row. Icon-only
+       by design: the tree runs to ~1300 rows and a text label per row would
+       dominate it — the meaning is carried by title (pointer) and aria-label
+       (assistive tech), which is also where the error detail lives. */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      font-size: 11px;
+      line-height: 1;
+      cursor: help;
+      animation: badge-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .status-badge--pending { color: var(--badge-pending); background: var(--badge-pending-bg); }
+    .status-badge--ok      { color: var(--badge-ok);      background: var(--badge-ok-bg); }
+    .status-badge--error   { color: var(--badge-error);   background: var(--badge-error-bg); }
+
+    @keyframes badge-in {
+      from { opacity: 0; transform: scale(0.7); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .status-badge { animation: none; }
+    }
+
+    /* ── Disable-with-archive confirm dialog (net new) ──────── */
+    .dialog-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 24px;
+    }
+
+    .dialog-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      max-width: 420px;
+      width: 100%;
+    }
+
+    .dialog-card h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .dialog-card p {
+      color: var(--text2);
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .dialog-card p strong {
+      color: var(--text);
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .toggle-slot {
+      flex-shrink: 0;
+      width: 36px;
+      height: 20px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+      border-radius: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch[aria-checked="true"] {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* Group toggle, some but not all leaves enabled (D-06 branch toggle) */
+    .toggle-switch[aria-checked="mixed"] {
+      background: var(--accent-fade);
+      border-color: var(--accent);
+    }
+
+    .toggle-switch .toggle-thumb {
+      position: absolute;
+      top: 1px;
+      left: 1px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.15s;
+    }
+
+    .toggle-switch[aria-checked="true"] .toggle-thumb {
+      transform: translateX(16px);
+    }
+
+    .toggle-switch[aria-checked="mixed"] .toggle-thumb {
+      transform: translateX(8px);
+      background: var(--accent);
+    }
+
+    .map-pane {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      background: var(--bg);
+    }
+
+    .row-error {
+      color: var(--danger);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .count-badge {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-fade);
+      padding: 2px 9px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    /* ── Live map overlays (loading spinner / empty state, ADMINUI-03) ── */
+    .map-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    /* Backdrop is a fixed translucent white scrim regardless of app theme
+       (legible over the MapLibre basemap's own varied tile colors, which
+       don't follow light/dark mode) — text/icon colors here must stay
+       fixed-dark too, not var(--text), which flips light in dark mode and
+       disappears against this backdrop. */
+    .map-empty-state {
+      flex-direction: column;
+      text-align: center;
+      color: #16181a;
+      background-color: #ffffff96;
+      gap: 4px;
+    }
+
+    .map-empty-state i {
+      font-size: 28px;
+      color: #16181a;
+    }
+
+    .map-empty-state .state-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #16181a;
+    }
+  </style>
+
+  <!-- Alpine app — MUST be defined before the defer'd Alpine CDN tag -->
+  <script>
+    // ── Pure tree helpers (module scope, no Alpine `this`) ──────────
+    // buildTree/flattenVisible/computeDefaultExpanded/computeFilterMatches
+    // implement D-02/D-07/D-08 per 30-RESEARCH.md Pattern 3. Task 30-01-03
+    // wires these into regionsApp(); left here (not inside the Alpine
+    // factory) so they stay easily unit-testable/pure.
+
+    function buildTree(rows) {
+      var byId = new Map();
+      rows.forEach(function (r) {
+        byId.set(r.id, Object.assign({}, r, { children: [] }));
+      });
+      var roots = [];
+      byId.forEach(function (node) {
+        if (node.parent && byId.has(node.parent)) {
+          byId.get(node.parent).children.push(node);
+        } else {
+          roots.push(node);
+        }
+      });
+      byId.forEach(function (node) {
+        node.children.sort(function (a, b) { return a.sort_order - b.sort_order; });
+      });
+      roots.sort(function (a, b) { return a.sort_order - b.sort_order; });
+      return roots;
+    }
+
+    // All leaf tree nodes under `node` (node itself if it's already a leaf).
+    // Used by the group toggle to find every region a branch-level flip
+    // must touch, and by groupState() to derive the tri-state indicator.
+    function leafDescendants(node) {
+      var leaves = [];
+      (function walk(n) {
+        if (n.kind === 'leaf') { leaves.push(n); return; }
+        n.children.forEach(walk);
+      })(node);
+      return leaves;
+    }
+
+    function computeDefaultExpanded(roots) {
+      var expanded = new Set();
+      function hasEnabledDescendant(node) {
+        if (node.kind === 'leaf') return !!node.enabled;
+        var any = node.children.some(hasEnabledDescendant);
+        if (any) expanded.add(node.id);
+        return any;
+      }
+      roots.forEach(hasEnabledDescendant);
+      return expanded;
+    }
+
+    function flattenVisible(roots, expandedSet, filterMatchSet) {
+      var out = [];
+      (function walk(nodes, depth) {
+        nodes.forEach(function (n) {
+          if (filterMatchSet && !filterMatchSet.has(n.id)) return;
+          // Push the tree node itself (not a stripped-down copy) so it keeps
+          // path/bbox and stays the same reference as the canonical roots
+          // tree — toggling `enabled` on a visible row must persist across
+          // re-flattens (expand/collapse, filter changes), not just render
+          // once and silently revert.
+          n.depth = depth;
+          out.push(n);
+          if (n.kind === 'group') {
+            // D-08: while a filter is active, matched groups are treated as
+            // expanded (non-matching children were already excluded above);
+            // otherwise fall back to the explicit expandedSet (D-07).
+            var shouldDescend = filterMatchSet ? true : expandedSet.has(n.id);
+            if (shouldDescend) walk(n.children, depth + 1);
+          }
+        });
+      })(roots, 0);
+      return out;
+    }
+
+    function computeFilterMatches(roots, query) {
+      if (!query) return null;
+      var q = query.toLowerCase();
+      var matchSet = new Set();
+      // A node whose own name matches pulls in its whole subtree (e.g.
+      // searching "Alberta" should surface every leaf under it, not just
+      // the "Alberta" row itself) — a node that only matches via a
+      // descendant stays narrow (ancestors + that one path).
+      function addSubtree(node) {
+        matchSet.add(node.id);
+        node.children.forEach(addSubtree);
+      }
+      function walk(node, ancestors) {
+        var selfMatch = node.name.toLowerCase().indexOf(q) !== -1;
+        if (selfMatch) {
+          addSubtree(node);
+          ancestors.forEach(function (a) { matchSet.add(a); });
+          return true;
+        }
+        var childMatch = false;
+        node.children.forEach(function (child) {
+          if (walk(child, ancestors.concat([node.id]))) childMatch = true;
+        });
+        if (childMatch) {
+          matchSet.add(node.id);
+          ancestors.forEach(function (a) { matchSet.add(a); });
+          return true;
+        }
+        return false;
+      }
+      roots.forEach(function (r) { walk(r, []); });
+      return matchSet;
+    }
+
+    function formatBytes(n) {
+      if (!n || n <= 0) return null;
+      var units = ['B', 'KB', 'MB', 'GB'];
+      var i = 0;
+      while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+      return (i === 0 ? n : n.toFixed(1)) + ' ' + units[i];
+    }
+
+    function regionsApp() {
+      return {
+        // ── reused auth state (verbatim from federation_ui.html) ────
+        token: null,
+        authenticated: false,
+        email: '',
+
+        // ── phase-30 state stubs ─────────────────────────────────────
+        regions: [],
+        roots: [],
+        visibleRows: [],
+        expanded: new Set(),
+        filterQuery: '',
+        filterMatches: null,
+        rowErrors: {},
+        archiveSizes: {}, // region path -> already-downloaded archive bytes on disk
+        deleteDialog: null, // { row, sizeLabel } while the disable-with-archive confirm is open
+        buildingPaths: new Set(), // region paths currently building, per region_archives.status/dem_status
+        archiveStates: {}, // region path -> { status, demStatus, error, demError }, drives the settled-state badge
+        syncing: false, // true from the moment "Sync now" is clicked (or discovered already running on load) until nothing is building
+        _syncPollTimer: null,
+        nextScheduledRun: null, // Date the nightly cron will next fire on its own, or null if unknown
+        map: null,
+        mapLoaded: false,
+        enabledPolygons: [],
+        loading: false,
+        _filterDebounceTimer: null,
+        _accentColor: '#1055c9',
+        _hoverDebounceTimer: null,
+        _hoverToken: 0,
+        _polygonCache: {},
+
+        init() {
+          var stored = localStorage.getItem('__pb_superusers__/_');
+          if (!stored) { return; }
+          try {
+            var parsed = JSON.parse(stored);
+            this.token = parsed.token;
+            try {
+              var payload = JSON.parse(atob(this.token.split('.')[1]));
+              this.email = payload.email || '';
+            } catch (_) { }
+          } catch (_) { return; }
+          if (!this.token) { return; }
+          if (this.isTokenExpired(this.token)) { return; }
+          this.authenticated = true;
+          this.loadRegions().then(() => { this.initMap(); });
+          this.loadArchiveSizes();
+          this.checkSyncStatus();
+
+          this.$watch('filterQuery', () => {
+            clearTimeout(this._filterDebounceTimer);
+            this._filterDebounceTimer = setTimeout(() => {
+              this.filterMatches = computeFilterMatches(this.roots, this.filterQuery);
+              this.recomputeVisibleRows();
+            }, 120);
+          });
+        },
+
+        isTokenExpired(token) {
+          try {
+            var payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.exp && Date.now() / 1000 > payload.exp;
+          } catch (_) { return true; }
+        },
+
+        async apiFetch(path, opts) {
+          opts = opts || {};
+          var res = await fetch(path, Object.assign({}, opts, {
+            headers: Object.assign({ 'Authorization': this.token }, opts.headers || {})
+          }));
+          if (res.status === 401) { this.authenticated = false; return null; }
+          return res;
+        },
+
+        get enabledCount() {
+          return this.regions.filter(function (r) { return r.kind === 'leaf' && r.enabled; }).length;
+        },
+
+        // 30-01-03 fills in the real fetch/build/flatten pipeline below;
+        // this stub keeps the page loadable/testable after Task 1.
+        async loadRegions() {
+          this.loading = true;
+          try {
+            var rows = await this.loadAllRegions();
+            if (rows === null) return; // apiFetch already handled 401
+            this.regions = rows;
+            this.roots = buildTree(rows);
+            this.expanded = computeDefaultExpanded(this.roots);
+            this.filterMatches = null;
+            this.recomputeVisibleRows();
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        // D-02/Pitfall 2: PocketBase v0.38.0 hard-caps perPage at 1000, so
+        // the 1,306-row catalog needs a 2-page loop, not a single fetch.
+        async loadAllRegions() {
+          var page = 1, all = [], totalPages = 1;
+          do {
+            var res = await this.apiFetch('/api/collections/regions/records?perPage=1000&page=' + page + '&sort=sort_order');
+            if (!res) return null;
+            var data = await res.json();
+            all = all.concat(data.items);
+            totalPages = data.totalPages;
+            page++;
+          } while (page <= totalPages);
+          return all;
+        },
+
+        // Actual on-disk size of already-built archives (not an estimate —
+        // vector_size_bytes/dem_size_bytes are recorded by the builder once
+        // a region's vector.pmtiles/dem.pmtiles are written to
+        // pb_data/region_archives/, see db/routes/regions_get.go). Loaded
+        // independently of loadRegions/loadAllRegions — it's decorative
+        // info, not part of the tree structure, so a slow/failed fetch here
+        // shouldn't block the tree or map from rendering.
+        async loadArchiveSizes() {
+          var page = 1, all = [], totalPages = 1;
+          do {
+            var res = await this.apiFetch('/api/collections/region_archives/records?perPage=1000&page=' + page);
+            if (!res || !res.ok) return;
+            var data = await res.json();
+            all = all.concat(data.items);
+            totalPages = data.totalPages;
+            page++;
+          } while (page <= totalPages);
+
+          var sizes = {};
+          var building = new Set();
+          var states = {};
+          all.forEach(function (a) {
+            states[a.path] = {
+              status: a.status,
+              demStatus: a.dem_status,
+              error: a.error_message,
+              demError: a.dem_error_message,
+            };
+            // Keyed on `path`, not `region_id`: the field was renamed in
+            // 92f3ac6d ("download by path") a few hours after this code was
+            // written, and the rename missed this call site. Reading the old
+            // name yielded undefined, so both maps ended up keyed on a single
+            // `undefined` entry — `buildingPaths.has(row.path)` never matched
+            // and the per-row build spinner and size badge both silently
+            // stopped rendering.
+            sizes[a.path] = (a.vector_size_bytes || 0) + (a.dem_size_bytes || 0);
+            if (a.status === 'building' || a.dem_status === 'building') building.add(a.path);
+          });
+          this.archiveSizes = sizes;
+          this.buildingPaths = building;
+          this.archiveStates = states;
+        },
+
+        // Build state for an enabled, not-currently-building leaf. Returns the
+        // badge's kind, icon, accessible label and tooltip text.
+        //
+        // A region with no region_archives row at all is "pending", not an
+        // error: enabling a region only sets a flag — the archive is built by
+        // the nightly cron or an explicit "Sync now", so the gap between the
+        // two is a normal state an admin needs to be able to read.
+        //
+        // The DEM (terrain) build is best-effort and independent of the vector
+        // map. A region whose vector is ready but whose DEM failed is still
+        // downloadable, so it stays green rather than red — the tooltip
+        // carries the caveat instead of the badge over-reporting a failure.
+        leafStatus(row) {
+          var a = this.archiveStates[row.path];
+
+          if (!a) {
+            return {
+              kind: 'pending', icon: 'ri-download-cloud-line', label: 'Not downloaded yet',
+              tooltip: 'Not downloaded yet — the next sync builds this region.',
+            };
+          }
+
+          if (a.status === 'error') {
+            return {
+              kind: 'error', icon: 'ri-error-warning-line', label: 'Build failed',
+              tooltip: 'Build failed: ' + (a.error || 'no error message recorded.'),
+            };
+          }
+
+          if (a.status === 'ready') {
+            return {
+              kind: 'ok', icon: 'ri-check-line', label: 'Downloaded',
+              tooltip: a.demStatus === 'error'
+                ? 'Downloaded, but terrain data failed: ' + (a.demError || 'no error message recorded.')
+                : 'Downloaded — this region is available offline.',
+            };
+          }
+
+          return {
+            kind: 'pending', icon: 'ri-download-cloud-line', label: 'Not downloaded yet',
+            tooltip: 'Not downloaded yet — the next sync builds this region.',
+          };
+        },
+
+        // "Sync now" (manually triggers the same BuildAll pass the nightly
+        // cron runs — regions_sync.go). The authoritative "is a sync still
+        // running" signal is always the server's /region-catalog/sync GET
+        // (regions.SyncRunning()), never a derived guess from
+        // buildingPaths — right after the pass starts there's a real window
+        // where the flag is already true but no region_archives row has
+        // flipped to "building" yet, so treating an empty buildingPaths as
+        // "finished" would falsely end the poll seconds too early.
+        // { running, nextScheduledRun } from one GET — both the polling
+        // loop's "is it done" check and the cold-load status check need
+        // `running`, and refreshing `nextScheduledRun` every poll tick too
+        // is harmless (it's a fixed, rarely-changing schedule computed
+        // fresh server-side each call, not something that needs its own
+        // separate fetch).
+        async fetchSyncStatus() {
+          var res = await this.apiFetch('/region-catalog/sync');
+          if (!res || !res.ok) return null; // unknown — caller must not change state on this
+          return await res.json();
+        },
+
+        applySyncStatus(data) {
+          if (!data) return;
+          this.nextScheduledRun = data.nextScheduledRun ? new Date(data.nextScheduledRun) : null;
+        },
+
+        // Local-time, not the raw UTC the server computes in — an admin
+        // reading "next scheduled run" wants it in their own clock.
+        nextScheduledRunLabel() {
+          if (!this.nextScheduledRun) return '';
+          return this.nextScheduledRun.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+        },
+
+        // Catches a sync already running from the cron or another admin's
+        // tab so a fresh page load still shows the correct disabled/syncing
+        // state, not just "syncing" started by this tab's own click. Also
+        // the only place nextScheduledRun is loaded outside of polling, so
+        // the hint above the button shows up even when nothing is syncing.
+        async checkSyncStatus() {
+          var data = await this.fetchSyncStatus();
+          this.applySyncStatus(data);
+          if (data && data.running) {
+            this.syncing = true;
+            this.startSyncPolling();
+          }
+        },
+
+        async startSync() {
+          if (this.syncing) return;
+          var res = await this.apiFetch('/region-catalog/sync', { method: 'POST' });
+          if (!res) return; // apiFetch already handled 401 -> logged-out state
+          // 202 = just started this pass; 409 = one was already running
+          // (another tab/cron) — either way there's now a sync in progress
+          // to reflect and poll.
+          if (res.status !== 202 && res.status !== 409) return;
+          this.syncing = true;
+          this.startSyncPolling();
+        },
+
+        startSyncPolling() {
+          if (this._syncPollTimer) return;
+          this._syncPollTimer = setInterval(() => this._syncPollTick(), 3000);
+        },
+
+        async _syncPollTick() {
+          var data = await this.fetchSyncStatus();
+          this.applySyncStatus(data);
+          await this.loadArchiveSizes(); // refresh per-leaf spinners + sizes as builds complete
+          if (data && data.running === false) {
+            this.syncing = false;
+            clearInterval(this._syncPollTimer);
+            this._syncPollTimer = null;
+          }
+        },
+
+        toggleExpand(id) {
+          if (this.expanded.has(id)) this.expanded.delete(id); else this.expanded.add(id);
+          this.expanded = new Set(this.expanded);
+          this.recomputeVisibleRows();
+        },
+
+        recomputeVisibleRows() {
+          this.visibleRows = flattenVisible(this.roots, this.expanded, this.filterMatches);
+        },
+
+        // Optimistic leaf toggle with revert-on-failure + inline per-row error
+        // (D-06, ADMINUI-02). Map hooks below are stubbed here (guarded by
+        // `if (!this.map) return;`) so this task is independently testable;
+        // 30-02 Task 2 replaces the stub bodies with real MapLibre layer calls.
+        // `row` is a node from the `roots` tree (see flattenVisible); `this.regions`
+        // is a separate flat array from the initial fetch used by enabledCount/
+        // enabledLeafRows. Flip both in lockstep so the header badge and the
+        // map's empty-state overlay react immediately instead of only after
+        // a full reload re-fetches `this.regions`.
+        setRegionEnabled(id, enabled) {
+          var region = this.regions.find(function (r) { return r.id === id; });
+          if (region) region.enabled = enabled;
+        },
+
+        // Turning a leaf OFF when it already has a downloaded archive asks
+        // first whether to also delete the files (deleteDialog gate below)
+        // — enabling, and disabling a leaf with nothing built yet, proceed
+        // immediately with no prompt.
+        async toggleRegion(row) {
+          if (row.enabled && this.archiveSizes[row.path]) {
+            this.deleteDialog = { row: row, sizeLabel: formatBytes(this.archiveSizes[row.path]) };
+            return;
+          }
+          await this.applyToggleRegion(row, false);
+        },
+
+        async applyToggleRegion(row, alsoDeleteFiles) {
+          var prevEnabled = row.enabled;
+          row.enabled = !prevEnabled; // 1. optimistic flip, instant feedback
+          this.setRegionEnabled(row.id, row.enabled);
+          // 2. Draw optimistically only when it is free — a polygon already in
+          //    the hover cache paints instantly with no request. A cold
+          //    region's outline is deliberately deferred until after the PATCH
+          //    below: resolving it now would hit the route while the record is
+          //    still enabled=false server-side, taking D-11's pass-through and
+          //    burning an upstream fetch that persists nothing.
+          if (row.enabled) {
+            if (this.map && this._polygonCache[row.path]) {
+              this.addRegionLayer(this.map, row.path, this._polygonCache[row.path]);
+            }
+          } else {
+            this.removePolygonForRow(row);
+          }
+          this.rowErrors = Object.assign({}, this.rowErrors, { [row.id]: undefined });
+
+          var res = await this.apiFetch('/api/collections/regions/records/' + row.id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: row.enabled }),
+          });
+          if (!res) return; // apiFetch already handled 401 -> logged-out state
+          if (!res.ok) {
+            row.enabled = prevEnabled; // 3. revert on failure
+            this.setRegionEnabled(row.id, row.enabled);
+            if (prevEnabled) { this.addPolygonForRow(row); } else { this.removePolygonForRow(row); }
+            var data = await res.json().catch(function () { return {}; });
+            this.rowErrors = Object.assign({}, this.rowErrors, {
+              [row.id]: "Couldn't update" + (data.message ? ': ' + data.message : '') + ' — try again.'
+            });
+            return;
+          }
+
+          // 4. The enable is committed, so the record now reads enabled=true.
+          //    Resolving here draws the outline for a region whose polygon was
+          //    not already cached, and the same call is what the server's
+          //    persist branch acts on if the background cache-on-enable hook
+          //    has not landed yet.
+          if (row.enabled) await this.addPolygonForRow(row);
+
+          if (alsoDeleteFiles) await this.deleteArchiveFiles(row);
+        },
+
+        // Deletes both pmtiles files (if present) and the region_archives
+        // record in one server-side call (regions_delete.go) — the toggle
+        // itself already succeeded by the time this runs, so a failure here
+        // only means the files/record linger, not that the region is stuck
+        // disabled; surfaced via the existing per-row error slot.
+        async deleteArchiveFiles(row) {
+          var res = await this.apiFetch('/region-catalog/' + encodeURIComponent(row.path) + '/archive', { method: 'DELETE' });
+          if (!res || !res.ok) {
+            this.rowErrors = Object.assign({}, this.rowErrors, {
+              [row.id]: "Disabled, but couldn't delete the downloaded files — try again from this row."
+            });
+            return;
+          }
+          var sizes = Object.assign({}, this.archiveSizes);
+          delete sizes[row.path];
+          this.archiveSizes = sizes;
+        },
+
+        confirmDeleteDialog(alsoDeleteFiles) {
+          var row = this.deleteDialog.row;
+          this.deleteDialog = null;
+          this.applyToggleRegion(row, alsoDeleteFiles);
+        },
+
+        cancelDeleteDialog() {
+          this.deleteDialog = null; // no toggle happens at all
+        },
+
+        // Tri-state indicator for a group row's toggle switch: 'all' (every
+        // leaf beneath it enabled), 'none' (none enabled), or 'partial'
+        // (some but not all — rendered as aria-checked="mixed").
+        groupState(row) {
+          var leaves = leafDescendants(row);
+          if (leaves.length === 0) return 'none';
+          var enabledCount = leaves.filter(function (l) { return l.enabled; }).length;
+          if (enabledCount === 0) return 'none';
+          if (enabledCount === leaves.length) return 'all';
+          return 'partial';
+        },
+
+        // Branch-level toggle: flips every leaf under `row` in the same
+        // direction (all-on if not already all-on, otherwise all-off).
+        // Same optimistic-flip / revert-on-failure shape as toggleRegion,
+        // but PATCHes each affected leaf individually (chunked, not a
+        // single bulk call — PocketBase's /api/batch endpoint is opt-in
+        // per-instance via Settings().Batch.Enabled, so relying on it here
+        // would silently break on instances that haven't turned it on).
+        // Only leaves whose failed PATCH we can't confirm get reverted, so
+        // a partial failure on a large branch doesn't discard successful
+        // toggles alongside it.
+        async toggleGroup(row) {
+          var leaves = leafDescendants(row);
+          if (leaves.length === 0) return;
+          var target = this.groupState(row) !== 'all';
+          var toToggle = leaves.filter(function (l) { return l.enabled !== target; });
+          if (toToggle.length === 0) return;
+
+          var prevStates = {};
+          toToggle.forEach((leaf) => {
+            prevStates[leaf.id] = leaf.enabled;
+            leaf.enabled = target;
+            this.setRegionEnabled(leaf.id, target);
+            // Same rule as the single-row toggle: paint only from cache here,
+            // and resolve cold outlines after the PATCHes land (below). A
+            // group can hold hundreds of leaves — resolving each one now would
+            // fire that many upstream fetches while every record is still
+            // enabled=false, none of which would persist.
+            if (target) {
+              if (this.map && this._polygonCache[leaf.path]) {
+                this.addRegionLayer(this.map, leaf.path, this._polygonCache[leaf.path]);
+              }
+            } else {
+              this.removePolygonForRow(leaf);
+            }
+          });
+          this.rowErrors = Object.assign({}, this.rowErrors, { [row.id]: undefined });
+
+          var failed = [];
+          var CHUNK = 20;
+          for (var i = 0; i < toToggle.length; i += CHUNK) {
+            var chunk = toToggle.slice(i, i + CHUNK);
+            var results = await Promise.all(chunk.map((leaf) => {
+              return this.apiFetch('/api/collections/regions/records/' + leaf.id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: target }),
+              }).then(function (res) { return { leaf: leaf, res: res }; });
+            }));
+            if (results.some(function (r) { return !r.res; })) return; // apiFetch already handled 401 -> logged-out state
+            results.forEach(function (r) { if (!r.res.ok) failed.push(r.leaf); });
+          }
+
+          if (failed.length > 0) {
+            failed.forEach((leaf) => {
+              var prev = prevStates[leaf.id];
+              leaf.enabled = prev;
+              this.setRegionEnabled(leaf.id, prev);
+              if (prev) { this.addPolygonForRow(leaf); } else { this.removePolygonForRow(leaf); }
+            });
+            this.rowErrors = Object.assign({}, this.rowErrors, {
+              [row.id]: failed.length + ' of ' + toToggle.length + " couldn't update — try again."
+            });
+          }
+
+          // PATCHes are committed — resolve outlines for every leaf that ended
+          // up enabled and is not already painted from cache. Sequential, not
+          // Promise.all: a large group would otherwise open hundreds of
+          // concurrent upstream fetches.
+          var failedIds = {};
+          failed.forEach(function (l) { failedIds[l.id] = true; });
+          for (const leaf of toToggle) {
+            if (leaf.enabled && !failedIds[leaf.id] && !this._polygonCache[leaf.path]) {
+              await this.addPolygonForRow(leaf);
+            }
+          }
+        },
+
+        // ── Live MapLibre coverage map (ADMINUI-03) ─────────────────────
+
+        enabledLeafRows() {
+          return this.regions.filter(function (r) { return r.kind === 'leaf' && r.enabled; });
+        },
+
+        // Init after auth + tree load (D-04): OpenFreeMap Liberty style, no
+        // local copy. Shows .spinner-accent over the pane until 'load' fires.
+        initMap() {
+          var accentRaw = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+          this._accentColor = accentRaw || '#1055c9';
+          this.map = new maplibregl.Map({
+            container: 'region-map',
+            style: 'https://tiles.openfreemap.org/styles/liberty',
+            center: [10, 45],
+            zoom: 3,
+          });
+          this.map.on('load', () => {
+            this.mapLoaded = true;
+            var enabledRows = this.enabledLeafRows();
+            this.loadEnabledPolygons(enabledRows).then((items) => {
+              var byPath = {};
+              items.forEach(function (it) { byPath[it.path] = it; });
+              enabledRows.forEach((row) => {
+                var item = byPath[row.path];
+                if (item && item.polygon) this.addRegionLayer(this.map, row.path, item.polygon);
+              });
+              // D-05: initial-load-only fit; individual toggles never re-fit (D-06).
+              // Bbox now comes from the geometry items `loadEnabledPolygons` already
+              // fetched, not from the regions collection (D-12 moved it out).
+              this.fitToEnabled(this.map, items);
+            });
+          });
+        },
+
+        // D-03/Pattern 5: chunked OR-filter over already-fetched, server-
+        // validated `path` values (never the free-text filter box, T-30-08).
+        // Chunk size derived from the actual max path length so the built
+        // filter string stays comfortably under PocketBase's 3500-char cap
+        // (A2/Pitfall 7), defaulting to ~60 when the set is small/empty.
+        async loadEnabledPolygons(rows) {
+          var out = [];
+          if (!rows || rows.length === 0) return out;
+          var paths = rows.map(function (r) { return r.path; });
+          var maxPathLen = paths.reduce(function (m, p) { return Math.max(m, p.length); }, 0);
+          var chunkSize = Math.max(1, Math.floor(3400 / (maxPathLen + 10))) || 60;
+          for (var i = 0; i < paths.length; i += chunkSize) {
+            var chunk = paths.slice(i, i + chunkSize);
+            var filter = chunk.map(function (p) { return "path='" + p.replace(/'/g, "\\'") + "'"; }).join('||');
+            var res = await this.apiFetch('/api/collections/region_geometry/records?perPage=' + chunkSize + '&filter=' + encodeURIComponent(filter));
+            if (!res) return out; // apiFetch already handled 401 -> logged-out state
+            var data = await res.json();
+            out = out.concat(data.items);
+          }
+
+          // Backfill anything the batch read missed. An enabled leaf can have
+          // no cached row: it was enabled before the cache-on-enable hook
+          // existed, its background fetch failed, or the row was deleted. The
+          // batch query simply omits those, which used to leave the coverage
+          // map blank AND starve fitToEnabled of bbox so it never zoomed.
+          // Resolve them individually through the read-through route, which
+          // also re-persists them since the regions are enabled.
+          var have = {};
+          out.forEach(function (it) { have[it.path] = true; });
+          for (const row of rows) {
+            if (have[row.path]) continue;
+            var geoRes = await this.apiFetch('/regions/' + encodeURIComponent(row.path) + '/geometry');
+            if (!geoRes || !geoRes.ok) continue;
+            var geo = await geoRes.json();
+            if (!geo || !geo.polygon) continue;
+            this._polygonCache[row.path] = geo.polygon;
+            out.push({ path: row.path, polygon: geo.polygon, bbox: geo.bbox });
+          }
+
+          return out;
+        },
+
+        // Pattern 6: one geojson source + fill(18% accent)/line(2px accent)
+        // layer pair per region, keyed by `path`.
+        addRegionLayer(map, path, geojsonPolygon) {
+          var srcId = 'region-' + path;
+          if (map.getSource(srcId)) return;
+          map.addSource(srcId, { type: 'geojson', data: { type: 'Feature', geometry: geojsonPolygon, properties: {} } });
+          map.addLayer({ id: 'region-fill-' + path, type: 'fill', source: srcId, paint: { 'fill-color': this._accentColor, 'fill-opacity': 0.18 } });
+          map.addLayer({ id: 'region-line-' + path, type: 'line', source: srcId, paint: { 'line-color': this._accentColor, 'line-width': 2 } });
+        },
+
+        removeRegionLayer(map, path) {
+          var lineId = 'region-line-' + path, fillId = 'region-fill-' + path, srcId = 'region-' + path;
+          if (map.getLayer(lineId)) map.removeLayer(lineId);
+          if (map.getLayer(fillId)) map.removeLayer(fillId);
+          if (map.getSource(srcId)) map.removeSource(srcId);
+        },
+
+        // D-05: union bbox ([minLon,minLat,maxLon,maxLat], now sourced from
+        // the resolved geometry rows rather than the retired regions.bbox
+        // field, per D-12) + 48px padding; Europe-centered fallback when
+        // nothing is enabled or usable. Entries whose bbox is missing or not
+        // a 4-element array (a half-resolved region) are skipped so they
+        // can't poison the union into NaN/Infinity.
+        fitToEnabled(map, geometryItems) {
+          var usable = (geometryItems || []).filter(function (it) {
+            return it && Array.isArray(it.bbox) && it.bbox.length === 4;
+          });
+          if (usable.length === 0) {
+            map.jumpTo({ center: [10, 45], zoom: 3 });
+            return;
+          }
+          var union = usable.reduce(function (acc, it) {
+            return [
+              Math.min(acc[0], it.bbox[0]), Math.min(acc[1], it.bbox[1]),
+              Math.max(acc[2], it.bbox[2]), Math.max(acc[3], it.bbox[3]),
+            ];
+          }, [Infinity, Infinity, -Infinity, -Infinity]);
+          map.fitBounds([[union[0], union[1]], [union[2], union[3]]], { padding: 48 });
+        },
+
+        // Draw one region's outline, per D-03 ("again for the single region
+        // whenever a toggle flips").
+        //
+        // Goes through the read-through /regions/{path}/geometry route, NOT a
+        // direct region_geometry collection query. Reading the collection here
+        // was a bug: a freshly enabled leaf has no row yet — the server-side
+        // cache-on-enable hook writes it in the background — so the query came
+        // back empty and the outline silently never drew. The route resolves
+        // from cache when present and fetches upstream when not, so it is
+        // correct whichever side of that background write it lands on.
+        async addPolygonForRow(row) {
+          if (!this.map) return;
+          // Serve from the hover cache first when available: the admin has
+          // almost always just hovered this row to reach its switch, so this
+          // makes the outline appear instantly with no request at all.
+          var cached = this._polygonCache[row.path];
+          if (cached) { this.addRegionLayer(this.map, row.path, cached); return; }
+          var res = await this.apiFetch('/regions/' + encodeURIComponent(row.path) + '/geometry');
+          if (!res || !res.ok) return;
+          var data = await res.json();
+          if (!data || !data.polygon) return;
+          this._polygonCache[row.path] = data.polygon;
+          this.addRegionLayer(this.map, row.path, data.polygon);
+        },
+
+        removePolygonForRow(row) {
+          if (!this.map) return;
+          this.removeRegionLayer(this.map, row.path);
+        },
+
+        // Hover outline: fetch (and cache) the leaf's polygon after a short
+        // dwell so fast mouse traversal across many rows doesn't fire a
+        // fetch per row, then draw it as a single non-persistent highlight
+        // layer separate from the enabled-region layers (region-fill-*/
+        // region-line-*), so hovering a disabled region never mutates its
+        // actual enabled state or the persistent map layers. A disabled
+        // leaf's outline is fetched live from CoMaps through the
+        // superuser-gated /regions/{path}/geometry route (D-10/D-13) rather
+        // than read from the collection directly — a disabled, never-built
+        // leaf has no row there. Per D-11 the route resolves this on the
+        // fly and writes nothing back for a disabled region; the existing
+        // client-side cache below is the only cache involved.
+        onLeafHoverStart(row) {
+          if (row.kind !== 'leaf' || !this.map) return;
+          if (this._hoverDebounceTimer) clearTimeout(this._hoverDebounceTimer);
+          var token = ++this._hoverToken;
+          this._hoverDebounceTimer = setTimeout(async () => {
+            var polygon = this._polygonCache[row.path];
+            if (!polygon) {
+              var res = await this.apiFetch('/regions/' + encodeURIComponent(row.path) + '/geometry');
+              if (!res || !res.ok) return;
+              var data = await res.json();
+              if (!data || !data.polygon) return;
+              polygon = data.polygon;
+              this._polygonCache[row.path] = polygon;
+            }
+            if (token !== this._hoverToken) return; // hover moved on before fetch resolved
+            this.showHoverOutline(polygon);
+          }, 120);
+        },
+
+        onLeafHoverEnd() {
+          this._hoverToken++; // invalidate any in-flight fetch from a just-ended hover
+          if (this._hoverDebounceTimer) { clearTimeout(this._hoverDebounceTimer); this._hoverDebounceTimer = null; }
+          this.hideHoverOutline();
+        },
+
+        showHoverOutline(geojsonPolygon) {
+          if (!this.map) return;
+          this.hideHoverOutline();
+          this.map.addSource('region-hover', { type: 'geojson', data: { type: 'Feature', geometry: geojsonPolygon, properties: {} } });
+          this.map.addLayer({ id: 'region-hover-line', type: 'line', source: 'region-hover', paint: { 'line-color': this._accentColor, 'line-width': 3 } });
+        },
+
+        hideHoverOutline() {
+          if (!this.map) return;
+          if (this.map.getLayer('region-hover-line')) this.map.removeLayer('region-hover-line');
+          if (this.map.getSource('region-hover')) this.map.removeSource('region-hover');
+        },
+      };
+    }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+</head>
+
+<body x-data="regionsApp()" x-init="init()" x-cloak>
+
+  <!-- ── Header (reused shell) ────────────────────────────── -->
+  <header class="app-header">
+    <svg width="21" height="21" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M282.194 510.676C411.274 497.557 512 388.542 512 256C512 114.615 397.385 0 256 0C114.615 0 0 114.615 0 256C0 352.324 53.199 436.222 131.818 479.917C180.739 464.052 227.195 443.583 237.5 421C244.301 406.097 233.287 391.002 223.456 377.528C216.971 368.639 211 360.456 211 353.5C211 320.569 300.5 310 300.5 310H331.5C331.5 310 248.5 320.5 252.5 353.5C253.84 364.557 262.721 373.406 272.808 383.458C282.974 393.588 294.364 404.939 300.5 421C315.277 459.681 289.253 500.629 282.194 510.676Z"
+        fill="white" />
+      <path
+        d="M131.818 479.917C180.739 464.052 227.195 443.583 237.5 421C244.301 406.097 233.287 391.002 223.456 377.528C216.971 368.639 211 360.456 211 353.5C211 320.569 300.5 310 300.5 310H331.5C331.5 310 248.5 320.5 252.5 353.5C253.84 364.557 262.721 373.406 272.808 383.458C282.974 393.588 294.364 404.939 300.5 421C315.277 459.681 289.253 500.629 282.194 510.676C273.582 511.552 264.843 512 256 512C210.939 512 168.597 500.358 131.818 479.917Z"
+        fill="#242734" />
+      <path
+        d="M348.212 206.014C349.872 203.329 354.021 203.329 355.681 206.014L416.362 304.207C418.022 306.893 415.947 310.25 412.628 310.25H291.265C287.945 310.25 285.871 306.893 287.531 304.207L348.212 206.014Z"
+        fill="#242734" />
+      <path
+        d="M164.723 183.276C166.612 180.005 171.334 180.005 173.223 183.276L242.282 302.889C244.17 306.161 241.809 310.25 238.032 310.25H99.9145C96.137 310.25 93.776 306.161 95.6648 302.889L164.723 183.276Z"
+        fill="#242734" />
+      <path
+        d="M266.25 155C268.56 151 274.333 151 276.643 155L361.08 301.25C363.389 305.25 360.503 310.25 355.884 310.25H187.009C182.39 310.25 179.503 305.25 181.813 301.25L266.25 155Z"
+        fill="#242734" />
+      <path
+        d="M148.413 115.398C139.829 115.398 132.87 126.079 132.87 139.255H163.957C163.957 126.079 156.998 115.398 148.413 115.398Z"
+        fill="#242734" />
+      <path
+        d="M123.11 115.398C108.138 115.398 96 126.079 96 139.255H150.221C150.221 126.079 138.083 115.398 123.11 115.398Z"
+        fill="#242734" />
+      <path d="M134.316 106C125.532 106 118.411 115.386 118.411 126.965H150.221C150.221 115.386 143.1 106 134.316 106Z"
+        fill="#242734" />
+      <path d="M276 67C264.402 67 255 79.9837 255 96H297C297 79.9837 287.598 67 276 67Z" fill="#242734" />
+      <path d="M250 79C237.85 79 228 86.6112 228 96H272C272 86.6112 262.15 79 250 79Z" fill="#242734" />
+      <path d="M255 63C245.611 63 238 72.402 238 84H272C272 72.402 264.389 63 255 63Z" fill="#242734" />
+      <path d="M396.5 139C387.94 139 381 147.954 381 159H412C412 147.954 405.06 139 396.5 139Z" fill="#242734" />
+      <path d="M365 138C352.85 138 343 147.402 343 159H387C387 147.402 377.15 138 365 138Z" fill="#242734" />
+      <path d="M377 127C364.297 127 354 136.402 354 148H400C400 136.402 389.703 127 377 127Z" fill="#242734" />
+      <path
+        d="M113.567 421.162C113.567 419.505 114.91 418.162 116.567 418.162H123.285C124.942 418.162 126.285 419.505 126.285 421.162V425.76C126.285 427.417 124.942 428.76 123.285 428.76H116.567C114.91 428.76 113.567 427.417 113.567 425.76V421.162Z"
+        fill="#242734" />
+      <path
+        d="M117.379 394.3C118.857 393.079 120.994 393.079 122.473 394.3L144.391 412.402C147.282 414.79 145.594 419.487 141.844 419.487H98.008C94.258 419.487 92.5695 414.79 95.4607 412.402L117.379 394.3Z"
+        fill="#242734" />
+      <path
+        d="M117.172 382.093C118.715 380.627 121.136 380.627 122.68 382.093L142.519 400.927C145.14 403.416 143.379 407.828 139.765 407.828H100.086C96.4722 407.828 94.7112 403.416 97.3322 400.927L117.172 382.093Z"
+        fill="#242734" />
+      <path
+        d="M116.856 370.436C118.455 368.521 121.397 368.521 122.996 370.436L139.007 389.606C141.182 392.211 139.33 396.17 135.937 396.17H103.915C100.521 396.17 98.6693 392.211 100.845 389.606L116.856 370.436Z"
+        fill="#242734" />
+      <path
+        d="M347.567 397.162C347.567 395.505 348.91 394.162 350.567 394.162H357.285C358.942 394.162 360.285 395.505 360.285 397.162V401.76C360.285 403.417 358.942 404.76 357.285 404.76H350.567C348.91 404.76 347.567 403.417 347.567 401.76V397.162Z"
+        fill="#242734" />
+      <path
+        d="M351.379 370.3C352.857 369.079 354.994 369.079 356.473 370.3L378.391 388.402C381.282 390.79 379.594 395.487 375.844 395.487H332.008C328.258 395.487 326.569 390.79 329.461 388.402L351.379 370.3Z"
+        fill="#242734" />
+      <path
+        d="M351.172 358.093C352.715 356.627 355.136 356.627 356.68 358.093L376.519 376.927C379.14 379.416 377.379 383.828 373.765 383.828H334.086C330.472 383.828 328.711 379.416 331.332 376.927L351.172 358.093Z"
+        fill="#242734" />
+      <path
+        d="M350.856 346.436C352.455 344.521 355.397 344.521 356.996 346.436L373.007 365.606C375.182 368.211 373.33 372.17 369.937 372.17H337.915C334.521 372.17 332.669 368.211 334.845 365.606L350.856 346.436Z"
+        fill="#242734" />
+    </svg>
+    <div class="header-sep"></div>
+    <span class="header-label">Region Catalog</span>
+    <div class="header-spacer"></div>
+    <span class="header-email" x-text="email" x-show="email"></span>
+    <button onclick="window.location.href = '/_/'" class="header-link" style="margin-left: 8px; background: none; border: none; cursor: pointer;">
+      <i class="ri-arrow-left-line"></i>
+      Back to dashboard
+    </button>
+  </header>
+
+  <!-- ── Login prompt (shown when the superuser token is missing/expired) ── -->
+  <div x-show="!authenticated" class="login-wrap">
+    <div class="login-card">
+      <i class="ri-shield-keyhole-line login-icon"></i>
+      <h2>Admin login required</h2>
+      <p>You must be logged in as a Wanderer superuser to manage the region catalog.</p>
+      <a href="/_/" class="btn btn-primary" style="width:100%; justify-content:center">
+        Log in to the admin dashboard
+      </a>
+      <p class="login-note">After logging in, return to this page to manage the region catalog.</p>
+    </div>
+  </div>
+
+  <!-- ── Main content: two-pane tree + map split ──────────── -->
+  <div x-show="authenticated" style="display:none" class="main-split">
+
+    <aside class="tree-pane">
+      <div class="tree-pane-header">
+        <h1>
+          <i class="ri-map-2-line"></i>
+          Region Catalog
+          <span class="count-badge" x-text="enabledCount + ' enabled'"></span>
+        </h1>
+        <p class="sync-hint" x-show="!syncing && nextScheduledRun" x-cloak
+           x-text="'Next automatic sync: ' + nextScheduledRunLabel()"></p>
+        <button type="button" class="btn btn-sm btn-outline sync-btn" :disabled="syncing" @click="startSync()">
+          <span class="spinner spinner-accent" x-show="syncing" x-cloak></span>
+          <i class="ri-refresh-line" x-show="!syncing"></i>
+          <span x-text="syncing ? 'Syncing…' : 'Sync now'"></span>
+        </button>
+      </div>
+
+      <div class="tree-filter-wrap">
+        <i class="ri-search-line"></i>
+        <label for="regionFilter" class="sr-only">Filter regions</label>
+        <input id="regionFilter" class="input" type="text" x-model="filterQuery" placeholder="Filter regions…">
+      </div>
+
+      <div class="tree-rows" role="tree" aria-label="Region catalog">
+        <!-- Loading state -->
+        <div class="tree-empty-state" x-show="loading && visibleRows.length === 0">
+          <span class="spinner spinner-accent" style="width:22px;height:22px;border-width:3px" aria-label="Loading"></span>
+        </div>
+
+        <!-- Zero-match filter empty state (D-08 / Copywriting Contract) -->
+        <template x-if="!loading && filterQuery && visibleRows.length === 0">
+          <div class="tree-empty-state">
+            <i class="ri-search-line"></i>
+            <p class="state-title" x-text="'No regions match &quot;' + filterQuery + '&quot;'"></p>
+            <p>Try a different search term.</p>
+          </div>
+        </template>
+
+        <!-- Flattened, non-recursive tree render (D-02/D-07/D-08) -->
+        <template x-for="row in visibleRows" :key="row.id">
+          <div>
+            <div class="tree-row" role="treeitem"
+                 :style="'padding-left:' + (8 + row.depth * 16) + 'px'"
+                 :aria-expanded="row.kind === 'group' ? expanded.has(row.id) : null"
+                 :class="row.kind === 'group' ? 'tree-row-clickable' : ''"
+                 @click="row.kind === 'group' && toggleExpand(row.id)"
+                 @mouseenter="onLeafHoverStart(row)"
+                 @mouseleave="onLeafHoverEnd()">
+              <template x-if="row.kind === 'group'">
+                <i class="chevron"
+                   :class="expanded.has(row.id)
+                     ? 'ri-arrow-down-s-line'
+                     : 'ri-arrow-right-s-line'"></i>
+              </template>
+              <template x-if="row.kind === 'leaf'">
+                <span class="chevron" aria-hidden="true"></span>
+              </template>
+              <span class="row-name" x-text="row.name"></span>
+              <!-- "Sync now": a leaf currently building shows a spinner
+                   instead of its (possibly stale, possibly absent-if-first-
+                   build) size badge; the poll driving `buildingPaths`/
+                   `archiveSizes` swaps the spinner for the real size once done. -->
+              <template x-if="row.kind === 'leaf' && buildingPaths.has(row.path)">
+                <span class="spinner spinner-accent" aria-label="Building"></span>
+              </template>
+              <!-- Settled state for an enabled leaf: pending / downloaded /
+                   failed. Only rendered when the region is enabled and not
+                   building, so it occupies the spinner's slot rather than
+                   competing with it. Disabled regions stay unmarked — there is
+                   no build state to report for them. -->
+              <template x-if="row.kind === 'leaf' && row.enabled && !buildingPaths.has(row.path)">
+                <span class="status-badge"
+                      :class="'status-badge--' + leafStatus(row).kind"
+                      :title="leafStatus(row).tooltip"
+                      :aria-label="leafStatus(row).label">
+                  <i :class="leafStatus(row).icon" aria-hidden="true"></i>
+                </span>
+              </template>
+              <!-- Actual on-disk size of an already-built archive (not an
+                   estimate) — omitted entirely until that leaf's build exists. -->
+              <template x-if="row.kind === 'leaf' && !buildingPaths.has(row.path) && formatBytes(archiveSizes[row.path])">
+                <span class="archive-size" x-text="formatBytes(archiveSizes[row.path])"></span>
+              </template>
+              <!-- Toggle switch (ADMINUI-02, D-06): role=switch, keyboard-operable.
+                   Leaves flip their own `enabled`; groups flip every leaf beneath
+                   them and show a tri-state aria-checked="mixed" when only some
+                   are enabled. -->
+              <button type="button" class="toggle-switch" role="switch"
+                      :aria-checked="row.kind === 'leaf'
+                        ? (row.enabled ? 'true' : 'false')
+                        : (groupState(row) === 'all' ? 'true' : (groupState(row) === 'none' ? 'false' : 'mixed'))"
+                      :aria-label="row.kind === 'leaf'
+                        ? ((row.enabled ? 'Disable ' : 'Enable ') + row.name)
+                        : ((groupState(row) === 'all' ? 'Disable all in ' : 'Enable all in ') + row.name)"
+                      @click.stop="row.kind === 'leaf' ? toggleRegion(row) : toggleGroup(row)"
+                      @keydown.space.prevent="row.kind === 'leaf' ? toggleRegion(row) : toggleGroup(row)"
+                      @keydown.enter.prevent="row.kind === 'leaf' ? toggleRegion(row) : toggleGroup(row)">
+                <span class="toggle-thumb"></span>
+              </button>
+            </div>
+            <!-- Inline per-row error on PATCH failure (D-06) — x-text auto-escapes -->
+            <template x-if="rowErrors[row.id]">
+              <div class="row-error" :style="'padding-left:' + (8 + row.depth * 16 + 24) + 'px'" x-text="rowErrors[row.id]"></div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </aside>
+
+    <main class="map-pane">
+      <div id="region-map" style="width:100%;height:100%;"></div>
+
+      <!-- Loading spinner until the MapLibre style finishes loading -->
+      <div class="map-overlay" x-show="!mapLoaded" x-cloak>
+        <span class="spinner spinner-accent" style="width:28px;height:28px;border-width:3px" aria-label="Loading map"></span>
+      </div>
+
+      <!-- Zero-enabled empty state (Copywriting Contract), never shown during initial load -->
+      <div class="map-overlay map-empty-state" x-show="mapLoaded && enabledCount === 0" x-cloak>
+        <i class="ri-map-pin-line"></i>
+        <p class="state-title">No regions enabled</p>
+        <p>Toggle a region in the tree to see its boundary here.</p>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Disable-a-leaf-with-downloaded-archive confirm dialog -->
+  <div x-show="deleteDialog" x-cloak class="dialog-backdrop" @click.self="cancelDeleteDialog()">
+    <div class="dialog-card" role="alertdialog" aria-modal="true"
+         :aria-label="deleteDialog ? ('Disable ' + deleteDialog.row.name) : ''">
+      <h2>Disable <span x-text="deleteDialog ? deleteDialog.row.name : ''"></span>?</h2>
+      <p>
+        This region has <strong x-text="deleteDialog ? deleteDialog.sizeLabel : ''"></strong>
+        of downloaded map data. Delete the downloaded files too, or just disable it and keep
+        them for later?
+      </p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-outline" @click="cancelDeleteDialog()">Cancel</button>
+        <button type="button" class="btn btn-outline" @click="confirmDeleteDialog(false)">Just disable</button>
+        <button type="button" class="btn btn-danger" @click="confirmDeleteDialog(true)">Disable &amp; delete files</button>
+      </div>
+    </div>
+  </div>
+
+</body>
+
+</html>

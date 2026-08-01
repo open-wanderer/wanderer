@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wanderer/components/settings/settings_offline_banner.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/settings.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/util/offline_guard_util.dart';
 
 /// Native names for each supported language (D-09). These are the single
 /// approved hardcoded-string exception — a language's own name must read in
@@ -38,6 +40,7 @@ class SettingsLanguageScreen extends ConsumerWidget {
     AppLocalizations l10n,
     Settings updated,
   ) async {
+    if (!guardOnline(ref, l10n)) return;
     try {
       await ref.read(settingsProvider.notifier).saveToServer(updated);
     } catch (_) {
@@ -72,6 +75,7 @@ class SettingsLanguageScreen extends ConsumerWidget {
       ),
       body: ListView(
         children: [
+          const SettingsOfflineBanner(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(

@@ -83,6 +83,139 @@
 
 ---
 
+## Milestone: v1.5 — Route Planner
+
+**Shipped:** 2026-07-17
+**Phases:** 3 (Phases 19-21) | **Plans:** 13 | **Timeline:** 2026-07-16 → 2026-07-17 (2 days active)
+**Requirements:** 15/15 v1.5 requirements complete
+
+### What Was Built
+- **Phase 19:** From-scratch route building directly on the map — tap/drag/insert waypoints, an auto-routing toggle (Valhalla-routed vs straight-line, fixed foot/bike profile), undo/redo — backed by a class-based `RouteAnchors` `@riverpod` notifier with a CancelToken + generation-counter race guard and an immutable-snapshot undo/redo stack
+- **Phase 20:** Route anchor list (delete/reorder) and a live elevation profile as two tabs of one docked, draggable sheet; a dedicated locations-only `LocationSearchScreen` for search-to-focus
+- **Phase 21:** Real hike/bike entry-point dialog wired into the trail-source-select flow, an app-bar "Finish" action, and `finishPlanning` handoff to `trail_create_screen` as a draft Trail (GPX track only, one-time elevation merge at handoff)
+
+### What Worked
+- **Two deliberate scope changes caught during discuss-phase, not after building**: PLANUI-01 (tabs-of-one-sheet instead of two toggled views) and HANDOFF-01 (GPX-only handoff, no synthesized Waypoint records) were both resolved in CONTEXT.md before planning started, avoiding a rebuild
+- **A single fetch-at-handoff for elevation, not a continuous background fetch** — `plannedGpxProvider` deliberately stayed pre-elevation through Phase 20; Phase 21 added one `/api/v1/valhalla/height` call at the moment of handoff instead of re-firing Valhalla on every anchor edit
+- **Reusing existing infrastructure aggressively**: `GlobalSearchScreen`'s debounced search provider, the `pendingImportedTrail` handoff mechanism, and `ElevationProfile`'s existing null-Trail path were all extended rather than rebuilt
+
+### What Was Inefficient
+- **Milestone was never formally closed at the time** — v1.6 requirements-gathering silently overwrote `REQUIREMENTS.md` and phase directories 19-21 were deleted from disk (commit `fcd63d17`, "update planning") before `/gsd-complete-milestone` ever ran. This archive was reconstructed from git history a week later, during v1.6's own close. Always run `/gsd-complete-milestone` immediately after a milestone's last phase lands, before starting the next milestone's requirements pass
+
+### Patterns Established
+- **Segment-split-on-tap + adjacency-diff-on-reorder** for route topology mutations — avoids full route reconstruction on every edit
+- **`RouteAnchorLayer`/`RouteSegmentLayer`** as the native-map rendering pair for editable, numbered, draggable route geometry (vs. the read-only `TrailLayer` pattern used elsewhere)
+
+### Key Lessons
+1. **Close milestones before starting the next one's requirements pass** — skipping `/gsd-complete-milestone` let the next milestone's fresh `REQUIREMENTS.md` silently destroy the previous one's traceability table, with no error or warning
+2. **Deleting phase directories outside the GSD archival flow loses recoverable-but-inconvenient history** — the 46-file bulk deletion (`fcd63d17`) wasn't malicious, just informal cleanup; formal archival (`milestones/vX.Y-phases/`) exists precisely so this kind of cleanup doesn't require git archaeology later
+
+---
+
+## Milestone: v1.6 — Offline Region Tile Repository
+
+**Shipped:** 2026-07-24
+**Phases:** 8 (Phases 21.5, 22-27, incl. inserted 25.1) | **Plans:** 30 | **Timeline:** 2026-07-21 → 2026-07-24 (4 days active)
+**Requirements:** 40/41 v1.6 requirements complete (CLEAN-02 explicitly descoped, not failed)
+
+### What Was Built
+- **Phase 21.5:** Go backend region catalog loaded from an admin-supplied, Docker-volume-mounted config file; a cronjob pre-builds one mosaicked vector + one DEM PMTiles archive per region; an auth-gated API endpoint (proxied through SvelteKit) serves the catalog
+- **Phase 22:** App-side region manifest fetched at runtime (no bundled asset) plus ObjectBox `Region`/`DownloadedTilePackage` entities with explicit-int status persistence
+- **Phase 23:** `TileRepositoryManager` — disk-safe, resumable region downloads (later amended to cancel-and-restart), bbox-to-local-paths query, fully decoupled from Trail
+- **Phase 24:** Settings → Offline Maps/Regions: searchable region list, independent Vector/DEM download rows, total disk usage (amended mid-milestone: DEM toggle → gated DEM tile)
+- **Phase 25:** `TrailMap`/`navigation_screen` read region tiles through a viewport-scoped style pipeline, settled by an on-device maplibre 0.3.5 spike
+- **Phase 25.1 (inserted):** Local loopback HTTP tile proxy replacing incremental `addSource`/`removeSource` region-swap reconciliation, closing a UAT-diagnosed reentrancy race structurally
+- **Phase 26:** Trail download guard checks region coverage first, naming missing regions with an inline per-region download CTA, supporting partial-coverage subset downloads
+- **Phase 27:** Legacy trail-scoped tile system (3 service methods, `map_cell.dart`, `TrailEntity.pmTiles`/`demPmTiles`) deleted outright; CLEAN-02's cleanup sweep descoped as unnecessary for a pre-production app
+
+### What Worked
+- **A backend-first phase (21.5) inserted after Phase 22 was already planned, before any client work landed** — discussion surfaced that "region" couldn't be a purely client-side bundled-manifest concept (self-hostable app, per-instance admin decision) before real work compounded on the wrong assumption
+- **Mid-milestone amendments landed as ROADMAP/REQUIREMENTS notes, not silent drift** — both the pause/resume removal (Phase 23) and the DEM-toggle→DEM-tile change (Phase 24) were explicitly documented with dates and commit hashes at the point of change, so later phases and this retrospective could cite them precisely
+- **An urgent phase insertion (25.1) replaced a broken mechanism structurally instead of patching it** — Phase 25's reentrancy race in hand-rolled Dart source diffing was eliminated by moving region selection to MapLibre Native's own viewport tracking via a tile proxy, not by adding more guards around the old reconcile loop
+- **Sequential dependency chain with explicit sequencing rationale in ROADMAP.md** — each phase's "why this order" was written down before execution (data model → engine → UI → rendering spike → guard → ripout), so a phase 27 ripout only happened once every upstream consumer was proven
+
+### What Was Inefficient
+- **A background planner agent stalled twice during Phase 27 planning** (laptop standby interrupted the agent stream) before a third attempt completed — cost extra wall-clock time but no data loss, since each retry re-read the same RESEARCH.md/PATTERNS.md rather than diverging
+- **The milestone was executed to completion (all 8 phases) before `/gsd-complete-milestone` was ever run** — same pattern as v1.5: formal closure lagged actual completion by the length of the whole milestone, only triggered when the *next* milestone close was requested
+
+### Patterns Established
+- **Local loopback `dart:io HttpServer` as a tile-proxy pattern** for handing region selection off to the native map engine's own viewport tracking, applicable to any future "which of N downloaded assets covers this viewport" problem
+- **Explicit-int status enum persistence** (`.code` constants, never `.index`) for ObjectBox — avoids silent status corruption if enum ordering ever changes, now the house style for all new status enums
+- **Amendment notes with commit hashes directly in ROADMAP.md/REQUIREMENTS.md**, not just in phase CONTEXT.md — keeps the top-level planning docs honest without requiring readers to dig into per-phase archives for "does this still match what shipped"
+
+### Key Lessons
+1. **Formally close a milestone the moment its last phase verifies passed** — don't let the next milestone's planning start first; both v1.5 and v1.6 in this project sat "done but unclosed" for their entire successor milestone's duration
+2. **A structural fix (change the mechanism) beats a defensive fix (guard the old mechanism) for race conditions found in UAT** — Phase 25.1's tile-proxy insertion cost one extra phase but eliminated the reentrancy bug class entirely, versus patching `MapEventCameraIdle` handling indefinitely
+3. **Descoping a requirement (CLEAN-02) is not the same as failing it** — recording the descope rationale (D-05, pre-production app) in CONTEXT.md, REQUIREMENTS.md, ROADMAP.md, and PROJECT.md all at once meant no downstream verification or audit step mistook "cut deliberately" for "missed"
+
+---
+
+## Milestone: v1.7 — Admin Region Picker
+
+**Shipped:** 2026-07-28
+**Phases:** 5 | **Plans:** 19 | **Tasks:** 46 | **Timeline:** 4 days (2026-07-25 → 07-28)
+
+### What Was Built
+Seeded the full 1,306-row CoMaps region catalog into PocketBase with a maintainer tool plus an
+auto-run migration; switched archive extraction from bbox to canonical polygon clipping; built a
+PocketBase admin page with a filterable region tree and live coverage map; mirrored the hierarchy
+in the Flutter Settings screen; then moved boundary geometry off-repo entirely — fetched on demand
+from CoMaps at a pinned commit, catalog down from 54.65 MB gzipped to ~315 KB of plain JSON, and
+the retired blob purged from 133 commits of published history.
+
+### What Worked
+- **Measuring instead of estimating.** The seed-slimming design was re-scoped twice by actually
+  running the numbers (322 KB compact vs 387 KB pretty vs 292 KB without bbox) rather than
+  reasoning about them. Two guesses were wrong by 3× and ~190× respectively.
+- **Tombstoning superseded decisions rather than deleting them.** D-00c/D-00d/D-00e were kept in
+  CONTEXT.md marked SUPERSEDED with the reason each fell. Nobody re-derived them, and the
+  `[informational]` tag kept the coverage gate honest without hiding the history.
+- **Structural over procedural constraints.** `ResolveGeometry` taking the region *record* and
+  deriving `persist` internally means no caller can induce a write for a disabled region. That
+  invariant survived three subsequent bug fixes untouched.
+- **The milestone audit's integration check earned its cost.** It resolved the highest-risk seam
+  with direct evidence (single Flutter call site, always `enabled=true`) where phase verification
+  had only inference.
+
+### What Was Inefficient
+- **Three integration bugs shipped past a passing phase verification** (`4b98c48b`, `0149b83e`,
+  `6069cb57`), all found by manual use. Every one was in the same seam: a field moved between
+  collections and not all of its writers were traced.
+- **Two of those traced back to planning, not execution.** A `*.go`-only grep concluded
+  `buildRegion` was the sole geometry consumer and missed a JavaScript client reading the
+  collection REST API directly; a later note asserted "bbox must stay committed — non-negotiable"
+  without checking whether disabled regions needed it. Both were corrected by user pushback rather
+  than by verification.
+- **A circular justification survived plan review.** "Enabled regions always have rows under the
+  persist rule" was fed to the planner as a constraint; the rule only fires when the endpoint is
+  called, and the only post-enable caller read the collection instead. The plan-checker verified
+  the constraint as given — it had no way to see it was self-referential.
+
+### Patterns Established
+- **A PocketBase collection is a public API surface the moment it exists.** Consumer analysis
+  cannot be scoped by the producer's language — see
+  `.planning/notes/pocketbase-collections-are-a-public-api-surface.md`.
+- **Pin upstream by commit SHA, and store the SHA in the artifact it produced**, never in a
+  parallel constant. Makes desync structurally impossible rather than a thing to remember.
+- **Edit-in-place is legitimate for a migration that has never shipped** — verified against
+  `origin/main` and every release tag before committing to it, not assumed.
+
+### Key Lessons
+- When a field moves between tables, enumerate its **writers** as deliberately as its readers. All
+  three bugs were write-path omissions; every read path was traced correctly.
+- A constraint handed to a planner is verified *as given*. Reviewers check whether plans satisfy
+  constraints, not whether the constraints are coherent. Circular reasoning has to be caught
+  upstream.
+- "Never shipped" is a checkable claim (`git ls-tree` against tags), and checking it turned a
+  migration-compatibility question into a non-issue. It also turned out to be *almost* true — one
+  demo instance had the old schema, which the premise had assumed away.
+
+### Cost Observations
+- Model mix: opus for planning and orchestration, sonnet for all execution/verification subagents
+- Notable: Phase 32 alone ran 6 executor agents sequentially (worktrees disabled) plus pattern
+  mapper, plan checker, verifier, and integration checker — the verifier independently closed
+  three human-check items by standing up a live instance, which the phase had recorded as pending
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -94,6 +227,8 @@
 | v1.2 Settings | 4 | 9 | Shared `settingsProvider` pattern; live locale/unit switching; wave parallelism |
 | v1.3 Category Redesign | 3 | 12 | Category/subcategory model + preference providers; subcategory-aware filters |
 | v1.4 MapLibre Migration | 6 | 17 | Full native-GL map migration; risk-gate spike pattern; both-stacks-coexist screen-by-screen cutover |
+| v1.5 Route Planner | 3 | 13 | Editable route-anchor map layers; fetch-at-handoff pattern for derived data; scope changes resolved pre-plan via discuss-phase |
+| v1.6 Offline Region Tile Repository | 8 | 30 | Backend-first phase insertion when a client-only assumption broke; structural fix (tile proxy) over defensive patching for a UAT-found race; documented mid-milestone amendments with commit hashes |
 
 ### Cumulative Quality
 

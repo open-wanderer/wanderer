@@ -18,7 +18,7 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/components/trail/trail_category_label.dart';
 import 'package:wanderer/util/format_util.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/gpx_conversion_util.dart';
 
 class TrailPanel extends ConsumerWidget {
   const TrailPanel({
@@ -41,7 +41,11 @@ class TrailPanel extends ConsumerWidget {
         .map((p) => trail.getFileUrl(user.serverUrl, p, thumb: '1200x0') ?? '')
         .toList();
 
-    final totals = trail.expand?.gpx?.getTotals();
+    final metrics = trail.expand?.gpx == null
+        ? null
+        : computeTrailMetrics(trail.expand!.gpx!);
+
+    final displayDuration = trailDisplayDuration(trail);
 
     final l18n = AppLocalizations.of(context)!;
 
@@ -206,10 +210,10 @@ class TrailPanel extends ConsumerWidget {
                         icon: FontAwesomeIcons.ruler,
                         label: formatDistance(trail.distance, unit: unit),
                       ),
-                      if (trail.duration > 0)
+                      if (displayDuration != null && displayDuration > 0)
                         StatChip(
                           icon: FontAwesomeIcons.clock,
-                          label: Duration(seconds: trail.duration.toInt())
+                          label: Duration(seconds: displayDuration.toInt())
                               .pretty(
                                 abbreviated: true,
                                 tersity: DurationTersity.minute,
@@ -331,7 +335,7 @@ class TrailPanel extends ConsumerWidget {
                       },
                       TrailTimeline(
                         waypoints: trail.expand?.waypointsViaTrail ?? [],
-                        totalDistance: totals?.totalDistance,
+                        totalDistance: metrics?.distance,
                       ),
                     ],
                   ),

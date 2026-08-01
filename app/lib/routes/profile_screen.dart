@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,16 +10,20 @@ import 'package:skeletonizer/skeletonizer.dart';
 import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
+import 'package:wanderer/components/base/wanderer_offline_state.dart';
 import 'package:wanderer/components/list/list_card.dart';
 import 'package:wanderer/components/profile/feed_item_card.dart';
+import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/profile/follow_provider.dart';
 import 'package:wanderer/provider/profile/profile_counts_provider.dart';
 import 'package:wanderer/provider/profile/profile_feed_provider.dart';
 import 'package:wanderer/provider/profile/profile_lists_provider.dart';
 import 'package:wanderer/provider/profile/profile_provider.dart';
+import 'package:wanderer/util/avatar_cache_util.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final String? handle;
@@ -71,14 +77,63 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? ref.watch(profileProvider(widget.handle!))
         : ref.watch(ownProfileProvider);
 
+    // Own-profile offline resilience lives in `ownProfileProvider`, which
+    // falls back to the actor cached on UserEntity — so the data branch below
+    // renders the real profile layout offline and only the network-bound
+    // sections (counts, lists, feed) degrade. The error branch is reached
+    // solely when there is no cached actor at all (a pre-upgrade install that
+    // has not completed an auth refresh yet); offline, that still needs to
+    // keep the settings gear reachable.
     return Scaffold(
       body: actorAsync.when(
         data: (actor) => _buildProfile(actor),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => WandererError(err: err, stack: stack),
+        error: isOwn ? _buildOwnProfileError : _buildRemoteProfileError,
       ),
     );
   }
+
+  /// Own-profile error fallback for the no-cached-actor case. Offline it shows
+  /// the shared offline state under an app bar that still carries the settings
+  /// gear, so settings never become unreachable; online it is a plain error.
+  Widget _buildOwnProfileError(Object err, StackTrace? stack) {
+    if (ref.watch(onlineStatusProvider)) {
+      return WandererError(err: err, stack: stack);
+    }
+
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      children: [
+        AppBar(
+          actions: [
+            IconButton(
+              icon: const FaIcon(FontAwesomeIcons.gear, size: 16),
+              onPressed: () => context.push('/settings'),
+            ),
+          ],
+        ),
+        Expanded(
+          child: WandererOfflineState(
+            title: l10n.offline_title,
+            body: l10n.offline_profile_body,
+            retryLabel: l10n.offline_try_again,
+            onRetry: () async {
+              final online = await ref
+                  .read(onlineStatusProvider.notifier)
+                  .refresh();
+              if (online) ref.invalidate(ownProfileProvider);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The remote-profile (another user's) fetch-error fallback — there is no
+  /// cached identity to fall back to for someone else's profile, so this
+  /// stays a plain [WandererError], unlike the own-profile path above.
+  Widget _buildRemoteProfileError(Object err, StackTrace? stack) =>
+      WandererError(err: err, stack: stack);
 
   Widget _buildProfile(Actor actor) {
     final h = _handle;
@@ -121,16 +176,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     opacity: opacity,
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.grey.shade300,
-                          backgroundImage: NetworkImage(
-                            actor.icon?.isNotEmpty == true
-                                ? actor.icon!
-                                : 'https://api.dicebear.com/7.x/initials/png?seed=${actor.preferredUsername}&backgroundType=gradientLinear',
-                          ),
-                          onBackgroundImageError: (e, _) {},
-                        ),
+                        _ActorAvatar(actor: actor, radius: 16),
                         const SizedBox(width: 16),
                         Column(
                           mainAxisSize: MainAxisSize.min,
@@ -178,7 +224,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
           // Feed
           if (h != null)
-            SliverToBoxAdapter(child: _FeedSection(handle: h, actor: actor)),
+            SliverToBoxAdapter(
+              child: _FeedSection(handle: h, actor: actor),
+            ),
 
           // Bottom padding
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -226,16 +274,7 @@ class _ProfileHeaderBackground extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircleAvatar(
-              radius: 44,
-              backgroundColor: Colors.grey.shade300,
-              backgroundImage: NetworkImage(
-                actor.icon?.isNotEmpty == true
-                    ? actor.icon!
-                    : 'https://api.dicebear.com/7.x/initials/png?seed=${actor.preferredUsername}&backgroundType=gradientLinear',
-              ),
-              onBackgroundImageError: (e, _) {},
-            ),
+            _ActorAvatar(actor: actor, radius: 44),
             const SizedBox(height: 8),
             Text(
               actor.username,
@@ -322,6 +361,12 @@ class _ListsPreview extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final listsAsync = ref.watch(profileListsProvider(handle));
 
+    // Lists are network-only and already hide themselves when empty, so
+    // offline they hide too rather than surfacing a raw error block.
+    if (listsAsync.hasError && !ref.watch(onlineStatusProvider)) {
+      return const SizedBox.shrink();
+    }
+
     return AsyncLoader<ProfileListsState>(
       asyncValue: listsAsync,
       mockData: ProfileListsState.mock(),
@@ -375,6 +420,31 @@ class _FeedSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final feedAsync = ref.watch(profileFeedProvider(handle));
+
+    // The feed is network-only. Offline, keep the heading and say why it's
+    // missing — silently dropping it makes the profile look empty rather than
+    // degraded — but never surface the raw error block.
+    if (feedAsync.hasError && !ref.watch(onlineStatusProvider)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              AppLocalizations.of(context)!.feed,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Text(
+              AppLocalizations.of(context)!.offline_profile_body,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      );
+    }
 
     return AsyncLoader<ProfileFeedState>(
       asyncValue: feedAsync,
@@ -477,6 +547,10 @@ class _CountsRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final countsAsync = ref.watch(profileCountsProvider(actorId));
+    // Counts are network-only. Offline they never resolve, so surface a dash
+    // instead of a skeleton that would shimmer indefinitely.
+    final unavailable =
+        !ref.watch(onlineStatusProvider) && countsAsync.value == null;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -487,6 +561,7 @@ class _CountsRow extends ConsumerWidget {
               icon: FontAwesomeIcons.route,
               label: AppLocalizations.of(context)!.trail(2),
               count: countsAsync.value?.trailCount,
+              unavailable: unavailable,
               onTap: () => context.push('/profile/$handle/trails'),
             ),
           ),
@@ -496,6 +571,7 @@ class _CountsRow extends ConsumerWidget {
               icon: FontAwesomeIcons.layerGroup,
               label: AppLocalizations.of(context)!.list(2),
               count: countsAsync.value?.listCount,
+              unavailable: unavailable,
               onTap: () => context.push('/profile/$handle/lists'),
             ),
           ),
@@ -511,11 +587,16 @@ class _CountCard extends StatelessWidget {
   final int? count;
   final VoidCallback? onTap;
 
+  /// When true the count is known to be unobtainable (offline) rather than
+  /// merely in flight, so render a placeholder instead of a skeleton.
+  final bool unavailable;
+
   const _CountCard({
     required this.icon,
     required this.label,
     required this.count,
     required this.onTap,
+    this.unavailable = false,
   });
 
   @override
@@ -549,9 +630,9 @@ class _CountCard extends StatelessWidget {
                     ),
                   ),
                   Skeletonizer(
-                    enabled: count == null,
+                    enabled: count == null && !unavailable,
                     child: Text(
-                      '$count',
+                      count == null && unavailable ? '—' : '$count',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -605,6 +686,168 @@ class _FollowButton extends ConsumerWidget {
       loading: () =>
           WandererButton(primary: true, disabled: true, loading: true),
       error: (err, _) => const SizedBox.shrink(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Actor avatar — network image with an explicit glyph fallback on load
+// failure, replacing the previous silently-discarding
+// `onBackgroundImageError: (e, _) {}` handlers (fixed here, not just left as
+// a no-op).
+// ---------------------------------------------------------------------------
+
+/// Dispatches to the disk-cached avatar chain when this actor is the signed-in
+/// user (so the header avatar survives offline exactly like the bottom-nav
+/// one), and to the plain network avatar for everyone else — remote actors have
+/// no locally cached image to fall back on.
+class _ActorAvatar extends ConsumerWidget {
+  final Actor actor;
+  final double radius;
+
+  const _ActorAvatar({required this.actor, required this.radius});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authUser = ref.watch(authProvider).value;
+    if (authUser != null && authUser.id == actor.user) {
+      return _CachedAvatar(
+        user: authUser,
+        isOnline: ref.watch(onlineStatusProvider),
+        radius: radius,
+      );
+    }
+    return _NetworkActorAvatar(actor: actor, radius: radius);
+  }
+}
+
+class _NetworkActorAvatar extends StatefulWidget {
+  final Actor actor;
+  final double radius;
+
+  const _NetworkActorAvatar({required this.actor, required this.radius});
+
+  @override
+  State<_NetworkActorAvatar> createState() => _NetworkActorAvatarState();
+}
+
+class _NetworkActorAvatarState extends State<_NetworkActorAvatar> {
+  bool _failed = false;
+
+  @override
+  void didUpdateWidget(covariant _NetworkActorAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.actor.icon != widget.actor.icon) _failed = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_failed) {
+      return CircleAvatar(
+        radius: widget.radius,
+        backgroundColor: Colors.grey.shade300,
+        child: FaIcon(FontAwesomeIcons.user, size: widget.radius),
+      );
+    }
+
+    final actor = widget.actor;
+    return CircleAvatar(
+      radius: widget.radius,
+      backgroundColor: Colors.grey.shade300,
+      backgroundImage: NetworkImage(
+        actor.icon?.isNotEmpty == true
+            ? actor.icon!
+            : 'https://api.dicebear.com/7.x/initials/png?seed=${actor.preferredUsername}&backgroundType=gradientLinear',
+      ),
+      onBackgroundImageError: (_, _) {
+        if (mounted) setState(() => _failed = true);
+      },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cached avatar — same cached-file / network / glyph fallback chain as the
+// bottom-nav avatar (`wanderer_layout.dart`'s `_NavAvatar`), used by the
+// own-profile cached-identity scaffold.
+// ---------------------------------------------------------------------------
+
+class _CachedAvatar extends StatefulWidget {
+  final UserEntity user;
+  final bool isOnline;
+  final double radius;
+
+  const _CachedAvatar({
+    required this.user,
+    required this.isOnline,
+    required this.radius,
+  });
+
+  @override
+  State<_CachedAvatar> createState() => _CachedAvatarState();
+}
+
+class _CachedAvatarState extends State<_CachedAvatar> {
+  late Future<File?> _avatarFuture;
+  bool _networkFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _avatarFuture = cachedAvatarFile(widget.user.id, widget.user.avatar);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CachedAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.id != widget.user.id ||
+        oldWidget.user.avatar != widget.user.avatar) {
+      setState(() {
+        _networkFailed = false;
+        _avatarFuture = cachedAvatarFile(widget.user.id, widget.user.avatar);
+      });
+    } else if (!oldWidget.isOnline && widget.isOnline && _networkFailed) {
+      setState(() => _networkFailed = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = widget.user;
+    const backgroundColor = Colors.grey;
+
+    return FutureBuilder<File?>(
+      future: _avatarFuture,
+      builder: (context, snapshot) {
+        final cachedFile = snapshot.data;
+        if (cachedFile != null) {
+          return CircleAvatar(
+            radius: widget.radius,
+            backgroundColor: backgroundColor.shade300,
+            backgroundImage: FileImage(cachedFile),
+          );
+        }
+
+        if (widget.isOnline && !_networkFailed) {
+          return CircleAvatar(
+            radius: widget.radius,
+            backgroundColor: backgroundColor.shade300,
+            backgroundImage: NetworkImage(
+              user.getFileUrl(user.serverUrl, user.avatar) ??
+                  "https://api.dicebear.com/7.x/initials/png?seed=${user.preferredUsername}&backgroundType=gradientLinear",
+            ),
+            onBackgroundImageError: (_, _) {
+              if (mounted) setState(() => _networkFailed = true);
+            },
+          );
+        }
+
+        return CircleAvatar(
+          radius: widget.radius,
+          backgroundColor: backgroundColor.shade300,
+          child: FaIcon(FontAwesomeIcons.user, size: widget.radius),
+        );
+      },
     );
   }
 }

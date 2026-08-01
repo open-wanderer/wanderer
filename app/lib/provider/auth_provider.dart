@@ -12,6 +12,8 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
+import 'package:wanderer/util/account_data_purge_util.dart';
+import 'package:wanderer/util/avatar_cache_util.dart';
 
 part 'auth_provider.g.dart';
 
@@ -220,6 +222,13 @@ class Auth extends _$Auth {
     final jar = ref.read(cookieJarProvider);
     await jar.deleteAll();
     _box.removeAll();
+    // Privacy invariant: after logout, no content belonging to the signed-out
+    // account is REACHABLE by whoever signs in next (T-h2p-01/T-h2p-03). Not
+    // the same as erasing it -- the offline library deliberately survives and
+    // is scoped per account via `TrailEntity.savedByUserIds`, because deleting
+    // it meant signing out of an account destroyed every trail it had
+    // downloaded.
+    await purgeAccountScopedData(ref.read(objectBoxProvider));
     ref.invalidateSelf();
   }
 
@@ -237,12 +246,42 @@ class Auth extends _$Auth {
 
     final UserEntity userEntity = userData.toEntity();
 
+    // Defense in depth for a logout that never ran or was interrupted
+    // mid-flight: if the incoming account differs from whatever is cached,
+    // purge before this account's data is written. Must run before the
+    // `updateFromServer` call below (it purges SettingsEntity, so the
+    // incoming account's settings must not be written first), and
+    // `_box.removeAll()` must run before the later `_box.put(userEntity)` so
+    // the store can never hold two UserEntity rows — every reader resolves
+    // the session via `getAll().firstOrNull`, which would otherwise be able
+    // to return the previous account (T-h2p-03).
+    final cachedUserId = _box.getAll().firstOrNull?.id;
+    if (shouldPurgeForIncomingUser(cachedUserId, userEntity.id)) {
+      _box.removeAll();
+      await purgeAccountScopedData(ref.read(objectBoxProvider));
+    }
+
     if (userData.expand?.settings != null) {
       await ref
           .read(settingsProvider.notifier)
           .updateFromServer(userData.expand!.settings!);
     }
     _box.put(userEntity);
+
+    // Best-effort avatar cache refresh — fire-and-forget so a slow or failed
+    // download never delays or breaks sign-in/refresh. cacheAvatar() itself
+    // swallows all errors.
+    final avatar = userEntity.avatar;
+    if (avatar != null && avatar.isNotEmpty) {
+      unawaited(
+        cacheAvatar(
+          ref.read(apiProvider),
+          userEntity.getFileUrl(userEntity.serverUrl, avatar)!,
+          userEntity.id,
+          avatar,
+        ),
+      );
+    }
 
     return userEntity;
   }

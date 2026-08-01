@@ -59,6 +59,31 @@ class RouteAnchorsState {
     );
   }
 
+  /// The route's segments in traversal order, walking the anchor chain from
+  /// `anchors.first` via each segment's `beforeAnchorId -> afterAnchorId`
+  /// link rather than [segments] array order — so a detached/orphaned
+  /// segment never contributes, and the order survives
+  /// renumber/insert/delete/reorder operations.
+  ///
+  /// Empty when there are no anchors. The single source of this walk: every
+  /// consumer that needs legs start-to-finish (GPX export, elevation GPX,
+  /// cumulative stats) goes through here.
+  List<RouteSegment> get orderedSegments {
+    if (anchors.isEmpty) return const [];
+
+    final segByBefore = {for (final s in segments) s.beforeAnchorId: s};
+    final ordered = <RouteSegment>[];
+    var currentId = anchors.first.id;
+
+    while (segByBefore.containsKey(currentId)) {
+      final seg = segByBefore[currentId]!;
+      ordered.add(seg);
+      currentId = seg.afterAnchorId;
+    }
+
+    return ordered;
+  }
+
   /// Total estimated travel time across every segment, in seconds: uses each
   /// routed segment's Valhalla `durationSeconds`, falling back to a
   /// distance/speed estimate for any segment that never resolved one.
@@ -77,17 +102,13 @@ class RouteAnchorsState {
   }
 
   /// Per-anchor cumulative distance/duration/elevation-gain, keyed by anchor
-  /// id (stable across reorder, unlike array index). Walks the anchor chain
-  /// via each segment's `beforeAnchorId -> afterAnchorId` link rather than
-  /// `segments` array order, so a detached/orphaned segment never
-  /// contributes.
+  /// id (stable across reorder, unlike array index). Walks [orderedSegments],
+  /// so a detached/orphaned segment never contributes.
   ///
   /// The first anchor always maps to all-zero stats. Elevation gain reads
   /// `0` until that segment's fire-and-forget height fetch resolves.
   Map<String, AnchorRouteStats> get cumulativeStatsByAnchorId {
     if (anchors.isEmpty) return {};
-
-    final segByBefore = {for (final s in segments) s.beforeAnchorId: s};
 
     final result = <String, AnchorRouteStats>{
       anchors.first.id: const AnchorRouteStats(
@@ -100,11 +121,8 @@ class RouteAnchorsState {
     var distance = 0.0;
     var duration = 0.0;
     var elevationGain = 0.0;
-    var currentId = anchors.first.id;
 
-    while (segByBefore.containsKey(currentId)) {
-      final seg = segByBefore[currentId]!;
-
+    for (final seg in orderedSegments) {
       distance += seg.distanceMeters;
       duration +=
           seg.durationSeconds ??
@@ -120,8 +138,6 @@ class RouteAnchorsState {
         durationSeconds: duration,
         elevationGainMeters: elevationGain,
       );
-
-      currentId = seg.afterAnchorId;
     }
 
     return result;
@@ -263,8 +279,9 @@ class RouteAnchors extends _$RouteAnchors {
         durationSeconds: durationSeconds,
       );
     } on DioException catch (e) {
-      if (e.type == DioExceptionType.cancel)
+      if (e.type == DioExceptionType.cancel) {
         return; // superseded, not a real failure
+      }
       if (_generation[key] != myGeneration) return;
       _markBlocked(key); // never revert to straight, never clear
     }
@@ -281,6 +298,25 @@ class RouteAnchors extends _$RouteAnchors {
     state = state.copyWith(segments: segments);
   }
 
+  /// Replaces [key]'s geometry with [points] and re-fetches its heights.
+  ///
+  /// Clearing `elevationProfile`/`elevations` is mandatory, not tidiness.
+  /// They describe the geometry being replaced, and `_resolveElevation`
+  /// below is fire-and-forget, so leaving them in place publishes a segment
+  /// whose profile belongs to its *previous* shape. Both consumers read
+  /// `elevationProfile ?? polyline` — `buildFinalPlannedGpx`
+  /// (route_planner_handoff_util.dart) and `plannedElevationGpx`
+  /// (planned_gpx_provider.dart) — so a stale profile silently wins over the
+  /// polyline it contradicts: tapping Finish inside that window saved the
+  /// pre-edit route, and the elevation preview drew it while the map drew
+  /// the new one. Worse than a race: `_resolveElevation` degrades silently
+  /// on failure, which leaves a re-edited segment stale permanently rather
+  /// than merely briefly.
+  ///
+  /// Nulling them costs nothing — every caller already triggers a refetch —
+  /// and degrades correctly: the `?? polyline` fallback yields the new
+  /// geometry at full resolution, and `buildFinalPlannedGpx`'s `pending`
+  /// list picks up `elevations == null` and backfills heights at save time.
   void _applySegment(
     String key, {
     required List<Geographic> points,
@@ -294,6 +330,8 @@ class RouteAnchors extends _$RouteAnchors {
             polyline: points,
             state: segmentState,
             durationSeconds: durationSeconds,
+            elevationProfile: null,
+            elevations: null,
           )
         else
           segment,
@@ -364,7 +402,10 @@ class RouteAnchors extends _$RouteAnchors {
   /// for the same anchor) the anchor's prior `location` is left untouched
   /// rather than cleared — a dragged anchor keeps showing its last-known
   /// label until the fresh search resolves.
-  Future<void> _resolveAnchorLocation(String anchorId, RouteAnchor anchor) async {
+  Future<void> _resolveAnchorLocation(
+    String anchorId,
+    RouteAnchor anchor,
+  ) async {
     _locationInFlight[anchorId]?.cancel();
     final token = CancelToken();
     _locationInFlight[anchorId] = token;
@@ -780,10 +821,10 @@ class RouteAnchors extends _$RouteAnchors {
     state = state.copyWith(anchors: anchors, segments: segments);
 
     if (predecessor != null && successor != null) {
-      _resolveElevation(
-        segmentKey(predecessor.id, successor.id),
-        [predecessor.point, successor.point],
-      ).ignore();
+      _resolveElevation(segmentKey(predecessor.id, successor.id), [
+        predecessor.point,
+        successor.point,
+      ]).ignore();
 
       if (state.autoRoutingEnabled) {
         _resolveSegment(

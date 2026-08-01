@@ -20,9 +20,45 @@ const int _rangeCount = 256;
 /// 4-fontstack × 256-range set does not open hundreds of connections at once.
 const int _maxConcurrentDownloads = 8;
 
-/// The three files that make up one sprite variant, keyed by the suffix the
-/// MapLibre sprite loader appends to the sprite base.
-const List<String> _spriteSuffixes = <String>['.json', '.png', '@2x.png'];
+/// The files that make up one sprite variant, keyed by the suffix the MapLibre
+/// sprite loader appends to the sprite base. Both the 1x (`.json`/`.png`) and
+/// 2x (`@2x.json`/`@2x.png`) pairs are cached: MapLibre Native requests the
+/// pixel-ratio-appropriate pair, so a hi-dpi device fetches `@2x.json` +
+/// `@2x.png`. Omitting `@2x.json` makes the offline sprite load fail on hi-dpi
+/// devices ("Failed to load sprite"), dropping every map icon.
+const List<String> _spriteSuffixes = <String>[
+  '.json',
+  '.png',
+  '@2x.json',
+  '@2x.png',
+];
+
+/// Resolves the on-disk layout of the shared glyph/sprite cache under
+/// `<app-docs>/map_cache` — pure path construction, no network and no
+/// downloads. Shared by [GlyphSpriteCache] (which then populates these paths
+/// online) and [offlineGlyphSpritePaths] (which returns them as-is for the
+/// network-free offline render path).
+Future<GlyphSpriteCachePaths> resolveGlyphSpriteCachePaths() async {
+  final docs = await getApplicationDocumentsDirectory();
+  final root = p.join(docs.path, 'map_cache');
+  return GlyphSpriteCachePaths(
+    root: root,
+    glyphBase: p.join(root, 'glyphs'),
+    spriteLightBase: spriteCacheBasePath(root, dark: false),
+    spriteDarkBase: spriteCacheBasePath(root, dark: true),
+  );
+}
+
+/// The offline counterpart to [GlyphSpriteCache]: returns the local
+/// glyph/sprite cache paths **without any network call or download**. Used by
+/// the offline map render path, where the cache was already populated online at
+/// download time and the style rewriter only needs the `file://` bases. Kept
+/// separate from [GlyphSpriteCache] so an offline map open never awaits (or
+/// hangs on) `mapStyleSourcesProvider`.
+@Riverpod(keepAlive: true)
+Future<GlyphSpriteCachePaths> offlineGlyphSpritePaths(Ref ref) {
+  return resolveGlyphSpriteCachePaths();
+}
 
 /// The one shared app-wide glyph/sprite cache.
 ///
@@ -39,15 +75,8 @@ class GlyphSpriteCache extends _$GlyphSpriteCache {
     final sources = await ref.watch(mapStyleSourcesProvider.future);
     final api = ref.read(apiProvider);
 
-    final docs = await getApplicationDocumentsDirectory();
-    final root = p.join(docs.path, 'map_cache');
-
-    final paths = GlyphSpriteCachePaths(
-      root: root,
-      glyphBase: p.join(root, 'glyphs'),
-      spriteLightBase: spriteCacheBasePath(root, dark: false),
-      spriteDarkBase: spriteCacheBasePath(root, dark: true),
-    );
+    final paths = await resolveGlyphSpriteCachePaths();
+    final root = paths.root;
 
     // Build the full download job list (glyphs + both sprite variants). Every
     // local path comes from map_cache_path.dart — never string-concatenated.

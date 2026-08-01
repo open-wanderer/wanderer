@@ -82,6 +82,12 @@ abstract class TrailSearchResult
   @override
   List<String> get localPhotos => [];
 
+  // D-10: a search-result summary has no moving-time concept (it is a
+  // session-only field only `Trail` populates); trailDisplayDuration treats
+  // null as "show duration".
+  @override
+  double? get movingDuration => null;
+
   factory TrailSearchResult.fromJson(Map<String, dynamic> json) =>
       _$TrailSearchResultFromJson(json);
 

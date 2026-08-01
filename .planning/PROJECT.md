@@ -2,18 +2,34 @@
 
 ## Current State
 
-**Shipped:** v1.4 MapLibre Migration (2026-07-10) — the Flutter app's map stack is now `maplibre` end-to-end. All 6 map screens render via native GL, both `flomp/*` forks are retired, `flutter_map` and its 4 plugins are gone from `pubspec.yaml`, and offline trails still render basemap + place labels with no network.
+**Shipped:** v1.7 Admin Region Picker (2026-07-28) — a server owner defines downloadable regions by toggling entries in a seeded 1,306-row CoMaps catalog with real polygon boundaries, instead of hand-authoring `region_config.json`. The archive cron clips PMTiles to each leaf's canonical polygon; a custom PocketBase admin page renders the catalog as a filterable tree with a live coverage map; the Flutter Settings screen mirrors the same hierarchy pruned to enabled regions. Boundary geometry is fetched on demand from CoMaps at a pinned commit rather than shipped in the repo — the committed catalog is ~315 KB of plain hierarchy JSON, down from 54.65 MB gzipped.
 
-## Current Milestone: v1.5 Route Planner
+**Previously shipped:** v1.6 Offline Region Tile Repository (2026-07-24) — region-based offline tile repository (vector + optional Mapterhorn DEM) managed in Settings, replacing trail-scoped PMTiles downloads app-wide.
 
-**Goal:** A user can build a route from scratch on the map (tap/drag waypoints, optional auto-routing via Valhalla) and hand it off as a draft trail to the existing create/edit screen.
+**Known gaps carried forward from v1.7** (accepted at close, see `.planning/milestones/v1.7-MILESTONE-AUDIT.md`):
+- Phase 29 has no VERIFICATION.md — EXTRACT-01/02/03 are code-verified correct but have no phase-owned repeatable check
+- Phase 31 is `human_needed` — the on-device pass required after Phase 32's server rewrite has not been run
+
+## Current Milestone: v1.8 Offline Recording & Deferred Upload
+
+**Goal:** A hiker who records a trail with no signal can save it, review it, and fill in its details on the spot — and it uploads itself when the phone next has a connection, without the hiker doing anything.
 
 **Target features:**
-- Route Planner screen reachable from the trail-source-select flow, with tap-to-add / drag / insert-mid-route / delete / reorder waypoint editing and undo/redo
-- Auto-routing toggle (Valhalla-routed segments, using the fixed foot/bike profile set at entry) vs straight-line segments, with re-resolution on toggle
-- Waypoint list sheet and live elevation profile view, mutually exclusive, toggled via map control buttons
-- Search-to-focus map panning via existing GlobalSearchScreen flow
-- Handoff to trail_create_screen as a draft Trail (synthesized GPX + waypoints), reusing the existing pendingImportedTrail safety net and /trail/create/edit route
+- Corrected GPX→trail metrics, shared by app and web — fixes four real defects found by auditing the TS implementation before porting
+- A Dart port of the metrics computation, used for recordings, planner output, and `.gpx` file imports
+- `/api/v1/trail/convert` reduced to transcode-only (kml/kmz/tcx/fit → GPX); the app computes trail metrics itself
+- Local-first recorded trails in ObjectBox with automatic background upload
+- `trail_create_screen` usable with no connection
+
+**Deliberate scope exceptions:**
+- **Web frontend changes are in scope for this milestone**, overriding the standing app-only boundary — the metrics defects live in shared conversion logic used by both, and fixing only one side would make a single GPX yield two different answers.
+- **Trail metrics are re-baselined.** Newly converted trails report different distance/elevation/duration than the same file converted before v1.8. Already-saved trails are unaffected (`PUT /trail/form` stores client values and never recomputes), so the library will contain trails measured two ways with nothing marking which is which. Accepted: the app is pre-production.
+
+**Not carried into v1.8** (deliberately deferred to keep the milestone focused):
+- 40 deferred artifacts (see STATE.md Deferred Items) — 5 diagnosed debug sessions, 32 quick tasks, 2 todos, 1 verification gap; 39 predate v1.7
+- Phase 31's outstanding on-device pass and Phase 29's missing VERIFICATION.md (v1.7 known gaps)
+- Dark mode for the Flutter app (quick task 260612-gmg)
+- CATALOG-F01 (automated CoMaps catalog refresh), CATALOG-F02 (group-level cascading enable), CATALOG-F03 (group-node map preview)
 
 ## What This Is
 
@@ -55,19 +71,49 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - [x] Map screen clustering reads `POST /search/trails/cluster` and renders native circle/symbol layers (v1.4 — Phase 16)
 - [x] Offline trails render from `.pmtiles` via native `pmtiles://`; `pm_tile_provider.dart` deleted (v1.4 — Phase 15/17)
 - [x] Navigation screen keeps heading-up follow mode, compass reset, and live location puck on maplibre (v1.4 — Phase 17)
+- [x] Route Planner screen: tap-to-add, drag, insert-mid-route, delete, reorder waypoints with undo/redo (v1.5 — Phase 19)
+- [x] Auto-routing toggle: Valhalla-routed segments (fixed foot/bike profile set at entry) vs straight-line segments, re-resolved on toggle (v1.5 — Phase 19)
+- [x] Waypoint list sheet and live elevation profile, mutually exclusive map-control-toggled views (v1.5 — Phase 20)
+- [x] Search-to-focus map panning via existing GlobalSearchScreen flow (v1.5 — Phase 20)
+- [x] Handoff to trail_create_screen as a draft Trail (synthesized GPX + waypoints) (v1.5 — Phase 21)
+- [x] Hike/bike selection dialog on "Open trail planner" tap, before the planner screen opens, sets initial travel profile (v1.5 — Phase 21)
+- [x] Backend region catalog loaded from an admin-supplied config file (Docker-volume mounted); cronjob pre-builds one mosaicked vector + one DEM PMTiles archive per region ahead of any user request; API endpoint serves the catalog (v1.6 — Phase 21.5)
+- [x] App fetches its region catalog from the instance's backend API at runtime — no bundled asset, empty catalog on a fresh instance with no admin config (v1.6 — Phase 22)
+- [x] ObjectBox `Region` + `DownloadedTilePackage` entities tracking download status (explicit int constants, not index-backed enum), paths, timestamps, disk usage (v1.6 — Phase 22)
+- [x] App-wide `TileRepositoryManager`: region download/cancel/delete lifecycle, fully decoupled from Trail — no pause/resume (removed 2026-07-23; Dio's `deleteOnError` deletes `.part` files on any cancellation including a deliberate pause, so cancel-and-restart-from-0 replaced it) (v1.6 — Phase 23)
+- [x] Region downloads with an independent per-region Mapterhorn DEM package (own list tile, own download/cancel/delete, gated on Vector being downloaded first), reusing the existing DEM pipeline keyed to regions (v1.6 — Phase 23/24)
+- [x] Trail download guard: region coverage check before trail download; dialog names missing region(s) with per-region "Download region" CTA, supports partial-coverage subset downloads (v1.6 — Phase 26)
+- [x] Settings → Offline Maps/Regions page: flat searchable region list, size breakdown, independent Vector/DEM download/cancel/delete + progress bars, total disk usage, non-blocking `updateAvailable` badge (v1.6 — Phase 24)
+- [x] Map rendering reads offline tiles through a local loopback HTTP tile proxy (MapLibre Native's own viewport tracking selects regions, not hand-rolled incremental source diffing — Phase 25's reconcile approach had a reentrancy race, replaced in Phase 25.1); legacy trail-scoped tile download/cache code removed outright, no migration path (v1.6 — Phases 25, 25.1, 27)
+
+- ✓ Seeded `regions` table (PocketBase), hierarchical group/leaf, CoMaps-sourced (v1.7 — Phase 28)
+- ✓ `seed_regions.go` maintainer tool + auto-run migration for zero-admin-action seeding (v1.7 — Phase 28)
+- ✓ Polygon-based `pmtiles extract --region` replacing bbox extraction (v1.7 — Phase 29)
+- ✓ Custom PocketBase admin page: collapsible region tree + live map, toggle `enabled` (v1.7 — Phase 30)
+- ✓ Archive cron reads `kind = 'leaf' AND enabled = true`, retiring `region_config.json` (v1.7 — Phase 29)
+- ✓ Flutter Settings screen: flat region list → collapsible hierarchy matching admin tree (v1.7 — Phase 31, on-device pass outstanding)
+- ✓ Geometry fetched on demand from CoMaps at a pinned commit; catalog 54.65 MB → ~315 KB (v1.7 — Phase 32)
 
 ### Active
 
-- [ ] Route Planner screen: tap-to-add, drag, insert-mid-route, delete, reorder waypoints with undo/redo (v1.5)
-- [ ] Auto-routing toggle: Valhalla-routed segments (fixed foot/bike profile set at entry) vs straight-line segments, re-resolved on toggle (v1.5)
-- [ ] Waypoint list sheet and live elevation profile, mutually exclusive map-control-toggled views (v1.5)
-- [ ] Search-to-focus map panning via existing GlobalSearchScreen flow (v1.5)
-- [ ] Handoff to trail_create_screen as a draft Trail (synthesized GPX + waypoints) (v1.5)
-- [ ] Hike/bike selection dialog on "Open trail planner" tap, before the planner screen opens, sets initial travel profile (v1.5)
+- [ ] Four metric defects fixed in the shared GPX→trail computation: per-segment first-point skip, centroid divisor mismatch, `ele ?? 0` treating missing elevation as sea level, and elevation sampling gated behind the 5 m horizontal threshold (v1.8)
+- [ ] Distance switched from the raw haversine sum to the smoothed accumulator; `cumulativeDistance` (dead, misaligned) deleted (v1.8)
+- [ ] Recorded trails report moving time, excluding `pausedAccum`; imported files keep elapsed time (v1.8)
+- [ ] Dart port of the metrics computation, pinned against the TS by a shared fixture test (v1.8)
+- [ ] `/api/v1/trail/convert` reduced to transcode-only; `.gpx` imports, recordings, and planner output all measured in Dart (v1.8)
+- [ ] Recorded trails persist locally with no server id and a sync state, account-scoped, visible in the trail library immediately (v1.8)
+- [ ] Undrained recordings upload automatically on app-foreground + connectivity, with per-item inline progress and manual retry (v1.8)
+- [ ] `trail_create_screen` works with no connection: offline basemap, non-throwing tag autocomplete, and a clear message when a non-GPX import needs a connection (v1.8)
 
 ### Out of Scope
 
-- Web frontend changes — `web/` already runs maplibre-gl-js; app-only apart from the v1.4 glyph/sprite endpoint
+- Storing canonical polygon/bbox on leaf `regions` rows — shipped in v1.7 Phase 28, then deliberately superseded by Phase 32; geometry now lives in `region_geometry`, fetched on demand (CATALOG-02 retired by SLIM-01/02)
+
+- Web frontend changes — `web/` already runs maplibre-gl-js; app-only apart from the v1.4 glyph/sprite endpoint. **Amended 2026-07-31 (v1.8):** shared GPX→trail conversion logic (`web/src/lib/models/gpx/*`, `web/src/lib/util/gpx_util.ts`, `/api/v1/trail/convert`) is explicitly in scope, because leaving its metric defects unfixed on one side would make a single GPX yield two different answers. The boundary still holds for web UI.
+- Migrating already-saved trails to the corrected metrics — no backfill; `PUT /trail/form` stores client values and never recomputes, and the app is pre-production so there is no meaningful install base to migrate (v1.8)
+- Porting the kml/kmz/tcx/fit transcoders to Dart — they depend on vendored `toGeoJSON`, JSZip, and `fit-parser`, none of which a recording can reach; those formats stay online-only via `/api/v1/trail/convert` (v1.8)
+- Queuing a non-GPX file import for conversion on reconnect — a queued import has no trail to show until it transcodes, which breaks the local-first model the recordings use (v1.8)
+- Moving time for imported GPX files — pause data only exists for trails recorded in the app; imports keep elapsed time (v1.8)
 - Switching offline tile generation to OpenMapTiles schema — would invalidate every downloaded trail archive and every operator's tile cache
 - Basemap picker in app settings (OpenTopoMap / CyclOSM / Carto, as web offers) — deferred; v1.4 shipped the Protomaps wanderer style only (FUT-02/03)
 - Contributing `cluster` fields upstream to maplibre's `GeoJsonSource` — unnecessary once clustering is server-side
@@ -88,6 +134,16 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - Per-segment travel profiles in the Route Planner — a single profile applies to the whole route
 - Switching travel profile mid-session in the Route Planner (ROUTE-03 cut) — profile is fixed once set via the entry hike/bike dialog
 - Offline route caching for in-progress route plans
+- Legacy trail-cache migration — app is pre-production; old trail-scoped tile/DEM cache code and files are deleted outright, no conversion path (v1.6, shipped)
+- One-time on-device sweep for orphaned legacy tile files (CLEAN-02) — descoped, not deferred: app is pre-production, no real install base to sweep (27-CONTEXT.md D-05)
+- Admin UI/API for region catalog CRUD — region definition is a config file mounted via Docker volume, edited by redeploying; a live-editing settings/admin screen is deferred (v1.6)
+- Polygon region geometries — v1.6 regions are bounding-box only; arbitrary polygon boundaries deferred (v1.6)
+- 3D terrain/hillshade rendering redesign — v1.6 only relocates the existing DEM download/storage pipeline to be region-based; `offline_style_rewriter.dart`'s hillshade rendering is reused as-is (v1.6, shipped)
+- Resumable downloads, of any kind — originally scoped as session-only pause/resume, amended 2026-07-23 to drop resume entirely (Dio's `deleteOnError` treats a deliberate pause identically to a genuine transfer error); cancel always restarts a download from byte 0 (v1.6, shipped)
+- Hierarchical region tree navigation — manifest is tens of entries, not thousands; a flat searchable list is the right complexity (v1.6)
+- Granular per-layer toggles beyond vector/DEM (roads/POIs/water) at the region-download level — no reviewed hiking app exposes this (v1.6)
+- Map boundary highlight overlay showing downloaded region coverage on the map — nice differentiator, deferred (REGN-F01)
+- Region entitlement/paywall model — no paywall exists in Wanderer; the guard dialog borrows Komoot's messaging pattern only, not its unlock/purchase logic (v1.6)
 
 ## Context
 
@@ -104,6 +160,7 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - Shipped v1.2: Full settings suite (Language/Units, Privacy, Account/Profile, Notifications)
 - Shipped v1.3: Category/subcategory model + preferences, subcategory-aware trail filters, Settings → Categories screen
 - Shipped v1.4: Full `maplibre` migration — native GL rendering, self-hosted glyph/sprite serving, offline parity, server-side clustering, both `flomp/*` forks retired
+- Shipped v1.7: Seeded CoMaps region catalog (1,306 rows) + polygon-based extraction + PocketBase admin picker + Flutter hierarchy; geometry moved on-demand, repo pack down 268 → 198 MiB
 - Web PR #1059 merged: new category model with translations/icon/short_name, subcategories, user category/subcategory preferences, favourite sport replaced by priority-based category ordering
 - Settings infrastructure: `Settings` freezed model, `settingsProvider` with `saveToServer()` — reused by all settings screens
 - `localeProvider` and `unitProvider` derived from `settingsProvider` — live-switch locale and unit system app-wide
@@ -111,6 +168,15 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - Background navigation via tracelet package (from quick tasks)
 - Along-track projection for waypoint advancement (from quick tasks)
 - Open item: dark mode (quick task 260612-gmg) was planned but never executed — the app has no Appearance/theme-mode setting yet
+- Shipped v1.5 (2026-07-17): Route Planner — from-scratch route building with waypoint editing, Valhalla auto-routing, elevation profile, and handoff to trail create/edit. See `.planning/milestones/v1.5-ROADMAP.md` / `v1.5-REQUIREMENTS.md`
+- Shipped v1.6 (2026-07-24): Offline Region Tile Repository — app-wide, region-based offline tile system fully replaces the old trail-scoped one; admin-configured backend catalog, `TileRepositoryManager`, local loopback HTTP tile proxy for map rendering, trail-download coverage guard, and legacy tile code deleted outright. See `.planning/milestones/v1.6-ROADMAP.md` / `v1.6-REQUIREMENTS.md`
+- Offline tiles are now **region-scoped, not trail-scoped**: `TileRepositoryManager` (`app/lib/services/tile_repository_manager.dart`) owns download lifecycle for `regions/<id>/{vector,dem}.pmtiles`, independent of any Trail. The old `trail_download_service.dart` tile methods, `TrailEntity.pmTiles`/`demPmTiles` fields, and `app/lib/models/map_cell.dart` no longer exist (removed Phase 27)
+- Map rendering (`TrailMap`/`navigation_screen`) reads tiles through a local loopback `HttpServer` tile proxy (`app/lib/services/local_tile_proxy_service.dart` or similar, Phase 25.1) — MapLibre Native's own viewport tracking selects which downloaded regions to render, not hand-rolled Dart source diffing
+- Mapterhorn DEM pipeline: `db/services/tiles/generator.go` extracts region-mosaicked DEM archives from `https://download.mapterhorn.com/planet.pmtiles` (const `mapterhornSource`) at `demMaxZoom = 12` (vs vector `maxZoom = 14`), pre-built by a cronjob per configured region (BACK-02/03), served via the region catalog API (BACK-04). DEM generation is best-effort — failures never block the vector basemap
+- DEM tiles are raster hillshade only — no numeric elevation is sourced from them. Elevation gain/loss/profile comes exclusively from GPX `<ele>` track points (`gpx_util.dart`); v1.6 does not change that
+- `app/lib/util/offline_style_rewriter.dart` special-cases `raster-dem` style sources (encoding `terrarium`, tileSize 512, max zoom locked to 12) and drops hillshade layers cleanly when no DEM was downloaded — reused as-is, now sourcing from region-based files
+- Downloads are never resumable, at any level (amended 2026-07-23) — cancelling (deliberate or a genuine transfer error) always deletes the `.part` file via Dio's `deleteOnError: true`; a later attempt always restarts from byte 0
+- Region catalog is admin-defined per instance via a config file mounted through Docker volume (`db/` backend), not a bundled Flutter asset — a fresh/default instance with no admin config returns an empty catalog
 
 ## Constraints
 
@@ -127,6 +193,12 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
+| v1.8: audit the TS `gpx2trail` before porting it, rather than porting bug-for-bug | Surfaced four real defects (per-segment first-point skip, centroid divisor, `ele ?? 0`, elevation gated behind the XY threshold); a faithful port would have made them permanent and unfixable without diverging | — Pending |
+| v1.8: fix the metrics in web and app together, overriding the app-only boundary | The defects live in shared conversion logic; fixing one side means a single GPX yields two different answers | — Pending |
+| v1.8: accept re-baselined metrics with no backfill | `PUT /trail/form` stores client values and never recomputes, so old trails keep old numbers; app is pre-production, so no meaningful install base to migrate | — Pending |
+| v1.8: recorded trails are local-first records that acquire a server id later, not a pending-upload queue | Matches how Komoot and AllTrails both model it — the recording is in the library immediately with an inline sync badge, not in a separate inbox | — Pending |
+| v1.8: `/api/v1/trail/convert` becomes transcode-only rather than gaining an opt-in mode | The Flutter app is its only caller (web converts in-browser via `fromFile`/`gpx2trail`) and the endpoint is not deployed in production anywhere, so the breaking change is safe | — Pending |
+| v1.8: don't port the kml/kmz/tcx/fit transcoders to Dart | They need vendored `toGeoJSON`, JSZip, and `fit-parser`; no recording can reach them, so the cost buys only offline import of rare formats | — Pending |
 | Extend SvelteKit Valhalla API rather than calling Valhalla directly from Flutter | Keeps credentials server-side, consistent with existing route endpoint pattern | ✓ Good — used in v1.0 through v1.2 |
 | DraggableScrollableSheet for stats, not fixed bottom bar | Matches MapScreen pattern; user can expand for more detail without blocking map | ✓ Good |
 | Button-driven PageView for stats (not horizontal swipe) | Locked during Phase 3 context; horizontal swipe conflicts with map pan gesture | ✓ Good |
@@ -150,6 +222,21 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 | [v1.4] Incremental screen-by-screen migration, forks deleted last | Keeps the app runnable at every phase boundary; the `LatLng`→`Geographic` churn touches GPX parsing, so a big-bang landing risks trail data, not just maps | ✓ Good — app stayed buildable at every phase boundary |
 | [v1.4] `file://` sprite resolution unreliable on-device; self-register trail arrow instead of relying on sprite atlas | 15-01 spike found glyph `file://` works but sprite `file://` failed on a physical Android device despite valid cached files | ✓ Good — `addImageFromIconData` sidesteps the gap; other sprite-atlas icons (route shields) remain a pre-existing non-regression |
 | [v1.4] OFFL-06 (`pm_tile_provider.dart` deletion) deferred from Phase 15 to Phase 17/18 | `navigation_screen` was the last flutter_map holdout still consuming `MultiPmTilesVectorTileProvider`; deleting the file in Phase 15 would have broken the screen the criterion required to keep building | ✓ Good — deleted in Phase 17 once navigation_screen migrated |
+| [v1.5] Route anchor list + elevation profile as tabs of one docked sheet, not separate map-control-toggled views (PLANUI-01 scope change) | Simpler mental model — one persistent sheet instead of two mutually-exclusive overlay states | ✓ Good — shipped Phase 20 |
+| [v1.5] Handoff synthesizes a GPX track only, no Waypoint records (HANDOFF-01 scope change) | Route anchors are planner-only; converting them to named Waypoints would conflate two different concepts on the receiving trail_create_screen | ✓ Good — shipped Phase 21 |
+| [v1.5] Travel profile (hike/bike) fixed at planner entry, no mid-session switch (ROUTE-03 cut, tracked as PLANNER-07) | Avoids re-resolving every existing segment on profile change; simplifies the auto-routing engine | ✓ Good — deferred to v2 backlog |
+| [v1.5] Dedicated `LocationSearchScreen` instead of reusing `GlobalSearchScreen` | `GlobalSearchScreen` also returns trails/lists/accounts; the planner only needs location results | ✓ Good — shipped Phase 20 |
+| [v1.6] Region catalog is an admin-supplied Docker-volume-mounted config file + cron-pre-built archives + API endpoint, not a bundled `regions.json` app asset | For a self-hostable app, offline-downloadable regions are a per-instance admin decision, not fixed at Flutter build time; pre-building ahead of request makes downloads instant instead of orchestrating N per-cell requests client-side | ✓ Good — shipped Phase 21.5, corrected an earlier bundled-asset assumption made during Phase 22 planning |
+| [v1.6] Pause/resume dropped entirely from region downloads, replaced with cancel-and-restart-from-0 | Dio's native `deleteOnError` handler deletes the `.part` file on ANY cancellation, including a deliberate pause — the very first pause of a fresh download silently destroyed its own resume progress | ✓ Good — amended 2026-07-23 (commit `4732d20e`), simpler than working around the footgun |
+| [v1.6] DEM is its own independent list tile (not a toggle on the Vector row), download gated on Vector being downloaded first | Hillshading without a basemap underneath it is meaningless; two independent packages with clearer per-item progress/state beat one row with a hidden sub-toggle | ✓ Good — amended 2026-07-23 (commit `663f049a`) |
+| [v1.6] Local loopback HTTP tile proxy for map rendering, not incremental `addSource`/`removeSource` region-swap reconciliation | Phase 25's hand-rolled Dart diffing had a reentrancy race (no in-flight guard, `MapEventCameraIdle` over-firing during GPS-follow) found in UAT; a proxy lets MapLibre Native's own viewport tracking pick regions, eliminating the race structurally instead of patching it | ✓ Good — shipped as urgent Phase 25.1 insertion |
+| [v1.6] CLEAN-02 (one-time orphaned-legacy-tile sweep) cut outright, not deferred | App is pre-production — no real install base with orphaned legacy tile files exists to clean up; any dev/test device can be wiped/reinstalled manually | ✓ Good — descoped per 27-CONTEXT.md D-05, ROADMAP success criterion #2 annotated accordingly |
+| [v1.6] Legacy trail-scoped tile code deleted outright in Phase 27, no dual-run or migration path | App is pre-production; `pmTiles`/`demPmTiles` had zero readers left once Phase 25 moved map rendering to the region pipeline | ✓ Good — zero remaining references confirmed by goal-backward verification |
+| [v1.7] Region catalog is seeded from CoMaps' own extract hierarchy, not hand-drawn or admin-authored | A curated upstream catalog removes the research and bbox-arithmetic burden that freehand drawing reintroduces, and CoMaps' boundaries are real, maintained, and ODbL-compatible with the existing OSM-derived tile data | ✓ Good — 1,306 rows seeded, zero admin action on a fresh instance |
+| [v1.7] Boundary geometry is fetched on demand from CoMaps at a pinned commit, not committed to the repo | Geometry was 99% of a 54.65 MB seed that only the build path and admin map ever read; a pinned SHA on a raw-file endpoint is content-addressed and immutable, so on-demand costs nothing in reproducibility. Offline boot is unaffected — only archive building, already network-gated, needs connectivity | ✓ Good — catalog to ~315 KB, seed run from ~1,153 requests to 1, clone pack 268 → 198 MiB |
+| [v1.7] `bbox` moved out of the catalog into `region_geometry` alongside the polygon | Verified every consumer needs bbox only for *enabled* regions; keeping it in the catalog would have forced the generator to keep scraping all ~1,153 `.poly` files for data most regions never use | ✓ Good — what made the one-request seed run possible |
+| [v1.7] Geometry persists on the `enabled` false→true transition via a server hook, not a client call | The original design made persistence depend on one specific UI call site doing one specific thing, and it silently never fired — enabling a region cached nothing. Keying off the record transition covers the picker, a REST PATCH, and the collection editor alike | ✓ Good — amended 2026-07-28 (`4b98c48b`) after the hole surfaced in manual use |
+| [v1.7] Phase-level verification under-covered cross-phase wiring | Three integration bugs surfaced through manual use *after* Phase 32's verification passed (`4b98c48b`, `0149b83e`, `6069cb57`), all in the seam where a field moved between collections and its writers weren't all traced | ⚠️ Revisit — milestone audit's integration check caught what phase verification did not; consider making cross-phase checks routine rather than milestone-only |
 
 ## Evolution
 
@@ -169,4 +256,6 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-16 — Milestone v1.5 Route Planner started.*
+
+---
+*Last updated: 2026-07-31 after starting milestone v1.8*

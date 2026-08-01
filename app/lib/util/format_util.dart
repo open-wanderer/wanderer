@@ -1,3 +1,25 @@
+import 'package:wanderer/models/trail_summary.dart';
+
+/// D-10's single app-side display rule: show `movingDuration` when it is
+/// present and positive, otherwise fall back to `duration`. A zero moving
+/// time is not treated as a value (matches
+/// `web/src/lib/util/format_util.ts`'s `trailDisplayDuration`, so the two
+/// platforms never disagree about which value is shown).
+///
+/// [TrailSummary] rather than [Trail] so this compiles against every call
+/// site: `trail_card.dart`/`trail_list_item.dart` hold a `TrailSummary`
+/// (which may be a search-result summary with no moving-time concept, hence
+/// `TrailSummary.movingDuration` defaulting to null), while `trail_panel.dart`
+/// holds a `Trail` (a `TrailSummary` subtype). Nothing may write
+/// `movingDuration` from a GPX recompute — it is a session-only field.
+double? trailDisplayDuration(TrailSummary trail) {
+  final movingDuration = trail.movingDuration;
+  if (movingDuration != null && movingDuration > 0) {
+    return movingDuration;
+  }
+  return trail.duration;
+}
+
 String formatDistance(double? meters, {String unit = 'metric'}) {
   if (meters == null) {
     return "-";

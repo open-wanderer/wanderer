@@ -10,6 +10,7 @@ import 'package:wanderer/models/api_error.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/util/offline_guard_util.dart';
 
 import '/i18n/app_localizations.dart';
 
@@ -27,6 +28,8 @@ class _EmailChangeSheetState extends ConsumerState<EmailChangeSheet> {
   bool _isLoading = false;
 
   Future<void> _submit() async {
+    if (!guardOnline(ref, AppLocalizations.of(context)!)) return;
+
     if (!(_formKey.currentState?.saveAndValidate() ?? false)) return;
 
     final v = _formKey.currentState!.value;

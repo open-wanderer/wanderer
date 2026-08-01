@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:wanderer/components/trail/map_app_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_share.dart';
@@ -16,6 +17,7 @@ import 'package:wanderer/provider/profile/profile_trails_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/provider/trail/trail_search_provider.dart';
+import 'package:wanderer/util/map_app.dart';
 
 enum TrailAction { open, directions, download, edit, delete }
 
@@ -102,8 +104,9 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
         PopupMenuItem<TrailAction>(
           value: TrailAction.download,
           onTap: downloadEnabled
-              ? () =>
-                    ref.read(downloadingTrailIdsProvider.notifier).download(trail)
+              ? () => ref
+                    .read(downloadingTrailIdsProvider.notifier)
+                    .download(trail)
               : null,
           enabled: downloadEnabled,
           child: ListTile(
@@ -164,6 +167,9 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   }
 
   bool _allowDelete(WidgetRef ref) {
+    if (widget.trail.isOffline) {
+      return true;
+    }
     final user = ref.watch(authProvider).value;
     if (user == null) return false;
 
@@ -195,6 +201,11 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   }
 
   Future<void> _deleteTrail(BuildContext context, Trail trail) async {
+    if (trail.isOffline) {
+      Navigator.of(context).pop();
+      ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
+    }
+
     final router = GoRouter.of(context);
 
     try {
@@ -221,16 +232,30 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   }
 
   Future<void> _openDirections(double lat, double lon) async {
-    final nativeUrl = Uri.parse(
-      Platform.isIOS ? 'maps://?daddr=$lat,$lon' : 'geo:$lat,$lon?q=$lat,$lon',
-    );
-    final webUrl = Uri.parse(
-      'https://www.openstreetmap.org/directions?to=$lat,$lon',
-    );
-    if (await canLaunchUrl(nativeUrl)) {
-      await launchUrl(nativeUrl);
+    if (Platform.isIOS) {
+      // iOS has no system app chooser, so detect the installed map apps and
+      // let the user pick. A lone result (normally just Apple Maps) skips the
+      // sheet.
+      final apps = await installedMapApps();
+      if (!mounted) return;
+
+      final app = apps.length == 1
+          ? apps.first
+          : apps.isEmpty
+          ? null
+          : await showMapAppSheet(context, apps);
+      if (app == null) return;
+
+      if (await launchUrl(Uri.parse(app.directionsUrl(lat, lon)))) return;
     } else {
-      await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+      // Android: a single geo: intent lets the system show its own chooser.
+      final geoUrl = Uri.parse('geo:$lat,$lon?q=$lat,$lon');
+      if (await canLaunchUrl(geoUrl) && await launchUrl(geoUrl)) return;
     }
+
+    await launchUrl(
+      Uri.parse('https://www.openstreetmap.org/directions?to=$lat,$lon'),
+      mode: LaunchMode.externalApplication,
+    );
   }
 }

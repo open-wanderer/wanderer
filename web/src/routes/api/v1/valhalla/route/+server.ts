@@ -1,5 +1,5 @@
-import { getValhallaRouteUrl } from '$lib/server/valhalla';
 import { proxyJsonResponse } from '$lib/server/http';
+import { getValhallaUrl } from '$lib/server/valhalla';
 import { json, type RequestEvent } from "@sveltejs/kit";
 
 type RouteRequestBody = Record<string, unknown> & {
@@ -33,10 +33,10 @@ type RouteRequestBody = Record<string, unknown> & {
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
-    const routeUrl = getValhallaRouteUrl();
+    const routeUrl = getValhallaUrl() + '/route';
     const data: RouteRequestBody = await event.request.json();
     if (!routeUrl) {
-        return json({ message: "VALHALLA_ROUTE_URL not set" }, { status: 400 })
+        return json({ message: "VALHALLA_URL not set" }, { status: 400 })
     }
 
     try {

@@ -281,7 +281,7 @@ as String?,
 /// @nodoc
 mixin _$Category {
 
- String get id; String get name;@JsonKey(name: 'short_name') String? get shortName; String? get icon; Map<String, CategoryTranslation>? get translations;
+ String get id; String get name;@JsonKey(name: 'short_name') String? get shortName; String? get icon; Map<String, CategoryTranslation>? get translations; Map<String, dynamic>? get settings;
 /// Create a copy of Category
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -294,16 +294,16 @@ $CategoryCopyWith<Category> get copyWith => _$CategoryCopyWithImpl<Category>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Category&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other.translations, translations));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Category&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other.translations, translations)&&const DeepCollectionEquality().equals(other.settings, settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,shortName,icon,const DeepCollectionEquality().hash(translations));
+int get hashCode => Object.hash(runtimeType,id,name,shortName,icon,const DeepCollectionEquality().hash(translations),const DeepCollectionEquality().hash(settings));
 
 @override
 String toString() {
-  return 'Category(id: $id, name: $name, shortName: $shortName, icon: $icon, translations: $translations)';
+  return 'Category(id: $id, name: $name, shortName: $shortName, icon: $icon, translations: $translations, settings: $settings)';
 }
 
 
@@ -314,7 +314,7 @@ abstract mixin class $CategoryCopyWith<$Res>  {
   factory $CategoryCopyWith(Category value, $Res Function(Category) _then) = _$CategoryCopyWithImpl;
 @useResult
 $Res call({
- String id, String name,@JsonKey(name: 'short_name') String? shortName, String? icon, Map<String, CategoryTranslation>? translations
+ String id, String name,@JsonKey(name: 'short_name') String? shortName, String? icon, Map<String, CategoryTranslation>? translations, Map<String, dynamic>? settings
 });
 
 
@@ -331,14 +331,15 @@ class _$CategoryCopyWithImpl<$Res>
 
 /// Create a copy of Category
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? shortName = freezed,Object? icon = freezed,Object? translations = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? shortName = freezed,Object? icon = freezed,Object? translations = freezed,Object? settings = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,shortName: freezed == shortName ? _self.shortName : shortName // ignore: cast_nullable_to_non_nullable
 as String?,icon: freezed == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
 as String?,translations: freezed == translations ? _self.translations : translations // ignore: cast_nullable_to_non_nullable
-as Map<String, CategoryTranslation>?,
+as Map<String, CategoryTranslation>?,settings: freezed == settings ? _self.settings : settings // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 
@@ -423,10 +424,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon,  Map<String, CategoryTranslation>? translations)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon,  Map<String, CategoryTranslation>? translations,  Map<String, dynamic>? settings)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Category() when $default != null:
-return $default(_that.id,_that.name,_that.shortName,_that.icon,_that.translations);case _:
+return $default(_that.id,_that.name,_that.shortName,_that.icon,_that.translations,_that.settings);case _:
   return orElse();
 
 }
@@ -444,10 +445,10 @@ return $default(_that.id,_that.name,_that.shortName,_that.icon,_that.translation
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon,  Map<String, CategoryTranslation>? translations)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon,  Map<String, CategoryTranslation>? translations,  Map<String, dynamic>? settings)  $default,) {final _that = this;
 switch (_that) {
 case _Category():
-return $default(_that.id,_that.name,_that.shortName,_that.icon,_that.translations);case _:
+return $default(_that.id,_that.name,_that.shortName,_that.icon,_that.translations,_that.settings);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -464,10 +465,10 @@ return $default(_that.id,_that.name,_that.shortName,_that.icon,_that.translation
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon,  Map<String, CategoryTranslation>? translations)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon,  Map<String, CategoryTranslation>? translations,  Map<String, dynamic>? settings)?  $default,) {final _that = this;
 switch (_that) {
 case _Category() when $default != null:
-return $default(_that.id,_that.name,_that.shortName,_that.icon,_that.translations);case _:
+return $default(_that.id,_that.name,_that.shortName,_that.icon,_that.translations,_that.settings);case _:
   return null;
 
 }
@@ -479,7 +480,7 @@ return $default(_that.id,_that.name,_that.shortName,_that.icon,_that.translation
 
 @JsonSerializable(explicitToJson: true)
 class _Category implements Category {
-  const _Category({required this.id, required this.name, @JsonKey(name: 'short_name') this.shortName, this.icon, final  Map<String, CategoryTranslation>? translations}): _translations = translations;
+  const _Category({required this.id, required this.name, @JsonKey(name: 'short_name') this.shortName, this.icon, final  Map<String, CategoryTranslation>? translations, final  Map<String, dynamic>? settings}): _translations = translations,_settings = settings;
   factory _Category.fromJson(Map<String, dynamic> json) => _$CategoryFromJson(json);
 
 @override final  String id;
@@ -491,6 +492,15 @@ class _Category implements Category {
   final value = _translations;
   if (value == null) return null;
   if (_translations is EqualUnmodifiableMapView) return _translations;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
+}
+
+ final  Map<String, dynamic>? _settings;
+@override Map<String, dynamic>? get settings {
+  final value = _settings;
+  if (value == null) return null;
+  if (_settings is EqualUnmodifiableMapView) return _settings;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableMapView(value);
 }
@@ -509,16 +519,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Category&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other._translations, _translations));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Category&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other._translations, _translations)&&const DeepCollectionEquality().equals(other._settings, _settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,shortName,icon,const DeepCollectionEquality().hash(_translations));
+int get hashCode => Object.hash(runtimeType,id,name,shortName,icon,const DeepCollectionEquality().hash(_translations),const DeepCollectionEquality().hash(_settings));
 
 @override
 String toString() {
-  return 'Category(id: $id, name: $name, shortName: $shortName, icon: $icon, translations: $translations)';
+  return 'Category(id: $id, name: $name, shortName: $shortName, icon: $icon, translations: $translations, settings: $settings)';
 }
 
 
@@ -529,7 +539,7 @@ abstract mixin class _$CategoryCopyWith<$Res> implements $CategoryCopyWith<$Res>
   factory _$CategoryCopyWith(_Category value, $Res Function(_Category) _then) = __$CategoryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name,@JsonKey(name: 'short_name') String? shortName, String? icon, Map<String, CategoryTranslation>? translations
+ String id, String name,@JsonKey(name: 'short_name') String? shortName, String? icon, Map<String, CategoryTranslation>? translations, Map<String, dynamic>? settings
 });
 
 
@@ -546,14 +556,15 @@ class __$CategoryCopyWithImpl<$Res>
 
 /// Create a copy of Category
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? shortName = freezed,Object? icon = freezed,Object? translations = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? shortName = freezed,Object? icon = freezed,Object? translations = freezed,Object? settings = freezed,}) {
   return _then(_Category(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,shortName: freezed == shortName ? _self.shortName : shortName // ignore: cast_nullable_to_non_nullable
 as String?,icon: freezed == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
 as String?,translations: freezed == translations ? _self._translations : translations // ignore: cast_nullable_to_non_nullable
-as Map<String, CategoryTranslation>?,
+as Map<String, CategoryTranslation>?,settings: freezed == settings ? _self._settings : settings // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 

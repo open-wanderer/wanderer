@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
+import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/components/base/wanderer_text_field.dart';
 import 'package:wanderer/components/welcome/server_selctor.dart';
+import 'package:wanderer/components/welcome/topography_background.dart';
 import 'package:wanderer/models/api_error.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
@@ -56,67 +58,79 @@ class LoginScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: FormBuilder(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUnfocus,
-            child: SingleChildScrollView(
-              child: Column(
-                spacing: 12,
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SvgPicture.asset(
-                    "assets/svgs/logo_text_twoline_${Theme.of(context).brightness.name}.svg",
-                    semanticsLabel: 'wanderer logo with text',
-                  ),
-                  Text(
-                    AppLocalizations.of(context)!.slogan,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  SizedBox(height: 12),
+      body: Stack(
+        children: [
+          Positioned.fill(child: TopographyBackground()),
+          SafeArea(
+            child: IconButton(
+              icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+              onPressed: () => context.pop(),
+            ),
+          ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: FormBuilder(
+                key: _formKey,
+                autovalidateMode: AutovalidateMode.onUnfocus,
+                child: SingleChildScrollView(
+                  child: Column(
+                    spacing: 12,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SvgPicture.asset(
+                        "assets/svgs/logo_text_twoline_${Theme.of(context).brightness.name}.svg",
+                        semanticsLabel: 'wanderer logo with text',
+                      ),
+                      Text(
+                        AppLocalizations.of(context)!.slogan,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      SizedBox(height: 12),
 
-                  ServerSelector(icon: FontAwesomeIcons.pencil),
-                  WandererTextField(
-                    name: 'username',
-                    label:
-                        "${AppLocalizations.of(context)!.username}/${AppLocalizations.of(context)!.email}",
-                    validator: FormBuilderValidators.required(),
-                  ),
-                  WandererTextField(
-                    name: 'password',
-                    label: AppLocalizations.of(context)!.password,
-                    isPassword: true,
-                    validator: FormBuilderValidators.compose([
-                      FormBuilderValidators.required(),
-                      FormBuilderValidators.minLength(8),
-                    ]),
-                  ),
+                      ServerSelector(icon: FontAwesomeIcons.pencil),
+                      WandererTextField(
+                        name: 'username',
+                        label:
+                            "${AppLocalizations.of(context)!.username}/${AppLocalizations.of(context)!.email}",
+                        validator: FormBuilderValidators.required(),
+                      ),
+                      WandererTextField(
+                        name: 'password',
+                        label: AppLocalizations.of(context)!.password,
+                        isPassword: true,
+                        validator: FormBuilderValidators.compose([
+                          FormBuilderValidators.required(),
+                          FormBuilderValidators.minLength(8),
+                        ]),
+                      ),
 
-                  SizedBox(
-                    width: double.infinity,
-                    child: WandererButton(
-                      primary: true,
-                      large: true,
-                      loading: loginState.isLoading,
-                      child: Text(AppLocalizations.of(context)!.login),
-                      onPressed: () async {
-                        if (_formKey.currentState?.saveAndValidate() ?? false) {
-                          final data = _formKey.currentState!.value;
-                          ref
-                              .read(authProvider.notifier)
-                              .login(data['username'], data['password']);
-                        }
-                      },
-                    ),
+                      SizedBox(
+                        width: double.infinity,
+                        child: WandererButton(
+                          primary: true,
+                          large: true,
+                          loading: loginState.isLoading,
+                          child: Text(AppLocalizations.of(context)!.login),
+                          onPressed: () async {
+                            if (_formKey.currentState?.saveAndValidate() ??
+                                false) {
+                              final data = _formKey.currentState!.value;
+                              ref
+                                  .read(authProvider.notifier)
+                                  .login(data['username'], data['password']);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

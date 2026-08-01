@@ -51,7 +51,7 @@ final class TrailFilterNotifierProvider
 }
 
 String _$trailFilterNotifierHash() =>
-    r'18b3c0bacf23f92bb67a01c9ae770fc1b48450f5';
+    r'63567fe7da385180c5fab2771630ab848b724670';
 
 final class TrailFilterNotifierFamily extends $Family
     with

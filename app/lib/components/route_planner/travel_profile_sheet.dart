@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
 
 /// Presents the travel-profile entry-point bottom sheet: a 5-option picker
@@ -21,7 +22,6 @@ Future<RouteTravelBucket?> showTravelProfileSheet(BuildContext context) {
     builder: (context) {
       return Consumer(
         builder: (context, ref, _) {
-          final theme = Theme.of(context);
           final categories = ref.watch(categoryProvider).value ?? const [];
 
           // 5 cards can exceed the sheet height on smaller screens, so make
@@ -36,24 +36,13 @@ Future<RouteTravelBucket?> showTravelProfileSheet(BuildContext context) {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Center(
-                    child: Container(
-                      width: 30,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(24),
-                        ),
-                        color: theme.colorScheme.secondaryContainer,
-                      ),
-                    ),
-                  ),
-                ),
                 for (final bucket in RouteTravelBucket.values) ...[
                   _TravelProfileCard(
-                    icon: bucketIcon(bucket, categories),
+                    icon: bucketIcon(
+                      bucket,
+                      categories,
+                      ref.watch(subcategoryProvider),
+                    ),
                     title: bucket.label,
                     description: bucket.description,
                     onTap: () => Navigator.pop(context, bucket),
@@ -129,7 +118,9 @@ class _TravelProfileCard extends StatelessWidget {
                     Text(
                       description,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                   ],

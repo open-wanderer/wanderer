@@ -31,6 +31,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get add_waypoint => 'Ajouter un point de passage';
 
   @override
+  String get adjust_track => 'Adjust track';
+
+  @override
   String get after => 'Après';
 
   @override
@@ -62,6 +65,12 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get cancel => 'Annuler';
+
+  @override
+  String get discard => 'Discard';
+
+  @override
+  String get discard_trail_confirm => 'Discard this trail and its changes?';
 
   @override
   String get car => 'Voiture';
@@ -542,7 +551,24 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get follow_roads => 'Follow roads';
+
+  @override
+  String get follow_roads_description =>
+      'Snap the recorded path to the nearest roads and trails.';
+
+  @override
+  String get recalculate_heights => 'Recalculate heights';
+
+  @override
+  String get recalculate_heights_description =>
+      'Replace recorded GPS elevation with more accurate values from the map.';
+
+  @override
   String get save => 'Sauvegarder';
+
+  @override
+  String get save_recording_options => 'Save recording';
 
   @override
   String get save_track => 'Save track';
@@ -636,7 +662,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get shower => 'Douche';
 
   @override
-  String get slogan => 'Sauvegarder vos aventures !';
+  String get slogan => 'Vos itinéraires. Vos données. Votre serveur.';
 
   @override
   String get sort => 'Trier';
@@ -911,4 +937,124 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get library => 'Library';
+
+  @override
+  String get settings_offline_regions_title => 'Offline Maps/Regions';
+
+  @override
+  String get regions_search_hint => 'Search regions';
+
+  @override
+  String get regions_dem_toggle_label => 'Download elevation data (DEM)';
+
+  @override
+  String get regions_dem_toggle_caption =>
+      'Adds hillshading; increases download size';
+
+  @override
+  String get regions_update_available => 'Update available';
+
+  @override
+  String get regions_update_action => 'Update';
+
+  @override
+  String get regions_retry => 'Retry';
+
+  @override
+  String get regions_not_yet_available => 'Not yet available';
+
+  @override
+  String get regions_build_failed => 'Build failed';
+
+  @override
+  String regions_delete_confirm_title(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get regions_delete_confirm_body =>
+      'This removes the downloaded map and elevation data for this region. You\'ll need to download it again to use it offline.';
+
+  @override
+  String get regions_delete_confirm_action => 'Delete';
+
+  @override
+  String regions_disk_usage_summary(String size, num count) {
+    return '$size used across $count downloaded region(s)';
+  }
+
+  @override
+  String get regions_empty_search_title => 'No matching regions';
+
+  @override
+  String get regions_empty_search_body => 'Try a different search term.';
+
+  @override
+  String get regions_empty_catalog_title => 'No offline regions available';
+
+  @override
+  String get regions_empty_catalog_body =>
+      'Ask your Wanderer instance administrator to configure downloadable regions.';
+
+  @override
+  String get regions_vector_tile_title => 'Vector';
+
+  @override
+  String get regions_dem_tile_title => 'Elevation data';
+
+  @override
+  String get regions_download_failed => 'Download failed';
+
+  @override
+  String get regions_dem_locked_subtitle => 'Download map data first';
+
+  @override
+  String get regions_offline_unavailable_title => 'Can\'t load regions';
+
+  @override
+  String get regions_offline_unavailable_body =>
+      'Connect to the internet to browse and manage downloadable regions.';
+
+  @override
+  String regions_group_expand_label(String name) {
+    return 'Expand $name';
+  }
+
+  @override
+  String regions_group_collapse_label(String name) {
+    return 'Collapse $name';
+  }
+
+  @override
+  String get offline_title => 'You\'re offline';
+
+  @override
+  String get offline_try_again => 'Try again';
+
+  @override
+  String get offline_map_body =>
+      'Connect to the internet to load the map. Downloaded trails are still available.';
+
+  @override
+  String get offline_list_body => 'Connect to the internet to load lists.';
+
+  @override
+  String get offline_profile_body =>
+      'Connect to the internet to load your full profile.';
+
+  @override
+  String get offline_settings_banner =>
+      'You\'re offline. Settings are read-only until you reconnect.';
+
+  @override
+  String get offline_action_unavailable =>
+      'You\'re offline — try again once you\'re back online.';
+
+  @override
+  String get offline_categories_body =>
+      'Connect to the internet to manage categories.';
+
+  @override
+  String get offline_trail_search_body =>
+      'Connect to the internet to search for trails. Downloaded trails are still available.';
 }

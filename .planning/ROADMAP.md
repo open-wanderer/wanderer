@@ -7,7 +7,10 @@
 - ✅ **v1.2 Settings Screens** — Phases 6-9 (shipped 2026-06-29)
 - ✅ **v1.3 Category Redesign** — Phases 10-12 (shipped 2026-07-02)
 - ✅ **v1.4 MapLibre Migration** — Phases 13-18 (shipped 2026-07-10)
-- 🚧 **v1.5 Route Planner** — Phases 19-21 (in progress)
+- ✅ **v1.5 Route Planner** — Phases 19-21 (shipped 2026-07-17)
+- ✅ **v1.6 Offline Region Tile Repository** — Phases 21.5, 22-27 (shipped 2026-07-24)
+- ✅ **v1.7 Admin Region Picker** — Phases 28-32 (shipped 2026-07-28)
+- 🚧 **v1.8 Offline Recording & Deferred Upload** — Phases 33-36 (in progress)
 
 ## Phases
 
@@ -269,91 +272,193 @@ See `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
 </details>
 
-### v1.5 Route Planner (In Progress)
+<details>
+<summary>✅ v1.5 Route Planner (Phases 19-21) — SHIPPED 2026-07-17</summary>
 
-**Milestone Goal:** A user can build a route from scratch on the map (tap/drag waypoints, optional auto-routing via Valhalla) and hand it off as a draft trail to the existing create/edit screen.
+- [x] Phase 19: Route Planner Core — Waypoint Editing & Routing Engine (4/4 plans) — completed 2026-07-16
+- [x] Phase 20: Route Planner Views — Waypoint List, Elevation & Location Search (5/5 plans) — completed 2026-07-16
+- [x] Phase 21: Route Planner Handoff & Entry Point (4/4 plans) — completed 2026-07-17
 
-- [x] **Phase 19: Route Planner Core — Waypoint Editing & Routing Engine** - Tap/drag/insert waypoints on the map with auto-routing toggle (fixed foot/bike profile) and undo/redo (completed 2026-07-16)
-- [x] **Phase 20: Route Planner Views — Waypoint List, Elevation & Location Search** - Route anchor list (delete/reorder) and live elevation profile as tabs of one docked sheet, plus location-search-to-focus (completed 2026-07-16)
-- [x] **Phase 21: Route Planner Handoff & Entry Point** - New planner entry point with hike/bike dialog, handoff to trail create/edit as a draft Trail (completed 2026-07-17)
+See `.planning/milestones/v1.5-ROADMAP.md` for full details.
 
-### Phase 19: Route Planner Core — Waypoint Editing & Routing Engine
+</details>
 
-**Goal**: A user can build a route from scratch directly on the map — tapping to add waypoints, dragging to reposition them, inserting mid-segment — with an auto-routing toggle (Valhalla, fixed foot/bike profile set at entry) and undo/redo, all backed by a dedicated route-planner state provider.
-**Depends on**: Phase 18 (maplibre-native map stack; first phase of v1.5)
-**Requirements**: WAYP-01, WAYP-02, WAYP-03, ROUTE-01, ROUTE-02, ROUTE-04, ROUTE-05
+<details>
+<summary>✅ v1.6 Offline Region Tile Repository (Phases 21.5, 22-27) — SHIPPED 2026-07-24</summary>
+
+- [x] Phase 21.5: Region Catalog & Archive Pre-Build (Backend) (3/3 plans) — completed 2026-07-21
+- [x] Phase 22: Region & Package Data Model (3/3 plans) — completed 2026-07-22
+- [x] Phase 23: TileRepositoryManager — Download Engine (6/6 plans) — completed 2026-07-22 (amended 2026-07-23 — pause/resume removed, cancel-and-restart-from-0)
+- [x] Phase 24: Settings — Offline Maps/Regions UI (plans complete) — completed 2026-07-22 (amended 2026-07-23 — DEM toggle replaced by a gated DEM tile)
+- [x] Phase 25: Map Rendering — Region-Based Viewport Pipeline (4/4 plans) — completed 2026-07-23
+- [x] Phase 25.1: Local HTTP Tile Proxy (INSERTED) (plans complete) — completed 2026-07-23/24
+- [x] Phase 26: Trail Download Guard (plans complete) — completed 2026-07-24
+- [x] Phase 27: Legacy Cleanup (2/2 plans) — completed 2026-07-24 (CLEAN-02 descoped per D-05)
+
+See `.planning/milestones/v1.6-ROADMAP.md` for full details.
+
+</details>
+
+<details>
+<summary>✅ v1.7 Admin Region Picker (Phases 28-32) — SHIPPED 2026-07-28</summary>
+
+- [x] Phase 28: Region Catalog Data Model & Seeding (4/4 plans) — completed 2026-07-26
+- [x] Phase 29: Polygon-Based Extraction & Region API (4/4 plans) — completed 2026-07-26
+- [x] Phase 30: Admin Region Picker UI (2/2 plans) — completed 2026-07-27
+- [x] Phase 31: Flutter Settings Hierarchy (3/3 plans) — completed 2026-07-27
+- [x] Phase 32: On-Demand Polygon Fetch & Seed Slimming (6/6 plans) — completed 2026-07-28
+
+See `.planning/milestones/v1.7-ROADMAP.md` for full details.
+Audit: `.planning/milestones/v1.7-MILESTONE-AUDIT.md` (status `gaps_found` — verification coverage, accepted at close).
+
+</details>
+
+### 🚧 v1.8 Offline Recording & Deferred Upload (Phases 33-36, in progress)
+
+**Milestone Goal:** A hiker who records a trail with no signal can save it, review it, and fill in its details on the spot — and it uploads itself when the phone next has a connection, without the hiker doing anything.
+
+- [x] **Phase 33: Conversion Correctness** - Corrected GPX→trail metrics in the shared TS computation (`gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`), fixing four defects plus GPS-jitter-inflated distance before anything ports or builds on top of them (re-verification found 3 new regressions 2026-07-31 — see 33-VERIFICATION.md) (completed 2026-07-31)
+- [x] **Phase 34: Dart Conversion Port** - The app computes trail metrics from a GPX entirely on-device (including moving time for recordings), pinned against the corrected TS by a shared fixture test; `/trail/convert` becomes transcode-only (7/7 plans; UAT gaps closed, security audit 0 threats open) (completed 2026-08-01)
+- [ ] **Phase 35: Offline Trail Creation** - `trail_create_screen` is fully usable with no connection: map, tags, GPX import, and a clear message for formats that need one
+- [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the library, and uploads itself once the phone is back online
+
+#### Sequencing Rationale
+
+Four phases, strictly sequential — each one's success criteria depend on groundwork the previous phase lays down:
+
+1. **Fix the shared math before porting it.** Phase 33 touches only `web/src/lib/models/gpx/gpx.ts`, `gpx-metrics-computation.ts`, and `gpx_util.ts` — no app changes. Phase 34's PORT-02 pins the Dart port against these exact corrected outputs with a shared fixture test; porting first would have made the four defects (CONV-01..05) permanent and indistinguishable from intended behavior in Dart.
+
+2. **Make the app self-sufficient before breaking the endpoint.** PORT-04 turns `/api/v1/trail/convert` into a transcode-only endpoint — a breaking change to its response shape. It lands last within Phase 34, after PORT-01 (on-device conversion) and PORT-03 (every app call site switched to the Dart path), so nothing in the app still depends on the old contract when it changes.
+
+3. **Bundle all four Offline Create/Import UX requirements in one phase, even though two have no dependency.** OFFUI-01 (blank map) and OFFUI-02 (throwing tag autocomplete) are live bugs today, independent of the conversion work, and already tracked in `.planning/todos/pending/2026-07-31-trail-create-screen-offline-gaps.md` — plan-phase can schedule them first within Phase 35's plans. OFFUI-03 (offline GPX import) and OFFUI-04 (clear non-GPX offline message) need Phase 34's on-device conversion and transcode-only contract respectively. Together the four close out the milestone's "trail_create_screen usable with no connection" target feature as one coherent, user-observable capability.
+
+4. **Recording before sync, and both after the screen works offline.** SYNC-* drains a queue that REC-* must create first — you cannot drain what doesn't exist. REC-05 (editing an unsynced recording while offline) reuses the exact map/tag fixes Phase 35 ships, so Phase 36 depends on Phase 35, not just Phase 34. REC-01 (saving a recording offline at all) needs Phase 34's on-device conversion to produce a trail with no network call.
+
+### Phase 33: Conversion Correctness
+
+**Goal**: Every GPX converted anywhere in Wanderer — a web upload or a server-side conversion — reports correct distance, elevation, and duration, fixing four real defects in the shared TS computation before the Dart port can be pinned against it.
+**Depends on**: Nothing new this milestone (continues from Phase 32)
+**Requirements**: CONV-01, CONV-02, CONV-03, CONV-04, CONV-05
 **Success Criteria** (what must be TRUE):
 
-  1. A user can tap anywhere on the Route Planner map to add a waypoint, which appears as a marker connected to the previous waypoint by a route segment.
-  2. A user can drag an existing waypoint to a new position; the segments connecting it to its neighbors re-resolve automatically to the current routing mode.
-  3. A user can tap an existing route segment to insert a new waypoint between its two endpoints.
-  4. A user can toggle auto-routing on (Valhalla-routed segments, using the fixed foot/bike profile set at entry) or off (straight-line segments); toggling on re-resolves every existing segment via Valhalla, toggling off leaves existing segments untouched and only affects segments created afterward.
-  5. A user can undo and redo their waypoint edits; when a segment fails to auto-route (unreachable backend, no route found), it is shown as blocked with a retry action rather than silently falling back to a straight line.
+  1. Converting a 2-point GPX track segment reports its real length instead of zero, and its centroid/bounding box sum and divide by the same point count instead of silently losing the first point.
+  2. Converting a GPX with only some elevation-tagged points no longer reports a phantom drop to sea level, and a steep, low-horizontal-movement stretch (switchbacks, scrambles) is measured instead of skipped.
+  3. A converted trail's distance comes from the smoothed accumulator instead of the raw, GPS-jitter-inflated haversine sum, and the dead, misaligned `cumulativeDistance` array is gone.
+  4. A route planned in the web planner reports a distance that follows its anchors instead of cutting the corner at each one.
+
+**Plans**: 5 plans (3 shipped + 2 gap closure)
+Plans:
+**Wave 1**
+
+- [x] 33-01-PLAN.md — Fix the `getTotals()` off-by-one loop bound and the centroid divisor (CONV-01/02), plus the first GPX Vitest fixture suite
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 33-02-PLAN.md — Undefined-aware elevation via `parseElevation` (CONV-03) and threshold-independent elevation sampling (CONV-04), with fixtures
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 33-03-PLAN.md — Report the smoothed distance and rebuild `cumulativeDistance` index-aligned (CONV-05/D-01), rescale the crop slider (D-02)
+  - The smoothed-distance half was **superseded 2026-08-01** by quick task `260801-opr` — distance is now the raw accumulator; see `.planning/REQUIREMENTS.md` CONV-05. The `cumulativeDistance` rebuild and crop-slider rescale stand.
+
+**Wave 4** *(gap closure — from 33-VERIFICATION.md)*
+
+- [x] 33-04-PLAN.md — Replace the removed horizontal gate with a commit-then-retract elevation noise filter so a stationary track stops fabricating 210 m of gain (CONV-04)
+- [x] 33-05-PLAN.md — Make crop interpolation degenerate-safe in a testable module and stop `croppedGPX` resurrecting a discarded route (CONV-05 consumer)
+
+**Scope note:** deliberately web-only — `web/src/lib/models/gpx/gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`. CONV-06 (moving time) was originally mapped here and moved to Phase 34: pause data lives in the app's `navigation_stats_provider` (`pausedAccum`) and exists only for trails recorded in the app, so it cannot be satisfied or observed by a web-only change.
+
+### Phase 34: Dart Conversion Port
+
+**Goal**: The app computes a trail's name, waypoints, distance, elevation, duration, and bounding box from a GPX entirely on-device — for recordings, route-planner output, and file imports — proven identical to the corrected web implementation; the server's convert endpoint stops computing trails at all.
+**Depends on**: Phase 33 (the port must be pinned against the corrected algorithm — porting the buggy TS first would make the defects permanent and unfixable without diverging)
+**Requirements**: PORT-01, PORT-02, PORT-03, PORT-04, PORT-05, CONV-06
+**Success Criteria** (what must be TRUE):
+
+  1. The app derives a draft trail's name, description, waypoints, start coordinates, date, distance, elevation gain/loss, duration, and bounding box from a GPX with no network call.
+  2. A shared fixture test proves the Dart and TypeScript implementations produce identical metrics for the same GPX inputs, explicitly covering the CONV-01..05 defect cases.
+  3. Recordings, route-planner output, and `.gpx` file imports all produce their trail through the Dart path — `POST /trail/convert` is called for none of them.
+  4. `POST /api/v1/trail/convert` transcodes kml/kmz/tcx/fit to GPX and returns it without computing a trail, and its published OpenAPI description matches the new behavior.
+  5. Importing a kml/kmz/tcx/fit file while online still produces a correct trail, computed by the app from the server-transcoded GPX.
+  6. A trail saved from an in-app recording reports moving time — elapsed minus the session's accumulated pause — while an imported file continues to report elapsed time.
+
+**Plans**: 7 plans in 4 waves
+Plans:
+**Wave 1**
+
+- [x] 34-01-PLAN.md — Dart GPX sanitize pass and the ported `GpxMetricsComputation` / `computeTrailMetrics`, with the CONV-01..05 defect suite
+- [x] 34-02-PLAN.md — `moving_duration` end to end: PocketBase migration, OpenAPI, TS + Dart models, trail form body, web display rule
+- [x] 34-03-PLAN.md — The shared on-disk `fixtures/gpx-corpus/` and the TypeScript parity suite
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 34-04-PLAN.md — `trailFromGpx` trail assembly, the Dart corpus parity suite, and retiring the app's second (buggy) metrics implementation
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 34-05-PLAN.md — All three capture paths onto the Dart path; `/trail/convert` reduced to a transcode-only helper; recording moving-time hand-off
+
+**Wave 4** *(blocked on Wave 3 completion; 34-06 and 34-07 run in parallel)*
+
+- [x] 34-06-PLAN.md — Online-gated `showTrackSaveOptionsSheet` for all three sources, fixing the route planner's offline dead end
+- [x] 34-07-PLAN.md — `POST /api/v1/trail/convert` becomes transcode-only and returns raw GPX; OpenAPI regenerated
+
+### Phase 35: Offline Trail Creation
+
+**Goal**: A hiker can open `trail_create_screen` with no connection and complete every step — see the map, enter tags, import a GPX — with non-GPX formats clearly explained instead of failing generically.
+**Depends on**: Phase 34 (OFFUI-03 needs the on-device Dart conversion path; OFFUI-04 needs the transcode-only endpoint contract to explain correctly). OFFUI-01/02 have no such dependency and are live bugs today (`.planning/todos/pending/2026-07-31-trail-create-screen-offline-gaps.md`) — plan-phase may sequence them first within this phase's plans.
+**Requirements**: OFFUI-01, OFFUI-02, OFFUI-03, OFFUI-04
+**Success Criteria** (what must be TRUE):
+
+  1. The map on `trail_create_screen` renders from downloaded regions when there is no connection, instead of going blank.
+  2. Typing a tag with no connection shows no suggestions instead of throwing, and a typed free-form tag still reaches the saved trail.
+  3. Importing a `.gpx` file works with no connection, converted on-device via Phase 34's Dart path.
+  4. Attempting to import a kml/kmz/tcx/fit file with no connection explains that format needs a connection and that GPX works offline, instead of a generic failure.
 
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 20: Route Planner Views — Waypoint List, Elevation & Location Search
+### Phase 36: Local-First Recording & Automatic Upload
 
-**Goal**: A user can inspect and manage the in-progress route through a persistent bottom sheet with two tabs — a route anchor list (delete, reorder) and a live elevation profile — and can pan the planner map to a searched location.
-**Depends on**: Phase 19
-**Requirements**: WAYP-04, WAYP-05, PLANUI-01, PLANUI-02, PLANUI-03
+**Goal**: A hiker who records a trail with no signal can save it, review it, and fill in its details on the spot — and it uploads itself the next time the phone has a connection, without the hiker doing anything.
+**Depends on**: Phase 35 (REC-05's offline edit reuses the exact `trail_create_screen` map/tag fixes Phase 35 ships; REC-01 needs Phase 34's on-device conversion, carried forward)
+**Requirements**: REC-01, REC-02, REC-03, REC-04, REC-05, SYNC-01, SYNC-02, SYNC-03, SYNC-04, SYNC-05
 **Success Criteria** (what must be TRUE):
 
-  1. Once the route has at least one anchor, a docked bottom sheet is visible at peek height (draggable to expand), showing a "Route Anchors" tab with every anchor listed in route order.
-  2. From the route anchor list tab, a user can delete an anchor (immediate, no confirmation — undo/redo is the safety net) or drag to reorder anchors, and the map and route update to match.
-  3. A second tab in the same sheet ("Elevation") shows a live elevation profile — built from a `Gpx` synthesized incrementally from the in-progress route and fetched from `/api/v1/valhalla/height` only while that tab is visible — that updates as the route changes; with fewer than 2 anchors it shows an empty-state message instead.
-  4. A user can tap a magnifying-glass map control button (top-right, above auto-routing toggle) to open a dedicated location-search screen that searches locations only (not trails, lists, or accounts); selecting a result pans/zooms the planner map to it (zoom 13).
+  1. Ending a recording with no connection saves it immediately into the trail library — no save-failure is ever shown for being offline, and the unsynced recording is visibly distinguishable from both a synced trail and a trail downloaded for offline use.
+  2. A recording survives app restart and stays tied to the account that recorded it — a different account never sees or uploads it, and logging out never deletes it.
+  3. A hiker can open, review, and edit an unsynced recording's title, description, category, and photos while still offline, on the same screen Phase 35 made offline-capable.
+  4. Once the app is foregrounded with a working connection, an unsynced recording uploads on its own — with inline per-item progress visible on the recording itself (not a separate pending-uploads screen), and a manual retry when an upload fails or stalls.
+  5. An interrupted upload never produces a duplicate trail when retried, and once uploaded the recording becomes an ordinary trail in place — keeping its identity in the library rather than appearing a second time.
 
-**SCOPE CHANGE (from original PRD wording, resolved in 20-CONTEXT.md):** the list and elevation profile were originally specified as two separate views "toggled via map control buttons." Discussion converged on a simpler mechanism — one persistent tabbed sheet, no separate toggle buttons for these two views — that still satisfies the same user-visible capability (inspect route as a list or as an elevation profile, mutually exclusive at a time).
-
-**Plans**: 5 plans (3 waves)
-
-Plans:
-
-- [x] 20-01-PLAN.md — Route anchor deleteAnchor/reorderAnchors mutators + buildGpxFromPoints + plannedGpxProvider (WAYP-04/05, PLANUI-02)
-- [x] 20-02-PLAN.md — LocationSearchScreen (locations-only) + /location-search route (PLANUI-03)
-- [x] 20-03-PLAN.md — ElevationProfile trail→Trail? + ElevationTab (tab-gated debounced height fetch) (PLANUI-02)
-- [x] 20-04-PLAN.md — RouteAnchorListTab (numbered rows, immediate delete, drag reorder) (WAYP-04/05)
-- [x] 20-05-PLAN.md — RouteAnchorSheet tabbed DraggableScrollableSheet + planner screen integration (search button, sheet host, camera hand-off) (PLANUI-01/03)
-
+**Plans**: TBD
 **UI hint**: yes
 
-### Phase 21: Route Planner Handoff & Entry Point
-
-**Goal**: A user reaches the Route Planner from the trail-source-select flow, chooses an initial travel profile up front, and hands off a finished plan as a draft Trail to the existing create/edit screen.
-**Depends on**: Phase 20
-**Requirements**: HANDOFF-01, HANDOFF-02, HANDOFF-03
-**Success Criteria** (what must be TRUE):
-
-  1. From the trail-source-select flow, a user sees a new "Plan a route" entry point alongside the existing "Import trail file" option.
-  2. Tapping the new entry point shows a hike/bike selection dialog before the Route Planner screen opens; the choice sets the planner's initial travel profile, fixed for the rest of the planning session (no in-planner profile switch).
-  3. From the Route Planner, a user can finish planning and hand off the route as a draft Trail (synthesized GPX track only — no Waypoint records; route anchors stay planner-only, **with elevation populated regardless of whether the Elevation tab was ever opened**) that opens directly in the existing trail create/edit screen, pre-filled with the planned route, reusing the existing `pendingImportedTrail` safety net.
-
-**SCOPE CHANGE (resolved in 21-CONTEXT.md):** HANDOFF-01 was originally worded "synthesized GPX + named waypoints." Discussion clarified route anchors never become `Waypoint` records — the draft Trail carries only the synthesized GPX track (with elevation).
-
-**Implementation note (carried over from Phase 20):** `plannedGpxProvider` (Phase 20) intentionally stays pre-elevation — the Elevation tab's `/api/v1/valhalla/height` fetch is gated on tab visibility (D-11) and its ele-merged result lives only in that tab's local widget state, never written back to the shared provider. This phase must add a **one-time elevation fetch at handoff time**: before constructing the draft Trail, fetch `/api/v1/valhalla/height` once against the final `plannedGpxProvider` route and merge `ele` into the handed-off GPX. Deliberately not a continuous background fetch in `plannedGpxProvider` — that would re-fire Valhalla on every anchor edit regardless of tab visibility, which is exactly what D-11 avoided. A single fetch at the moment of handoff is sufficient and cheaper.
-
-**Plans**: 4 plans (3 waves)
-
-Plans:
-
-- [x] 21-01-PLAN.md — Handoff logic: categoryForTravelProfile + route_planner_handoff_util (one-time elevation merge, GPX-track-only draft Trail) (HANDOFF-01)
-- [x] 21-02-PLAN.md — Settings Behavior port: allowAutoGeolocate field + SettingsEntity behaviorJson (HANDOFF-03/D-03)
-- [x] 21-03-PLAN.md — Entry point: hike/bike modal sheet + trail-source card wiring + real /route-planner registration (HANDOFF-02/03)
-- [x] 21-04-PLAN.md — App-bar Finish action + undo/redo relocation to map controls, wired to finishPlanning (HANDOFF-01/D-04/D-05)
-
-**UI hint**: yes
+**Open for discuss-phase:** three decisions are deliberately unresolved and belong to this phase's discuss-phase — photo file durability (`image_picker` returns paths into an OS-purgeable cache directory), partial-failure semantics of the `tag → trail → waypoint` upload sequence, and whether logout with undrained recordings needs a confirmation UX. Full context: `.planning/research/questions.md`, `.planning/notes/offline-recording-deferred-upload-design.md`.
 
 ## Progress
 
 **Execution Order:**
-Phases 13 and 14 are independent and may execute in either order or in parallel; 15-18 are strictly sequential. Phases 19-21 (v1.5) are strictly sequential after Phase 18:
+Phases 13 and 14 are independent and may execute in either order or in parallel; 15-27 are strictly sequential:
 
 ```
 13 ─┐
-    ├─→ 15 → 16 → 17 → 18 → 19 → 20 → 21
+    ├─→ 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23 → 24 → 25 → 26 → 27
 14 ─┘
+```
+
+v1.7 continues from Phase 27. Phase 29 and Phase 30 both depend only on Phase 28 and may execute in parallel; Phase 31 depends specifically on Phase 29. Phase 32 revises Phase 28's seeding approach and changes Phase 29's `buildRegion`, so it follows both:
+
+```
+28 ─┬─→ 29 ─┬─→ 31
+    │       └─→ 32
+    └─→ 30
+```
+
+v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phase's success criteria depend on groundwork the previous phase lays (see the v1.8 Sequencing Rationale above):
+
+```
+33 → 34 → 35 → 36
 ```
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -379,3 +484,18 @@ Phases 13 and 14 are independent and may execute in either order or in parallel;
 | 19. Route Planner Core — Waypoint Editing & Routing Engine | v1.5 | 4/4 | Complete   | 2026-07-16 |
 | 20. Route Planner Views — Waypoint List, Elevation & Location Search | v1.5 | 5/5 | Complete   | 2026-07-16 |
 | 21. Route Planner Handoff & Entry Point | v1.5 | 4/4 | Complete   | 2026-07-17 |
+| 22. Region & Package Data Model | v1.6 | 2/2 | Complete   | 2026-07-22 |
+| 23. TileRepositoryManager — Download Engine | v1.6 | 6/6 | Complete   | 2026-07-22 |
+| 24. Settings — Offline Maps/Regions UI | v1.6 | 4/4 | Complete   | 2026-07-23 |
+| 25. Map Rendering — Region-Based Viewport Pipeline | v1.6 | 4/4 | Complete   | 2026-07-23 |
+| 26. Trail Download Guard | v1.6 | 5/5 | Complete   | 2026-07-24 |
+| 27. Legacy Cleanup | v1.6 | 2/2 | Complete    | 2026-07-24 |
+| 28. Region Catalog Data Model & Seeding | v1.7 | 4/4 | Complete    | 2026-07-26 |
+| 29. Polygon-Based Extraction & Region API | v1.7 | 4/4 | Complete   | 2026-07-26 |
+| 30. Admin Region Picker UI | v1.7 | 2/2 | Complete   | 2026-07-27 |
+| 31. Flutter Settings Hierarchy | v1.7 | 3/3 | Complete   | 2026-07-27 |
+| 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 6/6 | Complete   | 2026-07-28 |
+| 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
+| 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
+| 35. Offline Trail Creation | v1.8 | 0/0 | Not planned | — |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 0/0 | Not planned | — |

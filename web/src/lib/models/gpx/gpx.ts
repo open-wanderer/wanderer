@@ -101,6 +101,7 @@ export default class GPX {
     let totalDistance = 0;
     let totalLat = 0
     let totalLon = 0
+    let summedPointCount = 0
 
     const metrics = new GpxMetricsComputation(5, 5);
 
@@ -122,12 +123,13 @@ export default class GPX {
         }
 
         const pointLength = points.length
-        for (let i = 1; i < pointLength; i++) {
+        for (let i = 0; i < pointLength; i++) {
           const point = points[i];
           metrics.addAndFilter(point)
 
           totalLat += point.$.lat ?? 0;
           totalLon += point.$.lon ?? 0;
+          summedPointCount++;
 
           minLat = Math.min(minLat, point.$.lat ?? Infinity);
           maxLat = Math.max(maxLat, point.$.lat ?? -Infinity);
@@ -137,17 +139,27 @@ export default class GPX {
       }
     }
 
-    totalElevationGain = metrics.totalElevationGainSmoothed;
-    totalElevationLoss = metrics.totalElevationLossSmoothed;
+    // final* rather than total*Smoothed: the track is complete here, so an
+    // excursion still pending in the noise filter (a climb the track ends on)
+    // is real and must be counted. The total*Smoothed fields deliberately
+    // exclude it to stay monotonic for per-segment differencing consumers.
+    totalElevationGain = metrics.finalElevationGain;
+    totalElevationLoss = metrics.finalElevationLoss;
     totalDistance = metrics.totalDistance;
 
     const boundingBox = { minLat, maxLat, minLon, maxLon };
-    const centroid = { lat: totalLat / allPoints.length, lon: totalLon / allPoints.length };
+    const centroid = { lat: totalLat / summedPointCount, lon: totalLon / summedPointCount };
 
     return {
       centroid,
       boundingBox,
       distance: totalDistance,
+      // D-01: raw (unsmoothed), index-aligned with flatten() — one entry
+      // per point, first entry 0 — reserved for position interpolation
+      // (the trail-edit crop slider). Since 2026-08-01 this is the same
+      // accumulator as the reported `distance` above (both are
+      // metrics.totalDistance), so the last entry here equals that total
+      // by construction — see the D-01 executable invariant in gpx.test.ts.
       cumulativeDistance: metrics.cumulativeDistance,
       elevationGain: totalElevationGain,
       elevationLoss: totalElevationLoss,
@@ -209,7 +221,7 @@ export default class GPX {
           continue
         }
         segment.trkpt.forEach((pt) => {
-          pt.ele = heightResponse.height[heightIndex]
+          pt.ele = heights[heightIndex]
           heightIndex++;
         })
       }

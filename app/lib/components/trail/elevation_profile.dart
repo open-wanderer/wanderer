@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/gpx_conversion_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
 class ElevationProfile extends ConsumerStatefulWidget {
@@ -62,55 +62,8 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
     }
   }
 
-  List<TrackPoint> _parseGpx(Gpx gpx, int windowSize) {
-    final rawPoints = gpx.allWaypoints;
-
-    if (rawPoints.isEmpty) return [];
-
-    final result = <TrackPoint>[];
-    double cumDist = 0;
-    Duration cumDuration = Duration.zero;
-
-    for (int i = 0; i < rawPoints.length; i++) {
-      final wpt = rawPoints[i];
-      if (i > 0) {
-        cumDist += _haversine(rawPoints[i - 1], wpt);
-
-        final prevTime = rawPoints[i - 1].time;
-        final currTime = wpt.time;
-        if (prevTime != null && currTime != null) {
-          final delta = currTime.difference(prevTime);
-          if (delta > Duration.zero) cumDuration += delta;
-        }
-      }
-      result.add(
-        TrackPoint(
-          distanceM: cumDist,
-          elevationM: wpt.ele ?? 0,
-          lonlat: Geographic(lat: wpt.lat ?? 0, lon: wpt.lon ?? 0),
-          duration: cumDuration,
-          gradient: 0,
-          color: Colors.white,
-        ),
-      );
-    }
-
-    _smoothElevations(result, windowSize: windowSize);
-
-    for (int i = 0; i < result.length; i++) {
-      if (i == 0) {
-        result[i].gradient = 0;
-      } else {
-        final dElev = result[i].elevationM - result[i - 1].elevationM;
-        final dDist = result[i].distanceM - result[i - 1].distanceM;
-        result[i].gradient = dDist > 0 ? (dElev / dDist) * 100 : 0;
-      }
-      result[i].color = _gradientColor(result[i].gradient);
-    }
-    result[0].color = result.length > 1 ? result[1].color : _gradientColor(0);
-
-    return _simplifyTrackPoints(result, 250);
-  }
+  List<TrackPoint> _parseGpx(Gpx gpx, int windowSize) =>
+      buildElevationTrackPoints(gpx, windowSize);
 
   @override
   Widget build(BuildContext context) {
@@ -175,9 +128,9 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
         elevationGain = trail.elevationGain;
         elevationLoss = trail.elevationLoss;
       } else {
-        final totals = widget.gpx.getTotals();
-        elevationGain = totals.totalElevationGain;
-        elevationLoss = totals.totalElevationloss;
+        final metrics = computeTrailMetrics(widget.gpx);
+        elevationGain = metrics.elevationGain;
+        elevationLoss = metrics.elevationLoss;
       }
       statsHeader = Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -527,65 +480,6 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
       stops: stops,
     );
   }
-
-  List<TrackPoint> _simplifyTrackPoints(
-    List<TrackPoint> points,
-    int targetCount,
-  ) {
-    if (points.length <= targetCount) return points;
-
-    final numBuckets = targetCount ~/ 2;
-    final bucketSize = points.length / numBuckets;
-    final result = <TrackPoint>[];
-
-    result.add(points.first);
-
-    for (int i = 0; i < numBuckets; i++) {
-      final start = max(1, (i * bucketSize).floor());
-      final end = min(points.length - 1, ((i + 1) * bucketSize).floor());
-      if (start >= end) continue;
-
-      int minIdx = start;
-      int maxIdx = start;
-      double minEle = points[start].elevationM;
-      double maxEle = points[start].elevationM;
-
-      for (int j = start + 1; j < end; j++) {
-        final ele = points[j].elevationM;
-        if (ele < minEle) {
-          minEle = ele;
-          minIdx = j;
-        }
-        if (ele > maxEle) {
-          maxEle = ele;
-          maxIdx = j;
-        }
-      }
-
-      if (minIdx == maxIdx) {
-        result.add(points[minIdx]);
-      } else if (minIdx < maxIdx) {
-        result.add(points[minIdx]);
-        result.add(points[maxIdx]);
-      } else {
-        result.add(points[maxIdx]);
-        result.add(points[minIdx]);
-      }
-    }
-
-    if (result.last != points.last) {
-      result.add(points.last);
-    }
-
-    final uniqueResult = <TrackPoint>[];
-    for (final pt in result) {
-      if (uniqueResult.isEmpty || uniqueResult.last != pt) {
-        uniqueResult.add(pt);
-      }
-    }
-
-    return uniqueResult;
-  }
 }
 
 class TrackPoint {
@@ -654,20 +548,6 @@ Color _gradientColor(double gradientPct) {
   return const Color(0xFFD32F2F); // crimson red
 }
 
-double _haversine(Wpt a, Wpt b) {
-  const r = 6371.0;
-  final lat1 = _deg2rad(a.lat ?? 0);
-  final lat2 = _deg2rad(b.lat ?? 0);
-  final dLat = _deg2rad((b.lat ?? 0) - (a.lat ?? 0));
-  final dLon = _deg2rad((b.lon ?? 0) - (a.lon ?? 0));
-  final h =
-      sin(dLat / 2) * sin(dLat / 2) +
-      cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
-  return r * 1000 * 2 * atan2(sqrt(h), sqrt(1 - h));
-}
-
-double _deg2rad(double deg) => deg * pi / 180;
-
 double _niceInterval(double range, int targetCount) {
   if (range <= 0) return 1.0; // guard against flat/zero-range data
   final raw = range / targetCount;
@@ -707,4 +587,153 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Douglas-Peucker-style thinning for the chart. Top-level (was a State
+/// member) so buildElevationTrackPoints below can be tested outside a
+/// widget. Pure — it never touched instance state.
+List<TrackPoint> _simplifyTrackPoints(
+  List<TrackPoint> points,
+  int targetCount,
+) {
+  if (points.length <= targetCount) return points;
+
+  final numBuckets = targetCount ~/ 2;
+  final bucketSize = points.length / numBuckets;
+  final result = <TrackPoint>[];
+
+  result.add(points.first);
+
+  for (int i = 0; i < numBuckets; i++) {
+    final start = max(1, (i * bucketSize).floor());
+    final end = min(points.length - 1, ((i + 1) * bucketSize).floor());
+    if (start >= end) continue;
+
+    int minIdx = start;
+    int maxIdx = start;
+    double minEle = points[start].elevationM;
+    double maxEle = points[start].elevationM;
+
+    for (int j = start + 1; j < end; j++) {
+      final ele = points[j].elevationM;
+      if (ele < minEle) {
+        minEle = ele;
+        minIdx = j;
+      }
+      if (ele > maxEle) {
+        maxEle = ele;
+        maxIdx = j;
+      }
+    }
+
+    if (minIdx == maxIdx) {
+      result.add(points[minIdx]);
+    } else if (minIdx < maxIdx) {
+      result.add(points[minIdx]);
+      result.add(points[maxIdx]);
+    } else {
+      result.add(points[maxIdx]);
+      result.add(points[minIdx]);
+    }
+  }
+
+  if (result.last != points.last) {
+    result.add(points.last);
+  }
+
+  final uniqueResult = <TrackPoint>[];
+  for (final pt in result) {
+    if (uniqueResult.isEmpty || uniqueResult.last != pt) {
+      uniqueResult.add(pt);
+    }
+  }
+
+  return uniqueResult;
+}
+
+/// Builds the elevation chart's track points from [gpx].
+///
+/// Top-level and `@visibleForTesting` purely so it can be exercised without a
+/// widget: this was a private State method, which put the chart's distance
+/// accumulation out of reach of any unit test — and that is precisely where
+/// the raw-vs-smoothed mismatch below hid.
+@visibleForTesting
+List<TrackPoint> buildElevationTrackPoints(Gpx gpx, int windowSize) {
+  if (gpx.allWaypoints.isEmpty) return [];
+
+  final result = <TrackPoint>[];
+  Duration cumDuration = Duration.zero;
+
+  // RAW per-sample cumulative distance — deliberately NOT the smoothed total.
+  //
+  // These two are different things and must not be conflated: the smoothed
+  // accumulator (computeTrailMetrics / trail.distance) is a DENOISED ESTIMATE
+  // OF TRAIL LENGTH, while this is a PLOTTING COORDINATE saying where each
+  // sample actually sits along the track. They legitimately differ, and the
+  // gap grows with GPS jitter.
+  //
+  // Driving the axis from the smoothed accumulator was tried and reverted: it
+  // only advances once per ~5 m, so consecutive samples share an x, and the
+  // gradient below (dElev / dDist) then divides a one-sample numerator by a
+  // zero or multi-sample denominator. Measured on a true constant 10% grade at
+  // 1.5 m sampling: 46 of 60 points read 0.0% and the rest 2.5%, all of which
+  // fall in _gradientColor's "flat" bucket — the chart's gradient colouring is
+  // destroyed for any 1 Hz recording. Waypoint markers broke too, since
+  // Waypoint.distanceFromStart is raw from both producers.
+  //
+  // If the axis maximum must equal the trail's reported distance, scale this
+  // axis by (smoothed / raw) and keep computing the gradient from raw deltas —
+  // do not swap the accumulator.
+  double cumDist = 0;
+  Wpt? prevPoint;
+
+  for (final track in gpx.trks) {
+    for (final segment in track.trksegs) {
+      for (final wpt in segment.trkpts) {
+        if (wpt.lat == null || wpt.lon == null) continue;
+
+        if (prevPoint != null) {
+          final hop = haversineMeters(prevPoint, wpt);
+          if (hop.isFinite) cumDist += hop;
+
+          final prevTime = prevPoint.time;
+          final currTime = wpt.time;
+          if (prevTime != null && currTime != null) {
+            final delta = currTime.difference(prevTime);
+            if (delta > Duration.zero) cumDuration += delta;
+          }
+        }
+        prevPoint = wpt;
+
+        result.add(
+          TrackPoint(
+            distanceM: cumDist,
+            elevationM: wpt.ele ?? 0,
+            lonlat: Geographic(lat: wpt.lat!, lon: wpt.lon!),
+            duration: cumDuration,
+            gradient: 0,
+            color: Colors.white,
+          ),
+        );
+      }
+    }
+  }
+
+  if (result.isEmpty) return [];
+
+  _smoothElevations(result, windowSize: windowSize);
+
+  for (int i = 0; i < result.length; i++) {
+    if (i == 0) {
+      result[i].gradient = 0;
+    } else {
+      final dElev = result[i].elevationM - result[i - 1].elevationM;
+      final dDist = result[i].distanceM - result[i - 1].distanceM;
+      result[i].gradient = dDist > 0 ? (dElev / dDist) * 100 : 0;
+    }
+    result[i].color = _gradientColor(result[i].gradient);
+  }
+  result[0].color = result.length > 1 ? result[1].color : _gradientColor(0);
+
+  return _simplifyTrackPoints(result, 250);
 }

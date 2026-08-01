@@ -26,6 +26,13 @@ extension TrailFormData on Trail {
       MapEntry('elevation_gain', elevationGain.toString()),
       MapEntry('elevation_loss', elevationLoss.toString()),
       MapEntry('duration', duration.toString()),
+      // moving_duration is only ever written by the capture paths (from a
+      // live session's elapsed time), never recomputed from a GPX -- the
+      // null guard is required because sending an empty string for an
+      // absent value would write 0 into PocketBase and defeat D-10's "no
+      // value" state.
+      if (movingDuration != null)
+        MapEntry('moving_duration', movingDuration!.toString()),
       if (lat != null) MapEntry('lat', lat.toString()),
       if (lon != null) MapEntry('lon', lon.toString()),
       if (category != null) MapEntry('category', category!),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/async_loader.dart';
+import 'package:wanderer/components/base/wanderer_offline_state.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/category_preference.dart';
@@ -10,12 +11,14 @@ import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/subcategory_preference.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/category_preference_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/util/category_icon_util.dart';
 import 'package:wanderer/util/category_preference_sort.dart';
+import 'package:wanderer/util/offline_guard_util.dart';
 import 'package:wanderer/util/own_trail_count.dart';
 
 /// SETCAT-08/10/11 (subcategory half): the leaf screen reached by tapping a
@@ -77,6 +80,7 @@ class _SettingsSubcategoriesScreenState
   /// `invalidateSelf`).
   Future<void> _save(Future<void> Function() op) async {
     final l10n = AppLocalizations.of(context)!;
+    if (!guardOnline(ref, l10n)) return;
     try {
       await op();
     } catch (_) {
@@ -93,16 +97,48 @@ class _SettingsSubcategoriesScreenState
     }
   }
 
+  /// Re-probes connectivity and clears the cached failures on the keepAlive
+  /// preference providers — see the sibling category screen for why the
+  /// invalidate is required.
+  Future<void> _retryOnline() async {
+    final online = await ref.read(onlineStatusProvider.notifier).refresh();
+    if (!online) return;
+    ref.invalidate(subcategoryPreferenceProvider);
+    ref.invalidate(categoryPreferenceProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context);
+
+    // Offline the preference providers have no local cache to serve, so show
+    // the offline state instead of a skeleton that resolves into an error.
+    // Returns before those providers are watched so no doomed fetch starts.
+    if (!ref.watch(onlineStatusProvider)) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.pop(),
+          ),
+          title: Text(widget.category.displayName(locale)),
+        ),
+        body: WandererOfflineState(
+          title: l10n.offline_title,
+          body: l10n.offline_categories_body,
+          retryLabel: l10n.offline_try_again,
+          onRetry: _retryOnline,
+        ),
+      );
+    }
+
     // subcategoryProvider is a synchronous List; only the preference providers
     // are async, so AsyncLoader (D-14) wraps just the prefs loads.
     final subcategories = ref.watch(subcategoryProvider);
     final prefsAsync = ref.watch(subcategoryPreferenceProvider);
     // Parent-category preferences drive the visibility cascade (read-only here).
     final categoryPrefsAsync = ref.watch(categoryPreferenceProvider);
-    final locale = Localizations.localeOf(context);
     final colorScheme = Theme.of(context).colorScheme;
     final activeColor = Theme.of(context).brightness == Brightness.dark
         ? colorScheme.onSurface
@@ -162,55 +198,64 @@ class _SettingsSubcategoriesScreenState
         // Parent category's localized name (D-06).
         title: Text(widget.category.displayName(locale)),
       ),
-      body:
-          AsyncLoader<
-            ({
-              List<SubcategoryPreference> prefs,
-              List<CategoryPreference> categoryPrefs,
-            })
-          >(
-            asyncValue: combined,
-            mockData: const (prefs: [], categoryPrefs: []),
-            builder: (data) {
-              // Empty state — the screen stays reachable even with no
-              // subcategories (D-07).
-              if (filtered.isEmpty) {
-                return _buildEmptyState(l10n);
-              }
+      body: Column(
+        children: [
+          Expanded(
+            child:
+                AsyncLoader<
+                  ({
+                    List<SubcategoryPreference> prefs,
+                    List<CategoryPreference> categoryPrefs,
+                  })
+                >(
+                  asyncValue: combined,
+                  mockData: const (prefs: [], categoryPrefs: []),
+                  builder: (data) {
+                    // Empty state — the screen stays reachable even with no
+                    // subcategories (D-07).
+                    if (filtered.isEmpty) {
+                      return _buildEmptyState(l10n);
+                    }
 
-              // Parent visibility, computed once per build from the read-only
-              // category prefs. Named `catVisible` to avoid shadowing the
-              // `categoryVisible` helper. Drives the row cascade below.
-              final catVisible = categoryVisible(
-                widget.category.id,
-                data.categoryPrefs,
-              );
+                    // Parent visibility, computed once per build from the
+                    // read-only category prefs. Named `catVisible` to avoid
+                    // shadowing the `categoryVisible` helper. Drives the row
+                    // cascade below.
+                    final catVisible = categoryVisible(
+                      widget.category.id,
+                      data.categoryPrefs,
+                    );
 
-              final sorted = sortedSubcategoriesByPreference(
-                filtered,
-                data.prefs,
-                locale,
-              );
-              // Seed the reorder working copy from the current sorted order. On
-              // the idle path this simply mirrors `sorted`; a drag mutates it
-              // optimistically. Skip reseeding for the whole reorder round-trip
-              // (`_reordering`): while a drag is in progress OR the async
-              // `reorder()` is still in flight, a rebuild must not clobber the
-              // optimistic working copy — reseeding from the not-yet-updated
-              // provider would snap the dropped row back to its old slot.
-              if (!_reordering) {
-                _orderedIds = sorted.map((s) => s.id).toList();
-              }
+                    final sorted = sortedSubcategoriesByPreference(
+                      filtered,
+                      data.prefs,
+                      locale,
+                    );
+                    // Seed the reorder working copy from the current sorted
+                    // order. On the idle path this simply mirrors `sorted`; a
+                    // drag mutates it optimistically. Skip reseeding for the
+                    // whole reorder round-trip (`_reordering`): while a drag
+                    // is in progress OR the async `reorder()` is still in
+                    // flight, a rebuild must not clobber the optimistic
+                    // working copy — reseeding from the not-yet-updated
+                    // provider would snap the dropped row back to its old
+                    // slot.
+                    if (!_reordering) {
+                      _orderedIds = sorted.map((s) => s.id).toList();
+                    }
 
-              return _buildList(
-                sorted,
-                data.prefs,
-                locale,
-                activeColor,
-                catVisible,
-              );
-            },
+                    return _buildList(
+                      sorted,
+                      data.prefs,
+                      locale,
+                      activeColor,
+                      catVisible,
+                    );
+                  },
+                ),
           ),
+        ],
+      ),
     );
   }
 
@@ -295,6 +340,17 @@ class _SettingsSubcategoriesScreenState
     setState(() => _orderedIds = reordered);
 
     final l10n = AppLocalizations.of(context)!;
+    if (!guardOnline(ref, l10n)) {
+      // Mirror the catch path below: nothing was persisted, so revert the
+      // optimistic reorder and clear the in-flight guard — otherwise the
+      // list would stay stuck in its reordering state (never reseeding from
+      // the provider again) while displaying an order the server never saw.
+      setState(() {
+        _orderedIds = snapshot;
+        _reordering = false;
+      });
+      return;
+    }
     try {
       // Parent category id FIRST (SETCAT-10 scoping — payload
       // {category, subcategories}).
@@ -520,6 +576,7 @@ class _SettingsSubcategoriesScreenState
       (f) => f.copyWith(category: const [], subcategory: [sub]),
     );
 
+    if (!dialogContext.mounted) return;
     Navigator.of(dialogContext).pop(false);
     if (!context.mounted) return;
     context.push('/profile/$handle/trails');

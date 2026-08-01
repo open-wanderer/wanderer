@@ -59,6 +59,7 @@ _Trail _$TrailFromJson(Map<String, dynamic> json) => _Trail(
   elevationGain: (json['elevation_gain'] as num?)?.toDouble() ?? 0,
   elevationLoss: (json['elevation_loss'] as num?)?.toDouble() ?? 0,
   duration: (json['duration'] as num?)?.toDouble() ?? 0,
+  movingDuration: (json['moving_duration'] as num?)?.toDouble(),
   difficulty:
       $enumDecodeNullable(_$TrailDifficultyEnumMap, json['difficulty']) ??
       TrailDifficulty.easy,
@@ -95,14 +96,6 @@ _Trail _$TrailFromJson(Map<String, dynamic> json) => _Trail(
           ?.map((e) => e as String)
           .toList() ??
       const [],
-  pmTiles:
-      (json['pmTiles'] as List<dynamic>?)?.map((e) => e as String).toList() ??
-      const [],
-  demPmTiles:
-      (json['demPmTiles'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList() ??
-      const [],
 );
 
 Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
@@ -117,6 +110,7 @@ Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
   'elevation_gain': instance.elevationGain,
   'elevation_loss': instance.elevationLoss,
   'duration': instance.duration,
+  'moving_duration': instance.movingDuration,
   'difficulty': _$TrailDifficultyEnumMap[instance.difficulty]!,
   'lat': instance.lat,
   'lon': instance.lon,
@@ -141,8 +135,6 @@ Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
   'author': instance.author,
   'isOffline': instance.isOffline,
   'localPhotos': instance.localPhotos,
-  'pmTiles': instance.pmTiles,
-  'demPmTiles': instance.demPmTiles,
 };
 
 const _$TrailDifficultyEnumMap = {

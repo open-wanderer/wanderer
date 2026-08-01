@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/format_util.dart';
 
 // ---------------------------------------------------------------------------
@@ -79,6 +80,39 @@ void main() {
 
     test('zero duration → 00:00', () {
       expect(formatElapsed(Duration.zero), '00:00');
+    });
+  });
+
+  group('trailDisplayDuration', () {
+    Trail buildTrail({double duration = 0, double? movingDuration}) {
+      return Trail(
+        id: 'trail-1',
+        name: 'Sample Trail',
+        duration: duration,
+        movingDuration: movingDuration,
+        created: DateTime(2026),
+        updated: DateTime(2026),
+      );
+    }
+
+    test('movingDuration null returns duration', () {
+      final trail = buildTrail(duration: 3600, movingDuration: null);
+      expect(trailDisplayDuration(trail), 3600);
+    });
+
+    test('movingDuration 0 returns duration (a zero moving time is not a value)', () {
+      final trail = buildTrail(duration: 3600, movingDuration: 0);
+      expect(trailDisplayDuration(trail), 3600);
+    });
+
+    test('movingDuration 1800 and duration 3600 returns 1800', () {
+      final trail = buildTrail(duration: 3600, movingDuration: 1800);
+      expect(trailDisplayDuration(trail), 1800);
+    });
+
+    test('movingDuration 1800 and duration 0 returns 1800', () {
+      final trail = buildTrail(duration: 0, movingDuration: 1800);
+      expect(trailDisplayDuration(trail), 1800);
     });
   });
 }

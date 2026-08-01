@@ -11,6 +11,7 @@ dependencies:
   cookie_jar: ^4.0.9
   dio: ^5.9.2
   dio_cookie_manager: ^3.4.0
+  disk_space_2: ^1.0.12
   duration: ^4.0.3
   exif: ^3.3.0
   file_picker: ^11.0.2
@@ -39,6 +40,7 @@ dependencies:
   json_annotation: ^4.11.0
   latlong2: ^0.9.1
   maplibre: 0.3.5
+  meta: ^1.18.0
   objectbox: ^5.3.1
   objectbox_flutter_libs: ^5.3.1
   path: ^1.9.1
@@ -56,6 +58,7 @@ dependencies:
     path: vendor/tiptap_flutter
   tracelet: ^3.5.0
   url_launcher: ^6.3.2
+  xml: ^6.3.0
 
 dependency_overrides:
   meta: ^1.18.0

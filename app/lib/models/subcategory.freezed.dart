@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Subcategory {
 
- String get id; String get category; String get name;@JsonKey(name: 'short_name') String? get shortName; String? get icon;@JsonKey(name: 'badge_icon') String? get badgeIcon; Map<String, CategoryTranslation>? get translations;
+ String get id; String get category; String get name;@JsonKey(name: 'short_name') String? get shortName; String? get icon;@JsonKey(name: 'badge_icon') String? get badgeIcon; Map<String, CategoryTranslation>? get translations; Map<String, dynamic>? get settings;
 /// Create a copy of Subcategory
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $SubcategoryCopyWith<Subcategory> get copyWith => _$SubcategoryCopyWithImpl<Subc
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Subcategory&&(identical(other.id, id) || other.id == id)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.badgeIcon, badgeIcon) || other.badgeIcon == badgeIcon)&&const DeepCollectionEquality().equals(other.translations, translations));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Subcategory&&(identical(other.id, id) || other.id == id)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.badgeIcon, badgeIcon) || other.badgeIcon == badgeIcon)&&const DeepCollectionEquality().equals(other.translations, translations)&&const DeepCollectionEquality().equals(other.settings, settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,category,name,shortName,icon,badgeIcon,const DeepCollectionEquality().hash(translations));
+int get hashCode => Object.hash(runtimeType,id,category,name,shortName,icon,badgeIcon,const DeepCollectionEquality().hash(translations),const DeepCollectionEquality().hash(settings));
 
 @override
 String toString() {
-  return 'Subcategory(id: $id, category: $category, name: $name, shortName: $shortName, icon: $icon, badgeIcon: $badgeIcon, translations: $translations)';
+  return 'Subcategory(id: $id, category: $category, name: $name, shortName: $shortName, icon: $icon, badgeIcon: $badgeIcon, translations: $translations, settings: $settings)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $SubcategoryCopyWith<$Res>  {
   factory $SubcategoryCopyWith(Subcategory value, $Res Function(Subcategory) _then) = _$SubcategoryCopyWithImpl;
 @useResult
 $Res call({
- String id, String category, String name,@JsonKey(name: 'short_name') String? shortName, String? icon,@JsonKey(name: 'badge_icon') String? badgeIcon, Map<String, CategoryTranslation>? translations
+ String id, String category, String name,@JsonKey(name: 'short_name') String? shortName, String? icon,@JsonKey(name: 'badge_icon') String? badgeIcon, Map<String, CategoryTranslation>? translations, Map<String, dynamic>? settings
 });
 
 
@@ -65,7 +65,7 @@ class _$SubcategoryCopyWithImpl<$Res>
 
 /// Create a copy of Subcategory
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? category = null,Object? name = null,Object? shortName = freezed,Object? icon = freezed,Object? badgeIcon = freezed,Object? translations = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? category = null,Object? name = null,Object? shortName = freezed,Object? icon = freezed,Object? badgeIcon = freezed,Object? translations = freezed,Object? settings = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
@@ -74,7 +74,8 @@ as String,shortName: freezed == shortName ? _self.shortName : shortName // ignor
 as String?,icon: freezed == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
 as String?,badgeIcon: freezed == badgeIcon ? _self.badgeIcon : badgeIcon // ignore: cast_nullable_to_non_nullable
 as String?,translations: freezed == translations ? _self.translations : translations // ignore: cast_nullable_to_non_nullable
-as Map<String, CategoryTranslation>?,
+as Map<String, CategoryTranslation>?,settings: freezed == settings ? _self.settings : settings // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 
@@ -159,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String category,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon, @JsonKey(name: 'badge_icon')  String? badgeIcon,  Map<String, CategoryTranslation>? translations)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String category,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon, @JsonKey(name: 'badge_icon')  String? badgeIcon,  Map<String, CategoryTranslation>? translations,  Map<String, dynamic>? settings)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Subcategory() when $default != null:
-return $default(_that.id,_that.category,_that.name,_that.shortName,_that.icon,_that.badgeIcon,_that.translations);case _:
+return $default(_that.id,_that.category,_that.name,_that.shortName,_that.icon,_that.badgeIcon,_that.translations,_that.settings);case _:
   return orElse();
 
 }
@@ -180,10 +181,10 @@ return $default(_that.id,_that.category,_that.name,_that.shortName,_that.icon,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String category,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon, @JsonKey(name: 'badge_icon')  String? badgeIcon,  Map<String, CategoryTranslation>? translations)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String category,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon, @JsonKey(name: 'badge_icon')  String? badgeIcon,  Map<String, CategoryTranslation>? translations,  Map<String, dynamic>? settings)  $default,) {final _that = this;
 switch (_that) {
 case _Subcategory():
-return $default(_that.id,_that.category,_that.name,_that.shortName,_that.icon,_that.badgeIcon,_that.translations);case _:
+return $default(_that.id,_that.category,_that.name,_that.shortName,_that.icon,_that.badgeIcon,_that.translations,_that.settings);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +201,10 @@ return $default(_that.id,_that.category,_that.name,_that.shortName,_that.icon,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String category,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon, @JsonKey(name: 'badge_icon')  String? badgeIcon,  Map<String, CategoryTranslation>? translations)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String category,  String name, @JsonKey(name: 'short_name')  String? shortName,  String? icon, @JsonKey(name: 'badge_icon')  String? badgeIcon,  Map<String, CategoryTranslation>? translations,  Map<String, dynamic>? settings)?  $default,) {final _that = this;
 switch (_that) {
 case _Subcategory() when $default != null:
-return $default(_that.id,_that.category,_that.name,_that.shortName,_that.icon,_that.badgeIcon,_that.translations);case _:
+return $default(_that.id,_that.category,_that.name,_that.shortName,_that.icon,_that.badgeIcon,_that.translations,_that.settings);case _:
   return null;
 
 }
@@ -215,7 +216,7 @@ return $default(_that.id,_that.category,_that.name,_that.shortName,_that.icon,_t
 
 @JsonSerializable(explicitToJson: true)
 class _Subcategory implements Subcategory {
-  const _Subcategory({required this.id, required this.category, required this.name, @JsonKey(name: 'short_name') this.shortName, this.icon, @JsonKey(name: 'badge_icon') this.badgeIcon, final  Map<String, CategoryTranslation>? translations}): _translations = translations;
+  const _Subcategory({required this.id, required this.category, required this.name, @JsonKey(name: 'short_name') this.shortName, this.icon, @JsonKey(name: 'badge_icon') this.badgeIcon, final  Map<String, CategoryTranslation>? translations, final  Map<String, dynamic>? settings}): _translations = translations,_settings = settings;
   factory _Subcategory.fromJson(Map<String, dynamic> json) => _$SubcategoryFromJson(json);
 
 @override final  String id;
@@ -229,6 +230,15 @@ class _Subcategory implements Subcategory {
   final value = _translations;
   if (value == null) return null;
   if (_translations is EqualUnmodifiableMapView) return _translations;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
+}
+
+ final  Map<String, dynamic>? _settings;
+@override Map<String, dynamic>? get settings {
+  final value = _settings;
+  if (value == null) return null;
+  if (_settings is EqualUnmodifiableMapView) return _settings;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableMapView(value);
 }
@@ -247,16 +257,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Subcategory&&(identical(other.id, id) || other.id == id)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.badgeIcon, badgeIcon) || other.badgeIcon == badgeIcon)&&const DeepCollectionEquality().equals(other._translations, _translations));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Subcategory&&(identical(other.id, id) || other.id == id)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.badgeIcon, badgeIcon) || other.badgeIcon == badgeIcon)&&const DeepCollectionEquality().equals(other._translations, _translations)&&const DeepCollectionEquality().equals(other._settings, _settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,category,name,shortName,icon,badgeIcon,const DeepCollectionEquality().hash(_translations));
+int get hashCode => Object.hash(runtimeType,id,category,name,shortName,icon,badgeIcon,const DeepCollectionEquality().hash(_translations),const DeepCollectionEquality().hash(_settings));
 
 @override
 String toString() {
-  return 'Subcategory(id: $id, category: $category, name: $name, shortName: $shortName, icon: $icon, badgeIcon: $badgeIcon, translations: $translations)';
+  return 'Subcategory(id: $id, category: $category, name: $name, shortName: $shortName, icon: $icon, badgeIcon: $badgeIcon, translations: $translations, settings: $settings)';
 }
 
 
@@ -267,7 +277,7 @@ abstract mixin class _$SubcategoryCopyWith<$Res> implements $SubcategoryCopyWith
   factory _$SubcategoryCopyWith(_Subcategory value, $Res Function(_Subcategory) _then) = __$SubcategoryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String category, String name,@JsonKey(name: 'short_name') String? shortName, String? icon,@JsonKey(name: 'badge_icon') String? badgeIcon, Map<String, CategoryTranslation>? translations
+ String id, String category, String name,@JsonKey(name: 'short_name') String? shortName, String? icon,@JsonKey(name: 'badge_icon') String? badgeIcon, Map<String, CategoryTranslation>? translations, Map<String, dynamic>? settings
 });
 
 
@@ -284,7 +294,7 @@ class __$SubcategoryCopyWithImpl<$Res>
 
 /// Create a copy of Subcategory
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? category = null,Object? name = null,Object? shortName = freezed,Object? icon = freezed,Object? badgeIcon = freezed,Object? translations = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? category = null,Object? name = null,Object? shortName = freezed,Object? icon = freezed,Object? badgeIcon = freezed,Object? translations = freezed,Object? settings = freezed,}) {
   return _then(_Subcategory(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
@@ -293,7 +303,8 @@ as String,shortName: freezed == shortName ? _self.shortName : shortName // ignor
 as String?,icon: freezed == icon ? _self.icon : icon // ignore: cast_nullable_to_non_nullable
 as String?,badgeIcon: freezed == badgeIcon ? _self.badgeIcon : badgeIcon // ignore: cast_nullable_to_non_nullable
 as String?,translations: freezed == translations ? _self._translations : translations // ignore: cast_nullable_to_non_nullable
-as Map<String, CategoryTranslation>?,
+as Map<String, CategoryTranslation>?,settings: freezed == settings ? _self._settings : settings // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,
   ));
 }
 

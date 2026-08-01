@@ -15,36 +15,38 @@ class _StubAuth extends Auth {
 }
 
 void main() {
-  testWidgets('settings screen lists all 6 rows in D-06 order (SETNAV-01)', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [authProvider.overrideWith(_StubAuth.new)],
-        child: const MaterialApp(
-          localizationsDelegates: [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: AppLocalizations.supportedLocales,
-          locale: Locale('en'),
-          home: SettingsScreen(),
+  testWidgets(
+    'settings screen lists all 7 rows including Offline Maps/Regions (SETNAV-01, SETUI-01)',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [authProvider.overrideWith(_StubAuth.new)],
+          child: const MaterialApp(
+            localizationsDelegates: [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: Locale('en'),
+            home: SettingsScreen(),
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    // Exactly six settings rows render.
-    expect(find.byType(ListTile), findsNWidgets(6));
+      // Exactly seven settings rows render (24-02 adds Offline Maps/Regions).
+      expect(find.byType(ListTile), findsNWidgets(7));
 
-    // The six English labels are present (SETNAV-01).
-    expect(find.text('My Account'), findsOneWidget);
-    expect(find.text('Privacy'), findsOneWidget);
-    expect(find.text('Language & Units'), findsOneWidget);
-    expect(find.text('Notifications'), findsOneWidget);
-    expect(find.text('Categories'), findsOneWidget);
-    expect(find.text('Appearance'), findsOneWidget);
-  });
+      // The seven English labels are present (SETNAV-01, SETUI-01).
+      expect(find.text('My Account'), findsOneWidget);
+      expect(find.text('Privacy'), findsOneWidget);
+      expect(find.text('Language & Units'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Categories'), findsOneWidget);
+      expect(find.text('Offline Maps/Regions'), findsOneWidget);
+      expect(find.text('Appearance'), findsOneWidget);
+    },
+  );
 }

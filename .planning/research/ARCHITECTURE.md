@@ -1,326 +1,294 @@
 # Architecture Research
 
-**Domain:** Route Planner screen integration — Flutter/Riverpod/maplibre/go_router mobile app (Wanderer v1.5)
-**Researched:** 2026-07-16
-**Confidence:** HIGH — every claim below is backed by a specific file read in this repo (app/lib, web/src), not by general Flutter/Riverpod conventions. No external web research was needed; the codebase already contains a near-complete precedent (the web app's own route-planner-equivalent) and the exact map-interaction pattern the new screen needs.
+**Domain:** Region-based offline map/tile repository — Flutter + Riverpod + ObjectBox + MapLibre-native-GL, replacing a trail-scoped download model
+**Researched:** 2026-07-21
+**Confidence:** HIGH (all findings verified against current repo source, not training-data assumptions)
+
+## Naming correction (read this first)
+
+The milestone brief's file list (`wanderer_map.dart`, `search_map.dart`) doesn't match the actual repo. The real map-host components are:
+
+| Brief's name | Actual file | Role |
+|---|---|---|
+| `wanderer_map.dart` (single-trail) | `app/lib/components/base/trail_map.dart` (`TrailMap`) | Single-`Trail` host: offline style rewrite, bounds-fit, trail track layer. Used by `trail_detail_map_screen.dart`. |
+| `wanderer_map.dart` (collection) | `app/lib/components/base/trail_collection_map.dart` (`TrailCollectionMap`) | Trail-agnostic host, no offline branch today. Used by `map_screen.dart`, `list_detail_map_screen.dart`, `list_detail_screen.dart`. |
+| `search_map.dart` | Doesn't exist as a separate file — `map_screen.dart` and `list_detail_screen.dart` build directly on `TrailCollectionMap`. |
+| `trail_layer.dart` | `app/lib/components/map/trail_layer.dart` (`TrailLayer`) — confirmed, draws the GPX track + arrows via `MapController`/`StyleController`, not style-JSON rewriting. |
+
+`navigation_screen.dart` and `route_planner_screen.dart` build `ml.MapLibreMap` directly (not via `TrailMap`/`TrailCollectionMap`) and duplicate their own copy of the offline-style-compose logic — `navigation_screen.dart` calls `rewriteStyleForOffline` inline at line ~878, keyed off `trailProvider(widget.id).pmTiles`/`.demPmTiles`. This is the second of two current call sites of `rewriteStyleForOffline` (the first is `TrailMap._composeStyle`). Both must move to the region-based lookup.
+
+`map_style_json_provider.dart` (`mapStyleJsonProvider`) is untouched by this milestone in principle — it only resolves the *online base style* (theme + operator tile/glyph/sprite URLs from `mapStyleSourcesProvider`). The offline rewrite is a separate, downstream step layered on top of its output by each consuming widget. This separation is exactly why the region work is additive to it rather than a replacement.
+
+## Answering the four questions
+
+### Q1 — Decoupling the style rewriter and map screens from `TrailEntity`
+
+**Yes: a single `TileRepositoryManager`-backed Riverpod provider, but the interface it exposes to callers should be "coverage for a bbox," not "coverage for a viewport," and it must stay a thin second layer on top of the existing `mapStyleJsonProvider`, not a replacement for it.**
+
+Today both offline call sites (`TrailMap._composeStyle`, `navigation_screen`'s inline compose) do the same three things: (1) watch `mapStyleJsonProvider` for the base online style, (2) watch `glyphSpriteCacheProvider` for the local glyph/sprite root, (3) pull `cellPaths`/`demCellPaths` from the `Trail` model (itself sourced from `TrailEntity.pmTiles`/`demPmTiles`). Step (3) is the only trail-scoped part — steps (1) and (2) are already app-wide and reusable as-is.
+
+Introduce:
+- `regionTileRepositoryProvider` (or similar) — a `@Riverpod(keepAlive: true)` provider wrapping a `TileRepositoryManager` instance (owns ObjectBox `Region`/`DownloadedTilePackage` boxes + `Dio`, mirrors the existing `objectBoxProvider`/`apiProvider` composition pattern used by `TrailDownloadServiceNotifier`).
+- A query method/provider such as `localTilePathsForBounds(LngLatBounds bounds) -> ({List<String> vectorPaths, List<String> demPaths})`, resolved by intersecting the bbox against every `downloaded`-status `Region` in ObjectBox (bbox-only regions per this milestone's scope — no polygon geometry, no spatial index needed; a linear scan over what will realistically be a few dozen regions is fine).
+- Callers (`TrailMap`, `navigation_screen`, and — newly — `TrailCollectionMap` if it grows an offline mode) replace `widget.trail.pmTiles`/`demPmTiles` with a call to this query, using the same bounds source they already compute (`trail.bounds`, or the current viewport/camera bounds for a general map screen). `rewriteStyleForOffline` itself needs **no signature change** — it already takes `cellPaths`/`demCellPaths` as opaque path lists; only the caller-side source of those lists changes.
+- Keep the compose helper pattern (`_composeStyle`) each widget already has; just swap its data source. This avoids a state-management redesign — the `ref.listen(mapStyleJsonProvider, ...)` + `ref.listen(<offline source>, ...)` dual-listen pattern `TrailMap` already established for `glyphSpriteCacheProvider` extends directly to a new `ref.listen(regionTileRepositoryProvider, ...)` so a region finishing download mid-session live-swaps the style, exactly like a glyph-cache-warm completion does today.
+
+For a viewport-scale host like `TrailCollectionMap` (`map_screen.dart`), "what covers this viewport" should be resolved on **camera idle/moveend**, not continuously — mirror the debounce pattern likely already used for the cluster-search bbox query in `map_screen.dart`, not a synchronous per-frame recompute.
+
+**Do not** make `TileRepositoryManager` reach into `mapStyleJsonProvider` or vice versa — keep them composable, independently testable layers, matching this repo's existing separation of "resolve online style" (`map_style_json_provider.dart`) vs. "resolve offline glyph/sprite cache" (`glyph_sprite_cache_provider.dart`) vs. "rewrite style for offline" (`offline_style_rewriter.dart`, a pure function). The region provider slots in as a fourth, parallel data source feeding the same pure `rewriteStyleForOffline` function — it doesn't change that function's contract.
+
+### Q2 — Does the backend grid-cell system map onto "region," or does this need new backend concepts?
+
+**Partial reuse — cells stay the atomic backend unit, but "region" is a new, purely additive backend/manifest concept layered on top, not a renaming of `GridCell`.**
+
+Evidence for reuse:
+- `db/services/tiles/grid.go`'s `GridCell` (0.5° cells, `CacheKey()` = `"%.2f_%.2f_%.2f_%.2f"`) and `db/services/tiles/generator.go`'s `EnsureCell`/`CellPath`/`DemCellPath` are bbox-driven and trail-agnostic already — `EnsureCell` takes a `GridCell`, not a `TrailEntity` or `Trail`. Nothing here special-cases trails; the trail-scoping lives entirely on the **client** (`trail_download_service.dart` converts a trail's bbox → cell list via `GET /map/cells?bbox=...`). This means the backend requires **zero changes** to serve region downloads — a region is just a (typically larger) bbox that maps to more grid cells via the same `BboxToGridCells` math and the same `/map/cells?bbox=`, `/map/cells/{cellKey}/download[-dem]` endpoints already exposed by `db/routes/map_cells_id.go`.
+- A "region" in this milestone is explicitly **bbox-only** (per PROJECT.md's Out of Scope: "Polygon region geometries... deferred"), which is exactly the shape `BboxToGridCells` already consumes.
+
+Evidence a new concept is still needed:
+- There is no backend notion of a *named, curated area* (e.g. "Yosemite Valley," with a stable id, display name, and a size estimate the app can show before downloading). `tile_cells` records are anonymous, keyed only by bbox rounding — they have no name, no grouping, no pre-computed total size for a multi-cell area.
+- PROJECT.md is explicit: **"Bundled `regions.json` manifest... Remote/server-fetched region manifest — v1.6 ships a bundled `regions.json` app asset only."** This settles the question directly: the region *catalog* (id, name, bbox, vector/DEM URL+size) is a **client-side, checked-in app asset** (`assets/map/regions.json`, fits the already-declared `assets/map/` pubspec glob), not a new backend collection/endpoint. No new PocketBase collection, no new SvelteKit route, no new Go route is required for v1.6.
+- The "vector PMTiles URL/size, optional DEM URL/size" fields in `regions.json` should point at the **existing** `/map/cells?bbox=<region bbox>` → per-cell `download_url`/`dem_download_url` flow (i.e., the manifest doesn't need a pre-baked download URL per region; it needs a bbox, and the client re-derives the cell list + per-cell URLs from the existing endpoint exactly as `trail_download_service.dart` does today, just called with the region's bbox instead of a trail's bbox). Size can be precomputed once (server-side script or manual entry) and shipped as a static number in the manifest — it doesn't need to be live-queried, since `tile_cells.size_bytes` is only known after a cell has actually been generated once, which the manifest curator would do out-of-band before publishing.
+
+**Net conclusion:** No backend/Go changes are required by this milestone. The multi-cell download orchestration currently inside `TrailDownloadService._downloadMapTiles` (fetch cell list for bbox → poll pending → download vector + best-effort DEM per cell) is the piece to **extract and reuse**, not reinvent — it should move into `TileRepositoryManager` verbatim (parameterized by region bbox instead of trail bbox), since it already implements exactly the multi-cell, best-effort-DEM, progress-tracked download this milestone needs region-side.
+
+### Q3 — Trail-download-guard integration point
+
+**Single choke point already exists: `DownloadingTrailIds.download(Trail trail)` in `app/lib/provider/trail/trail_download_state_provider.dart`.**
+
+Every trail-download UI entry point (detail-screen button, dropdown menu item — per that file's own doc comment: "shared across every download entry point") already funnels through this one Riverpod notifier method before calling `trailDownloadService.downloadTrail(trail, ...)`. This is the correct and only integration point needed:
+
+1. At the top of `DownloadingTrailIds.download()`, before the existing `if (state.contains(trail.id)) return;` dedup check (or immediately after it), compute `trail.bounds` and query the region provider's coverage check (e.g. `regionTileRepositoryProvider.isBboxFullyCovered(trail.bounds)` or reuse the same `localTilePathsForBounds` query from Q1 and check it returned a non-empty, bounds-spanning result).
+2. If uncovered, **do not** silently proceed with the old per-trail cell download — PROJECT.md's requirement is "prompt to download the covering region if missing." This means the guard returns/throws a distinguishable "needs region" signal that the calling widget (detail screen button) surfaces as a dialog ("Download the {region name} region to enable offline use of this trail" with a CTA into the new Settings → Offline Maps page), rather than the notifier silently downloading tiles itself.
+3. Once a covering region is confirmed downloaded (either already present, or the user completes the region download and returns), `trailDownloadService.downloadTrail` no longer needs its own `_downloadMapTiles` step at all — per PROJECT.md, trail-scoped tile download is deleted outright. The trail download becomes photo-only + Valhalla-nav-cache-only; map rendering for that trail leans entirely on the covering region's already-downloaded tiles via the Q1 query.
+
+This has a real behavioral consequence worth flagging for roadmap phasing: once trail-scoped tile download is removed, **`downloadTrail` can no longer succeed offline-renderable without a region present**. That's an intentional product change (the whole point of the milestone), but it means the guard is not just a UX nicety — it's now load-bearing for the "offline parity" hard gate PROJECT.md's Constraints section still lists ("a downloaded trail must render basemap and labels with no network"). The guard must block, not just warn, or that gate silently breaks.
+
+### Q4 — Safest build order (keep the app buildable at every step)
+
+This project has one directly-precedented incremental-migration pattern to reuse: the v1.4 MapLibre migration kept **both stacks coexisting** until the last screen was migrated, and explicitly deferred file deletion (`pm_tile_provider.dart`) to the phase where the last consumer was gone (see PROJECT.md Key Decisions: "Incremental screen-by-screen migration, forks deleted last" and "`pm_tile_provider.dart` deletion deferred... deleting the file in Phase 15 would have broken the screen the criterion required to keep building"). Apply the same discipline here: **new region code lands and becomes the active path before any trail-scoped code is deleted**, and deletion is its own final phase.
+
+Recommended order:
+
+1. **Data model phase** — `Region` + `DownloadedTilePackage` ObjectBox `@Entity()` classes (mirror `TrailEntity`'s field/`ToOne`/`ToMany` conventions; no backlink to `TrailEntity` needed — this is the decoupling point), plus the bundled `assets/map/regions.json` manifest and its freezed parse model (mirror `MapCellInfo`'s `@freezed` + `fromJson` pattern in `app/lib/models/map_cell.dart`). Nothing consumes these yet — app builds unchanged, this phase is purely additive.
+2. **`TileRepositoryManager` phase** — new service class (mirror `TrailDownloadService`'s constructor-injected `Store _store, Dio _api` pattern) implementing region download (lift `_downloadMapTiles`'s cell-list/poll/download-with-progress logic out of `TrailDownloadService` into a shared/parameterized form, or duplicate it initially and dedupe later — duplicating first is lower-risk and matches this codebase's general preference for working code over premature abstraction) + the `localTilePathsForBounds`-style query provider from Q1. Still nothing in the UI calls this yet — still buildable, still a no-op addition.
+3. **UI phase** — Settings → Offline Maps/Regions screen (list, download/pause/resume/delete, DEM toggle, disk usage) driven by the Phase 2 manager. This is now user-visible and independently testable/demoable without touching any existing map screen or trail flow.
+4. **Map-screen rewiring phase** — swap `TrailMap._composeStyle` and `navigation_screen`'s inline compose from `trail.pmTiles`/`demPmTiles` to the Phase 2 region query, **while leaving `TrailEntity.pmTiles`/`demPmTiles` and `trail_download_service.dart`'s tile-download step physically in place** (now unused by rendering, but still present so nothing breaks if a trail happens to have old-format cached tiles from before this migration — moot in practice since PROJECT.md says pre-production/no-migration-needed, but keeping deletion as a separate step is what kept v1.4 buildable at every boundary and should be repeated here). At the end of this phase, region-based rendering is live and is the only thing actually exercised by manual testing, even though the old fields/code are technically still compiled in.
+5. **Guard phase** — wire `DownloadingTrailIds.download()`'s pre-check (Q3) now that Phase 4 proves region coverage is reliably queryable and Phase 3's UI gives the guard's "prompt to download" dialog somewhere to send the user.
+6. **Ripout phase, last** — delete `trail_download_service.dart`'s `_downloadMapTiles`/`_fetchCellList`/`_pollUntilReady` and the cell-download portion of `downloadTrail`, delete `TrailEntity.pmTiles`/`demPmTiles` fields (ObjectBox migration note: removing fields from an `@Entity()` is safe/non-breaking in ObjectBox — old data for removed fields is simply ignored, no explicit migration step needed, unlike a rename), delete `MapCellInfo`/`MapCellStatusResponse`-consuming code paths that were trail-specific (the models themselves likely stay if `TileRepositoryManager` reuses the same `/map/cells` response shape — check before deleting `app/lib/models/map_cell.dart` wholesale, since Phase 2's manager should be consuming those same DTOs for region cell fetches).
+
+This order's key property: **every phase boundary leaves exactly one thing user-visibly different, and nothing is deleted before its replacement is proven live** — matching the "app must stay buildable/runnable at every phase boundary" constraint this project has already validated once in a comparably-sized migration (v1.4, 6 screens across ~4 phases).
 
 ## Standard Architecture
 
 ### System Overview
 
 ```
-┌───────────────────────────────────────────────────────────────────────────┐
-│  trail_source_select_screen.dart          (MODIFIED — entry point)        │
-│    "Planner" card.onTap → context.push('/trail/create/plan')              │
-└───────────────────────────────┬───────────────────────────────────────────┘
-                                 ▼
-┌───────────────────────────────────────────────────────────────────────────┐
-│  router_provider.dart                      (MODIFIED — +1 top-level route)│
-│    GoRoute('/trail/create/plan') → RoutePlannerScreen()                   │
-└───────────────────────────────┬───────────────────────────────────────────┘
-                                 ▼
-┌───────────────────────────────────────────────────────────────────────────┐
-│  route_planner_screen.dart                 (NEW — ConsumerStatefulWidget) │
-│  ┌─────────────────────────────┐  ┌──────────────────────────────────┐   │
-│  │ RoutePlannerMap (NEW)        │  │ DraggableScrollableSheet          │   │
-│  │  wraps RoutePlannerMarkerLayer│  │  (waypoint list XOR elevation)   │   │
-│  │  tap-to-add / drag / insert   │  │  toggled by _buildButtonRow-style │   │
-│  └──────────────┬───────────────┘  └──────────────┬────────────────────┘  │
-│                 │  ref.watch/read                  │ ref.watch            │
-│                 ▼                                  ▼                      │
-│         routePlannerProvider  (NEW — app/lib/provider/route_planner_      │
-│         provider.dart, @riverpod class RoutePlanner)                      │
-│           state: waypoints, autoRouting, profile, undo/redo stacks,       │
-│                  synthesized in-memory Gpx                                │
-└───────────────────────────────┬───────────────────────────────────────────┘
-                                 │ imperative methods call out to:
-                                 ▼
-┌───────────────────────────────────────────────────────────────────────────┐
-│  apiProvider (Dio, EXISTING) → SvelteKit (EXISTING, zero backend changes) │
-│    POST /api/v1/valhalla/route   — per-waypoint-pair routed shape         │
-│    POST /api/v1/valhalla/height  — elevation for the composed shape       │
-└───────────────────────────────┬───────────────────────────────────────────┘
-                                 ▼ on "Use this route"
-┌───────────────────────────────────────────────────────────────────────────┐
-│  trail_import_util.dart            (MODIFIED — +1 function, same         │
-│    pendingImportedTrail global + handoff to)                             │
-│  router_provider.dart '/trail/create/edit' (UNCHANGED — reused as-is)    │
-│  trail_create_screen.dart                  (UNCHANGED — reused as-is)   │
-└───────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                          Settings UI (new)                            │
+│  Offline Maps/Regions screen — list, download/pause/resume/delete,    │
+│  DEM toggle, disk usage                                               │
+└───────────────────────────────┬───────────────────────────────────────┘
+                                 │ reads/commands
+┌───────────────────────────────▼───────────────────────────────────────┐
+│                    TileRepositoryManager (new)                        │
+│  owns: Region + DownloadedTilePackage ObjectBox boxes, Dio             │
+│  does: region download orchestration (reused cell-download logic),    │
+│        bbox → local-path resolution (localTilePathsForBounds)         │
+└───────┬───────────────────────────────────────────────────┬───────────┘
+        │ query (bbox → paths)                               │ downloads via
+┌───────▼─────────────────┐  ┌─────────────────────┐  ┌──────▼───────────┐
+│ TrailMap (existing)      │  │ navigation_screen     │  │ /map/cells...     │
+│ _composeStyle: base style│  │ (existing, inline     │  │ (existing, no     │
+│ + glyph/sprite cache +   │  │ compose): same swap    │  │ backend changes)  │
+│ [Q1 swap] region paths   │  │                        │  │                   │
+└───────┬───────────────────┘  └────────────────────────┘  └───────────────────┘
+        │ pure transform
+┌───────▼───────────────────────────────────────────────────────────────┐
+│              offline_style_rewriter.dart (unchanged contract)          │
+│  cellPaths/demCellPaths in → pmtiles://file:// style JSON out          │
+└──────────────────────────────────────────────────────────────────────┘
+
+        Trail download flow (guard inserted, Q3):
+┌──────────────────────────┐   pre-check    ┌───────────────────────────┐
+│ DownloadingTrailIds       │───────────────▶│ region coverage query      │
+│ .download(trail)          │  bbox covered? │ (same manager as above)    │
+└──────────┬─────────────────┘  no → prompt   └───────────────────────────┘
+           │ yes / covered
+┌──────────▼─────────────────┐
+│ trailDownloadService        │  (post-ripout: photos + Valhalla cache
+│ .downloadTrail(trail)       │   only — tile download step removed)
+└──────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | File status |
-|-----------|----------------|-------------|
-| `RoutePlanner` provider | Owns in-progress waypoints, undo/redo, auto-routing flag, profile, synthesized `Gpx`; imperative add/move/insert/delete/reorder/undo/redo/resolveRouting methods | NEW — `app/lib/provider/route_planner_provider.dart` |
-| `buildGpxFromPoints` (util) | Synthesizes a `package:gpx` `Gpx` from an in-memory point/elevation list — the reverse of `buildNavShape` | MODIFIED — added to `app/lib/util/gpx_util.dart` |
-| `RoutePlannerMap` | Native GL map host for the planner: tap-to-add, per-marker drag, tap-on-segment insert | NEW — `app/lib/components/base/route_planner_map.dart` |
-| `RoutePlannerMarkerLayer` | `ml.WidgetLayer` of draggable/deletable/reorderable waypoint markers + route polyline | NEW — `app/lib/components/map/route_planner_marker_layer.dart` |
-| `RoutePlannerScreen` | Screen shell: map + waypoint-list/elevation sheet + control buttons + handoff button | NEW — `app/lib/routes/route_planner_screen.dart` |
-| `handoffPlannedRoute()` | Builds a draft `Trail` from the planner's `Gpx`+waypoints, sets `pendingImportedTrail`, pushes `/trail/create/edit` | MODIFIED — added to `app/lib/util/trail_import_util.dart` |
-| `router_provider.dart` | Registers `/trail/create/plan` | MODIFIED — +1 `GoRoute`, +1 import |
-| `trail_source_select_screen.dart` | Wires the existing "Planner" card to the new route | MODIFIED — 1-line `onTap` change |
-| `global_search_screen.dart` | Location-tile currently hardcodes `context.go('/map', ...)` | MODIFIED (small) — see Pitfall below |
-| Valhalla `/route`, `/height` (SvelteKit) | Point-to-point routing and elevation lookup | UNCHANGED — already exist, unused by Flutter today |
+| Component | Responsibility | File (new/modified) |
+|-----------|----------------|------------------------|
+| `Region` entity | Manifest-sourced region metadata + live download status | **new** `app/lib/entities/region_entity.dart` |
+| `DownloadedTilePackage` entity | Per-region local file paths, sizes, timestamps (vector + optional DEM) | **new** `app/lib/entities/downloaded_tile_package_entity.dart` |
+| `regions.json` + parse model | Bundled catalog of downloadable regions (id, name, bbox, URLs/sizes) | **new** `assets/map/regions.json` + `app/lib/models/region_manifest.dart` |
+| `TileRepositoryManager` | Region download orchestration, bbox→local-paths resolution, disk usage accounting | **new** `app/lib/services/tile_repository_manager.dart` |
+| Region Riverpod providers | Expose manager + reactive region list/coverage queries to widgets | **new** `app/lib/provider/tile_repository_provider.dart` (mirrors `trail_download_provider.dart`'s notifier-wrapping-a-service pattern) |
+| `TrailMap._composeStyle` | Swap trail-bbox tile source for region-query tile source | **modified** `app/lib/components/base/trail_map.dart` |
+| `navigation_screen` inline compose | Same swap | **modified** `app/lib/routes/navigation_screen.dart` |
+| `DownloadingTrailIds.download` | Insert region-coverage guard before trail download proceeds | **modified** `app/lib/provider/trail/trail_download_state_provider.dart` |
+| `offline_style_rewriter.dart` | Pure style transform — **no changes**, contract already path-list-based | unchanged `app/lib/util/offline_style_rewriter.dart` |
+| `map_style_json_provider.dart` | Online base style resolution — **no changes**, orthogonal layer | unchanged `app/lib/provider/map_style_json_provider.dart` |
+| `db/services/tiles/*.go`, `db/routes/map_cells_id.go` | Grid-cell generation/serving — **no changes**, region reuses bbox→cells as-is | unchanged |
+| `trail_download_service.dart` | Photo + nav-cache download only, post-ripout | **modified then trimmed** (tile-download methods deleted in final phase) |
+| `TrailEntity.pmTiles`/`demPmTiles` | Deleted once region rendering is proven live | **deleted** (final phase) |
 
 ## Recommended Project Structure
 
 ```
 app/lib/
+├── entities/
+│   ├── region_entity.dart              # new — ObjectBox Region
+│   └── downloaded_tile_package_entity.dart  # new — ObjectBox DownloadedTilePackage
+├── models/
+│   └── region_manifest.dart            # new — freezed parse model for regions.json
+├── services/
+│   └── tile_repository_manager.dart    # new — download orchestration + query
 ├── provider/
-│   └── route_planner_provider.dart       # NEW — @riverpod class RoutePlanner, top-level
-│                                          #   (sibling to navigation_provider.dart, NOT under
-│                                          #   provider/trail/ — see rationale below)
-├── components/
-│   ├── base/
-│   │   └── route_planner_map.dart        # NEW — modeled on trail_map.dart's shell
-│   └── map/
-│       └── route_planner_marker_layer.dart # NEW — modeled on trail_layer.dart's
-│                                          #   TrailMarkerLayer, adds insert/delete/reorder
+│   └── tile_repository_provider.dart   # new — Riverpod wrapping the manager
 ├── routes/
-│   └── route_planner_screen.dart         # NEW — the screen itself
+│   └── settings_offline_maps_screen.dart  # new — Settings UI
+├── components/base/
+│   ├── trail_map.dart                  # modified — swap tile source
+│   └── trail_collection_map.dart       # modified only if viewport-mode offline is added
 └── util/
-    ├── gpx_util.dart                     # MODIFIED — + buildGpxFromPoints()
-    └── trail_import_util.dart            # MODIFIED — + handoffPlannedRoute()
+    └── offline_style_rewriter.dart     # unchanged
+assets/map/
+└── regions.json                        # new — bundled manifest (assets/map/ glob already declared)
 ```
 
 ### Structure Rationale
 
-- **`provider/route_planner_provider.dart` (top-level, not `provider/trail/`):** `provider/trail/*` providers are all backed by a persisted PocketBase `Trail` record (fetch/save/filter against `/trail`). The Route Planner's state has no backing record until handoff — it is ephemeral session state scoped to one screen's lifetime, the same shape as `navigation_provider.dart` (also top-level, also ephemeral, also holds an in-memory mutable path + progress). Following that precedent keeps `provider/trail/` reserved for record-backed providers.
-- **New map host instead of reusing `TrailMap` directly:** `trail_create_screen.dart` already proves the *pattern* (synthesize a stub `Trail`, feed it to `TrailMap`, wire `onTap`/`onWaypointDragEnd`) — but `TrailMarkerLayer` only supports tap + drag, not the Route Planner's insert-mid-route / delete / reorder requirements. Extending `TrailMarkerLayer` in place would touch a component shared by `trail_detail_map_screen.dart`, `list_detail_map_screen.dart`, `navigation_screen.dart`, and `trail_create_screen.dart` — high blast radius for a v1.5-only need. A new sibling file isolates all planner-only interaction logic and matches the milestone's "addition, not rework" framing.
-- **`gpx_util.dart` gets the new function, not a new file:** it is already the single home for every `package:gpx` ↔ app-type bridge (`buildNavShape`, `GpxMappingUtils`, `sanitizeGpxEmail`). `buildGpxFromPoints` is the structural inverse of `buildNavShape` and has zero Riverpod/UI dependencies — same profile as the existing functions in that file. A new file would fragment Gpx-construction logic across two places for no benefit.
-- **`trail_import_util.dart` gets the handoff function, not a new file:** `pendingImportedTrail` is a single module-level global with a subtle race-condition safety net (documented in its own comment — go_router's `RouteMatchListCodec` can drop non-JSON `extra` on a same-process refresh). A second global in a new file would either duplicate that fragile logic or risk two competing "pending trail" globals. The Route Planner is conceptually the same case as GPX import — an unsaved `Trail` built client-side that must survive to `/trail/create/edit` — so it belongs next to the existing precedent.
+- New region code is siblings of the existing trail-download code (`entities/`, `services/`, `provider/`), not nested under a `trail/` subfolder — this is the literal expression of "decoupled from Trail" and matches how `provider/trail/` is already its own namespace distinct from top-level providers.
+- `region_manifest.dart` is deliberately a separate model from the ObjectBox `Region` entity (mirrors the existing `Trail` model vs. `TrailEntity` split) — the manifest is the bundled catalog (static, ships with the app binary), the entity is the live, mutable download-state record. Conflating them would make an app update's new `regions.json` unable to cleanly reconcile against already-downloaded state.
 
 ## Architectural Patterns
 
-### Pattern 1: Synthesized-stub-Trail map host (established, reused as-is)
+### Pattern 1: Provider-wraps-service, mirroring `trail_download_provider.dart`
 
-**What:** A screen that doesn't yet have a persisted `Trail` builds a throwaway `Trail.empty().copyWith(expand: TrailExpand(gpx: ..., waypointsViaTrail: ...))` purely so it can be handed to a `Trail`-shaped map/form component.
-**When to use:** Any screen that edits trail geometry/waypoints before a save exists.
-**Trade-offs:** Avoids a parallel "unsaved trail" type, but requires placeholder `id: ''`/timestamps on nested `Waypoint`s (see `trail_import_util.dart` lines 76-89) so `Waypoint.fromJson`/`copyWith` don't choke on required non-nullable fields.
+**What:** A thin `@riverpod` (or `@Riverpod(keepAlive: true)`) class whose `build()` composes existing infra providers (`objectBoxProvider`, `apiProvider`) into a plain Dart service class; the service itself has no Riverpod dependency and is independently testable.
+**When to use:** Exactly this milestone's `TileRepositoryManager` — same shape as `TrailDownloadServiceNotifier`.
+**Trade-offs:** Slightly more indirection than a bare `Provider`, but keeps the service unit-testable without a `ProviderContainer` and matches every existing service in this codebase.
 
-**Example (already shipping, `trail_create_screen.dart:417-438`):**
-```dart
-TrailMap(
-  trail: trail, // stub or real Trail, both work identically
-  onTap: (point) => _onCreateWaypoint(context, at: point),
-  onWaypointTap: (wp) => _onEditWaypoint(context, wp),
-  onWaypointDragEnd: _onWaypointMoved,
-)
-```
-The Route Planner reuses this exact idea but via a new `RoutePlannerMap`/`RoutePlannerMarkerLayer` pair (see Pattern 2) rather than `TrailMap` itself, because it needs interactions `TrailMarkerLayer` doesn't have.
+### Pattern 2: Pure-function style rewrite, data-source-agnostic
 
-### Pattern 2: Widget-space GestureDetector markers, NOT a map-wide GestureDetector
+**What:** `offline_style_rewriter.dart` takes only primitive `List<String>` path lists — it has never known about `Trail` and shouldn't learn about `Region` either.
+**When to use:** Keep this boundary. The only thing that changes with this milestone is *what populates* `cellPaths`/`demCellPaths` before calling it.
+**Trade-offs:** None — this is already correctly decoupled; the milestone's job is to stop being the one exception (trail-bbox-sourced paths) to an otherwise generic function.
 
-**What:** Tap-to-add uses the **native** map click callback (`ml.MapEventClick` via `onEvent`, forwarded as `TrailMap.onTap`). Drag uses a **per-marker** `GestureDetector` (`onPanStart`/`onPanUpdate`/`onPanEnd`) inside each `ml.Marker`'s child within a single `ml.WidgetLayer`, converting screen-space `Offset` deltas back to `Geographic` via `controller.toLngLat`/`toScreenLocation`. There is no map-wide `GestureDetector` wrapping the whole map, and `maplibre` 0.3.5 does **not** expose a native marker-drag callback — drag is 100% Flutter-side.
-**When to use:** Any interactive-marker map screen in this app (confirmed identical in `trail_map.dart`'s `TrailMarkerLayer`, reused verbatim by `trail_create_screen.dart` and `navigation_screen.dart`).
-**Trade-offs:** Precise, no native marker-drag API to fight; the marker layer must read `ml.MapController.maybeOf(context)`/`ml.MapCamera.maybeOf(context)` to convert screen↔geo, and must rebuild on camera move (already established).
+### Pattern 3: Guard-at-the-choke-point
 
-**Example (`app/lib/components/map/trail_layer.dart:314-341`):**
-```dart
-ml.Marker(
-  point: point,
-  child: GestureDetector(
-    onTap: () => widget.onWaypointTap?.call(wp),
-    onPanStart: (d) => setState(() { _draggingWaypointId = wp.id; ... }),
-    onPanUpdate: (d) => setState(() => _dragOffset = _dragOffset! + d.delta),
-    onPanEnd: (d) => widget.onWaypointDragEnd?.call(wp, c.toLngLat(offset)),
-    child: _buildCircularMarker(...),
-  ),
-)
-```
-**New for the Route Planner:** insert-mid-route (tap on the route line, not a marker) has no existing precedent. Recommended approach: give the route polyline its own native GL layer id (as `TrailLayer` already does for `trail-route`), then on `ml.MapEventClick` call `controller.featuresAtPoint(event.screenPoint, layerIds: ['planner-route'])` (same API `map_screen.dart` already uses for cluster hit-testing) to detect a tap near the line and compute the nearest-segment insertion index.
-
-### Pattern 3: Class-with-imperative-methods Riverpod provider (established, reused as-is)
-
-**What:** `@riverpod class X extends _$X` holding mutable session state, exposing `Future<...>`/`void` methods rather than only computed getters — the same idiom as `TrailSave`, `Navigation`, `NavigationStats`.
-**When to use:** Any provider driving user-initiated mutations with async side effects (network calls) interleaved with local state updates.
-**Trade-offs:** State (`waypoints`, `autoRouting`, `profile`, `undoStack`, `redoStack`, synthesized `Gpx`) lives in one immutable state object rebuilt via `copyWith`, same as `NavigationState`.
-
-**Example (recommended shape for `route_planner_provider.dart`):**
-```dart
-class RoutePlannerState {
-  final List<Waypoint> waypoints;
-  final bool autoRouting;
-  final String profile; // 'pedestrian' | 'bicycle' — reuses gpx_util's values
-  final Gpx routeGpx;    // rebuilt after every mutation
-  // ...copyWith
-}
-
-@riverpod
-class RoutePlanner extends _$RoutePlanner {
-  final List<List<Waypoint>> _undoStack = [];
-  final List<List<Waypoint>> _redoStack = [];
-
-  @override
-  RoutePlannerState build() => RoutePlannerState(
-    waypoints: const [], autoRouting: false, profile: 'pedestrian',
-    routeGpx: Gpx(),
-  );
-
-  Future<void> addWaypoint(Geographic point) async { /* snapshot, mutate, resolve */ }
-  Future<void> moveWaypoint(int index, Geographic point) async { ... }
-  Future<void> insertWaypoint(int afterIndex, Geographic point) async { ... }
-  void deleteWaypoint(int index) { ... }
-  void reorder(int oldIndex, int newIndex) { ... }
-  void undo() { ... }
-  void redo() { ... }
-  void setAutoRouting(bool value) { /* re-resolve all segments */ }
-  void setProfile(String profile) { /* re-resolve all segments */ }
-}
-```
-**Undo/redo implementation choice:** the web app's equivalent (`valhalla_store.svelte.ts`) uses `json-diff-ts` changesets. There is no Dart port of that library in this project and waypoint counts for a planned route are small (tens, not thousands), so snapshotting the whole `List<Waypoint>` per edit onto `_undoStack`/`_redoStack` is simpler, dependency-free, and sufficiently cheap — recommended over porting a diff library.
+**What:** Insert cross-cutting checks (region coverage) at the single shared notifier method (`DownloadingTrailIds.download`) rather than at each UI call site.
+**When to use:** Whenever multiple UI entry points funnel through one state-owning method — this codebase already does this for the download-dedup check; extend it, don't duplicate the coverage check per button.
+**Trade-offs:** The guard's "prompt to download" UX (opening a dialog/navigating to Settings) has to be signaled back out of a notifier method rather than handled inline — use a return value or a dedicated toast/dialog provider (the codebase already has `toast_provider.dart` used inside this exact method for error/success messaging; extend that pattern for the "needs region" case rather than inventing a new signaling mechanism).
 
 ## Data Flow
 
-### Waypoint edit → route resolution
+### Region download flow
 
 ```
-User taps/drags/inserts on RoutePlannerMap
+Settings UI → TileRepositoryManager.downloadRegion(region)
     ↓
-RoutePlannerMarkerLayer callback (onTap / onWaypointDragEnd / onSegmentInsert)
+regions.json bbox → GET /map/cells?bbox=... (existing endpoint, unchanged)
     ↓
-ref.read(routePlannerProvider.notifier).addWaypoint(point)  // or move/insert/delete
+per cell: poll status → GET .../download (+ best-effort .../download-dem)
     ↓
-1. Snapshot current waypoints onto _undoStack, clear _redoStack
-2. Mutate waypoints list, set state immediately (instant visual feedback, straight lines)
-3. If autoRouting: for each consecutive waypoint PAIR, POST /api/v1/valhalla/route
-   (locations: [start, end], costing: profile) → decode trip.legs[0].shape
-4. Concatenate all per-pair shapes into one point list
-5. POST /api/v1/valhalla/height (encoded_polyline: <that shape>) → height[] array
-6. buildGpxFromPoints(points, elevations: height) → Gpx, set into state.routeGpx
+write to <app-docs>/regions/<regionId>/tiles/<cellKey>[.pmtiles|_dem.pmtiles]
     ↓
-ref.watch(routePlannerProvider) in RoutePlannerScreen rebuilds:
-  - RoutePlannerMap's route polyline + markers
-  - Waypoint list sheet (ReorderableListView)
-  - ElevationProfile(gpx: state.routeGpx) when elevation view is toggled on
+ObjectBox: upsert DownloadedTilePackage (paths, sizes, timestamp) + Region.status = downloaded
 ```
 
-### Handoff → existing create/edit flow (unchanged downstream)
+### Map render flow (post-migration)
 
 ```
-User taps "Use this route"
+Map widget build() → bounds (trail.bounds or viewport bounds)
     ↓
-handoffPlannedRoute(ref, navContext, gpx: state.routeGpx, waypoints: state.waypoints)
+TileRepositoryManager.localTilePathsForBounds(bounds) → (vectorPaths, demPaths)
     ↓
-Trail draft = Trail.empty().copyWith(expand: TrailExpand(gpx: gpx, waypointsViaTrail: waypoints))
-pendingImportedTrail = draft   // same global trail_import_util.dart already defines
-navContext.push('/trail/create/edit', extra: draft)
+mapStyleJsonProvider (online base style, unchanged) + glyphSpriteCacheProvider (unchanged)
     ↓
-router_provider.dart's existing '/trail/create/edit' route (UNCHANGED)
+rewriteStyleForOffline(base, cacheRoot, vectorPaths, demPaths) — unchanged contract
     ↓
-TrailCreateScreen(trail: draft) — UNCHANGED, same TrailForm/TrailMap/TrailSave flow
+MapController.setStyle(json) / initStyle
 ```
 
-## Integration Points — Direct Answers
+### Trail download flow (guarded, post-migration)
 
-### (1) Where does the new Riverpod provider fit?
-
-**New file:** `app/lib/provider/route_planner_provider.dart`, **top-level** (not `provider/trail/`), `@riverpod class RoutePlanner extends _$RoutePlanner` (codegen, `part 'route_planner_provider.g.dart'`). Rationale: it mirrors `navigation_provider.dart`'s placement — ephemeral, non-record-backed session state — not `trail_save_provider.dart`'s placement, which is record-backed CRUD. No `family` parameter is needed (unlike `navigationProvider(response, ...)`, which is keyed by the trail being navigated) since there is exactly one planner session per screen instance; default `autoDispose` is correct (no `@Riverpod(keepAlive: true)`) since the state should not outlive the screen.
-
-### (2) Reusing the `TrailMap`/`onMapCreated` handoff for tap-to-add + drag
-
-**Confirmed: no map-wide `GestureDetector` is needed, and native `onMapClick`/marker-drag callbacks are NOT how this app does it today.** The established, already-shipping pattern (`trail_map.dart` + `trail_layer.dart`'s `TrailMarkerLayer`, consumed by `trail_create_screen.dart`) is:
-- **Tap-to-add:** the native `ml.MapEventClick` event, forwarded through `TrailMap.onTap` (see `trail_map.dart:215-219`). Reuse this exact forwarding shape in the new `RoutePlannerMap`.
-- **Drag:** a per-`ml.Marker` `GestureDetector` (`onPanStart`/`onPanUpdate`/`onPanEnd`) living inside a single `ml.WidgetLayer`, not a native drag callback — `maplibre` 0.3.5 has no such API. Reuse `TrailMarkerLayer`'s exact drag-offset/`toLngLat` conversion logic in the new `RoutePlannerMarkerLayer`.
-- **New capability needed (no precedent exists):** insert-mid-route (tap on the route line itself). Recommended: give the route polyline a dedicated native layer id and use `controller.featuresAtPoint(screenPoint, layerIds: [...])` on `MapEventClick` — the same API `map_screen.dart` already uses for cluster-circle hit-testing (`map_screen.dart:394-398`) — then compute nearest-segment insertion index client-side.
-- **Recommendation:** build `route_planner_map.dart` + `route_planner_marker_layer.dart` as new files modeled on this pattern rather than extending `TrailMap`/`TrailMarkerLayer` in place, to avoid touching a component shared by 3 other screens.
-
-### (3) Is a new backend endpoint required for multi-waypoint routing?
-
-**No new backend endpoint is required. Definitive recommendation: call `POST /api/v1/valhalla/route` once per consecutive waypoint pair — NOT `/api/v1/valhalla/navigate`.**
-
-Investigation found the SvelteKit backend already exposes **three** Valhalla proxy endpoints, not one:
-- `POST /api/v1/valhalla/navigate` (`web/src/routes/api/v1/valhalla/navigate/+server.ts`) — wraps Valhalla's **map-matching** action (`shape_match: "map_snap"`, `directions_type: "instructions"`). It is designed to take an *already-known* dense trail track (2-500 points) and snap it to the road network for turn-by-turn narration — this is what `navigation_launch_util.dart` uses today for turn-by-turn nav along a saved trail's full GPX.
-- `POST /api/v1/valhalla/route` (`web/src/routes/api/v1/valhalla/route/+server.ts`) — a thin passthrough to Valhalla's actual **routing** action (`locations: [{lat,lon}, {lat,lon}]`, `costing`). This is Valhalla's real point-to-point path-finding engine.
-- `POST /api/v1/valhalla/height` (`web/src/routes/api/v1/valhalla/height/+server.ts`) — passthrough to Valhalla's elevation/height service (`encoded_polyline` in, `height: number[]` out).
-
-Critically, **the web app already ships this exact feature** (`web/src/lib/stores/valhalla_store.svelte.ts`, function `calculateRouteBetween`) — a route-planner-equivalent that:
-1. Calls `/api/v1/valhalla/route` once per pair of anchor points (`locations: [start, end]`, `costing` derived from the transport mode), not a single multi-waypoint call.
-2. Decodes `trip.legs[0].shape` (encoded polyline — same encoding `PolylineUtil.decode` in the Flutter app already handles).
-3. Calls `/api/v1/valhalla/height` with that segment's `encoded_polyline` to get per-point elevation.
-4. Zips `height[i]` onto each decoded point as `ele`.
-
-This is the exact per-pair pattern the milestone asked about, and it is proven, shipped code, not a hypothesis. `/navigate` is the wrong semantic fit here (it snaps an already-fixed shape rather than route between two arbitrary tapped points, and its `directions_type: "instructions"` response carries maneuver data the planner doesn't need). Recommendation: the Flutter Route Planner should call `/api/v1/valhalla/route` per waypoint pair (via the existing `apiProvider`, whose `baseUrl` already includes `/api/v1` — see `navigation_launch_util.dart:186-191` for the exact call-shape precedent to copy), then `/api/v1/valhalla/height` on the composed shape. **Zero Go or SvelteKit changes are needed** — both endpoints already exist and work; they are simply not yet called from the Flutter app.
-
-### (4) New utility to synthesize a `Gpx` from a live waypoint list
-
-**New function in the existing `app/lib/util/gpx_util.dart`** (not a new file — see Structure Rationale above), e.g.:
-```dart
-Gpx buildGpxFromPoints(List<Geographic> points, {List<double?>? elevations}) {
-  final trkpts = [
-    for (var i = 0; i < points.length; i++)
-      Wpt(lat: points[i].lat, lon: points[i].lon,
-          ele: elevations != null && i < elevations.length ? elevations[i] : null),
-  ];
-  return Gpx()..trks = [Trk(trksegs: [Trkseg(trkpts: trkpts)])];
-}
 ```
-Confirmed via the `gpx` package (v2.3.0, already a pinned dependency) source: `Gpx`, `Trk`, `Trkseg` all have simple mutable-field/named constructors with no required arguments, so this is a straightforward, dependency-free addition. No app code currently constructs a `Gpx` object (only `GpxReader().fromString(...)` is used elsewhere) — this is genuinely new territory, but small and isolated. This is the direct structural inverse of the existing `buildNavShape(List<Geographic>) → shape` in the same file, keeping the file as the single Gpx-conversion home.
+User taps "Download" → DownloadingTrailIds.download(trail)
+    ↓
+[NEW] TileRepositoryManager coverage check on trail.bounds
+    ↓ covered                              ↓ not covered
+trailDownloadService.downloadTrail    show "download region" prompt
+(photos + nav cache only, no tiles)   → Settings → Offline Maps
+```
 
-### (5) Does the Go backend have a separate elevation-lookup service?
+## Scaling Considerations
 
-**No — confirmed by search of the entire `db/` Go backend: there is no elevation/height service or endpoint there.** Every Go-side "elevation" hit is the `trails.elevation_gain`/`elevation_loss` schema fields (post-hoc computed stats on a saved trail), not a live lookup service. **However, elevation does NOT need to be omitted at planning time** — the elevation source already exists, just one layer up: SvelteKit's `POST /api/v1/valhalla/height` (`web/src/routes/api/v1/valhalla/height/+server.ts`), which proxies Valhalla's own height/elevation service directly (independent of `/navigate`, independent of Go/`db/`). It is unused by the Flutter app today (only `/navigate` is called, which carries no elevation), but is fully wired, environment-configured (`VALHALLA_HEIGHT_URL`), and already proven in production by the web app's `calculateRouteBetween` (see Q3). Recommendation: call it directly from Flutter with an `encoded_polyline` (reuse `PolylineUtil.encode`) exactly as the web store does, and feed the returned `height[]` array into `buildGpxFromPoints`'s `elevations` parameter. Zero new backend work.
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| A handful of curated regions (v1.6 launch) | Linear scan over ObjectBox `Region` box for bbox-intersection is fine — no spatial index needed. |
+| Dozens of regions, large countries | Still fine for bbox-only rectangles; if this grows to hundreds, add a simple ObjectBox index on region min/max lat/lon rather than a full spatial engine — premature otherwise. |
+| Remote/updatable manifest (explicitly deferred) | Not this milestone — noted only so the `Region`/manifest split (Pattern above) doesn't need rework when that lands later; the reconciliation logic (manifest region vs. already-downloaded entity) is exactly what that split anticipates. |
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Wrapping the whole `RoutePlannerMap` in a Flutter `GestureDetector` for tap/drag
+### Anti-Pattern 1: Making `TileRepositoryManager` a superset of `TrailDownloadService`
 
-**What people do:** Reach for a screen-level `GestureDetector` to capture taps/drags "above" the map widget.
-**Why it's wrong:** It would fight `ml.MapGestures.all()`'s own pan/pinch/rotate recognizers and break normal map panning; this app never does this. Every existing interactive-marker screen puts the `GestureDetector` *inside* each `ml.Marker`'s child within a `ml.WidgetLayer`, and uses the map's own `onEvent`/`MapEventClick` for background taps.
-**Do this instead:** Follow `TrailMarkerLayer`'s per-marker `GestureDetector` + `TrailMap.onTap`'s native-click-forwarding split exactly (see Pattern 2).
+**What people do:** Extend the existing `TrailDownloadService` in place to also handle regions, keeping one class doing both.
+**Why it's wrong:** Directly contradicts PROJECT.md's explicit goal ("decoupled from Trail") and the "legacy code deleted outright" requirement — a merged class can't be cleanly deleted down to its trail-only remainder later.
+**Do this instead:** New, separate `TileRepositoryManager`; `TrailDownloadService` shrinks to photos + nav cache once the guard/ripout phases land.
 
-### Anti-Pattern 2: Calling `/api/v1/valhalla/navigate` for point-to-point auto-routing
+### Anti-Pattern 2: Coupling the region query to `mapStyleJsonProvider`
 
-**What people do:** Reuse the one Valhalla endpoint the mobile app already calls, assuming "it does routing."
-**Why it's wrong:** `/navigate` performs map-matching (`shape_match: map_snap`) of an *already-known* path, not point-to-point route-finding between two arbitrary taps — semantically wrong for what auto-routing needs, and it returns maneuver instructions the planner has no use for.
-**Instead:** Call `/api/v1/valhalla/route` (Valhalla's actual routing action) per waypoint pair — see Q3 above. This is proven by the web app's own equivalent feature.
+**What people do:** Fold the region path lookup directly into `mapStyleJsonProvider` so there's "one provider that returns the final style."
+**Why it's wrong:** `mapStyleJsonProvider` is `keepAlive` and theme-driven only; conflating it with viewport/trail-bounds-driven region data would force it to re-evaluate on every camera move and lose its clean single-responsibility (and its useful independence — e.g. it's reused for both the online and about-to-be-offline-rewritten case).
+**Do this instead:** Keep them as parallel inputs composed by the calling widget's own `_composeStyle`, exactly as `glyphSpriteCacheProvider` already is today.
 
-### Anti-Pattern 3: Introducing a second "pending trail" global for the planner handoff
+### Anti-Pattern 3: Deleting trail-scoped tile code before region rendering is proven live
 
-**What people do:** Add a new module-level `pendingPlannedTrail` variable in a new file to mirror `trail_import_util.dart`'s pattern.
-**Why it's wrong:** `pendingImportedTrail`'s existence is specifically to survive a documented go_router `extra`-loss race (`RouteMatchListCodec` dropping non-JSON `extra` on same-process refresh). A second, independent global creates two competing safety nets and doubles the surface area for that race to resurface.
-**Instead:** Reuse the existing `pendingImportedTrail` global via a new function added to `trail_import_util.dart` (see Q4/Structure Rationale).
+**What people do:** Since PROJECT.md says "no migration, delete outright," it's tempting to delete `pmTiles`/`demPmTiles`/`_downloadMapTiles` in the same phase that introduces `TileRepositoryManager`.
+**Why it's wrong:** Violates this project's own established and explicitly-praised migration discipline (v1.4's "forks deleted last," "deletion deferred to the phase where the last consumer was gone") — a big-bang swap risks a build break or a silent offline-rendering regression with no fallback to diagnose against.
+**Do this instead:** Follow the Q4 order — data model → manager → UI → rewiring → guard → ripout, each phase independently buildable and demoable.
 
-## Pitfall Found During Research: `GlobalSearchScreen`'s location tile is hardcoded to `/map`
+## Integration Points
 
-The milestone context assumes "Search-to-focus map panning via existing GlobalSearchScreen flow" is a drop-in reusable pattern. Investigation of `app/lib/routes/global_search_screen.dart` (`_LocationTile.onTap`, line 327-330) found it does:
-```dart
-onTap: () => context.go('/map', extra: {'lat': ..., 'lon': ..., 'zoom': 13.0}),
-```
-This is hardcoded to navigate (`context.go`, replacing the stack) straight to `/map` — it has no concept of "return to whichever screen opened me." For the Route Planner to reuse this flow (pan its *own* map, not navigate away to `/map`), `global_search_screen.dart` needs a small, additive modification: either (a) an optional callback/route-target parameter on `GlobalSearchScreen` defaulting to today's `/map` behavior, or (b) switch the location tile to `context.pop(location)` when the search screen was pushed for a "pick a location" purpose (distinguishable via a constructor flag), with the Route Planner using `context.push<LocationSearchResult>('/search')` and awaiting the popped result to re-center its own map. This is a real, small, necessary modification — flag it explicitly in phase planning rather than assuming zero-touch reuse.
+### External Services
 
-## Build Order Recommendation (dependency-ordered)
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| `build.protomaps.com` / `download.mapterhorn.com` (via Go backend) | Unchanged — `db/services/tiles/generator.go` already abstracts this behind `/map/cells`; region downloads call the same endpoint with a larger bbox. | No new external integration. |
 
-1. **Provider + pure utilities first** (`route_planner_provider.dart`, `gpx_util.dart`'s `buildGpxFromPoints`, the `/valhalla/route` + `/valhalla/height` call sequence as an imperative method) — testable without any UI, and every other piece depends on this state shape existing.
-2. **Map interaction layer** (`route_planner_map.dart`, `route_planner_marker_layer.dart`) — wire tap-to-add/drag/insert against the provider from step 1; this is the highest-uncertainty new code (insert-mid-route hit-testing has no precedent) so de-risk it early, before sheet/elevation UI is built on top.
-3. **Screen shell + sheet/elevation UI** (`route_planner_screen.dart`): waypoint list `DraggableScrollableSheet` (reuse the established snapSizes/`ValueNotifier<double>` pattern from `map_screen.dart`/`trail_create_screen.dart`), `_buildButtonRow`-style control buttons for auto-routing toggle + profile switch + sheet↔elevation toggle, `ElevationProfile(gpx: state.routeGpx, trail: <stub>)` reused as-is.
-4. **Search-to-focus wiring**: requires the `global_search_screen.dart` modification identified above; do this after the screen shell exists so there's a concrete "re-center my map" target to wire the popped result into.
-5. **Handoff last**: `trail_import_util.dart`'s new `handoffPlannedRoute()`, the `router_provider.dart` route registration, and the `trail_source_select_screen.dart` one-line entry-point wire-up. Ordering this last means the entry point only goes live once the full screen behind it actually works, avoiding a dead/broken route being reachable mid-phase-plan.
+### Internal Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| `TileRepositoryManager` ↔ ObjectBox | Direct `Store.box<Region>()`/`box<DownloadedTilePackage>()`, mirrors `TrailDownloadService`'s `_store.box<TrailEntity>()` | Same `Store` instance via `objectBoxProvider`. |
+| `TileRepositoryManager` ↔ `/map/cells` API | `Dio` via `apiProvider`, identical request/response DTOs (`MapCellInfoList`, `MapCellStatusResponse`) to what `trail_download_service.dart` already uses | Reuse `app/lib/models/map_cell.dart` as-is; don't fork new DTOs. |
+| `TrailMap`/`navigation_screen` ↔ region provider | `ref.watch`/`ref.read` on a new bbox-query provider, replacing direct `trail.pmTiles` field reads | Contract: `(List<String>, List<String>)` in, matching `rewriteStyleForOffline`'s existing parameter shapes — zero change to that function. |
+| `DownloadingTrailIds` ↔ region provider | `ref.read` coverage check inside the existing notifier method | Single choke point; no new UI-side duplication needed. |
+| Flutter app ↔ Go backend | **No new boundary** — region concept is client-only (bundled manifest); backend continues to only know about grid cells | Confirmed by PROJECT.md's explicit "bundled manifest, no remote manifest" scoping. |
 
 ## Sources
 
-All findings are first-party, from direct reads of this repository (no external documentation needed):
-- `app/lib/provider/router_provider.dart` — existing route table, `/trail/create` vs `/trail/create/edit` nesting
-- `app/lib/routes/map_screen.dart` — DraggableScrollableSheet/snapSizes pattern, `featuresAtPoint` hit-testing precedent
-- `app/lib/routes/navigation_screen.dart`, `app/lib/provider/navigation_provider.dart` — ephemeral top-level provider placement precedent, `_buildButtonRow`/elevation-toggle sheet pattern
-- `app/lib/routes/trail_create_screen.dart` — synthesized-stub-`Trail` + `TrailMap` interaction precedent (exact tap/drag wiring)
-- `app/lib/components/base/trail_map.dart`, `app/lib/components/base/trail_collection_map.dart` — `onMapCreated`/`onStyleLoaded` handoff pattern
-- `app/lib/components/map/trail_layer.dart` (`TrailMarkerLayer`) — per-marker `GestureDetector` drag implementation
-- `app/lib/util/trail_import_util.dart` — `pendingImportedTrail` global + import-to-draft-`Trail` precedent
-- `app/lib/util/gpx_util.dart` — `buildNavShape`, `costingForCategory`, `GpxMappingUtils` (existing Gpx-bridging home)
-- `app/lib/util/navigation_launch_util.dart` — exact `/valhalla/navigate` call shape via `apiProvider`
-- `app/lib/util/polyline_util.dart` — polyline encode/decode already available for `/valhalla/height`'s `encoded_polyline`
-- `app/lib/models/navigate_response.dart`, `app/lib/models/waypoint.dart`, `app/lib/models/trail.dart` — model shapes for handoff
-- `app/lib/routes/trail_source_select_screen.dart` — existing "Planner" card entry point (`_comingSoon` placeholder)
-- `app/lib/routes/global_search_screen.dart` — location-tile hardcoded `/map` navigation (pitfall)
-- `web/src/routes/api/v1/valhalla/navigate/+server.ts`, `.../route/+server.ts`, `.../height/+server.ts` — the three distinct existing Valhalla proxy endpoints and their exact contracts
-- `web/src/lib/stores/valhalla_store.svelte.ts` — the web app's shipped route-planner-equivalent (`calculateRouteBetween`, undo/redo via `json-diff-ts`), proving the per-pair `/route` + `/height` pattern in production
-- `db/` (grep across all `.go` files) — confirmed no elevation/height service exists Go-side
-- `.pub-cache/hosted/pub.dev/gpx-2.3.0/lib/src/model/{gpx,trk,trkseg,wpt}.dart` — confirmed `Gpx`/`Trk`/`Trkseg`/`Wpt` constructor shapes for `buildGpxFromPoints`
-- `.planning/PROJECT.md` — v1.5 milestone scope, constraints, out-of-scope list (car costing, editing existing trails, per-segment profiles, offline route caching)
+- `.planning/PROJECT.md` (v1.6 milestone scope, constraints, Out of Scope, Key Decisions — especially the v1.4 migration-discipline entries this order re-applies)
+- `app/lib/services/trail_download_service.dart` (multi-cell download orchestration to be lifted into `TileRepositoryManager`)
+- `app/lib/util/offline_style_rewriter.dart` (confirmed path-list-only contract, no `Trail` coupling)
+- `app/lib/entities/trail_entity.dart` (fields to be deleted: `pmTiles`, `demPmTiles`)
+- `app/lib/components/base/trail_map.dart`, `trail_collection_map.dart` (actual map-host components; corrected against the milestone brief's stale file names)
+- `app/lib/routes/navigation_screen.dart` (second, independent offline-rewrite call site — grep-confirmed at line ~874-889)
+- `app/lib/provider/trail/trail_download_state_provider.dart` (confirmed single choke point for all trail-download UI entry points — doc comment explicitly states this)
+- `app/lib/provider/trail/trail_download_provider.dart`, `app/lib/provider/objectbox_store_provider.dart` (provider-wraps-service pattern to replicate)
+- `app/lib/models/map_cell.dart` (DTOs to reuse for region cell fetches, not fork)
+- `db/services/tiles/generator.go`, `db/services/tiles/grid.go`, `db/routes/map_cells_id.go` (confirmed bbox/cell-based, trail-agnostic already — no backend changes required)
+- `app/pubspec.yaml` (confirmed `assets/map/` glob already covers a new `regions.json` bundled asset with no pubspec change)
 
 ---
-*Architecture research for: Wanderer Route Planner screen (v1.5 milestone)*
-*Researched: 2026-07-16*
+*Architecture research for: region-based offline map/tile repository (Wanderer Flutter app, v1.6 milestone)*
+*Researched: 2026-07-21*

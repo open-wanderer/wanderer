@@ -7,13 +7,16 @@ import 'package:image_picker/image_picker.dart';
 import 'package:wanderer/components/base/wanderer_rich_text_editor.dart';
 import 'package:wanderer/components/settings/email_change_sheet.dart';
 import 'package:wanderer/components/settings/password_change_sheet.dart';
+import 'package:wanderer/components/settings/settings_offline_banner.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/settings.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/profile/profile_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/util/offline_guard_util.dart';
 
 class SettingsAccountScreen extends ConsumerStatefulWidget {
   const SettingsAccountScreen({super.key});
@@ -32,6 +35,8 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
     AppLocalizations l10n,
     String userId,
   ) async {
+    if (!guardOnline(ref, l10n)) return;
+
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked == null) return;
 
@@ -60,9 +65,11 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
             ),
           );
     } finally {
-      setState(() {
-        _avatarLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _avatarLoading = false;
+        });
+      }
     }
   }
 
@@ -72,6 +79,8 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
     AppLocalizations l10n,
     String userId,
   ) async {
+    if (!guardOnline(ref, l10n)) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -132,6 +141,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
     final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(authProvider).value;
     final settings = ref.watch(settingsProvider);
+    final online = ref.watch(onlineStatusProvider);
 
     final avatarUrl = user?.getFileUrl(user.serverUrl, user.avatar);
     final fallbackUrl =
@@ -147,11 +157,13 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
       ),
       body: ListView(
         children: [
+          const SettingsOfflineBanner(),
+
           // --- Avatar row (ACCT-01) ---
           Padding(
             padding: const EdgeInsets.all(16),
             child: GestureDetector(
-              onTap: user == null
+              onTap: (user == null || !online)
                   ? null
                   : () => _pickAndUploadAvatar(context, ref, l10n, user.id),
               child: Stack(
@@ -228,7 +240,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
               l10n.delete_account,
               style: TextStyle(color: Colors.red.shade400),
             ),
-            onTap: user == null
+            onTap: (user == null || !online)
                 ? null
                 : () => _deleteAccount(context, ref, l10n, user.id),
           ),
@@ -288,6 +300,7 @@ class _BioSectionState extends ConsumerState<_BioSection> {
   Future<void> _save() async {
     final settings = widget.settings;
     if (settings == null) return;
+    if (!guardOnline(ref, widget.l10n)) return;
     try {
       await ref
           .read(settingsProvider.notifier)
@@ -308,6 +321,8 @@ class _BioSectionState extends ConsumerState<_BioSection> {
 
   @override
   Widget build(BuildContext context) {
+    final online = ref.watch(onlineStatusProvider);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -321,7 +336,7 @@ class _BioSectionState extends ConsumerState<_BioSection> {
           ),
           const SizedBox(height: 8),
           ElevatedButton(
-            onPressed: _hasChanged ? _save : null,
+            onPressed: (_hasChanged && online) ? _save : null,
             child: Text(widget.l10n.save),
           ),
         ],

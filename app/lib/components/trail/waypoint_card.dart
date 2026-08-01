@@ -124,7 +124,9 @@ class WaypointCard extends ConsumerWidget {
                       waypoint.description!,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         height: 1.5,
-                        color: Colors.grey[800],
+                        color: Theme.of(context).brightness == Brightness.light
+                            ? Colors.grey[800]
+                            : Colors.grey[400],
                       ),
                     ),
                   ],

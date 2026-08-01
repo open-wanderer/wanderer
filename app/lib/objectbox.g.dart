@@ -17,7 +17,9 @@ import 'package:objectbox_flutter_libs/objectbox_flutter_libs.dart';
 import 'entities/active_navigation_entity.dart';
 import 'entities/actor_entity.dart';
 import 'entities/category_entity.dart';
+import 'entities/downloaded_tile_package_entity.dart';
 import 'entities/local_settings_entity.dart';
+import 'entities/region_entity.dart';
 import 'entities/settings_entity.dart';
 import 'entities/subcategory_entity.dart';
 import 'entities/trail_entity.dart';
@@ -30,7 +32,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(1, 7780573664962685596),
     name: 'UserEntity',
-    lastPropertyId: const obx_int.IdUid(17, 3792668263909473854),
+    lastPropertyId: const obx_int.IdUid(18, 2536150042628885580),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -120,6 +122,15 @@ final _entities = <obx_int.ModelEntity>[
         indexId: const obx_int.IdUid(14, 6564329935493948317),
         relationField: 'settings',
         relationTarget: 'SettingsEntity',
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(18, 2536150042628885580),
+        name: 'actorObxId',
+        type: 11,
+        flags: 520,
+        indexId: const obx_int.IdUid(22, 8994270532329500705),
+        relationField: 'actor',
+        relationTarget: 'ActorEntity',
       ),
     ],
     relations: <obx_int.ModelRelation>[],
@@ -375,7 +386,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(5, 686829528950894660),
     name: 'CategoryEntity',
-    lastPropertyId: const obx_int.IdUid(6, 6437104223388593365),
+    lastPropertyId: const obx_int.IdUid(7, 857403103277587453),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -415,6 +426,12 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 857403103277587453),
+        name: 'settingsJson',
+        type: 9,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -422,7 +439,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(6, 5034082009762803572),
     name: 'TrailEntity',
-    lastPropertyId: const obx_int.IdUid(27, 1385314773466755533),
+    lastPropertyId: const obx_int.IdUid(29, 5553735844226385778),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -517,12 +534,6 @@ final _entities = <obx_int.ModelEntity>[
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(16, 1531949722887503626),
-        name: 'pmTiles',
-        type: 30,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
         id: const obx_int.IdUid(17, 8096833450792418458),
         name: 'dbDifficulty',
         type: 6,
@@ -589,9 +600,15 @@ final _entities = <obx_int.ModelEntity>[
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(27, 1385314773466755533),
-        name: 'demPmTiles',
+        id: const obx_int.IdUid(28, 5980375855283526072),
+        name: 'savedByUserIds',
         type: 30,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(29, 5553735844226385778),
+        name: 'movingDuration',
+        type: 8,
         flags: 0,
       ),
     ],
@@ -700,7 +717,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(9, 1133408451611476214),
     name: 'SubcategoryEntity',
-    lastPropertyId: const obx_int.IdUid(8, 7327599832160544687),
+    lastPropertyId: const obx_int.IdUid(9, 8863469595509014354),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -753,6 +770,12 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(9, 8863469595509014354),
+        name: 'settingsJson',
+        type: 9,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -760,7 +783,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(10, 8580051984298238879),
     name: 'ActiveNavigationEntity',
-    lastPropertyId: const obx_int.IdUid(17, 5054022175370517237),
+    lastPropertyId: const obx_int.IdUid(18, 5891370304847306650),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -854,6 +877,189 @@ final _entities = <obx_int.ModelEntity>[
         type: 27,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(18, 5891370304847306650),
+        name: 'recordingCosting',
+        type: 9,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(11, 3994262290222200730),
+    name: 'DownloadedTilePackageEntity',
+    lastPropertyId: const obx_int.IdUid(5, 6747273162193410297),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 4374773426317627388),
+        name: 'obxId',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 4154466746856851188),
+        name: 'dbStatus',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 1923335049010027300),
+        name: 'localFilePath',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 5314799543154432512),
+        name: 'downloadedAtUtc',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 6747273162193410297),
+        name: 'sizeBytesOnDisk',
+        type: 6,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(12, 7228865513396600510),
+    name: 'RegionEntity',
+    lastPropertyId: const obx_int.IdUid(20, 4586267527719177846),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 8961513366638899041),
+        name: 'obxId',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 4039124996490710874),
+        name: 'id',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 5311151678852809106),
+        name: 'name',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 2209570915226870566),
+        name: 'minLon',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 161630790384350211),
+        name: 'minLat',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 1811641814319407837),
+        name: 'maxLon',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 1733392075640969278),
+        name: 'maxLat',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(8, 3947505946992521604),
+        name: 'version',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(9, 6002601932204643725),
+        name: 'vectorUrl',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 6875410086344237922),
+        name: 'vectorSize',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 6324962793112723008),
+        name: 'demUrl',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 3889641482139647731),
+        name: 'demSize',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 6369582494340244517),
+        name: 'error',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 2245437139079201970),
+        name: 'inCatalog',
+        type: 1,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(15, 5749850859456718531),
+        name: 'lastDownloadedVersion',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(16, 2156400899818498663),
+        name: 'dbCatalogStatus',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(17, 4955623694421458024),
+        name: 'dbDemStatus',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(18, 8868632539812944634),
+        name: 'vectorPackageId',
+        type: 11,
+        flags: 520,
+        indexId: const obx_int.IdUid(20, 3862938813523067739),
+        relationField: 'vectorPackage',
+        relationTarget: 'DownloadedTilePackageEntity',
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(19, 7368931415973576532),
+        name: 'demPackageId',
+        type: 11,
+        flags: 520,
+        indexId: const obx_int.IdUid(21, 8934601337546040437),
+        relationField: 'demPackage',
+        relationTarget: 'DownloadedTilePackageEntity',
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(20, 4586267527719177846),
+        name: 'path',
+        type: 9,
+        flags: 34848,
+        indexId: const obx_int.IdUid(23, 6305628536415824179),
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -903,12 +1109,16 @@ obx_int.ModelDefinition getObjectBoxModel() {
     // Typically, this is done with `dart run build_runner build`.
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
-    lastEntityId: const obx_int.IdUid(10, 8580051984298238879),
-    lastIndexId: const obx_int.IdUid(18, 2115373350521693955),
+    lastEntityId: const obx_int.IdUid(12, 7228865513396600510),
+    lastIndexId: const obx_int.IdUid(23, 6305628536415824179),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [1110440324073703466],
-    retiredIndexUids: const [3377491348144337262, 4235871213533179134],
+    retiredIndexUids: const [
+      3377491348144337262,
+      4235871213533179134,
+      2837718969465956680,
+    ],
     retiredPropertyUids: const [
       1147012112998304753,
       3896929027028370202,
@@ -949,6 +1159,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
       3987020287664329095,
       3442859084048240220,
       1802378494213556929,
+      1531949722887503626,
+      1385314773466755533,
     ],
     retiredRelationUids: const [],
     modelVersion: 5,
@@ -959,7 +1171,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
   final bindings = <Type, obx_int.EntityDefinition>{
     UserEntity: obx_int.EntityDefinition<UserEntity>(
       model: _entities[0],
-      toOneRelations: (UserEntity object) => [object.settings],
+      toOneRelations: (UserEntity object) => [object.settings, object.actor],
       toManyRelations: (UserEntity object) => {},
       getId: (UserEntity object) => object.obxId,
       setId: (UserEntity object, int id) {
@@ -980,7 +1192,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final actorIdOffset = fbb.writeString(object.actorId);
         final collectionIdOffset = fbb.writeString(object.collectionId);
         final collectionNameOffset = fbb.writeString(object.collectionName);
-        fbb.startTable(18);
+        fbb.startTable(19);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, usernameOffset);
@@ -995,6 +1207,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(14, collectionIdOffset);
         fbb.addOffset(15, collectionNameOffset);
         fbb.addInt64(16, object.settings.targetId);
+        fbb.addInt64(17, object.actor.targetId);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1060,6 +1273,13 @@ obx_int.ModelDefinition getObjectBoxModel() {
           0,
         );
         object.settings.attach(store);
+        object.actor.targetId = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          38,
+          0,
+        );
+        object.actor.attach(store);
         return object;
       },
     ),
@@ -1374,13 +1594,17 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final translationsJsonOffset = object.translationsJson == null
             ? null
             : fbb.writeString(object.translationsJson!);
-        fbb.startTable(7);
+        final settingsJsonOffset = object.settingsJson == null
+            ? null
+            : fbb.writeString(object.settingsJson!);
+        fbb.startTable(8);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
         fbb.addOffset(3, iconOffset);
         fbb.addOffset(4, shortNameOffset);
         fbb.addOffset(5, translationsJsonOffset);
+        fbb.addOffset(6, settingsJsonOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1402,12 +1626,16 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final translationsJsonParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 14);
+        final settingsJsonParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 16);
         final object = CategoryEntity(
           id: idParam,
           name: nameParam,
           icon: iconParam,
           shortName: shortNameParam,
           translationsJson: translationsJsonParam,
+          settingsJson: settingsJsonParam,
         )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
@@ -1442,16 +1670,13 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final photosOffset = fbb.writeList(
           object.photos.map(fbb.writeString).toList(growable: false),
         );
-        final pmTilesOffset = fbb.writeList(
-          object.pmTiles.map(fbb.writeString).toList(growable: false),
-        );
         final navCacheJsonOffset = object.navCacheJson == null
             ? null
             : fbb.writeString(object.navCacheJson!);
-        final demPmTilesOffset = fbb.writeList(
-          object.demPmTiles.map(fbb.writeString).toList(growable: false),
+        final savedByUserIdsOffset = fbb.writeList(
+          object.savedByUserIds.map(fbb.writeString).toList(growable: false),
         );
-        fbb.startTable(28);
+        fbb.startTable(30);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1467,7 +1692,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(12, gpxDataOffset);
         fbb.addOffset(13, descriptionOffset);
         fbb.addOffset(14, photosOffset);
-        fbb.addOffset(15, pmTilesOffset);
         fbb.addInt64(16, object.dbDifficulty);
         fbb.addInt64(17, object.author.targetId);
         fbb.addInt64(18, object.category.targetId);
@@ -1478,7 +1702,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addFloat64(23, object.minLat);
         fbb.addFloat64(24, object.minLon);
         fbb.addOffset(25, navCacheJsonOffset);
-        fbb.addOffset(26, demPmTilesOffset);
+        fbb.addOffset(27, savedByUserIdsOffset);
+        fbb.addFloat64(28, object.movingDuration);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1536,6 +1761,11 @@ obx_int.ModelDefinition getObjectBoxModel() {
           rootOffset,
           22,
         );
+        final movingDurationParam = const fb.Float64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          60,
+        );
         final latParam = const fb.Float64Reader().vTableGetNullable(
           buffer,
           rootOffset,
@@ -1592,6 +1822,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 elevationGain: elevationGainParam,
                 elevationLoss: elevationLossParam,
                 duration: durationParam,
+                movingDuration: movingDurationParam,
                 lat: latParam,
                 lon: lonParam,
                 maxLat: maxLatParam,
@@ -1612,20 +1843,16 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 fb.StringReader(asciiOptimization: true),
                 lazy: false,
               ).vTableGet(buffer, rootOffset, 32, [])
-              ..pmTiles = const fb.ListReader<String>(
-                fb.StringReader(asciiOptimization: true),
-                lazy: false,
-              ).vTableGet(buffer, rootOffset, 34, [])
               ..dbDifficulty = const fb.Int64Reader().vTableGet(
                 buffer,
                 rootOffset,
                 36,
                 0,
               )
-              ..demPmTiles = const fb.ListReader<String>(
+              ..savedByUserIds = const fb.ListReader<String>(
                 fb.StringReader(asciiOptimization: true),
                 lazy: false,
-              ).vTableGet(buffer, rootOffset, 56, []);
+              ).vTableGet(buffer, rootOffset, 58, []);
         object.author.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -1797,7 +2024,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final translationsJsonOffset = object.translationsJson == null
             ? null
             : fbb.writeString(object.translationsJson!);
-        fbb.startTable(9);
+        final settingsJsonOffset = object.settingsJson == null
+            ? null
+            : fbb.writeString(object.settingsJson!);
+        fbb.startTable(10);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, categoryOffset);
@@ -1806,6 +2036,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(5, iconOffset);
         fbb.addOffset(6, badgeIconOffset);
         fbb.addOffset(7, translationsJsonOffset);
+        fbb.addOffset(8, settingsJsonOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1833,6 +2064,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final translationsJsonParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 18);
+        final settingsJsonParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 20);
         final object = SubcategoryEntity(
           id: idParam,
           category: categoryParam,
@@ -1841,6 +2075,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           icon: iconParam,
           badgeIcon: badgeIconParam,
           translationsJson: translationsJsonParam,
+          settingsJson: settingsJsonParam,
         )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
@@ -1867,7 +2102,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final timestampsUtcOffset = object.timestampsUtc == null
             ? null
             : fbb.writeListInt64(object.timestampsUtc!);
-        fbb.startTable(18);
+        final recordingCostingOffset = object.recordingCosting == null
+            ? null
+            : fbb.writeString(object.recordingCosting!);
+        fbb.startTable(19);
         fbb.addInt64(0, object.obxId);
         fbb.addInt64(1, object.dbSessionType);
         fbb.addOffset(2, trailIdOffset);
@@ -1883,6 +2121,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(14, breadcrumbPolylineOffset);
         fbb.addOffset(15, elevationsOffset);
         fbb.addOffset(16, timestampsUtcOffset);
+        fbb.addOffset(17, recordingCostingOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1903,6 +2142,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           rootOffset,
           10,
         );
+        final recordingCostingParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 38);
         final currentManeuverIndexParam = const fb.Int64Reader()
             .vTableGetNullable(buffer, rootOffset, 12);
         final breadcrumbPolylineParam = const fb.StringReader(
@@ -1961,6 +2203,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 obxId: obxIdParam,
                 trailId: trailIdParam,
                 isOffline: isOfflineParam,
+                recordingCosting: recordingCostingParam,
                 currentManeuverIndex: currentManeuverIndexParam,
                 breadcrumbPolyline: breadcrumbPolylineParam,
                 elevations: elevationsParam,
@@ -1980,6 +2223,241 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 0,
               );
 
+        return object;
+      },
+    ),
+    DownloadedTilePackageEntity:
+        obx_int.EntityDefinition<DownloadedTilePackageEntity>(
+          model: _entities[9],
+          toOneRelations: (DownloadedTilePackageEntity object) => [],
+          toManyRelations: (DownloadedTilePackageEntity object) => {},
+          getId: (DownloadedTilePackageEntity object) => object.obxId,
+          setId: (DownloadedTilePackageEntity object, int id) {
+            object.obxId = id;
+          },
+          objectToFB: (DownloadedTilePackageEntity object, fb.Builder fbb) {
+            final localFilePathOffset = object.localFilePath == null
+                ? null
+                : fbb.writeString(object.localFilePath!);
+            fbb.startTable(6);
+            fbb.addInt64(0, object.obxId);
+            fbb.addInt64(1, object.dbStatus);
+            fbb.addOffset(2, localFilePathOffset);
+            fbb.addInt64(3, object.downloadedAtUtc?.millisecondsSinceEpoch);
+            fbb.addInt64(4, object.sizeBytesOnDisk);
+            fbb.finish(fbb.endTable());
+            return object.obxId;
+          },
+          objectFromFB: (obx.Store store, ByteData fbData) {
+            final buffer = fb.BufferContext(fbData);
+            final rootOffset = buffer.derefObject(0);
+            final downloadedAtUtcValue = const fb.Int64Reader()
+                .vTableGetNullable(buffer, rootOffset, 10);
+            final obxIdParam = const fb.Int64Reader().vTableGet(
+              buffer,
+              rootOffset,
+              4,
+              0,
+            );
+            final localFilePathParam = const fb.StringReader(
+              asciiOptimization: true,
+            ).vTableGetNullable(buffer, rootOffset, 8);
+            final downloadedAtUtcParam = downloadedAtUtcValue == null
+                ? null
+                : DateTime.fromMillisecondsSinceEpoch(
+                    downloadedAtUtcValue,
+                    isUtc: true,
+                  );
+            final sizeBytesOnDiskParam = const fb.Int64Reader()
+                .vTableGetNullable(buffer, rootOffset, 12);
+            final object =
+                DownloadedTilePackageEntity(
+                    obxId: obxIdParam,
+                    localFilePath: localFilePathParam,
+                    downloadedAtUtc: downloadedAtUtcParam,
+                    sizeBytesOnDisk: sizeBytesOnDiskParam,
+                  )
+                  ..dbStatus = const fb.Int64Reader().vTableGet(
+                    buffer,
+                    rootOffset,
+                    6,
+                    0,
+                  );
+
+            return object;
+          },
+        ),
+    RegionEntity: obx_int.EntityDefinition<RegionEntity>(
+      model: _entities[10],
+      toOneRelations: (RegionEntity object) => [
+        object.vectorPackage,
+        object.demPackage,
+      ],
+      toManyRelations: (RegionEntity object) => {},
+      getId: (RegionEntity object) => object.obxId,
+      setId: (RegionEntity object, int id) {
+        object.obxId = id;
+      },
+      objectToFB: (RegionEntity object, fb.Builder fbb) {
+        final idOffset = fbb.writeString(object.id);
+        final nameOffset = fbb.writeString(object.name);
+        final versionOffset = object.version == null
+            ? null
+            : fbb.writeString(object.version!);
+        final vectorUrlOffset = object.vectorUrl == null
+            ? null
+            : fbb.writeString(object.vectorUrl!);
+        final demUrlOffset = object.demUrl == null
+            ? null
+            : fbb.writeString(object.demUrl!);
+        final errorOffset = object.error == null
+            ? null
+            : fbb.writeString(object.error!);
+        final lastDownloadedVersionOffset = object.lastDownloadedVersion == null
+            ? null
+            : fbb.writeString(object.lastDownloadedVersion!);
+        final pathOffset = fbb.writeString(object.path);
+        fbb.startTable(21);
+        fbb.addInt64(0, object.obxId);
+        fbb.addOffset(1, idOffset);
+        fbb.addOffset(2, nameOffset);
+        fbb.addFloat64(3, object.minLon);
+        fbb.addFloat64(4, object.minLat);
+        fbb.addFloat64(5, object.maxLon);
+        fbb.addFloat64(6, object.maxLat);
+        fbb.addOffset(7, versionOffset);
+        fbb.addOffset(8, vectorUrlOffset);
+        fbb.addInt64(9, object.vectorSize);
+        fbb.addOffset(10, demUrlOffset);
+        fbb.addInt64(11, object.demSize);
+        fbb.addOffset(12, errorOffset);
+        fbb.addBool(13, object.inCatalog);
+        fbb.addOffset(14, lastDownloadedVersionOffset);
+        fbb.addInt64(15, object.dbCatalogStatus);
+        fbb.addInt64(16, object.dbDemStatus);
+        fbb.addInt64(17, object.vectorPackage.targetId);
+        fbb.addInt64(18, object.demPackage.targetId);
+        fbb.addOffset(19, pathOffset);
+        fbb.finish(fbb.endTable());
+        return object.obxId;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final pathParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 42, '');
+        final idParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 6, '');
+        final nameParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 8, '');
+        final minLonParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          10,
+          0,
+        );
+        final minLatParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          12,
+          0,
+        );
+        final maxLonParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          14,
+          0,
+        );
+        final maxLatParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          16,
+          0,
+        );
+        final versionParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 18);
+        final vectorUrlParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 20);
+        final vectorSizeParam = const fb.Int64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          22,
+        );
+        final demUrlParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 24);
+        final demSizeParam = const fb.Int64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          26,
+        );
+        final errorParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 28);
+        final inCatalogParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          30,
+          false,
+        );
+        final lastDownloadedVersionParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 32);
+        final object =
+            RegionEntity(
+                path: pathParam,
+                id: idParam,
+                name: nameParam,
+                minLon: minLonParam,
+                minLat: minLatParam,
+                maxLon: maxLonParam,
+                maxLat: maxLatParam,
+                version: versionParam,
+                vectorUrl: vectorUrlParam,
+                vectorSize: vectorSizeParam,
+                demUrl: demUrlParam,
+                demSize: demSizeParam,
+                error: errorParam,
+                inCatalog: inCatalogParam,
+                lastDownloadedVersion: lastDownloadedVersionParam,
+              )
+              ..obxId = const fb.Int64Reader().vTableGet(
+                buffer,
+                rootOffset,
+                4,
+                0,
+              )
+              ..dbCatalogStatus = const fb.Int64Reader().vTableGet(
+                buffer,
+                rootOffset,
+                34,
+                0,
+              )
+              ..dbDemStatus = const fb.Int64Reader().vTableGet(
+                buffer,
+                rootOffset,
+                36,
+                0,
+              );
+        object.vectorPackage.targetId = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          38,
+          0,
+        );
+        object.vectorPackage.attach(store);
+        object.demPackage.targetId = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          40,
+          0,
+        );
+        object.demPackage.attach(store);
         return object;
       },
     ),
@@ -2058,6 +2536,11 @@ class UserEntity_ {
   /// See [UserEntity.settings].
   static final settings = obx.QueryRelationToOne<UserEntity, SettingsEntity>(
     _entities[0].properties[13],
+  );
+
+  /// See [UserEntity.actor].
+  static final actor = obx.QueryRelationToOne<UserEntity, ActorEntity>(
+    _entities[0].properties[14],
   );
 }
 
@@ -2283,6 +2766,11 @@ class CategoryEntity_ {
   static final translationsJson = obx.QueryStringProperty<CategoryEntity>(
     _entities[3].properties[5],
   );
+
+  /// See [CategoryEntity.settingsJson].
+  static final settingsJson = obx.QueryStringProperty<CategoryEntity>(
+    _entities[3].properties[6],
+  );
 }
 
 /// [TrailEntity] entity fields to define ObjectBox queries.
@@ -2362,63 +2850,63 @@ class TrailEntity_ {
     _entities[4].properties[14],
   );
 
-  /// See [TrailEntity.pmTiles].
-  static final pmTiles = obx.QueryStringVectorProperty<TrailEntity>(
-    _entities[4].properties[15],
-  );
-
   /// See [TrailEntity.dbDifficulty].
   static final dbDifficulty = obx.QueryIntegerProperty<TrailEntity>(
-    _entities[4].properties[16],
+    _entities[4].properties[15],
   );
 
   /// See [TrailEntity.author].
   static final author = obx.QueryRelationToOne<TrailEntity, ActorEntity>(
-    _entities[4].properties[17],
+    _entities[4].properties[16],
   );
 
   /// See [TrailEntity.category].
   static final category = obx.QueryRelationToOne<TrailEntity, CategoryEntity>(
-    _entities[4].properties[18],
+    _entities[4].properties[17],
   );
 
   /// See [TrailEntity.created].
   static final created = obx.QueryDateProperty<TrailEntity>(
-    _entities[4].properties[19],
+    _entities[4].properties[18],
   );
 
   /// See [TrailEntity.updated].
   static final updated = obx.QueryDateProperty<TrailEntity>(
-    _entities[4].properties[20],
+    _entities[4].properties[19],
   );
 
   /// See [TrailEntity.maxLat].
   static final maxLat = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[4].properties[21],
+    _entities[4].properties[20],
   );
 
   /// See [TrailEntity.maxLon].
   static final maxLon = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[4].properties[22],
+    _entities[4].properties[21],
   );
 
   /// See [TrailEntity.minLat].
   static final minLat = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[4].properties[23],
+    _entities[4].properties[22],
   );
 
   /// See [TrailEntity.minLon].
   static final minLon = obx.QueryDoubleProperty<TrailEntity>(
-    _entities[4].properties[24],
+    _entities[4].properties[23],
   );
 
   /// See [TrailEntity.navCacheJson].
   static final navCacheJson = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[24],
+  );
+
+  /// See [TrailEntity.savedByUserIds].
+  static final savedByUserIds = obx.QueryStringVectorProperty<TrailEntity>(
     _entities[4].properties[25],
   );
 
-  /// See [TrailEntity.demPmTiles].
-  static final demPmTiles = obx.QueryStringVectorProperty<TrailEntity>(
+  /// See [TrailEntity.movingDuration].
+  static final movingDuration = obx.QueryDoubleProperty<TrailEntity>(
     _entities[4].properties[26],
   );
 
@@ -2535,6 +3023,11 @@ class SubcategoryEntity_ {
   static final translationsJson = obx.QueryStringProperty<SubcategoryEntity>(
     _entities[7].properties[7],
   );
+
+  /// See [SubcategoryEntity.settingsJson].
+  static final settingsJson = obx.QueryStringProperty<SubcategoryEntity>(
+    _entities[7].properties[8],
+  );
 }
 
 /// [ActiveNavigationEntity] entity fields to define ObjectBox queries.
@@ -2621,4 +3114,146 @@ class ActiveNavigationEntity_ {
       obx.QueryIntegerVectorProperty<ActiveNavigationEntity>(
         _entities[8].properties[14],
       );
+
+  /// See [ActiveNavigationEntity.recordingCosting].
+  static final recordingCosting =
+      obx.QueryStringProperty<ActiveNavigationEntity>(
+        _entities[8].properties[15],
+      );
+}
+
+/// [DownloadedTilePackageEntity] entity fields to define ObjectBox queries.
+class DownloadedTilePackageEntity_ {
+  /// See [DownloadedTilePackageEntity.obxId].
+  static final obxId = obx.QueryIntegerProperty<DownloadedTilePackageEntity>(
+    _entities[9].properties[0],
+  );
+
+  /// See [DownloadedTilePackageEntity.dbStatus].
+  static final dbStatus = obx.QueryIntegerProperty<DownloadedTilePackageEntity>(
+    _entities[9].properties[1],
+  );
+
+  /// See [DownloadedTilePackageEntity.localFilePath].
+  static final localFilePath =
+      obx.QueryStringProperty<DownloadedTilePackageEntity>(
+        _entities[9].properties[2],
+      );
+
+  /// See [DownloadedTilePackageEntity.downloadedAtUtc].
+  static final downloadedAtUtc =
+      obx.QueryDateProperty<DownloadedTilePackageEntity>(
+        _entities[9].properties[3],
+      );
+
+  /// See [DownloadedTilePackageEntity.sizeBytesOnDisk].
+  static final sizeBytesOnDisk =
+      obx.QueryIntegerProperty<DownloadedTilePackageEntity>(
+        _entities[9].properties[4],
+      );
+}
+
+/// [RegionEntity] entity fields to define ObjectBox queries.
+class RegionEntity_ {
+  /// See [RegionEntity.obxId].
+  static final obxId = obx.QueryIntegerProperty<RegionEntity>(
+    _entities[10].properties[0],
+  );
+
+  /// See [RegionEntity.id].
+  static final id = obx.QueryStringProperty<RegionEntity>(
+    _entities[10].properties[1],
+  );
+
+  /// See [RegionEntity.name].
+  static final name = obx.QueryStringProperty<RegionEntity>(
+    _entities[10].properties[2],
+  );
+
+  /// See [RegionEntity.minLon].
+  static final minLon = obx.QueryDoubleProperty<RegionEntity>(
+    _entities[10].properties[3],
+  );
+
+  /// See [RegionEntity.minLat].
+  static final minLat = obx.QueryDoubleProperty<RegionEntity>(
+    _entities[10].properties[4],
+  );
+
+  /// See [RegionEntity.maxLon].
+  static final maxLon = obx.QueryDoubleProperty<RegionEntity>(
+    _entities[10].properties[5],
+  );
+
+  /// See [RegionEntity.maxLat].
+  static final maxLat = obx.QueryDoubleProperty<RegionEntity>(
+    _entities[10].properties[6],
+  );
+
+  /// See [RegionEntity.version].
+  static final version = obx.QueryStringProperty<RegionEntity>(
+    _entities[10].properties[7],
+  );
+
+  /// See [RegionEntity.vectorUrl].
+  static final vectorUrl = obx.QueryStringProperty<RegionEntity>(
+    _entities[10].properties[8],
+  );
+
+  /// See [RegionEntity.vectorSize].
+  static final vectorSize = obx.QueryIntegerProperty<RegionEntity>(
+    _entities[10].properties[9],
+  );
+
+  /// See [RegionEntity.demUrl].
+  static final demUrl = obx.QueryStringProperty<RegionEntity>(
+    _entities[10].properties[10],
+  );
+
+  /// See [RegionEntity.demSize].
+  static final demSize = obx.QueryIntegerProperty<RegionEntity>(
+    _entities[10].properties[11],
+  );
+
+  /// See [RegionEntity.error].
+  static final error = obx.QueryStringProperty<RegionEntity>(
+    _entities[10].properties[12],
+  );
+
+  /// See [RegionEntity.inCatalog].
+  static final inCatalog = obx.QueryBooleanProperty<RegionEntity>(
+    _entities[10].properties[13],
+  );
+
+  /// See [RegionEntity.lastDownloadedVersion].
+  static final lastDownloadedVersion = obx.QueryStringProperty<RegionEntity>(
+    _entities[10].properties[14],
+  );
+
+  /// See [RegionEntity.dbCatalogStatus].
+  static final dbCatalogStatus = obx.QueryIntegerProperty<RegionEntity>(
+    _entities[10].properties[15],
+  );
+
+  /// See [RegionEntity.dbDemStatus].
+  static final dbDemStatus = obx.QueryIntegerProperty<RegionEntity>(
+    _entities[10].properties[16],
+  );
+
+  /// See [RegionEntity.vectorPackage].
+  static final vectorPackage =
+      obx.QueryRelationToOne<RegionEntity, DownloadedTilePackageEntity>(
+        _entities[10].properties[17],
+      );
+
+  /// See [RegionEntity.demPackage].
+  static final demPackage =
+      obx.QueryRelationToOne<RegionEntity, DownloadedTilePackageEntity>(
+        _entities[10].properties[18],
+      );
+
+  /// See [RegionEntity.path].
+  static final path = obx.QueryStringProperty<RegionEntity>(
+    _entities[10].properties[19],
+  );
 }

@@ -42,7 +42,7 @@ final class TrailLibraryNotifierProvider
 }
 
 String _$trailLibraryNotifierHash() =>
-    r'b908a461c0e9b2175998c184f84fa5cd324561ec';
+    r'dd298b0355d2468cd6ceef23a785f6ddf3f45c8a';
 
 abstract class _$TrailLibraryNotifier extends $Notifier<List<Trail>> {
   List<Trail> build();

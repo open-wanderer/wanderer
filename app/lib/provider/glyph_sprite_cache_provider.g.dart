@@ -8,6 +8,68 @@ part of 'glyph_sprite_cache_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// The offline counterpart to [GlyphSpriteCache]: returns the local
+/// glyph/sprite cache paths **without any network call or download**. Used by
+/// the offline map render path, where the cache was already populated online at
+/// download time and the style rewriter only needs the `file://` bases. Kept
+/// separate from [GlyphSpriteCache] so an offline map open never awaits (or
+/// hangs on) `mapStyleSourcesProvider`.
+
+@ProviderFor(offlineGlyphSpritePaths)
+final offlineGlyphSpritePathsProvider = OfflineGlyphSpritePathsProvider._();
+
+/// The offline counterpart to [GlyphSpriteCache]: returns the local
+/// glyph/sprite cache paths **without any network call or download**. Used by
+/// the offline map render path, where the cache was already populated online at
+/// download time and the style rewriter only needs the `file://` bases. Kept
+/// separate from [GlyphSpriteCache] so an offline map open never awaits (or
+/// hangs on) `mapStyleSourcesProvider`.
+
+final class OfflineGlyphSpritePathsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<GlyphSpriteCachePaths>,
+          GlyphSpriteCachePaths,
+          FutureOr<GlyphSpriteCachePaths>
+        >
+    with
+        $FutureModifier<GlyphSpriteCachePaths>,
+        $FutureProvider<GlyphSpriteCachePaths> {
+  /// The offline counterpart to [GlyphSpriteCache]: returns the local
+  /// glyph/sprite cache paths **without any network call or download**. Used by
+  /// the offline map render path, where the cache was already populated online at
+  /// download time and the style rewriter only needs the `file://` bases. Kept
+  /// separate from [GlyphSpriteCache] so an offline map open never awaits (or
+  /// hangs on) `mapStyleSourcesProvider`.
+  OfflineGlyphSpritePathsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'offlineGlyphSpritePathsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$offlineGlyphSpritePathsHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<GlyphSpriteCachePaths> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<GlyphSpriteCachePaths> create(Ref ref) {
+    return offlineGlyphSpritePaths(ref);
+  }
+}
+
+String _$offlineGlyphSpritePathsHash() =>
+    r'b8ab4ff79ceb67b91398a59de02fdb1ce10fc8f5';
+
 /// The one shared app-wide glyph/sprite cache.
 ///
 /// On first read this `keepAlive` provider downloads every glyph range for the
@@ -57,7 +119,7 @@ final class GlyphSpriteCacheProvider
   GlyphSpriteCache create() => GlyphSpriteCache();
 }
 
-String _$glyphSpriteCacheHash() => r'91ec39748eb03fddaea591ab3dc45f85150d928b';
+String _$glyphSpriteCacheHash() => r'3e1a3f5c0ddf8f8c98f21b59763d8c250b86d3b0';
 
 /// The one shared app-wide glyph/sprite cache.
 ///

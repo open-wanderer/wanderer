@@ -1,5 +1,49 @@
 import Link from './link';
 
+/**
+ * The grammar Dart's `DateTime.parse`/`DateTime.tryParse` accepts, transcribed
+ * verbatim from the Dart SDK's `DateTime._parseFormat`.
+ *
+ * `new Date(...)` is far more permissive than this — it happily parses
+ * `"Jan 1 2024"` and other locale/legacy formats — so gating on this pattern
+ * is what keeps the web's `<time>` semantics aligned with the Dart port's
+ * (WR-06). GPX 1.1 mandates ISO 8601 for `<time>` anyway, so nothing a
+ * conforming exporter emits is excluded by it.
+ */
+const DART_DATETIME_GRAMMAR =
+  /^([+-]?\d{4,6})-?(\d\d)-?(\d\d)(?:[ T](\d\d)(?::?(\d\d)(?::?(\d\d)(?:[.,](\d+))?)?)?( ?[zZ]| ?([-+])(\d\d)(?::?(\d\d))?)?)?$/;
+
+/**
+ * Parses a `<time>` element body the same way the Dart port does: anything
+ * that is not a well-formed ISO-8601 instant is "no time", not a time.
+ *
+ * Before this existed the constructor did a bare `new Date(object.time)`, and
+ * because an `Invalid Date` is a truthy object, `GPX.getTotals()`'s
+ * `startTime && endTime` guard passed and computed
+ * `endTime.getTime() - startTime.getTime()` — i.e. `NaN` — as the trail's
+ * duration. The Dart side, whose sanitizer rewrites an unparseable `<time>`
+ * to a self-closing tag, reported `0` for the same document.
+ *
+ * Residual, deliberately-accepted asymmetry: a string this grammar admits but
+ * V8's `Date` rejects (a 6-digit year, an out-of-range month that Dart's
+ * `DateTime` would normalise) yields "no time" here and a real time in Dart.
+ * That class is not reachable from any GPX a real exporter produces.
+ */
+function parseGpxTime(raw: unknown): Date | undefined {
+  if (raw instanceof Date) {
+    return Number.isNaN(raw.getTime()) ? undefined : raw;
+  }
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  if (!DART_DATETIME_GRAMMAR.test(trimmed)) {
+    return undefined;
+  }
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
 export default class Waypoint {
   $: {
     lat?: number;
@@ -54,7 +98,7 @@ export default class Waypoint {
     this.$.lon = object.$.lon === 0 || object.lon === 0 ? 0 : object.$.lon || object.lon || -1;
     this.ele = object.ele;
     if (object.time) {
-      this.time = new Date(object.time);
+      this.time = parseGpxTime(object.time);
     }
     this.magvar = object.magvar;
     this.geoidheight = object.geoidheight;

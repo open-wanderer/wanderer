@@ -214,6 +214,54 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     );
   }
 
+  /// Frames the whole seeded route on open in edit mode.
+  ///
+  /// [ml.MapOptions.initCenter]/`initZoom` alone can't do this: the caller
+  /// only has a single point (the trail's bbox centroid) to hand over, so a
+  /// long route would open zoomed into its middle with both ends off-screen.
+  /// No-ops for a fresh session, where `initCenter` is already correct.
+  ///
+  /// Fits the seeded *polylines* rather than the anchors, since a leg can
+  /// bulge well outside the box its two anchors describe.
+  Future<void> _fitInitialCamera() async {
+    final controller = _mapController;
+    if (controller == null || !_editMode) return;
+
+    final points = <ml.Geographic>[
+      for (final polyline
+          in widget.seedSegmentPolylines ?? const <List<ml.Geographic>>[])
+        ...polyline,
+      // A seeded session with no polylines still has anchors to frame.
+      ...?widget.seedAnchors,
+    ];
+    if (points.isEmpty) return;
+
+    final bounds = ml.LngLatBounds.fromPoints(points);
+    final hasExtent =
+        bounds.latitudeNorth != bounds.latitudeSouth ||
+        bounds.longitudeEast != bounds.longitudeWest;
+    if (!hasExtent) return; // initCenter/initZoom already frame a single point.
+
+    // The map fills the whole screen (extendBodyBehindAppBar), so inset for
+    // the two things floating over it: the transparent app bar up top and
+    // RouteAnchorSheet's 164px docked peek at the bottom. Read before the
+    // await, while the frame's MediaQuery is still current.
+    final padding = EdgeInsets.fromLTRB(
+      32,
+      MediaQuery.paddingOf(context).top + kToolbarHeight + 16,
+      32,
+      164 + 16,
+    );
+
+    // Duration.zero is avoided: the Android binding passes it to
+    // `animateCamera` as null, which throws. Mirrors TrailMap's fit.
+    await controller.fitBounds(
+      bounds: bounds,
+      padding: padding,
+      nativeDuration: const Duration(milliseconds: 1),
+    );
+  }
+
   Widget _buildMap(
     BuildContext context,
     RouteAnchorsState state,
@@ -235,6 +283,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       ),
       onMapCreated: (controller) {
         _mapController = controller;
+        _fitInitialCamera().ignore();
         final pending = _pendingStyle;
         if (pending != null) {
           _pendingStyle = null;
@@ -444,22 +493,39 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
 
   /// Hands the finished route off: in edit mode pops the ele-merged [Gpx]
   /// back to the awaiting `trail_create_screen`; otherwise invokes
-  /// [finishPlanning] to forward-push a draft Trail (which now round-trips
-  /// through `/trail/convert`). Guarded by [_finishing] so a double-tap can't
-  /// fire two `/valhalla/height`/`/trail/convert` requests or navigations.
+  /// [finishPlanning] to forward-push a draft Trail (built entirely on-device
+  /// since 34-05 — see `buildDraftTrail`).
   ///
-  /// On failure (e.g. offline), shows an error toast and stays on this
-  /// screen so the user can retry — matching `trail_import_util.dart`'s
-  /// `importTrailFile` precedent for this same `/trail/convert` call.
+  /// Neither branch shows a save-options sheet. The planner used to route the
+  /// forward-push branch through the shared online gate
+  /// (`track_save_options_util.dart`), but neither toggle it offered could
+  /// change a planned route's output, so it was removed — see
+  /// [finishPlanning].
+  ///
+  /// WR-04: [_finishing] guards against a double-tap firing two concurrent
+  /// conversions/navigations, and the guard is sound only because nothing is
+  /// awaited between the `if (_finishing) return;` below and the `setState`
+  /// that raises the flag. The removed gate WAS such an await, which is why
+  /// this used to need a second post-await re-check. Do not reintroduce an
+  /// await ahead of the flag without restoring that re-check — the finish
+  /// action stays enabled while the flag is down (`_buildFinishAction` reads
+  /// `!_finishing`).
+  ///
+  /// D-16: with plan 34-05's local conversion, an offline finish reaches the
+  /// create screen instead of throwing — the `catch` below is not deleted, it
+  /// remains a genuine last-resort guard for anything else that could still
+  /// fail (e.g. an unexpected local error), matching `trail_import_util.dart`'s
+  /// `importTrailFile` precedent for toast-and-stay on failure.
   Future<void> _onFinish() async {
     if (_finishing) return;
-    setState(() => _finishing = true);
     try {
       if (_editMode) {
+        setState(() => _finishing = true);
         final finalGpx = await buildFinalPlannedGpx(ref);
         if (!mounted) return;
         context.pop(finalGpx);
       } else {
+        setState(() => _finishing = true);
         await finishPlanning(ref: ref, navContext: context);
       }
     } catch (_) {

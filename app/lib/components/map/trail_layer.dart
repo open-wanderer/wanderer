@@ -299,7 +299,8 @@ class _TrailMarkerLayerState extends State<TrailMarkerLayer> {
 
     final markers = <ml.Marker>[];
 
-    if (widget.showWaypoints && widget.trail.expand?.waypointsViaTrail != null) {
+    if (widget.showWaypoints &&
+        widget.trail.expand?.waypointsViaTrail != null) {
       for (final wp in widget.trail.expand!.waypointsViaTrail!) {
         final isSelected = widget.selectedWaypoint?.id == wp.id;
         final isDragging = _draggingWaypointId == wp.id;
@@ -315,7 +316,7 @@ class _TrailMarkerLayerState extends State<TrailMarkerLayer> {
               onTap: () => widget.onWaypointTap?.call(wp),
               onPanStart: (details) {
                 final c = ml.MapController.maybeOf(context);
-                if (c == null) return;
+                if (c == null || widget.onWaypointDragEnd == null) return;
                 setState(() {
                   _draggingWaypointId = wp.id;
                   _dragOffset = c.toScreenLocation(

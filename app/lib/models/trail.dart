@@ -74,6 +74,10 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     @JsonKey(name: 'elevation_gain') @Default(0) double elevationGain,
     @JsonKey(name: 'elevation_loss') @Default(0) double elevationLoss,
     @Default(0) double duration,
+    // Moving time in seconds for trails recorded in the Wanderer app. No
+    // @Default: absence is the meaningful "no moving time known" state
+    // (D-10, phase 34) -- `duration` always means GPX-derived elapsed time.
+    @JsonKey(name: 'moving_duration') double? movingDuration,
     @Default(TrailDifficulty.easy) TrailDifficulty difficulty,
     double? lat,
     double? lon,
@@ -99,8 +103,6 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
 
     @Default(false) bool isOffline,
     @Default([]) List<String> localPhotos,
-    @Default([]) List<String> pmTiles,
-    @Default([]) List<String> demPmTiles,
   }) = _Trail;
 
   const Trail._();

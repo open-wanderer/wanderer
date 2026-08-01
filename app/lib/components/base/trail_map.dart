@@ -12,6 +12,7 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/glyph_sprite_cache_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
+import 'package:wanderer/provider/region/tile_proxy_provider.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 
 /// Native MapLibre GL map host for a single [Trail]. Swaps light/dark styles
@@ -80,21 +81,30 @@ class _TrailMapState extends ConsumerState<TrailMap> {
 
   @override
   Widget build(BuildContext context) {
-    // Warms the shared glyph/sprite cache on first open; idempotent
-    // against the trail-download trigger.
-    if (!_cacheWarmed) {
+    // Warms the shared glyph/sprite cache on first open (online only) so a
+    // later offline open renders from disk; idempotent against the
+    // trail-download trigger. Skipped when offline — the warm is a network
+    // download and the cache is already populated by the time it is needed.
+    if (!_cacheWarmed && !widget.offline) {
       _cacheWarmed = true;
       ref.read(glyphSpriteCacheProvider.future).ignore();
     }
 
     // Swap the style in place on theme toggle, or once the offline
-    // glyph/sprite cache finishes warming — no remount, no flash.
-    ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
+    // glyph/sprite cache finishes warming — no remount, no flash. Region
+    // coverage is resolved by the loopback tile proxy per-tile (PROXY-01),
+    // so no separate region-change listener is needed here. Offline reads the
+    // network-free providers so no `/map/style-sources` call is ever made.
     if (widget.offline) {
-      ref.listen(glyphSpriteCacheProvider, (_, _) => _swapStyle());
+      ref.listen(offlineMapStyleJsonProvider, (_, _) => _swapStyle());
+      ref.listen(offlineGlyphSpritePathsProvider, (_, _) => _swapStyle());
+    } else {
+      ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
     }
 
-    final baseAsync = ref.watch(mapStyleJsonProvider);
+    final baseAsync = widget.offline
+        ? ref.watch(offlineMapStyleJsonProvider)
+        : ref.watch(mapStyleJsonProvider);
     final baseJson = baseAsync.value;
     Object? error = baseAsync.error;
 
@@ -102,7 +112,7 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     // file:// / .pmtiles caches instead of the network.
     GlyphSpriteCachePaths? cache;
     if (widget.offline) {
-      final cacheAsync = ref.watch(glyphSpriteCacheProvider);
+      final cacheAsync = ref.watch(offlineGlyphSpritePathsProvider);
       cache = cacheAsync.value;
       error ??= cacheAsync.error;
     }
@@ -122,19 +132,29 @@ class _TrailMapState extends ConsumerState<TrailMap> {
   }
 
   /// Composes the style JSON: [baseJson] as-is when online, or rewritten via
-  /// [rewriteStyleForOffline] when offline. Returns null while an input is
+  /// [rewriteStyleForProxy] when offline. Returns null while an input is
   /// still resolving or the rewrite rejects it.
+  ///
+  /// Offline tiles resolve through the loopback tile proxy (PROXY-01) — a
+  /// single static XYZ source baked into every composed style, with
+  /// per-tile region coverage resolved server-side
+  /// (`resolveRegionForTile`) rather than pre-queried here. This means
+  /// `TrailMap` now serves tiles for any downloaded region the (fixed,
+  /// trail-bounded) camera happens to render, not only the trail's own
+  /// bbox — an intentional D-01 consequence (RESEARCH Pitfall 6), harmless
+  /// because the camera stays fit to the trail. Uncovered tiles resolve to
+  /// a blank basemap via the proxy's own 404 responses, so no banner/
+  /// empty-state is added here (D-01/D-02 carried forward).
   String? _composeStyle(String? baseJson, GlyphSpriteCachePaths? cache) {
     if (baseJson == null) return null;
     if (!widget.offline) return baseJson;
     if (cache == null) return null;
     try {
       final decoded = jsonDecode(baseJson) as Map<String, dynamic>;
-      final offlineStyle = rewriteStyleForOffline(
+      final offlineStyle = rewriteStyleForProxy(
         decoded,
         cacheRoot: cache.root,
-        cellPaths: widget.trail.pmTiles,
-        demCellPaths: widget.trail.demPmTiles,
+        proxyBaseUrl: ref.read(tileProxyBaseUrlProvider),
         dark:
             effectiveBrightness(ref.read(themeModeProvider)) == Brightness.dark,
       );
@@ -148,8 +168,12 @@ class _TrailMapState extends ConsumerState<TrailMap> {
   void _swapStyle() {
     final controller = _controller;
     if (controller == null) return;
-    final baseJson = ref.read(mapStyleJsonProvider).value;
-    final cache = ref.read(glyphSpriteCacheProvider).value;
+    final baseJson = widget.offline
+        ? ref.read(offlineMapStyleJsonProvider).value
+        : ref.read(mapStyleJsonProvider).value;
+    final cache = widget.offline
+        ? ref.read(offlineGlyphSpritePathsProvider).value
+        : null;
     final json = _composeStyle(baseJson, cache);
     if (json != null && json != _lastStyleJson) {
       _lastStyleJson = json;
@@ -260,14 +284,11 @@ class _TrailMapState extends ConsumerState<TrailMap> {
     // unrelated trail edits keep the same gpx reference via copyWith.
     if (widget.showTrail &&
         !identical(oldWidget.trail.expand?.gpx, widget.trail.expand?.gpx)) {
-      _trailLayer
-          .remove(style)
-          .then((_) {
-            if (widget.trail.expand?.gpx != null) {
-              _trailLayer.add(style, widget.trail).ignore();
-            }
-          })
-          .ignore();
+      _trailLayer.remove(style).then((_) {
+        if (widget.trail.expand?.gpx != null) {
+          _trailLayer.add(style, widget.trail).ignore();
+        }
+      }).ignore();
       _fitInitialCamera().ignore();
     }
   }
@@ -327,5 +348,4 @@ class _TrailMapState extends ConsumerState<TrailMap> {
       ],
     );
   }
-
 }
