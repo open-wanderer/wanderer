@@ -502,7 +502,14 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   /// on-device since 34-05 — see `buildDraftTrail`) with the resolved
   /// toggles. A cancelled/dismissed gate aborts with no state change.
   /// [_finishing] still guards the forward-push branch against a double-tap
-  /// firing two concurrent conversions/navigations.
+  /// firing two concurrent conversions/navigations. Because the gate is
+  /// awaited BEFORE the flag is set, the flag must be re-checked after that
+  /// await — the finish action stays enabled while the sheet is open
+  /// (`_buildFinishAction` reads `!_finishing`), so without the re-check a
+  /// second tap opens a second sheet and can drive two concurrent
+  /// `finishPlanning` runs, each with its own snap/height fetches and its own
+  /// `pushReplacement` (WR-04). This mirrors `_saveRecordedTrack`'s own
+  /// `if (_savingTrack) return;` immediately after its gate await.
   ///
   /// D-16: with plan 34-05's local conversion plus this gate's flag-gated
   /// transforms, an offline finish now reaches the create screen instead of
@@ -521,7 +528,10 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       } else {
         final options = await resolveTrackSaveOptions(ref, context);
         if (options == null) return;
-        if (!mounted) return;
+        // Re-check `_finishing`, not just `mounted`: a concurrent tap may
+        // have opened its own sheet and won the race while this one was
+        // awaiting (WR-04).
+        if (!mounted || _finishing) return;
         setState(() => _finishing = true);
         final (recalcHeights, followRoads) = options;
         await finishPlanning(
