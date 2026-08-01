@@ -1,12 +1,15 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gpx/gpx.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
+import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/trail_import_util.dart';
 
 /// Fakes any Dio traffic `transcodeToGpx`/`buildLocalTrail`'s reverse-geocode
@@ -278,6 +281,109 @@ void main() {
         });
 
         expect(caught, isA<StateError>());
+      },
+    );
+  });
+
+  group('importTrailFile', () {
+    late Directory tempDir;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('offline_import_test');
+    });
+
+    tearDown(() {
+      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+      pendingImportedTrail = null;
+    });
+
+    String writeTempGpx() {
+      final file = File('${tempDir.path}/track.gpx');
+      file.writeAsStringSync('''
+<?xml version="1.0"?>
+<gpx><trk><trkseg>
+<trkpt lat="47.000" lon="9.000"><ele>400</ele></trkpt>
+<trkpt lat="47.001" lon="9.001"><ele>410</ele></trkpt>
+</trkseg></trk></gpx>
+''');
+      return file.path;
+    }
+
+    /// Pumps a minimal `GoRouter` (rather than `_pumpRef`'s bare `Consumer`)
+    /// so `importTrailFile`'s `navContext.push('/trail/create/edit', ...)`
+    /// handoff has somewhere real to land.
+    Future<({WidgetRef ref, BuildContext context})> pumpRouterRef(
+      WidgetTester tester, {
+      required bool online,
+      bool shouldFailAll = false,
+    }) async {
+      late WidgetRef capturedRef;
+      late BuildContext capturedContext;
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => Consumer(
+              builder: (context, ref, _) {
+                capturedRef = ref;
+                capturedContext = context;
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+          GoRoute(
+            path: '/trail/create/edit',
+            builder: (context, state) => const SizedBox.shrink(),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            apiProvider.overrideWith(
+              () => _FakeApi(shouldFail: shouldFailAll),
+            ),
+            onlineStatusProvider.overrideWith(
+              () => _FakeOnlineStatus(online),
+            ),
+          ],
+          child: MaterialApp.router(
+            routerConfig: router,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+          ),
+        ),
+      );
+      return (ref: capturedRef, context: capturedContext);
+    }
+
+    testWidgets(
+      'offline: importing a .gpx performs zero HTTP requests end to end '
+      'and still produces a trail (D-15\'s most important branch)',
+      (tester) async {
+        final path = writeTempGpx();
+        final pumped = await pumpRouterRef(
+          tester,
+          online: false,
+          shouldFailAll: true,
+        );
+        final l10n = AppLocalizations.of(pumped.context)!;
+
+        await tester.runAsync(
+          () => importTrailFile(
+            ref: pumped.ref,
+            path: path,
+            name: 'track.gpx',
+            navContext: pumped.context,
+            l10n: l10n,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(pumped.ref.read(toastProvider), isEmpty);
+        expect(pendingImportedTrail, isNotNull);
+        expect(pendingImportedTrail!.expand?.gpxData, contains('<gpx'));
       },
     );
   });

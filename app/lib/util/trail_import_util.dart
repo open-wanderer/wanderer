@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +14,10 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/gpx_conversion_util.dart';
+import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/reverse_geocode_util.dart';
+import 'package:wanderer/util/route_planner_handoff_util.dart';
+import 'package:wanderer/util/track_save_options_util.dart';
 
 /// Supported trail file extensions for both the in-app picker and inbound
 /// share intents. `allowedExtensions` on the file picker is only a hint, so
@@ -30,12 +34,19 @@ Trail? pendingImportedTrail;
 /// Shared by the Import picker and the OS share-sheet handler.
 ///
 /// PORT-03: a `.gpx` file is read and converted entirely on-device — no
-/// network call. Every other supported extension is transcoded server-side
-/// via [transcodeToGpx] (PORT-05) and then measured locally, same as a
-/// native `.gpx`.
+/// network call for the conversion itself. Every other supported extension
+/// is transcoded server-side via [transcodeToGpx] (PORT-05) and then
+/// measured locally, same as a native `.gpx`.
+///
+/// After parsing, gates the same two post-capture toggles the recording and
+/// route-planner paths offer (D-15, see `track_save_options_util.dart`):
+/// shown only when online, skipped entirely offline (both toggles treated
+/// as declined, so the parsed track is used unchanged) — this is what makes
+/// an offline import complete end to end with no network call. A cancelled
+/// sheet aborts the import with no toast (not an error).
 ///
 /// Shows an error toast (and does not navigate) on an unsupported extension
-/// or a conversion failure.
+/// or a genuine conversion failure.
 Future<void> importTrailFile({
   required WidgetRef ref,
   required String path,
@@ -68,11 +79,69 @@ Future<void> importTrailFile({
         : await transcodeToGpx(ref, path, name);
 
     final gpx = parseGpxSafely(gpxXml);
+
+    if (!navContext.mounted) return;
+    final options = await resolveTrackSaveOptions(ref, navContext);
+    if (options == null) return;
+    if (!navContext.mounted) return;
+
+    // (false, false) covers BOTH the offline path and "the user declined
+    // both toggles online" (D-15) — the single most important branch below:
+    // it is what makes an offline import work end to end, since neither
+    // conditional block runs and no network call is ever attempted.
+    final (recalcHeights, followRoads) = options;
+
+    var finalGpx = gpx;
+    var finalGpxData = gpxXml;
+
+    if (recalcHeights || followRoads) {
+      // Mirror `_saveRecordedTrack`'s pipeline (navigation_screen.dart):
+      // full-resolution shape, snap before heights so elevation reflects
+      // the final (possibly snapped) shape, original first/last times
+      // preserved so the GPX-derived duration survives the transform.
+      final points = gpx.allPoints;
+      var workingShape = [
+        for (final point in points) {'lat': point.lat, 'lon': point.lon},
+      ];
+
+      if (followRoads && workingShape.length >= 2) {
+        // An imported file has no category yet (the user picks one on
+        // trail_create_screen) — 'pedestrian' is the same fallback
+        // costingForTrail itself uses for an unresolved category.
+        workingShape = await snapShapeToRoads(
+          ref,
+          buildNavShape(points),
+          'pedestrian',
+        );
+      }
+
+      var heights = const <num>[];
+      if (recalcHeights && workingShape.length >= 2) {
+        heights = await fetchHeightsForShape(ref, workingShape);
+      }
+
+      // Both transform helpers already fall back silently on failure
+      // (a failed snap returns its input shape, a failed height fetch
+      // returns an empty list), so a mid-import network drop degrades to
+      // the untransformed track rather than failing the import outright.
+      final originalWaypoints = gpx.allWaypoints;
+      finalGpx = mergeHeightsIntoGpx(
+        workingShape,
+        heights,
+        startTime: originalWaypoints.firstOrNull?.time,
+        endTime: originalWaypoints.lastOrNull?.time,
+      );
+      // Re-serialise so the saved track matches its own computed metrics —
+      // passing the untransformed original text here would save a track
+      // that disagrees with the trail built from finalGpx below.
+      finalGpxData = GpxWriter().asString(finalGpx);
+    }
+
     final trail = await buildLocalTrail(
       ref,
-      gpx,
+      finalGpx,
       fallbackName: name,
-      gpxData: gpxXml,
+      gpxData: finalGpxData,
     );
 
     pendingImportedTrail = trail;
