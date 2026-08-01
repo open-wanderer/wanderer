@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
@@ -741,6 +743,69 @@ void main() {
         expect(trail.maxLat, 0);
         expect(trail.minLon, 0);
         expect(trail.maxLon, 0);
+      },
+    );
+  });
+
+  group('single GpxReader call site gate', () {
+    // parseGpxSafely is the only sanctioned parse entry point, but nothing
+    // enforced that: trail_provider.dart and trail_entity.dart both constructed
+    // a bare GpxReader and so silently opted out of the sanitize chain. A
+    // server-authored track with, say, <hdop></hdop> failed to open (the
+    // exception swallowed by a broad catch) and, once cached, was permanently
+    // un-openable offline. This gate makes a fourth call site fail the build
+    // rather than quietly reintroducing that class of defect.
+    test(
+      'exactly one GpxReader() construction exists in app/lib/, inside '
+      'util/gpx_conversion_util.dart',
+      () {
+        final libDir = Directory('lib');
+        expect(
+          libDir.existsSync(),
+          isTrue,
+          reason:
+              'This test must be run with `flutter test`\'s working '
+              'directory set to "app/" (e.g. "cd app && flutter test").',
+        );
+
+        final matches = <String>[];
+        var dartFilesScanned = 0;
+        for (final entity in libDir.listSync(recursive: true)) {
+          if (entity is! File || !entity.path.endsWith('.dart')) continue;
+          dartFilesScanned++;
+          for (final line in entity.readAsLinesSync()) {
+            // Skip doc/line comments so prose naming GpxReader (including
+            // parseGpxSafely's own contract comment) doesn't trip the gate.
+            if (line.trimLeft().startsWith('//')) continue;
+            if (line.contains('GpxReader(')) matches.add(entity.path);
+          }
+        }
+
+        // Non-vacuity: a typo'd glob or a wrong working directory would scan
+        // nothing and make the hasLength(1) assertion below unreachable.
+        expect(
+          dartFilesScanned,
+          greaterThan(100),
+          reason:
+              'Expected to scan the whole app/lib tree; only '
+              '$dartFilesScanned .dart files were seen, so this gate is not '
+              'actually checking anything.',
+        );
+
+        expect(
+          matches,
+          hasLength(1),
+          reason:
+              'Every GPX the app did not itself produce must be parsed via '
+              'parseGpxSafely so it gets the sanitize chain. Found: $matches',
+        );
+        expect(
+          matches.single.replaceAll('\\', '/'),
+          endsWith('util/gpx_conversion_util.dart'),
+          reason:
+              'The sole GpxReader construction must live inside '
+              'parseGpxSafely in util/gpx_conversion_util.dart',
+        );
       },
     );
   });

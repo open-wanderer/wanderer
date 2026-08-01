@@ -1,10 +1,9 @@
-import 'package:gpx/gpx.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/entities/actor_entity.dart';
 import 'package:wanderer/entities/category_entity.dart';
 import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/gpx_conversion_util.dart';
 
 @Entity()
 class TrailEntity {
@@ -183,9 +182,12 @@ extension TrailEntityMapping on TrailEntity {
         author: author.target?.toModel(),
         category: category.target?.toModel(),
         gpxData: gpxData,
-        gpx: gpxData != null
-            ? GpxReader().fromString(sanitizeGpxEmail(gpxData!))
-            : null,
+        // parseGpxSafely, not a bare GpxReader: this is third-party GPX read
+        // back out of the offline cache and needs the full sanitize chain.
+        // toModel() is called outside any try/catch, so a FormatException from
+        // an unsanitized tag escaped the notifier entirely and made the trail
+        // permanently un-openable offline once cached.
+        gpx: gpxData != null ? parseGpxSafely(gpxData!) : null,
         waypointsViaTrail: waypoints.map((w) => w.toModel()).toList(),
       ),
     );

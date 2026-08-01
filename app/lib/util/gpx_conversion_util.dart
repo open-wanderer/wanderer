@@ -143,8 +143,16 @@ String _sanitizeMarkupSpan(String span) {
 ///
 /// Chains both pre-parse sanitize passes ([sanitizeGpxEmail],
 /// [sanitizeGpxNumericAndTime]) before handing the string to [GpxReader].
-/// Later plans redirect every existing `GpxReader().fromString(...)` call
-/// site in the app through this function.
+///
+/// This is the ONLY place in `lib/` that may construct a [GpxReader] — the
+/// import path, the server-download path (`trail_provider.dart`) and the
+/// offline-cache read (`trail_entity.dart`) all route through here, and
+/// `gpx_conversion_util_test.dart`'s "single GpxReader call site" gate fails
+/// the build if a fourth appears. That gate exists because bypassing this
+/// function silently opts a call site out of the sanitize chain: the two
+/// non-import sites previously did, which made a server-authored track fail
+/// to open (swallowed by a broad `catch`) and, once cached, made it
+/// permanently un-openable offline.
 ///
 /// A `<trkpt>` missing its `lat`/`lon` attribute still throws `StateError`
 /// from `GpxReader` (34-RESEARCH.md Pitfall 1) — this is a much rarer,

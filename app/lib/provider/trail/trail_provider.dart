@@ -1,4 +1,3 @@
-import 'package:gpx/gpx.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/trail.dart';
@@ -7,7 +6,7 @@ import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/util/current_account.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/gpx_conversion_util.dart';
 
 part 'trail_provider.g.dart';
 
@@ -39,8 +38,15 @@ class TrailNotifier extends _$TrailNotifier {
           throw Exception("No gpx data received from server");
         }
 
-        final sanitizedGpx = sanitizeGpxEmail(gpxResponse.data as String);
-        final parsedGpx = GpxReader().fromString(sanitizedGpx);
+        // parseGpxSafely, not a bare GpxReader: this GPX came off the server
+        // and was authored by any user on the instance (or federated in), so
+        // it needs the full sanitize chain. Parsing it directly used to throw
+        // FormatException on tags package:gpx parses with the throwing
+        // double.parse/int.parse (<hdop></hdop>, <sat></sat>, <pdop>N/A</pdop>
+        // and friends) — and the broad `catch (_)` below would swallow it and
+        // silently degrade to the offline cache, showing a stale trail with no
+        // indication why.
+        final parsedGpx = parseGpxSafely(gpxResponse.data as String);
 
         trail = trail.copyWith(
           expand: (trail.expand ?? const TrailExpand()).copyWith(
