@@ -17,7 +17,6 @@ import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
-import 'package:wanderer/components/navigation/track_save_options_sheet.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/waypoint_sheet.dart';
 import 'package:wanderer/entities/active_navigation_entity.dart';
@@ -47,6 +46,7 @@ import 'package:wanderer/util/offline_style_rewriter.dart';
 import 'package:wanderer/util/polyline_util.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
 import 'package:wanderer/util/route_travel_bucket.dart';
+import 'package:wanderer/util/track_save_options_util.dart';
 import 'package:wanderer/util/tracelet_position_source.dart';
 import 'package:wanderer/util/trail_import_util.dart';
 import 'package:wanderer/util/valhalla_util.dart';
@@ -713,10 +713,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// `trail_import_util.dart`'s `importTrailFile` precedent for this same
   /// toast-and-stay behaviour.
   ///
-  /// Opens [showTrackSaveOptionsSheet] FIRST, before the [_savingTrack]
-  /// guard, so both call sites (exit-dialog and completion-banner) inherit
-  /// the sheet with no change. Cancelling/dismissing the sheet aborts the
-  /// save entirely — no change to the session.
+  /// Opens the shared online gate (see `track_save_options_util.dart`)
+  /// FIRST, before the [_savingTrack] guard, so both call sites
+  /// (exit-dialog and completion-banner) inherit it with no change. The
+  /// sheet itself is now shown only when online (D-15); offline, the save
+  /// proceeds straight through with both transforms off.
+  /// Cancelling/dismissing an online sheet still aborts the save entirely —
+  /// no change to the session.
   ///
   /// When "Follow roads" is on, the breadcrumb is snapped to the road
   /// network via [snapShapeToRoads] BEFORE "Recalculate heights" runs, so
@@ -730,7 +733,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// handoff. Only the no-transform path preserves the recorded breadcrumb's
   /// timestamps verbatim.
   Future<void> _saveRecordedTrack(BuildContext context) async {
-    final options = await showTrackSaveOptionsSheet(context);
+    final options = await resolveTrackSaveOptions(ref, context);
     if (options == null) return;
     if (_savingTrack) return;
     setState(() => _savingTrack = true);
