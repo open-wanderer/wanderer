@@ -463,8 +463,12 @@ void main() {
 
         expect(metrics.elevationGain, 88.0);
         expect(metrics.elevationLoss, 0.0);
-        // Distance smoothing must stay gated for the same stretch.
-        expect(metrics.distance, 0.0);
+        // The reported distance is now raw (CONV-05 superseded): the same
+        // 12-point stretch's cumulative horizontal movement is ~4.4033 m,
+        // still independent of the 88 m climb above it -- the elevation and
+        // distance thresholds are gated independently regardless of which
+        // distance accumulator is reported.
+        expect(metrics.distance, closeTo(4.403319, 1e-6));
       },
     );
 
@@ -558,11 +562,14 @@ void main() {
     );
 
     test(
-      'CONV-05: suppresses GPS jitter in totalDistanceSmoothed while totalDistance stays raw',
+      'CONV-05 (superseded): totalDistanceSmoothed still suppresses GPS jitter; totalDistance stays raw and is what gets reported',
       () {
         // Pre-33-01 (i = 1 loop bug): 90.068 m -- a different defect
-        // entirely. Real forward travel is ~100.075 m; the raw haversine
-        // sum over every consecutive pair is ~110.083 m.
+        // entirely. The now-unreported totalDistanceSmoothed still holds
+        // the real forward travel, ~100.075 m, with jitter suppressed; the
+        // raw haversine sum over every consecutive pair, ~110.083 m, is
+        // totalDistance -- the accumulator computeTrailMetrics reports as
+        // of 2026-08-01.
         final trkpts = [_trkptXml(47.0, 11.0)];
         var lat = 47.0;
         for (var i = 0; i < 5; i++) {

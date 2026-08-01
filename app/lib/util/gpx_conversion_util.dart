@@ -148,6 +148,13 @@ class GpxMetricsComputation {
   double totalElevationLossSmoothed = 0;
 
   double totalDistance = 0;
+  // NOT REPORTED as of 2026-08-01: no consumer reads this for a trail's
+  // distance anymore — computeTrailMetrics reports the raw totalDistance
+  // instead (CONV-05 superseded, see
+  // .planning/quick/260801-opr-report-raw-distance-instead-of-the-5m-ga/).
+  // Kept, and _thresholdXYm/GpxMetricsComputation(5, 5) untouched, because
+  // _lastFilteredPointXY sits in a class whose other anchors are
+  // elevation-critical, and a future speed-aware filter would build on it.
   double totalDistanceSmoothed = 0;
 
   GpxMetricsComputation(this._thresholdXYm, this._thresholdZm);
@@ -432,7 +439,7 @@ GpxTrailMetrics computeTrailMetrics(Gpx gpx) {
     maxLat: maxLat,
     minLon: minLon,
     maxLon: maxLon,
-    distance: metrics.totalDistanceSmoothed,
+    distance: metrics.totalDistance,
     elevationGain: metrics.finalElevationGain,
     elevationLoss: metrics.finalElevationLoss,
     durationMs: totalDurationMs.abs(),

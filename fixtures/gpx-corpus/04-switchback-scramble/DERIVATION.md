@@ -75,10 +75,18 @@ first-to-last direct distance: 4.403319095226456
 ```
 
 The direct first-to-last hop is ~4.4 m, under the 5 m threshold, and each intermediate hop is
-even smaller (~0.4 m). The smoothed anchor (`lastFilteredPointXY`) never advances past point 0
-because no single hop from it ever reaches 5 m, so `totalDistanceSmoothed` stays exactly `0`
-throughout. This is precisely what proves the elevation threshold and the distance threshold are
-gated independently — the elevation climb registers in full while distance smoothing stays gated.
+even smaller (~0.4 m). Since CONV-05 was superseded on 2026-08-01, the reported distance is the
+raw accumulator (`totalDistance`), which sums every hop regardless of the 5 m threshold: the
+eleven ~0.4003 m meridian hops sum to `4.403319095226456` m (agreeing with the direct
+first-to-last haversine above to within ~1e-12, as expected along a meridian). **The corpus
+asserts 4.403319095226456, not 0.**
+
+The now-unreported smoothed accumulator (`totalDistanceSmoothed`) tells the superseded story:
+its anchor (`lastFilteredPointXY`) never advances past point 0 because no single hop from it
+ever reaches 5 m, so it would have stayed exactly `0` throughout — that `0` is the counterfactual
+the superseded 5 m gate would have produced, not the value this corpus asserts. This is precisely
+what proves the elevation threshold and the distance threshold are gated independently of each
+other — the elevation climb registers in full regardless of which distance accumulator is read.
 
 ### boundingBox / centroid
 

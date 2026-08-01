@@ -52,6 +52,13 @@ class GpxMetricsComputation {
   totalElevationGainSmoothed = 0;
   totalElevationLossSmoothed = 0;
   totalDistance = 0;
+  // NOT REPORTED as of 2026-08-01: no consumer reads this for a trail's
+  // distance anymore — getTotals() reports the raw totalDistance instead
+  // (CONV-05 superseded, see
+  // .planning/quick/260801-opr-report-raw-distance-instead-of-the-5m-ga/).
+  // Kept, and thresholdXY_m/GpxMetricsComputation(5, 5) untouched, because
+  // lastFilteredPointXY sits in a class whose other anchors are
+  // elevation-critical, and a future speed-aware filter would build on it.
   totalDistanceSmoothed = 0;
   cumulativeDistance: number[] = []
 

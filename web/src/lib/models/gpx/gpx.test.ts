@@ -114,14 +114,17 @@ describe("GPX.getTotals — zero-point regression guard", () => {
   });
 });
 
-describe("GPX.getTotals — CONV-05 smoothed distance", () => {
-  it("reports the smoothed forward travel, not the raw jitter-inflated sum, for a jittery track", () => {
+describe("GPX.getTotals — CONV-05 superseded: reports the raw accumulator", () => {
+  it("reports the raw jitter-inflated sum, not the smoothed forward travel, for a jittery track", () => {
     // Single segment: forward hop (~20 m) then a jitter out-and-back
     // (~1 m each way) that never clears the 5 m threshold, repeated 5
-    // times. Real forward travel is ~100.075 m. The raw haversine sum
-    // over every consecutive pair (what cumulativeDistance's last entry
-    // holds) is ~110.083 m. Pre-33-01 (i = 1 loop bug), the reported
-    // value was 90.068 m — a different defect entirely.
+    // times. The raw haversine sum over every consecutive pair (what
+    // cumulativeDistance's last entry holds) is ~110.083 m — this is what
+    // getTotals() reports as `distance` since CONV-05 was superseded
+    // (2026-08-01). The now-unreported smoothed accumulator, which held the
+    // real forward travel with jitter suppressed, is ~100.075 m. Pre-33-01
+    // (i = 1 loop bug), the reported value was 90.068 m — a different
+    // defect entirely.
     const points = [waypointAt(47.0, 11.0)];
     let lat = 47.0;
     for (let i = 0; i < 5; i++) {
@@ -134,10 +137,10 @@ describe("GPX.getTotals — CONV-05 smoothed distance", () => {
     }
     const gpx = gpxFromSegments([points]);
 
-    expect(gpx.features.distance).toBeCloseTo(100.075, 0);
+    expect(gpx.features.distance).toBeCloseTo(110.083, 0);
   });
 
-  it("keeps the reported distance strictly less than the raw cumulative total (D-01 decoupling)", () => {
+  it("equals the last cumulativeDistance entry — same accumulator, by construction (D-01)", () => {
     const points = [waypointAt(47.0, 11.0)];
     let lat = 47.0;
     for (let i = 0; i < 5; i++) {
@@ -153,10 +156,13 @@ describe("GPX.getTotals — CONV-05 smoothed distance", () => {
     const rawTotal =
       gpx.features.cumulativeDistance[gpx.features.cumulativeDistance.length - 1];
 
-    // Executable invariant: the reported (smoothed) distance and the raw
-    // cumulative array's total are provably decoupled once GPS jitter is
-    // present — the smoothed value must be strictly smaller.
-    expect(gpx.features.distance).toBeLessThan(rawTotal);
+    // Executable invariant, inverted (not deleted) now that CONV-05 is
+    // superseded: addAndFilter pushes this.totalDistance onto
+    // cumulativeDistance immediately after every totalDistance += call, so
+    // the reported distance and the raw cumulative array's last entry are
+    // provably the same accumulator — strict equality, not a closeness
+    // matcher.
+    expect(gpx.features.distance).toBe(rawTotal);
   });
 });
 
@@ -204,11 +210,12 @@ describe("GPX.getTotals — D-01 cumulativeDistance index alignment", () => {
   });
 });
 
-describe("GPX.getTotals — CONV-05 does not regress the planner route", () => {
+describe("GPX.getTotals — CONV-05 (superseded) does not regress the planner route", () => {
   it("still reports the full polyline distance when every hop clears the smoothing threshold", () => {
     // Every hop in this fixture exceeds the 5 m threshold, so raw and
-    // smoothed totals coincide and the CONV-05 source swap must not
-    // change this value from 33-01's baseline.
+    // smoothed totals coincide — this value is unaffected by CONV-05's
+    // supersession (the reported distance is now raw, but raw and smoothed
+    // agree here) and stays at 33-01's baseline.
     const leg1 = [
       waypointAt(47.0, 11.0),
       waypointAt(47.001, 11.0),
