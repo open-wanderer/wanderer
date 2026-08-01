@@ -480,30 +480,42 @@ Future<Gpx> buildFinalPlannedGpx(
   gpx.trks = [
     Trk(
       trksegs: [
+        // WR-11: a 0-point leg is skipped rather than emitted as an empty
+        // `Trkseg`. `anchorsFromTrack` filters empty segments out, so an
+        // emitted empty one silently deletes that anchor on re-edit — the
+        // exact failure the 1-point special case below already guards
+        // against. An empty leg is reachable through the defensive paths
+        // (`segmentPolylinesFromTrack` can yield a 1-point polyline when
+        // `prevIndex == idx`, and its not-found fallback feeds straight
+        // lines into the tail), so this is not purely hypothetical. An empty
+        // leg is deliberately unrepresentable in the round-trip format:
+        // there is no anchor pair it could describe.
         for (var i = 0; i < legs.length; i++)
-          Trkseg(
-            trkpts: [
-              // Drop the closing point of every leg but the last: it is the
-              // next leg's opening point. A degenerate 1-point leg keeps its
-              // single point rather than emitting an empty trkseg, which
-              // anchorsFromTrack would skip and so lose that anchor.
-              for (
-                var j = 0;
-                j <
-                    (i == legs.length - 1 || legPoints[i].length < 2
-                        ? legPoints[i].length
-                        : legPoints[i].length - 1);
-                j++
-              )
-                Wpt(
-                  lat: legPoints[i][j].lat,
-                  lon: legPoints[i][j].lon,
-                  ele: j < (legElevations[i]?.length ?? 0)
-                      ? legElevations[i]![j]
-                      : null,
-                ),
-            ],
-          ),
+          if (legPoints[i].isNotEmpty)
+            Trkseg(
+              trkpts: [
+                // Drop the closing point of every leg but the last: it is
+                // the next leg's opening point. A degenerate 1-point leg
+                // keeps its single point rather than emitting an empty
+                // trkseg, which anchorsFromTrack would skip and so lose that
+                // anchor.
+                for (
+                  var j = 0;
+                  j <
+                      (i == legs.length - 1 || legPoints[i].length < 2
+                          ? legPoints[i].length
+                          : legPoints[i].length - 1);
+                  j++
+                )
+                  Wpt(
+                    lat: legPoints[i][j].lat,
+                    lon: legPoints[i][j].lon,
+                    ele: j < (legElevations[i]?.length ?? 0)
+                        ? legElevations[i]![j]
+                        : null,
+                  ),
+              ],
+            ),
       ],
     ),
   ];

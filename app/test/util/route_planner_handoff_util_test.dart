@@ -842,6 +842,50 @@ void main() {
       },
     );
 
+    // WR-11 regression. A 0-point leg fell through to `legPoints[i].length`
+    // = 0 and emitted `Trkseg(trkpts: [])` — a meaningless empty segment in
+    // the persisted file that `anchorsFromTrack` then has to filter out. The
+    // sibling 1-point case was already special-cased for exactly this
+    // reason; the 0-point case was not.
+    testWidgets('a zero-point leg emits no trkseg at all rather than an '
+        'empty one', (tester) async {
+      final ref = await _pumpHeightRef(
+        tester,
+        (shape) => List<num>.filled(shape.length, 500),
+      );
+
+      final anchors = [
+        ml.Geographic(lat: 47.000, lon: 9.000),
+        ml.Geographic(lat: 47.001, lon: 9.001),
+        ml.Geographic(lat: 47.002, lon: 9.002),
+        ml.Geographic(lat: 47.003, lon: 9.003),
+      ];
+      await tester.runAsync(() async {
+        ref
+            .read(routeAnchorsProvider.notifier)
+            .seedFromTrack(
+              anchors,
+              'pedestrian',
+              null,
+              segmentPolylines: [
+                [anchors[0], anchors[1]],
+                // The degenerate leg this test exists for.
+                const <ml.Geographic>[],
+                [anchors[2], anchors[3]],
+              ],
+            );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      });
+
+      final gpx = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
+
+      // Three legs in, two trksegs out — and not one of them empty.
+      expect(gpx.trks.single.trksegs, hasLength(2));
+      for (final seg in gpx.trks.single.trksegs) {
+        expect(seg.trkpts, isNotEmpty);
+      }
+    });
+
     // WR-07. The doc comment claimed "both underlying network steps are
     // skipped entirely when their flag is off", but the height backfill's
     // `pending` list was built from any leg with unresolved elevations,
