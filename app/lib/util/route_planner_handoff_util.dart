@@ -64,43 +64,99 @@ Gpx mergeHeightsIntoGpx(
     gpx.version = source.version;
     gpx.creator = source.creator;
     gpx.metadata = source.metadata;
-    gpx.wpts = source.wpts;
-    gpx.rtes = source.rtes;
+    // WR-04: COPIES, not the source's own list objects. These were assigned by
+    // reference, so the merged document and the document it was derived from
+    // shared one growable list — `identical(merged.wpts, source.wpts)` was
+    // true, and appending a waypoint to the merged trail silently appended it
+    // to the original too.
+    gpx.wpts = List.of(source.wpts);
+    gpx.rtes = List.of(source.rtes);
     gpx.extensions = source.extensions;
   }
   if (shape.isEmpty) return gpx;
-  final sourceTrk = source != null && source.trks.isNotEmpty
-      ? source.trks.first
-      : null;
+
   final lastIndex = shape.length - 1;
+  Wpt pointAt(int i) => Wpt(
+    lat: shape[i]['lat'],
+    lon: shape[i]['lon'],
+    ele: i < heights.length ? heights[i].toDouble() : null,
+    time: i == 0 ? startTime : (i == lastIndex ? endTime : null),
+  );
+
+  // WR-05: preserve the source's <trkseg> boundaries when the transform was
+  // point-for-point.
+  //
+  // The shape arrives flattened across every segment, and this used to always
+  // emit a single segment. For the route planner that is destructive rather
+  // than cosmetic: each leg is its own <trkseg>, and `anchorsFromTrack`
+  // recovers anchors from those boundaries — so a 3-anchor route came back as
+  // a start/end pair once the user enabled either post-capture toggle.
+  //
+  // Only safe when the transform preserved the point count: a road-snap
+  // returns map-matched geometry with its own point count, and there is no
+  // honest way to map those back onto the original segments. In that case one
+  // segment is the truthful answer — the leg boundaries genuinely no longer
+  // exist in the returned geometry.
+  final sourceSegments = source?.trks
+      .expand((t) => t.trksegs)
+      .map((s) => s.trkpts.length)
+      .where((n) => n > 0)
+      .toList();
+  final sourcePointCount = sourceSegments?.fold<int>(0, (a, b) => a + b) ?? 0;
+  final canPreserveSegments =
+      sourceSegments != null &&
+      sourceSegments.length > 1 &&
+      sourcePointCount == shape.length;
+
+  final segments = <Trkseg>[];
+  if (canPreserveSegments) {
+    var cursor = 0;
+    for (final length in sourceSegments) {
+      segments.add(
+        Trkseg(
+          trkpts: [for (var i = cursor; i < cursor + length; i++) pointAt(i)],
+        ),
+      );
+      cursor += length;
+    }
+  } else {
+    segments.add(
+      Trkseg(trkpts: [for (var i = 0; i < shape.length; i++) pointAt(i)]),
+    );
+  }
+
+  // WR-04: carry every source track's metadata, not just the first. The
+  // geometry is necessarily consolidated into one track (the shape arrives
+  // flattened), but silently discarding the name/desc/type of tracks 2..n was
+  // avoidable data loss on a multi-track file.
+  final sourceTrks = source?.trks ?? const <Trk>[];
+  final sourceTrk = sourceTrks.isNotEmpty ? sourceTrks.first : null;
   gpx.trks = [
     Trk(
       name: sourceTrk?.name,
       cmt: sourceTrk?.cmt,
-      desc: sourceTrk?.desc,
+      desc: _joinTrackDescriptions(sourceTrks),
       src: sourceTrk?.src,
-      links: sourceTrk?.links,
+      links: sourceTrk?.links == null ? null : List.of(sourceTrk!.links),
       number: sourceTrk?.number,
       type: sourceTrk?.type,
       extensions: sourceTrk?.extensions,
-      trksegs: [
-        Trkseg(
-          trkpts: [
-            for (var i = 0; i < shape.length; i++)
-              Wpt(
-                lat: shape[i]['lat'],
-                lon: shape[i]['lon'],
-                ele: i < heights.length ? heights[i].toDouble() : null,
-                time: i == 0
-                    ? startTime
-                    : (i == lastIndex ? endTime : null),
-              ),
-          ],
-        ),
-      ],
+      trksegs: segments,
     ),
   ];
   return gpx;
+}
+
+/// Merges the `desc` of every source track so a multi-track file does not
+/// silently lose tracks 2..n's description when the geometry is consolidated.
+String? _joinTrackDescriptions(List<Trk> trks) {
+  final descriptions = trks
+      .map((t) => t.desc)
+      .whereType<String>()
+      .where((d) => d.trim().isNotEmpty)
+      .toList();
+  if (descriptions.isEmpty) return null;
+  return descriptions.join('\n\n');
 }
 
 /// Computes the bounding-box diagonal (in degrees) of a `{lat,lon}` shape

@@ -235,6 +235,30 @@ void main() {
       expect(email.domain, 'example.org');
     });
 
+    test(
+      'WR-06: a partial-attribute <email> does not splice with the text',
+      () {
+        // `<email domain="a.com">u@b.com</email>` used to yield `u@a.com` — an
+        // address present in neither the attributes nor the text. A document
+        // that supplies one attribute has chosen the attribute form; an
+        // incomplete one is malformed, and empty is the honest answer.
+        const xml =
+            '<?xml version="1.0"?>'
+            '<gpx version="1.1" creator="t">'
+            '<metadata><author><name>A</name>'
+            '<email domain="a.com">user@b.com</email>'
+            '</author></metadata></gpx>';
+
+        final email = parseGpxSafely(xml).metadata!.author!.email!;
+        expect(email.domain, 'a.com');
+        expect(
+          email.id,
+          isEmpty,
+          reason: 'must not borrow the local part from the text form',
+        );
+      },
+    );
+
     test('an <email> with no usable address leaves the fields empty', () {
       const xml =
           '<?xml version="1.0"?>'
@@ -917,6 +941,98 @@ void main() {
     });
   });
 
+  group('the discard rule reaches every consumer, not just the metrics', () {
+    // One predicate — hasUsablePosition — now answers "is this a real point?"
+    // for the accumulators, the start coordinate, the waypoints, the centroid
+    // and the bounding box. Three different answers used to coexist, which is
+    // how one malformed point could zero a distance, fabricate climb, AND
+    // leave a marker off the coast of Africa.
+    test('WR-01: the start coordinate skips a leading malformed point', () {
+      final pts = <Wpt>[
+        Wpt(lat: null, lon: null, ele: 1000),
+        Wpt(lat: 47.5, lon: 11.5, ele: 1000),
+        Wpt(lat: 47.6, lon: 11.6, ele: 1000),
+      ];
+      final gpx = Gpx()
+        ..trks = [
+          Trk(trksegs: [Trkseg(trkpts: pts)]),
+        ];
+
+      final trail = trailFromGpx(gpx);
+
+      expect(trail.lat, 47.5);
+      expect(trail.lon, 11.5);
+    });
+
+    test('WR-02: the centroid ignores position-less points entirely', () {
+      Gpx build({int padding = 0}) {
+        final pts = <Wpt>[
+          for (var i = 0; i < padding; i++) Wpt(lat: null, lon: null),
+          Wpt(lat: 47.0, lon: 11.0),
+          Wpt(lat: 47.2, lon: 11.2),
+        ];
+        return Gpx()
+          ..trks = [
+            Trk(trksegs: [Trkseg(trkpts: pts)]),
+          ];
+      }
+
+      final clean = computeTrailMetrics(build());
+      final padded = computeTrailMetrics(build(padding: 8));
+
+      // Previously the 8 bad points summed 0 but still counted, dragging the
+      // centroid from 47.1 down toward 9.4.
+      expect(padded.centroidLat, closeTo(clean.centroidLat, 1e-9));
+      expect(padded.centroidLon, closeTo(clean.centroidLon, 1e-9));
+      expect(padded.centroidLat, closeTo(47.1, 1e-9));
+    });
+
+    test('WR-02: the bounding box is unaffected by them too', () {
+      final pts = <Wpt>[
+        Wpt(lat: null, lon: null),
+        Wpt(lat: 47.0, lon: 11.0),
+        Wpt(lat: 47.2, lon: 11.2),
+      ];
+      final m = computeTrailMetrics(
+        Gpx()
+          ..trks = [
+            Trk(trksegs: [Trkseg(trkpts: pts)]),
+          ],
+      );
+
+      expect(m.minLat, closeTo(47.0, 1e-9));
+      expect(m.maxLat, closeTo(47.2, 1e-9));
+      expect(m.minLon, closeTo(11.0, 1e-9));
+      expect(m.maxLon, closeTo(11.2, 1e-9));
+    });
+
+    test('WR-03: a coordinate-less <wpt> is dropped, not placed at (0, 0)', () {
+      final gpx = Gpx()
+        ..wpts = [
+          Wpt(lat: null, lon: null, name: 'ghost'),
+          Wpt(lat: double.nan, lon: 11.0, name: 'nan'),
+          Wpt(lat: 47.0, lon: 11.0, name: 'real'),
+        ]
+        ..trks = [
+          Trk(
+            trksegs: [
+              Trkseg(trkpts: [Wpt(lat: 47.0, lon: 11.0)]),
+            ],
+          ),
+        ];
+
+      final waypoints = trailFromGpx(gpx).expand!.waypointsViaTrail!;
+
+      expect(waypoints, hasLength(1));
+      expect(waypoints.single.name, 'real');
+      expect(
+        waypoints.any((w) => w.lat == 0 && w.lon == 0),
+        isFalse,
+        reason: 'a dropped waypoint must never resurface at (0, 0)',
+      );
+    });
+  });
+
   group('single GpxReader call site gate', () {
     // parseGpxSafely is the only sanctioned parse entry point, but nothing
     // enforced that: trail_provider.dart and trail_entity.dart both constructed
@@ -973,6 +1089,68 @@ void main() {
         reason:
             'The sole GpxReader construction must live inside '
             'parseGpxSafely in util/gpx_conversion_util.dart',
+      );
+    });
+
+    // WR-07: counting constructions is not enough. The construction site could
+    // stay put while its IMPORT silently flips to the published package's
+    // reader — the throwing one — and every tolerance test above would keep
+    // passing, because they exercise parseGpxSafely, whose import is exactly
+    // what changed.
+    //
+    // Scoped to files that actually CONSTRUCT a reader. The other nine lib/
+    // files import package:gpx for its models and never touch GpxReader;
+    // forcing `hide` on them would be an unexplainable rule that fails the
+    // build the next time someone imports a model.
+    test('every GpxReader construction resolves to the vendored reader', () {
+      final libDir = Directory('lib');
+      final offenders = <String>[];
+      var constructors = 0;
+
+      for (final entity in libDir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final path = entity.path.replaceAll(r'\\', '/');
+        // The vendored reader DEFINES GpxReader rather than resolving one.
+        if (path.endsWith('vendor/gpx/gpx_reader.dart')) continue;
+
+        final lines = entity.readAsLinesSync();
+        final constructs = lines.any(
+          (l) => !l.trimLeft().startsWith('//') && l.contains('GpxReader('),
+        );
+        if (!constructs) continue;
+        constructors++;
+
+        final importsVendored = lines.any(
+          (l) => l.contains("vendor/gpx/gpx_reader.dart"),
+        );
+        final hidesPublished = lines.any(
+          (l) =>
+              l.trimLeft().startsWith("import 'package:gpx/gpx.dart'") &&
+              l.contains('hide GpxReader'),
+        );
+
+        if (!importsVendored || !hidesPublished) {
+          offenders.add(
+            '${entity.path} '
+            '(importsVendored=$importsVendored, hidesPublished=$hidesPublished)',
+          );
+        }
+      }
+
+      // Non-vacuity: if nothing constructs a reader, the loop above asserted
+      // nothing at all.
+      expect(
+        constructors,
+        greaterThan(0),
+        reason: 'no GpxReader construction found — this gate checked nothing',
+      );
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'A file constructing GpxReader must import the vendored reader AND '
+            'hide the published one, or it silently gets the throwing reader: '
+            '$offenders',
       );
     });
   });

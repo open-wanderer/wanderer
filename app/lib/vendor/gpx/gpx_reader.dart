@@ -730,12 +730,18 @@ class GpxReader {
         }
       }
 
-      if (id == null || domain == null) {
-        final at = text.trim().lastIndexOf('@');
-        if (at > 0 && at < text.trim().length - 1) {
-          final trimmed = text.trim();
-          id ??= trimmed.substring(0, at);
-          domain ??= trimmed.substring(at + 1);
+      // Both-or-neither. Filling in only the MISSING half spliced the two
+      // forms together: `<email domain="a.com">u@b.com</email>` produced
+      // `u@a.com` — an address that appears in neither the attributes nor the
+      // text. A document that supplies one attribute has chosen the attribute
+      // form; an incomplete one is malformed, and the honest result is the
+      // empty field the spec form would have given.
+      if (id == null && domain == null) {
+        final trimmed = text.trim();
+        final at = trimmed.lastIndexOf('@');
+        if (at > 0 && at < trimmed.length - 1) {
+          id = trimmed.substring(0, at);
+          domain = trimmed.substring(at + 1);
         }
       }
 

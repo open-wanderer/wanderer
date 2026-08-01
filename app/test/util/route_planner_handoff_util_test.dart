@@ -46,11 +46,7 @@ class _FakeApi extends Api {
             return;
           }
           handler.resolve(
-            Response(
-              requestOptions: options,
-              statusCode: 200,
-              data: response,
-            ),
+            Response(requestOptions: options, statusCode: 200, data: response),
           );
         },
       ),
@@ -183,7 +179,11 @@ Future<WidgetRef> _pumpHeightRefWith(
 /// [shouldFailAll] is true, every request (either endpoint) is rejected as a
 /// connection error, doubling as a "no request was attempted" guard.
 class _FakeSnapApi extends Api {
-  _FakeSnapApi({required this.snapShape, this.heights, this.shouldFailAll = false});
+  _FakeSnapApi({
+    required this.snapShape,
+    this.heights,
+    this.shouldFailAll = false,
+  });
 
   final List<Map<String, double>> snapShape;
   final List<num> Function(List<dynamic> shape)? heights;
@@ -226,7 +226,8 @@ class _FakeSnapApi extends Api {
                 requestOptions: options,
                 statusCode: 200,
                 data: {
-                  'height': heights?.call(shape) ?? List<num>.filled(shape.length, 0),
+                  'height':
+                      heights?.call(shape) ?? List<num>.filled(shape.length, 0),
                 },
               ),
             );
@@ -373,12 +374,7 @@ void main() {
             Trkseg(
               trkpts: [
                 Wpt(lat: 47.000, lon: 9.000, ele: 400, time: start),
-                Wpt(
-                  lat: 47.001,
-                  lon: 9.001,
-                  ele: 410,
-                  time: start.add(span),
-                ),
+                Wpt(lat: 47.001, lon: 9.001, ele: 410, time: start.add(span)),
               ],
             ),
           ],
@@ -438,9 +434,7 @@ void main() {
       expect(result.category, 'bike-id');
     });
 
-    testWidgets('leaves category null when none is supplied', (
-      tester,
-    ) async {
+    testWidgets('leaves category null when none is supplied', (tester) async {
       final gpx = buildSampleGpx();
       final ref = await _pumpRef(tester);
 
@@ -449,18 +443,15 @@ void main() {
       expect(result.category, isNull);
     });
 
-    testWidgets(
-      "clears subcategory to '' when none is supplied "
-      '(trail_create_screen clear convention)',
-      (tester) async {
-        final gpx = buildSampleGpx();
-        final ref = await _pumpRef(tester);
+    testWidgets("clears subcategory to '' when none is supplied "
+        '(trail_create_screen clear convention)', (tester) async {
+      final gpx = buildSampleGpx();
+      final ref = await _pumpRef(tester);
 
-        final result = await _buildDraftTrail(tester, ref, gpx);
+      final result = await _buildDraftTrail(tester, ref, gpx);
 
-        expect(result.subcategory, '');
-      },
-    );
+      expect(result.subcategory, '');
+    });
 
     testWidgets('a supplied subcategory id round-trips through', (
       tester,
@@ -478,23 +469,20 @@ void main() {
       expect(result.subcategory, 'hiking-sub-id');
     });
 
-    testWidgets(
-      'sets bounds from the track and lat/lon from its first point '
-      '(local computation reproduces gpx_util.ts:78-87)',
-      (tester) async {
-        final gpx = buildSampleGpx();
-        final ref = await _pumpRef(tester);
+    testWidgets('sets bounds from the track and lat/lon from its first point '
+        '(local computation reproduces gpx_util.ts:78-87)', (tester) async {
+      final gpx = buildSampleGpx();
+      final ref = await _pumpRef(tester);
 
-        final result = await _buildDraftTrail(tester, ref, gpx);
+      final result = await _buildDraftTrail(tester, ref, gpx);
 
-        expect(result.maxLat, 47.001);
-        expect(result.minLat, 47.000);
-        expect(result.maxLon, 9.001);
-        expect(result.minLon, 9.000);
-        expect(result.lat, 47.000);
-        expect(result.lon, 9.000);
-      },
-    );
+      expect(result.maxLat, 47.001);
+      expect(result.minLat, 47.000);
+      expect(result.maxLon, 9.001);
+      expect(result.minLon, 9.000);
+      expect(result.lat, 47.000);
+      expect(result.lon, 9.000);
+    });
 
     testWidgets(
       'distance and elevationGain are computed locally over the track',
@@ -510,22 +498,21 @@ void main() {
       },
     );
 
-    testWidgets(
-      'applies the durationSeconds fallback for a timeless GPX',
-      (tester) async {
-        final gpx = buildSampleGpx();
-        final ref = await _pumpRef(tester);
+    testWidgets('applies the durationSeconds fallback for a timeless GPX', (
+      tester,
+    ) async {
+      final gpx = buildSampleGpx();
+      final ref = await _pumpRef(tester);
 
-        final result = await _buildDraftTrail(
-          tester,
-          ref,
-          gpx,
-          durationSeconds: 1200,
-        );
+      final result = await _buildDraftTrail(
+        tester,
+        ref,
+        gpx,
+        durationSeconds: 1200,
+      );
 
-        expect(result.duration, 1200);
-      },
-    );
+      expect(result.duration, 1200);
+    });
 
     testWidgets(
       'does not apply the durationSeconds fallback when the GPX carries '
@@ -541,7 +528,10 @@ void main() {
           durationSeconds: 999999,
         );
 
-        expect(result.duration, const Duration(minutes: 30).inSeconds.toDouble());
+        expect(
+          result.duration,
+          const Duration(minutes: 30).inSeconds.toDouble(),
+        );
       },
     );
 
@@ -613,32 +603,28 @@ void main() {
       },
     );
 
-    testWidgets(
-      'fills location via reverse geocode when online',
-      (tester) async {
-        final gpx = buildSampleGpx();
-        final ref = await _pumpRef(
-          tester,
-          online: true,
-          response: {
-            'features': [
-              {
-                'properties': {
-                  'address': {
-                    'city': 'Testtown',
-                    'country': 'Testland',
-                  },
-                },
+    testWidgets('fills location via reverse geocode when online', (
+      tester,
+    ) async {
+      final gpx = buildSampleGpx();
+      final ref = await _pumpRef(
+        tester,
+        online: true,
+        response: {
+          'features': [
+            {
+              'properties': {
+                'address': {'city': 'Testtown', 'country': 'Testland'},
               },
-            ],
-          },
-        );
+            },
+          ],
+        },
+      );
 
-        final result = await _buildDraftTrail(tester, ref, gpx);
+      final result = await _buildDraftTrail(tester, ref, gpx);
 
-        expect(result.location, 'Testtown, Testland');
-      },
-    );
+      expect(result.location, 'Testtown, Testland');
+    });
   });
 
   group('buildFinalPlannedGpx', () {
@@ -722,7 +708,10 @@ void main() {
 
       // Seeding left both segments without elevations.
       expect(
-        ref.read(routeAnchorsProvider).segments.every((s) => s.elevations == null),
+        ref
+            .read(routeAnchorsProvider)
+            .segments
+            .every((s) => s.elevations == null),
         isTrue,
       );
 
@@ -800,47 +789,43 @@ void main() {
     // `ele: null` and the saved trail's elevation gain/loss at 0 — so
     // ticking "Follow roads" on a flaky connection destroyed a route's
     // elevation data.
-    testWidgets(
-      'snapCosting supplied but the snap fails: the legs keep their '
-      'already-resolved elevations instead of being invalidated',
-      (tester) async {
-        // Seed against a working height api so every leg carries real
-        // elevations, exactly as an online planning session would.
-        final workingRef = await _pumpHeightRef(
-          tester,
-          (shape) => List<num>.filled(shape.length, 500),
-        );
-        await _seedRoute(tester, workingRef, _twoLegRoute);
-        final seededState = workingRef.read(routeAnchorsProvider);
-        expect(seededState.segments.every((s) => s.elevations != null), isTrue);
+    testWidgets('snapCosting supplied but the snap fails: the legs keep their '
+        'already-resolved elevations instead of being invalidated', (
+      tester,
+    ) async {
+      // Seed against a working height api so every leg carries real
+      // elevations, exactly as an online planning session would.
+      final workingRef = await _pumpHeightRef(
+        tester,
+        (shape) => List<num>.filled(shape.length, 500),
+      );
+      await _seedRoute(tester, workingRef, _twoLegRoute);
+      final seededState = workingRef.read(routeAnchorsProvider);
+      expect(seededState.segments.every((s) => s.elevations != null), isTrue);
 
-        // A session where BOTH /valhalla/trace-route and /valhalla/height
-        // fail — the flaky-connection case.
-        final failingApi = _FakeSnapApi(
-          snapShape: const [],
-          shouldFailAll: true,
-        );
-        final ref = await _pumpSnapRef(tester, failingApi);
-        ref.read(routeAnchorsProvider.notifier).state = seededState;
+      // A session where BOTH /valhalla/trace-route and /valhalla/height
+      // fail — the flaky-connection case.
+      final failingApi = _FakeSnapApi(snapShape: const [], shouldFailAll: true);
+      final ref = await _pumpSnapRef(tester, failingApi);
+      ref.read(routeAnchorsProvider.notifier).state = seededState;
 
-        final gpx = (await tester.runAsync(
-          () => buildFinalPlannedGpx(ref, snapCosting: 'pedestrian'),
-        ))!;
+      final gpx = (await tester.runAsync(
+        () => buildFinalPlannedGpx(ref, snapCosting: 'pedestrian'),
+      ))!;
 
-        expect(gpx.trks.single.trksegs, hasLength(_twoLegRoute.length));
-        // Geometry is untouched (full-resolution legs, original anchors)...
-        final anchors = anchorsFromTrack(gpx);
-        expect(anchors, hasLength(3));
-        expect(anchors[0].lat, _twoLegRoute[0].first.lat);
-        expect(anchors[2].lat, _twoLegRoute[1].last.lat);
-        // ...and so are the elevations. Pre-fix these were all null.
-        for (final seg in gpx.trks.single.trksegs) {
-          for (final pt in seg.trkpts) {
-            expect(pt.ele, 500);
-          }
+      expect(gpx.trks.single.trksegs, hasLength(_twoLegRoute.length));
+      // Geometry is untouched (full-resolution legs, original anchors)...
+      final anchors = anchorsFromTrack(gpx);
+      expect(anchors, hasLength(3));
+      expect(anchors[0].lat, _twoLegRoute[0].first.lat);
+      expect(anchors[2].lat, _twoLegRoute[1].last.lat);
+      // ...and so are the elevations. Pre-fix these were all null.
+      for (final seg in gpx.trks.single.trksegs) {
+        for (final pt in seg.trkpts) {
+          expect(pt.ele, 500);
         }
-      },
-    );
+      }
+    });
 
     // WR-11 regression. A 0-point leg fell through to `legPoints[i].length`
     // = 0 and emitted `Trkseg(trkpts: [])` — a meaningless empty segment in
@@ -893,35 +878,32 @@ void main() {
     // an un-elevated leg) issued one request per such leg. The pre-existing
     // "issues no network call" test sidestepped this by transplanting a
     // fully-elevated state, which leaves `pending` empty.
-    testWidgets(
-      'offline with UN-elevated legs: the height backfill is skipped '
-      'entirely rather than attempted-and-tolerated',
-      (tester) async {
-        final api = _FakeHeightApi(
-          (shape) => throw StateError('height unavailable'),
-        );
-        final ref = await _pumpHeightRefWith(tester, api, online: false);
-        await _seedRoute(tester, ref, _twoLegRoute);
+    testWidgets('offline with UN-elevated legs: the height backfill is skipped '
+        'entirely rather than attempted-and-tolerated', (tester) async {
+      final api = _FakeHeightApi(
+        (shape) => throw StateError('height unavailable'),
+      );
+      final ref = await _pumpHeightRefWith(tester, api, online: false);
+      await _seedRoute(tester, ref, _twoLegRoute);
 
-        // Seeding left every leg without elevations — the case the previous
-        // test could not reach.
-        expect(
-          ref
-              .read(routeAnchorsProvider)
-              .segments
-              .every((s) => s.elevations == null),
-          isTrue,
-        );
-        api.requestCount = 0;
+      // Seeding left every leg without elevations — the case the previous
+      // test could not reach.
+      expect(
+        ref
+            .read(routeAnchorsProvider)
+            .segments
+            .every((s) => s.elevations == null),
+        isTrue,
+      );
+      api.requestCount = 0;
 
-        final gpx = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
+      final gpx = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
 
-        expect(api.requestCount, 0);
-        expect(gpx.trks.single.trksegs, hasLength(_twoLegRoute.length));
-        expect(anchorsFromTrack(gpx), hasLength(3));
-        expect(gpx.trks.single.trksegs.first.trkpts.first.ele, isNull);
-      },
-    );
+      expect(api.requestCount, 0);
+      expect(gpx.trks.single.trksegs, hasLength(_twoLegRoute.length));
+      expect(anchorsFromTrack(gpx), hasLength(3));
+      expect(gpx.trks.single.trksegs.first.trkpts.first.ele, isNull);
+    });
 
     testWidgets(
       'online with UN-elevated legs and a failing api: the backfill IS '
@@ -955,17 +937,17 @@ void main() {
         );
         await _seedRoute(tester, workingRef, _twoLegRoute);
         final seededState = workingRef.read(routeAnchorsProvider);
-        expect(
-          seededState.segments.every((s) => s.elevations != null),
-          isTrue,
-        );
+        expect(seededState.segments.every((s) => s.elevations != null), isTrue);
 
         // A fresh session whose api rejects every request — shouldFailAll
         // doubles as a "no request was attempted" guard: if
         // buildFinalPlannedGpx regressed to calling the api while both
         // flags are off, this fake would reject and the test would fail
         // with a DioException instead of completing normally.
-        final failingApi = _FakeSnapApi(snapShape: const [], shouldFailAll: true);
+        final failingApi = _FakeSnapApi(
+          snapShape: const [],
+          shouldFailAll: true,
+        );
         final ref = await _pumpSnapRef(tester, failingApi);
         // Transplant the already-elevated state directly (bypassing the
         // network) so this session starts with real elevations already
@@ -1008,184 +990,172 @@ void main() {
       expect(anchors[1].lon, 9.002);
     });
 
-    test(
-      'two-trkseg track yields [seg0.first, seg1.first, seg1.last] '
-      '(3 anchors)',
-      () {
-        final gpx = Gpx();
-        gpx.trks = [
-          Trk(
-            trksegs: [
-              Trkseg(
-                trkpts: [
-                  Wpt(lat: 47.000, lon: 9.000),
-                  Wpt(lat: 47.001, lon: 9.001),
-                ],
-              ),
-              Trkseg(
-                trkpts: [
-                  Wpt(lat: 47.010, lon: 9.010),
-                  Wpt(lat: 47.011, lon: 9.011),
-                ],
-              ),
-            ],
-          ),
-        ];
+    test('two-trkseg track yields [seg0.first, seg1.first, seg1.last] '
+        '(3 anchors)', () {
+      final gpx = Gpx();
+      gpx.trks = [
+        Trk(
+          trksegs: [
+            Trkseg(
+              trkpts: [
+                Wpt(lat: 47.000, lon: 9.000),
+                Wpt(lat: 47.001, lon: 9.001),
+              ],
+            ),
+            Trkseg(
+              trkpts: [
+                Wpt(lat: 47.010, lon: 9.010),
+                Wpt(lat: 47.011, lon: 9.011),
+              ],
+            ),
+          ],
+        ),
+      ];
 
-        final anchors = anchorsFromTrack(gpx);
+      final anchors = anchorsFromTrack(gpx);
 
-        expect(anchors, hasLength(3));
-        expect(anchors[0].lat, 47.000);
-        expect(anchors[0].lon, 9.000);
-        expect(anchors[1].lat, 47.010);
-        expect(anchors[1].lon, 9.010);
-        expect(anchors[2].lat, 47.011);
-        expect(anchors[2].lon, 9.011);
-      },
-    );
+      expect(anchors, hasLength(3));
+      expect(anchors[0].lat, 47.000);
+      expect(anchors[0].lon, 9.000);
+      expect(anchors[1].lat, 47.010);
+      expect(anchors[1].lon, 9.010);
+      expect(anchors[2].lat, 47.011);
+      expect(anchors[2].lon, 9.011);
+    });
 
     test('an empty/trackless Gpx yields an empty list', () {
       expect(anchorsFromTrack(Gpx()), isEmpty);
     });
 
-    test('a trk with an empty trksegs list yields an empty list (CR-01/WR-01 regression)', () {
-      final gpx = Gpx();
-      gpx.trks = [Trk(trksegs: const [])];
+    test(
+      'a trk with an empty trksegs list yields an empty list (CR-01/WR-01 regression)',
+      () {
+        final gpx = Gpx();
+        gpx.trks = [Trk(trksegs: const [])];
 
-      expect(anchorsFromTrack(gpx), isEmpty);
+        expect(anchorsFromTrack(gpx), isEmpty);
+      },
+    );
+
+    test('a trailing empty trkseg does not drop the true final point '
+        '(WR-02 regression)', () {
+      final gpx = Gpx();
+      gpx.trks = [
+        Trk(
+          trksegs: [
+            Trkseg(
+              trkpts: [
+                Wpt(lat: 47.000, lon: 9.000),
+                Wpt(lat: 47.001, lon: 9.001),
+              ],
+            ),
+            Trkseg(trkpts: const []),
+          ],
+        ),
+      ];
+
+      final anchors = anchorsFromTrack(gpx);
+
+      expect(anchors, hasLength(2));
+      expect(anchors[0].lat, 47.000);
+      expect(anchors[0].lon, 9.000);
+      expect(anchors[1].lat, 47.001);
+      expect(anchors[1].lon, 9.001);
     });
 
-    test(
-      'a trailing empty trkseg does not drop the true final point '
-      '(WR-02 regression)',
-      () {
-        final gpx = Gpx();
-        gpx.trks = [
-          Trk(
-            trksegs: [
-              Trkseg(
-                trkpts: [
-                  Wpt(lat: 47.000, lon: 9.000),
-                  Wpt(lat: 47.001, lon: 9.001),
-                ],
-              ),
-              Trkseg(trkpts: const []),
-            ],
-          ),
-        ];
+    test('a trkpt with a null lat/lon is dropped rather than force-unwrapped '
+        '(CR-01 regression)', () {
+      final gpx = Gpx();
+      gpx.trks = [
+        Trk(
+          trksegs: [
+            Trkseg(
+              trkpts: [
+                Wpt(lat: null, lon: null),
+                Wpt(lat: 47.001, lon: 9.001),
+                Wpt(lat: 47.002, lon: 9.002),
+              ],
+            ),
+          ],
+        ),
+      ];
 
-        final anchors = anchorsFromTrack(gpx);
+      expect(() => anchorsFromTrack(gpx), returnsNormally);
+      final anchors = anchorsFromTrack(gpx);
 
-        expect(anchors, hasLength(2));
-        expect(anchors[0].lat, 47.000);
-        expect(anchors[0].lon, 9.000);
-        expect(anchors[1].lat, 47.001);
-        expect(anchors[1].lon, 9.001);
-      },
-    );
-
-    test(
-      'a trkpt with a null lat/lon is dropped rather than force-unwrapped '
-      '(CR-01 regression)',
-      () {
-        final gpx = Gpx();
-        gpx.trks = [
-          Trk(
-            trksegs: [
-              Trkseg(
-                trkpts: [
-                  Wpt(lat: null, lon: null),
-                  Wpt(lat: 47.001, lon: 9.001),
-                  Wpt(lat: 47.002, lon: 9.002),
-                ],
-              ),
-            ],
-          ),
-        ];
-
-        expect(() => anchorsFromTrack(gpx), returnsNormally);
-        final anchors = anchorsFromTrack(gpx);
-
-        expect(anchors, hasLength(2));
-        expect(anchors[0].lat, 47.001);
-        expect(anchors[0].lon, 9.001);
-        expect(anchors[1].lat, 47.002);
-        expect(anchors[1].lon, 9.002);
-      },
-    );
+      expect(anchors, hasLength(2));
+      expect(anchors[0].lat, 47.001);
+      expect(anchors[0].lon, 9.001);
+      expect(anchors[1].lat, 47.002);
+      expect(anchors[1].lon, 9.002);
+    });
   });
 
   group('segmentPolylinesFromTrack', () {
-    test(
-      'a single-trkseg track yields one segment whose polyline is every '
-      'recorded point (preserves an off-road recording, not a straight '
-      'line between the endpoints)',
-      () {
-        final gpx = Gpx();
-        gpx.trks = [
-          Trk(
-            trksegs: [
-              Trkseg(
-                trkpts: [
-                  Wpt(lat: 47.000, lon: 9.000),
-                  Wpt(lat: 47.0005, lon: 9.0015), // off the direct line
-                  Wpt(lat: 47.001, lon: 9.001),
-                  Wpt(lat: 47.002, lon: 9.002),
-                ],
-              ),
-            ],
-          ),
-        ];
-        final anchors = anchorsFromTrack(gpx);
+    test('a single-trkseg track yields one segment whose polyline is every '
+        'recorded point (preserves an off-road recording, not a straight '
+        'line between the endpoints)', () {
+      final gpx = Gpx();
+      gpx.trks = [
+        Trk(
+          trksegs: [
+            Trkseg(
+              trkpts: [
+                Wpt(lat: 47.000, lon: 9.000),
+                Wpt(lat: 47.0005, lon: 9.0015), // off the direct line
+                Wpt(lat: 47.001, lon: 9.001),
+                Wpt(lat: 47.002, lon: 9.002),
+              ],
+            ),
+          ],
+        ),
+      ];
+      final anchors = anchorsFromTrack(gpx);
 
-        final polylines = segmentPolylinesFromTrack(gpx, anchors);
+      final polylines = segmentPolylinesFromTrack(gpx, anchors);
 
-        expect(polylines, hasLength(1));
-        expect(polylines[0], hasLength(4));
-        expect(polylines[0][1].lat, 47.0005);
-        expect(polylines[0][1].lon, 9.0015);
-      },
-    );
+      expect(polylines, hasLength(1));
+      expect(polylines[0], hasLength(4));
+      expect(polylines[0][1].lat, 47.0005);
+      expect(polylines[0][1].lon, 9.0015);
+    });
 
-    test(
-      'a two-trkseg track yields one polyline per consecutive anchor pair, '
-      'each a contiguous slice of the flattened recorded points',
-      () {
-        final gpx = Gpx();
-        gpx.trks = [
-          Trk(
-            trksegs: [
-              Trkseg(
-                trkpts: [
-                  Wpt(lat: 47.000, lon: 9.000),
-                  Wpt(lat: 47.001, lon: 9.001),
-                ],
-              ),
-              Trkseg(
-                trkpts: [
-                  Wpt(lat: 47.010, lon: 9.010),
-                  Wpt(lat: 47.0105, lon: 9.0105),
-                  Wpt(lat: 47.011, lon: 9.011),
-                ],
-              ),
-            ],
-          ),
-        ];
-        final anchors = anchorsFromTrack(gpx);
+    test('a two-trkseg track yields one polyline per consecutive anchor pair, '
+        'each a contiguous slice of the flattened recorded points', () {
+      final gpx = Gpx();
+      gpx.trks = [
+        Trk(
+          trksegs: [
+            Trkseg(
+              trkpts: [
+                Wpt(lat: 47.000, lon: 9.000),
+                Wpt(lat: 47.001, lon: 9.001),
+              ],
+            ),
+            Trkseg(
+              trkpts: [
+                Wpt(lat: 47.010, lon: 9.010),
+                Wpt(lat: 47.0105, lon: 9.0105),
+                Wpt(lat: 47.011, lon: 9.011),
+              ],
+            ),
+          ],
+        ),
+      ];
+      final anchors = anchorsFromTrack(gpx);
 
-        final polylines = segmentPolylinesFromTrack(gpx, anchors);
+      final polylines = segmentPolylinesFromTrack(gpx, anchors);
 
-        expect(anchors, hasLength(3)); // seg0.first, seg1.first, seg1.last
-        expect(polylines, hasLength(2));
-        // seg0.first -> seg1.first: seg0's own points then the jump into seg1
-        expect(polylines[0], hasLength(3));
-        expect(polylines[0][0].lat, 47.000);
-        expect(polylines[0][2].lat, 47.010);
-        // seg1.first -> seg1.last: all of seg1's own points
-        expect(polylines[1], hasLength(3));
-        expect(polylines[1][1].lat, 47.0105);
-      },
-    );
+      expect(anchors, hasLength(3)); // seg0.first, seg1.first, seg1.last
+      expect(polylines, hasLength(2));
+      // seg0.first -> seg1.first: seg0's own points then the jump into seg1
+      expect(polylines[0], hasLength(3));
+      expect(polylines[0][0].lat, 47.000);
+      expect(polylines[0][2].lat, 47.010);
+      // seg1.first -> seg1.last: all of seg1's own points
+      expect(polylines[1], hasLength(3));
+      expect(polylines[1][1].lat, 47.0105);
+    });
 
     test('fewer than 2 anchors yields an empty list', () {
       expect(segmentPolylinesFromTrack(Gpx(), const []), isEmpty);
@@ -1309,24 +1279,21 @@ void main() {
       expect(result.expand!.gpxData, contains('<gpx'));
     });
 
-    test(
-      'preserves title/description/id and existing waypoints unchanged',
-      () {
-        final existing = buildSampleTrail();
-        final finalGpx = buildFinalGpx();
+    test('preserves title/description/id and existing waypoints unchanged', () {
+      final existing = buildSampleTrail();
+      final finalGpx = buildFinalGpx();
 
-        final result = mergeRouteIntoTrail(existing, finalGpx);
+      final result = mergeRouteIntoTrail(existing, finalGpx);
 
-        expect(result.id, existing.id);
-        expect(result.name, existing.name);
-        expect(result.description, existing.description);
-        expect(result.public, existing.public);
-        expect(
-          result.expand!.waypointsViaTrail,
-          existing.expand!.waypointsViaTrail,
-        );
-      },
-    );
+      expect(result.id, existing.id);
+      expect(result.name, existing.name);
+      expect(result.description, existing.description);
+      expect(result.public, existing.public);
+      expect(
+        result.expand!.waypointsViaTrail,
+        existing.expand!.waypointsViaTrail,
+      );
+    });
 
     // WR-10 regression. `movingDuration` was carried through untouched, so a
     // recorded trail whose route was re-drawn in the planner kept the OLD
@@ -1468,11 +1435,10 @@ void main() {
           'rebuilt document', () {
         final source = parseGpxSafely(sourceXml);
 
-        final merged = mergeHeightsIntoGpx(
-          shape,
-          const [500, 510],
-          source: source,
-        );
+        final merged = mergeHeightsIntoGpx(shape, const [
+          500,
+          510,
+        ], source: source);
 
         expect(merged.metadata?.name, 'Alpine Traverse');
         expect(merged.metadata?.desc, 'A long day out.');
@@ -1491,11 +1457,10 @@ void main() {
           'GPX\'s own name, description and waypoints', () {
         final source = parseGpxSafely(sourceXml);
 
-        final merged = mergeHeightsIntoGpx(
-          shape,
-          const [500, 510],
-          source: source,
-        );
+        final merged = mergeHeightsIntoGpx(shape, const [
+          500,
+          510,
+        ], source: source);
         final trail = trailFromGpx(merged, fallbackName: 'track.gpx');
 
         expect(trail.name, 'Alpine Traverse');
@@ -1508,11 +1473,10 @@ void main() {
           'metadata name (this is what gets uploaded)', () {
         final source = parseGpxSafely(sourceXml);
 
-        final merged = mergeHeightsIntoGpx(
-          shape,
-          const [500, 510],
-          source: source,
-        );
+        final merged = mergeHeightsIntoGpx(shape, const [
+          500,
+          510,
+        ], source: source);
         final xml = GpxWriter().asString(merged);
 
         expect(xml, contains('Alpine Traverse'));
@@ -1523,11 +1487,7 @@ void main() {
       test('preserves non-track content even when the shape is empty', () {
         final source = parseGpxSafely(sourceXml);
 
-        final merged = mergeHeightsIntoGpx(
-          const [],
-          const [],
-          source: source,
-        );
+        final merged = mergeHeightsIntoGpx(const [], const [], source: source);
 
         expect(merged.trks, isEmpty);
         expect(merged.metadata?.name, 'Alpine Traverse');
@@ -1631,8 +1591,9 @@ void main() {
     });
 
     testWidgets('without fallbackShape the request hint is still the '
-        'fallback (unchanged for callers whose hint IS their geometry)',
-        (tester) async {
+        'fallback (unchanged for callers whose hint IS their geometry)', (
+      tester,
+    ) async {
       final api = _FakeSnapApi(snapShape: const [], shouldFailAll: true);
       final ref = await _pumpSnapRef(tester, api);
       final hint = [
@@ -1673,39 +1634,30 @@ void main() {
       expect(snapResultAcceptable(original, const []), isFalse);
     });
 
-    test(
-      'returns true when the snapped bbox diagonal is ~0.9x the original '
-      '(comparable, not truncated)',
-      () {
-        final snapped = scaledBboxShape(0.9);
+    test('returns true when the snapped bbox diagonal is ~0.9x the original '
+        '(comparable, not truncated)', () {
+      final snapped = scaledBboxShape(0.9);
 
-        expect(snapResultAcceptable(original, snapped), isTrue);
-      },
-    );
+      expect(snapResultAcceptable(original, snapped), isTrue);
+    });
 
-    test(
-      'returns false when the snapped bbox diagonal is ~0.3x the original '
-      '(partial map-match truncation, valhalla#4802)',
-      () {
-        final snapped = scaledBboxShape(0.3);
+    test('returns false when the snapped bbox diagonal is ~0.3x the original '
+        '(partial map-match truncation, valhalla#4802)', () {
+      final snapped = scaledBboxShape(0.3);
 
-        expect(snapResultAcceptable(original, snapped), isFalse);
-      },
-    );
+      expect(snapResultAcceptable(original, snapped), isFalse);
+    });
 
-    test(
-      'returns true for a snapped shape with far fewer points but a '
-      'comparable bbox (Valhalla re-vertexes; point count is not the '
-      'rejection signal)',
-      () {
-        final snapped = [
-          {'lat': 47.000, 'lon': 9.000},
-          {'lat': 47.010, 'lon': 9.010},
-        ];
+    test('returns true for a snapped shape with far fewer points but a '
+        'comparable bbox (Valhalla re-vertexes; point count is not the '
+        'rejection signal)', () {
+      final snapped = [
+        {'lat': 47.000, 'lon': 9.000},
+        {'lat': 47.010, 'lon': 9.010},
+      ];
 
-        expect(snapResultAcceptable(original, snapped), isTrue);
-      },
-    );
+      expect(snapResultAcceptable(original, snapped), isTrue);
+    });
   });
 
   group('fetchHeightsForShape', () {
@@ -1730,67 +1682,65 @@ void main() {
       expect(calls, 0);
     });
 
-    testWidgets(
-      'a shape of exactly 500 points is sent as a single chunk',
-      (tester) async {
-        final calls = <int>[];
-        final ref = await _pumpHeightRef(tester, (shape) {
-          calls.add(shape.length);
-          return List<num>.generate(shape.length, (i) => i.toDouble());
-        });
-        final shape = buildShape(500);
+    testWidgets('a shape of exactly 500 points is sent as a single chunk', (
+      tester,
+    ) async {
+      final calls = <int>[];
+      final ref = await _pumpHeightRef(tester, (shape) {
+        calls.add(shape.length);
+        return List<num>.generate(shape.length, (i) => i.toDouble());
+      });
+      final shape = buildShape(500);
 
-        final result = await tester.runAsync(
-          () => fetchHeightsForShape(ref, shape),
+      final result = await tester.runAsync(
+        () => fetchHeightsForShape(ref, shape),
+      );
+
+      expect(calls, [500]);
+      expect(result, hasLength(500));
+    });
+
+    testWidgets('a shape over 500 points is batched into multiple chunks and '
+        'concatenated 1:1 — the CR-01 fix (no longer downsampled/truncated)', (
+      tester,
+    ) async {
+      final calls = <int>[];
+      final ref = await _pumpHeightRef(tester, (shape) {
+        calls.add(shape.length);
+        return List<num>.generate(
+          shape.length,
+          (i) => calls.length * 1000.0 + i,
         );
+      });
+      final shape = buildShape(650);
 
-        expect(calls, [500]);
-        expect(result, hasLength(500));
-      },
-    );
+      final result = await tester.runAsync(
+        () => fetchHeightsForShape(ref, shape),
+      );
 
-    testWidgets(
-      'a shape over 500 points is batched into multiple chunks and '
-      'concatenated 1:1 — the CR-01 fix (no longer downsampled/truncated)',
-      (tester) async {
-        final calls = <int>[];
-        final ref = await _pumpHeightRef(tester, (shape) {
-          calls.add(shape.length);
-          return List<num>.generate(shape.length, (i) => calls.length * 1000.0 + i);
-        });
-        final shape = buildShape(650);
+      expect(calls, [500, 150]);
+      expect(result, hasLength(650));
+      // First chunk's heights come first, second chunk's follow — no
+      // reordering/dropping across the batch boundary.
+      expect(result![0], 1000.0);
+      expect(result[499], 1499.0);
+      expect(result[500], 2000.0);
+      expect(result[649], 2149.0);
+    });
 
-        final result = await tester.runAsync(
-          () => fetchHeightsForShape(ref, shape),
-        );
+    testWidgets('falls back to an empty list when any chunk request fails '
+        '(silent fallback, no partially-heighted track)', (tester) async {
+      final ref = await _pumpHeightRef(tester, (shape) {
+        throw StateError('simulated network failure');
+      });
+      final shape = buildShape(10);
 
-        expect(calls, [500, 150]);
-        expect(result, hasLength(650));
-        // First chunk's heights come first, second chunk's follow — no
-        // reordering/dropping across the batch boundary.
-        expect(result![0], 1000.0);
-        expect(result[499], 1499.0);
-        expect(result[500], 2000.0);
-        expect(result[649], 2149.0);
-      },
-    );
+      final result = await tester.runAsync(
+        () => fetchHeightsForShape(ref, shape),
+      );
 
-    testWidgets(
-      'falls back to an empty list when any chunk request fails '
-      '(silent fallback, no partially-heighted track)',
-      (tester) async {
-        final ref = await _pumpHeightRef(tester, (shape) {
-          throw StateError('simulated network failure');
-        });
-        final shape = buildShape(10);
-
-        final result = await tester.runAsync(
-          () => fetchHeightsForShape(ref, shape),
-        );
-
-        expect(result, isEmpty);
-      },
-    );
+      expect(result, isEmpty);
+    });
 
     testWidgets(
       'falls back to an empty list when a chunk response length does not '
@@ -1808,5 +1758,129 @@ void main() {
         expect(result, isEmpty);
       },
     );
+  });
+
+  group('mergeHeightsIntoGpx structural integrity', () {
+    Gpx sourceWithSegments(List<int> segmentLengths) {
+      var n = 0.0;
+      return Gpx()
+        ..wpts = [Wpt(lat: 47.0, lon: 11.0, name: 'marker')]
+        ..trks = [
+          Trk(
+            name: 'first',
+            desc: 'leg one',
+            trksegs: [
+              for (final len in segmentLengths)
+                Trkseg(
+                  trkpts: [
+                    for (var i = 0; i < len; i++)
+                      Wpt(lat: 47.0 + (n++) * 0.001, lon: 11.0),
+                  ],
+                ),
+            ],
+          ),
+        ];
+    }
+
+    List<Map<String, double>> shapeOf(Gpx g) => [
+      for (final t in g.trks)
+        for (final s in t.trksegs)
+          for (final p in s.trkpts) {'lat': p.lat!, 'lon': p.lon!},
+    ];
+
+    test(
+      'WR-04: the merged document does not alias the source collections',
+      () {
+        final source = sourceWithSegments([3]);
+        final merged = mergeHeightsIntoGpx(
+          shapeOf(source),
+          const [],
+          source: source,
+        );
+
+        expect(identical(merged.wpts, source.wpts), isFalse);
+        expect(identical(merged.rtes, source.rtes), isFalse);
+
+        merged.wpts.add(Wpt(lat: 48.0, lon: 12.0, name: 'added later'));
+        expect(
+          source.wpts,
+          hasLength(1),
+          reason: 'mutating the merged document must not reach the source',
+        );
+      },
+    );
+
+    test('WR-05: segment boundaries survive a point-for-point transform', () {
+      // 3 planner legs. anchorsFromTrack recovers anchors from these
+      // boundaries, so collapsing them turns a 3-anchor route into a pair.
+      final source = sourceWithSegments([4, 4, 4]);
+      final merged = mergeHeightsIntoGpx(
+        shapeOf(source),
+        const [],
+        source: source,
+      );
+
+      expect(merged.trks.single.trksegs, hasLength(3));
+      expect(merged.trks.single.trksegs.map((s) => s.trkpts.length), [4, 4, 4]);
+    });
+
+    test(
+      'WR-05: a count-changing transform honestly collapses to one segment',
+      () {
+        // A road-snap returns its own map-matched geometry; there is no honest
+        // mapping back onto the original legs, so one segment is correct.
+        final source = sourceWithSegments([4, 4, 4]);
+        final snapped = shapeOf(source).take(7).toList();
+
+        final merged = mergeHeightsIntoGpx(snapped, const [], source: source);
+
+        expect(merged.trks.single.trksegs, hasLength(1));
+        expect(merged.trks.single.trksegs.single.trkpts, hasLength(7));
+      },
+    );
+
+    test('a single-segment source stays single-segment', () {
+      final source = sourceWithSegments([5]);
+      final merged = mergeHeightsIntoGpx(
+        shapeOf(source),
+        const [],
+        source: source,
+      );
+
+      expect(merged.trks.single.trksegs, hasLength(1));
+    });
+
+    test('WR-04: descriptions of every source track are preserved', () {
+      final source = Gpx()
+        ..trks = [
+          Trk(
+            name: 'one',
+            desc: 'first',
+            trksegs: [
+              Trkseg(trkpts: [Wpt(lat: 47.0, lon: 11.0)]),
+            ],
+          ),
+          Trk(
+            name: 'two',
+            desc: 'second',
+            trksegs: [
+              Trkseg(trkpts: [Wpt(lat: 47.1, lon: 11.1)]),
+            ],
+          ),
+        ];
+
+      final merged = mergeHeightsIntoGpx(
+        shapeOf(source),
+        const [],
+        source: source,
+      );
+
+      expect(merged.trks.single.desc, contains('first'));
+      expect(
+        merged.trks.single.desc,
+        contains('second'),
+        reason: 'track 2..n metadata was silently dropped',
+      );
+    });
   });
 }

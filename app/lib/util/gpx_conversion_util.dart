@@ -75,13 +75,24 @@ double? parseGpxElevation(double? raw) {
 /// `const r = 6371.0` haversine, which agreed to ~1e-10 m but was free to
 /// drift) — plus an open-coded `SphericalGreatCircle` loop in
 /// `GpxUtils.distanceFromStartTo`. All three now route here.
-/// Whether [p] carries a position that can actually be measured against.
+/// Whether [p] carries a position that can actually be used.
 ///
-/// `isFinite`, not merely non-null: the vendored reader now rejects
-/// non-finite coordinate attributes, but a `Wpt` can also be built
-/// programmatically, and `NaN`/`Infinity` silently poison every accumulator
-/// they reach.
-bool _hasUsablePosition(Wpt p) =>
+/// THE single rule for "is this a real point?", deliberately shared by every
+/// consumer — the metrics accumulators, the trail's start coordinate, the
+/// waypoint mapping, the centroid and the bounding box. A point without a
+/// usable position is DISCARDED everywhere; it is never defaulted to (0, 0),
+/// which would plant it in the Gulf of Guinea and drag the centroid, the
+/// bounding box and the map pin with it.
+///
+/// `isFinite`, not merely non-null: the vendored reader rejects non-finite
+/// coordinate ATTRIBUTES, but a `Wpt` can also be built programmatically, and
+/// `NaN`/`Infinity` silently poison every accumulator they reach.
+///
+/// Three separate answers to this question previously coexisted — null-only in
+/// one place, `?? 0` in another, unfiltered in a third — which is how a single
+/// malformed point could zero a track's distance, fabricate 2 km of climb, and
+/// still show up as a marker off the coast of Africa.
+bool hasUsablePosition(Wpt p) =>
     p.lat != null && p.lon != null && p.lat!.isFinite && p.lon!.isFinite;
 
 double haversineMeters(Wpt a, Wpt b) {
@@ -202,7 +213,7 @@ class GpxMetricsComputation {
     // No parity risk: the TS `Waypoint` falls lat/lon back to -1, so a
     // position-less point cannot arise on that side, and no corpus fixture
     // contains one.
-    if (!_hasUsablePosition(point)) {
+    if (!hasUsablePosition(point)) {
       return;
     }
 
@@ -396,14 +407,20 @@ GpxTrailMetrics computeTrailMetrics(Gpx gpx) {
         final point = points[i];
         metrics.addAndFilter(point);
 
-        totalLat += point.lat ?? 0;
-        totalLon += point.lon ?? 0;
+        // WR-02: a position-less point contributed 0 to the sums but still
+        // incremented the divisor, dragging the centroid toward (0, 0) in
+        // proportion to how many such points the file had. Discarded here for
+        // the same reason addAndFilter discards it — one rule, one predicate.
+        if (!hasUsablePosition(point)) continue;
+
+        totalLat += point.lat!;
+        totalLon += point.lon!;
         summedPointCount++;
 
-        minLat = min(minLat, point.lat ?? double.infinity);
-        maxLat = max(maxLat, point.lat ?? double.negativeInfinity);
-        minLon = min(minLon, point.lon ?? double.infinity);
-        maxLon = max(maxLon, point.lon ?? double.negativeInfinity);
+        minLat = min(minLat, point.lat!);
+        maxLat = max(maxLat, point.lat!);
+        minLon = min(minLon, point.lon!);
+        maxLon = max(maxLon, point.lon!);
       }
     }
   }
@@ -496,27 +513,37 @@ Trail trailFromGpx(
   // value, matching convertGpxToTrail's convention.
   final now = DateTime.now();
 
+  // WR-03: a <wpt> with no usable position is DROPPED, not planted at (0, 0).
+  // The old `?? 0` produced a marker in the Gulf of Guinea that the user could
+  // neither explain nor remove, and re-serialised as an attribute-less <wpt>
+  // that the next reader would reject.
   final waypoints = <Waypoint>[
     for (final wpt in gpx.wpts)
-      Waypoint(
-        id: '',
-        lat: wpt.lat ?? 0,
-        lon: wpt.lon ?? 0,
-        name: wpt.name ?? '',
-        description: wpt.desc ?? '',
-        // Closed-set lookup (Pitfall 6 / T-34-18): an unknown or hostile
-        // `sym` resolves to the default circle and can never inject
-        // arbitrary content. Never assign wpt.sym directly — Waypoint.icon
-        // is FaIconData, not a String.
-        icon: fontAwesomeIconsMap[wpt.sym] ?? FontAwesomeIcons.circle,
-        created: now,
-        updated: now,
-      ),
+      if (hasUsablePosition(wpt))
+        Waypoint(
+          id: '',
+          lat: wpt.lat!,
+          lon: wpt.lon!,
+          name: wpt.name ?? '',
+          description: wpt.desc ?? '',
+          // Closed-set lookup (Pitfall 6 / T-34-18): an unknown or hostile
+          // `sym` resolves to the default circle and can never inject
+          // arbitrary content. Never assign wpt.sym directly — Waypoint.icon
+          // is FaIconData, not a String.
+          icon: fontAwesomeIconsMap[wpt.sym] ?? FontAwesomeIcons.circle,
+          created: now,
+          updated: now,
+        ),
   ];
 
   final trackPoints = gpx.trks.firstOrNull?.trksegs.firstOrNull?.trkpts;
   final routePoints = gpx.rtes.firstOrNull?.rtepts;
-  final startPoint = trackPoints?.firstOrNull ?? routePoints?.firstOrNull;
+  // WR-01: the FIRST USABLE point, not merely the first. A leading malformed
+  // point otherwise produced a trail with null lat/lon — no map pin, no
+  // reverse geocode — even though every other point in the file was fine.
+  final startPoint =
+      trackPoints?.firstWhereOrNull(hasUsablePosition) ??
+      routePoints?.firstWhereOrNull(hasUsablePosition);
 
   // Both the first AND last point of the segment must carry a time
   // (mirrors gpx.ts:65-71's guard exactly) — a time on an interior point
