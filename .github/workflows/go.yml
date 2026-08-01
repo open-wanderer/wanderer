@@ -22,7 +22,7 @@ jobs:
       TINYGO_VERSION: '0.39.0'
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.25'
       - name: Install TinyGo
