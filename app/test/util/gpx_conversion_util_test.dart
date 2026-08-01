@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
+import 'package:gpx/gpx.dart' as pub;
 import 'package:wanderer/util/gpx_conversion_util.dart';
 
 void main() {
@@ -789,6 +790,43 @@ void main() {
         expect(trail.maxLon, 0);
       },
     );
+  });
+
+  group('vendored reader tolerance - copyright and malformed documents', () {
+    test('a <copyright> with no author attribute parses', () {
+      const xml =
+          '<?xml version="1.0"?>'
+          '<gpx version="1.1" creator="t"><metadata>'
+          '<copyright><year>2024</year></copyright>'
+          '</metadata></gpx>';
+
+      // Non-vacuity: the published reader really does die on this.
+      expect(() => pub.GpxReader().fromString(xml), throwsStateError);
+
+      final gpx = parseGpxSafely(xml);
+      expect(gpx.metadata!.copyright!.year, 2024);
+      expect(gpx.metadata!.copyright!.author, isEmpty);
+    });
+
+    test('a <copyright author> still wins when present', () {
+      const xml =
+          '<?xml version="1.0"?>'
+          '<gpx version="1.1" creator="t"><metadata>'
+          '<copyright author="OSM"><year>2024</year></copyright>'
+          '</metadata></gpx>';
+      expect(parseGpxSafely(xml).metadata!.copyright!.author, 'OSM');
+    });
+
+    test('a document with no <gpx> element throws FormatException', () {
+      // Callers already catch-and-toast, but they could not name the old
+      // `_TypeError` in a catch clause or tell it apart from a bug.
+      expect(
+        () => parseGpxSafely('<?xml version="1.0"?><kml><foo/></kml>'),
+        throwsFormatException,
+      );
+      expect(() => parseGpxSafely(''), throwsFormatException);
+      expect(() => parseGpxSafely('not xml at all'), throwsFormatException);
+    });
   });
 
   group('a coordinate-less first point does not poison the run', () {

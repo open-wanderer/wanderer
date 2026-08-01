@@ -33,6 +33,13 @@
 //  3. `_readBounds` tolerates missing/unparseable bounds attributes.
 //  4. `_readEmail` accepts the non-standard `<email>user@example.com</email>`
 //     text form in addition to the spec's `<email id="user" domain="..."/>`.
+//  5. `_readCopyright` tolerates a `<copyright>` with no `author` attribute
+//     (same `firstWhere`-with-no-orElse crash as 4, over a field the app
+//     never reads).
+//  6. `fromString` throws a documented `FormatException` when the document
+//     contains no `<gpx>` element, instead of an opaque `_TypeError` from
+//     `iterator.current as XmlStartElementEvent` (or a `StateError` from
+//     `current` on empty input). Callers cannot reasonably catch `_TypeError`.
 //
 // Behaviour is otherwise byte-for-byte upstream. Coercion of `<ele>` to a
 // trail metric still happens in `gpx_conversion_util.dart`'s
@@ -54,20 +61,34 @@ class GpxReader {
   //
   //  }
 
-  /// Parse xml string and create Gpx object
+  /// Parse xml string and create Gpx object.
+  ///
+  /// Throws [FormatException] when [xml] contains no `<gpx>` element.
   Gpx fromString(String xml) {
     final iterator = parseEvents(xml).iterator;
 
+    XmlStartElementEvent? found;
     while (iterator.moveNext()) {
       final val = iterator.current;
 
       if (val is XmlStartElementEvent && val.name == GpxTagV11.gpx) {
+        found = val;
         break;
       }
     }
 
-    // ignore: avoid_as
-    final gpxTag = iterator.current as XmlStartElementEvent;
+    // LOCAL MODIFICATION 6 (see file header): a documented FormatException
+    // instead of upstream's raw `iterator.current as XmlStartElementEvent`,
+    // which threw an opaque `_TypeError` (and, on empty input, a
+    // `StateError` from `current` before that). Callers already catch parse
+    // failure and toast; what they could not do was distinguish it from a bug,
+    // and `_TypeError` is not something a caller can reasonably name in a
+    // catch clause.
+    if (found == null) {
+      throw const FormatException('No <gpx> element found in the document');
+    }
+
+    final gpxTag = found;
     final gpx = Gpx();
 
     gpx.version = gpxTag.attributes
@@ -385,6 +406,19 @@ class GpxReader {
     return wpt;
   }
 
+  /// Value of [attributeName] on [elm], or null when absent.
+  ///
+  /// Upstream reads required-by-spec attributes with a bare `firstWhere`,
+  /// which throws `StateError: Bad state: No element` the moment a real file
+  /// omits one. Every local modification that fixes such a site goes through
+  /// here.
+  String? _attributeOrNull(XmlStartElementEvent elm, String attributeName) {
+    for (final attr in elm.attributes) {
+      if (attr.name == attributeName) return attr.value;
+    }
+    return null;
+  }
+
   /// Reads a required-by-spec numeric attribute without throwing when it is
   /// absent or unparseable. Added by LOCAL MODIFICATIONS 2 and 3; shared by
   /// `_readPoint` and `_readBounds`.
@@ -392,12 +426,8 @@ class GpxReader {
     XmlStartElementEvent elm,
     String attributeName,
   ) {
-    for (final attr in elm.attributes) {
-      if (attr.name == attributeName) {
-        return double.tryParse(attr.value);
-      }
-    }
-    return null;
+    final raw = _attributeOrNull(elm, attributeName);
+    return raw == null ? null : double.tryParse(raw);
   }
 
   // LOCAL MODIFICATION 1 (see file header): `tryParse`, not `parse`.
@@ -588,9 +618,11 @@ class GpxReader {
     final elm = iterator.current;
 
     if (elm is XmlStartElementEvent) {
-      copyright.author = elm.attributes
-          .firstWhere((attr) => attr.name == GpxTagV11.author)
-          .value;
+      // LOCAL MODIFICATION 5 (see file header): tolerate a <copyright> with no
+      // author attribute. Same `firstWhere`-with-no-orElse crash as _readEmail
+      // had — StateError: Bad state: No element — over a metadata field the app
+      // never reads.
+      copyright.author = _attributeOrNull(elm, GpxTagV11.author) ?? '';
 
       if (!elm.isSelfClosing) {
         while (iterator.moveNext()) {
