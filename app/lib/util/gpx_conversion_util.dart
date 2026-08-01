@@ -1,7 +1,12 @@
 import 'dart:math';
 
+import 'package:collection/collection.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart';
+import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/waypoint.dart';
+import 'package:wanderer/util/icon_util.dart';
 
 import 'gpx_util.dart' show sanitizeGpxEmail;
 
@@ -388,5 +393,131 @@ GpxTrailMetrics computeTrailMetrics(Gpx gpx) {
     elevationLoss: metrics.finalElevationLoss,
     durationMs: totalDurationMs.abs(),
     pointCount: summedPointCount,
+  );
+}
+
+/// Line-for-line Dart port of `gpx2trail`'s trail assembly
+/// (`web/src/lib/util/gpx_util.ts:37-89`) — the PORT-01 draft-trail step.
+/// Builds a complete, unsaved [Trail] from a parsed [gpx] with no network
+/// call (D-14): name, description, waypoints, start coordinates, date,
+/// distance, elevation gain/loss, duration and bounding box.
+///
+/// [movingDuration] is the D-13 override: when a caller (a recording session)
+/// supplies it, it becomes `Trail.movingDuration`. `Trail.duration` NEVER
+/// comes from it — `duration` always comes from the GPX's own first/last
+/// trkpt timestamps, so every persisted stat except moving time stays
+/// reproducible by a later recompute over the same GPX (D-11). Omitting the
+/// parameter leaves `movingDuration` null.
+///
+/// [gpxData] is the raw GPX string [gpx] was parsed from. When supplied it
+/// is carried on `expand.gpxData`, which `form_data_util.dart` uploads as
+/// the trail's track file on save — a caller that omits it produces a trail
+/// that saves with no GPX.
+///
+/// `id`/`created`/`updated` are placeholders (`''`/`DateTime.now()`),
+/// mirroring `trail_import_util.dart`'s `convertGpxToTrail` convention for a
+/// not-yet-persisted trail — that function's own placeholder-injection is
+/// unchanged by this plan; only its data source moves here in a later plan.
+Trail trailFromGpx(
+  Gpx gpx, {
+  String? fallbackName,
+  Duration? movingDuration,
+  String? gpxData,
+}) {
+  // TS uses `||`, under which an empty string falls through to the next
+  // candidate — replicate with an explicit isNotEmpty check per candidate,
+  // not `??` (a `??` would stop at a present-but-empty string).
+  final metadataName = gpx.metadata?.name;
+  final trkName = gpx.trks.firstOrNull?.name;
+  final rteName = gpx.rtes.firstOrNull?.name;
+  final String name;
+  if (metadataName != null && metadataName.isNotEmpty) {
+    name = metadataName;
+  } else if (trkName != null && trkName.isNotEmpty) {
+    name = trkName;
+  } else if (rteName != null && rteName.isNotEmpty) {
+    name = rteName;
+  } else if (fallbackName != null && fallbackName.isNotEmpty) {
+    name = fallbackName;
+  } else {
+    name = 'trail-${DateTime.now().toIso8601String()}';
+  }
+
+  // The TS model leaves `description` `undefined` when `metadata.desc` is
+  // absent; the Dart model's field is non-nullable with a `''` default —
+  // treated as equivalent here and by the corpus's comparison helper.
+  final description = gpx.metadata?.desc ?? '';
+
+  // Hoisted once so every waypoint shares one placeholder created/updated
+  // value, matching convertGpxToTrail's convention.
+  final now = DateTime.now();
+
+  final waypoints = <Waypoint>[
+    for (final wpt in gpx.wpts)
+      Waypoint(
+        id: '',
+        lat: wpt.lat ?? 0,
+        lon: wpt.lon ?? 0,
+        name: wpt.name ?? '',
+        description: wpt.desc ?? '',
+        // Closed-set lookup (Pitfall 6 / T-34-18): an unknown or hostile
+        // `sym` resolves to the default circle and can never inject
+        // arbitrary content. Never assign wpt.sym directly — Waypoint.icon
+        // is FaIconData, not a String.
+        icon: fontAwesomeIconsMap[wpt.sym] ?? FontAwesomeIcons.circle,
+        created: now,
+        updated: now,
+      ),
+  ];
+
+  final trackPoints = gpx.trks.firstOrNull?.trksegs.firstOrNull?.trkpts;
+  final routePoints = gpx.rtes.firstOrNull?.rtepts;
+  final startPoint = trackPoints?.firstOrNull ?? routePoints?.firstOrNull;
+
+  // Both the first AND last point of the segment must carry a time
+  // (mirrors gpx.ts:65-71's guard exactly) — a time on an interior point
+  // alone does not set the date.
+  final startTime = trackPoints?.firstOrNull?.time;
+  final endTime = trackPoints?.lastOrNull?.time;
+  DateTime? date;
+  if (startTime != null && endTime != null) {
+    // TS takes `startTime.toISOString().substring(0, 10)` — a UTC calendar
+    // date. Constructing from local time would drift by a day near
+    // midnight, so convert to UTC first.
+    final u = startTime.toUtc();
+    date = DateTime.utc(u.year, u.month, u.day);
+  }
+
+  final metrics = computeTrailMetrics(gpx);
+
+  // Bounding box from the track. Normally computed server-side on save, but
+  // an unsaved trail has none — set it here (mirroring gpx_util.ts:78-87)
+  // so consumers can frame the whole track; otherwise leave the model's `0`
+  // defaults.
+  final hasFiniteBounds = metrics.minLat.isFinite && metrics.maxLat.isFinite;
+
+  return Trail(
+    id: '',
+    name: name,
+    description: description,
+    lat: startPoint?.lat,
+    lon: startPoint?.lon,
+    date: date,
+    distance: metrics.distance,
+    elevationGain: metrics.elevationGain,
+    elevationLoss: metrics.elevationLoss,
+    duration: metrics.durationMs / 1000,
+    movingDuration: movingDuration?.inSeconds.toDouble(),
+    minLat: hasFiniteBounds ? metrics.minLat : 0,
+    maxLat: hasFiniteBounds ? metrics.maxLat : 0,
+    minLon: hasFiniteBounds ? metrics.minLon : 0,
+    maxLon: hasFiniteBounds ? metrics.maxLon : 0,
+    created: now,
+    updated: now,
+    expand: TrailExpand(
+      waypointsViaTrail: waypoints,
+      gpx: gpx,
+      gpxData: gpxData,
+    ),
   );
 }

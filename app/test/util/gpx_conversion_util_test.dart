@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
 import 'package:wanderer/util/gpx_conversion_util.dart';
 
@@ -407,6 +408,150 @@ void main() {
         expect(metrics.centroidLat.isNaN, isTrue);
         expect(metrics.minLat, double.infinity);
         expect(metrics.maxLat, double.negativeInfinity);
+      },
+    );
+  });
+
+  group('trailFromGpx', () {
+    test('name: metadata name wins over the trk name and fallbackName', () {
+      final xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>Metadata Name</name></metadata>
+  <trk><name>Trk Name</name><trkseg><trkpt lat="47.0" lon="11.0"></trkpt></trkseg></trk>
+</gpx>''';
+      final trail = trailFromGpx(
+        parseGpxSafely(xml),
+        fallbackName: 'Fallback',
+      );
+      expect(trail.name, 'Metadata Name');
+    });
+
+    test('name: an empty metadata name falls through to the trk name', () {
+      final xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name></name></metadata>
+  <trk><name>Trk Name</name><trkseg><trkpt lat="47.0" lon="11.0"></trkpt></trkseg></trk>
+</gpx>''';
+      final trail = trailFromGpx(
+        parseGpxSafely(xml),
+        fallbackName: 'Fallback',
+      );
+      expect(trail.name, 'Trk Name');
+    });
+
+    test(
+      'name: empty metadata and trk names fall through to fallbackName',
+      () {
+        final xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name></name></metadata>
+  <trk><name></name><trkseg><trkpt lat="47.0" lon="11.0"></trkpt></trkseg></trk>
+</gpx>''';
+        final trail = trailFromGpx(
+          parseGpxSafely(xml),
+          fallbackName: 'Fallback',
+        );
+        expect(trail.name, 'Fallback');
+      },
+    );
+
+    test(
+      'description defaults to an empty string when metadata has no desc',
+      () {
+        final xml = _gpxXml([_trkptXml(47.0, 11.0)]);
+        final trail = trailFromGpx(parseGpxSafely(xml));
+        expect(trail.description, '');
+      },
+    );
+
+    test('lat/lon come from the first track point', () {
+      final xml = _gpxXml([_trkptXml(47.5, 11.5), _trkptXml(47.6, 11.6)]);
+      final trail = trailFromGpx(parseGpxSafely(xml));
+      expect(trail.lat, 47.5);
+      expect(trail.lon, 11.5);
+    });
+
+    test(
+      'date is set only when both the first and last point carry a time, as the UTC calendar date of the first',
+      () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><time>2024-06-15T23:30:00Z</time></trkpt>',
+          '<trkpt lat="47.001" lon="11.0"><time>2024-06-16T00:30:00Z</time></trkpt>',
+        ]);
+        final trail = trailFromGpx(parseGpxSafely(xml));
+        expect(trail.date, DateTime.utc(2024, 6, 15));
+      },
+    );
+
+    test('date stays null when only the first point carries a time', () {
+      final xml = _gpxXml([
+        '<trkpt lat="47.0" lon="11.0"><time>2024-06-15T23:30:00Z</time></trkpt>',
+        '<trkpt lat="47.001" lon="11.0"></trkpt>',
+      ]);
+      final trail = trailFromGpx(parseGpxSafely(xml));
+      expect(trail.date, isNull);
+    });
+
+    test('duration equals durationMs / 1000', () {
+      final xml = _gpxXml([
+        '<trkpt lat="47.0" lon="11.0"><time>2024-01-01T00:00:00Z</time></trkpt>',
+        '<trkpt lat="47.001" lon="11.0"><time>2024-01-01T00:30:00Z</time></trkpt>',
+      ]);
+      final trail = trailFromGpx(parseGpxSafely(xml));
+      expect(trail.duration, 1800.0);
+    });
+
+    test(
+      'D-13: the movingDuration override populates movingDuration, never duration',
+      () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><time>2024-01-01T00:00:00Z</time></trkpt>',
+          '<trkpt lat="47.001" lon="11.0"><time>2024-01-01T00:30:00Z</time></trkpt>',
+        ]);
+        final trail = trailFromGpx(
+          parseGpxSafely(xml),
+          movingDuration: const Duration(minutes: 42),
+        );
+        expect(trail.movingDuration, 2520.0);
+        expect(trail.duration, 1800.0);
+      },
+    );
+
+    test('movingDuration is null when the override is omitted', () {
+      final xml = _gpxXml([_trkptXml(47.0, 11.0)]);
+      final trail = trailFromGpx(parseGpxSafely(xml));
+      expect(trail.movingDuration, isNull);
+    });
+
+    test(
+      'waypoint mapping: a known sym resolves through fontAwesomeIconsMap, an unknown sym falls back to the default circle',
+      () {
+        final xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-test" xmlns="http://www.topografix.com/GPX/1/1">
+  <wpt lat="47.1" lon="11.1"><name>Camp</name><desc>A camp</desc><sym>campground</sym></wpt>
+  <wpt lat="47.2" lon="11.2"><name>Mystery</name><sym>not-a-real-icon</sym></wpt>
+  <trk><trkseg><trkpt lat="47.0" lon="11.0"></trkpt></trkseg></trk>
+</gpx>''';
+        final trail = trailFromGpx(parseGpxSafely(xml));
+        final waypoints = trail.expand!.waypointsViaTrail!;
+        expect(waypoints.length, 2);
+        expect(waypoints[0].icon, FontAwesomeIcons.campground);
+        expect(waypoints[1].icon, FontAwesomeIcons.circle);
+      },
+    );
+
+    test(
+      "bounding-box guard leaves the model's 0 defaults for a trackless GPX",
+      () {
+        final xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>No Track</name></metadata>
+</gpx>''';
+        final trail = trailFromGpx(parseGpxSafely(xml));
+        expect(trail.minLat, 0);
+        expect(trail.maxLat, 0);
+        expect(trail.minLon, 0);
+        expect(trail.maxLon, 0);
       },
     );
   });
